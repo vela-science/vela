@@ -77,9 +77,11 @@ no accepted Standing.
 
 ### Verifier substitution
 
-A Verification Record binds the exact Frontier, Claim, Submission, Proposal,
-Artifacts, method, environment, scoped property, outcome, nonclaims, and
-verifier identity.
+A Verification Record binds the exact Claim, Submission id and root, Proposal,
+Artifacts, method, environment root, scoped property, outcome, nonclaims, and
+verifier identity. It names no Frontier; import resolves every reference
+against exact repository membership, so a record is usable only in the one
+repository that holds all of its subjects.
 
 A passing record cannot be reused for a changed Claim, broader property,
 different Artifact, different Proposal, or substituted implementation.

@@ -213,13 +213,19 @@ generic Vela release gate, and no early external project is a compatibility
 authority. Formal Lean checks inside Vela remain separately changed-path
 selected.
 
-## Offline Merkle primitive
+## No transparency-log primitive
 
-`crates/vela-protocol/src/objects/merkle.rs` provides an optional RFC 6962-style Merkle
-construction for local event-log proofs. It is an offline protocol primitive,
-not a service dependency. A derived reader does not issue signed tree heads,
-hold a transparency signing key, expose proof authority, or turn agreement
-between readers into scientific authority.
+This release ships no Merkle construction. An earlier draft of this document
+described `crates/vela-protocol/src/objects/merkle.rs`, an optional RFC
+6962-style tree for local event-log proofs; the file was removed with the
+predecessor protocol runtime and nothing replaced it. Authority-chain
+continuity is checked by the contiguous full-root record chain, not by an
+inclusion proof.
+
+The standing constraint on any such primitive, should one return: it would be
+an offline protocol primitive, not a service dependency. A derived reader does
+not issue signed tree heads, hold a transparency signing key, expose proof
+authority, or turn agreement between readers into scientific authority.
 
 The decisive checks remain the exact Git bytes, event signatures and policy
 certificates, deterministic replay, and frozen verifier results.

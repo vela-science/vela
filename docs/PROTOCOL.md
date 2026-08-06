@@ -102,6 +102,7 @@ records/claims/sha256/
 records/submissions/sha256/
 records/verifications/sha256/
 records/proposals/sha256/
+records/proposal-withdrawals/sha256/
 records/artifacts/sha256/
 targets.json
 ```
@@ -150,6 +151,7 @@ predecessor tag or archive and its pinned historical Vela release.
 `vela.claim-record.v1` contains:
 
 ```text
+schema
 claim_id
 revision
 assertion
@@ -161,6 +163,19 @@ created_at
 extensions
 ```
 
+`schema` is required and must equal `vela.claim-record.v1`. The object rejects
+unknown fields, so a producer that omits `schema`, or adds anything not on this
+list, fails to parse.
+
+The nested shapes a hand-builder cannot guess:
+
+```text
+assertion    text, kind
+evidence[]   relation, artifact_root, optional artifact_id and artifact_path
+provenance[] kind, title, optional locator, optional authors, optional year
+relations[]  kind, target_claim_id
+```
+
 The content-derived Claim identity commits to the revision, assertion,
 conditions, evidence references, and provenance. Relations use full Claim
 identities. The full canonical record root additionally commits to relation
@@ -170,17 +185,49 @@ fail.
 
 ### 3.3 Submission
 
-`vela.submission.v1` is the portable producer boundary. It binds:
+`vela.submission.v1` is the portable producer boundary. Its complete closed
+field set is:
+
+```text
+schema
+submission_id
+claim                      assertion, type, conditions
+artifacts[]                kind, path, digest
+caveats[]
+replayability
+producer_checks[]          method, outcome, authority
+verification_requirements[]
+requested_change           kind, optional target { claim_id, claim_root }
+provenance                 producer, source_system, optional source_attempt,
+                           optional source_run, emitted_at
+execution_binding          optional `vela.execution-binding.v1`
+authentication             algorithm, identity_binding, signature
+```
+
+So it binds:
 
 - producer identity and signature;
-- Frontier and Target;
-- exact Claim request;
-- requested change;
-- conditions and caveats;
+- the exact Claim request and its conditions and caveats;
+- the requested change and, for anything but `add_claim`, the exact target
+  Claim identity and full root it changes;
 - content-addressed Artifacts;
-- replayability and method facts;
-- declared verification requirements; and
-- source workbench metadata.
+- replayability, producer-reported checks, and method facts;
+- declared verification requirements;
+- source workbench metadata; and
+- an optional rooted `execution_binding` naming the packet, profile, verifier
+  capsule, and result contract the work ran against.
+
+A Submission binds no Frontier and no Target. It has carried neither since the
+object was introduced, and both are absent from the live Submission bytes in
+all four controlled repositories. This is what portability costs: the same
+bytes are replayable into any repository by anyone holding them, and the
+Frontier association is made by the receiving repository at `vela submit`
+time, not asserted by the producer. An adapter must not add `frontier` or
+`target` keys; the schema is closed and rejects them. The nearest thing to a
+Target reference the object carries is `execution_binding.packet_root`, which
+the producer sets to the Target packet root that `vela start` printed. It is a
+producer declaration checked only for root shape, not a repository-verified
+link back to the Target Index.
 
 A workbench can produce Submission bytes without importing Vela internals.
 Submission identity is over the exact closed canonical bytes.
@@ -189,14 +236,20 @@ Submission identity is over the exact closed canonical bytes.
 
 `vela.verification-record.v1` binds:
 
-- exact Frontier, Claim, Submission, and Proposal;
-- only retained content-addressed Artifacts;
+- an exact subject: Claim, Submission id and full Submission root, Proposal,
+  and the Artifact ids under scope;
+- only retained content-addressed Artifacts, including `output_artifact_ids`;
 - verifier identity and independence disclosure;
-- method and implementation;
-- environment and execution-evidence roots;
-- scoped property and explicit nonclaims;
-- outcome; and
+- method profile, implementation, and one `environment_root`;
+- scoped property and explicit nonclaims (`scope.does_not_establish`);
+- outcome;
+- `started_at` and `completed_at`; and
 - verifier signature.
+
+Like a Submission, a Verification Record binds no Frontier. Its subject names
+objects, and the Frontier is whichever repository holds those objects. Import
+resolves every reference against exact repository membership, which is what
+confines the record to one Frontier in practice.
 
 Artifact references use the repository object's full lowercase 64-hex content
 hash. Import resolves every non-empty reference against exact repository
@@ -214,17 +267,45 @@ and appends no scientific Event.
 
 ### 3.5 Proposal
 
-`vela.proposal.v1` binds the requested transition, exact Claim, signed
-Submission package, required verification, and current status.
-
-Statuses are:
+`vela.proposal.v1`'s complete closed field set is:
 
 ```text
-pending_review accepted rejected
+schema
+proposal_id
+action                 claim.add | claim.revise | claim.withdraw
+subject                kind (always `claim`), id, root
+actor
+created_at
+reason
+producer_package       kind (always `submission_v1`), id, root, path
+caveats[]
 ```
 
-A terminal Proposal retains the exact Decision and authority references. It is
-never deleted or reopened.
+So it binds the requested transition (`action`), the exact Claim it acts on
+(`subject`), and the signed Submission package that requested it
+(`producer_package`).
+
+It binds no status and no verification requirement. Invariants 3 and 5 are why:
+a producer's signature grants no review authority, and only an authorized human
+Decision admits a transition, so status is not state the producer can write and
+therefore is not a field. Status is read back by evaluating the Proposal
+against the covering authority Events; the object carries only the request. A
+producer that writes a `status` key gets a parse rejection, because the schema
+is closed. The declared verification requirements live on the Submission
+(`verification_requirements`), not here.
+
+Derived statuses are:
+
+```text
+pending_review accepted rejected withdrawn
+```
+
+`withdrawn` is the status of a Proposal closed by a
+`vela.proposal-withdrawal.v1` rather than by a Decision. `vela review list
+--status` accepts all four.
+
+A terminal Proposal retains the exact Decision and authority references
+through those Events. It is never deleted or reopened.
 
 ### 3.6 Artifact
 

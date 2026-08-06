@@ -253,6 +253,27 @@ pub fn resolve_frontier(explicit: Option<std::path::PathBuf>) -> std::path::Path
     }
 }
 
+/// Canonicalize a Frontier path the user typed, keeping the kind the failure
+/// actually has. A path that is not there is a not-found, which the exit-code
+/// contract distinguishes from a domain failure; without this the same missing
+/// directory exits 3 through [`require_initialized_frontier`] and 1 through the
+/// verbs that canonicalize first. Every other io failure stays Domain because
+/// this call cannot tell a permission refusal from a broken repository.
+pub fn canonicalize_frontier(frontier: &std::path::Path) -> std::path::PathBuf {
+    frontier.canonicalize().unwrap_or_else(|error| {
+        let kind = if error.kind() == std::io::ErrorKind::NotFound {
+            ErrorKind::NotFound
+        } else {
+            ErrorKind::Domain
+        };
+        fail_with(
+            kind,
+            &format!("resolve current Frontier {}: {error}", frontier.display()),
+            None,
+        )
+    })
+}
+
 /// Refuse commands that require an initialized current repository with one
 /// phase-aware, actionable error. `status` and resumable `init` deliberately do
 /// not call this helper because they are the two valid bootstrap operations.

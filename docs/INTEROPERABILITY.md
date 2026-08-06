@@ -11,12 +11,19 @@ domain tools, Git, package formats, workflow engines, or scientific ontologies.
 `vela.submission.v1` is the producer boundary. It carries exact:
 
 - producer identity and authentication;
-- Frontier, Target, and requested change;
-- Claim, conditions, caveats, and nonclaims;
+- the requested change, and for anything but `add_claim` the exact target
+  Claim id and full Claim root;
+- Claim assertion, type, conditions, and caveats;
 - Artifact identities;
-- replayability and method facts;
-- verification requirements; and
-- source workbench/version metadata.
+- replayability, producer-reported checks, and method facts;
+- verification requirements;
+- source workbench/version metadata; and
+- an optional rooted execution binding.
+
+It carries no Frontier and no Target field. The receiving repository makes the
+Frontier association at submit time; a Submission is portable bytes, and the
+schema is closed, so an adapter that writes `frontier` or `target` keys is
+rejected outright. PROTOCOL.md section 3.3 lists the complete field set.
 
 A workbench can emit a Submission without importing Vela's Event, authority,
 or repository implementation.

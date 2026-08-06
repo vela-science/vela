@@ -48,11 +48,25 @@ fn run(cwd: &Path, socket: Option<&Path>, args: &[&str]) -> String {
     String::from_utf8(output.stdout).expect("vela output must be UTF-8")
 }
 
-fn initialized_frontier(temporary: &Path, agent: &EphemeralAgent) -> String {
+/* `vela init` installs a local trust anchor under the OS ACCOUNT home, resolved
+through geteuid/getpwuid_r, which deliberately ignores `$HOME` — there is a
+test upstream asserting a hostile HOME cannot redirect it. So setting HOME to
+a temp directory does not keep a test out of the developer's real trust
+store, and this suite spent an evening quietly filling it. The anchor path
+comes back in init's own JSON; delete exactly that file and nothing else. */
+struct RemoveOnDrop(std::path::PathBuf);
+
+impl Drop for RemoveOnDrop {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
+    }
+}
+
+fn initialized_frontier(temporary: &Path, agent: &EphemeralAgent) -> (String, RemoveOnDrop) {
     std::fs::create_dir_all(temporary.join("home")).expect("isolated home");
     let frontier = temporary.join("frontier");
     let text = frontier.to_string_lossy().into_owned();
-    run(
+    let initialized = run(
         temporary,
         Some(agent.socket()),
         &[
@@ -71,7 +85,15 @@ fn initialized_frontier(temporary: &Path, agent: &EphemeralAgent) -> String {
             "--json",
         ],
     );
-    text
+    let anchor = serde_json::from_str::<serde_json::Value>(initialized.trim())
+        .ok()
+        .and_then(|value| {
+            value["authority"]["local_trust"]["anchor_path"]
+                .as_str()
+                .map(std::path::PathBuf::from)
+        })
+        .expect("init must report the trust anchor it installed");
+    (text, RemoveOnDrop(anchor))
 }
 
 /* One test, not two: each needs an initialized Frontier, and two ephemeral
@@ -80,7 +102,7 @@ signing agents starting concurrently in the same process race each other. */
 fn json_changes_what_a_read_verb_prints() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let agent = EphemeralAgent::start(temporary.path(), "vela human output test");
-    let frontier = initialized_frontier(temporary.path(), &agent);
+    let (frontier, _anchor) = initialized_frontier(temporary.path(), &agent);
 
     for verb in [
         vec!["log", frontier.as_str(), "--limit", "5"],

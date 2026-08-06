@@ -12,7 +12,7 @@
 
 pub const NEXT: &str = "\
 EXAMPLES
-  vela next .        ranked open targets, payload pre-loaded
+  vela next          ranked open targets, payload pre-loaded
   vela next . --json the agent contract
 
 SEE ALSO
@@ -57,19 +57,23 @@ SEE ALSO
 
 pub const STATUS: &str = "\
 EXAMPLES
-  vela status .        what awaits, what is live
+  vela status          what awaits, what is live (Frontier discovered upward)
   vela status . --json the machine view";
 
 pub const REVIEW: &str = "\
 EXAMPLES
-  vela review inbox . --json          exact consequence-only Decision Inbox
-  vela review list . --json           compact pending queue
-  vela review show . vpr_8b49… --json one pending Review Packet or terminal Decision
-  vela review reject . vpr_8b49… --reason \"insufficient evidence\" --json
+  vela review inbox --json            exact consequence-only Decision Inbox
+  vela review list --json             compact pending queue
+  vela review show vpr_8b49… --json   one pending Review Packet or terminal Decision
+  vela review reject vpr_8b49… --reason \"insufficient evidence\" --json
                                         execute one exact attributed rejection
-  vela review withdraw . vpr_8b49… --as agent:producer \
+  vela review withdraw vpr_8b49… --as agent:producer \
     --reason \"superseded by corrected work\" --json
                                         close your own pending Proposal without authority
+
+The Frontier is optional on every one of these and discovered upward from the
+current directory; name it first (`vela review show . vpr_8b49…`) to act on
+another.
 
 KNOWN PROPOSAL
   When a full vpr_ ID is supplied, start with `vela review show`. It returns
@@ -80,11 +84,13 @@ KNOWN PROPOSAL
 
 pub const LOG: &str = "\
 EXAMPLES
-  vela log .   the accepted-event history, newest first";
+  vela log               the accepted-event history, newest first
+  vela log vpr_8b49…     restrict it to one object's covered history
+  vela log . vpr_8b49…   the same, with the Frontier named";
 
 pub const REPLAY: &str = "\
 EXAMPLES
-  vela replay .           replay-verify the frontier
+  vela replay             replay-verify the discovered frontier
   vela replay . --json    verify every repository invariant";
 
 pub const REPRODUCE: &str = "\
@@ -98,7 +104,7 @@ user operation; strict replay is the deterministic validation it performs.";
 
 pub const VERIFY: &str = "\
 EXAMPLES
-  vela verification record . vpr_8b49… \\
+  vela verification record vpr_8b49… \\
     --profile exact-replay-v1 \\
     --method verification/method.json \\
     --outcome pass \\
@@ -107,7 +113,7 @@ EXAMPLES
     --as verifier:independent-check --json
         author, sign, and retain a scoped Verification Record
 
-  vela verification import . signed-verification.json \\
+  vela verification import signed-verification.json \\
     --as verifier:independent-check --json
         import an already signed interoperable record
 
@@ -118,9 +124,12 @@ The record binds the exact Submission, Proposal, Claim, artifacts, method,
 manifest bytes, environment, scope, outcome, and verifier identity. It never
 accepts the Proposal or changes Standing.
 
+The Frontier is optional and discovered upward; name it first
+(`vela verification record . vpr_8b49… …`) to act on another.
+
 SEE ALSO
   vela reproduce . --proposal vpr_8b49…   replay only pending evidence
-  vela review show . vpr_8b49…             exact next actions";
+  vela review show vpr_8b49…              exact next actions";
 
 pub const INIT: &str = "\
 EXAMPLES
@@ -142,16 +151,17 @@ the private key.";
 
 pub const SHOW: &str = "\
 EXAMPLES
-  vela show . vcl_0123456789abcdef --json
-  vela show . vsb_0123456789abcdef --json
-  vela show . vpr_0123456789abcdef --json
+  vela show vcl_0123456789abcdef --json    the Frontier is discovered upward
+  vela show vsb_0123456789abcdef --json
+  vela show . vpr_0123456789abcdef --json  name it first to read another
 
 Show verifies and renders one exact object. It reports the object's content
 root, source context, and authority effect without changing the frontier.";
 
 pub const WHY: &str = "\
 EXAMPLES
-  vela why . vcl_0123456789abcdef --json
+  vela why vcl_0123456789abcdef --json    the Frontier is discovered upward
+  vela why . vcl_0123456789abcdef --json  name it first to read another
 
 Why derives current or retained superseded Claim standing from covered
 Proposal, Verification, Decision, and authority history and binds the

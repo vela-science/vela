@@ -43,7 +43,14 @@ fn briefing(frontier: &Path, target_id: &str) -> Result<Value, String> {
         .iter()
         .find(|target| target.id == target_id)
         .cloned()
-        .ok_or_else(|| format!("current Target Index has no target {target_id:?}"))?;
+        /* The only miss in this function: every other failure above is a stale
+        or unverifiable index, which is a domain failure, not a bad argument. */
+        .unwrap_or_else(|| {
+            crate::cli::fail_kind_return(
+                crate::ui::ErrorKind::NotFound,
+                &format!("current Target Index has no target {target_id:?}"),
+            )
+        });
     let packet = assessment
         .packet_value(target_id)
         .cloned()

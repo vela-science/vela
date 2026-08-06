@@ -12,12 +12,22 @@ apply, inspect, or repair lifecycle for this derived file.
 
 The index binds:
 
-- the exact Frontier and current repository root;
+- the exact Frontier and current repository root (`frontier_id`, and
+  `repository` as `origin_id` plus `repository_root`);
 - one exact Git source commit and tree;
 - the sorted tracked input paths and their byte roots;
-- each open Target's stable ID, rank, objective, labels, and packet;
+- a `claim_boundary`, which must read exactly
+  `derived: true, authoritative: false, deletable: true`, the index restating
+  in its own bytes that it carries no Standing and may be thrown away and
+  regenerated;
+- each open Target's stable ID, title, why, presence, rank, objective,
+  labels, and packet;
 - each packet's schema, path, size, and SHA-256 root; and
 - an index root over the complete canonical document.
+
+Every field above is required except `labels`, which defaults to empty. The
+index and its entries reject unknown fields, so an adapter that omits `title`
+or `why`, or invents a field, fails validation on its first run.
 
 Every entry has `presence: "open"`. A generator removes unavailable work
 instead of preserving paused, blocked, done, or retired pseudo-history in the

@@ -1,4 +1,6 @@
-//! Record and identity object types: anchors, attestations, identity, and Merkle data.
+//! Closed canonical object types: Claim Records, Submissions, Verification
+//! Records, Proposals and their withdrawals, repository identity, and actor
+//! identity.
 //! Re-exported flat at the crate root; this grouping is file organization only.
 
 pub(crate) mod artifact_reference;

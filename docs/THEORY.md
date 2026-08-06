@@ -117,9 +117,10 @@ Routine evidence intake reads no repository-authority key. It may append exact
 content-addressed evidence and rebuild deterministic projections; it may not
 write a Decision, Event, policy, authority state, or accepted Standing.
 
-A Verification Record binds the exact Frontier, Claim, Submission, Proposal,
-Artifacts, verifier, method, environment, scoped property, outcome, and
-explicit nonclaims:
+A Verification Record binds the exact Claim, Submission id and root, Proposal,
+Artifacts, verifier, method, environment root, scoped property, outcome, and
+explicit nonclaims. The Frontier is not a field; it is the repository that
+holds those subjects:
 
 ```text
 Verify(v, s) -> observation

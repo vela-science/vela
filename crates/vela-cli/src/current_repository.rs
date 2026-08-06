@@ -33,12 +33,7 @@ pub(crate) struct CurrentProposalDecision {
 
 pub(crate) fn cmd_replay_repository(frontier: &Path, json_out: bool) {
     crate::ui::set_mode("replay", json_out);
-    let frontier = frontier.canonicalize().unwrap_or_else(|error| {
-        crate::cli::fail_return(&format!(
-            "resolve current Frontier {}: {error}",
-            frontier.display()
-        ))
-    });
+    let frontier = crate::ui::canonicalize_frontier(frontier);
     let sensitive = sensitive_paths(&frontier);
     if !sensitive.is_empty() {
         let listed = sensitive
@@ -95,7 +90,9 @@ pub(crate) fn cmd_replay_repository(frontier: &Path, json_out: bool) {
     if json_out {
         crate::cli::print_json(&payload);
     } else {
-        println!("current repository replay verified");
+        /* TERMINOLOGY.md forbids an unqualified "verified", so this line names
+        what the replay actually matched instead of asserting a standing. */
+        println!("current repository replay matched: signatures, roots, and canonical bytes");
         println!("  frontier: {}", payload["frontier_id"]);
         println!("  origin: {}", payload["origin_id"]);
         println!("  claims: {}", payload["counts"]["accepted_claims"]);
@@ -175,12 +172,7 @@ fn decision_inbox_status_summary(
 
 pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
     crate::ui::set_mode("status", json_out);
-    let frontier = frontier.canonicalize().unwrap_or_else(|error| {
-        crate::cli::fail_return(&format!(
-            "resolve current Frontier {}: {error}",
-            frontier.display()
-        ))
-    });
+    let frontier = crate::ui::canonicalize_frontier(frontier);
     let profile_source =
         fs::read_to_string(frontier.join("frontier.toml")).unwrap_or_else(|error| {
             crate::cli::fail_return(&format!("read current Frontier Profile: {error}"))
@@ -332,6 +324,11 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
             "tree": tree
         },
         "integrity": {
+            /* The prose below no longer says "verified", which TERMINOLOGY.md
+            forbids unqualified. This value keeps the word because it is a wire
+            token of vela.status.v3: vela-web pins it as z.literal("verified")
+            and its projection builder asserts on it, so retiring it is a
+            coordinated schema change, not a wording change. */
             "replay": "verified",
             "strict": "pass",
             "blocker_count": 0,
@@ -377,7 +374,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
             "  commit    {}",
             payload["git"]["commit"].as_str().unwrap_or("unavailable")
         );
-        println!("  replay    verified");
+        println!("  replay    matched · signatures, roots, canonical bytes");
         println!("  strict    pass");
         println!("  claims    {}", payload["counts"]["claims"]);
         println!(
@@ -452,12 +449,7 @@ pub(crate) fn verify_current_bootstrap_at(root: &Path) -> Result<CurrentFrontier
 
 pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
     crate::ui::set_mode("next", json_out);
-    let frontier = frontier.canonicalize().unwrap_or_else(|error| {
-        crate::cli::fail_return(&format!(
-            "resolve current Frontier {}: {error}",
-            frontier.display()
-        ))
-    });
+    let frontier = crate::ui::canonicalize_frontier(frontier);
     let repository = load_current_repository_at(&frontier, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let repository_root = repository
@@ -936,16 +928,12 @@ pub(crate) fn cmd_current_review_list(
     crate::ui::require_initialized_frontier(frontier);
     let status = status.unwrap_or("pending_review");
     if !["pending_review", "accepted", "rejected", "withdrawn", "all"].contains(&status) {
-        crate::cli::fail_return::<()>(
+        crate::cli::fail_kind(
+            crate::ui::ErrorKind::Usage,
             "current review status must be pending_review, accepted, rejected, withdrawn, or all",
         );
     }
-    let frontier = frontier.canonicalize().unwrap_or_else(|error| {
-        crate::cli::fail_return(&format!(
-            "resolve current Frontier {}: {error}",
-            frontier.display()
-        ))
-    });
+    let frontier = crate::ui::canonicalize_frontier(frontier);
     let repository = load_current_repository_at(&frontier, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let decisions = load_current_proposal_decisions(&frontier, &repository)
@@ -1065,12 +1053,7 @@ pub(crate) fn cmd_current_review_list(
 pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_out: bool) {
     crate::ui::set_mode("review show", json_out);
     crate::ui::require_initialized_frontier(frontier);
-    let frontier = frontier.canonicalize().unwrap_or_else(|error| {
-        crate::cli::fail_return(&format!(
-            "resolve current Frontier {}: {error}",
-            frontier.display()
-        ))
-    });
+    let frontier = crate::ui::canonicalize_frontier(frontier);
     let repository = load_current_repository_at(&frontier, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let decisions = load_current_proposal_decisions(&frontier, &repository)
@@ -1082,7 +1065,10 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
         .iter()
         .find(|reference| reference.id == proposal_id)
         .unwrap_or_else(|| {
-            crate::cli::fail_return("current repository has no exact Proposal with that ID")
+            crate::cli::fail_kind_return(
+                crate::ui::ErrorKind::NotFound,
+                "current repository has no exact Proposal with that ID",
+            )
         });
     let proposal_bytes = read_rooted_object(&frontier, &reference.path, &reference.root)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));

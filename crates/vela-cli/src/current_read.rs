@@ -509,25 +509,26 @@ fn load_claim(
     frontier: &Path,
     context: &CurrentReadContext,
     claim_id: &str,
-) -> Result<(ClaimRecordV1, String, String), String> {
+) -> Result<Option<(ClaimRecordV1, String, String)>, String> {
     if let Some((reference, standing)) = claim_reference(context, claim_id) {
         let claim = ClaimRecordV1::parse(&read_exact(
             frontier,
             &reference.path,
             &reference.claim_root,
         )?)?;
-        return Ok((claim, reference.claim_root.clone(), standing.into()));
+        return Ok(Some((claim, reference.claim_root.clone(), standing.into())));
     }
     if let Some((claim, standing)) = proposal_claim(frontier, context, claim_id)? {
         let root = canonical_root(&claim)?;
-        return Ok((claim, root, standing));
+        return Ok(Some((claim, root, standing)));
     }
     if let Some(claim) = superseded_claim(frontier, context, claim_id)? {
-        return Ok(claim);
+        return Ok(Some(claim));
     }
-    Err(format!(
-        "no current or retained superseded Claim '{claim_id}' in this frontier"
-    ))
+    /* `Ok(None)` rather than `Err`: a miss and a broken Claim are different
+    outcomes with different exit codes, and `show` has to distinguish them
+    because it falls through to the other object kinds on a miss. */
+    Ok(None)
 }
 
 fn supersession_view(
@@ -683,7 +684,7 @@ pub(crate) fn show_payload(frontier: &Path, object_id: &str) -> Result<Value, St
         ));
     }
     if object_id.starts_with("vcl_")
-        && let Ok((claim, root, standing)) = load_claim(frontier, &context, object_id)
+        && let Ok(Some((claim, root, standing))) = load_claim(frontier, &context, object_id)
     {
         let effect = if standing == "withdrawn" {
             "producer withdrew the pending Proposal; this Claim never entered accepted scientific Standing".to_string()
@@ -775,14 +776,24 @@ pub(crate) fn show_payload(frontier: &Path, object_id: &str) -> Result<Value, St
             }),
         ));
     }
-    Err(format!(
-        "no exact current object '{object_id}' in this frontier"
-    ))
+    /* Diverges here rather than returning Err because this is the one place
+    that knows the failure is a miss and not a broken object: every other exit
+    from this function is a parse or integrity failure, and the caller receives
+    both as the same `String`. */
+    crate::cli::fail_kind(
+        crate::ui::ErrorKind::NotFound,
+        &format!("no exact current object '{object_id}' in this frontier"),
+    )
 }
 
 pub(crate) fn why_payload(frontier: &Path, claim_id: &str) -> Result<Value, String> {
     let context = load_context(frontier)?;
-    let (claim, claim_root, standing) = load_claim(frontier, &context, claim_id)?;
+    let Some((claim, claim_root, standing)) = load_claim(frontier, &context, claim_id)? else {
+        crate::cli::fail_kind(
+            crate::ui::ErrorKind::NotFound,
+            &format!("no current or retained superseded Claim '{claim_id}' in this frontier"),
+        )
+    };
     let mut proposals = proposal_views(&context, claim_id);
     let mut verification_records = verification_views(frontier, &context, claim_id)?;
     let mut authority_events = related_authority_events(&context, claim_id)?;
@@ -874,12 +885,14 @@ pub(crate) fn log_payload(
     as_of: Option<&str>,
 ) -> Result<Value, String> {
     let context = load_context(frontier)?;
-    let as_of = as_of
-        .map(|value| {
-            chrono::DateTime::parse_from_rfc3339(value)
-                .map_err(|error| format!("invalid --as-of timestamp {value:?}: {error}"))
+    let as_of = as_of.map(|value| {
+        chrono::DateTime::parse_from_rfc3339(value).unwrap_or_else(|error| {
+            crate::cli::fail_kind_return(
+                crate::ui::ErrorKind::Usage,
+                &format!("invalid --as-of timestamp {value:?}: {error}"),
+            )
         })
-        .transpose()?;
+    });
     let proposal_ids = object_id
         .map(|object_id| {
             context
@@ -1006,8 +1019,8 @@ pub(crate) fn cmd_why(frontier: &Path, claim_id: &str, json_out: bool) {
     if !claim_id.starts_with("vcl_") {
         crate::ui::fail_with(
             crate::ui::ErrorKind::Usage,
-            "why requires a full Claim id",
-            Some("use `vela why <frontier> vcl_... --json`"),
+            &format!("why explains a Claim, and {claim_id} is not a Claim id"),
+            Some("use `vela why vcl_... --json`; `vela show` reads every other object kind"),
         );
     }
     let projection = why_payload(frontier, claim_id).unwrap_or_else(|error| fail_return(&error));

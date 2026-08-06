@@ -25,6 +25,12 @@ use crate::config::git_publish::{
 use crate::frontier_txn::{ContentDigest, InputBinding, OperationId, OperationKind, WriteClass};
 use crate::repository_ops::publication_delta;
 
+/* One name for the verb on every path. The success payload said
+`proposal.withdraw` and the failure envelope said `proposal withdraw`, so a
+caller switching on `command` saw two keys for one invocation, and neither
+named a verb the CLI accepts: the path is `vela review withdraw`. */
+const COMMAND: &str = "review.withdraw";
+
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct ProposalWithdrawalOutcome {
     schema: &'static str,
@@ -134,7 +140,7 @@ fn existing_outcome(
     Ok(Some(ProposalWithdrawalOutcome {
         schema: "vela.proposal-withdrawal-result.v1",
         ok: true,
-        command: "proposal.withdraw",
+        command: COMMAND,
         operation_id: operation_id.as_str().into(),
         withdrawal_id: withdrawal.withdrawal_id.clone(),
         withdrawal_root: root,
@@ -343,7 +349,7 @@ pub(crate) fn withdraw(
     Ok(ProposalWithdrawalOutcome {
         schema: "vela.proposal-withdrawal-result.v1",
         ok: true,
-        command: "proposal.withdraw",
+        command: COMMAND,
         operation_id: operation_id.as_str().into(),
         withdrawal_id: withdrawal.withdrawal_id,
         withdrawal_root,
@@ -373,11 +379,9 @@ pub(crate) fn cmd_withdraw(
     reason: &str,
     json_out: bool,
 ) {
-    crate::ui::set_mode("proposal withdraw", json_out);
+    crate::ui::set_mode(COMMAND, json_out);
     crate::ui::require_initialized_frontier(frontier);
-    let frontier = frontier.canonicalize().unwrap_or_else(|error| {
-        crate::cli::fail_return(&format!("resolve current Frontier: {error}"))
-    });
+    let frontier = crate::ui::canonicalize_frontier(frontier);
     let outcome = withdraw(&frontier, proposal_id, actor, reason)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     if json_out {

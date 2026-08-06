@@ -1,6 +1,8 @@
 //! Handlers shared by the direct CLI dispatch.
 
-use crate::cli::{collect_witness_files, fail, fail_return, parse_witness, print_json};
+use crate::cli::{
+    collect_witness_files, fail, fail_kind_return, fail_return, parse_witness, print_json,
+};
 use crate::command_spec::*;
 use serde_json::{Value, json};
 use std::path::{Component, Path, PathBuf};
@@ -13,8 +15,9 @@ const WITNESS_MAX_BYTES: u64 = 64 * 1024 * 1024;
 pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
     match action {
         VerifyAction::Record {
-            frontier,
-            proposal,
+            first,
+            second,
+            frontier_flag,
             profile,
             method,
             property,
@@ -27,6 +30,14 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
             json,
         } => {
             crate::ui::set_mode("verification.record", json);
+            let (frontier, proposal) = crate::cli::frontier_arg::bind_frontier_and_object(
+                "verification record",
+                "a Proposal id (vpr_...)",
+                "PROPOSAL",
+                first,
+                second,
+                frontier_flag,
+            );
             crate::ui::require_initialized_frontier(&frontier);
             let record = crate::current_verification::author_record(
                 &frontier,
@@ -62,12 +73,22 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
             print_verification_result(&result, "verification record", json);
         }
         VerifyAction::Import {
-            frontier,
-            record,
+            first,
+            second,
+            frontier_flag,
             actor,
             json,
         } => {
             crate::ui::set_mode("verification.import", json);
+            let (frontier, record) = crate::cli::frontier_arg::bind_frontier_and_object(
+                "verification import",
+                "a signed Verification Record file",
+                "RECORD",
+                first,
+                second,
+                frontier_flag,
+            );
+            let record = std::path::PathBuf::from(record);
             crate::ui::require_initialized_frontier(&frontier);
             let bytes = crate::bounded_file::read_bounded_file(
                 &record,
@@ -308,7 +329,15 @@ pub(crate) fn proposal_reproduction_files(
         .proposals
         .iter()
         .find(|reference| reference.id == proposal_id)
-        .ok_or_else(|| format!("proposal {proposal_id} does not exist"))?;
+        /* This lookup, not the later one in `cmd_reproduce`, is what an unknown
+        `--proposal` actually reaches; every other failure below is a broken or
+        unverifiable Proposal, which stays a domain failure. */
+        .unwrap_or_else(|| {
+            fail_kind_return(
+                crate::ui::ErrorKind::NotFound,
+                &format!("proposal {proposal_id} does not exist"),
+            )
+        });
     let proposal_file = verified_frontier_file(
         path,
         "current Proposal",
@@ -435,7 +464,12 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
                 .proposals
                 .iter()
                 .find(|reference| reference.id == proposal_id)
-                .unwrap_or_else(|| fail_return(&format!("proposal {proposal_id} does not exist")));
+                .unwrap_or_else(|| {
+                    fail_kind_return(
+                        crate::ui::ErrorKind::NotFound,
+                        &format!("proposal {proposal_id} does not exist"),
+                    )
+                });
             match proposal_native_replay_hint(path, proposal_id, &proposal.path, &proposal.root)
                 .unwrap_or_else(|error| fail_return(&error))
             {
@@ -556,7 +590,7 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
         }));
     }
     if let Some(s) = spinner {
-        s.finish(&format!("{passed} verified, {failed} failed"));
+        s.finish(&format!("{passed} re-ran and matched, {failed} did not"));
     }
     if json_output {
         println!(
@@ -587,12 +621,12 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
         }
         if failed == 0 {
             println!(
-                "  reproduce: ok ({passed}/{}) — every witness re-verified from scratch by the frozen verifiers.",
+                "  reproduce: ok ({passed}/{}) — every witness re-ran from scratch under the frozen verifiers and matched.",
                 files.len()
             );
         } else {
             println!(
-                "  reproduce: FAIL ({failed}/{} did not re-verify). Investigate before trusting.",
+                "  reproduce: FAIL ({failed}/{} did not match on re-run). Investigate before trusting.",
                 files.len()
             );
         }

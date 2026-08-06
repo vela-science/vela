@@ -18,6 +18,7 @@ use crate::command_handlers::{cmd_reproduce, cmd_verify_evidence};
 use crate::command_spec::*;
 
 mod authority;
+pub(crate) mod frontier_arg;
 pub(crate) mod help_text;
 mod lifecycle;
 mod output;
@@ -44,20 +45,41 @@ pub fn run_command() {
     let cli = Cli::parse();
     crate::ui::set_quiet(cli.quiet);
     match cli.command {
-        Commands::Replay { source, json } => cmd_replay(source.as_deref(), json),
-        Commands::Status { frontier, json } => {
-            cmd_status_compact(&crate::ui::resolve_frontier(frontier), json)
+        Commands::Replay {
+            frontier,
+            frontier_flag,
+            json,
+        } => cmd_replay(frontier, frontier_flag, json),
+        Commands::Status {
+            frontier,
+            frontier_flag,
+            json,
+        } => {
+            /* Bind after set_mode, never before: argument binding can fail,
+            and a `--json` caller is owed the same `{ok, command, error}`
+            envelope for a usage error as for a domain one. */
+            crate::ui::set_mode("status", json);
+            cmd_status_compact(
+                &frontier_arg::bind_frontier("status", frontier, frontier_flag),
+                json,
+            );
         }
         Commands::Log {
             frontier,
             object_id,
+            frontier_flag,
             limit,
             kind,
             as_of,
             json,
         } => {
-            let frontier = crate::ui::resolve_frontier(frontier);
             crate::ui::set_mode("log", json);
+            let (frontier, object_id) = frontier_arg::bind_frontier_and_optional_object(
+                "log",
+                frontier,
+                object_id,
+                frontier_flag,
+            );
             crate::ui::require_initialized_frontier(&frontier);
             cmd_log(
                 &frontier,
@@ -77,9 +99,10 @@ pub fn run_command() {
                 "bash" => clap_complete::Shell::Bash,
                 "zsh" => clap_complete::Shell::Zsh,
                 "fish" => clap_complete::Shell::Fish,
-                other => fail_return(&format!(
-                    "unsupported shell '{other}'. Valid: bash, zsh, fish"
-                )),
+                other => fail_kind_return(
+                    crate::ui::ErrorKind::Usage,
+                    &format!("unsupported shell '{other}'. Valid: bash, zsh, fish"),
+                ),
             };
             clap_complete::generate(shell_kind, &mut cmd, name, &mut std::io::stdout());
         }
@@ -93,15 +116,23 @@ pub fn run_command() {
             AuthorityAction::Trust { action } => match action {
                 AuthorityTrustAction::Pin {
                     frontier,
+                    frontier_flag,
                     record_root,
                     previous_record_root,
                     json,
-                } => cmd_authority_trust_pin(
-                    &frontier,
-                    &record_root,
-                    previous_record_root.as_deref(),
-                    json,
-                ),
+                } => {
+                    crate::ui::set_mode("authority trust pin", json);
+                    cmd_authority_trust_pin(
+                        &frontier_arg::bind_frontier(
+                            "authority trust pin",
+                            frontier,
+                            frontier_flag,
+                        ),
+                        &record_root,
+                        previous_record_root.as_deref(),
+                        json,
+                    );
+                }
             },
         },
         Commands::Init {
@@ -121,22 +152,47 @@ pub fn run_command() {
         ),
         Commands::Review { action } => cmd_review(action),
         Commands::Show {
-            frontier,
-            object_id,
+            first,
+            second,
+            frontier_flag,
             json,
-        } => crate::current_read::cmd_show(&frontier, &object_id, json),
+        } => {
+            crate::ui::set_mode("show", json);
+            let (frontier, object_id) = frontier_arg::bind_frontier_and_object(
+                "show",
+                "an object id",
+                "OBJECT_ID",
+                first,
+                second,
+                frontier_flag,
+            );
+            crate::current_read::cmd_show(&frontier, &object_id, json);
+        }
         Commands::Why {
-            frontier,
-            claim_id,
+            first,
+            second,
+            frontier_flag,
             json,
-        } => crate::current_read::cmd_why(&frontier, &claim_id, json),
+        } => {
+            crate::ui::set_mode("why", json);
+            let (frontier, claim_id) = frontier_arg::bind_frontier_and_object(
+                "why",
+                "a full Claim id (vcl_...)",
+                "CLAIM_ID",
+                first,
+                second,
+                frontier_flag,
+            );
+            crate::current_read::cmd_why(&frontier, &claim_id, json);
+        }
         Commands::Next {
             frontier,
+            frontier_flag,
             limit,
             json,
         } => {
             crate::ui::set_mode("next", json);
-            let dir = crate::ui::resolve_frontier(frontier);
+            let dir = frontier_arg::bind_frontier("next", frontier, frontier_flag);
             crate::ui::require_initialized_frontier(&dir);
             crate::current_repository::cmd_current_next(&dir, limit, json);
         }
@@ -343,8 +399,25 @@ pub fn run_command() {
                         );
                         println!(
                             "  {:<18} {}",
-                            style::dim("accepted delta"),
-                            outcome.accepted_event_delta
+                            style::dim("claim"),
+                            safe_text::inline(&outcome.claim_id)
+                        );
+                        /* TERMINOLOGY.md fixes the wording of a successful
+                        Submission, so both sentences are quoted from it rather
+                        than paraphrased, and they carry no gutter label: the
+                        same document says a Submission has no status, so a word
+                        like "retained" in the label column would read as one.
+                        The second sentence is read off the outcome because
+                        TERMINOLOGY.md states the normal case, and a Submission
+                        that did move accepted state must not print it. */
+                        println!("  Submission retained; review required.");
+                        println!(
+                            "  Accepted scientific state changed: {}.",
+                            if outcome.accepted_state_changed {
+                                "yes"
+                            } else {
+                                "no"
+                            }
                         );
                     }
                 }
@@ -424,71 +497,202 @@ fn cmd_log(
 }
 
 fn cmd_review(action: ReviewAction) {
+    /// The one Proposal-shaped object every `review` subcommand but `inbox`
+    /// and `list` names, so the missing-argument error is written once.
+    const PROPOSAL: (&str, &str) = ("a Proposal id (vpr_...)", "PROPOSAL_ID");
     match action {
-        ReviewAction::Inbox { frontier, json } => {
-            crate::decision_inbox::cmd_decision_inbox(&frontier, json)
+        ReviewAction::Inbox {
+            frontier,
+            frontier_flag,
+            json,
+        } => {
+            crate::ui::set_mode("review.inbox", json);
+            let frontier = frontier_arg::bind_frontier("review inbox", frontier, frontier_flag);
+            crate::decision_inbox::cmd_decision_inbox(&frontier, json);
         }
         ReviewAction::List {
             frontier,
+            frontier_flag,
             status,
             limit,
             cursor,
             json,
-        } => crate::current_repository::cmd_current_review_list(
-            &frontier,
-            status.as_deref(),
-            limit,
-            cursor.as_deref(),
-            json,
-        ),
+        } => {
+            crate::ui::set_mode("review list", json);
+            let frontier = frontier_arg::bind_frontier("review list", frontier, frontier_flag);
+            crate::current_repository::cmd_current_review_list(
+                &frontier,
+                status.as_deref(),
+                limit,
+                cursor.as_deref(),
+                json,
+            );
+        }
         ReviewAction::Show {
-            frontier,
-            proposal_id,
+            first,
+            second,
+            frontier_flag,
             json,
-        } => crate::current_repository::cmd_current_review_show(&frontier, &proposal_id, json),
+        } => {
+            crate::ui::set_mode("review show", json);
+            let (frontier, proposal_id) = frontier_arg::bind_frontier_and_object(
+                "review show",
+                PROPOSAL.0,
+                PROPOSAL.1,
+                first,
+                second,
+                frontier_flag,
+            );
+            crate::current_repository::cmd_current_review_show(&frontier, &proposal_id, json);
+        }
         ReviewAction::Accept {
-            frontier,
-            proposal_id,
+            first,
+            second,
+            frontier_flag,
             if_entry_root,
             reason,
             json,
-        } => review_decision::cmd_review_decide(
-            frontier,
-            &proposal_id,
-            crate::current_repository_decision::DecisionAction::Accept,
-            if_entry_root.as_deref(),
-            reason,
-            json,
-        ),
+        } => {
+            crate::ui::set_mode("review.accept", json);
+            let (frontier, proposal_id) = frontier_arg::bind_frontier_and_object(
+                "review accept",
+                PROPOSAL.0,
+                PROPOSAL.1,
+                first,
+                second,
+                frontier_flag,
+            );
+            review_decision::cmd_review_decide(
+                frontier,
+                &proposal_id,
+                crate::current_repository_decision::DecisionAction::Accept,
+                if_entry_root.as_deref(),
+                reason,
+                json,
+            );
+        }
         ReviewAction::Reject {
-            frontier,
-            proposal_id,
+            first,
+            second,
+            frontier_flag,
             if_entry_root,
             reason,
             json,
-        } => review_decision::cmd_review_decide(
-            frontier,
-            &proposal_id,
-            crate::current_repository_decision::DecisionAction::Reject,
-            if_entry_root.as_deref(),
-            reason,
-            json,
-        ),
+        } => {
+            crate::ui::set_mode("review.reject", json);
+            let (frontier, proposal_id) = frontier_arg::bind_frontier_and_object(
+                "review reject",
+                PROPOSAL.0,
+                PROPOSAL.1,
+                first,
+                second,
+                frontier_flag,
+            );
+            review_decision::cmd_review_decide(
+                frontier,
+                &proposal_id,
+                crate::current_repository_decision::DecisionAction::Reject,
+                if_entry_root.as_deref(),
+                reason,
+                json,
+            );
+        }
         ReviewAction::Withdraw {
-            frontier,
-            proposal_id,
+            first,
+            second,
+            frontier_flag,
             actor,
             reason,
             json,
         } => {
-            crate::current_withdrawal::cmd_withdraw(&frontier, &proposal_id, &actor, &reason, json)
+            crate::ui::set_mode("review.withdraw", json);
+            let (frontier, proposal_id) = frontier_arg::bind_frontier_and_object(
+                "review withdraw",
+                PROPOSAL.0,
+                PROPOSAL.1,
+                first,
+                second,
+                frontier_flag,
+            );
+            crate::current_withdrawal::cmd_withdraw(&frontier, &proposal_id, &actor, &reason, json);
         }
     }
 }
 
-fn cmd_replay(source: Option<&Path>, json_output: bool) {
+fn cmd_replay(
+    frontier: Option<std::path::PathBuf>,
+    frontier_flag: Option<std::path::PathBuf>,
+    json_output: bool,
+) {
     crate::ui::set_mode("replay", json_output);
-    let frontier = crate::ui::resolve_frontier(source.map(Path::to_path_buf));
+    let frontier = frontier_arg::bind_frontier("replay", frontier, frontier_flag);
     crate::ui::require_initialized_frontier(&frontier);
     crate::current_repository::cmd_replay_repository(&frontier, json_output);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Cli;
+    use clap::CommandFactory;
+
+    /// The Frontier convention `command_spec.rs` states, asserted against the
+    /// parsed surface rather than against prose, so the module doc cannot go
+    /// back to describing a convention the surface does not have. A verb added
+    /// later must either accept both spellings or be named here as one of the
+    /// two arguments that is deliberately not a Frontier.
+    #[test]
+    fn every_frontier_verb_accepts_both_spellings() {
+        /// `init <path>` is a destination to create and `reproduce <path>` is a
+        /// reproduction scope; neither takes discovery, so neither takes the
+        /// flag. `completions` touches no Frontier at all.
+        const NOT_FRONTIER_VERBS: [&str; 3] = ["init", "reproduce", "completions"];
+
+        fn walk(command: &clap::Command, path: &str) {
+            let leaf = command.get_subcommands().count() == 0;
+            let name = command.get_name();
+            let path = if path.is_empty() {
+                name.to_string()
+            } else {
+                format!("{path} {name}")
+            };
+            if leaf && !NOT_FRONTIER_VERBS.contains(&name) {
+                let flag = command
+                    .get_arguments()
+                    .find(|arg| arg.get_long() == Some("frontier"));
+                assert!(
+                    flag.is_some(),
+                    "`{path}` acts on a Frontier but does not accept --frontier"
+                );
+                assert_eq!(
+                    flag.and_then(clap::Arg::get_help)
+                        .map(|help| help.to_string()),
+                    Some(crate::command_spec::HELP_FRONTIER.to_string()),
+                    "`{path} --frontier` must state the one Frontier contract"
+                );
+                assert!(
+                    command
+                        .get_positionals()
+                        .any(|arg| arg.get_id() == "frontier"
+                            || arg.get_value_names().is_some_and(|names| names
+                                .iter()
+                                .any(|name| name.as_str() == "FRONTIER")))
+                        || matches!(name, "start" | "submit"),
+                    "`{path}` accepts --frontier but has no positional Frontier, and only start and submit may omit one"
+                );
+            }
+            if leaf && NOT_FRONTIER_VERBS.contains(&name) {
+                assert!(
+                    !command
+                        .get_arguments()
+                        .any(|arg| arg.get_long() == Some("frontier")),
+                    "`{path}` is documented as taking no Frontier argument"
+                );
+            }
+            for child in command.get_subcommands() {
+                walk(child, &path);
+            }
+        }
+
+        walk(&Cli::command(), "");
+    }
 }

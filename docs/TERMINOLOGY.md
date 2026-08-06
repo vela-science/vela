@@ -140,19 +140,33 @@ A native workbench may supply its own run or attempt identity as provenance.
 That lifecycle remains defined by the source workbench and never becomes Vela
 Standing.
 
-Submission:
+Submission, as this vocabulary declares it:
 
 ```text
 draft retained refused
 ```
 
+**No Submission has a status.** `vela.submission.v1` has no lifecycle field,
+and none of those three words is a status value anywhere in the crates —
+`retained` appears only as a display label on the unchanged-error footer. A
+Submission is either installed in a repository or it is not. Treat the three
+words as intent for a producer-side lifecycle nothing implements yet, and do
+not render them.
+
 Proposal:
 
 ```text
-pending_review accepted rejected
+pending_review accepted rejected withdrawn
 ```
 
-Verification outcome:
+Proposal status is derived, not stored: `vela.proposal.v1` carries no status
+field either, and the read surface computes these four from the covering
+authority Events and any `vela.proposal-withdrawal.v1`. `withdrawn` is the
+fourth because PROTOCOL.md section 5.5 makes producer-owned withdrawal a real
+transition; `vela review list --status` accepts all four plus `all`, and three
+of them are live in the Erdős repository today.
+
+Verification outcome, which is a stored field and does match:
 
 ```text
 pass fail inconclusive error

@@ -498,6 +498,17 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     );
     assert!(briefing["target_index_root"].as_str().is_some());
     assert_eq!(briefing["git"]["role"], "target_index_source");
+    /* The one place in the suite with a live Target Index, so the one place
+    that can reach `start`'s miss rather than the earlier "no Target Index"
+    domain failure. tests/exit_code_contract.rs covers the rest of the codes. */
+    let absent = run(
+        &frontier,
+        None,
+        &["start", "erdos:0", "--frontier", ".", "--json"],
+    );
+    assert_eq!(absent.status.code(), Some(3), "start on an absent Target");
+    let absent: Value = serde_json::from_slice(&absent.stdout).expect("decode start failure");
+    assert_eq!(absent["error"]["kind"], "not_found");
     assert!(briefing["git"]["commit"].as_str().is_some());
     assert!(briefing["git"]["tree"].as_str().is_some());
     assert!(

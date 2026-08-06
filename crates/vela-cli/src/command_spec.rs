@@ -4,8 +4,26 @@
 //! ## Flag-naming conventions (one name per concept, no aliases)
 //! - **Acting identity** → `--as` for producer or verifier evidence.
 //!   It may default from `$VELA_ACTOR_ID`; a human Decision never does.
-//! - **Frontier** → `--frontier` or the positional Frontier path, according to
-//!   the command's ordinary reading order.
+//! - **Frontier** → `--frontier <path>`, accepted by every verb that acts on an
+//!   existing Frontier. All of those verbs but two also take it as the leading
+//!   positional; `start` and `submit` do not, because their leading positional
+//!   is already the Target and the Submission file. Omitted entirely, the
+//!   Frontier is discovered upward from the current directory, exactly as
+//!   `vela status` does — one resolution behaviour, everywhere. Where a verb
+//!   takes both a Frontier and an object the object binds last, so
+//!   `vela why <claim>` and `vela why <frontier> <claim>` are the same request.
+//!   `crate::cli::frontier_arg` is the single implementation, and it documents
+//!   the one tie-break (`log`, whose object is optional too). The test
+//!   `every_frontier_verb_accepts_both_spellings` holds this paragraph to the
+//!   parsed surface.
+//!
+//!   Two positionals are deliberately NOT Frontier arguments, take neither
+//!   `--frontier` nor discovery, and keep `default_value = "."`:
+//!   `init <path>` names a directory to create, which discovery must not
+//!   redirect to an enclosing Frontier; and `reproduce <path>` names a
+//!   reproduction scope — a witness file, a directory of witnesses, or a
+//!   Frontier — so a bare `vela reproduce` means "reproduce what is here",
+//!   not "walk up until something replays".
 
 use clap::{ArgGroup, Subcommand};
 use std::path::PathBuf;
@@ -19,6 +37,14 @@ pub(crate) const HELP_REQUIRED_AS: &str =
     "Exact acting identity for this write (agent:<name>, ci:<name>, or verifier:<name>)";
 pub(crate) const HELP_AS_OF: &str = "Answer as of this RFC3339 instant, e.g. 2026-07-02T16:00:00Z";
 pub(crate) const HELP_JSON: &str = "Output stable JSON for programmatic callers";
+/// The one Frontier help string. Every verb that acts on an existing Frontier
+/// carries it on both spellings, so `--help` states the same contract wherever
+/// the reader lands.
+pub(crate) const HELP_FRONTIER: &str =
+    "Frontier repository. Optional: discovered upward from the current directory";
+/// The positional Frontier on a verb that also takes an object. Stated
+/// explicitly because the slot is only the Frontier when both are supplied.
+pub(crate) const HELP_FRONTIER_BEFORE_OBJECT: &str = "Frontier repository, when both arguments are given. With one argument that argument is the object and the Frontier is discovered upward";
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
@@ -26,8 +52,10 @@ pub(crate) enum Commands {
     /// the science — `vela reproduce` re-runs the verifiers themselves.
     #[command(after_long_help = crate::cli::help_text::REPLAY)]
     Replay {
-        /// Current Frontier repository. Defaults to the current directory.
-        source: Option<PathBuf>,
+        #[arg(value_name = "FRONTIER", help = HELP_FRONTIER)]
+        frontier: Option<PathBuf>,
+        #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
+        frontier_flag: Option<PathBuf>,
         /// Output stable JSON
         #[arg(long, help = HELP_JSON)]
         json: bool,
@@ -35,19 +63,25 @@ pub(crate) enum Commands {
     /// Show the Frontier's current Standing, review queue, and integrity state.
     #[command(after_long_help = crate::cli::help_text::STATUS)]
     Status {
-        /// Current Frontier repository. Defaults to upward discovery from the current directory.
+        #[arg(value_name = "FRONTIER", help = HELP_FRONTIER)]
         frontier: Option<PathBuf>,
+        #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
+        frontier_flag: Option<PathBuf>,
         /// Output stable JSON for programmatic callers.
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },
     /// Recent covered repository-authority events, newest first.
     #[command(after_long_help = crate::cli::help_text::LOG)]
+    #[command(override_usage = "vela log [OPTIONS] [FRONTIER] [OBJECT_ID]")]
     Log {
-        /// Current Frontier repository. Defaults to upward discovery from the current directory.
-        frontier: Option<PathBuf>,
+        #[arg(value_name = "FRONTIER", help = HELP_FRONTIER)]
+        frontier: Option<String>,
         /// A full current object id: restrict the log to its covered history.
+        /// Given alone, the Frontier is discovered.
         object_id: Option<String>,
+        #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
+        frontier_flag: Option<PathBuf>,
         /// How many recent events to show.
         #[arg(long, default_value = "20")]
         limit: usize,
@@ -121,12 +155,16 @@ pub(crate) enum Commands {
     },
     /// Show one exact Vela object by its stable id.
     #[command(after_long_help = crate::cli::help_text::SHOW)]
+    #[command(override_usage = "vela show [OPTIONS] [FRONTIER] <OBJECT_ID>")]
     Show {
-        /// Frontier repository directory.
-        frontier: PathBuf,
+        #[arg(value_name = "FRONTIER", help = HELP_FRONTIER_BEFORE_OBJECT)]
+        first: Option<String>,
         /// A Claim, Submission, Verification Record, Proposal, Artifact, or
         /// covered authority Event id.
-        object_id: String,
+        #[arg(value_name = "OBJECT_ID")]
+        second: Option<String>,
+        #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
+        frontier_flag: Option<PathBuf>,
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },
@@ -134,11 +172,15 @@ pub(crate) enum Commands {
     ///
     /// This is a root-bound read projection. It never changes authority.
     #[command(after_long_help = crate::cli::help_text::WHY)]
+    #[command(override_usage = "vela why [OPTIONS] [FRONTIER] <CLAIM_ID>")]
     Why {
-        /// Frontier repository directory.
-        frontier: PathBuf,
+        #[arg(value_name = "FRONTIER", help = HELP_FRONTIER_BEFORE_OBJECT)]
+        first: Option<String>,
         /// Current Claim id (`vcl_...`).
-        claim_id: String,
+        #[arg(value_name = "CLAIM_ID")]
+        second: Option<String>,
+        #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
+        frontier_flag: Option<PathBuf>,
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },
@@ -147,8 +189,10 @@ pub(crate) enum Commands {
     /// `--json` is the agent contract. Take one with `vela start`.
     #[command(after_long_help = crate::cli::help_text::NEXT)]
     Next {
-        /// Frontier path. Optional: discovered upward.
+        #[arg(value_name = "FRONTIER", help = HELP_FRONTIER)]
         frontier: Option<PathBuf>,
+        #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
+        frontier_flag: Option<PathBuf>,
         #[arg(long, default_value_t = 5)]
         limit: usize,
         #[arg(long, help = HELP_JSON)]
@@ -160,7 +204,7 @@ pub(crate) enum Commands {
     Start {
         /// The target (obligation id, e.g. erdos:617).
         target: String,
-        #[arg(long)]
+        #[arg(long, value_name = "PATH", help = HELP_FRONTIER)]
         frontier: Option<PathBuf>,
         #[arg(long, help = HELP_JSON)]
         json: bool,
@@ -177,8 +221,9 @@ pub(crate) enum Commands {
     #[command(after_long_help = crate::cli::help_text::SUBMIT)]
     Submit {
         /// Path to a signed Submission v1. Or author a new Claim directly.
+        /// This slot is the Submission, never the Frontier: use --frontier.
         submission: Option<PathBuf>,
-        #[arg(long)]
+        #[arg(long, value_name = "PATH", help = HELP_FRONTIER)]
         frontier: Option<PathBuf>,
         #[arg(long)]
         claim: Option<String>,
@@ -243,11 +288,15 @@ pub(crate) enum Commands {
 pub(crate) enum VerifyAction {
     /// Author, sign, and retain one scoped Verification Record over a current
     /// pending Proposal.
+    #[command(override_usage = "vela verification record [OPTIONS] [FRONTIER] <PROPOSAL>")]
     Record {
-        /// Current Frontier repository.
-        frontier: PathBuf,
+        #[arg(value_name = "FRONTIER", help = HELP_FRONTIER_BEFORE_OBJECT)]
+        first: Option<String>,
         /// Exact current pending Proposal (`vpr_...`).
-        proposal: String,
+        #[arg(value_name = "PROPOSAL")]
+        second: Option<String>,
+        #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
+        frontier_flag: Option<PathBuf>,
         /// Named verifier profile used for this observation.
         #[arg(long)]
         profile: String,
@@ -283,11 +332,15 @@ pub(crate) enum VerifyAction {
         json: bool,
     },
     /// Import one signed, content-addressed Verification Record.
+    #[command(override_usage = "vela verification import [OPTIONS] [FRONTIER] <RECORD>")]
     Import {
-        /// Current Frontier repository.
-        frontier: PathBuf,
+        #[arg(value_name = "FRONTIER", help = HELP_FRONTIER_BEFORE_OBJECT)]
+        first: Option<String>,
         /// Signed Verification Record JSON to validate and retain.
-        record: PathBuf,
+        #[arg(value_name = "RECORD")]
+        second: Option<String>,
+        #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
+        frontier_flag: Option<PathBuf>,
         #[arg(long = "as", help = HELP_REQUIRED_AS)]
         actor: String,
         #[arg(long, help = HELP_JSON)]
@@ -308,9 +361,10 @@ pub(crate) enum AuthorityAction {
 pub(crate) enum AuthorityTrustAction {
     /// Install one public local pin for the exact sequence-1 authority record.
     Pin {
-        /// Current Frontier repository. Defaults to the current directory.
-        #[arg(default_value = ".")]
-        frontier: PathBuf,
+        #[arg(value_name = "FRONTIER", help = HELP_FRONTIER)]
+        frontier: Option<PathBuf>,
+        #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
+        frontier_flag: Option<PathBuf>,
         /// Full sequence-1 authority-record root from an independent channel.
         #[arg(long)]
         record_root: String,
@@ -326,15 +380,19 @@ pub(crate) enum AuthorityTrustAction {
 pub(crate) enum ReviewAction {
     /// Derive the current consequence-only Decision Inbox.
     Inbox {
-        /// Current Frontier repository.
-        frontier: PathBuf,
+        #[arg(value_name = "FRONTIER", help = HELP_FRONTIER)]
+        frontier: Option<PathBuf>,
+        #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
+        frontier_flag: Option<PathBuf>,
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },
     /// List compact proposal summaries. Defaults to pending review.
     List {
-        /// Current Frontier repository.
-        frontier: PathBuf,
+        #[arg(value_name = "FRONTIER", help = HELP_FRONTIER)]
+        frontier: Option<PathBuf>,
+        #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
+        frontier_flag: Option<PathBuf>,
         /// Standing filter: pending_review, accepted, rejected, withdrawn, or all.
         #[arg(long)]
         status: Option<String>,
@@ -348,20 +406,30 @@ pub(crate) enum ReviewAction {
         json: bool,
     },
     /// Show one pending Review Packet, Decision, or producer Withdrawal.
+    #[command(override_usage = "vela review show [OPTIONS] [FRONTIER] <PROPOSAL_ID>")]
     Show {
-        /// Current Frontier repository.
-        frontier: PathBuf,
+        #[arg(value_name = "FRONTIER", help = HELP_FRONTIER_BEFORE_OBJECT)]
+        first: Option<String>,
         /// Exact Proposal ID (`vpr_...`).
-        proposal_id: String,
+        #[arg(value_name = "PROPOSAL_ID")]
+        second: Option<String>,
+        #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
+        frontier_flag: Option<PathBuf>,
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },
     /// Accept exactly one Proposal through repository authority.
+    #[command(
+        override_usage = "vela review accept [OPTIONS] [FRONTIER] <PROPOSAL_ID> --reason <REASON>"
+    )]
     Accept {
-        /// Current Frontier repository.
-        frontier: PathBuf,
+        #[arg(value_name = "FRONTIER", help = HELP_FRONTIER_BEFORE_OBJECT)]
+        first: Option<String>,
         /// Exact pending Proposal ID (`vpr_...`).
-        proposal_id: String,
+        #[arg(value_name = "PROPOSAL_ID")]
+        second: Option<String>,
+        #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
+        frontier_flag: Option<PathBuf>,
         /// Require the exact Decision Inbox entry that was reviewed.
         #[arg(long)]
         if_entry_root: Option<String>,
@@ -372,11 +440,17 @@ pub(crate) enum ReviewAction {
         json: bool,
     },
     /// Reject exactly one Proposal through repository authority.
+    #[command(
+        override_usage = "vela review reject [OPTIONS] [FRONTIER] <PROPOSAL_ID> --reason <REASON>"
+    )]
     Reject {
-        /// Current Frontier repository.
-        frontier: PathBuf,
+        #[arg(value_name = "FRONTIER", help = HELP_FRONTIER_BEFORE_OBJECT)]
+        first: Option<String>,
         /// Exact pending Proposal ID (`vpr_...`).
-        proposal_id: String,
+        #[arg(value_name = "PROPOSAL_ID")]
+        second: Option<String>,
+        #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
+        frontier_flag: Option<PathBuf>,
         /// Require the exact Decision Inbox entry that was reviewed.
         #[arg(long)]
         if_entry_root: Option<String>,
@@ -387,11 +461,17 @@ pub(crate) enum ReviewAction {
         json: bool,
     },
     /// Withdraw your own still-pending Proposal using its Submission identity.
+    #[command(
+        override_usage = "vela review withdraw [OPTIONS] [FRONTIER] <PROPOSAL_ID> --as <ACTOR> --reason <REASON>"
+    )]
     Withdraw {
-        /// Current Frontier repository.
-        frontier: PathBuf,
+        #[arg(value_name = "FRONTIER", help = HELP_FRONTIER_BEFORE_OBJECT)]
+        first: Option<String>,
         /// Exact still-pending Proposal ID (`vpr_...`).
-        proposal_id: String,
+        #[arg(value_name = "PROPOSAL_ID")]
+        second: Option<String>,
+        #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
+        frontier_flag: Option<PathBuf>,
         /// Exact producer identity that signed the retained Submission.
         #[arg(long = "as")]
         actor: String,

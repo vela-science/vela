@@ -32,6 +32,20 @@ fn run(cwd: &Path, socket: &Path, args: &[&str]) -> (bool, String) {
     )
 }
 
+/* `vela init` installs a local trust anchor under the OS ACCOUNT home, resolved
+through geteuid/getpwuid_r, which deliberately ignores `$HOME` — there is a
+test upstream asserting a hostile HOME cannot redirect it. So setting HOME to
+a temp directory does not keep a test out of the developer's real trust
+store, and this suite spent an evening quietly filling it. The anchor path
+comes back in init's own JSON; delete exactly that file and nothing else. */
+struct RemoveOnDrop(std::path::PathBuf);
+
+impl Drop for RemoveOnDrop {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
+    }
+}
+
 #[test]
 fn every_json_read_carries_the_envelope() {
     let temporary = tempfile::tempdir().expect("temporary directory");
@@ -40,7 +54,7 @@ fn every_json_read_carries_the_envelope() {
     let frontier = temporary.path().join("frontier");
     let frontier_text = frontier.to_string_lossy().into_owned();
 
-    let (initialized, _) = run(
+    let (initialized, init_out) = run(
         temporary.path(),
         agent.socket(),
         &[
@@ -61,6 +75,16 @@ fn every_json_read_carries_the_envelope() {
         ],
     );
     assert!(initialized, "the fixture frontier must initialize");
+    let _anchor = RemoveOnDrop(
+        serde_json::from_str::<serde_json::Value>(init_out.trim())
+            .ok()
+            .and_then(|value| {
+                value["authority"]["local_trust"]["anchor_path"]
+                    .as_str()
+                    .map(std::path::PathBuf::from)
+            })
+            .expect("init must report the trust anchor it installed"),
+    );
 
     /* Only verbs a fresh Frontier can answer. `show` and `why` need a retained
     object, and a Frontier with no Claims has none; asserting them here would

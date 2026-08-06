@@ -4,7 +4,8 @@
 //! then `VELA_ACTOR_ID`. The producer/verifier key resolver mints one local
 //! per-actor key on first use. Imported signed objects carry their own actor.
 
-use crate::cli::fail_return;
+use crate::cli::fail_kind_return;
+use crate::ui::ErrorKind;
 
 const SETUP_HINT: &str =
     "locally authored work requires --as agent:<name> or VELA_ACTOR_ID=agent:<name>";
@@ -19,5 +20,5 @@ pub(crate) fn resolve_actor(flag: Option<&str>) -> String {
             return actor.to_string();
         }
     }
-    fail_return(SETUP_HINT)
+    fail_kind_return(ErrorKind::Usage, SETUP_HINT)
 }

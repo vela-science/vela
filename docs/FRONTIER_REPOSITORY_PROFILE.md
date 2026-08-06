@@ -96,31 +96,88 @@ records/claims/sha256/
 records/submissions/sha256/
 records/verifications/sha256/
 records/proposals/sha256/
+records/proposal-withdrawals/sha256/
 records/artifacts/sha256/
 targets.json                       optional derived work index
+targets/                           Target packets, wherever targets.json names
+                                   them; every Frontier that has any uses this
 ```
 
 The repository manifest binds every active canonical object by full root.
 Claim Standing is derived from the manifest and verified Decision history.
-`targets.json` is a disposable, root-bound work projection; it never defines
-Standing or authority.
+`records/proposal-withdrawals/sha256/` holds `vela.proposal-withdrawal.v1`
+objects, the producer-owned closure of one pending Proposal; the manifest
+carries them as their own object set and `vela replay --json` reports them as
+`counts.proposal_withdrawals`. `targets.json` is a disposable, root-bound work
+projection; it never defines Standing or authority.
 
-The active current layout does not use:
+The active current layout does not use these paths, and `vela replay` fails on
+a file at any of them:
 
 ```text
 .vela/events/
 .vela/actors.json
 .vela/findings/
 .vela/proposals/
+.vela/artifacts/
 .vela/policies/
 frontier.json
+frontier.yaml
+records/receipts/
+records/review/
+records/decision-evidence/
+records/vrc_*.json
+```
+
+These two are retired but not enforced:
+
+```text
 vela.lock
 proof/
-records/receipts/
 ```
+
+A Frontier carrying either verifies clean today. They stay on the list because
+they are still wrong, and because two published Frontiers still declare
+`.gitattributes` rules for `proof/**` and `vela.lock` against paths none of
+them has. Enforcing them is a change to what verification rejects rather than a
+documentation change, and those dead declarations have to go first.
+
+The check is a worktree walk over files, so it sees untracked files but not an
+empty retired directory.
 
 Historical Git commits and predecessor tags retain old bytes. They are not
 valid templates for new repositories.
+
+## Conventions the profile does not define
+
+Every published Frontier carries files this contract has never described. They
+are listed here so an author knows they exist. Vela reads none of them and
+`vela replay` validates none of them.
+
+```text
+.gitignore                         scaffolded by `vela init`
+.gitattributes                     scaffolded by `vela init`
+.github/workflows/vela-frontier.yml
+sources.yaml                       domain-native source declarations
+sources.lock.json                  derived; resolved source content hashes
+STATEMENT.md                       the Frontier's question in prose
+technique-sheet.md                 domain method notes
+witnesses/                         domain-native evidence inputs
+```
+
+Of that list only `.gitignore` and `.gitattributes` are scaffolded.
+`.gitattributes` matters more than its position here suggests. Vela never opens
+it, but Git does, and canonical record bytes are content-addressed: a checkout
+filter, keyword expansion, working-tree encoding, or merge driver that rewrites
+them breaks replay. Two of the four published Frontiers have no
+`.gitattributes` at all.
+
+The remainder emerged in the Frontiers rather than in this contract, so the
+shapes vary and the coverage is partial: `sources.yaml` is in all four
+repositories, `STATEMENT.md` in three, `witnesses/` in two, and
+`sources.lock.json` in one, written by repository-local Python. A CI workflow
+is in all four and `vela init` scaffolds none of it. Treat these as domain
+conventions worth copying, not as contract.
 
 ## Runtime behavior
 
@@ -147,6 +204,12 @@ checked-in runtime configuration file.
 | domain-native files | Source and evidence | Keep stable, reviewable identities |
 | `.vela/operation-journals/`, `.vela/work/` | Recovery/private coordination | Never scientific state |
 | `README.md`, `SCOPE.md`, `AGENTS.md` | Human and agent guidance | Keep aligned with the current product; `CLAUDE.md` may be a one-line pointer to `AGENTS.md` |
+| `STATEMENT.md`, `technique-sheet.md` | Optional domain guidance | Emerged convention, not contract; Vela reads neither |
+| `.gitattributes` | Byte stability | Keep canonical paths out of every checkout filter, keyword expansion, encoding, and merge driver |
+| `.gitignore` | Working-tree hygiene | Track canonical identity and authority bytes; ignore journals, workspaces, and `.vela/keys/` |
+| `sources.yaml`, `sources.lock.json` | Domain source declarations and derived lock | Repository-local shape; never hand-write a hash nobody computed |
+| `witnesses/` and other domain-native evidence | Source and evidence | Keep stable identities; canonical evidence is the Artifact copy under `records/artifacts/sha256/` |
+| `.github/workflows/` | Verification gate | Run the read-only verification verb on push and pull request; CI reports, it never accepts |
 
 ## Verification
 
@@ -165,7 +228,15 @@ Verification checks:
 - Claim and Proposal Standing is deterministic;
 - the optional Target Index, its declared inputs, and packets exactly match
   tracked `HEAD` bytes and the current repository root; and
-- rejected active legacy paths are absent.
+- the enforced retired paths listed above are absent; the two unenforced ones
+  are not checked.
+
+All four published Frontiers gate this in
+`.github/workflows/vela-frontier.yml` on every push and pull request. Each one
+pins `vela-science/vela` by commit SHA and passes `frontier: .`; the action
+installs the pinned release and runs `vela replay <frontier> --json`. `vela
+init` does not scaffold that workflow — each Frontier wrote its own copy, so
+they can and do drift to different pins.
 
 `vela replay` fails until native authority initialization completes.
 Git publication transports bytes; it does not create scientific acceptance.
