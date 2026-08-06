@@ -1,4 +1,12 @@
-//! The published wire JSON Schemas, generated from the types that sign.
+//! The published wire JSON Schemas, generated from the types on the wire.
+//!
+//! Four of these describe objects that sign. The fifth, `status-v3`, does not:
+//! it is a read surface, a document `vela status` answers with and another
+//! repository parses. It is here because the question this module answers is
+//! not "does this object carry a signature" but "does a second implementation
+//! read these bytes", and for the status document that second implementation
+//! is `vela-web`, across a repository boundary, with nothing but a JSON Schema
+//! able to reach it. `crate::read_surface` states which types are which.
 //!
 //! `schemas/*.schema.json` used to be written by hand beside the Rust. Both
 //! documents described the same wire bytes, but only the Rust builds canonical
@@ -29,6 +37,7 @@ use crate::identity::IDENTITY_BINDING_SCHEMA;
 use crate::proposal_withdrawal_v1::{
     PROPOSAL_WITHDRAWAL_V1_AUTH_ALGORITHM, PROPOSAL_WITHDRAWAL_V1_SCHEMA,
 };
+use crate::status_v3::{FRONTIER_HEAD_ROLE, STATUS_V3_COMMAND, STATUS_V3_SCHEMA};
 use crate::submission_v1::{
     CLAIM_TYPES, PRODUCER_CHECK_OUTCOMES, PRODUCER_REPORTED_AUTHORITY, REPLAYABILITY_LEVELS,
     REQUESTED_CHANGE_KINDS, SUBMISSION_V1_AUTH_ALGORITHM, SUBMISSION_V1_SCHEMA,
@@ -53,6 +62,12 @@ pub const LOWER_HEX_64_PATTERN: &str = "^[0-9a-f]{64}$";
 
 /// A hex Ed25519 signature: 64 bytes, so 128 lowercase hex digits.
 pub const ED25519_SIGNATURE_PATTERN: &str = "^[0-9a-f]{128}$";
+
+/// A Git object name: exactly 40 lowercase hex digits.
+///
+/// Git's, not Vela's. It appears only on read surfaces, which report where the
+/// bytes are published; no signed object roots anything on a Git object name.
+pub const GIT_OBJECT_ID_PATTERN: &str = "^[0-9a-f]{40}$";
 
 /// Non-empty text with no leading or trailing whitespace.
 ///
@@ -163,6 +178,49 @@ pub fn ed25519_signature(_: &mut SchemaGenerator) -> Schema {
 /// check, not an annotation.
 pub fn timestamp(_: &mut SchemaGenerator) -> Schema {
     json_schema!({ "type": "string", "format": "date-time" })
+}
+
+// The nullable builders below are for read surfaces, where a field the branch
+// cannot fill is present and null rather than absent. `"type": ["string",
+// "null"]` says exactly that, and `pattern` still binds the string arm —
+// `pattern` is defined to ignore a non-string instance. The Rust side pairs
+// each of these with `#[schemars(required)]`, because schemars would otherwise
+// leave an `Option` field out of `required` and reopen the absence this is
+// closing.
+
+/// A full `sha256:` root, or null.
+pub fn nullable_sha256_root(_: &mut SchemaGenerator) -> Schema {
+    json_schema!({ "type": ["string", "null"], "pattern": SHA256_ROOT_PATTERN })
+}
+
+/// A Git object name, or null.
+pub fn nullable_git_object_id(_: &mut SchemaGenerator) -> Schema {
+    json_schema!({ "type": ["string", "null"], "pattern": GIT_OBJECT_ID_PATTERN })
+}
+
+/// `vfr_` and 16 hex digits.
+pub fn frontier_id(_: &mut SchemaGenerator) -> Schema {
+    json_schema!({ "type": "string", "pattern": "^vfr_[0-9a-f]{16}$" })
+}
+
+/// The review lane's action, or null when no Decision is waiting.
+///
+/// `#[schemars(required)]` alone puts the key in `required` and leaves its
+/// schema as the object arm only, which would publish a document the CLI never
+/// emits — every status with nothing to review carries `"review": null`. The
+/// null arm has to be added here, where the subschema is in hand.
+pub fn nullable_review_action(generator: &mut SchemaGenerator) -> Schema {
+    let action =
+        serde_json::to_value(generator.subschema_for::<crate::status_v3::StatusReviewAction>())
+            .expect("a generated subschema serializes");
+    Schema::try_from(serde_json::json!({ "anyOf": [action, { "type": "null" }] }))
+        .expect("the nullable review action is an object schema")
+}
+
+/// The success flag every JSON outcome carries. A document that reports
+/// failure does not reach this shape at all, so the only value is `true`.
+pub fn ok_true(_: &mut SchemaGenerator) -> Schema {
+    json_schema!({ "type": "boolean", "const": true })
 }
 
 /// A relative Artifact path that cannot escape the Submission tree.
@@ -280,6 +338,21 @@ pub fn authority_payload_type_tag(_: &mut SchemaGenerator) -> Schema {
 /// `vela.identity_binding.v0.1`.
 pub fn identity_binding_schema_tag(_: &mut SchemaGenerator) -> Schema {
     tag(IDENTITY_BINDING_SCHEMA)
+}
+
+/// `vela.status.v3`.
+pub fn status_schema_tag(_: &mut SchemaGenerator) -> Schema {
+    tag(STATUS_V3_SCHEMA)
+}
+
+/// The verb that emits the status document.
+pub fn status_command_tag(_: &mut SchemaGenerator) -> Schema {
+    tag(STATUS_V3_COMMAND)
+}
+
+/// The one role a Frontier's tracked Git pointer plays.
+pub fn frontier_head_role_tag(_: &mut SchemaGenerator) -> Schema {
+    tag(FRONTIER_HEAD_ROLE)
 }
 
 /// The one signature algorithm a Submission may declare.
@@ -449,6 +522,10 @@ pub fn published() -> Vec<(&'static str, Value)> {
                 "authority-envelope-v1.schema.json",
                 "Vela Authority DSSE Envelope v1",
             ),
+        ),
+        (
+            "status-v3.schema.json",
+            document::<crate::status_v3::StatusV3>("status-v3.schema.json", "Vela Status v3"),
         ),
     ]
 }

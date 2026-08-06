@@ -108,7 +108,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             + "\n"
         )
         return 1
-    sys.stdout.write(f"wrote {LOCK_FILE} at {resolution.payload['generated_at']}\n")
+    # No timestamp: the lock carries none, and printing one here would suggest
+    # the file does. What a reader wants after this line is `git diff`, which
+    # now says something, because an unchanged inventory rewrites byte for byte.
+    sys.stdout.write(f"wrote {LOCK_FILE}: {len(resolution.payload['sources'])} sources\n")
     return 0
 
 

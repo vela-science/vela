@@ -19,3 +19,5 @@ pub use objects::{
     proposal_withdrawal_v1, repository_inputs, repository_origin, submission_v1,
     verification_record,
 };
+mod read_surface;
+pub use read_surface::status_v3;

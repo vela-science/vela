@@ -8,6 +8,7 @@ import pytest
 
 from vela_source_manifest import check, resolve, write_sources_lock
 from vela_source_manifest.cli import main
+from vela_source_manifest.resolver import render
 
 from conftest import FakeGitHub, lock_of, root_of
 
@@ -188,7 +189,6 @@ def test_the_checker_refuses_the_same_ambiguity(frontier, offline):
     (root / "sources.lock.json").write_text(
         json.dumps(
             {
-                "generated_at": "2026-08-06T00:00:00+00:00",
                 "sources": {
                     "erdos": {
                         "kind": "problem_registry",
@@ -454,6 +454,81 @@ def test_a_pages_backed_source_keeps_its_deployment_provenance(frontier):
     assert entry["pages_commit_resolved"] == "2026-08-05T21:22:46Z"
 
 
+def test_an_unquoted_timestamp_stops_the_run_instead_of_being_reformatted(frontier):
+    # Written as raw text because `yaml.safe_dump` quotes a string that would
+    # otherwise resolve to a timestamp, so the fixture cannot produce this file.
+    root = frontier({})
+    (root / "sources.yaml").write_text(
+        "sources:\n"
+        "  formal_conjectures:\n"
+        "    source_id: source:formal-conjectures\n"
+        "    kind: formal_statement_registry\n"
+        "    repo: google-deepmind/formal-conjectures\n"
+        f"    pages_commit: {COMMIT}\n"
+        "    pages_commit_resolved: 2026-08-05T21:22:46Z\n"
+        "    url: https://google-deepmind.github.io/formal-conjectures/data/conjectures.json\n",
+        encoding="utf-8",
+    )
+
+    # The bytes are served, so every other part of this entry locks cleanly and
+    # the quoting is the only thing left that can fail the run.
+    github = FakeGitHub(
+        {
+            "https://google-deepmind.github.io/formal-conjectures/data/conjectures.json": (
+                b'{"conjectures": []}'
+            )
+        }
+    )
+
+    resolution = resolve(root, github)
+
+    # YAML resolves the unquoted scalar to a datetime, which the declaration
+    # schema types as a string and therefore refuses. The run has to stop here:
+    # the lock copies this field through verbatim, and a datetime serialized
+    # into it would read back as `...+00:00`, a value the source never wrote.
+    assert resolution.problems == [
+        (
+            "sources.yaml/sources/formal_conjectures/pages_commit_resolved: "
+            "datetime.datetime(2026, 8, 5, 21, 22, 46, tzinfo=datetime.timezone.utc) "
+            "is not of type 'string'"
+        )
+    ]
+
+
+def test_two_runs_over_the_same_inputs_write_the_same_bytes(frontier):
+    # The property the lock is for. A reader audits it by re-resolving and
+    # diffing; if a rerun over an unchanged inventory produced a different file,
+    # every real diff would arrive buried in a false one and readers would stop
+    # looking. This is what removing `generated_at` bought, and it is the only
+    # thing holding the file to it.
+    root = frontier(
+        {
+            "oeis_a309370": {
+                "source_id": "source:oeis-a309370",
+                "kind": "sequence_database",
+                "url": "https://oeis.org/A309370?fmt=json",
+            }
+        }
+    )
+    body = b'{"number": 309370}'
+
+    first = render(resolve(root, FakeGitHub({"https://oeis.org/A309370?fmt=json": body})).payload)
+    second = render(resolve(root, FakeGitHub({"https://oeis.org/A309370?fmt=json": body})).payload)
+
+    assert first == second
+
+
 def test_a_declaration_with_no_sources_fails(frontier, offline):
     root = frontier({})
     assert not resolve(root).ok
+
+
+def test_an_unusable_declaration_leaves_the_committed_lock_alone(frontier, offline):
+    # The failure mode this guards is a refresh run against a broken
+    # declaration replacing a lock full of computed roots with an empty one.
+    root = frontier({})
+    kept = '{\n  "sources": {}\n}\n'
+    (root / "sources.lock.json").write_text(kept, encoding="utf-8")
+
+    assert not write_sources_lock(root).ok
+    assert (root / "sources.lock.json").read_text(encoding="utf-8") == kept

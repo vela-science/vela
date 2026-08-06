@@ -280,87 +280,6 @@ class QualifiedCandidateDependency(unittest.TestCase):
         self.assertEqual(lint.CANDIDATE_QUALIFICATION_SCHEMAS - found, set())
 
 
-class ActionPinning(unittest.TestCase):
-    def workflow(self, uses: str) -> str:
-        return textwrap.dedent(
-            f"""\
-            name: verify
-            on: [push]
-            jobs:
-              verify:
-                runs-on: ubuntu-24.04
-                steps:
-                  - uses: {uses}
-            """
-        )
-
-    def test_a_full_sha_pin_is_quiet(self) -> None:
-        frontier = FrontierFixture(self)
-        frontier.write(
-            ".github/workflows/verify.yml",
-            self.workflow("actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5"),
-        )
-        self.assertEqual(rules(frontier.lint()), set())
-
-    def test_a_tag_pin_is_a_finding(self) -> None:
-        frontier = FrontierFixture(self)
-        frontier.write(".github/workflows/verify.yml", self.workflow("actions/checkout@v5"))
-        findings = [f for f in frontier.lint() if f.rule == "unpinned-action"]
-        self.assertTrue(findings)
-        self.assertEqual(findings[0].line, 7)
-        self.assertIn("'v5'", findings[0].message)
-
-    def test_a_short_sha_is_a_finding(self) -> None:
-        frontier = FrontierFixture(self)
-        frontier.write(".github/workflows/verify.yml", self.workflow("actions/checkout@93cb6efe"))
-        self.assertEqual(rules(frontier.lint()), {"unpinned-action"})
-
-    def test_an_uppercase_sha_is_a_finding(self) -> None:
-        """Git resolves it; a byte comparison against the pin later does not."""
-        frontier = FrontierFixture(self)
-        frontier.write(
-            ".github/workflows/verify.yml",
-            self.workflow("actions/checkout@93CB6EFE18208431CDDFB8368FD83D5BADBF9BFD"),
-        )
-        self.assertEqual(rules(frontier.lint()), {"unpinned-action"})
-
-    def test_a_local_composite_action_is_not_pinned_and_should_not_be(self) -> None:
-        frontier = FrontierFixture(self)
-        frontier.write(".github/workflows/verify.yml", self.workflow("./.github/actions/setup"))
-        self.assertEqual(rules(frontier.lint()), set())
-
-    def test_a_floating_container_image_is_a_finding(self) -> None:
-        frontier = FrontierFixture(self)
-        frontier.write(".github/workflows/verify.yml", self.workflow("docker://alpine:3.20"))
-        self.assertEqual(rules(frontier.lint()), {"unpinned-action"})
-
-    def test_a_commented_out_action_is_not_a_finding(self) -> None:
-        frontier = FrontierFixture(self)
-        frontier.write(
-            ".github/workflows/verify.yml",
-            self.workflow("actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd")
-            + "      # - uses: actions/cache@v4\n",
-        )
-        self.assertEqual(rules(frontier.lint()), set())
-
-    def test_a_composite_action_definition_is_checked_too(self) -> None:
-        """Workflows are not the only place a `uses:` hides."""
-        frontier = FrontierFixture(self)
-        frontier.write(
-            ".github/actions/setup/action.yml",
-            textwrap.dedent(
-                """\
-                name: setup
-                runs:
-                  using: composite
-                  steps:
-                    - uses: astral-sh/setup-uv@v5
-                """
-            ),
-        )
-        self.assertEqual(rules(frontier.lint()), {"unpinned-action"})
-
-
 class GeneratorPin(unittest.TestCase):
     """The generator a Frontier locks its sources with, named at one commit.
 
@@ -491,7 +410,6 @@ class GeneratedFiles(unittest.TestCase):
 
     def valid_lock(self) -> dict[str, object]:
         return {
-            "generated_at": "2026-08-06T00:00:00+00:00",
             "sources": {"thing": {"kind": "dataset", "sha256": "sha256:" + "a" * 64}},
         }
 
@@ -501,30 +419,22 @@ class GeneratedFiles(unittest.TestCase):
         frontier.write(self.lock_name, json.dumps(self.valid_lock(), indent=2))
         self.assertEqual(rules(frontier.lint()), set())
 
-    def test_a_hand_written_hash_of_the_wrong_shape_is_a_finding(self) -> None:
+    def test_a_lock_of_the_wrong_shape_is_left_to_its_generator(self) -> None:
+        """A malformed root is silent here, and loud one step earlier.
+
+        `vela-source-lock --check` validates this same document against the
+        schema its own package publishes, and the action runs it before the
+        linter. The rejection is asserted where the schema lives, in
+        `packages/vela-source-manifest/tests/test_schemas.py`; asserted here is
+        only that the linter no longer offers a second opinion on it, so a
+        reader who expects a finding learns where the finding really comes from.
+        """
         frontier = FrontierFixture(self)
         frontier.write(self.declaration_name, self.declaration())
         document = self.valid_lock()
         document["sources"]["thing"]["sha256"] = "32c4f405"
         frontier.write(self.lock_name, json.dumps(document, indent=2))
-        self.assertEqual(rules(frontier.lint()), {"generated-file"})
-
-    def test_an_entry_claiming_both_a_hash_and_a_reason_is_a_finding(self) -> None:
-        """The reader invariant: exactly one of the four, and the schema owns it."""
-        frontier = FrontierFixture(self)
-        frontier.write(self.declaration_name, self.declaration())
-        document = self.valid_lock()
-        document["sources"]["thing"]["unlocked"] = "no bytes are retained"
-        frontier.write(self.lock_name, json.dumps(document, indent=2))
-        self.assertEqual(rules(frontier.lint()), {"generated-file"})
-
-    def test_an_entry_with_neither_a_hash_nor_a_reason_is_a_finding(self) -> None:
-        frontier = FrontierFixture(self)
-        frontier.write(self.declaration_name, self.declaration())
-        document = self.valid_lock()
-        del document["sources"]["thing"]["sha256"]
-        frontier.write(self.lock_name, json.dumps(document, indent=2))
-        self.assertEqual(rules(frontier.lint()), {"generated-file"})
+        self.assertEqual(rules(frontier.lint()), set())
 
     def test_a_lock_with_no_declaration_behind_it_is_a_finding(self) -> None:
         frontier = FrontierFixture(self)
@@ -595,6 +505,27 @@ class EveryRuleIsReachable(unittest.TestCase):
         for rule in lint.RULES:
             with self.subTest(rule=rule):
                 self.assertIn(rule, asserted, f"{rule} is reported but never provoked here")
+
+    def test_the_published_table_names_exactly_the_rules_that_exist(self) -> None:
+        """`conformance/README.md` is where a reader learns what this checks.
+
+        It had no reader of its own and drifted in both directions at once: it
+        described `unpinned-action`, deleted when zizmor took that job, and had
+        never mentioned `generator-pin`. A table that names a rule nobody can
+        provoke is worse than an absent table, because it reads as coverage.
+        """
+        readme = (lint.VELA_ROOT / "conformance" / "README.md").read_text(encoding="utf-8")
+        # The one table under this heading, and only it — a second table added
+        # to the file later is not this contract, and a check that swept up
+        # every backticked cell in the document would go red for one.
+        _, _, after = readme.partition("| Rule | Reads |\n")
+        self.assertTrue(after, "conformance/README.md no longer carries the rule table")
+        documented = {
+            line.split("`")[1]
+            for line in after.split("\n\n")[0].splitlines()
+            if line.startswith("| `")
+        }
+        self.assertEqual(documented, set(lint.RULES))
 
 
 if __name__ == "__main__":

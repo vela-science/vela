@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+- `vela.status.v3` is a type, and a published schema. It was two `json!`
+  literals, one per branch, which is how the uninitialized branch came to spell
+  its own `schema` field `vela.status.v1` through the whole life of v2 and v3.
+  Both branches now build one `StatusV3`, so a per-branch schema literal is
+  unwritable rather than merely wrong, and `wire_schema::published()` renders it
+  to `schemas/status-v3.schema.json` for the consumer that reads it —
+  the Observatory in `vela-web`, which followed three shape changes here in six
+  days by watching its projection refresh break. Emitted bytes are unchanged,
+  measured against the pre-change binary on the Erdős Frontier.
+- The status schema states that null is not absence. Every field is `required`,
+  including the ones that are null on a Frontier with no commit or roots yet,
+  and `conformance/verify_wire_schemas.py` holds it to that with two documents
+  and twelve rejections from an independent implementation. `schemas/` now
+  carries one read surface beside the four signed objects; `schemas/README.md`
+  says which is which and why.
+- `docs/CLI.md`'s verb grid is bound to the parser. The published reference
+  named the same commands a third time — after the two printed grids, which
+  were bound last release — and nothing held it to them, so a renamed verb left
+  the documentation site advertising a command the binary would not run. Its
+  daily block, its daily table, and its advanced block are now asserted against
+  `vela help` and `vela help advanced`, which are asserted against
+  `Cli::command()`. `completions` stays undocumented without an allow-list
+  naming it: the reference's own `Hidden utility:` group is the partition.
+
 ## v0.966.4
 
 - One command, one document. `vela status` answered a Frontier whose repository

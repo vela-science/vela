@@ -6,6 +6,14 @@
 //! allowed to be is a second opinion about which verbs exist: the grids are
 //! held to `Cli::command()` by the tests at the bottom of this file, so a verb
 //! added, removed, or renamed on the parser fails here until the grid follows.
+//!
+//! `docs/CLI.md` carries the same surface a third time, as a published
+//! reference that `vela-web` vendors and serves. It was bound to nothing, so a
+//! renamed verb left the site advertising a command the binary would not run,
+//! and nothing said so. Those tests are here too, reaching the same
+//! `Cli::command()` — the doc is downstream of the grids, and the grids are
+//! downstream of the parser, in one direction with no second opinion anywhere
+//! along it.
 
 pub(crate) fn print_product_help() {
     print!("{}", product_help_text());
@@ -89,18 +97,47 @@ mod tests {
             .collect()
     }
 
-    /// Every entry in the advanced reference: a two-space-indented line whose
-    /// first field is followed by a column gap. `  vela <COMMAND>` under Usage
-    /// carries a single space and is not one.
+    /// Is this line an entry in the advanced reference — a two-space-indented
+    /// line whose first field is followed by a column gap? `  vela <COMMAND>`
+    /// under Usage carries a single space and is not one.
+    fn advanced_entry_verb(line: &str) -> Option<String> {
+        let entry = line.strip_prefix("  ")?;
+        let (name, rest) = entry.split_once(' ')?;
+        (!name.is_empty() && rest.starts_with(' ')).then(|| name.to_string())
+    }
+
+    /// Every entry in the advanced reference.
     fn advanced_grid_verbs() -> BTreeSet<String> {
         super::advanced_help_text()
             .lines()
-            .filter_map(|line| {
-                let entry = line.strip_prefix("  ")?;
-                let (name, rest) = entry.split_once(' ')?;
-                (!name.is_empty() && rest.starts_with(' ')).then(|| name.to_string())
-            })
+            .filter_map(advanced_entry_verb)
             .collect()
+    }
+
+    /// The advanced reference's entries outside its `Hidden utility:` group.
+    ///
+    /// This is the published surface, and it is derived rather than listed:
+    /// `completions` is a shell-integration utility that the reference groups
+    /// as hidden and `docs/CLI.md` does not document, and an allow-list naming
+    /// it would be a fourth place the partition is stated. The grouping the
+    /// reference already draws is the partition.
+    fn documented_verbs() -> BTreeSet<String> {
+        let text = super::advanced_help_text();
+        let mut group = String::new();
+        let mut verbs = BTreeSet::new();
+        for line in text.lines() {
+            if !line.starts_with(' ') && line.ends_with(':') {
+                group = line.to_string();
+                continue;
+            }
+            if group == "Hidden utility:" {
+                continue;
+            }
+            if let Some(verb) = advanced_entry_verb(line) {
+                verbs.insert(verb);
+            }
+        }
+        verbs
     }
 
     /// The compact grid holds names alone, several to a line.
@@ -135,6 +172,88 @@ mod tests {
         assert!(
             missing.is_empty(),
             "`vela help` offers verbs the parser does not accept: {missing:?}"
+        );
+    }
+
+    /// The published reference, read from the repository root.
+    fn cli_reference() -> String {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/CLI.md");
+        std::fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
+    }
+
+    /// The words inside the first fenced `text` block after `anchor`.
+    ///
+    /// Both verb blocks in `docs/CLI.md` are transcripts — one of what default
+    /// help prints, one of the advanced grouping — so they are whitespace-
+    /// separated names and nothing else. An anchor that no longer appears is a
+    /// failure, not an empty set: a heading rewritten around the block would
+    /// otherwise silently switch this check off.
+    fn reference_block_verbs(anchor: &str) -> BTreeSet<String> {
+        let document = cli_reference();
+        let after = document
+            .split_once(anchor)
+            .unwrap_or_else(|| panic!("docs/CLI.md no longer contains `{anchor}`"))
+            .1;
+        let body = after
+            .split_once("```text\n")
+            .unwrap_or_else(|| panic!("docs/CLI.md has no text block after `{anchor}`"))
+            .1;
+        let body = body
+            .split_once("```")
+            .unwrap_or_else(|| panic!("docs/CLI.md leaves the block after `{anchor}` unclosed"))
+            .0;
+        body.split_whitespace().map(str::to_string).collect()
+    }
+
+    /// The first column of the daily-command table: `| \`verb\` | gloss |`.
+    fn reference_table_verbs() -> BTreeSet<String> {
+        cli_reference()
+            .lines()
+            .filter_map(|line| {
+                let cell = line.strip_prefix("| `")?;
+                let (name, rest) = cell.split_once('`')?;
+                rest.starts_with(" |").then(|| name.to_string())
+            })
+            .collect()
+    }
+
+    /// `docs/CLI.md` says default help exposes *exactly* this list, so it is
+    /// held to exactly that and not to membership.
+    #[test]
+    fn the_reference_quotes_the_compact_grid_the_binary_prints() {
+        assert_eq!(
+            reference_block_verbs("Default help exposes exactly:"),
+            product_grid_verbs(),
+            "docs/CLI.md and `vela help` disagree about the daily flow"
+        );
+    }
+
+    /// The table is the same verbs with their contracts. A verb renamed
+    /// in the block and not the table leaves a row describing nothing.
+    #[test]
+    fn the_reference_table_covers_the_daily_grid_it_prints() {
+        assert_eq!(
+            reference_table_verbs(),
+            reference_block_verbs("Default help exposes exactly:"),
+            "docs/CLI.md's daily table and daily grid name different verbs"
+        );
+    }
+
+    /// The whole published reference, against the whole published surface.
+    ///
+    /// This is the assertion a rename fails. `vela help advanced` is already
+    /// held to the parser above, so binding the document to the reference's
+    /// non-hidden groups binds it to `Cli::command()` through one chain rather
+    /// than by reading clap a second time.
+    #[test]
+    fn the_reference_documents_exactly_the_published_verbs() {
+        let mut documented = reference_block_verbs("Default help exposes exactly:");
+        documented.extend(reference_block_verbs("## Advanced commands"));
+        assert_eq!(
+            documented,
+            documented_verbs(),
+            "docs/CLI.md and `vela help advanced` disagree about the published surface"
         );
     }
 

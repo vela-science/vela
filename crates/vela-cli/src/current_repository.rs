@@ -17,6 +17,11 @@ use vela_protocol::events::{EventKind, NULL_HASH};
 use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::proposal_withdrawal_v1::ProposalWithdrawalV1;
 use vela_protocol::repository_origin::RepositoryOriginV1;
+use vela_protocol::status_v3::{
+    FRONTIER_HEAD_ROLE, ReplayState, StatusActions, StatusCounts, StatusDecisionInbox,
+    StatusFrontier, StatusGit, StatusIntegrity, StatusReviewAction, StatusRoots, StatusV3,
+    StatusWork, StatusWorkAction, StrictState,
+};
 use vela_protocol::submission_v1::SubmissionV1;
 use vela_protocol::verification_record::VerificationRecordV1;
 
@@ -146,7 +151,7 @@ fn sensitive_paths(root: &Path) -> Vec<PathBuf> {
 
 fn decision_inbox_status_summary(
     projection: &crate::decision_inbox::DecisionInboxProjection,
-) -> (Value, usize) {
+) -> (StatusDecisionInbox, usize) {
     let protocol_ready_count = projection
         .entries
         .iter()
@@ -165,13 +170,16 @@ fn decision_inbox_status_summary(
         .count();
     let pending_count = projection.entries.len();
     (
-        json!({
-            "pending_count": pending_count,
-            "protocol_ready_count": protocol_ready_count,
-            "protocol_blocked_count": protocol_blocked_count,
-            "projection_root": projection.projection_root,
-            "first_entry_root": projection.entries.first().map(|entry| entry.entry_root.clone()),
-        }),
+        StatusDecisionInbox {
+            pending_count: pending_count as u64,
+            protocol_ready_count: protocol_ready_count as u64,
+            protocol_blocked_count: protocol_blocked_count as u64,
+            projection_root: Some(projection.projection_root.clone()),
+            first_entry_root: projection
+                .entries
+                .first()
+                .map(|entry| entry.entry_root.clone()),
+        },
         pending_count,
     )
 }
@@ -200,76 +208,69 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         cold Frontier from a stale release. The phase is a value, not a schema:
         it is `integrity`, and it is `actions.work.mode`, which names the one
         command that clears it. `phase` and `next_action` said the same two
-        things in a shape only this branch had, and are gone with them. */
-        let payload = json!({
-            "schema": "vela.status.v3",
-            "ok": true,
-            "command": "status",
-            "frontier": {
-                "id": profile.frontier_id,
-                "name": profile.name,
-                "profile_root": profile.profile_root()
-                    .unwrap_or_else(|error| crate::cli::fail_return(&error))
+        things in a shape only this branch had, and are gone with them.
+
+        The two branches are now one type, `StatusV3`, which is what makes a
+        per-branch `schema` literal unwritable rather than merely wrong. The
+        nulls below stay explicit `None`s of always-present fields: see the
+        type's header on why absence is a different document. */
+        let payload = StatusV3::new(
+            StatusFrontier {
+                id: profile.frontier_id.clone(),
+                name: profile.name.clone(),
+                profile_root: profile
+                    .profile_root()
+                    .unwrap_or_else(|error| crate::cli::fail_return(&error)),
             },
             /* The role is what this Git pointer means, not whether it has
             reached a commit yet; a bootstrap has the role and null anchors. */
-            "git": {"role": "frontier_head", "commit": commit, "tree": tree},
-            "integrity": {
-                "replay": "not_initialized",
-                "strict": "blocked",
-                "blocker_count": 1,
-                "blockers_by_code": {"repository_authority_uninitialized": 1}
+            StatusGit {
+                role: FRONTIER_HEAD_ROLE.into(),
+                commit,
+                tree,
             },
-            "roots": {
-                "origin": Value::Null,
-                "repository": Value::Null,
-                "authority_keyset": Value::Null,
-                "authority_policy": Value::Null
+            StatusIntegrity {
+                replay: ReplayState::NotInitialized,
+                strict: StrictState::Blocked,
+                blocker_count: 1,
+                blockers_by_code: BTreeMap::from([(
+                    "repository_authority_uninitialized".to_string(),
+                    1,
+                )]),
             },
-            "counts": {
-                "claims": 0,
-                "accepted_claims": 0,
-                "pending_claims": 0,
-                "pending_review": 0,
-                "accepted_review": 0,
-                "rejected_review": 0,
-                "withdrawn_review": 0,
-                "submissions": 0,
-                "verifications": 0,
-                "artifacts": 0
+            StatusRoots {
+                origin: None,
+                repository: None,
+                authority_keyset: None,
+                authority_policy: None,
             },
-            "work": {
-                "ready_target_count": 0
+            StatusCounts::default(),
+            StatusWork {
+                ready_target_count: 0,
             },
-            "decision_inbox": {
-                "pending_count": 0,
-                "protocol_ready_count": 0,
-                "protocol_blocked_count": 0,
-                "projection_root": Value::Null,
-                "first_entry_root": Value::Null
+            StatusDecisionInbox {
+                pending_count: 0,
+                protocol_ready_count: 0,
+                protocol_blocked_count: 0,
+                projection_root: None,
+                first_entry_root: None,
             },
-            "actions": {
-                "review": Value::Null,
-                "work": {
-                    "mode": "authority_uninitialized",
-                    "ready_target_count": 0,
-                    "command": format!("vela init {} --json", frontier.display()),
-                    "note": "The retained Frontier Profile has no repository authority yet. Resume `vela init`; nothing else can produce, verify, or decide until it completes."
-                }
+            StatusActions {
+                review: None,
+                work: StatusWorkAction::AuthorityUninitialized {
+                    ready_target_count: 0,
+                    command: format!("vela init {} --json", frontier.display()),
+                    note: "The retained Frontier Profile has no repository authority yet. Resume `vela init`; nothing else can produce, verify, or decide until it completes.".into(),
+                },
             },
-        });
+        );
         if json_out {
             crate::cli::print_json(&payload);
         } else {
-            println!("vela status · {}", payload["frontier"]["name"]);
+            println!("vela status · {}", payload.frontier.name);
             println!("  replay    not initialized");
             println!("  strict    blocked · repository authority uninitialized");
-            println!(
-                "  next      {}",
-                payload["actions"]["work"]["command"]
-                    .as_str()
-                    .unwrap_or("vela init --json")
-            );
+            println!("  next      {}", payload.actions.work.command());
         }
         return;
     }
@@ -317,129 +318,113 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
     let inbox_projection = crate::decision_inbox::project(&frontier)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let (decision_inbox, pending_decision_count) = decision_inbox_status_summary(&inbox_projection);
-    let review_action = (pending_decision_count > 0).then(|| {
-        json!({
-            "pending_count": pending_decision_count,
-            "command": format!("vela review inbox {} --json", frontier.display()),
-        })
+    let review_action = (pending_decision_count > 0).then(|| StatusReviewAction {
+        pending_count: pending_decision_count as u64,
+        command: format!("vela review inbox {} --json", frontier.display()),
     });
     let work_action = if target_index_configured {
-        json!({
-            "mode": "target",
-            "ready_target_count": ready_target_count,
-            "command": format!("vela next {} --limit 1 --json", frontier.display()),
-        })
+        StatusWorkAction::Target {
+            ready_target_count: ready_target_count as u64,
+            command: format!("vela next {} --limit 1 --json", frontier.display()),
+        }
     } else {
-        json!({
-            "mode": "direct_submission",
-            "ready_target_count": 0,
-            "command": format!("vela submit --frontier {} --help", frontier.display()),
-            "note": "No Target Index is configured. Submit bounded evidence directly or use a Frontier-owned adapter to generate targets.json."
-        })
+        StatusWorkAction::DirectSubmission {
+            ready_target_count: 0,
+            command: format!("vela submit --frontier {} --help", frontier.display()),
+            note: "No Target Index is configured. Submit bounded evidence directly or use a Frontier-owned adapter to generate targets.json.".into(),
+        }
     };
-    let payload = json!({
-        "schema": "vela.status.v3",
-        "ok": true,
-        "command": "status",
-        "frontier": {
-            "id": repository.frontier_id,
-            "name": profile.name,
-            "profile_root": repository.profile_root
+    let payload = StatusV3::new(
+        StatusFrontier {
+            id: repository.frontier_id.clone(),
+            name: profile.name,
+            profile_root: repository.profile_root.clone(),
         },
-        "git": {
-            "role": "frontier_head",
-            "commit": commit,
-            "tree": tree
+        StatusGit {
+            role: FRONTIER_HEAD_ROLE.into(),
+            commit: Some(commit),
+            tree: Some(tree),
         },
-        "integrity": {
+        StatusIntegrity {
             /* The prose below no longer says "verified", which TERMINOLOGY.md
             forbids unqualified. This value keeps the word because it is a wire
             token of vela.status.v3: vela-web pins it as z.literal("verified")
             and its projection builder asserts on it, so retiring it is a
             coordinated schema change, not a wording change. */
-            "replay": "verified",
-            "strict": "pass",
-            "blocker_count": 0,
-            "blockers_by_code": {}
+            replay: ReplayState::Verified,
+            strict: StrictState::Pass,
+            blocker_count: 0,
+            blockers_by_code: BTreeMap::new(),
         },
-        "roots": {
-            "origin": repository.origin_root,
-            "repository": repository_root,
-            "authority_keyset": repository.authority_keyset_root,
-            "authority_policy": repository.authority_policy_root
+        StatusRoots {
+            origin: Some(repository.origin_root.clone()),
+            repository: Some(repository_root),
+            authority_keyset: Some(repository.authority_keyset_root.clone()),
+            authority_policy: Some(repository.authority_policy_root.clone()),
         },
-        "counts": {
-            "claims": repository.accepted_claims.len() + repository.pending_claims.len(),
-            "accepted_claims": repository.accepted_claims.len(),
-            "pending_claims": repository.pending_claims.len(),
-            "pending_review": pending_review,
-            "accepted_review": accepted_review,
-            "rejected_review": rejected_review,
-            "withdrawn_review": withdrawn_review,
-            "submissions": repository.submissions.len(),
-            "verifications": repository.verifications.len(),
-            "artifacts": repository.artifacts.len()
+        StatusCounts {
+            claims: (repository.accepted_claims.len() + repository.pending_claims.len()) as u64,
+            accepted_claims: repository.accepted_claims.len() as u64,
+            pending_claims: repository.pending_claims.len() as u64,
+            pending_review: pending_review as u64,
+            accepted_review: accepted_review as u64,
+            rejected_review: rejected_review as u64,
+            withdrawn_review: withdrawn_review as u64,
+            submissions: repository.submissions.len() as u64,
+            verifications: repository.verifications.len() as u64,
+            artifacts: repository.artifacts.len() as u64,
         },
-        "work": {"ready_target_count": ready_target_count},
-        "decision_inbox": decision_inbox,
-        "actions": {
-            "review": review_action,
-            "work": work_action,
+        StatusWork {
+            ready_target_count: ready_target_count as u64,
         },
-    });
+        decision_inbox,
+        StatusActions {
+            review: review_action,
+            work: work_action,
+        },
+    );
     if json_out {
         crate::cli::print_json(&payload);
     } else {
-        println!(
-            "vela status · {}",
-            payload["frontier"]["name"].as_str().unwrap_or("frontier")
-        );
-        println!(
-            "  frontier  {}",
-            payload["frontier"]["id"].as_str().unwrap_or("unavailable")
-        );
+        println!("vela status · {}", payload.frontier.name);
+        println!("  frontier  {}", payload.frontier.id);
         println!(
             "  commit    {}",
-            payload["git"]["commit"].as_str().unwrap_or("unavailable")
+            payload.git.commit.as_deref().unwrap_or("unavailable")
         );
         println!("  replay    matched · signatures, roots, canonical bytes");
         println!("  strict    pass");
-        println!("  claims    {}", payload["counts"]["claims"]);
-        println!(
-            "  targets   {} ready",
-            payload["work"]["ready_target_count"]
-        );
+        println!("  claims    {}", payload.counts.claims);
+        println!("  targets   {} ready", payload.work.ready_target_count);
         println!(
             "  inbox     {} pending · {} protocol-ready · {} protocol-blocked",
-            payload["decision_inbox"]["pending_count"],
-            payload["decision_inbox"]["protocol_ready_count"],
-            payload["decision_inbox"]["protocol_blocked_count"]
+            payload.decision_inbox.pending_count,
+            payload.decision_inbox.protocol_ready_count,
+            payload.decision_inbox.protocol_blocked_count
         );
         println!(
             "  inbox root {}",
-            payload["decision_inbox"]["projection_root"]
-                .as_str()
+            payload
+                .decision_inbox
+                .projection_root
+                .as_deref()
                 .unwrap_or("unavailable")
         );
         println!(
             "  first card {}",
-            payload["decision_inbox"]["first_entry_root"]
-                .as_str()
+            payload
+                .decision_inbox
+                .first_entry_root
+                .as_deref()
                 .unwrap_or("none")
         );
-        if let Some(review) = payload["actions"]["review"].as_object() {
+        if let Some(review) = &payload.actions.review {
             println!(
                 "  review    {} pending · {}",
-                review["pending_count"],
-                review["command"].as_str().unwrap_or("unavailable")
+                review.pending_count, review.command
             );
         }
-        println!(
-            "  work      {}",
-            payload["actions"]["work"]["command"]
-                .as_str()
-                .unwrap_or("unavailable")
-        );
+        println!("  work      {}", payload.actions.work.command());
     }
 }
 

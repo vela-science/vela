@@ -1,0 +1,68 @@
+version: 2
+
+# One mechanism, not two. Renovate would need a GitHub App installed on the
+# vela-science org; Dependabot is native and already covers every ecosystem this
+# workspace has. There is deliberately no renovate.json beside this file.
+#
+# Every ecosystem below waits a week before it will propose a release.
+# `default-days` is the cooldown key that applies to all of them — the semver-*
+# keys only reach package managers that carry semver — and a week is roughly the
+# window in which a compromised publish gets noticed and yanked. A SHA pin
+# records which bytes run, not that those bytes were ever worth running.
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Toronto
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 7
+    groups:
+      cargo:
+        patterns:
+          - "*"
+
+  # conformance/ and packages/vela-source-manifest/ each carry their own
+  # uv.lock. CI runs `uv run --locked`, so a manifest bump that misses the lock
+  # fails the run instead of landing quietly.
+  #
+  # research/lean-replay-contract/requirements.lock.txt is left out on purpose:
+  # its hashes are pinned from the conformance lock and are part of the replay
+  # contract, not a dependency to keep current.
+  - package-ecosystem: uv
+    directories:
+      - /conformance
+      - /packages/vela-source-manifest
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Toronto
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 7
+    groups:
+      python:
+        patterns:
+          - "*"
+
+  # Every action in this repository is pinned to a full commit SHA. Dependabot
+  # rewrites the SHA in place, which is the only way these pins stay current
+  # without someone resolving tags by hand.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Toronto
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 7
+    groups:
+      workflow-actions:
+        patterns:
+          - "*"

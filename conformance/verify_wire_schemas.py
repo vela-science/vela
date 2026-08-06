@@ -91,6 +91,177 @@ def verify_manifest() -> None:
             raise AssertionError(f"frozen fixture drift: {entry['path']}")
 
 
+def status_document(**overrides: object) -> dict:
+    """A replaying Frontier's `vela.status.v3`, as the CLI emits it."""
+    document = {
+        "schema": "vela.status.v3",
+        "ok": True,
+        "command": "status",
+        "frontier": {
+            "id": "vfr_0a25edabc16db143",
+            "name": "Fixture frontier",
+            "profile_root": "sha256:" + "1" * 64,
+        },
+        "git": {"role": "frontier_head", "commit": "a" * 40, "tree": "b" * 40},
+        "integrity": {
+            "replay": "verified",
+            "strict": "pass",
+            "blocker_count": 0,
+            "blockers_by_code": {},
+        },
+        "roots": {
+            "origin": "sha256:" + "2" * 64,
+            "repository": "sha256:" + "3" * 64,
+            "authority_keyset": "sha256:" + "4" * 64,
+            "authority_policy": "sha256:" + "5" * 64,
+        },
+        "counts": {
+            "claims": 2,
+            "accepted_claims": 1,
+            "pending_claims": 1,
+            "pending_review": 1,
+            "accepted_review": 1,
+            "rejected_review": 0,
+            "withdrawn_review": 0,
+            "submissions": 2,
+            "verifications": 1,
+            "artifacts": 3,
+        },
+        "work": {"ready_target_count": 4},
+        "decision_inbox": {
+            "pending_count": 1,
+            "protocol_ready_count": 1,
+            "protocol_blocked_count": 0,
+            "projection_root": "sha256:" + "6" * 64,
+            "first_entry_root": "sha256:" + "7" * 64,
+        },
+        "actions": {
+            "review": {"pending_count": 1, "command": "vela review inbox . --json"},
+            "work": {
+                "mode": "target",
+                "ready_target_count": 4,
+                "command": "vela next . --limit 1 --json",
+            },
+        },
+    }
+    document.update(overrides)
+    return document
+
+
+def verify_status_read_surface() -> tuple[int, int]:
+    """Hold `status-v3.schema.json` to the two documents `vela status` emits.
+
+    This schema describes a read surface rather than a signed object, so there
+    is no canonical-bytes fixture behind it and no signature to check. What
+    there is instead is a second implementation — the Observatory reads this
+    document and nothing else to build its projection — and the cases below
+    are the ones that consumer would be broken by.
+
+    The negative cases are all one rule: a field whose value is null on the
+    branch that cannot fill it is still a field, and a document that drops the
+    key is a different document. Three field-shape changes reached the
+    Observatory as fail-closed breaks in one week; a dropped key would reach it
+    as a field silently read as absent.
+    """
+    check = validator("status-v3.schema.json")
+
+    replaying = status_document()
+    check.validate(replaying)
+
+    # A Frontier whose repository authority has not finished initializing
+    # answers the same document, with the anchors it does not have yet null.
+    bootstrapping = status_document(
+        git={"role": "frontier_head", "commit": None, "tree": None},
+        integrity={
+            "replay": "not_initialized",
+            "strict": "blocked",
+            "blocker_count": 1,
+            "blockers_by_code": {"repository_authority_uninitialized": 1},
+        },
+        roots={
+            "origin": None,
+            "repository": None,
+            "authority_keyset": None,
+            "authority_policy": None,
+        },
+        counts=dict.fromkeys(status_document()["counts"], 0),
+        work={"ready_target_count": 0},
+        decision_inbox={
+            "pending_count": 0,
+            "protocol_ready_count": 0,
+            "protocol_blocked_count": 0,
+            "projection_root": None,
+            "first_entry_root": None,
+        },
+        actions={
+            "review": None,
+            "work": {
+                "mode": "authority_uninitialized",
+                "ready_target_count": 0,
+                "command": "vela init . --json",
+                "note": "Resume `vela init`.",
+            },
+        },
+    )
+    check.validate(bootstrapping)
+
+    negatives = 0
+
+    for absent in ("commit", "tree"):
+        mutated = copy.deepcopy(bootstrapping)
+        del mutated["git"][absent]
+        expect_rejected(check, mutated, f"status git without {absent}")
+        negatives += 1
+
+    for absent in ("projection_root", "first_entry_root"):
+        mutated = copy.deepcopy(bootstrapping)
+        del mutated["decision_inbox"][absent]
+        expect_rejected(check, mutated, f"status decision inbox without {absent}")
+        negatives += 1
+
+    mutated = copy.deepcopy(bootstrapping)
+    del mutated["roots"]["origin"]
+    expect_rejected(check, mutated, "status roots without origin")
+    negatives += 1
+
+    mutated = copy.deepcopy(bootstrapping)
+    del mutated["actions"]["review"]
+    expect_rejected(check, mutated, "status actions without review")
+    negatives += 1
+
+    mutated = copy.deepcopy(replaying)
+    mutated["schema"] = "vela.status.v1"
+    expect_rejected(check, mutated, "status under a retired schema tag")
+    negatives += 1
+
+    mutated = copy.deepcopy(replaying)
+    mutated["unexpected"] = True
+    expect_rejected(check, mutated, "status unknown field")
+    negatives += 1
+
+    mutated = copy.deepcopy(replaying)
+    mutated["integrity"]["replay"] = "passed"
+    expect_rejected(check, mutated, "status replay outside its vocabulary")
+    negatives += 1
+
+    mutated = copy.deepcopy(replaying)
+    mutated["actions"]["work"]["note"] = "targets need no note"
+    expect_rejected(check, mutated, "target work action carrying a note")
+    negatives += 1
+
+    mutated = copy.deepcopy(replaying)
+    mutated["actions"]["work"]["mode"] = "inspect"
+    expect_rejected(check, mutated, "status work mode outside its vocabulary")
+    negatives += 1
+
+    mutated = copy.deepcopy(replaying)
+    mutated["git"]["commit"] = "sha256:" + "a" * 64
+    expect_rejected(check, mutated, "status git commit as a Vela root")
+    negatives += 1
+
+    return 2, negatives
+
+
 def main() -> int:
     submission_check = validator("submission-v1.schema.json")
     verification_check = validator("verification-record-v1.schema.json")
@@ -173,11 +344,14 @@ def main() -> int:
     mutated["withdrawal_id"] = "vpw_"
     expect_rejected(withdrawal_check, mutated, "withdrawal reference with no body")
 
+    positive, negative = verify_status_read_surface()
+
     patterns = verify_patterns_are_portable()
     verify_manifest()
+    schemas = len(list(SCHEMAS.glob("*.schema.json")))
     print(
-        f"wire-schemas: ok (4 schemas, 10 positive objects, 16 negative cases, "
-        f"{patterns} portable patterns)"
+        f"wire-schemas: ok ({schemas} schemas, {10 + positive} positive objects, "
+        f"{16 + negative} negative cases, {patterns} portable patterns)"
     )
     return 0
 

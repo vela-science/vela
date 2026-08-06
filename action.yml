@@ -12,13 +12,14 @@
 # with the pinned released binary. It never installs trust state, signs,
 # decides, or changes Frontier state.
 #
-# It then runs the two repository-shape checks that every Frontier owes and
-# none of them owns: the committed source lock against the declaration its own
-# generator reads, and the Frontier lint. Those live here rather than in four
-# workflows because four copies of a check is the shape the lint exists to
-# report. Both are read-only and neither touches the Frontier: `--check` never
-# writes, the linter never writes, and the Python environment they need is
-# built from this repository's own locks inside the action checkout.
+# It then runs the three repository-shape checks that every Frontier owes and
+# none of them owns: its GitHub Actions contracts, the committed source lock
+# against the declaration its own generator reads, and the Frontier lint. Those
+# live here rather than in four workflows because four copies of a check is the
+# shape the lint exists to report. All three are read-only and none touches the
+# Frontier: `zizmor` and the linter only read, `--check` never writes, and the
+# Python environment they need is built from this repository's own locks inside
+# the action checkout.
 #
 # What each Frontier still owns is its own test suite. The action cannot run
 # that: there is no convention here for what a Frontier's tests are, and
@@ -92,6 +93,33 @@ runs:
       with:
         version: "0.11.32"
         python-version: "3.13"
+
+    # The same audit, at the same version and threshold, that this repository
+    # runs over its own workflows. It arrives through the pin a Frontier already
+    # consumes, so adopting it is not a fifth edit in a fifth repository.
+    #
+    # This replaced a hand-written `unpinned-action` rule in `frontier_lint.py`.
+    # zizmor's blanket policy already requires a hash — with no configuration
+    # file — and it reads the workflow rather than the line, so it also reports
+    # the permission scopes, credential persistence and cache exposure that a
+    # regex over `uses:` could never see.
+    - name: Frontier GitHub Actions contracts
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        FRONTIER: ${{ inputs.frontier }}
+      run: |
+        set -euo pipefail
+        # zizmor errors rather than passing when collection finds nothing, so a
+        # Frontier that runs no Actions at all is skipped here explicitly. Same
+        # shape, and same reason, as the source-declaration check below: absent
+        # is not the same as failing.
+        if [ ! -d "$FRONTIER/.github" ]; then
+          echo "no GitHub Actions in this Frontier; nothing to audit"
+          exit 0
+        fi
+        uv run --project "$ACTION_PATH/conformance" --locked \
+          zizmor --offline --min-severity medium --no-progress "$FRONTIER"
 
     - name: Committed source lock matches its declaration
       shell: bash

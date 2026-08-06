@@ -21,8 +21,17 @@ has already failed twice this week: a check that restates a pinned SHA, a
 projection version, or a lock's contents goes stale the day the declaration
 moves and reddens a repository for a change that was correct. So the shared
 file list comes from the package, the retired paths come from the profile
-contract, the lock's shape comes from the schema its own generator publishes,
-and no hash is typed in here at all.
+contract, a lock's generator is named by the package that ships it, and no hash
+is typed in here at all.
+
+The same instinct says what does *not* belong here. A lock's shape is settled by
+`vela-source-lock --check` against the schema that generator publishes, which
+the action runs a step ahead of this file; restating it here would put two
+validators on one document. Action pinning is settled by `zizmor`, which the
+action runs a step ahead of that: its blanket policy already requires a hash
+and it reads the workflow rather than the line, so the rule that used to live
+here was one repository's regex standing in for a tool the same repository
+already ran.
 """
 
 from __future__ import annotations
@@ -38,8 +47,6 @@ import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterator
-
-import jsonschema
 
 VELA_ROOT = Path(__file__).resolve().parent.parent
 
@@ -93,14 +100,6 @@ KEPT_DOT_DIRECTORIES = frozenset({".github", ".vela"})
 # the failure mode this whole file exists to avoid.
 RETIRED_PATHS_MARKER = "<!-- frontier-lint:retired-paths -->"
 PROFILE_CONTRACT = "docs/FRONTIER_REPOSITORY_PROFILE.md"
-
-# `uses:` as a YAML key at the start of a line or a sequence item. Workflows
-# here use neither anchors nor block scalars around this key, so a line match is
-# exact for them and cheap enough to stay exact; a `uses:` appearing inside a
-# `run:` script would be a false positive and is the known limit of this form.
-USES_LINE = re.compile(r"^\s*(?:-\s+)?uses:\s*(?P<ref>[^\s#]+)")
-FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
-DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 # A line that resolves something from git, in any of the three spellings a
 # Frontier uses: the `uvx --from git+…` invocation a declaration carries, the
@@ -400,21 +399,6 @@ def qualified_candidates() -> list[QualifiedCandidate]:
     return candidates
 
 
-def lock_schema(package: SharedPackage) -> tuple[str, dict[str, Any]]:
-    """The lock schema, resolved through the package's own name for it."""
-    try:
-        name = package.constants["LOCK_SCHEMA"]
-    except KeyError as error:
-        raise ConfigurationError(
-            f"{package.name} no longer defines LOCK_SCHEMA; the generated-file rule "
-            "cannot find the schema it validates against"
-        ) from error
-    matches = [path for path in package.root.rglob(name) if path.is_file()]
-    if len(matches) != 1:
-        raise ConfigurationError(f"{package.name} ships {len(matches)} copies of {name}")
-    return name, json.loads(matches[0].read_text(encoding="utf-8"))
-
-
 # ---------------------------------------------------------------------------
 # What one Frontier has
 # ---------------------------------------------------------------------------
@@ -616,62 +600,6 @@ def rule_non_production_dependency(
     return findings
 
 
-def rule_action_pinning(frontier: Frontier) -> list[Finding]:
-    """Every third-party Action must be pinned to a full commit SHA.
-
-    The pin is checked for shape only. What tag a SHA carried on the day it was
-    written is upstream's to move and no business of a check that runs offline:
-    a rule that compared the comment would have gone red this week for four
-    repositories whose pins were, and are, correct.
-    """
-    findings: list[Finding] = []
-    workflows = frontier.root / ".github"
-    if not workflows.is_dir():
-        return findings
-    for path in sorted(workflows.rglob("*")):
-        if not path.is_file() or path.suffix not in {".yml", ".yaml"}:
-            continue
-        relative = frontier.relative(path)
-        for number, line in enumerate(
-            path.read_text(encoding="utf-8", errors="replace").splitlines(), start=1
-        ):
-            if line.lstrip().startswith("#"):
-                continue
-            match = USES_LINE.match(line)
-            if not match:
-                continue
-            reference = match.group("ref").strip("'\"")
-            if reference.startswith((".", "/")):
-                continue
-            if reference.startswith("docker://"):
-                if "@" not in reference or not DIGEST.match(reference.rsplit("@", 1)[1]):
-                    findings.append(
-                        Finding(
-                            "unpinned-action",
-                            relative,
-                            number,
-                            f"{reference} is not pinned to an image digest",
-                        )
-                    )
-                continue
-            if "@" not in reference:
-                findings.append(
-                    Finding("unpinned-action", relative, number, f"{reference} carries no ref at all")
-                )
-                continue
-            action, ref = reference.rsplit("@", 1)
-            if not FULL_SHA.match(ref):
-                findings.append(
-                    Finding(
-                        "unpinned-action",
-                        relative,
-                        number,
-                        f"{action} is pinned to {ref!r}, which is not a 40-character commit SHA",
-                    )
-                )
-    return findings
-
-
 def rule_generator_pin(frontier: Frontier, packages: list[SharedPackage]) -> list[Finding]:
     """A shared package a Frontier depends on is named at one immutable commit.
 
@@ -764,12 +692,19 @@ def rule_retired_paths(frontier: Frontier, retired: list[str]) -> list[Finding]:
 
 
 def rule_generated_files(frontier: Frontier, packages: list[SharedPackage]) -> list[Finding]:
-    """A generated file answers to its generator, in shape and by name.
+    """A generated file has a declaration behind it, and that declaration says
+    what to re-run.
 
-    The lock is validated against the schema the generator publishes rather than
-    against a restatement of it, so the two cannot drift; and the declaration it
-    is derived from has to name the generator, so a reader who finds a wrong
-    hash knows what to re-run instead of editing the lock to agree with itself.
+    Not whether the lock's *shape* is right. `vela-source-lock --check` validates
+    it against the schema the generator publishes, and the action runs that a
+    step before this one; a second validator here would be a second opinion on
+    the same bytes from the same schema, and two opinions are how a check starts
+    disagreeing with itself.
+
+    What --check cannot answer is a lock with no `sources.yaml` at all — it reads
+    the declaration first and stops, and the action skips the step entirely when
+    the file is absent. That case is a generated file with no generator behind
+    it, which is exactly what this rule is about, so it is owned here.
     """
     findings: list[Finding] = []
     for package in packages:
@@ -780,26 +715,6 @@ def rule_generated_files(frontier: Frontier, packages: list[SharedPackage]) -> l
         lock_path = frontier.file(lock_name)
         if not lock_path.is_file():
             continue
-        schema_name, schema = lock_schema(package)
-        try:
-            document = json.loads(lock_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as error:
-            findings.append(Finding("generated-file", lock_name, 0, f"is not JSON: {error}"))
-            continue
-        validator_class = jsonschema.validators.validator_for(schema)
-        validator_class.check_schema(schema)
-        for error in sorted(
-            validator_class(schema).iter_errors(document), key=lambda e: list(e.absolute_path)
-        ):
-            where = "/".join(str(part) for part in error.absolute_path)
-            findings.append(
-                Finding(
-                    "generated-file",
-                    f"{lock_name}{'/' + where if where else ''}",
-                    0,
-                    f"violates {schema_name} as published by {package.name}: {error.message}",
-                )
-            )
         declaration_path = frontier.file(declaration_name)
         if not declaration_path.is_file():
             findings.append(
@@ -830,7 +745,6 @@ def rule_generated_files(frontier: Frontier, packages: list[SharedPackage]) -> l
 RULES = (
     "shared-package-copy",
     "non-production-dependency",
-    "unpinned-action",
     "generator-pin",
     "retired-path",
     "generated-file",
@@ -843,7 +757,6 @@ def lint(frontier_root: Path) -> list[Finding]:
     findings = [
         *rule_shared_package_copy(frontier, packages),
         *rule_non_production_dependency(frontier, qualified_candidates()),
-        *rule_action_pinning(frontier),
         *rule_generator_pin(frontier, packages),
         *rule_retired_paths(frontier, retired_paths()),
         *rule_generated_files(frontier, packages),

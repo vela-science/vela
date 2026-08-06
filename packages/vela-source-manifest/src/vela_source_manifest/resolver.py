@@ -24,6 +24,16 @@ Every entry therefore carries exactly one of:
 ``error`` marks a source that should have been lockable and was not. It is
 written into the lock so the gap is visible, and the run then exits non-zero.
 
+Nothing in the lock comes from the clock. The file used to open with a
+``generated_at`` stamp, which made two runs over identical inputs produce
+different bytes and so made the obvious check — re-resolve, then
+``git diff --exit-code`` — impossible to write. A lock that cannot be diffed
+against a re-run is a lock nobody can audit, which is the whole of what it is
+for. When the lock was made is a question Git answers, and answers better: the
+commit dates the record, while a stamp only dated a process that may have run
+days before anyone committed its output. Whether the lock is *stale* is a
+different question again, and ``--check --refetch`` is what asks it.
+
 That invariant is stated once more, machine-readably, in
 ``schemas/sources-lock.v1.schema.json``, and this module validates its own output
 against it before returning. A resolver that trusts its own output is a resolver
@@ -32,7 +42,6 @@ whose bugs reach the lock.
 
 from __future__ import annotations
 
-import datetime
 import hashlib
 import json
 import os
@@ -54,21 +63,6 @@ UA = {"User-Agent": "vela-source-manifest"}
 TIMEOUT = 90
 
 Fetch = Callable[[str, Mapping[str, str] | None], bytes]
-
-
-class Loader(yaml.SafeLoader):
-    """SafeLoader that leaves timestamps as the strings they were written as.
-
-    YAML resolves an unquoted `2026-08-05T21:22:46Z` to a datetime, and a
-    datetime round-tripped through JSON comes back out as `...+00:00`. That is a
-    different string from the one the source declared, and a lock that silently
-    reformats a declared value is a lock a reader cannot diff against its source.
-    """
-
-
-Loader.add_constructor(
-    "tag:yaml.org,2002:timestamp", lambda loader, node: loader.construct_scalar(node)
-)
 
 
 # Locators and repository identity are copied through to the lock verbatim. They
@@ -140,9 +134,15 @@ def read_declaration(root: Path) -> tuple[dict[str, Any], list[str]]:
 
     A declaration that parses but says the wrong thing fails here, at the
     producer, rather than downstream in whatever consumes the lock.
+
+    `safe_load` resolves an unquoted `2026-08-05T21:22:46Z` to a datetime, which
+    the declaration schema then rejects as not a string. That rejection is the
+    behavior wanted: the two timestamps a Frontier declares are quoted, and the
+    lock copies them through verbatim, so an unquoted one has to stop the run
+    rather than be coerced into a value the source never wrote.
     """
     origin = root / DECLARATION_FILE
-    document = yaml.load(origin.read_text(encoding="utf-8"), Loader) or {}
+    document = yaml.safe_load(origin.read_text(encoding="utf-8")) or {}
     problems = schema.validate(document, schema.DECLARATION_SCHEMA, DECLARATION_FILE)
     return document, problems
 
@@ -334,16 +334,23 @@ def resolve(root: str | Path, fetch: Fetch | None = None) -> Resolution:
     fetch = fetch or urlopen_fetch
     root = Path(root)
     document, problems = read_declaration(root)
-    registry = document.get("sources") or {}
-    if not registry:
-        problems.append(f"{root / DECLARATION_FILE} declares no sources")
-        registry = {}
 
+    # A declaration that fails its own schema is not an inventory yet: there is
+    # nothing here worth fetching, and nothing a lock could honestly record a
+    # gap against. The empty declaration is one of these — the schema requires
+    # `sources` and requires it non-empty — and so is a value of the wrong type,
+    # which is why stopping here also keeps a refused value away from the JSON
+    # encoder. An unquoted timestamp arrives from YAML as a datetime, and
+    # copying it through would raise out of `render` with a traceback where the
+    # reason belongs.
+    if problems:
+        return Resolution(payload={"sources": {}}, problems=problems)
+
+    registry = document["sources"]
     locked = {
         name: lock_entry(root, name, spec, fetch, problems) for name, spec in registry.items()
     }
-    stamp = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
-    payload = {"generated_at": stamp, "sources": locked}
+    payload = {"sources": locked}
 
     # The output is held to the same schema a consumer will hold it to. A
     # resolver bug that produces an entry with both a sha256 and an unlocked
@@ -361,9 +368,17 @@ def write_sources_lock(root: str | Path = ".", fetch: Fetch | None = None) -> Re
     """Resolve and write `sources.lock.json`.
 
     The lock is written even when the run failed, so the gap is on the record
-    rather than only in a terminal that has since scrolled away.
+    rather than only in a terminal that has since scrolled away. That holds for
+    a source the run could not pin: the entry says so, and the file carries it.
+
+    It does not hold for a declaration that never became an inventory. The
+    schema requires at least one source, so an empty result means the run never
+    read one, and writing it would replace a lock full of computed roots with a
+    file recording nothing. There is no gap to preserve, only the previous
+    record to destroy, so the lock on disk is left where it is.
     """
     root = Path(root)
     resolution = resolve(root, fetch)
-    (root / LOCK_FILE).write_text(render(resolution.payload), encoding="utf-8")
+    if resolution.payload["sources"]:
+        (root / LOCK_FILE).write_text(render(resolution.payload), encoding="utf-8")
     return resolution

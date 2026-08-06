@@ -103,13 +103,27 @@ def test_the_reader_invariant_is_enforced_by_the_lock_schema(entry):
     pin must never read as one nobody bothered to pin, and an entry with both a
     root and a reason is a resolver bug that must not reach a reader.
     """
-    lock = {"generated_at": "2026-08-06T04:41:52+00:00", "sources": {"x": entry}}
+    lock = {"sources": {"x": entry}}
     assert validate(lock, LOCK_SCHEMA, "sources.lock.json")
+
+
+def test_a_hand_written_root_of_the_wrong_shape_is_rejected():
+    """The abbreviation a person types when they edit a lock instead of running
+    the generator. Held here because this schema is the only place that decides
+    what a content root looks like: the Frontier linter used to validate locks
+    against this same file a second time, and no longer does.
+    """
+    lock = {
+        "sources": {"x": {"kind": "k", "sha256": "32c4f405"}},
+    }
+    assert validate(lock, LOCK_SCHEMA, "sources.lock.json") == [
+        "sources.lock.json/sources/x/sha256: "
+        "'32c4f405' does not match '^sha256:[0-9a-f]{64}$'"
+    ]
 
 
 def test_a_well_formed_lock_entry_passes():
     lock = {
-        "generated_at": "2026-08-06T04:41:52+00:00",
         "sources": {"x": {"kind": "k", "sha256": GOOD_ROOT}},
     }
     assert validate(lock, LOCK_SCHEMA, "sources.lock.json") == []

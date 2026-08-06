@@ -60,13 +60,24 @@ none of them can go stale on its own:
 | --- | --- |
 | `shared-package-copy` | the real file list, `__all__`, and module symbols of every package under `packages/` |
 | `non-production-dependency` | each `vela.package-consumer-reference.v1` in the Frontier, and `subdirectory =` in its `pyproject.toml` |
-| `unpinned-action` | every `uses:` in `.github/`, checked for a 40-character SHA and nothing else |
+| `generator-pin` | every `git+` reference to a package under `packages/`, checked for a 40-character commit and for agreement between a Frontier's own restatements of it |
 | `retired-path` | the fenced list under `<!-- frontier-lint:retired-paths -->` in `docs/FRONTIER_REPOSITORY_PROFILE.md` |
-| `generated-file` | the lock schema and console-script name published by the package that generates the lock |
+| `generated-file` | the lock and declaration filenames and the console-script name published by the package that generates the lock |
 
-`unpinned-action` deliberately does not check that the comment beside a SHA
-still names the tag it had. Tags move; that check was already red this week for
-four repositories whose pins were correct.
+`generator-pin` deliberately does not check *which* commit a Frontier names.
+Which one is right is not a fact this checkout can settle for a repository it
+was not shipped with, and a rule that compared the value would go red for a
+Frontier whose pin is correct and simply newer. Shape and self-agreement only.
+
+Two rules used to live here and no longer do, both because something upstream
+of the linter already owned the same bytes. `unpinned-action` matched every
+`uses:` in `.github/` against a 40-character SHA; `zizmor` now audits the whole
+Frontier a step earlier in `action.yml`, under a blanket policy that requires a
+hash with no configuration file, and it parses the workflow rather than the
+line. And `generated-file` used to validate the lock against the generator's
+schema; `vela-source-lock --check` does that a step earlier still, from the same
+schema. What is left of `generated-file` is the case `--check` returns early on:
+a lock with no `sources.yaml` behind it at all.
 
 `test_frontier_lint.py` fails every rule on purpose and then passes it, and CI
 runs it. A rule that can no longer be made to fire is reported coverage that

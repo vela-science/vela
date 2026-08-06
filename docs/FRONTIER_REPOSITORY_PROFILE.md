@@ -214,6 +214,7 @@ sources.lock.json                  derived; resolved source content hashes
 STATEMENT.md                       the Frontier's question in prose
 technique-sheet.md                 domain method notes
 witnesses/                         domain-native evidence inputs
+artifacts/                         domain evidence in its working form
 ```
 
 Of that list only `.gitignore` and `.gitattributes` are scaffolded.
@@ -225,13 +226,20 @@ hold `.vela/**`, `records/**` and `artifacts/**` to `-text`, because
 end-of-line normalization is a byte rewrite and a content-addressed blob that
 is rewritten no longer hashes to its own name.
 
+That `artifacts/**` rule is the one place the scaffold names a domain path
+before it exists. `vela init` creates no `artifacts/` directory and reports
+writing six files, none of them under it; what it does is hold the path to
+`-text` in advance, so a Frontier that later puts evidence there gets byte
+stability without having to know it needed it. Three of the four repositories
+now have one, holding between 1 and 62 tracked files.
+
 The remainder emerged in the Frontiers rather than in this contract, so the
 shapes vary and the coverage is partial: `sources.yaml` and
-`sources.lock.json` are in all four repositories, `STATEMENT.md` in three, and
-`witnesses/` in two. The lock is written by the shared `vela-source-manifest`
-package, not by a script any Frontier owns. A CI workflow is in all four and
-`vela init` scaffolds none of it. Treat these as domain conventions worth
-copying, not as contract.
+`sources.lock.json` are in all four repositories, `STATEMENT.md` in all four,
+`artifacts/` in three, and `witnesses/` in two. The lock is written by the
+shared `vela-source-manifest` package, not by a script any Frontier owns. A CI
+workflow is in all four and `vela init` scaffolds none of it. Treat these as
+domain conventions worth copying, not as contract.
 
 ## Runtime behavior
 
@@ -248,21 +256,37 @@ checked-in runtime configuration file.
 
 ## Path ownership
 
+Every tracked top-level entry in the four published Frontiers falls into one of
+the rows below, as does every name their four `.gitignore` files keep out. The
+table is written to be exhaustive over those repositories rather than
+illustrative: a path that lands in a Frontier and matches no row is either a row
+this contract is missing or a file that should not have been committed, and both
+of those are worth the argument the omission would have skipped.
+
+Nothing enforces that, deliberately. A domain directory is the Frontier's own
+shape — it may hold tracked evidence and ignored scratch side by side, as
+erdos's `lean/` does — and a rule here that refused an unfamiliar name would
+redden a repository for a change that was correct. The table classifies; the
+Frontier decides.
+
 | Path | Class | Rule |
 | --- | --- | --- |
 | `.vela/origin.json`, `.vela/repository.json` | Canonical repository identity | Origin is immutable; manifest changes only through a Vela transaction |
 | `.vela/authority/` | Canonical authentication history | Append through repository authority only |
 | `records/**/sha256/` | Canonical content-addressed objects | Never hand-edit or rename |
 | `frontier.toml` | Descriptive profile | Edit deliberately; any root change must be governed before canonical writes continue |
-| `targets.json` and packets | Derived work projection | Generate directly and freshness-check; never treat as Standing |
-| domain-native files | Source and evidence | Keep stable, reviewable identities |
-| `.vela/operation-journals/`, `.vela/work/` | Recovery/private coordination | Never scientific state |
-| `README.md`, `AGENTS.md` | Human and agent guidance | Keep aligned with the current product; `CLAUDE.md` may be a one-line pointer to `AGENTS.md`. Scope is declared once in `frontier.toml`, which `profile_root` commits to; a `SCOPE.md` restating it drifts and is not scaffolded |
-| `STATEMENT.md`, `technique-sheet.md` | Optional domain guidance | Emerged convention, not contract; Vela reads neither |
+| `targets.json`, `targets/` | Derived work projection | Generate directly and freshness-check; never treat as Standing |
+| `artifacts/` | Domain evidence, working copy | The canonical copy of anything that matters is the Artifact under `records/artifacts/sha256/`; this path is the readable form beside it and confers nothing. `vela init` does not create it and holds it to `-text` anyway, so evidence put here is byte-stable from the first commit |
+| `witnesses/`, `sources/`, `execution/`, `attack/`, `lean/`, `statements/`, `discoveries/`, `research/`, `reproductions/`, `verification/`, `verifiers/`, `lean-verifications/`, `exports/`, `review/`, and the Frontier's own `*.yaml` and `*.json` inventories | Source and evidence | Domain-native, one repository's own shape. Keep stable, reviewable identities. Nothing here is read by Vela or validated by replay, so a file that wants a shape needs a reader in the Frontier that owns it. `exports/` is tracked in two Frontiers and ignored in two, which is allowed and is why the class is the answer rather than the name |
+| `.vela/operation-journals/`, `.vela/work/`, `.vela/tasks/`, `.vela/workspaces/`, `.vela/tmp/`, `.vela/agents/`, `.vela/keys/`, `.vela/source-inbox/`, `.vela/artifact-blobs/`, `.vela/sign-session.json` | Machine-local runtime | Never scientific state, never tracked. The runtime writes these beside the authority chain, so only an explicit ignore rule keeps a routine `git add .vela` from staging a private key |
+| `__pycache__/`, `*.pyc`, `.venv/`, `.pytest_cache/`, `.hypothesis/`, `.ruff_cache/`, `target/`, `node_modules/`, `.DS_Store`, `packets/`, `activity/`, `.contract-source/` | Machine-local scratch | Regenerated by a tool or a run; ignored in every Frontier that can produce it. A pattern here carries nothing after it on the line, because `#` only opens a comment at the start of a line and a same-line annotation is read as part of the pattern |
+| `README.md`, `AGENTS.md`, `CLAUDE.md` | Human and agent guidance | Keep aligned with the current product. `AGENTS.md` is the one agent guide; all four Frontiers carry a `CLAUDE.md` that is the single line `@AGENTS.md`, and a vendor-specific copy with its own content is a second guide that will disagree with the first. Scope is declared once in `frontier.toml`, which `profile_root` commits to; a `SCOPE.md` restating it drifts and is not scaffolded |
+| `STATEMENT.md`, `technique-sheet.md` | Optional domain guidance | Emerged convention, not contract; Vela reads neither. All four now carry `STATEMENT.md` |
+| `CONTRIBUTING.md`, `LICENSE`, `campaigns/`, `SCREENING.md`, `STANDARD_CHECK.md`, and other Frontier-local prose | Human guidance | Not contract and not state. Answers how to work here, never what is accepted; a claim about Standing belongs in a record, where it can be replayed. A prose file whose content is already in `README.md` is a second copy to keep in step, and belongs in Git history rather than the active tree |
+| `pyproject.toml`, `uv.lock`, `scripts/`, `tests/`, top-level `*.py` | Frontier build and check | The Frontier's own tooling, gated by its own CI. Replay has no opinion about it, and acquiring one would put the profile's housekeeping inside the thing that decides Standing |
 | `.gitattributes` | Byte stability | Keep canonical paths out of every checkout filter, keyword expansion, encoding, and merge driver |
 | `.gitignore` | Working-tree hygiene | Track canonical identity and authority bytes; ignore journals, workspaces, and `.vela/keys/` |
-| `sources.yaml`, `sources.lock.json` | Domain source declarations and derived lock | Repository-local shape; never hand-write a hash nobody computed |
-| `witnesses/` and other domain-native evidence | Source and evidence | Keep stable identities; canonical evidence is the Artifact copy under `records/artifacts/sha256/` |
+| `sources.yaml`, `sources.lock.json` | Domain source declaration and derived lock | Never hand-write a hash nobody computed. Every value in the lock is derived from bytes and none is read from the clock, so a rerun over an unchanged inventory rewrites it byte for byte and `git diff --exit-code` after a re-resolve is the whole check. A Frontier gets that when it bumps its pinned `vela-source-manifest` rev, which is also what dates the lock: the commit does, and it dates the record rather than the run |
 | `.github/workflows/` | Verification gate | Run the read-only verification verb on push and pull request; CI reports, it never accepts |
 
 ## Verification
@@ -291,8 +315,10 @@ pins `vela-science/vela` by commit SHA and passes `frontier: .`; the action
 installs the pinned release and runs `vela replay <frontier> --json`. `vela
 init` does not scaffold that workflow — each Frontier wrote its own copy, so
 four separate edits are what keeps the pins together. They are together now,
-all four on `b591f8ec` (`v0.966.3`), and nothing but those four edits holds
-them there.
+all four on `c4023f11` (`v0.966.4`), and nothing but those four edits holds
+them there. They were together on `b591f8ec` (`v0.966.3`) when that was the
+release, which is the point: the number in this sentence goes stale on its own
+and the four repositories are what to read.
 
 `vela replay` fails until native authority initialization completes.
 Git publication transports bytes; it does not create scientific acceptance.
