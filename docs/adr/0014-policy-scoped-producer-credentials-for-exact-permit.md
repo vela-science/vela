@@ -1,6 +1,6 @@
 # ADR 0014: Policy-scoped producer credentials for exact Permit
 
-- Status: Accepted
+- Status: Superseded by ADR 0022, itself superseded by accepted ADR 0027
 - Proposed in: `16757211a97f36dc8c319c2b60803d635160b2a3`
 - Implemented in: `6c13c3786550e8c378d9280b715e4091606327ca`
 - First released in: Vela `v0.910.0`
@@ -11,6 +11,11 @@
   registry membership
 - Protocol effect: AcceptancePolicy-only; no new event kind, registry service,
   or accepted-state rule
+
+> Historical decision. Its protocol effect was AcceptancePolicy-only, and
+> ADR 0022 retired AcceptancePolicy from current repositories; ADR 0027 is the
+> terminal decision in that chain. Nothing of this decision remains in the
+> runtime.
 
 ## Context
 

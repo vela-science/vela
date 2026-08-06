@@ -35,11 +35,7 @@ fn require_sha256_root(field: &str, value: &str) -> Result<(), String> {
     let digest = value
         .strip_prefix("sha256:")
         .ok_or_else(|| format!("{field} must use the sha256:<64hex> form"))?;
-    if digest.len() != 64
-        || !digest
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
+    if !crate::shape::is_lower_hex_64(digest) {
         return Err(format!("{field} must be 64 lowercase hex characters"));
     }
     Ok(())
@@ -865,11 +861,7 @@ fn verify_event_object_delta(
     event_id: &str,
     event_root: &str,
 ) -> Result<(), String> {
-    let expected_path = if verified.record.content.sequence == 1 {
-        format!(".vela/events/{event_id}.json")
-    } else {
-        format!(".vela/authority/events/{event_id}.json")
-    };
+    let expected_path = format!(".vela/authority/events/{event_id}.json");
     let matches = verified
         .record
         .content

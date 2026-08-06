@@ -256,11 +256,7 @@ fn require_sha256(field: &str, value: &str) -> Result<(), String> {
     let digest = value
         .strip_prefix("sha256:")
         .ok_or_else(|| format!("repository origin {field} must be a full sha256: digest"))?;
-    if digest.len() != 64
-        || !digest
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
+    if !crate::shape::is_lower_hex_64(digest) {
         return Err(format!(
             "repository origin {field} must be a full sha256: digest"
         ));
@@ -269,11 +265,7 @@ fn require_sha256(field: &str, value: &str) -> Result<(), String> {
 }
 
 fn require_git_oid(field: &str, value: &str) -> Result<(), String> {
-    if !matches!(value.len(), 40 | 64)
-        || !value
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
+    if !matches!(value.len(), 40 | 64) || !value.bytes().all(crate::shape::is_lower_hex) {
         return Err(format!(
             "repository origin {field} must be a full Git object id"
         ));

@@ -110,9 +110,15 @@ If canonical bytes, roots, schemas, or the current interoperability waist
 changed, run the relevant conformance check in addition to crate tests:
 
 ```bash
-./conformance/check-current-object-waist.sh
 uv run --project conformance --locked python conformance/verify.py
 ```
+
+`conformance/check-current-object-waist.sh` covers the same waist but is a
+CI-only gate: it writes a synthetic authority trust pin into the real
+operating-system account home, since the CLI resolves that home through
+`getpwuid_r` and ignores `HOME`. It exits 2 unless
+`VELA_EPHEMERAL_ACCOUNT_HOME=1` asserts a disposable account. Let
+`.github/workflows/conformance.yml` run it.
 
 For documentation-only changes, use targeted consistency searches and:
 
@@ -127,8 +133,10 @@ certification request:
 ```bash
 uv run --project conformance --locked ./conformance/check-core.sh
 cargo clippy --locked --workspace --all-targets -- -D warnings
-./conformance/check-current-object-waist.sh
 ```
+
+The object-waist check stays on CI even here, for the account-home reason
+above.
 
 GitHub Actions is the normal full-repository certification surface for an
 ordinary pull request. `.github/workflows/conformance.yml` is the current full

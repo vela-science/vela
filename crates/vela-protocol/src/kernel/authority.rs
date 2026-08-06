@@ -751,11 +751,7 @@ fn require_sha256(name: &str, value: &str) -> Result<(), String> {
     let Some(hex) = value.strip_prefix("sha256:") else {
         return Err(format!("{name} must use a full sha256: digest"));
     };
-    if hex.len() != 64
-        || !hex
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
+    if !crate::shape::is_lower_hex_64(hex) {
         return Err(format!(
             "{name} must contain 64 lowercase hexadecimal characters"
         ));
@@ -914,7 +910,7 @@ mod tests {
             after_event_log_root: root('c'),
             event_ids: vec!["vev_0123456789abcdef".into()],
             object_delta: vec![ObjectDeltaV1 {
-                path: ".vela/events/vev_0123456789abcdef.json".into(),
+                path: ".vela/authority/events/vev_0123456789abcdef.json".into(),
                 before_root: None,
                 after_root: Some(root('d')),
                 object_kind: "event".into(),

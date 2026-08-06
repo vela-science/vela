@@ -261,11 +261,7 @@ fn require_full_claim_id(field: &str, value: &str) -> Result<(), String> {
     let digest = value
         .strip_prefix("vcl_")
         .ok_or_else(|| format!("Claim Record {field} must be a full vcl_ digest"))?;
-    if digest.len() != 64
-        || !digest
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
+    if !crate::shape::is_lower_hex_64(digest) {
         return Err(format!("Claim Record {field} must be a full vcl_ digest"));
     }
     Ok(())
@@ -275,11 +271,7 @@ fn require_sha256(field: &str, value: &str) -> Result<(), String> {
     let digest = value
         .strip_prefix("sha256:")
         .ok_or_else(|| format!("Claim Record {field} must be a full sha256: digest"))?;
-    if digest.len() != 64
-        || !digest
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
+    if !crate::shape::is_lower_hex_64(digest) {
         return Err(format!(
             "Claim Record {field} must be a full sha256: digest"
         ));

@@ -33,12 +33,7 @@ impl RetainedObjectEntryV1 {
                     .to_string(),
             );
         }
-        if self.sha256.len() != 64
-            || !self
-                .sha256
-                .bytes()
-                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-        {
+        if !crate::shape::is_lower_hex_64(&self.sha256) {
             return Err("retained object sha256 must be 64 lowercase hex characters".into());
         }
         Ok(())

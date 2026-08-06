@@ -296,7 +296,7 @@ fn validate_frontier_id(value: &str) -> Result<(), String> {
     let suffix = value
         .strip_prefix("vfr_")
         .ok_or_else(|| "profile.frontier_id must be vfr_<16 lowercase hex>".to_string())?;
-    if suffix.len() != 16 || !suffix.bytes().all(is_lower_hex) {
+    if suffix.len() != 16 || !suffix.bytes().all(crate::shape::is_lower_hex) {
         return Err("profile.frontier_id must be vfr_<16 lowercase hex>".into());
     }
     Ok(())
@@ -359,7 +359,7 @@ fn require_full_claim_id(field: &str, value: &str) -> Result<(), String> {
     let digest = value
         .strip_prefix("vcl_")
         .ok_or_else(|| format!("current repository {field} must be vcl_<64 lowercase hex>"))?;
-    if digest.len() != 64 || !digest.bytes().all(is_lower_hex) {
+    if !crate::shape::is_lower_hex_64(digest) {
         return Err(format!(
             "current repository {field} must be vcl_<64 lowercase hex>"
         ));
@@ -371,7 +371,7 @@ fn require_sha256(field: &str, value: &str) -> Result<(), String> {
     let digest = value
         .strip_prefix("sha256:")
         .ok_or_else(|| format!("current repository {field} must be a full sha256: digest"))?;
-    if digest.len() != 64 || !digest.bytes().all(is_lower_hex) {
+    if !crate::shape::is_lower_hex_64(digest) {
         return Err(format!(
             "current repository {field} must be a full sha256: digest"
         ));
@@ -391,10 +391,6 @@ fn require_path(field: &str, value: &str) -> Result<(), String> {
         ));
     }
     Ok(())
-}
-
-fn is_lower_hex(byte: u8) -> bool {
-    byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)
 }
 
 #[cfg(test)]

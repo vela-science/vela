@@ -110,7 +110,7 @@ fi
 
 echo
 echo "Quick start in a reviewed frontier clone:"
-echo "  1) verify:  vela check . --json"
+echo "  1) verify:  vela replay . --json"
 echo "  2) inspect: vela next . --json"
 echo "  3) brief:   vela start <target> --frontier . --json  # optional, write-free"
 echo "  4) submit:  vela submit --frontier . --claim <claim> --type <type> --replayability <class> --artifact <path>:<kind> --caveat <limit> --as agent:<you> --json"

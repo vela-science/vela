@@ -6,7 +6,6 @@
 
 use std::collections::BTreeSet;
 
-use chrono::{DateTime, SecondsFormat};
 use serde::{Deserialize, Serialize};
 
 use super::principal::PrincipalClass;
@@ -68,18 +67,22 @@ impl AuthenticationObservationV1 {
                 "authentication schema must be {AUTHENTICATION_OBSERVATION_SCHEMA_V1}"
             ));
         }
-        require_text("authentication principal", &self.principal_id, 2048)?;
-        require_text("authentication issuer", &self.issuer, 1024)?;
-        require_text("authentication subject", &self.subject, 1024)?;
+        crate::shape::require_bounded_text("authentication principal", &self.principal_id, 2048)?;
+        crate::shape::require_bounded_text("authentication issuer", &self.issuer, 1024)?;
+        crate::shape::require_bounded_text("authentication subject", &self.subject, 1024)?;
         require_sha256("authentication session_root", &self.session_root)?;
         if let Some(root) = &self.revocation_ref {
             require_sha256("authentication revocation_ref", root)?;
         }
 
-        let authenticated_at =
-            parse_canonical_time("authentication authenticated_at", &self.authenticated_at)?;
-        let observed_at = parse_canonical_time("authentication observed_at", &self.observed_at)?;
-        let expires_at = parse_canonical_time("authentication expires_at", &self.expires_at)?;
+        let authenticated_at = crate::shape::parse_canonical_time(
+            "authentication authenticated_at",
+            &self.authenticated_at,
+        )?;
+        let observed_at =
+            crate::shape::parse_canonical_time("authentication observed_at", &self.observed_at)?;
+        let expires_at =
+            crate::shape::parse_canonical_time("authentication expires_at", &self.expires_at)?;
         if observed_at < authenticated_at
             || observed_at >= expires_at
             || (expires_at - authenticated_at).num_seconds() > MAX_AUTHENTICATION_AGE_SECONDS
@@ -190,43 +193,16 @@ impl AuthenticationObservationV1 {
     }
 }
 
-fn require_text(name: &str, value: &str, maximum: usize) -> Result<(), String> {
-    if value.is_empty()
-        || value.len() > maximum
-        || value.chars().any(|character| character.is_control())
-    {
-        return Err(format!(
-            "{name} is empty, oversized, or contains control text"
-        ));
-    }
-    Ok(())
-}
-
 fn require_sha256(name: &str, value: &str) -> Result<(), String> {
     let Some(hex) = value.strip_prefix("sha256:") else {
         return Err(format!("{name} must use a full sha256: digest"));
     };
-    if hex.len() != 64
-        || !hex
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
+    if !crate::shape::is_lower_hex_64(hex) {
         return Err(format!(
             "{name} must contain 64 lowercase hexadecimal characters"
         ));
     }
     Ok(())
-}
-
-fn parse_canonical_time(name: &str, value: &str) -> Result<DateTime<chrono::FixedOffset>, String> {
-    let parsed = DateTime::parse_from_rfc3339(value)
-        .map_err(|error| format!("{name} is not RFC3339: {error}"))?;
-    if parsed.to_rfc3339_opts(SecondsFormat::Secs, true) != value {
-        return Err(format!(
-            "{name} must use canonical whole-second UTC RFC3339"
-        ));
-    }
-    Ok(parsed)
 }
 
 #[cfg(test)]

@@ -323,3 +323,73 @@ fn review_decision_preflight_keeps_json_error_contract() {
         "repository authority is not initialized"
     );
 }
+
+#[test]
+fn a_colliding_trust_pin_is_not_reported_as_a_signing_failure() {
+    // frontier_id is sha256 over {schema, name, scope}, and the pin lives under
+    // the OS account home, so a second init with the same name and scope in any
+    // directory targets the same pin path. That is not a signing failure and no
+    // key operation can clear it.
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let name = unique_name("Pin collision", &temporary);
+    let scope = "Prove a colliding pin is classified apart from signing.";
+
+    let first_root = temporary.path().join("first");
+    std::fs::create_dir_all(&first_root).expect("first agent root");
+    let first_agent = EphemeralAgent::start(&first_root, "vela pin collision first");
+    let first_frontier = temporary.path().join("first/frontier");
+    let first_frontier_text = first_frontier.to_string_lossy().into_owned();
+    let established = run(
+        temporary.path(),
+        Some(first_agent.socket()),
+        &[
+            "init",
+            &first_frontier_text,
+            "--name",
+            &name,
+            "--scope",
+            scope,
+            "--json",
+        ],
+    );
+    assert!(established.status.success());
+    let established = json(&established);
+    let _anchor = RemoveOnDrop(std::path::PathBuf::from(
+        established["authority"]["local_trust"]["anchor_path"]
+            .as_str()
+            .expect("local trust anchor path"),
+    ));
+
+    // A second key so the second init derives a different authority record
+    // root; an identical anchor would install idempotently and never collide.
+    let second_root = temporary.path().join("second");
+    std::fs::create_dir_all(&second_root).expect("second agent root");
+    let second_agent = EphemeralAgent::start(&second_root, "vela pin collision second");
+    let second_frontier = temporary.path().join("second/frontier");
+    let second_frontier_text = second_frontier.to_string_lossy().into_owned();
+    let collided = run(
+        temporary.path(),
+        Some(second_agent.socket()),
+        &[
+            "init",
+            &second_frontier_text,
+            "--name",
+            &name,
+            "--scope",
+            scope,
+            "--json",
+        ],
+    );
+    assert_eq!(collided.status.code(), Some(1));
+    let collided = json(&collided);
+    assert_eq!(collided["command"], "init");
+    assert_eq!(collided["error"]["kind"], "domain");
+    let message = collided["error"]["message"]
+        .as_str()
+        .expect("collision message");
+    assert!(!message.contains("signing could not complete"), "{message}");
+    assert!(message.contains("local trust pin"), "{message}");
+    let hint = collided["error"]["hint"].as_str().expect("collision hint");
+    assert!(!hint.contains("ssh-add"), "{hint}");
+    assert!(hint.contains("--previous-record-root"), "{hint}");
+}

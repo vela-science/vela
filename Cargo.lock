@@ -2057,7 +2057,6 @@ name = "vela-authority"
 version = "0.966.2"
 dependencies = [
  "cedar-policy",
- "ed25519-dalek",
  "hex",
  "serde",
  "serde_json",

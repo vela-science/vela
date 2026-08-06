@@ -293,29 +293,17 @@ impl PreparedRepositoryFileReplacement {
         Self::prepare(
             root_path,
             relative_path,
-            Some(expected),
+            expected,
             replacement,
             mode,
             max_bytes,
         )
     }
 
-    /// Prepare against the regular-file bytes or exact absence observed
-    /// through the pinned parent descriptor.
-    pub fn prepare_observed(
-        root_path: &Path,
-        relative_path: &Path,
-        replacement: &[u8],
-        mode: RepositoryFileReplacementMode,
-        max_bytes: u64,
-    ) -> Result<Self, String> {
-        Self::prepare(root_path, relative_path, None, replacement, mode, max_bytes)
-    }
-
     fn prepare(
         root_path: &Path,
         relative_path: &Path,
-        expected: Option<RepositoryFilePreimage>,
+        expected: RepositoryFilePreimage,
         replacement: &[u8],
         mode: RepositoryFileReplacementMode,
         max_bytes: u64,
@@ -398,25 +386,21 @@ impl PreparedRepositoryFileReplacement {
             .map_or(&root_descriptor, |directory| &directory.descriptor);
         let observed = Self::read_named_preimage(parent, &leaf_name, max_bytes, &label)?;
         let (preimage, preimage_identity) = match (expected, observed) {
-            (Some(RepositoryFilePreimage::Absent), None) => (RepositoryFilePreimage::Absent, None),
-            (Some(RepositoryFilePreimage::Absent), Some(_)) => {
+            (RepositoryFilePreimage::Absent, None) => (RepositoryFilePreimage::Absent, None),
+            (RepositoryFilePreimage::Absent, Some(_)) => {
                 return Err(format!("{label} appeared before replacement"));
             }
-            (Some(RepositoryFilePreimage::Exact(expected)), Some((observed, identity)))
+            (RepositoryFilePreimage::Exact(expected), Some((observed, identity)))
                 if observed == expected =>
             {
                 (RepositoryFilePreimage::Exact(expected), Some(identity))
             }
-            (Some(RepositoryFilePreimage::Exact(_)), Some(_)) => {
+            (RepositoryFilePreimage::Exact(_), Some(_)) => {
                 return Err(format!("{label} changed before replacement"));
             }
-            (Some(RepositoryFilePreimage::Exact(_)), None) => {
+            (RepositoryFilePreimage::Exact(_), None) => {
                 return Err(format!("{label} disappeared before replacement"));
             }
-            (None, Some((observed, identity))) => {
-                (RepositoryFilePreimage::Exact(observed), Some(identity))
-            }
-            (None, None) => (RepositoryFilePreimage::Absent, None),
         };
         let replacement_mode = match mode {
             RepositoryFileReplacementMode::Exact(mode) if mode & !0o777 != 0 => {
@@ -889,16 +873,6 @@ impl PreparedRepositoryFileReplacement {
         _root_path: &Path,
         _relative_path: &Path,
         _expected: Option<&[u8]>,
-        _replacement: &[u8],
-        _mode: RepositoryFileReplacementMode,
-        _max_bytes: u64,
-    ) -> Result<Self, String> {
-        Err(REPOSITORY_FILE_MUTATION_UNAVAILABLE.to_string())
-    }
-
-    pub fn prepare_observed(
-        _root_path: &Path,
-        _relative_path: &Path,
         _replacement: &[u8],
         _mode: RepositoryFileReplacementMode,
         _max_bytes: u64,

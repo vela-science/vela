@@ -629,9 +629,9 @@ fn import_inner(
             .ok_or_else(|| "Verification import had no public Git delta".to_string())?;
         let preflight = exact_publication_preflight(frontier, &delta, &publish_options)
             .map_err(publication_error)?;
-        Ok::<_, String>((delta, preflight, publish_options))
+        Ok::<_, String>((delta, preflight))
     })();
-    let (delta, preflight, publish_options) = match precommit {
+    let (delta, preflight) = match precommit {
         Ok(value) => value,
         Err(error) => {
             prepared
@@ -652,7 +652,6 @@ fn import_inner(
         std::slice::from_ref(&record.verification_record_id),
         &delta,
         preflight,
-        &publish_options,
     )
     .map_err(|error| error.to_string())?;
     if matches!(

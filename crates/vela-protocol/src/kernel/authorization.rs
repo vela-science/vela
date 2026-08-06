@@ -101,7 +101,7 @@ impl AuthorizationModelV1 {
         }
         let mut principal_classes = BTreeMap::new();
         for member in &self.members {
-            require_bounded_text(
+            crate::shape::require_bounded_text(
                 "authorization member principal_id",
                 &member.principal_id,
                 2048,
@@ -187,7 +187,7 @@ impl AuthorizationRequestV1 {
             &self.frontier_id,
             "vfr_",
         )?;
-        require_bounded_text(
+        crate::shape::require_bounded_text(
             "authorization request principal_id",
             &self.principal_id,
             2048,
@@ -274,20 +274,8 @@ impl AuthorizationEvaluationV1 {
     }
 }
 
-fn require_bounded_text(name: &str, value: &str, maximum: usize) -> Result<(), String> {
-    if value.is_empty()
-        || value.len() > maximum
-        || value.chars().any(|character| character.is_control())
-    {
-        return Err(format!(
-            "{name} is empty, oversized, or contains control text"
-        ));
-    }
-    Ok(())
-}
-
 fn require_identifier(name: &str, value: &str, prefix: &str) -> Result<(), String> {
-    require_bounded_text(name, value, 2048)?;
+    crate::shape::require_bounded_text(name, value, 2048)?;
     if value.len() <= prefix.len() || !value.starts_with(prefix) {
         return Err(format!("{name} must start with {prefix}"));
     }
@@ -298,11 +286,7 @@ fn require_sha256(name: &str, value: &str) -> Result<(), String> {
     let Some(hex) = value.strip_prefix("sha256:") else {
         return Err(format!("{name} must use a full sha256: digest"));
     };
-    if hex.len() != 64
-        || !hex
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
+    if !crate::shape::is_lower_hex_64(hex) {
         return Err(format!(
             "{name} must contain 64 lowercase hexadecimal characters"
         ));

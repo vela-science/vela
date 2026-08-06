@@ -1,9 +1,18 @@
 # ADR 0013: Exact verifier and work-binding constraints for Permit
 
-- Status: Accepted
+- Status: Accepted; partially superseded
 - Candidate target: Vela `v0.920.0`
 - Decision date: 2026-07-18
 - Entry gate: passed; hostile AcceptancePolicy v0.1 shadow fixture reproduced
+
+> Current disposition: half of this decision is live and half is retired. The
+> AcceptancePolicy v0.2 restriction language went out with ADR 0022, itself
+> superseded by ADR 0027; current repositories neither carry nor parse
+> AcceptancePolicy, and no Permit lane exists in the runtime.
+> `vela.execution-binding.v1` survives as the live work-binding half, defined
+> in `crates/vela-protocol/src/objects/execution_binding.rs` and carried on
+> Submission. The entry-gate fixture named below,
+> `conformance/fixtures/permit-shadow-v1.json`, was removed in `456423bc`.
 
 ## Context
 

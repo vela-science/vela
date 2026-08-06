@@ -18,9 +18,6 @@ path = "src/lib.rs"
 # The product CLI lives in `crates/vela-cli`; this crate remains the reusable
 # protocol kernel without application command handling.
 
-[features]
-test-support = []
-
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true

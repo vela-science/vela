@@ -8,25 +8,15 @@
 //! what the proposer reported. Corrupting a witness must fail the
 //! verifier — that is the property the self-tests pin.
 //!
-//! This is the reference verifier registry the trust gate
-//! ([`vela_protocol::verifier_attachment`]) and `vela reproduce` build
-//! on: a passing verify here is the *evidence* an `exact_construction`
-//! verifier attachment attests to. The verifiers are intentionally
-//! dependency-light (serde only) and pure — no I/O, no randomness — so a
-//! third party can re-run them and get byte-identical verdicts.
-//!
-//! Ported from the campaign's `scripts/verify_construction.py`; the
-//! Python reference and this Rust port must agree on every witness.
+//! This is the reference verifier registry `vela reproduce` builds on,
+//! reachable directly through this crate's own `vela-verify` binary. The
+//! verifiers are intentionally dependency-light (serde only) and pure — no
+//! I/O, no randomness — so a third party can re-run them and get
+//! byte-identical verdicts.
 
 use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
-
-/// A stable, reproducible identity for the frozen verifier build, recorded in
-/// the `policy.auto_admitted` audit record (`verifier_env_hash`) so an auditor
-/// can pin which frozen `vela-verify` produced a machine admission. Same source
-/// + same release => same string.
-pub const ENV_ID: &str = concat!("vela-verify@", env!("CARGO_PKG_VERSION"));
 
 /// The outcome of verifying one witness.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -35,8 +25,13 @@ pub struct VerifyResult {
     pub ok: bool,
     /// Human-readable detail (what was checked, or why it failed).
     pub message: String,
-    /// A recomputed numeric quantity for "value-to-beat" problems
-    /// (currently unused by the boolean verifiers; reserved).
+    /// A recomputed numeric quantity for "value-to-beat" problems. Set by
+    /// `verify_linear_code` (the exact minimum weight, on both the passing
+    /// and the failing path) and by `verify_quantum_stabilizer_witness_v1`
+    /// (the exact logical distance, on success only). `None` for every other
+    /// verifier and for the early-return failures of those two, and omitted
+    /// from the serialized JSON when `None` — so a present `value` is not
+    /// itself a pass signal. Read `ok`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<f64>,
 }

@@ -5,10 +5,7 @@ pub(crate) fn require_artifact_reference_id(
 ) -> Result<(), String> {
     let valid_text =
         !value.trim().is_empty() && value == value.trim() && !value.chars().any(char::is_control);
-    let is_content_hash = value.len() == 64
-        && value
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte));
+    let is_content_hash = crate::shape::is_lower_hex_64(value);
     if valid_text && is_content_hash {
         return Ok(());
     }

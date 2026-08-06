@@ -18,12 +18,13 @@ deferred rather than defended.
 ## Scope notes
 
 - The trust story never depends on a hosted reader: a consumer's
-  `git clone` + `vela check` verifies everything locally.
-  Hub compromise is availability and discovery, not integrity
-  (THREAT_MODEL.md A11).
+  `git clone` + `vela replay` verifies the log and `vela reproduce`
+  verifies the science, both locally. Hub compromise is availability
+  and discovery, not integrity (THREAT_MODEL.md, "Reader compromise").
 - No AI or agent identity sits in any trust path; the engine refuses
   `agent:`/`ci:` actors on every decision verb. A bypass of that
   refusal is a vulnerability — report it.
 - Private keys never belong in a repo. `keys/` and `*.key` are
-  gitignored by scaffolding (A17); a reference frontier carrying a
-  private key is a vulnerability even if the key looks disposable.
+  gitignored by scaffolding (THREAT_MODEL.md, "Key compromise"); a
+  reference frontier carrying a private key is a vulnerability even
+  if the key looks disposable.

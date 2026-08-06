@@ -387,11 +387,43 @@ fn pin_repository_authority(
     }))
 }
 
+/// Why `vela init` could not establish repository authority.
+///
+/// The two cases need opposite remedies, and a caller that cannot tell them
+/// apart will hand an operator the wrong one: the trust pin is installed after
+/// the record is signed, committed, and replay-verified, so a pin collision is
+/// not a signing failure and no key operation can clear it.
+pub(crate) enum RepositoryAuthorityInitError {
+    /// Identity selection, signing, or repository genesis failed.
+    Signing(String),
+    /// The authority record was established, but the local trust pin for this
+    /// Frontier already selects a different sequence-one root. The Frontier
+    /// still cannot take an authority write until the pin is reconciled.
+    TrustPinCollision {
+        frontier_id: String,
+        record_root: String,
+        pin_path: String,
+        pinned_root: String,
+    },
+}
+
+impl From<String> for RepositoryAuthorityInitError {
+    fn from(error: String) -> Self {
+        Self::Signing(error)
+    }
+}
+
+impl From<&str> for RepositoryAuthorityInitError {
+    fn from(error: &str) -> Self {
+        Self::Signing(error.to_string())
+    }
+}
+
 pub(crate) fn initialize_repository_authority(
     frontier: &Path,
     key_selector: Option<&str>,
     reason: &str,
-) -> Result<Value, String> {
+) -> Result<Value, RepositoryAuthorityInitError> {
     initialize_current_repository_authority(frontier, key_selector, reason)
 }
 
@@ -399,7 +431,7 @@ fn initialize_current_repository_authority(
     frontier: &Path,
     key_selector: Option<&str>,
     reason: &str,
-) -> Result<Value, String> {
+) -> Result<Value, RepositoryAuthorityInitError> {
     let reason = reason.trim();
     if reason.is_empty() {
         return Err("init requires a non-empty authority reason".into());
@@ -607,7 +639,8 @@ fn initialize_current_repository_authority(
         return Err(format!(
             "native repository genesis is signed but staging failed: {}",
             String::from_utf8_lossy(&add.stderr).trim()
-        ));
+        )
+        .into());
     }
     let commit = Command::new("git")
         .current_dir(frontier)
@@ -628,7 +661,8 @@ fn initialize_current_repository_authority(
         return Err(format!(
             "native repository genesis is signed and staged but commit failed: {}",
             String::from_utf8_lossy(&commit.stderr).trim()
-        ));
+        )
+        .into());
     }
     let verified = crate::current_repository::verify_current_repository_at(frontier, true)?;
     if verified.canonical_root()? != repository_root {
@@ -643,12 +677,23 @@ fn initialize_current_repository_authority(
     };
     let user_home =
         crate::frontier_txn::operating_system_account_home().map_err(|error| error.to_string())?;
-    let installed_anchor =
-        install_authority_trust_anchor_from_home(&user_home, &local_anchor).map_err(|error| {
-            format!(
+    let installed_anchor = install_authority_trust_anchor_from_home(&user_home, &local_anchor)
+        .map_err(|error| match load_authority_trust_anchor_from_home(
+            &user_home,
+            &profile.frontier_id,
+        ) {
+            Ok(Some(existing)) if existing.anchor != local_anchor => {
+                RepositoryAuthorityInitError::TrustPinCollision {
+                    frontier_id: profile.frontier_id.clone(),
+                    record_root: result.authority_record_root.clone(),
+                    pin_path: existing.path.display().to_string(),
+                    pinned_root: existing.anchor.first_authority_record_root.clone(),
+                }
+            }
+            _ => RepositoryAuthorityInitError::Signing(format!(
                 "repository authority initialized at {} but its local trust anchor could not be installed: {error}",
                 result.authority_record_root
-            )
+            )),
         })?;
     Ok(json!({
         "schema": "vela.authority-initialization-result.v2",

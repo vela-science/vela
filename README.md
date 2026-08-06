@@ -203,7 +203,7 @@ their own exact records; neither reads repository-authority credentials.
 The ordinary CLI is intentionally small:
 
 ```text
-init status next start submit verification show why review replay reproduce log
+init status next start submit show why review replay reproduce log
 ```
 
 Current advanced surfaces:
@@ -292,11 +292,19 @@ uv sync --project conformance --locked
 cargo check -p vela-cli
 cargo clippy -p vela-cli --all-targets -- -D warnings
 uv run --project conformance --locked python conformance/verify.py
-VELA_EPHEMERAL_ACCOUNT_HOME=1 ./conformance/check-current-object-waist.sh
 ```
 
 Use focused tests for ordinary changes. The deterministic release union runs
 once per actual release boundary.
+
+`conformance/check-current-object-waist.sh` is a CI-only gate and is not in
+that workstation set. The CLI resolves the account home through `getpwuid_r`
+and ignores `HOME` by design, so the check writes a synthetic authority trust
+pin into the real operating-system account home. Its cleanup trap removes the
+pin on a normal exit only; an interrupted run leaves it behind. It refuses to
+start unless `VELA_EPHEMERAL_ACCOUNT_HOME=1` asserts a disposable account.
+`.github/workflows/conformance.yml` runs it on such a runner; run it locally
+only on a machine you are willing to treat the same way.
 
 ## Documentation
 

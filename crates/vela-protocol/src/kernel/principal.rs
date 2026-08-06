@@ -2,7 +2,6 @@
 
 use std::collections::BTreeSet;
 
-use chrono::{DateTime, SecondsFormat};
 use serde::{Deserialize, Serialize};
 
 use crate::canonical::sha256_canonical;
@@ -80,11 +79,11 @@ impl ExternalAccountLinkV1 {
     }
 
     fn validate(&self) -> Result<(), String> {
-        require_bounded_text("account issuer", &self.issuer, 1024)?;
-        require_bounded_text("account subject", &self.subject, 1024)?;
-        let linked_at = parse_canonical_time("account linked_at", &self.linked_at)?;
+        crate::shape::require_bounded_text("account issuer", &self.issuer, 1024)?;
+        crate::shape::require_bounded_text("account subject", &self.subject, 1024)?;
+        let linked_at = crate::shape::parse_canonical_time("account linked_at", &self.linked_at)?;
         if let Some(revoked_at) = &self.revoked_at
-            && parse_canonical_time("account revoked_at", revoked_at)? < linked_at
+            && crate::shape::parse_canonical_time("account revoked_at", revoked_at)? < linked_at
         {
             return Err("account revocation precedes account linkage".into());
         }
@@ -111,12 +110,12 @@ impl PrincipalV1 {
         if self.schema != PRINCIPAL_SCHEMA_V1 {
             return Err(format!("principal schema must be {PRINCIPAL_SCHEMA_V1}"));
         }
-        require_bounded_text("principal_id", &self.principal_id, 2048)?;
+        crate::shape::require_bounded_text("principal_id", &self.principal_id, 2048)?;
         if let Some(display_name) = &self.display_name {
-            require_bounded_text("display_name", display_name, 512)?;
+            crate::shape::require_bounded_text("display_name", display_name, 512)?;
         }
         if let Some(affiliation) = &self.affiliation {
-            require_bounded_text("affiliation", affiliation, 512)?;
+            crate::shape::require_bounded_text("affiliation", affiliation, 512)?;
         }
 
         let mut links = BTreeSet::new();
@@ -176,29 +175,6 @@ impl PrincipalV1 {
         self.validate()?;
         Ok(format!("sha256:{}", sha256_canonical(self)?))
     }
-}
-
-fn parse_canonical_time(name: &str, value: &str) -> Result<DateTime<chrono::FixedOffset>, String> {
-    let parsed = DateTime::parse_from_rfc3339(value)
-        .map_err(|error| format!("{name} is not RFC3339: {error}"))?;
-    if parsed.to_rfc3339_opts(SecondsFormat::Secs, true) != value {
-        return Err(format!(
-            "{name} must use canonical whole-second UTC RFC3339"
-        ));
-    }
-    Ok(parsed)
-}
-
-fn require_bounded_text(name: &str, value: &str, maximum: usize) -> Result<(), String> {
-    if value.is_empty()
-        || value.len() > maximum
-        || value.chars().any(|character| character.is_control())
-    {
-        return Err(format!(
-            "{name} is empty, oversized, or contains control text"
-        ));
-    }
-    Ok(())
 }
 
 fn require_prefix(name: &str, value: &str, prefix: &str) -> Result<(), String> {

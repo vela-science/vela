@@ -38,13 +38,14 @@ Daily product:
   review        Inspect or perform one exact Proposal lifecycle action
   replay        Replay, signatures, parity, and repository integrity
   reproduce     Re-run stored witnesses with frozen verifiers
-  log           Recent signed events or one finding's history
+  log           Recent signed events, or the covered history of one object
 
 Advanced verification and integration:
   verification  Retain non-authorizing scoped Verification Records
 
 Advanced setup:
   authority     pin an independently published repository trust root
+
 Hidden utility:
   completions   generate shell completion scripts
 "#,

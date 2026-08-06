@@ -67,9 +67,19 @@ verification authority
   local predecessor Git objects and labels the result `verified_local`,
   `origin_object_set_only`, or `predecessor_unavailable`. Origin-bound archive
   roots are disclosed separately from bytes actually re-read.
+
+Advanced verification and integration:
+
 - `verification import` retains a non-authorizing scoped Verification Record.
-- `authority` initializes the repository writer for a fresh Frontier. It is an
-  exceptional setup surface rather than an ordinary workflow.
+
+Advanced setup:
+
+- `authority` manages independently distributed repository-authority trust
+  roots through its single subcommand, `authority trust pin`. A consumer runs
+  it at install time after obtaining the sequence-one authority-record root
+  through a separate channel; it grants no authority and changes no Frontier
+  byte. See [Repository setup](#repository-setup). Writer initialization is
+  `vela init`, not `authority`.
 
 Frontier-owned domain adapters generate the optional tracked `targets.json`
 catalogue. `replay`, `next`, and `start` validate it; Vela has no separate

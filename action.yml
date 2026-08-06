@@ -1,4 +1,4 @@
-# vela-check — strictly verify one clean Git-native Vela frontier.
+# vela-replay — strictly verify one clean Git-native Vela frontier.
 #
 # Consume from a frontier repository:
 #
@@ -7,12 +7,17 @@
 #     with:
 #       frontier: .
 #
+# v0.966.2 is the newest tag but its published action.yml invokes `vela
+# check`, a verb that release's own binary rejects, so it fails on every
+# frontier. The repair below is unreleased. Until a tag carries it, the
+# newest pin that verifies is v0.966.1; the reference frontiers pin that.
+#
 # Current repositories carry one signed repository origin and authority
 # initialization record. The action verifies that closed boundary directly
 # with the pinned released binary. It never installs trust state, signs,
 # decides, or changes Frontier state.
 
-name: vela-check
+name: vela-replay
 description: Strictly verifies one clean current Git-native Vela Frontier on Linux or macOS.
 
 inputs:
@@ -28,7 +33,7 @@ runs:
       run: |
         case "${RUNNER_OS:?}" in
           Linux|macOS) ;;
-          *) echo "::error::vela-check supports Linux and macOS runners"; exit 2 ;;
+          *) echo "::error::vela-replay supports Linux and macOS runners"; exit 2 ;;
         esac
 
     - name: Install Vela

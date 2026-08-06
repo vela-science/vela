@@ -382,11 +382,7 @@ fn require_sha256(field: &str, value: &str) -> Result<(), String> {
     let digest = value
         .strip_prefix("sha256:")
         .ok_or_else(|| format!("Submission {field} must be a full sha256: digest"))?;
-    if digest.len() != 64
-        || !digest
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
+    if !crate::shape::is_lower_hex_64(digest) {
         return Err(format!("Submission {field} must be a full sha256: digest"));
     }
     Ok(())
@@ -401,11 +397,7 @@ fn require_prefixed_hex(
     let Some(hex) = value.strip_prefix(prefix) else {
         return Err(format!("{field} must begin with `{prefix}`"));
     };
-    if hex.len() != hex_len
-        || !hex
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
+    if hex.len() != hex_len || !hex.bytes().all(crate::shape::is_lower_hex) {
         return Err(format!(
             "{field} must contain exactly {hex_len} hexadecimal characters after `{prefix}`"
         ));

@@ -151,7 +151,6 @@ pub(crate) fn publish_exact_delta(
     object_ids: &[String],
     delta: &PublicationDelta,
     preflight: ExactPublicationPreflight,
-    _options: &PublishOptions,
 ) -> Result<PublicationOutcome, ExactPublicationError> {
     let actual_sha256 = publication_delta_sha256(delta);
     if actual_sha256 != preflight.delta_sha256 {
@@ -609,7 +608,6 @@ mod tests {
             &["vsb_test".into()],
             &delta,
             preflight,
-            &options,
         )
         .unwrap();
         assert!(matches!(
@@ -697,7 +695,7 @@ mod tests {
         git(root, &["add", "other.txt"]);
         git(root, &["commit", "-m", "advance"]);
         std::fs::write(root.join("a.txt"), b"after").unwrap();
-        let outcome = publish_exact_delta(root, "test", &[], &delta, preflight, &options).unwrap();
+        let outcome = publish_exact_delta(root, "test", &[], &delta, preflight).unwrap();
         assert!(matches!(
             outcome.state,
             PublicationState::Uncommitted { .. }

@@ -812,14 +812,13 @@ pub(crate) fn execute_prepared(
     )
     .map_err(|error| error.to_string())?;
     let result = transaction.result.clone();
-    let publish_options = PublishOptions::local();
     let public = transaction
         .resolved_public_writes()
         .map_err(|error| error.to_string())?;
     let delta = publication_delta(frontier, transaction.canonical_delta_root(), public)?
         .ok_or_else(|| "review Decision produced no exact Git delta".to_string())?;
-    let preflight =
-        exact_publication_preflight(frontier, &delta, &publish_options).map_err(|outcome| {
+    let preflight = exact_publication_preflight(frontier, &delta, &PublishOptions::local())
+        .map_err(|outcome| {
             format!("review Decision Git preflight failed before installation: {outcome:?}")
         })?;
     transaction
@@ -841,7 +840,6 @@ pub(crate) fn execute_prepared(
         std::slice::from_ref(&expected.proposal_id),
         &delta,
         preflight,
-        &publish_options,
     )
     .map_err(|error| {
         format!(

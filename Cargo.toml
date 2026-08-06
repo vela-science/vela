@@ -5,8 +5,7 @@
 #   vela-edge           derived views and adapters over kernel state
 #   vela-cli            the `vela` product binary
 #   vela-verify         frozen, dependency-light exact verifiers; the
-#                       reference registry `vela gate` / `vela reproduce`
-#                       build on
+#                       reference registry `vela reproduce` builds on
 members = [
     "crates/vela-protocol",
     "crates/vela-authority",

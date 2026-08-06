@@ -5,6 +5,8 @@
 //! edge crates. Pre-epoch implementations remain available through Git history
 //! and pinned Frontier predecessor archives, not through the current runtime.
 
+mod shape;
+
 mod kernel;
 pub use kernel::{
     authentication, authority, authority_history, authorization, canonical, events, principal, sign,
