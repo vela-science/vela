@@ -23,6 +23,14 @@ confidence-threshold = 0.8
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
+# The workspace's own crates are path-only and `publish = false`, so their
+# entries in `[workspace.dependencies]` carry no version and read as wildcards.
+# Carrying one instead means a version literal beside every path that has to be
+# bumped in lockstep with `[workspace.package]` — and it had already gone stale,
+# pinning 0.966.2 against a workspace at 0.966.3. This setting covers exactly
+# that case: a wildcard is still denied for anything from a registry, and for a
+# path dependency of a crate that is published.
+allow-wildcard-paths = true
 skip = [
   { crate = "getrandom@0.4.2", reason = "tempfile has moved to getrandom 0.4 while rand and Ed25519 still require 0.2" },
   { crate = "syn@3.0.3", reason = "Cedar's ref-cast path uses syn 3 while the remaining proc macros use syn 2" },
