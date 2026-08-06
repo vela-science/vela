@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.science/schemas/sources.v1.schema.json",
+  "title": "Frontier source declaration",
+  "description": "The shape of a Frontier's `sources.yaml`: the inventory of everything that Frontier acquires or consults, declared in the Frontier that acquires it. This file is the single definition of the shape. Producers validate against it before locking; consumers in any language should read it rather than restate it, because a restated schema is a second opinion that can disagree in silence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sources"],
+  "properties": {
+    "sources": {
+      "description": "Keyed by the Frontier's own name for the source. The same keys appear in `sources.lock.json`, so a reader can join the two without a mapping table.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[a-z][a-z0-9_]*$" },
+      "additionalProperties": { "$ref": "#/$defs/declaration" }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "gitObject": {
+      "description": "A full 40-hex git object id. Abbreviated ids are rejected: two of them can name the same object today and different objects after the next push.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}([.][0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+    },
+    "declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "kind"],
+      "properties": {
+        "source_id": {
+          "description": "The identifier the release-scoped source registry publishes this entry under, or null where the entry is Frontier-derived and publishes under none. It lives here rather than in a mapping table downstream: a consumer that has to be told which of its own ids matches which of our keys is a consumer that can disagree with us silently.",
+          "type": ["string", "null"],
+          "pattern": "^source:[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "kind": {
+          "description": "What sort of thing this is, in the Frontier's own vocabulary. `reference_only` is the one value the resolver acts on: it means no bytes are retained, so nothing is fetched and nothing is hashed.",
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "description": "GitHub `owner/name`. Recorded even for url-backed entries, so a routine refresh that cannot reach the network still leaves the inventory provenance intact.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$"
+        },
+        "ref": {
+          "description": "A floating revision the url tracks, such as `main`. Declaring it is what lets the resolver record the commit that ref pointed at when the bytes were read.",
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "description": "On an entry with no `url`, a path inside this repository: the retained bytes, hashed from disk. On a url-backed entry, the file's location in the upstream repository, recorded as provenance while the url stays the locator. Declaring both meanings at once is refused rather than guessed at: if the path also exists in this repository, the resolver fails the entry instead of silently choosing which bytes the content root describes.",
+          "type": "string",
+          "minLength": 1
+        },
+        "paths": {
+          "description": "The selected inventory within a snapshot, where the entry covers more than one file.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "commit": { "$ref": "#/$defs/gitObject" },
+        "tree": { "$ref": "#/$defs/gitObject" },
+        "url": {
+          "type": "string",
+          "pattern": "^https?://"
+        },
+        "homepage": {
+          "description": "A human landing page for the source. Never fetched; it locates a reader, not bytes.",
+          "type": "string",
+          "pattern": "^https?://"
+        },
+        "home": {
+          "description": "Legacy alias for `homepage`, carried because the Erdős generator's passthrough list named it. Prefer `homepage` in new declarations.",
+          "type": "string",
+          "pattern": "^https?://"
+        },
+        "pages_commit": {
+          "description": "The commit of the active GitHub Pages deployment serving `url`, for a source whose bytes are built by a workflow and tracked at no ref. It is not a locator the bytes can be re-fetched from, which is exactly why the content root in the lock is the real pin.",
+          "$ref": "#/$defs/gitObject"
+        },
+        "pages_commit_resolved": {
+          "description": "The instant `pages_commit` was read from the deployment API. Without it the commit is a claim with no age.",
+          "$ref": "#/$defs/timestamp"
+        },
+        "acquired_by": {
+          "description": "The slug of the sibling Frontier that acquires these bytes. Cited, not acquired: nothing is retained here, so the pin is the declared commit and tree.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "exact_roots": {
+          "description": "Files whose content roots the acquisition checks on every refresh. The key is the logical name the acquisition uses. A declared `sha256` is an assertion the resolver refetches and checks, never a value it copies through.",
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "pattern": "^[a-z][a-z0-9_]*$" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path"],
+            "properties": {
+              "path": { "type": "string", "minLength": 1 },
+              "sha256": { "$ref": "#/$defs/sha256" }
+            }
+          }
+        },
+        "publisher": { "type": "string", "minLength": 1 },
+        "note": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "$comment": "Per-file roots are only meaningful against a fixed commit of a named repository. Without both, there is nothing to refetch them from.",
+          "if": { "required": ["exact_roots"] },
+          "then": { "required": ["repo", "commit"] }
+        },
+        {
+          "$comment": "A cited entry's whole pin is the commit and tree it restates. An `acquired_by` with no commit would leave a reader a bare repository url where the registry has a pin.",
+          "if": { "required": ["acquired_by"] },
+          "then": { "required": ["repo", "commit"] }
+        },
+        {
+          "$comment": "`pages_commit` records when it was read, or it is a claim with no age.",
+          "if": { "required": ["pages_commit"] },
+          "then": { "required": ["pages_commit_resolved"] }
+        },
+        {
+          "$comment": "A reference is consulted, not retained. Declaring a path or per-file roots for one would promise bytes this Frontier does not hold.",
+          "if": {
+            "properties": { "kind": { "const": "reference_only" } },
+            "required": ["kind"]
+          },
+          "then": {
+            "required": ["url"],
+            "properties": { "path": false, "exact_roots": false }
+          }
+        }
+      ]
+    }
+  }
+}
