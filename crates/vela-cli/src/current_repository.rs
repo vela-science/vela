@@ -2471,7 +2471,12 @@ fn git_text(frontier: &Path, args: &[&str]) -> Result<String, String> {
     vela_edge::git::text(frontier, args)
 }
 
-fn is_retired_current_path(path: &str) -> bool {
+/// The set of paths a current repository must no longer carry.
+///
+/// This is the verifier's own answer, and it is the only one. The authority
+/// writer asks it before admitting an object draft, so a repository that
+/// replay would refuse cannot be written in the first place.
+pub(crate) fn is_retired_current_path(path: &str) -> bool {
     path == ".vela/actors.json"
         || path == "frontier.yaml"
         || path == "frontier.json"

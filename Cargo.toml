@@ -57,10 +57,14 @@ regex = "1"
 libc = "0.2"
 
 # Internal crates share one release identity and are not published separately.
-vela-protocol = { path = "crates/vela-protocol", version = "0.966.2" }
-vela-authority = { path = "crates/vela-authority", version = "0.966.2" }
-vela-verify = { path = "crates/vela-verify", version = "0.966.2" }
-vela-edge = { path = "crates/vela-edge", version = "0.966.2" }
+# No `version` key here: these are path-only and `publish = false`, so a req
+# would be a second copy of `[workspace.package] version` to keep in step. It
+# was already out of step; the workspace moved to 0.966.3 and these four keys
+# stayed at 0.966.2.
+vela-protocol = { path = "crates/vela-protocol" }
+vela-authority = { path = "crates/vela-authority" }
+vela-verify = { path = "crates/vela-verify" }
+vela-edge = { path = "crates/vela-edge" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

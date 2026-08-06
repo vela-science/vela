@@ -92,7 +92,7 @@ pub(crate) struct AuthorityEventDraft {
 ///
 /// `None` deletes an existing object. The writer derives before/after roots
 /// from the held Frontier and refuses no-ops, duplicate paths, derived views,
-/// private coordination, retired event paths, or covering-record paths.
+/// private coordination, retired protocol paths, or covering-record paths.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub(crate) struct AuthorityObjectDraft {
     pub(crate) path: String,
@@ -1458,12 +1458,20 @@ fn validate_authority_object_path(
     class: WriteClass,
 ) -> Result<(), AuthorityTransactionError> {
     let value = path.as_str();
-    if value.starts_with(".vela/events/")
-        || value.starts_with(".vela/authority/events/")
-        || value.starts_with(".vela/authority/records/")
+    if value.starts_with(".vela/authority/events/") || value.starts_with(".vela/authority/records/")
     {
         return Err(AuthorityTransactionError::Invalid(format!(
-            "authority object drafts cannot replace event or covering-record path {value}"
+            "authority object drafts cannot replace covering-record path {value}"
+        )));
+    }
+    // Retirement is the verifier's judgement, so ask the verifier. Restating
+    // the set here is what let `.vela/events/` be refused while
+    // `.vela/findings/`, `.vela/artifacts/`, `.vela/policies/` and
+    // `.vela/actors.json` stayed writable, which is a repository the writer
+    // accepts and replay then rejects.
+    if crate::current_repository::is_retired_current_path(value) {
+        return Err(AuthorityTransactionError::Invalid(format!(
+            "authority object drafts cannot write retired protocol path {value}"
         )));
     }
     let valid = match class {
@@ -2000,6 +2008,17 @@ mod tests {
         ContentDigest::hash(to_canonical_bytes(value).unwrap())
             .as_str()
             .to_string()
+    }
+
+    /// Where a review object actually lives, matching what `current_submission`
+    /// writes. `.vela/proposals/` is retired, so fixtures that used it were
+    /// exercising a path the verifier refuses.
+    fn proposal_object_path(postimage: &[u8]) -> String {
+        crate::current_submission::rooted_path(
+            "records/proposals/sha256",
+            ContentDigest::hash(postimage).as_str(),
+        )
+        .unwrap()
     }
 
     fn fixture_authorization_input() -> CedarEvaluationInput {
@@ -2832,7 +2851,7 @@ mod tests {
             },
         ];
         request.object_drafts = vec![AuthorityObjectDraft {
-            path: format!(".vela/proposals/{proposal_id}.json"),
+            path: proposal_object_path(&proposal_postimage),
             object_kind: "proposal".into(),
             class: WriteClass::PublicReview,
             postimage: Some(proposal_postimage.clone()),
@@ -2843,7 +2862,6 @@ mod tests {
     #[test]
     fn acceptance_transaction_covers_domain_review_and_proposal_postimage() {
         let fixture = self::fixture();
-        let proposal_id = "vpr_0123456789abcdef";
         let (request, semantic_domain, proposal_postimage) = acceptance_request(&fixture);
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
@@ -2890,7 +2908,7 @@ mod tests {
                 fixture
                     .temporary
                     .path()
-                    .join(format!(".vela/proposals/{proposal_id}.json"))
+                    .join(proposal_object_path(&proposal_postimage))
             )
             .unwrap(),
             proposal_postimage
@@ -3970,6 +3988,40 @@ mod tests {
     }
 
     #[test]
+    fn retired_paths_the_verifier_refuses_are_refused_by_the_writer() {
+        for path in [
+            ".vela/actors.json",
+            ".vela/events/ve_fixture.json",
+            ".vela/findings/vf_fixture.json",
+            ".vela/proposals/vpr_fixture.json",
+            ".vela/artifacts/va_fixture",
+            ".vela/policies/active.json",
+            "records/receipts/sha256/fixture.json",
+            "records/review/pending.json",
+            "records/decision-evidence/fixture.json",
+            "records/vrc_fixture.json",
+        ] {
+            assert!(
+                crate::current_repository::is_retired_current_path(path),
+                "{path} is no longer retired; this test is stale"
+            );
+            let parsed = RepoPath::parse(path.to_string()).unwrap();
+            for class in [
+                WriteClass::Authority,
+                WriteClass::PublicReview,
+                WriteClass::CanonicalEvidence,
+                WriteClass::Derived,
+                WriteClass::PrivateCoordination,
+            ] {
+                assert!(
+                    validate_authority_object_path(&parsed, class).is_err(),
+                    "{path} was admitted as {class:?}; the verifier would then refuse the repository"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn derived_drift_and_derived_only_authority_attempts_fail_closed() {
         let drift_fixture = fixture();
         fs::write(
@@ -4193,7 +4245,7 @@ mod tests {
         let new_authority = to_canonical_bytes(&json!({"decision": "recorded"})).unwrap();
         request.object_drafts = vec![
             AuthorityObjectDraft {
-                path: ".vela/proposals/vpr_fixture.json".into(),
+                path: proposal_object_path(&new_proposal),
                 object_kind: "proposal".into(),
                 class: WriteClass::PublicReview,
                 postimage: Some(new_proposal.clone()),
@@ -4265,7 +4317,7 @@ mod tests {
                 fixture
                     .temporary
                     .path()
-                    .join(".vela/proposals/vpr_fixture.json")
+                    .join(proposal_object_path(&new_proposal))
             )
             .unwrap(),
             new_proposal
@@ -4289,11 +4341,12 @@ mod tests {
         let fixture = fixture();
         let mut request = fixture.request.clone();
         request.event_drafts.clear();
+        let pending_bytes = to_canonical_bytes(&json!({"standing": "pending"})).unwrap();
         request.object_drafts = vec![AuthorityObjectDraft {
-            path: ".vela/proposals/vpr_pending.json".into(),
+            path: proposal_object_path(&pending_bytes),
             object_kind: "proposal".into(),
             class: WriteClass::PublicReview,
-            postimage: Some(to_canonical_bytes(&json!({"standing": "pending"})).unwrap()),
+            postimage: Some(pending_bytes.clone()),
         }];
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
@@ -4313,10 +4366,10 @@ mod tests {
                 fixture
                     .temporary
                     .path()
-                    .join(".vela/proposals/vpr_pending.json")
+                    .join(proposal_object_path(&pending_bytes))
             )
             .unwrap(),
-            to_canonical_bytes(&json!({"standing": "pending"})).unwrap()
+            pending_bytes
         );
         let mut envelopes = fixture.request.history.authority_envelopes.clone();
         let envelope: AuthorityEnvelopeV1 = serde_json::from_slice(
@@ -4367,11 +4420,12 @@ mod tests {
 
         let fixture = self::fixture();
         let mut request = fixture.request.clone();
+        let uncanonical = b"{ \"not\": \"canonical\" }".to_vec();
         request.object_drafts = vec![AuthorityObjectDraft {
-            path: ".vela/proposals/bad.json".into(),
+            path: proposal_object_path(&uncanonical),
             object_kind: "proposal".into(),
             class: WriteClass::PublicReview,
-            postimage: Some(b"{ \"not\": \"canonical\" }".to_vec()),
+            postimage: Some(uncanonical),
         }];
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
@@ -4468,7 +4522,7 @@ mod tests {
         let mut request = fixture.request.clone();
         let proposal_bytes = to_canonical_bytes(&json!({"proposal": "recoverable"})).unwrap();
         request.object_drafts = vec![AuthorityObjectDraft {
-            path: ".vela/proposals/vpr_recovery.json".into(),
+            path: proposal_object_path(&proposal_bytes),
             object_kind: "proposal".into(),
             class: WriteClass::PublicReview,
             postimage: Some(proposal_bytes.clone()),
@@ -4514,7 +4568,7 @@ mod tests {
                 fixture
                     .temporary
                     .path()
-                    .join(".vela/proposals/vpr_recovery.json")
+                    .join(proposal_object_path(&proposal_bytes))
             )
             .unwrap(),
             proposal_bytes
@@ -4530,7 +4584,7 @@ mod tests {
         let proposal_bytes =
             to_canonical_bytes(&json!({"proposal": "object-only-recovery"})).unwrap();
         request.object_drafts = vec![AuthorityObjectDraft {
-            path: ".vela/proposals/vpr_object_recovery.json".into(),
+            path: proposal_object_path(&proposal_bytes),
             object_kind: "proposal".into(),
             class: WriteClass::PublicReview,
             postimage: Some(proposal_bytes.clone()),
@@ -4580,7 +4634,7 @@ mod tests {
                 fixture
                     .temporary
                     .path()
-                    .join(".vela/proposals/vpr_object_recovery.json")
+                    .join(proposal_object_path(&proposal_bytes))
             )
             .unwrap(),
             proposal_bytes
