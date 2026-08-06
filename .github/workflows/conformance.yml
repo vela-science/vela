@@ -81,5 +81,35 @@ jobs:
       # an opinion about the other's dependencies.
       - name: shared source-manifest package
         run: uv run --project packages/vela-source-manifest --locked --group dev pytest packages/vela-source-manifest/tests -q
+      # Two Frontiers pin a commit of `research/lean-replay-contract` and import
+      # it, and the only thing in this job that reached it was the Rust reader
+      # in crates/vela-protocol/tests. That reader reproduces the package ROOT,
+      # so a byte moving is caught — but the package's own axiom vectors, its
+      # fail-closed mutation check and its manifest-schema check ran nowhere,
+      # and those are the behaviour the consumers import.
+      #
+      # The root comparison is the other half. `build_root.py` and that Rust
+      # reader are the two independent readers the package's promotion criteria
+      # require to agree, and only one of them ever ran: a test named
+      # "independent reader" had nothing to be independent of. The digest is
+      # read out of that test rather than restated here, so freezing a new root
+      # stays one edit in one file. Both checks need only rfc8785 and
+      # jsonschema, which the conformance project already locks.
+      - name: source-local Lean replay contract
+        run: |
+          set -euo pipefail
+          uv run --project conformance --locked \
+            python research/lean-replay-contract/test_contract.py
+          frozen="$(sed -n '/^const EXPECTED_ROOT/,/;$/s/.*"\(sha256:[0-9a-f]\{64\}\)".*/\1/p' \
+            crates/vela-protocol/tests/lean_replay_package_candidate.rs)"
+          test -n "$frozen"
+          built="$(uv run --project conformance --locked \
+            python research/lean-replay-contract/build_root.py \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["package_root"])')"
+          if [ "$built" != "$frozen" ]; then
+            echo "::error::build_root.py reports $built; the frozen Rust reader expects $frozen"
+            exit 1
+          fi
+          echo "package root $built (both readers agree)"
       - name: reproduce (CLI re-derives the synthetic valid corpus)
         run: ./target/release/vela reproduce crates/vela-verify/corpus/valid/smoke

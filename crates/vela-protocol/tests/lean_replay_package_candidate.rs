@@ -47,6 +47,19 @@ fn collect_files(directory: &Path, files: &mut Vec<PathBuf>) {
     }
 }
 
+/// The four extensions this reader and `build_root.py` are known to agree on.
+///
+/// Outside them the two disagree, and not in a way either side can see: the
+/// Python builder falls back to `mimetypes.guess_type`, which is seeded from
+/// the host's own mime database — `/etc/mime.types` and friends, one of which
+/// exists on a developer Mac and a different one on the CI runner. A `.sh` in
+/// this package is `application/x-sh` there and `application/octet-stream`
+/// here, so the two readers would compute two roots from identical bytes, and
+/// a `.lean` could compute two different roots on two machines from the same
+/// checkout. Both surface as "the frozen root moved", which is the one
+/// explanation that is not true.
+const SHARED_EXTENSIONS: [&str; 4] = ["json", "py", "md", "txt"];
+
 fn media_type(path: &Path) -> &'static str {
     match path.extension().and_then(|value| value.to_str()) {
         Some("json") => "application/json",
@@ -67,6 +80,21 @@ fn independent_reader_reproduces_frozen_package_root() {
     collect_files(&root, &mut paths);
     paths.sort();
 
+    // Before the extension check, so the usual local accident — an editor
+    // scratch file or a .DS_Store landing in the directory — still reports
+    // itself as drift in the file set rather than as a media-type argument.
+    assert_eq!(paths.len(), 10, "package file set drifted");
+    for path in &paths {
+        let extension = path.extension().and_then(|value| value.to_str());
+        assert!(
+            extension.is_some_and(|value| SHARED_EXTENSIONS.contains(&value)),
+            "{} is outside the extensions the two package-root readers agree on ({}); \
+             adding it makes the root a function of the host's mime database, not of the bytes",
+            path.display(),
+            SHARED_EXTENSIONS.join(", "),
+        );
+    }
+
     let files = paths
         .into_iter()
         .map(|path| {
@@ -86,7 +114,6 @@ fn independent_reader_reproduces_frozen_package_root() {
         })
         .collect::<Vec<_>>();
 
-    assert_eq!(files.len(), 10, "package file set drifted");
     let descriptor = Descriptor {
         files,
         schema: "vela.logical-package-root.v1",
