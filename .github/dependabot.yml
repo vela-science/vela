@@ -28,6 +28,23 @@ updates:
     open-pull-requests-limit: 2
     cooldown:
       default-days: 7
+    # `cedar-policy` is not a dependency that can be kept current.
+    #
+    # `authority::CEDAR_ENGINE_VERSION` names the evaluator inside every policy
+    # bundle this workspace mints, and `PolicyBundleV1::validate` rejects a
+    # bundle that disagrees with the compiled-in constant. Leaving the constant
+    # alone fails `engine_pin`; moving it invalidates every bundle already
+    # signed. A build with cedar 4.12.0 and the constant moved to match replays
+    # vela-science/math as `policy bundle evaluator identity is not the pinned
+    # Vela profile`, where 4.11.2 replays it to its established root.
+    #
+    # So a new evaluator is a migration with a re-signing plan, and a pull
+    # request that proposes one weekly is noise in front of a decision. The
+    # note above already said root-producing crates need deliberate
+    # verification; it read `minor` as safe, and for the authorization engine
+    # it is not. Raise this pin by hand, with the migration, or not at all.
+    ignore:
+      - dependency-name: cedar-policy
     groups:
       cargo:
         patterns:
