@@ -590,7 +590,7 @@ fn decision_events(
 
     let (kind, target, before_hash, after_hash) = match proposal.action.as_str() {
         "claim.add" => (
-            EventKind::FindingAsserted,
+            EventKind::ClaimAsserted,
             claim.claim_id.clone(),
             NULL_HASH.into(),
             plan.claim_root.clone(),
@@ -611,14 +611,14 @@ fn decision_events(
                 .claim_root
                 .clone();
             (
-                EventKind::FindingSuperseded,
+                EventKind::ClaimSuperseded,
                 target,
                 before,
                 plan.claim_root.clone(),
             )
         }
         "claim.withdraw" => (
-            EventKind::FindingRetracted,
+            EventKind::ClaimRetracted,
             claim.claim_id.clone(),
             plan.claim_root.clone(),
             NULL_HASH.into(),
@@ -1324,7 +1324,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(events.len(), 2);
-        assert_eq!(events[0].kind, EventKind::FindingAsserted);
+        assert_eq!(events[0].kind, EventKind::ClaimAsserted);
         assert_eq!(events[1].kind, EventKind::ReviewAccepted);
         assert_eq!(
             events[1].payload["applied_event_id"],

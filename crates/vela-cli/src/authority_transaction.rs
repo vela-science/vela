@@ -737,7 +737,7 @@ fn validate_semantic_event_links(
         if matches!(event.content.kind, EventKind::Other(_)) {
             continue;
         }
-        let semantic_id = if event.content.kind == EventKind::AttemptClaimed {
+        let semantic_id = if event.content.kind == EventKind::TargetClaimed {
             event.id.clone()
         } else {
             event
@@ -2791,7 +2791,7 @@ mod tests {
         let mut semantic_domain = StateEvent {
             schema: EVENT_SCHEMA.into(),
             id: String::new(),
-            kind: EventKind::FindingNoted,
+            kind: EventKind::ClaimNoted,
             target: StateTarget {
                 r#type: "finding".into(),
                 id: "vf_0123456789abcdef".into(),
@@ -2848,7 +2848,7 @@ mod tests {
                 after_hash: NULL_HASH.into(),
                 payload: json!({
                     "proposal_id": proposal_id,
-                    "proposal_kind": "finding.note",
+                    "proposal_kind": "claim.note",
                     "verdict": "accepted",
                     "applied_event_id": semantic_domain.id.clone(),
                 }),
@@ -2897,7 +2897,7 @@ mod tests {
             .collect::<Vec<_>>();
         let domain = events
             .iter()
-            .find(|event| event.content.kind == EventKind::FindingNoted)
+            .find(|event| event.content.kind == EventKind::ClaimNoted)
             .unwrap();
         let review = events
             .iter()

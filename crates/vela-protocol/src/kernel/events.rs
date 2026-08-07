@@ -3,7 +3,7 @@
 //! Current Decisions are authenticated by `AuthorityEventV1`. Its semantic
 //! payload retains the established `vela.event.v0.1` content-addressing shape
 //! so existing event IDs and roots remain stable. Historical reducer logic and
-//! Finding-era constructors do not live in this module.
+//! Retired-era constructors do not live in this module.
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -60,11 +60,11 @@ macro_rules! event_kinds {
 // writers, reducers, or product concepts.
 event_kinds! {
     FrontierCreated => "frontier.created",
-    FindingAsserted => "finding.asserted",
-    FindingNoted => "finding.noted",
-    FindingRetracted => "finding.retracted",
-    AttemptClaimed => "attempt.claimed",
-    FindingSuperseded => "finding.superseded",
+    ClaimAsserted => "claim.asserted",
+    ClaimNoted => "claim.noted",
+    ClaimRetracted => "claim.retracted",
+    TargetClaimed => "target.claimed",
+    ClaimSuperseded => "claim.superseded",
     ReviewAccepted => "review.accepted",
     ReviewRejected => "review.rejected",
     ReviewRevisionRequested => "review.revision_requested",
@@ -208,7 +208,7 @@ mod tests {
 
     #[test]
     fn signatures_do_not_change_event_identity_or_log_root() {
-        let mut value = event(EventKind::FindingAsserted, "a");
+        let mut value = event(EventKind::ClaimAsserted, "a");
         let id = value.id.clone();
         let root = event_log_hash(&[value.clone()]);
         value.signature = Some("detached".into());
@@ -218,7 +218,7 @@ mod tests {
 
     #[test]
     fn event_log_order_is_canonical() {
-        let left = event(EventKind::FindingAsserted, "a");
+        let left = event(EventKind::ClaimAsserted, "a");
         let right = event(EventKind::ReviewAccepted, "b");
         assert_eq!(
             event_log_hash(&[left.clone(), right.clone()]),

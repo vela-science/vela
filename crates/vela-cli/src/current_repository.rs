@@ -662,9 +662,9 @@ fn current_proposal_decisions(
             if applied_event.content.target.r#type != "claim"
                 || !matches!(
                     applied_event.content.kind,
-                    EventKind::FindingAsserted
-                        | EventKind::FindingSuperseded
-                        | EventKind::FindingRetracted
+                    EventKind::ClaimAsserted
+                        | EventKind::ClaimSuperseded
+                        | EventKind::ClaimRetracted
                 )
             {
                 return Err(format!(
@@ -895,7 +895,7 @@ fn validate_current_proposal_standing(
         }
         let transition_matches = match proposal.action.as_str() {
             "claim.add" => {
-                applied.content.kind == EventKind::FindingAsserted
+                applied.content.kind == EventKind::ClaimAsserted
                     && applied.content.target.id == proposal.subject.id
                     && applied.content.before_hash == NULL_HASH
                     && applied.content.after_hash == proposal.subject.root
@@ -907,13 +907,13 @@ fn validate_current_proposal_standing(
                     .filter(|relation| matches!(relation.kind.as_str(), "corrects" | "supersedes"))
                     .collect::<Vec<_>>();
                 predecessors.len() == 1
-                    && applied.content.kind == EventKind::FindingSuperseded
+                    && applied.content.kind == EventKind::ClaimSuperseded
                     && applied.content.target.id == predecessors[0].target_claim_id
                     && applied.content.before_hash != NULL_HASH
                     && applied.content.after_hash == proposal.subject.root
             }
             "claim.withdraw" => {
-                applied.content.kind == EventKind::FindingRetracted
+                applied.content.kind == EventKind::ClaimRetracted
                     && applied.content.target.id == proposal.subject.id
                     && applied.content.before_hash == proposal.subject.root
                     && applied.content.after_hash == NULL_HASH
@@ -2835,7 +2835,7 @@ mod tests {
             transaction_id: "vtx_fixture_accept".into(),
             principal_id: "local:fixture|uid:501".into(),
             authority_mode: AUTHORITY_MODE.into(),
-            kind: EventKind::FindingAsserted,
+            kind: EventKind::ClaimAsserted,
             target: StateTarget {
                 r#type: "claim".into(),
                 id: claim_id.into(),

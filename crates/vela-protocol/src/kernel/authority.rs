@@ -834,7 +834,7 @@ mod tests {
             transaction_id: "vtx_first".into(),
             principal_id: "local:device-1|uid:501".into(),
             authority_mode: AUTHORITY_MODE.into(),
-            kind: EventKind::FindingNoted,
+            kind: EventKind::ClaimNoted,
             target: StateTarget {
                 r#type: "finding".into(),
                 id: "vf_0123456789abcdef".into(),

@@ -484,8 +484,8 @@ fn review_accept_admits_the_event_that_moves_standing() {
     );
     let asserted = admitted
         .iter()
-        .find(|event| event["content"]["kind"] == "finding.asserted")
-        .expect("the accept admits the finding.asserted domain Event");
+        .find(|event| event["content"]["kind"] == "claim.asserted")
+        .expect("the accept admits the claim.asserted domain Event");
     assert_eq!(asserted["content"]["target"]["id"], claim_id.as_str());
     assert_eq!(asserted["content"]["after_hash"], accepted["claim_root"]);
     assert_eq!(asserted["content"]["reason"], reason);

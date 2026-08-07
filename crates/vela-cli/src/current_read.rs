@@ -482,7 +482,7 @@ fn supersession_event<'a>(
     claim_id: &str,
 ) -> Option<&'a AuthorityEventV1> {
     authority_events.iter().rev().find(|event| {
-        event.content.kind.as_str() == "finding.superseded"
+        event.content.kind.as_str() == "claim.superseded"
             && event.content.target.r#type == "claim"
             && event.content.target.id == claim_id
     })
@@ -880,7 +880,7 @@ pub(crate) fn why_payload(frontier: &Path, claim_id: &str) -> Result<Value, Stri
         let successor_claim_id = event
             .pointer("/content/payload/claim_id")
             .and_then(Value::as_str);
-        (event.pointer("/content/kind").and_then(Value::as_str) == Some("finding.superseded")
+        (event.pointer("/content/kind").and_then(Value::as_str) == Some("claim.superseded")
             && (predecessor_claim_id == Some(claim_id) || successor_claim_id == Some(claim_id)))
         .then(|| {
             json!({
@@ -1264,7 +1264,7 @@ mod tests {
     fn current_log_kind_filter_is_literal() {
         let filter = "review.";
         assert!("review.accepted".contains(filter));
-        assert!(!"finding.asserted".contains(filter));
+        assert!(!"claim.asserted".contains(filter));
     }
 
     #[test]
@@ -1273,7 +1273,7 @@ mod tests {
             transaction_id: "vtx_fixture".into(),
             principal_id: "local:fixture|uid:501".into(),
             authority_mode: AUTHORITY_MODE.into(),
-            kind: EventKind::FindingSuperseded,
+            kind: EventKind::ClaimSuperseded,
             target: StateTarget {
                 r#type: "claim".into(),
                 id: "vcl_predecessor".into(),

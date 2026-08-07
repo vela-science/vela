@@ -426,7 +426,7 @@ mod tests {
             }],
             vec![ClaimSource {
                 kind: "repository_import".into(),
-                title: "Historical Finding vf_fixture".into(),
+                title: "Historical import vf_fixture".into(),
                 locator: None,
                 authors: vec![],
                 year: None,
