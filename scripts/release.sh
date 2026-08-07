@@ -180,14 +180,20 @@ if ! command -v "$SYFT" >/dev/null 2>&1; then
   cat >&2 <<EOF
 release: syft $SYFT_VERSION is required and was not found.
 
-Install it once, out of band, and pin the version:
+Install it once, out of band, at that exact version:
 
-  # macOS
-  brew install syft && syft --version    # must report $SYFT_VERSION
-
-  # any platform: download the tagged release for your target from
+  # any platform, and the only instruction that stays correct: download the
+  # tagged release for your target from
   # https://github.com/anchore/syft/releases/tag/v$SYFT_VERSION
   # and verify it against the checksums published with that tag.
+
+  # macOS, only while Homebrew's stable happens to be v$SYFT_VERSION:
+  brew install syft && syft --version    # must report $SYFT_VERSION
+
+Homebrew tracks whatever syft released most recently, so the second recipe
+stops working the day Anchore ships a newer version, and a package manager
+that installs "the current one" cannot satisfy a pin by construction. Use the
+tagged download unless brew already agrees.
 
 Then re-run, or point VELA_SYFT_BIN at the binary.
 EOF
