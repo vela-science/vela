@@ -13,6 +13,9 @@ init -> submit -> verify -> decide -> replay
   source registry, and release manifest.
 - Make the Erdős collection useful through broad source coverage and a small
   set of exact deep cases with source-qualified status and current work.
+- Keep VibeMathed observed at its catalogue root. It landed on 2026-08-07 as
+  `source:vibemathed` with 509 projected records, from an endpoint that
+  re-renders on a cache cycle, so a moved lock digest there records nothing.
 - Turn three Formal Conjectures or Erdős artifacts into explicit upstream,
   source-local, archive, or no-extraction dispositions.
 - Generate the first reviewer-ready upstream dossier from exact native
@@ -22,8 +25,6 @@ init -> submit -> verify -> decide -> replay
 
 ## Next
 
-- Add VibeMathed as an attributed source observation after its identity,
-  revision, rights, pagination, and deletion semantics pass audit.
 - Complete one correction cascade and one external producer handoff through
   the public map.
 - Run a bounded Physlib pilot after maintainer policy or direct alignment
