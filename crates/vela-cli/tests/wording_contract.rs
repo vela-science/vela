@@ -170,6 +170,25 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
         "vela.status.v4 carries `verified` as a wire token; vela-web pins it as z.literal(\"verified\"), so it moves only with a schema bump"
     );
 
+    /* Two JSON tokens still spell the retired word, and both are asserted
+    rather than swept for the same reason `integrity.replay` is. `frontier` is
+    a key in `vela.repository-verification.v2` and `accepted_frontier` a value
+    in `vela.reproduction-summary.v1` that `docs/VERIFICATION.md` documents by
+    name. A caller keys on both, so retiring them is a version bump each, not a
+    rename — and `accepted_frontier` reaches the human surface too, because
+    `vela reproduce` prints its scope token verbatim. */
+    let replayed = json(&run(
+        temporary.path(),
+        &home,
+        socket,
+        &["replay", &frontier_text, "--json"],
+    ));
+    assert_eq!(replayed["schema"], "vela.repository-verification.v2");
+    assert!(
+        replayed["frontier"].is_string(),
+        "`frontier` is a published key of vela.repository-verification.v2; dropping it is a v3 bump, not a prose sweep:\n{replayed}"
+    );
+
     std::fs::create_dir_all(frontier.join("artifacts")).expect("artifacts directory");
     std::fs::write(
         frontier.join("artifacts/note.json"),
