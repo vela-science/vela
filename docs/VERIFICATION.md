@@ -51,7 +51,7 @@ vela reproduce . --proposal <vpr_id> --json
 ```
 
 The output names its scope `pending_proposal` rather than
-`accepted_frontier`, and reports `authority_effect: none`.
+`accepted_repository`, and reports `authority_effect: none`.
 
 Some domains retain a rooted source-local replay capsule rather than a Vela
 witness. In that case the same command validates the capsule's exact Proposal

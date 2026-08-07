@@ -82,6 +82,28 @@
   frontier:  <path>   ->  repository: <path>
   ```
 
+- The last two wire tokens spelling the retired word moved, each with the
+  version bump that was the reason they survived the prose sweep:
+
+  ```text
+  vela.repository-verification.v2  ->  vela.repository-verification.v3
+    frontier                       ->    repository_path
+  vela.reproduction-summary.v1     ->  vela.reproduction-summary.v2
+    scope accepted_frontier        ->    scope accepted_repository
+  ```
+
+  `replay` was reporting the directory it read, which is a Repository; a
+  Frontier is a derived query with no directory to report. The reproduction
+  scope is printed verbatim by `vela reproduce`, so the human surface moved
+  with the schema, and `docs/VERIFICATION.md` documents the new token.
+  `wording_contract.rs` now pins both new tokens and asserts the retired
+  spellings absent, which is the half that was missing: the old contract
+  asserted `frontier` present and never ran `reproduce` at all.
+
+  `integrity.replay: "verified"` in `vela.status.v4` is untouched. It is the
+  one wire token left that a prose sweep must not take, and `vela-web` pins it
+  as `z.literal("verified")`.
+
 - `docs/CLI.md`'s verb grid is bound to the parser. The published reference
   named the same commands a third time — after the two printed grids, which
   were bound last release — and nothing held it to them, so a renamed verb left

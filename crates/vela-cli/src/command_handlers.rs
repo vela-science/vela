@@ -442,10 +442,15 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
     if path.is_dir() && path.join("vela.toml").is_file() {
         crate::ui::require_initialized_repo(path);
     }
+    /* The scope names what the witnesses being re-run belong to. v1 spelled
+    the repository case `accepted_frontier`, which named the one thing here
+    that holds nothing: a Frontier is a derived query, and what carries
+    accepted Standing is the Repository. The token is printed verbatim on the
+    human surface as well as emitted, so the two moved together, under v2. */
     let mut scope = if path.is_file() {
         "standalone_artifact"
     } else {
-        "accepted_frontier"
+        "accepted_repository"
     };
     if !json_output {
         crate::ui::header("REPRODUCE", &path.display().to_string(), None);
@@ -602,7 +607,7 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
                    field to know whether the run succeeded. */
                 "ok": failed == 0,
                 "command": "reproduce",
-                "schema": "vela.reproduction-summary.v1",
+                "schema": "vela.reproduction-summary.v2",
                 "scope": scope,
                 "proposal_id": proposal_id,
                 "authority_effect": "none",

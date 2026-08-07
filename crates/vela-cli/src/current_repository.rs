@@ -69,10 +69,15 @@ pub(crate) fn cmd_replay_repository(frontier: &Path, json_out: bool) {
     let tree = git_text(&frontier, &["rev-parse", "HEAD^{tree}"])
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let payload = json!({
-        "schema": "vela.repository-verification.v2",
+        "schema": "vela.repository-verification.v3",
         "ok": true,
         "command": "replay",
-        "frontier": frontier.display().to_string(),
+        /* v2 spelled this `frontier`, which ADR 0039 left naming a derived
+        query with no directory. What replay was always reporting is the
+        directory it read, so v3 names it beside the other `repository_*`
+        facts it is one of. The key moved with a version rather than in place
+        because a caller reads it. */
+        "repository_path": frontier.display().to_string(),
         "repository_id": repository.repository_id,
         "git_commit": commit,
         "git_tree": tree,
