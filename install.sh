@@ -1,4 +1,41 @@
 #!/usr/bin/env bash
+#
+# Install Vela, and verify it without needing the provider it came from.
+#
+# `docs/CONTINUITY.md` requires the system to be installable and verifiable when
+# GitHub is not reachable. This script used to make that impossible on its own
+# terms: it resolved the version through `api.github.com`, hard-required `gh`,
+# and verified through `gh attestation verify --signer-workflow`, which is
+# GitHub's OIDC provenance service. Every one of those is the provider.
+#
+# There are now two verification paths, and the script says which one it used.
+#
+#   1. The signed release manifest. `scripts/release.sh` mints
+#      `<asset>.release-manifest.json` binding release identity, commit, tree,
+#      toolchain, asset digests and SBOM digests, and signs it under the
+#      `vela-release` namespace with the distribution identity in
+#      `allowed_signers`. Verification is `ssh-keygen -Y verify` plus a
+#      checksum comparison — OpenSSH and coreutils, no API, no `gh`, and it
+#      works against a mirror or a directory on a USB stick.
+#
+#   2. GitHub attestation, when the manifest is absent. Releases published
+#      before the manifest existed have no way to offer path 1, and silently
+#      downgrading them to "checksum only" would be a weaker install wearing
+#      the same output. So they still verify the old way, and say so.
+#
+# What is deliberately NOT here: a path that installs an unverified binary.
+# `<asset>.sha256` sits beside `<asset>` on the same host, so on its own it
+# proves transport integrity and nothing about who built the bytes.
+#
+# environment:
+#   VELA_VERSION           tag to install; skips the api.github.com lookup
+#   VELA_RELEASE_BASE_URL  where to fetch release files from — a mirror, or a
+#                          `file://` directory holding a retained release
+#   VELA_ALLOWED_SIGNERS   path to an out-of-band allowed_signers file, so the
+#                          trust root need not come from the same host as the
+#                          bytes it verifies
+#   VELA_EXPECTED_SHA256   archive digest from an ecosystem lock
+#   VELA_INSTALL_PREFIX    install prefix (default /usr/local)
 set -euo pipefail
 
 REPO="vela-science/vela"
@@ -40,18 +77,30 @@ esac
 
 TAG="${VELA_VERSION:-}"
 if [ -z "$TAG" ]; then
+  if [ -n "${VELA_RELEASE_BASE_URL:-}" ]; then
+    # A mirror has no releases API to ask, and guessing "latest" against bytes
+    # somebody else arranged is how you install a version nobody chose.
+    echo "ERROR: set VELA_VERSION when VELA_RELEASE_BASE_URL is set." >&2
+    exit 1
+  fi
   TAG=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
 fi
-URL="https://github.com/${REPO}/releases/download/${TAG}/${ASSET}"
+BASE_URL="${VELA_RELEASE_BASE_URL:-https://github.com/${REPO}/releases/download/${TAG}}"
+URL="${BASE_URL}/${ASSET}"
 SUM_URL="${URL}.sha256"
+MANIFEST_NAME="${ASSET}.release-manifest.json"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-echo "Installing Vela ${TAG} for ${OS}/${ARCH}..."
-command -v gh >/dev/null 2>&1 || {
-  echo "ERROR: GitHub CLI is required to verify build provenance (https://cli.github.com/)." >&2
-  exit 1
+digest_of() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  else
+    shasum -a 256 "$1" | awk '{print $1}'
+  fi
 }
+
+echo "Installing Vela ${TAG} for ${OS}/${ARCH} from ${BASE_URL}..."
 curl -fsSL "$URL" -o "$TMP/$ASSET"
 curl -fsSL "$SUM_URL" -o "$TMP/$ASSET.sha256" || {
   echo "ERROR: checksum missing for ${ASSET}; refusing an unverified install." >&2
@@ -66,20 +115,79 @@ curl -fsSL "$SUM_URL" -o "$TMP/$ASSET.sha256" || {
   fi
 )
 if [ -n "${VELA_EXPECTED_SHA256:-}" ]; then
-  if command -v sha256sum >/dev/null 2>&1; then
-    OBSERVED_SHA256=$(sha256sum "$TMP/$ASSET" | awk '{print $1}')
-  else
-    OBSERVED_SHA256=$(shasum -a 256 "$TMP/$ASSET" | awk '{print $1}')
-  fi
+  OBSERVED_SHA256="$(digest_of "$TMP/$ASSET")"
   if [ "$OBSERVED_SHA256" != "$VELA_EXPECTED_SHA256" ]; then
     echo "ERROR: ${ASSET} differs from the ecosystem-lock SHA-256; refusing installation." >&2
     exit 1
   fi
 fi
-gh attestation verify "$TMP/$ASSET" \
-  --repo "$REPO" \
-  --signer-workflow "$REPO/.github/workflows/release.yml" \
-  --source-ref "refs/tags/$TAG" >/dev/null
+
+# The distribution identity, as published in `allowed_signers` at the tag this
+# script ships with. Inline so the script carries its own trust root: fetching
+# the verifier from the host that served the bytes would verify nothing. Supply
+# VELA_ALLOWED_SIGNERS to pin it out of band instead.
+read -r -d '' EMBEDDED_ALLOWED_SIGNERS <<'SIGNERS' || true
+release@vela.space namespaces="vela-release" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDZ+fwqljQBzprznZmeAY3KwHVrKOaW+/z5GflVwilG5 Vela release distribution
+SIGNERS
+
+VERIFIED_BY=""
+if curl -fsSL "${BASE_URL}/${MANIFEST_NAME}" -o "$TMP/$MANIFEST_NAME" 2>/dev/null; then
+  # A manifest that is present makes its signature mandatory. Treating a missing
+  # `.sig` as "fall back to the other path" would let anyone serving these bytes
+  # choose the weaker check by deleting one file — the stronger guarantee has to
+  # be un-droppable by whoever is being verified.
+  curl -fsSL "${BASE_URL}/${MANIFEST_NAME}.sig" -o "$TMP/$MANIFEST_NAME.sig" 2>/dev/null || {
+    echo "ERROR: ${TAG} publishes ${MANIFEST_NAME} but no signature beside it." >&2
+    echo "       An unsigned manifest is a document, not provenance. Refusing." >&2
+    exit 1
+  }
+  command -v ssh-keygen >/dev/null 2>&1 || {
+    echo "ERROR: ssh-keygen is required to verify the signed release manifest." >&2
+    exit 1
+  }
+  if [ -n "${VELA_ALLOWED_SIGNERS:-}" ]; then
+    SIGNERS_FILE="$VELA_ALLOWED_SIGNERS"
+  else
+    SIGNERS_FILE="$TMP/allowed_signers"
+    printf '%s\n' "$EMBEDDED_ALLOWED_SIGNERS" > "$SIGNERS_FILE"
+  fi
+  ssh-keygen -Y verify -f "$SIGNERS_FILE" -I release@vela.space \
+    -n vela-release -s "$TMP/$MANIFEST_NAME.sig" < "$TMP/$MANIFEST_NAME" >/dev/null || {
+    echo "ERROR: the release manifest signature did not verify against the distribution identity." >&2
+    exit 1
+  }
+  # A verified manifest is only as good as the tie from it back to these bytes.
+  # Without this the signature would attest to a document that merely mentions
+  # an asset by name.
+  # `sort_keys=True` puts "sha256" directly after "name" inside each asset
+  # object, and the closing quote keeps `<asset>` from matching
+  # `<asset>.spdx.json`. Fixed-string, so the dots in the filename stay dots.
+  MANIFEST_SHA256=$(grep -F -A3 "\"name\": \"${ASSET}\"" "$TMP/$MANIFEST_NAME" \
+    | grep '"sha256"' | head -1 | sed -E 's/.*"sha256": "([0-9a-f]{64})".*/\1/')
+  if [ -z "$MANIFEST_SHA256" ]; then
+    echo "ERROR: the signed manifest names no sha256 for ${ASSET}." >&2
+    exit 1
+  fi
+  if [ "$(digest_of "$TMP/$ASSET")" != "$MANIFEST_SHA256" ]; then
+    echo "ERROR: ${ASSET} does not match the digest in the signed release manifest." >&2
+    exit 1
+  fi
+  VERIFIED_BY="signed release manifest (provider-independent)"
+elif command -v gh >/dev/null 2>&1; then
+  # No manifest: a release published before `scripts/release.sh` existed.
+  gh attestation verify "$TMP/$ASSET" \
+    --repo "$REPO" \
+    --signer-workflow "$REPO/.github/workflows/release.yml" \
+    --source-ref "refs/tags/$TAG" >/dev/null
+  VERIFIED_BY="GitHub attestation (requires GitHub; this release predates the signed manifest)"
+else
+  echo "ERROR: ${TAG} publishes no signed release manifest, and GitHub CLI is not installed," >&2
+  echo "       so this build's provenance cannot be checked. Install a release that carries" >&2
+  echo "       ${MANIFEST_NAME}, or install gh (https://cli.github.com/)." >&2
+  echo "       A checksum served beside the archive is not provenance; refusing." >&2
+  exit 1
+fi
+
 mkdir -p "$TMP/unpack"
 if [ "$OS" = "darwin" ]; then
   ditto -x -k "$TMP/$ASSET" "$TMP/unpack"
@@ -89,8 +197,10 @@ fi
 test -f "$TMP/unpack/vela"
 chmod +x "$TMP/unpack/vela"
 
+echo "Verified by: ${VERIFIED_BY}"
+
 if [ "$OS" = "darwin" ]; then
-  echo "Note: this is a GitHub-attested portable build without Apple Developer ID notarization."
+  echo "Note: this is a portable build without Apple Developer ID notarization."
 fi
 
 mkdir -p "$BINDIR" 2>/dev/null || true

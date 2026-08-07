@@ -20,7 +20,9 @@
     },
     "vela-science/math": {
       "active_writer": "https://github.com/vela-science/math.git",
-      "read_replicas": [],
+      "read_replicas": [
+        "https://codeberg.org/vela-science/math.git"
+      ],
       "responsibility": "The one live mathematics authority: sources, Claims, Decisions, replay state",
       "state": "active"
     },
@@ -38,7 +40,9 @@
     },
     "vela-science/vela": {
       "active_writer": "https://github.com/vela-science/vela.git",
-      "read_replicas": [],
+      "read_replicas": [
+        "https://codeberg.org/vela-science/vela.git"
+      ],
       "responsibility": "Protocol semantics, the vela CLI, wire schemas, conformance, and releases",
       "state": "active"
     },

@@ -66,10 +66,17 @@ DEFAULT_MAX_OBSERVATION_AGE_DAYS = 180
 # here. An observed checkout pointing somewhere not on this row is either a
 # promotion nobody wrote down or a mistake, and the check does not try to tell
 # them apart: it stops and asks.
+#
+# The codeberg.org entries are replicas that exist and are verified, not
+# aspirations. `vela-web`'s `mirror-replicas.yml` pushes to them twice daily and
+# then reads them back over the public URL with no credential, failing if they
+# hold different refs from the primary. Listing a replica that nothing refreshes
+# would be worse than listing none: it answers the continuity question with a
+# URL instead of a copy.
 DECLARED_REPOSITORIES: dict[str, dict[str, object]] = {
     "vela-science/vela": {
         "active_writer": "https://github.com/vela-science/vela.git",
-        "read_replicas": [],
+        "read_replicas": ["https://codeberg.org/vela-science/vela.git"],
         "responsibility": "Protocol semantics, the vela CLI, wire schemas, conformance, and releases",
         "state": "active",
     },
@@ -87,7 +94,7 @@ DECLARED_REPOSITORIES: dict[str, dict[str, object]] = {
     },
     "vela-science/math": {
         "active_writer": "https://github.com/vela-science/math.git",
-        "read_replicas": [],
+        "read_replicas": ["https://codeberg.org/vela-science/math.git"],
         "responsibility": "The one live mathematics authority: sources, Claims, Decisions, replay state",
         "state": "active",
     },
@@ -535,6 +542,22 @@ def check(arguments: argparse.Namespace) -> list[str]:
     for name in DECLARED_REPOSITORIES:
         if name not in declaration:
             failures.append(f"{name} is declared in the generator but absent from the artifact")
+
+    # Presence was the whole check, so the artifact could disagree with the
+    # generator about every field and still pass as long as the keys lined up.
+    # It did: `read_replicas` stayed `[]` in the committed artifact after the
+    # generator gained the codeberg.org replicas, and the file whose job is to
+    # catch documentation drift was the thing that had drifted. Compared in
+    # full, the same way the `local` block already is.
+    expected_declaration = json.loads(json.dumps(DECLARED_REPOSITORIES, sort_keys=True))
+    if declaration != expected_declaration:
+        failures.append(
+            "the `declaration` block no longer matches DECLARED_REPOSITORIES. "
+            "Regenerate with scripts/ecosystem-status.py and read the diff."
+        )
+        failures.extend(
+            f"  {line}" for line in drift(declaration, expected_declaration, "declaration")
+        )
 
     # The assertion, as opposed to the drift check above: a surface the
     # documentation names has to be there, and one it says was never built has

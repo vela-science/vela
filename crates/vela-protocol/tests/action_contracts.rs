@@ -442,3 +442,41 @@ fn installers_verify_release_bytes_and_do_not_ship_a_signer() {
     assert!(!INSTALLER.contains("science.vela.signer.policy"));
     assert!(INSTALLER.contains("VELA_EXPECTED_SHA256"));
 }
+
+/// `docs/CONTINUITY.md` requires installing and verifying without the provider.
+///
+/// The installer verified through `gh attestation verify --signer-workflow`,
+/// which is GitHub's OIDC provenance service, and refused to run at all without
+/// `gh`. So the documented obligation was unmeetable by the one script every
+/// new user runs. It now prefers the signed release manifest, which needs only
+/// OpenSSH and a checksum and works against a mirror or a local directory.
+#[test]
+fn the_installer_can_verify_without_the_provider() {
+    assert!(
+        INSTALLER.contains("ssh-keygen -Y verify"),
+        "the installer must be able to verify a release without GitHub's attestation service"
+    );
+    assert!(
+        INSTALLER.contains("VELA_RELEASE_BASE_URL"),
+        "the installer must be able to fetch a release from somewhere other than GitHub"
+    );
+    assert!(
+        INSTALLER.contains("VELA_ALLOWED_SIGNERS"),
+        "the trust root must be pinnable out of band, not only taken from the serving host"
+    );
+
+    // `gh` may be a fallback for releases published before the manifest
+    // existed; it may not be a precondition for running the script at all.
+    assert!(
+        !INSTALLER.contains("GitHub CLI is required"),
+        "`gh` must not be a hard requirement of installation"
+    );
+
+    // The strong path has to be un-droppable by whoever serves the bytes. If a
+    // missing `.sig` fell through to the weaker check, deleting one file would
+    // choose the weaker check.
+    assert!(
+        INSTALLER.contains("but no signature beside it"),
+        "a manifest without its signature must be refused, not downgraded"
+    );
+}

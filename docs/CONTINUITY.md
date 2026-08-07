@@ -209,38 +209,52 @@ clean machine with GitHub unreachable.
 5. Rebuild the read projection from that state and compare its roots against the
    last published release.
 
-### Where it fails today
+### Where it stands today
 
-The test does not pass, and the artifact says so rather than the prose. Every
-`read_replicas` list in `ecosystem-status.json` is empty: there is no
-independent copy of any of these repositories, so step 1 has nothing to retrieve
-from. That is the first thing to fix, and it is not a documentation task.
+Steps 1 through 3 pass for the repositories. `vela` and `math` each have a read
+replica at `codeberg.org/vela-science`, declared in `ecosystem-status.json` and
+refreshed twice daily by `mirror-replicas.yml` in `vela-science/vela-web`, which
+pushes every ref and tag and then reads the replica back over its public URL
+with no credential, failing if it holds different refs from the primary. The
+scheduled refresh is the point: a mirror updated when someone remembers is not a
+replica, it is a stale copy discovered at the worst moment.
 
-Two further consequences follow, and they are the reason this is written as a
-test rather than a policy.
+The retrieval was exercised rather than assumed. `math` was cloned from Codeberg
+with no GitHub involvement and replayed to
+`sha256:b1999eb485b04c63d06ae0173db91fa0a564d9919f50319aa1544704f0d254a4`, the
+same repository root, origin root and authority keyset root as the primary.
 
-`install.sh` fails step 1 too. It requires the GitHub CLI, resolves the
-release through `api.github.com`, and pins
-`--signer-workflow vela-science/vela/.github/workflows/release.yml`, so
-provenance verification is bound to one provider's OIDC. A neutral build path
-with no neutral install path only moves the coupling. The release manifest
-(`scripts/release.sh`, `vela.release-bundle-manifest.v1`) is the
-provider-neutral half of the fix: it binds commit, tree, version, toolchain,
-target, asset digests, and SBOM digests under a distribution signing identity
-that is not the repository-authority key, and it is verifiable with
-`ssh-keygen -Y verify` and `shasum -c` alone.
+`install.sh` no longer fails step 1. It prefers the signed release manifest —
+`ssh-keygen -Y verify` against the `vela-release` namespace, then a digest
+comparison from the manifest to the archive — which needs OpenSSH and a checksum
+tool and nothing else. `VELA_RELEASE_BASE_URL` points it at a mirror or a local
+directory, and `VELA_ALLOWED_SIGNERS` supplies the trust root out of band, so
+neither the bytes nor the verifier need come from GitHub.
 
-It is signable, and CI does not sign it. `.github/workflows/release.yml:97`
-passes no `--sign-key`, and `scripts/release.sh:273` removes any `.sig` on an
-unsigned run rather than leave a stale one beside fresh bytes, so what a release
-actually ships is an unsigned manifest plus the provider's attestation. This
-paragraph called it "the signed release manifest" after the peers were
-corrected (`docs/SIGNING.md:202`, `docs/ECOSYSTEM.md:233`); the half of the fix
-that is provider-neutral is the format, not the current release.
+Three things still fail, and they are the reason this is written as a test.
 
-Step 5 requires an independent retention path that exists on a schedule rather
-than on demand. A mirror that is only refreshed when someone remembers is not a
-replica; it is a stale copy that will be discovered at the worst moment.
+**No published release carries a manifest yet.** `release.yml:176` requires one
+in `dist/` before publishing, but that requirement postdates `v0.967.0`, so
+every release available today has only archives, checksums and SBOMs. Against
+those, `install.sh` falls back to `gh attestation verify` and says so in its
+output. The provider-independent path is real and exercised against a stand-in
+release; it has not yet had a real one to verify.
+
+**CI does not sign the manifest.** `release.yml:97` passes no `--sign-key`, by
+a deliberate choice: putting the distribution key in GitHub Actions would make
+the provider-neutral artifact depend on the provider again. So signing is an
+operator step with `scripts/release.sh --sign-key`, and until a signed release
+is cut, the strong path has nothing to check.
+
+**Release assets have no independent retention.** §11.1 asks for the assets and
+source bundles needed to install and reproduce, not only the repositories. The
+Git mirror covers the source; the binaries, SBOMs and manifests exist only as
+GitHub release attachments.
+
+Steps 4 and 5 — one authorized local Decision, then a projection rebuild and
+root comparison — have not been exercised end to end. Nothing known blocks
+them; they are simply not yet an artifact, and this document does not count
+unexercised steps as passing.
 
 ## What this document does not do
 
