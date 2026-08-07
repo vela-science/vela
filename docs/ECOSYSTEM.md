@@ -1,6 +1,6 @@
 # Vela ecosystem architecture
 
-- Status: current as of 2026-08-06
+- Status: current as of 2026-08-07
 - Binding decision: ADR 0039, `docs/adr/0039-repository-authority-and-derived-frontiers.md`
 - Supersedes: the ecosystem sections of `docs/ARCHITECTURE.md` §"Source and
   repository ownership" and §"Rust ecosystem comparison", which still describe
@@ -29,10 +29,10 @@ authority, never because there is a new topic.**
 
 **Repository.** `crates/vela-protocol/src/objects/current_repository.rs`
 (`CurrentRepositoryV4`), the authority history in `crates/vela-authority/`,
-replay in `crates/vela-verify/`. Present under its epoch-1 spelling: the type
-still parses `vela.toml` and mints `vfr_`. 78 occurrences of `vfr_` and 307
-of `frontier_id` remain in `crates/`; `repository_id` and `vrepo_` appear zero
-times. The rename is task #42 and is not started. See §7.
+replay in `crates/vela-verify/`. The rename landed in v0.967.0: `vfr_` and
+`frontier_id` are at zero in `crates/`, against 76 `vrepo_` and 391
+`repository_id`. The type parses `vela.toml`, mints `vrepo_<16 hex>`, and
+answers `vela.status.v4`.
 
 **Source.** Declared per repository in `sources.yaml` and locked in
 `sources.lock.json`; the shared lock tooling is
@@ -58,10 +58,12 @@ from the Claim's own assertion string
 (`packages/frontier-data/src/index.ts:1860-1897`). This is the defect ADR 0039
 is correcting, and it is load-bearing: see §6.
 
-**Frontier.** Derived. Today it is still a minted identity in both repositories:
-`packages/frontier-data/src/registry.ts` pins four slugs and four `vfr_` ids
-under a Zod schema, and eleven projection tables are keyed
-`(release_root, frontier_slug, …)`.
+**Frontier.** Derived, and no longer minted in the protocol. It survives as a
+minted identity only in `vela-web`, whose `registry.ts` still pins four slugs
+and four `vfr_` ids and whose eleven projection tables are still keyed
+`(release_root, frontier_slug, …)`. That is the remaining epoch work, and it is
+a root migration rather than a rename: `rooted()` hashes `canonicalJson(row)`
+including keys, so every renamed column moves a `row_root`.
 
 **Atlas.** The Observatory, `apps/observatory/` in `vela-web`. There is no
 separate Atlas application, no Atlas compiler, no per-view ontology. Every
@@ -78,6 +80,12 @@ exceptions are `source_declarations`, `source_observations` and
 `vela-science/math` is a Repository under one authority. It is not a domain
 library, not a package namespace, not an index of other people's mathematics,
 and not a second Mathlib. Nothing in it is a hub for anything outside it.
+
+It exists as of 2026-08-07: `vrepo_56d3fdfcd34ff5c3`, origin
+`vro_2e75a5b77102842f`, genesis generation 1, signed, and it replays from a
+clean clone. It declares twelve Sources and holds zero Claims, which is the
+intended starting state — the corpus returns as observations, and a Claim
+enters only through a Decision.
 
 **New nouns added: zero.** `vela-science/math` is an instance of Repository,
 which already exists.
