@@ -57,6 +57,17 @@
   and twelve rejections from an independent implementation. `schemas/` now
   carries one read surface beside the four signed objects; `schemas/README.md`
   says which is which and why.
+- `benchmarks/` is retired. It held the generators for the product-compression
+  and erdos-264-proof-repair evaluations, and no CI job invoked them, nothing
+  outside the directory imported them, and `freeze_campaign.py` requires
+  `--frontier` to name erdos, formal-conjectures, quantum-codes and sidon-sets
+  as live checkouts, all four of which are archived — so it could not run at
+  all. The results it produced are frozen in `paper/artifacts/`, which is what
+  the white paper cites, so retiring the generators invalidates no published
+  number. Git history keeps the sources; `paper/README.md`,
+  `paper/vela.md` and `paper/artifacts/state-lift/README.md` link into that
+  history rather than into the tree.
+
 - `docs/CLI.md`'s verb grid is bound to the parser. The published reference
   named the same commands a third time — after the two printed grids, which
   were bound last release — and nothing held it to them, so a renamed verb left
