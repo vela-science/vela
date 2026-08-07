@@ -57,16 +57,16 @@ eval "$(ssh-agent -s)" >/dev/null
 agent_started=true
 ssh-add "$ROOT/authority" >/dev/null
 AUTHORITY_FINGERPRINT="$(ssh-keygen -lf "$ROOT/authority.pub" -E sha256 | awk '{print $2}')"
-FRONTIER="$ROOT/frontier"
-"$UNPACK/vela" init "$FRONTIER" \
+REPO="$ROOT/repository"
+"$UNPACK/vela" init "$REPO" \
   --name "Release smoke" \
-  --scope "Does this bundle read the current Frontier profile?" \
+  --scope "Does this bundle read the current repository profile?" \
   --key "$AUTHORITY_FINGERPRINT" \
   --json > "$ROOT/init.json"
 trust_pin_path="$("$python_bin" -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["authority"]["local_trust"]["anchor_path"])' "$ROOT/init.json")"
-test -f "$FRONTIER/frontier.toml"
-test ! -e "$FRONTIER/frontier.yaml"
-"$UNPACK/vela" status "$FRONTIER" --json > "$ROOT/status.json"
+test -f "$REPO/vela.toml"
+test ! -e "$REPO/frontier.toml"
+"$UNPACK/vela" status "$REPO" --json > "$ROOT/status.json"
 "$python_bin" - "$ROOT/init.json" "$ROOT/status.json" <<'PY'
 import json
 import sys
@@ -76,12 +76,12 @@ with open(sys.argv[1], encoding="utf-8") as source:
 with open(sys.argv[2], encoding="utf-8") as source:
     status = json.load(source)
 
-assert initialized["schema"] == "vela.frontier-init.v3"
+assert initialized["schema"] == "vela.repository-init.v1"
 assert initialized["authority"]["state"] == "initialized"
 assert initialized["scientific_object_count"] == 0
 assert initialized["repository"]["repository_root"].startswith("sha256:")
 assert initialized["next_action"].startswith("vela submit ")
-assert status["schema"] == "vela.status.v3"
+assert status["schema"] == "vela.status.v4"
 assert status["integrity"] == {
     "replay": "verified",
     "strict": "pass",
