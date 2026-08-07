@@ -3,14 +3,14 @@
 //! The surface used to carry four shapes and four resolution behaviours for
 //! the same concept: a required leading positional on `show`, `why`, `review`,
 //! and `verification`; an optional one on `status`, `next`, and `log`; a
-//! `default_value = "."` one on `authority trust pin`; and a `--frontier` flag
+//! `default_value = "."` one on `authority trust pin`; and a `--repo` flag
 //! on `start` and `submit`. A reader who learned `vela status` and then typed
 //! `vela show vcl_…` had the object id silently bound to the Frontier slot and
 //! was told the *object id* was missing.
 //!
 //! One rule now covers every verb that acts on an existing Frontier:
 //!
-//!   1. `--frontier <path>` is accepted everywhere.
+//!   1. `--repo <path>` is accepted everywhere.
 //!   2. The Frontier may also be the leading positional.
 //!   3. Omitted entirely, it is discovered upward from the current directory.
 //!
@@ -44,8 +44,8 @@ pub(crate) fn looks_like_object_id(token: &str) -> bool {
 fn given_twice(verb: &str) -> ! {
     ui::fail_with(
         ErrorKind::Usage,
-        "the Frontier was given twice: once positionally and once with --frontier",
-        Some(&format!("drop one, e.g. `vela {verb} --frontier <path>`")),
+        "the Frontier was given twice: once positionally and once with --repo",
+        Some(&format!("drop one, e.g. `vela {verb} --repo <path>`")),
     );
 }
 
@@ -94,7 +94,7 @@ pub(crate) fn bind_repo(
 /// `object` names the missing argument in the usage error — `"a Claim id
 /// (vcl_...)"` — and `value_name` is its slot in the usage line, so an omitted
 /// object is reported as an omitted object rather than as a missing Frontier.
-pub(crate) fn bind_frontier_and_object(
+pub(crate) fn bind_repo_and_object(
     verb: &str,
     object: &str,
     value_name: &str,
@@ -134,7 +134,7 @@ pub(crate) fn bind_frontier_and_object(
 
 /// `log`, the one verb whose object filter is optional too. Count cannot
 /// separate a lone positional, so shape does — after `is_dir`.
-pub(crate) fn bind_frontier_and_optional_object(
+pub(crate) fn bind_repo_and_optional_object(
     verb: &str,
     first: Option<String>,
     second: Option<String>,

@@ -129,8 +129,8 @@ administration, recovery, membership, or repository-key changes.
 ```bash
 vela next . --json
 # Optional write-free Target briefing.
-vela start <target> --frontier . --json
-vela submit submission.json --frontier . --json
+vela start <target> --repo . --json
+vela submit submission.json --repo . --json
 ```
 
 Submission intake creates no Verification Record, Decision, Event, or accepted

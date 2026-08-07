@@ -5,7 +5,7 @@ use clap::Parser;
 
 #[derive(Parser)]
 #[command(name = "vela", version)]
-#[command(about = "Portable frontier state for science")]
+#[command(about = "Portable scientific state")]
 struct Cli {
     /// Suppress hint/advice lines (VELA_ADVICE=0 does the same).
     #[arg(long, global = true)]
@@ -18,7 +18,7 @@ use crate::command_handlers::{cmd_reproduce, cmd_verify_evidence};
 use crate::command_spec::*;
 
 mod authority;
-pub(crate) mod frontier_arg;
+pub(crate) mod repo_arg;
 pub(crate) mod help_text;
 mod lifecycle;
 mod output;
@@ -35,7 +35,7 @@ pub(crate) use records::*;
 pub(crate) use surface::*;
 pub fn run_command() {
     // Deliberately NO dotenv here. `dotenvy::dotenv()` walks the working
-    // tree upward, and vela runs inside CLONED frontier repos — a
+    // tree upward, and vela runs inside CLONED repository repos — a
     // committed .env could silently inject VELA_ACTOR_ID or other process
     // configuration for anyone who runs vela in it
     // (the attack class git blocks via protected configuration and
@@ -47,12 +47,12 @@ pub fn run_command() {
     crate::ui::set_quiet(cli.quiet);
     match cli.command {
         Commands::Replay {
-            frontier,
+            repository,
             repo_flag,
             json,
-        } => cmd_replay(frontier, repo_flag, json),
+        } => cmd_replay(repository, repo_flag, json),
         Commands::Status {
-            frontier,
+            repository,
             repo_flag,
             json,
         } => {
@@ -61,12 +61,12 @@ pub fn run_command() {
             envelope for a usage error as for a domain one. */
             crate::ui::set_mode("status", json);
             cmd_status_compact(
-                &frontier_arg::bind_repo("status", frontier, repo_flag),
+                &repo_arg::bind_repo("status", repository, repo_flag),
                 json,
             );
         }
         Commands::Claims {
-            frontier,
+            repository,
             repo_flag,
             status,
             limit,
@@ -74,9 +74,9 @@ pub fn run_command() {
             json,
         } => {
             crate::ui::set_mode("claims", json);
-            let frontier = frontier_arg::bind_repo("claims", frontier, repo_flag);
+            let repository = repo_arg::bind_repo("claims", repository, repo_flag);
             crate::current_claims::cmd_claims(
-                &frontier,
+                &repository,
                 status.as_deref(),
                 limit,
                 cursor.as_deref(),
@@ -84,7 +84,7 @@ pub fn run_command() {
             );
         }
         Commands::Log {
-            frontier,
+            repository,
             object_id,
             repo_flag,
             limit,
@@ -93,15 +93,15 @@ pub fn run_command() {
             json,
         } => {
             crate::ui::set_mode("log", json);
-            let (frontier, object_id) = frontier_arg::bind_frontier_and_optional_object(
+            let (repository, object_id) = repo_arg::bind_repo_and_optional_object(
                 "log",
-                frontier,
+                repository,
                 object_id,
                 repo_flag,
             );
-            crate::ui::require_initialized_repo(&frontier);
+            crate::ui::require_initialized_repo(&repository);
             cmd_log(
-                &frontier,
+                &repository,
                 object_id.as_deref(),
                 limit,
                 kind.as_deref(),
@@ -134,7 +134,7 @@ pub fn run_command() {
         Commands::Authority { action } => match action {
             AuthorityAction::Trust { action } => match action {
                 AuthorityTrustAction::Pin {
-                    frontier,
+                    repository,
                     repo_flag,
                     record_root,
                     previous_record_root,
@@ -142,9 +142,9 @@ pub fn run_command() {
                 } => {
                     crate::ui::set_mode("authority trust pin", json);
                     cmd_authority_trust_pin(
-                        &frontier_arg::bind_repo(
+                        &repo_arg::bind_repo(
                             "authority trust pin",
-                            frontier,
+                            repository,
                             repo_flag,
                         ),
                         &record_root,
@@ -177,7 +177,7 @@ pub fn run_command() {
             json,
         } => {
             crate::ui::set_mode("show", json);
-            let (frontier, object_id) = frontier_arg::bind_frontier_and_object(
+            let (repository, object_id) = repo_arg::bind_repo_and_object(
                 "show",
                 "an object id",
                 "OBJECT_ID",
@@ -185,7 +185,7 @@ pub fn run_command() {
                 second,
                 repo_flag,
             );
-            crate::current_read::cmd_show(&frontier, &object_id, json);
+            crate::current_read::cmd_show(&repository, &object_id, json);
         }
         Commands::Why {
             first,
@@ -194,7 +194,7 @@ pub fn run_command() {
             json,
         } => {
             crate::ui::set_mode("why", json);
-            let (frontier, claim_id) = frontier_arg::bind_frontier_and_object(
+            let (repository, claim_id) = repo_arg::bind_repo_and_object(
                 "why",
                 "a full Claim id (vcl_...)",
                 "CLAIM_ID",
@@ -202,32 +202,32 @@ pub fn run_command() {
                 second,
                 repo_flag,
             );
-            crate::current_read::cmd_why(&frontier, &claim_id, json);
+            crate::current_read::cmd_why(&repository, &claim_id, json);
         }
         Commands::Next {
-            frontier,
+            repository,
             repo_flag,
             limit,
             json,
         } => {
             crate::ui::set_mode("next", json);
-            let dir = frontier_arg::bind_repo("next", frontier, repo_flag);
+            let dir = repo_arg::bind_repo("next", repository, repo_flag);
             crate::ui::require_initialized_repo(&dir);
             crate::current_repository::cmd_current_next(&dir, limit, json);
         }
         Commands::Start {
             target,
-            frontier,
+            repository,
             json,
         } => {
             crate::ui::set_mode("start", json);
-            let dir = crate::ui::resolve_repo(frontier);
+            let dir = crate::ui::resolve_repo(repository);
             crate::ui::require_initialized_repo(&dir);
             crate::current_work::cmd_start(&dir, &target, json);
         }
         Commands::Submit {
             submission,
-            frontier,
+            repository,
             claim,
             claim_type,
             condition,
@@ -247,14 +247,14 @@ pub fn run_command() {
             json,
         } => {
             crate::ui::set_mode("submit", json);
-            let dir = crate::ui::resolve_repo(frontier);
+            let dir = crate::ui::resolve_repo(repository);
             let authored_actor = submission
                 .is_none()
                 .then(|| crate::cli_identity::resolve_actor(r#as.as_deref()));
             let preflight_identity =
                 vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
                     "schema": "vela.submit-preflight.internal.v1",
-                    "frontier": dir.display().to_string(),
+                    "repository": dir.display().to_string(),
                     "actor": authored_actor.as_deref().or(r#as.as_deref()).unwrap_or("signed-submission"),
                     "submission": submission.as_ref().map(|path| path.display().to_string()),
                     "claim": claim,
@@ -521,16 +521,16 @@ fn cmd_review(action: ReviewAction) {
     const PROPOSAL: (&str, &str) = ("a Proposal id (vpr_...)", "PROPOSAL_ID");
     match action {
         ReviewAction::Inbox {
-            frontier,
+            repository,
             repo_flag,
             json,
         } => {
             crate::ui::set_mode("review.inbox", json);
-            let frontier = frontier_arg::bind_repo("review inbox", frontier, repo_flag);
-            crate::decision_inbox::cmd_decision_inbox(&frontier, json);
+            let repository = repo_arg::bind_repo("review inbox", repository, repo_flag);
+            crate::decision_inbox::cmd_decision_inbox(&repository, json);
         }
         ReviewAction::List {
-            frontier,
+            repository,
             repo_flag,
             status,
             limit,
@@ -538,9 +538,9 @@ fn cmd_review(action: ReviewAction) {
             json,
         } => {
             crate::ui::set_mode("review list", json);
-            let frontier = frontier_arg::bind_repo("review list", frontier, repo_flag);
+            let repository = repo_arg::bind_repo("review list", repository, repo_flag);
             crate::current_repository::cmd_current_review_list(
-                &frontier,
+                &repository,
                 status.as_deref(),
                 limit,
                 cursor.as_deref(),
@@ -554,7 +554,7 @@ fn cmd_review(action: ReviewAction) {
             json,
         } => {
             crate::ui::set_mode("review show", json);
-            let (frontier, proposal_id) = frontier_arg::bind_frontier_and_object(
+            let (repository, proposal_id) = repo_arg::bind_repo_and_object(
                 "review show",
                 PROPOSAL.0,
                 PROPOSAL.1,
@@ -562,7 +562,7 @@ fn cmd_review(action: ReviewAction) {
                 second,
                 repo_flag,
             );
-            crate::current_repository::cmd_current_review_show(&frontier, &proposal_id, json);
+            crate::current_repository::cmd_current_review_show(&repository, &proposal_id, json);
         }
         ReviewAction::Accept {
             first,
@@ -573,7 +573,7 @@ fn cmd_review(action: ReviewAction) {
             json,
         } => {
             crate::ui::set_mode("review.accept", json);
-            let (frontier, proposal_id) = frontier_arg::bind_frontier_and_object(
+            let (repository, proposal_id) = repo_arg::bind_repo_and_object(
                 "review accept",
                 PROPOSAL.0,
                 PROPOSAL.1,
@@ -582,7 +582,7 @@ fn cmd_review(action: ReviewAction) {
                 repo_flag,
             );
             review_decision::cmd_review_decide(
-                frontier,
+                repository,
                 &proposal_id,
                 crate::current_repository_decision::DecisionAction::Accept,
                 if_entry_root.as_deref(),
@@ -599,7 +599,7 @@ fn cmd_review(action: ReviewAction) {
             json,
         } => {
             crate::ui::set_mode("review.reject", json);
-            let (frontier, proposal_id) = frontier_arg::bind_frontier_and_object(
+            let (repository, proposal_id) = repo_arg::bind_repo_and_object(
                 "review reject",
                 PROPOSAL.0,
                 PROPOSAL.1,
@@ -608,7 +608,7 @@ fn cmd_review(action: ReviewAction) {
                 repo_flag,
             );
             review_decision::cmd_review_decide(
-                frontier,
+                repository,
                 &proposal_id,
                 crate::current_repository_decision::DecisionAction::Reject,
                 if_entry_root.as_deref(),
@@ -625,7 +625,7 @@ fn cmd_review(action: ReviewAction) {
             json,
         } => {
             crate::ui::set_mode("review.withdraw", json);
-            let (frontier, proposal_id) = frontier_arg::bind_frontier_and_object(
+            let (repository, proposal_id) = repo_arg::bind_repo_and_object(
                 "review withdraw",
                 PROPOSAL.0,
                 PROPOSAL.1,
@@ -633,20 +633,20 @@ fn cmd_review(action: ReviewAction) {
                 second,
                 repo_flag,
             );
-            crate::current_withdrawal::cmd_withdraw(&frontier, &proposal_id, &actor, &reason, json);
+            crate::current_withdrawal::cmd_withdraw(&repository, &proposal_id, &actor, &reason, json);
         }
     }
 }
 
 fn cmd_replay(
-    frontier: Option<std::path::PathBuf>,
+    repository: Option<std::path::PathBuf>,
     repo_flag: Option<std::path::PathBuf>,
     json_output: bool,
 ) {
     crate::ui::set_mode("replay", json_output);
-    let frontier = frontier_arg::bind_repo("replay", frontier, repo_flag);
-    crate::ui::require_initialized_repo(&frontier);
-    crate::current_repository::cmd_replay_repository(&frontier, json_output);
+    let repository = repo_arg::bind_repo("replay", repository, repo_flag);
+    crate::ui::require_initialized_repo(&repository);
+    crate::current_repository::cmd_replay_repository(&repository, json_output);
 }
 
 #[cfg(test)]
@@ -658,13 +658,13 @@ mod tests {
     /// parsed surface rather than against prose, so the module doc cannot go
     /// back to describing a convention the surface does not have. A verb added
     /// later must either accept both spellings or be named here as one of the
-    /// two arguments that is deliberately not a Frontier.
+    /// two arguments that is deliberately not a repository.
     #[test]
-    fn every_frontier_verb_accepts_both_spellings() {
+    fn every_repository_verb_accepts_both_spellings() {
         /// `init <path>` is a destination to create and `reproduce <path>` is a
         /// reproduction scope; neither takes discovery, so neither takes the
-        /// flag. `completions` touches no Frontier at all.
-        const NOT_FRONTIER_VERBS: [&str; 3] = ["init", "reproduce", "completions"];
+        /// flag. `completions` touches no repository at all.
+        const NOT_REPOSITORY_VERBS: [&str; 3] = ["init", "reproduce", "completions"];
 
         fn walk(command: &clap::Command, path: &str) {
             let leaf = command.get_subcommands().count() == 0;
@@ -674,36 +674,36 @@ mod tests {
             } else {
                 format!("{path} {name}")
             };
-            if leaf && !NOT_FRONTIER_VERBS.contains(&name) {
+            if leaf && !NOT_REPOSITORY_VERBS.contains(&name) {
                 let flag = command
                     .get_arguments()
-                    .find(|arg| arg.get_long() == Some("frontier"));
+                    .find(|arg| arg.get_long() == Some("repo"));
                 assert!(
                     flag.is_some(),
-                    "`{path}` acts on a Frontier but does not accept --frontier"
+                    "`{path}` acts on a repository but does not accept --repo"
                 );
                 assert_eq!(
                     flag.and_then(clap::Arg::get_help)
                         .map(|help| help.to_string()),
-                    Some(crate::command_spec::HELP_FRONTIER.to_string()),
-                    "`{path} --frontier` must state the one Frontier contract"
+                    Some(crate::command_spec::HELP_REPO.to_string()),
+                    "`{path} --repo` must state the one repository contract"
                 );
                 assert!(
                     command
                         .get_positionals()
-                        .any(|arg| arg.get_id() == "frontier"
+                        .any(|arg| arg.get_id() == "repository"
                             || arg.get_value_names().is_some_and(|names| names
                                 .iter()
-                                .any(|name| name.as_str() == "FRONTIER")))
+                                .any(|name| name.as_str() == "REPO")))
                         || matches!(name, "start" | "submit"),
-                    "`{path}` accepts --frontier but has no positional Frontier, and only start and submit may omit one"
+                    "`{path}` accepts --repo but has no positional repository, and only start and submit may omit one"
                 );
             }
-            if leaf && NOT_FRONTIER_VERBS.contains(&name) {
+            if leaf && NOT_REPOSITORY_VERBS.contains(&name) {
                 assert!(
                     !command
                         .get_arguments()
-                        .any(|arg| arg.get_long() == Some("frontier")),
+                        .any(|arg| arg.get_long() == Some("repo")),
                     "`{path}` is documented as taking no Frontier argument"
                 );
             }

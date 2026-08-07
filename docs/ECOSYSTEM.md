@@ -30,7 +30,7 @@ authority, never because there is a new topic.**
 **Repository.** `crates/vela-protocol/src/objects/current_repository.rs`
 (`CurrentRepositoryV4`), the authority history in `crates/vela-authority/`,
 replay in `crates/vela-verify/`. Present under its epoch-1 spelling: the type
-still parses `frontier.toml` and mints `vfr_`. 78 occurrences of `vfr_` and 307
+still parses `vela.toml` and mints `vfr_`. 78 occurrences of `vfr_` and 307
 of `frontier_id` remain in `crates/`; `repository_id` and `vrepo_` appear zero
 times. The rename is task #42 and is not started. See §7.
 
@@ -171,7 +171,7 @@ would have to become true before the question could be reopened. Levels 3
 
 `vela-science/math` is future. Its gate is ADR 0039 itself, which is Accepted;
 what blocks it is the epoch rename (§7), because a fresh genesis written by the
-epoch-1 binary would mint `vfr_` and write `frontier.toml`.
+epoch-1 binary would mint `vfr_` and write `vela.toml`.
 
 ### Frozen
 
@@ -297,8 +297,8 @@ different facts.
   `claim.*` and `target.claimed` (`crates/vela-protocol/src/kernel/events.rs`),
   and five vocabulary terms are documented as retired
   (`docs/TERMINOLOGY.md`). Not done: `frontier_id` → `repository_id` (307
-  sites), `vfr_` → `vrepo_` (78 sites), `frontier.toml` → `vela.toml` (26
-  sites), `--frontier` → `--repo`, `vela.status.v3` → `v4`,
+  sites), `vfr_` → `vrepo_` (78 sites), `vela.toml` → `vela.toml` (26
+  sites), `--repo` → `--repo`, `vela.status.v3` → `v4`,
   `crates/vela-protocol/src/epoch1/` (absent), and the read-only
   `vela history <path>` (absent). The tree is in the inconsistent middle state
   the ADR said to avoid.

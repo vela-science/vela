@@ -37,14 +37,14 @@ the schemas document structure and carry no authority or Standing effect.
 
 `fixtures/exact-witness-floor-v1.json` is a normative test vector.
 
-## `frontier_lint.py`
+## `repository_lint.py`
 
-Everything above is about protocol bytes. `frontier_lint.py` is about
+Everything above is about protocol bytes. `repository_lint.py` is about
 repository shape, and it is the one thing here that takes an argument:
 
 ```bash
-uv run --project conformance --locked python conformance/frontier_lint.py /path/to/a-frontier
-uv run --project conformance --locked python conformance/frontier_lint.py /path/to/a-frontier --json
+uv run --project conformance --locked python conformance/repository_lint.py /path/to/a-frontier
+uv run --project conformance --locked python conformance/repository_lint.py /path/to/a-frontier --json
 ```
 
 It exits 1 on findings, 2 when a declaration it reads has gone missing, and 0
@@ -79,7 +79,7 @@ schema; `vela-source-lock --check` does that a step earlier still, from the same
 schema. What is left of `generated-file` is the case `--check` returns early on:
 a lock with no `sources.yaml` behind it at all.
 
-`test_frontier_lint.py` fails every rule on purpose and then passes it, and CI
+`test_repository_lint.py` fails every rule on purpose and then passes it, and CI
 runs it. A rule that can no longer be made to fire is reported coverage that
 does not exist, which is worse than an absent rule.
 

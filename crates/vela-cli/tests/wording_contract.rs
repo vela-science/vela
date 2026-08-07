@@ -150,7 +150,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
     .expect("fixture artifact");
     let submit = [
         "submit",
-        "--frontier",
+        "--repo",
         &frontier_text,
         "--claim",
         "Exact bounded fixture claim.",

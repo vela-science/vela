@@ -234,7 +234,7 @@ pub fn resolve_repo(explicit: Option<std::path::PathBuf>) -> std::path::PathBuf 
         let current =
             store.join("origin.json").is_file() && store.join("repository.json").is_file();
         let bootstrap = store.is_dir()
-            && cur.join("frontier.toml").is_file()
+            && cur.join("vela.toml").is_file()
             && !store.join("origin.json").exists()
             && !store.join("repository.json").exists();
         if current || bootstrap {
@@ -292,7 +292,7 @@ pub fn require_initialized_repo(frontier: &std::path::Path) {
         );
     }
     if store.is_dir()
-        && frontier.join("frontier.toml").is_file()
+        && frontier.join("vela.toml").is_file()
         && !origin.exists()
         && !repository.exists()
     {

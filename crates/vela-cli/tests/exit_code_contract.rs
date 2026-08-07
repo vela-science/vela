@@ -172,7 +172,7 @@ fn missing_objects_exit_3_and_malformed_flags_exit_2() {
         &frontier,
         &home,
         None,
-        &["start", "no-such-target", "--frontier", ".", "--json"],
+        &["start", "no-such-target", "--repo", ".", "--json"],
     );
     assert_failure(&output, 1, "domain", "start with no Target Index at all");
 }

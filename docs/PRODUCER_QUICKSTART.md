@@ -19,7 +19,7 @@ verifier profile, and exact next command.
 ## Read the exact Target briefing
 
 ```bash
-vela start <target> --frontier . --json
+vela start <target> --repo . --json
 ```
 
 This optional command revalidates the Target and packet, then prints their
@@ -32,7 +32,7 @@ only when its scope, search space, algorithm, and limits are explicit.
 ## Submit the result
 
 ```bash
-vela submit --frontier . \
+vela submit --repo . \
   --claim "<bounded result>" \
   --type computational \
   --condition "<scope condition>" \
@@ -52,7 +52,7 @@ A producer from another workbench may pass a complete signed
 `vela.submission.v1` file to the same command:
 
 ```bash
-vela submit submission.json --frontier . --json
+vela submit submission.json --repo . --json
 ```
 
 ## Inspect and reproduce

@@ -159,11 +159,11 @@ remote, untrusted, or proposal-supplied code.
 vela status . --json
 vela next . --limit 1 --json
 # Optional: print the exact stateless Target briefing.
-vela start <target> --frontier . --json
+vela start <target> --repo . --json
 
 # Produce the bounded artifact and run the declared verifier.
 
-vela submit --frontier . \
+vela submit --repo . \
   --claim "<bounded result>" \
   --type computational \
   --replayability exact \

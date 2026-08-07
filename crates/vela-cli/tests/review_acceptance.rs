@@ -252,7 +252,7 @@ fn review_accept_admits_the_event_that_moves_standing() {
         &producer_home,
         &[
             "submit",
-            "--frontier",
+            "--repo",
             ".",
             "--claim",
             "The fixture artifact contains bounded JSON evidence.",

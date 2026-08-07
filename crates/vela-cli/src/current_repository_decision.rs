@@ -403,7 +403,7 @@ pub(crate) fn prepare(
         }
     }
     let profile = vela_protocol::current_repository::CurrentRepositoryProfileV1::from_toml_str(
-        &fs::read_to_string(frontier.join("frontier.toml"))
+        &fs::read_to_string(frontier.join("vela.toml"))
             .map_err(|error| format!("read current Frontier Profile: {error}"))?,
     )?;
     let local = crate::cli::local_session(observed_at)?;

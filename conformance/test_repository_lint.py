@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prove every `frontier_lint` rule fires, and prove it against real bytes.
+"""Prove every `repository_lint` rule fires, and prove it against real bytes.
 
 A linter whose rules have never failed is worse than no linter, because a green
 run then means only that the rules ran. So each rule below is shown failing on
@@ -27,7 +27,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import frontier_lint as lint  # noqa: E402
+import repository_lint as lint  # noqa: E402
 
 
 def rules(findings: list[lint.Finding]) -> set[str]:

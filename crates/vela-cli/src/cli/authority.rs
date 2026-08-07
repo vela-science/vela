@@ -625,7 +625,7 @@ fn initialize_current_repository_authority(
             "README.md",
             "AGENTS.md",
             "CLAUDE.md",
-            "frontier.toml",
+            "vela.toml",
             ".gitignore",
             ".gitattributes",
             ".vela/origin.json",

@@ -20,7 +20,7 @@ fn run(home: &Path, frontier: &Path, args: &[&str]) -> Output {
             "Exact fixture only.",
             "--as",
             "agent:fixture",
-            "--frontier",
+            "--repo",
             frontier.to_str().expect("utf-8 frontier"),
             "--json",
         ])

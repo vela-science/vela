@@ -150,7 +150,7 @@ fn install_current_target_index(frontier: &Path, _socket: &Path) {
     let source = git_text(frontier, &["rev-parse", "HEAD^{commit}"]);
     let source_tree = git_text(frontier, &["rev-parse", "HEAD^{tree}"]);
     let profile_source =
-        std::fs::read_to_string(frontier.join("frontier.toml")).expect("frontier profile");
+        std::fs::read_to_string(frontier.join("vela.toml")).expect("frontier profile");
     let repository_id =
         vela_protocol::current_repository::CurrentRepositoryProfileV1::from_toml_str(&profile_source)
             .expect("current profile")
@@ -332,7 +332,7 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
 fn current_replay_refuses_retired_repositories_before_parsing_them() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     std::fs::write(
-        temporary.path().join("frontier.toml"),
+        temporary.path().join("vela.toml"),
         "schema = \"vela.frontier-profile.v1\"\n",
     )
     .expect("write retired profile marker");
@@ -476,7 +476,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let briefing = success_json(&run(
         &frontier,
         None,
-        &["start", "erdos:1056", "--frontier", ".", "--json"],
+        &["start", "erdos:1056", "--repo", ".", "--json"],
     ));
     assert_eq!(briefing["schema"], "vela.start-briefing.v2");
     assert_eq!(briefing["target"]["id"], "erdos:1056");
@@ -504,7 +504,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let absent = run(
         &frontier,
         None,
-        &["start", "erdos:0", "--frontier", ".", "--json"],
+        &["start", "erdos:0", "--repo", ".", "--json"],
     );
     assert_eq!(absent.status.code(), Some(3), "start on an absent Target");
     let absent: Value = serde_json::from_slice(&absent.stdout).expect("decode start failure");
@@ -619,7 +619,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let submitted = success_json(&run(
         &frontier,
         None,
-        &["submit", &submission_path_text, "--frontier", ".", "--json"],
+        &["submit", &submission_path_text, "--repo", ".", "--json"],
     ));
     assert_eq!(submitted["schema"], "vela.submit-result.v1");
     assert_eq!(submitted["route"], "pending_review");

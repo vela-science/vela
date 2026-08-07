@@ -51,7 +51,7 @@
 - `docs/README.md` covers `docs/`. It had never heard of `AGENT_QUICKSTART.md`,
   `ARCHITECTURE.md` or `FRONTIER_REPOSITORY_PROFILE.md`, all three of which the
   website publishes; a test now reads the directory and holds the index to it.
-- `frontier_lint` gains `generator-pin`. One of the four Frontiers declared the
+- `repository_lint` gains `generator-pin`. One of the four Frontiers declared the
   shared source-manifest generator in a manifest where `uv` locks the rev; the
   other three carried the same `uvx --from git+…@rev` invocation in prose that
   nothing read, so `@main` there would have looked exactly like a pin. The rule

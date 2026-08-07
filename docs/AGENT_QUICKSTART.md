@@ -31,9 +31,9 @@ Ed25519 identity is loaded, select the intended full fingerprint with
 vela status . --json
 vela next . --limit 1 --json
 # Optional write-free Target briefing.
-vela start <target> --frontier . --json
+vela start <target> --repo . --json
 
-vela submit --frontier . \
+vela submit --repo . \
   --claim "<scoped result>" \
   --type <computational|theoretical|empirical|negative|contradiction> \
   --replayability <exact|bounded|approximate|unavailable|unknown> \

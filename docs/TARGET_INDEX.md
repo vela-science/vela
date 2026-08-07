@@ -50,7 +50,7 @@ repository transaction, and the runtime `replay`, `next`, and `start` gates.
 # The Frontier's domain adapter updates and commits targets.json and packets.
 vela replay . --json
 vela next . --json
-vela start <full-target-id> --frontier . --json
+vela start <full-target-id> --repo . --json
 ```
 
 `next` returns only fresh open entries. `start` revalidates the exact index,

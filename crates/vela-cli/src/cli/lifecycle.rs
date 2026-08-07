@@ -155,7 +155,7 @@ pub(crate) fn cmd_init(
         "git_tree": authority["git_tree"],
     });
     payload["next_action"] = json!(format!(
-        "vela submit --frontier {} --help",
+        "vela submit --repo {} --help",
         shell_arg(&path.display().to_string())
     ));
     if json_output {

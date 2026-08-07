@@ -90,7 +90,7 @@ must not invent substitute protocol nouns or imply authority from a grouping.
 A current Frontier contains:
 
 ```text
-frontier.toml
+vela.toml
 .vela/repository.json
 .vela/origin.json
 .vela/authority/events/
@@ -107,7 +107,7 @@ records/artifacts/sha256/
 targets.json
 ```
 
-`frontier.toml` identifies the bounded repository. `.vela/repository.json`
+`vela.toml` identifies the bounded repository. `.vela/repository.json`
 is the closed `vela.repository.v4` index of active object sets.
 `.vela/origin.json` is the immutable `vela.repository-origin.v1` commitment.
 

@@ -188,7 +188,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
     crate::ui::set_mode("status", json_out);
     let frontier = crate::ui::canonicalize_repo(frontier);
     let profile_source =
-        fs::read_to_string(frontier.join("frontier.toml")).unwrap_or_else(|error| {
+        fs::read_to_string(frontier.join("vela.toml")).unwrap_or_else(|error| {
             crate::cli::fail_return(&format!("read current Frontier Profile: {error}"))
         });
     let profile = CurrentRepositoryProfileV1::from_toml_str(&profile_source)
@@ -330,7 +330,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
     } else {
         StatusWorkAction::DirectSubmission {
             ready_target_count: 0,
-            command: format!("vela submit --frontier {} --help", frontier.display()),
+            command: format!("vela submit --repo {} --help", frontier.display()),
             note: "No Target Index is configured. Submit bounded evidence directly or use a Frontier-owned adapter to generate targets.json.".into(),
         }
     };
@@ -429,8 +429,8 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
 }
 
 pub(crate) fn verify_current_profile_at(root: &Path) -> Result<CurrentRepositoryProfileV1, String> {
-    let profile_source = fs::read_to_string(root.join("frontier.toml"))
-        .map_err(|error| format!("read current frontier.toml: {error}"))?;
+    let profile_source = fs::read_to_string(root.join("vela.toml"))
+        .map_err(|error| format!("read current vela.toml: {error}"))?;
     CurrentRepositoryProfileV1::from_toml_str(&profile_source)
 }
 
@@ -489,7 +489,7 @@ pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
                 "returned": 0
             },
             "targets": [],
-            "next_action": format!("vela submit --frontier {} --help", frontier.display()),
+            "next_action": format!("vela submit --repo {} --help", frontier.display()),
             "note": "No Target Index is configured. Submit bounded evidence directly or use a Frontier-owned adapter to generate targets.json.",
         });
         if json_out {
@@ -497,7 +497,7 @@ pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
         } else {
             println!("next · no configured Target Offers");
             println!(
-                "  direct    vela submit --frontier {} --help",
+                "  direct    vela submit --repo {} --help",
                 frontier.display()
             );
             println!("  adapter   generate tracked targets.json for ranked Frontier-owned work");
@@ -528,7 +528,7 @@ pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
                     .or_else(|| assessment.packet_value(&target.id)
                         .and_then(|packet| packet.get("verifier"))),
                 "next_command": format!(
-                    "vela start {} --frontier {} --json",
+                    "vela start {} --repo {} --json",
                     target.id,
                     frontier.display()
                 )
@@ -1356,8 +1356,8 @@ pub(crate) fn load_current_repository_at(
     root: &Path,
     require_authority_record: bool,
 ) -> Result<CurrentRepositoryV4, String> {
-    let profile_source = fs::read_to_string(root.join("frontier.toml"))
-        .map_err(|error| format!("read current frontier.toml: {error}"))?;
+    let profile_source = fs::read_to_string(root.join("vela.toml"))
+        .map_err(|error| format!("read current vela.toml: {error}"))?;
     let profile = CurrentRepositoryProfileV1::from_toml_str(&profile_source)?;
     let profile_root = profile.profile_root()?;
     if root.join(".vela/epoch.json").exists() {
@@ -2555,7 +2555,7 @@ mod tests {
     fn current_repository_rejects_retired_profile_paths() {
         assert!(is_retired_current_path("frontier.yaml"));
         assert!(is_retired_current_path("frontier.json"));
-        assert!(!is_retired_current_path("frontier.toml"));
+        assert!(!is_retired_current_path("vela.toml"));
         assert!(is_retired_current_path("vela.lock"));
         assert!(is_retired_current_path("proof/erdos-203.lean"));
         // The prefix is the directory, not the word: a Frontier is free to

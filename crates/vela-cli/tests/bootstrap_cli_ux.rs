@@ -387,7 +387,7 @@ fn a_colliding_trust_pin_is_not_reported_as_a_signing_failure() {
     // repository_id, and resume `vela init` there against the second key.
     std::fs::create_dir_all(second_frontier.join(".vela")).expect("second bootstrap .vela");
     for retained in [
-        "frontier.toml",
+        "vela.toml",
         "README.md",
         "AGENTS.md",
         "CLAUDE.md",

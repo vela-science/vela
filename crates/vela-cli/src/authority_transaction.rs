@@ -3925,7 +3925,7 @@ mod tests {
         }
         assert!(!authority_derived_path(".vela/proof-state.json"));
         assert!(
-            !authority_derived_path("frontier.toml"),
+            !authority_derived_path("vela.toml"),
             "repository configuration is not a derived materialized view"
         );
         let fixture = fixture();

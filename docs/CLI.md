@@ -10,7 +10,7 @@ Standing, and Git preserves the exact repository history.
 vela status . --json
 vela next . --limit 1 --json
 
-vela submit --frontier . \
+vela submit --repo . \
   --claim "<bounded result>" \
   --type computational \
   --replayability exact \
@@ -215,7 +215,7 @@ Corrective Submissions bind the full historical Claim identity and exact Claim
 root:
 
 ```bash
-vela submit --frontier . \
+vela submit --repo . \
   --claim "<replacement bounded claim>" \
   --type theoretical \
   --replayability exact \
