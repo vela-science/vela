@@ -294,12 +294,6 @@ Resolved 2026-08-07. The Erdős catalogue had been bulk-imported as Standing: a
 catalogue row presented as adjudicated scientific state. This was the largest
 single defect in the ecosystem and the reason for the reset.
 
-`vela-science/math` does not inherit the defect: its manifest carries zero
-accepted Claims, zero Proposals and zero Submissions at genesis, so whatever the
-Erdős corpus becomes there, it does not arrive as Standing by import. The
-statement below is about the four frozen repositories, where it remains exactly
-true and is now read-only.
-
 Reclassifying the corpus was not a safe change to the map but a rewrite of it,
 and the warning stood: the Problem product's join key *was* `observatory.claims`
 and its prize and tags came out of the Claim's assertion string, so the corpus
@@ -309,7 +303,10 @@ observations from the pinned upstream registry, the ledger reads it directly,
 and the live release publishes 1,217 Problems with no Claim behind any of them.
 
 What the corpus does not yet have is Standing, and that is the point rather than
-a gap: a Claim in `math` arrives by Decision on evidence, one at a time.
+a gap: a Claim in `math` arrives by Decision on evidence, one at a time. The
+manifest bears that out from the other side of the boundary — `math` holds zero
+accepted Claims, zero Proposals and zero Submissions — so the 1,217 are a read
+projection over Source observations and nothing there has been adjudicated.
 
 **On the numbers, one honest correction.** ADR 0039's own measured table reads:
 
