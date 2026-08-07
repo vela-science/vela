@@ -37,7 +37,7 @@ use crate::identity::IDENTITY_BINDING_SCHEMA;
 use crate::proposal_withdrawal_v1::{
     PROPOSAL_WITHDRAWAL_V1_AUTH_ALGORITHM, PROPOSAL_WITHDRAWAL_V1_SCHEMA,
 };
-use crate::status_v4::{REPOSITORY_HEAD_ROLE, STATUS_V3_COMMAND, STATUS_V3_SCHEMA};
+use crate::status_v4::{REPOSITORY_HEAD_ROLE, STATUS_V4_COMMAND, STATUS_V4_SCHEMA};
 use crate::submission_v1::{
     CLAIM_TYPES, PRODUCER_CHECK_OUTCOMES, PRODUCER_REPORTED_AUTHORITY, REPLAYABILITY_LEVELS,
     REQUESTED_CHANGE_KINDS, SUBMISSION_V1_AUTH_ALGORITHM, SUBMISSION_V1_SCHEMA,
@@ -342,12 +342,12 @@ pub fn identity_binding_schema_tag(_: &mut SchemaGenerator) -> Schema {
 
 /// `vela.status.v4`.
 pub fn status_schema_tag(_: &mut SchemaGenerator) -> Schema {
-    tag(STATUS_V3_SCHEMA)
+    tag(STATUS_V4_SCHEMA)
 }
 
 /// The verb that emits the status document.
 pub fn status_command_tag(_: &mut SchemaGenerator) -> Schema {
-    tag(STATUS_V3_COMMAND)
+    tag(STATUS_V4_COMMAND)
 }
 
 /// The one role a repository's tracked Git pointer plays.

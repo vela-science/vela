@@ -42,6 +42,33 @@
 //! every property of every object to its own `required` list, which is the
 //! statement that actually matters and the only one that survives a schemars
 //! upgrade changing what these attributes imply.
+//!
+//! ## An extra field is not absence either
+//!
+//! Eleven objects here carried `#[serde(deny_unknown_fields)]` until
+//! 2026-08-07, which put `"additionalProperties": false` on every one of them
+//! in the published schema. Read against the paragraph above, that combination
+//! detects nothing the `required` list does not already detect. A dropped or
+//! renamed field fails because the field it replaced is required. Closure
+//! catches only the other direction — a field this version does not name — and
+//! on a document that roots nothing, signs nothing, and is derived from state
+//! that already exists, an extra field is not evidence of anything. It is this
+//! document with more in it.
+//!
+//! What the closure did instead is the three breakages at the top of this file.
+//! All three were additive. It converted three free changes into three
+//! fail-closed breaks of a downstream refresh and made zero detections in the
+//! same six days.
+//!
+//! So this document is open, and its consumers are obliged to ignore what they
+//! do not recognize. `docs/INTEROPERABILITY.md` states the rule and its
+//! opposite together, because the opposite is the one that matters more: a
+//! signed preimage has no compatible change at all. `rooted()` hashes canonical
+//! JSON *including keys*, so a field added to a signed object is a different
+//! object with a different root, `deny_unknown_fields` on those types is the
+//! enforcement, and a parser that shrugs at an unknown field there is not
+//! lenient — it is non-conformant. Nothing in this module's relaxation reaches
+//! across that line, and nothing should be carried back across it either.
 
 use std::collections::BTreeMap;
 
@@ -49,10 +76,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// The schema tag this document carries. `vela-web` pins it as a zod literal.
-pub const STATUS_V3_SCHEMA: &str = "vela.status.v4";
+pub const STATUS_V4_SCHEMA: &str = "vela.status.v4";
 
 /// The `command` tag this document carries, matching the verb that emits it.
-pub const STATUS_V3_COMMAND: &str = "status";
+pub const STATUS_V4_COMMAND: &str = "status";
 
 /// The one role a repository's tracked Git pointer plays.
 ///
@@ -82,7 +109,6 @@ pub enum StrictState {
 
 /// The repository this document is about.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
 pub struct StatusRepository {
     #[schemars(schema_with = "crate::wire_schema::repository_id")]
     pub id: String,
@@ -94,7 +120,6 @@ pub struct StatusRepository {
 
 /// The Git pointer the repository's bytes are published under.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
 pub struct StatusGit {
     #[schemars(schema_with = "crate::wire_schema::repository_head_role_tag")]
     pub role: String,
@@ -106,7 +131,6 @@ pub struct StatusGit {
 
 /// What replay and strict verification found.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
 pub struct StatusIntegrity {
     pub replay: ReplayState,
     pub strict: StrictState,
@@ -121,7 +145,6 @@ pub struct StatusIntegrity {
 /// All four are null together, on the branch where repository authority has
 /// not finished initializing and there is no repository to root.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
 pub struct StatusRoots {
     #[schemars(required, schema_with = "crate::wire_schema::nullable_sha256_root")]
     pub origin: Option<String>,
@@ -138,7 +161,6 @@ pub struct StatusRoots {
 /// `claims` partitions into `accepted_claims` and `pending_claims`; the
 /// consumer checks that partition, so the three travel together.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
 pub struct StatusCounts {
     pub claims: u64,
     pub accepted_claims: u64,
@@ -154,7 +176,6 @@ pub struct StatusCounts {
 
 /// Producer-facing inventory.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
 pub struct StatusWork {
     pub ready_target_count: u64,
 }
@@ -162,7 +183,6 @@ pub struct StatusWork {
 /// The Decision Inbox summary, rooted so a consumer can bind to the exact
 /// projection this count was taken over.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
 pub struct StatusDecisionInbox {
     pub pending_count: u64,
     pub protocol_ready_count: u64,
@@ -175,7 +195,6 @@ pub struct StatusDecisionInbox {
 
 /// The one review action, when a Decision is waiting.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
 pub struct StatusReviewAction {
     pub pending_count: u64,
     #[schemars(schema_with = "crate::wire_schema::text")]
@@ -189,7 +208,7 @@ pub struct StatusReviewAction {
 /// a tagged enum is what keeps `note` from becoming an always-present field
 /// that is empty two thirds of the time.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "mode", rename_all = "snake_case", deny_unknown_fields)]
+#[serde(tag = "mode", rename_all = "snake_case")]
 pub enum StatusWorkAction {
     /// A Target Index is configured and its open Targets are fresh.
     Target {
@@ -234,7 +253,6 @@ impl StatusWorkAction {
 /// do. They were one scalar `next_action` through v2, which forced a repository
 /// with both to name only one.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
 pub struct StatusActions {
     #[schemars(required, schema_with = "crate::wire_schema::nullable_review_action")]
     pub review: Option<StatusReviewAction>,
@@ -243,7 +261,6 @@ pub struct StatusActions {
 
 /// The whole document.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
 pub struct StatusV4 {
     #[schemars(schema_with = "crate::wire_schema::status_schema_tag")]
     pub schema: String,
@@ -275,9 +292,9 @@ impl StatusV4 {
         actions: StatusActions,
     ) -> Self {
         Self {
-            schema: STATUS_V3_SCHEMA.into(),
+            schema: STATUS_V4_SCHEMA.into(),
             ok: true,
-            command: STATUS_V3_COMMAND.into(),
+            command: STATUS_V4_COMMAND.into(),
             repository,
             git,
             integrity,

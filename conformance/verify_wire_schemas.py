@@ -162,6 +162,16 @@ def verify_status_read_surface() -> tuple[int, int]:
     key is a different document. Three field-shape changes reached the
     Observatory as fail-closed breaks in one week; a dropped key would reach it
     as a field silently read as absent.
+
+    The positive at the end is the other half of that rule, and it used to be a
+    negative. This schema asserted `additionalProperties: false` on every
+    object, so a document carrying a field the schema does not name was
+    rejected — and the three breakages above were all exactly that, upstream
+    adding a field. Closure detected nothing the required lists do not already
+    detect and refused three additive changes, so it is gone. A conformant
+    reader of this document reads past what it does not recognize;
+    `docs/INTEROPERABILITY.md` states the rule and its opposite, which governs
+    signed preimages and stays closed.
     """
     check = validator("status-v4.schema.json")
 
@@ -235,18 +245,8 @@ def verify_status_read_surface() -> tuple[int, int]:
     negatives += 1
 
     mutated = copy.deepcopy(replaying)
-    mutated["unexpected"] = True
-    expect_rejected(check, mutated, "status unknown field")
-    negatives += 1
-
-    mutated = copy.deepcopy(replaying)
     mutated["integrity"]["replay"] = "passed"
     expect_rejected(check, mutated, "status replay outside its vocabulary")
-    negatives += 1
-
-    mutated = copy.deepcopy(replaying)
-    mutated["actions"]["work"]["note"] = "targets need no note"
-    expect_rejected(check, mutated, "target work action carrying a note")
     negatives += 1
 
     mutated = copy.deepcopy(replaying)
@@ -259,7 +259,15 @@ def verify_status_read_surface() -> tuple[int, int]:
     expect_rejected(check, mutated, "status git commit as a Vela root")
     negatives += 1
 
-    return 2, negatives
+    # An added field, at the top level and inside the tagged work action, which
+    # is the shape all three Observatory breakages took. Both were negatives
+    # until 2026-08-07 and are the compatible change this document promises.
+    additive = copy.deepcopy(replaying)
+    additive["counts_by_source"] = {"source:fixture": 1}
+    additive["actions"]["work"]["explanation"] = "why this Target is next"
+    check.validate(additive)
+
+    return 3, negatives
 
 
 def main() -> int:
