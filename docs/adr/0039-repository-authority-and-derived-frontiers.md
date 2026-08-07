@@ -169,6 +169,35 @@ It adds no library, no ontology and no second database. The prohibition is
 therefore restated rather than lifted: no mathematics library, no universal
 ontology, no rival database; one authority, one repository.
 
+## Amendment, same day: §8, §9 and §10 are withdrawn
+
+Sections 8, 9 and 10 above describe preserving the four pre-0039 repositories
+inside the running system: a frozen epoch-1 reader, those repositories standing
+in as the second authority for the containment claim, and an epoch-tagged
+projection that keeps their record URLs resolving.
+
+All three are withdrawn. The repositories are archived instead — their git
+history and signatures stay exactly as they are, and nothing in the running
+ecosystem reads them. `crates/vela-protocol/src/epoch1/` was built, verified
+against all four checkouts, and then deleted; the current path carries no
+epoch-1 branch at all.
+
+The text of §8–§10 is left in place rather than rewritten, because it records
+what was decided and why the reversal was cheap: the reader was insurance
+against a compatibility problem that only exists if the old repositories stay
+live, and they do not.
+
+Two consequences follow and are accepted rather than mitigated.
+
+Published record URLs under the four old slugs stop resolving. A single static
+notice replaces them; there is no dual-epoch reader.
+
+RQ3, evidence level 2, and gate B8 of `WHITEPAPER_CONTRACT.md` need two live
+authorities and there is one. Authority containment becomes future work pending
+a second authority, rather than something this migration demonstrates. That is a
+real loss and it is not disguised: it is the strongest claim the protocol makes,
+and the current evidence programme cannot reach it from a single repository.
+
 ## Consequences
 
 - **One live mathematics repository**, `vela-science/math`, with a fresh
