@@ -1,0 +1,23 @@
+Attribution correction.
+
+This commit's message describes only the §6 rewrite. Its diff carries three
+further hunk groups that another author wrote and that the message does not
+mention:
+
+  -191  §4 Frozen  "All four are archived on GitHub and read-only."
+  -229  §5 table   Binaries row -> "release manifest (signable; unsigned in CI)"
+  -238  §5 prose   the "Three notes" paragraph, replaced wholesale
+
+Those three are the work of the agent operating as `vela-epoch`, not of the
+author of this message. The §5 table correction in particular is theirs and is
+the substantive catch: the row had said "signed release manifest" while CI
+passes no --sign-key and ships it unsigned.
+
+How it happened: several agents were writing to one shared working tree, and
+this commit staged `docs/ECOSYSTEM.md` by explicit path while that file also
+held their uncommitted edits. `git add <path>` takes whatever is in the tree at
+that path regardless of who put it there, so naming the file was no protection.
+The lesson is not "avoid git add -A" — it is that a shared index cannot
+attribute work, and separate worktrees are the only fix.
+
+Recorded as a note rather than by rewriting a pushed commit.
