@@ -165,6 +165,12 @@ silicon. Do not reintroduce Windows branches or broader platform shims unless a
 real supported deployment requires them.
 
 Use `0.RRR.P` for releases. Update every workspace package reference together.
+`scripts/release.sh` is the release. `.github/workflows/release.yml` calls it
+and owns only what is provider-bound: checkout, toolchain and syft
+installation, artifact transport, OIDC build provenance, and `gh release
+create`. Do not move a build decision back into the YAML; the entry point has
+to keep running on a clean checkout with no CI.
+
 Release artifacts must come from the release workflow and include the existing
 checksums, SBOMs, provenance attestations, and bundle smoke tests.
 
