@@ -281,7 +281,7 @@ pub(crate) fn cmd_authority_trust_pin(
         print_json(&result);
     } else {
         println!("repository authority pinned");
-        println!("  frontier: {}", result["repository_id"]);
+        println!("  repository: {}", result["repository_id"]);
         println!(
             "  sequence-1 record: {}",
             result["first_authority_record_root"]

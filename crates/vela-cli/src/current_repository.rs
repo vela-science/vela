@@ -98,7 +98,7 @@ pub(crate) fn cmd_replay_repository(frontier: &Path, json_out: bool) {
         /* TERMINOLOGY.md forbids an unqualified "verified", so this line names
         what the replay actually matched instead of asserting a standing. */
         println!("current repository replay matched: signatures, roots, and canonical bytes");
-        println!("  frontier: {}", payload["repository_id"]);
+        println!("  repository: {}", payload["repository_id"]);
         println!("  origin: {}", payload["origin_id"]);
         println!("  claims: {}", payload["counts"]["accepted_claims"]);
         println!("  repository root: {}", payload["repository_root"]);

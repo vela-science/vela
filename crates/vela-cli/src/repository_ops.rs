@@ -340,7 +340,7 @@ pub(crate) fn submission_publication_inputs(
 ) -> Result<Vec<PathBuf>, String> {
     let canonical_frontier = frontier
         .canonicalize()
-        .map_err(|error| format!("canonicalize frontier: {error}"))?;
+        .map_err(|error| format!("canonicalize repository: {error}"))?;
     let mut inputs = submission
         .artifacts
         .iter()
