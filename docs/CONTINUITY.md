@@ -1,0 +1,247 @@
+# Continuity
+
+`docs/THREAT_MODEL.md` puts Git-host availability and organization-account
+recovery explicitly out of scope. That is the right boundary for the protocol
+and the wrong place to stop for an operator: nothing in Vela depends on GitHub
+being reachable, and until now nothing said so, named the replacement, or said
+who decides.
+
+This document states those rules. It adds no protocol object, no schema, no
+command, and no new trust root. Everything it relies on already exists and is
+specified elsewhere; where that is true it cites rather than restates.
+
+## 1. What defines the authority repository
+
+Four bindings, jointly. Any one of them alone identifies nothing.
+
+| Binding | Where it is retained | Example (`vela-science/math`, 2026-08-07) |
+| --- | --- | --- |
+| `repository_id` | `vela.toml`, `vela.repository-profile.v1` | `vrepo_56d3fdfcd34ff5c3` |
+| Origin ID and origin root | `.vela/origin.json`, `.vela/repository.json` | `vro_2e75a5b77102842f` |
+| Current repository root | derived by replay over the canonical object set | `vela.repository.v4` |
+| Sequence-one authority-record root | distributed independently of the checkout | installed by `vela authority trust pin` |
+
+The first three travel inside the checkout. The fourth deliberately does not:
+`docs/SIGNING.md`, "Consumer trust", requires the first authority-record root to
+arrive through a channel the checkout does not control, and
+`docs/THREAT_MODEL.md`, "Repository-authority substitution", states the reason —
+a checkout cannot be allowed to choose its own trust anchor.
+
+The consequence for continuity is the whole point. A repository whose four
+bindings reproduce is the authority repository wherever its bytes are found. A
+repository that reproduces three of them and disagrees on the fourth is a fork,
+and no amount of hosting makes it otherwise.
+
+## 2. Host URLs are locators
+
+A URL says where to fetch bytes. It never says whose bytes they are.
+
+`docs/PUBLISHING.md`, "Publish exact Git state", already lists what a
+publication records, and the repository URL is one line of that list beside the
+full commit, tree, origin, repository root, authority head, and Claim-set roots.
+The verification recipe in the same document, "Consumer verification", clones
+from a URL and then verifies against roots obtained separately. The URL is the
+first step and carries none of the proof.
+
+So:
+
+- Changing where Vela is hosted changes no identity, no root, and no Standing.
+- Two remotes that serve the same commit and tree serve the same repository.
+- A remote that serves a different commit under the same URL is a fork with a
+  familiar address, and `vela replay` is what says so.
+- Any document, manifest, or interface that treats a host URL as the name of a
+  repository is wrong and should name the four bindings from §1 instead.
+
+## 3. One active writer; every other remote is a read replica
+
+At any instant exactly one remote is the **active writer**: the remote that
+canonical commits are pushed to and that the operator's tooling treats as the
+publication ref.
+
+Every other configured remote is a **read replica**. A read replica may be
+fetched from, cloned from, verified against, and restored from. It is not
+pushed to by ordinary operation and it does not become the writer by being more
+current, more available, or more convenient.
+
+This is an operational rule, not a protocol one. The protocol already refuses
+the failure it prevents — `docs/THREAT_MODEL.md`, "Concurrent writes and
+recovery", binds every canonical transaction to expected repository and Git
+state — but a protocol that refuses a divergent write still leaves an operator
+with two half-published histories to reconcile. One writer is how that
+reconciliation never has to happen.
+
+Record the active writer and the replicas where the operator will look for
+them, not where they are convenient to write: the repository's own README or
+`docs/`, and the ecosystem status artifact (`ecosystem-status.json`).
+
+## 4. Mirrors and backups confer no Standing
+
+A mirror is a copy of bytes. A backup is a copy of bytes with a retention
+policy. Neither is a Decision.
+
+`docs/REPOSITORY_BOUNDARIES.md` states the underlying rule in one sentence:
+moving or rendering a record never changes Standing, and only an attributed,
+authorized Decision admitted by the named repository can. Copying is the most
+ordinary kind of moving, so it is covered, and this section exists only to make
+the covered case explicit.
+
+Concretely, none of the following changes Standing, and none of them is a
+publication under `docs/PUBLISHING.md`:
+
+- a bare mirror on an independent provider;
+- a periodic `git bundle` carrying all refs;
+- an object-storage snapshot of the working tree;
+- a hosted read projection such as the Observatory; or
+- an archived tag, release asset, or source archive.
+
+A mirror that carries a Decision carries it because the Decision was already
+made in the authority repository and signed there. Restoring from that mirror
+restores the same Decision, with the same signature, to the same Standing. It
+creates nothing.
+
+The same rule read backwards is the one already stated in `docs/PUBLISHING.md`,
+"Predecessor origins": keep the objects reachable, and do not present a second
+copy as a second live repository.
+
+## 5. Promotion is a human decision with a recorded runbook
+
+Promoting a read replica to active writer is the one continuity action that
+changes something. It is a human decision. It is never automatic, never
+triggered by a health check, and never inferred from a host being unreachable.
+
+It is also not a scientific Decision, and it is not signed by the
+repository-authority key. `docs/SIGNING.md` fixes that boundary: the repository
+authority key attests that a principal, an authorization, a semantic action, a
+read-set recheck, and a canonical write matched. Choosing where to push is none
+of those. Promotion changes the locator, and §2 says a locator is not identity.
+
+### Runbook
+
+Perform these in order. Stop at the first step that fails and do not continue.
+
+1. **Confirm the outage is a locator problem.** Fetch the intended commit from
+   any replica. If replay succeeds against the pinned sequence-one root, the
+   repository is intact and only its usual address is gone. If replay fails,
+   this is an integrity incident, not a promotion, and the runbook ends here.
+
+2. **Pick one replica and record why.** Write down the remote, the commit, the
+   tree, and who chose it. One writer means one choice; two people promoting
+   two replicas is the divergence this rule exists to prevent.
+
+   ```bash
+   git ls-remote <replica> refs/heads/main
+   ```
+
+3. **Verify the candidate from a clean clone, not from the working checkout.**
+
+   ```bash
+   git clone <replica> /tmp/promote && cd /tmp/promote
+   git checkout <full-commit>
+   vela authority trust pin . --record-root sha256:<sequence-one-root> --json
+   vela replay . --json
+   vela reproduce .
+   ```
+
+   The pin must be the root already installed by consumers, obtained
+   independently. A replica that requires a new anchor is a fork.
+
+4. **Compare against the last published state.** The commit and tree must match
+   what the previous active writer last published, or be a fast-forward
+   descendant of it. Anything else is a rewind or a fork; both stop the runbook.
+
+5. **Demote the old writer in configuration, not by deleting it.** Its bytes
+   remain evidence. Keep it fetchable for as long as it is reachable.
+
+6. **Announce the new writer with the four bindings from §1**, not with a URL
+   alone. Consumers who pinned correctly need no action; the announcement exists
+   so that the ones who pinned a URL learn that they pinned the wrong thing.
+
+7. **Record the promotion where §3 says the writer is recorded**, with the date,
+   the operator, the replica chosen, and the commit verified. Regenerate
+   `ecosystem-status.json` so the recorded writer and the observed one agree.
+
+Nothing in this runbook reads a private key, and step 3 is the same read-only
+verification a consumer runs. Promotion is a configuration change performed
+under verification, which is why it can be written down in advance.
+
+## 6. Every hosted projection is reconstructible from exact retained state
+
+A projection is disposable by construction. `docs/THREAT_MODEL.md` puts the
+Observatory, Neon, search, graphs, exports, and caches outside the trust
+boundary, and `docs/ROOTS.md` requires a derived projection to name its exact
+source roots and never substitute its own digest for a canonical root.
+
+Continuity turns that from a property into an obligation: a hosted projection
+must be rebuildable from retained canonical state alone, with the projection
+host, its database, and its build history all gone.
+
+The test is not "the projection can be regenerated." It is:
+
+- every input the projection reads is either a canonical object in an authority
+  repository or a pinned external source declared in that repository's
+  `sources.yaml` and locked in `sources.lock.json`;
+- the release the projection was built from names its source roots, so a rebuild
+  can be compared against the published one rather than merely produced; and
+- the rebuild path runs without any credential that only the projection host
+  holds.
+
+A projection input that satisfies none of these is a fact the repository does
+not contain, which `docs/ECOSYSTEM.md`, §8, already forbids. Continuity is how
+that prohibition gets tested rather than asserted.
+
+## 7. Acceptance test
+
+The rules above are worth exactly as much as this test passing. Run it on a
+clean machine with GitHub unreachable.
+
+1. Retrieve `vela` and the mathematics authority repository from an independent
+   provider — a bare mirror, a `git bundle`, or object storage. No GitHub
+   fetch, no `gh`, no release API.
+2. Verify the pinned roots: install the independently obtained sequence-one
+   authority-record root with `vela authority trust pin`, then run
+   `vela replay . --json` and `vela reproduce .` against both repositories.
+3. Replay the same Standing. The accepted and pending Claim sets, Event-log
+   root, and repository root must equal the ones the last publication recorded.
+4. Make one authorized local Decision with `vela review accept` or
+   `vela review reject`, signed by the repository-authority key held in the
+   local OpenSSH agent. This is the step that proves the authority survived the
+   host: no hosted service participates in it.
+5. Rebuild the read projection from that state and compare its roots against the
+   last published release.
+
+### Where it fails today
+
+The test does not pass, and the artifact says so rather than the prose. Every
+`read_replicas` list in `ecosystem-status.json` is empty: there is no
+independent copy of any of these repositories, so step 1 has nothing to retrieve
+from. That is the first thing to fix, and it is not a documentation task.
+
+Two further consequences follow, and they are the reason this is written as a
+test rather than a policy.
+
+`install.sh` fails step 1 too. It requires the GitHub CLI, resolves the
+release through `api.github.com`, and pins
+`--signer-workflow vela-science/vela/.github/workflows/release.yml`, so
+provenance verification is bound to one provider's OIDC. A neutral build path
+with no neutral install path only moves the coupling. The signed release
+manifest (`scripts/release.sh`, `vela.release-bundle-manifest.v1`) is the
+provider-neutral half of the fix: it binds commit, tree, version, toolchain,
+target, asset digests, and SBOM digests under a distribution signing identity
+that is not the repository-authority key, and it is verifiable with
+`ssh-keygen -Y verify` and `shasum -c` alone.
+
+Step 5 requires an independent retention path that exists on a schedule rather
+than on demand. A mirror that is only refreshed when someone remembers is not a
+replica; it is a stale copy that will be discovered at the worst moment.
+
+## What this document does not do
+
+It does not make GitHub availability a protected asset, and it does not add
+hosted authority. `docs/THREAT_MODEL.md` keeps both out of scope and this
+document does not move them. What it changes is that losing a host is now an
+operator procedure with a stated outcome, rather than an undefined condition.
+
+It also does not promise recovery of bytes no honest copy retains.
+`docs/THREAT_MODEL.md`, "Fork and rollback", is explicit that Vela cannot
+recover what nothing retained. Continuity is retention plus verification.
+Without the retention, verification has nothing to verify.
