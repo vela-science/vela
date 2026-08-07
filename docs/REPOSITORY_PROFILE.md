@@ -320,5 +320,11 @@ them there. They were together on `b591f8ec` (`v0.966.3`) when that was the
 release, which is the point: the number in this sentence goes stale on its own
 and the four repositories are what to read.
 
+The input those four pass is now named `repository`. `frontier` remains as a
+deprecated alias, because that is what the four pinned workflows spell and a
+pin cannot be edited from here: the action coalesces the two, warns when the
+old key arrives, and fails when both arrive naming different paths rather than
+picking one silently. The four move to `repository` when their pins move.
+
 `vela replay` fails until native authority initialization completes.
 Git publication transports bytes; it does not create scientific acceptance.

@@ -143,13 +143,22 @@ fn root_action_is_read_only_and_nonfinalizing() {
     assert_eq!(action["runs"]["using"].as_str(), Some("composite"));
     assert!(action["inputs"].get("strict").is_none());
     assert!(action["inputs"].get("vela-version").is_none());
+    /* Two keys, one path. A composite action has no alias mechanism, so
+    `repository` and its deprecated predecessor `frontier` are declared
+    separately and coalesced in the `Resolve the repository path` step. What
+    this assertion is really about is that the action still takes nothing but
+    a path: a third key would be a second thing it can be told to do. */
+    let mut declared: Vec<&str> = action["inputs"]
+        .as_object()
+        .expect("action inputs must be an object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    declared.sort_unstable();
     assert_eq!(
-        action["inputs"]
-            .as_object()
-            .expect("action inputs must be an object")
-            .len(),
-        1,
-        "the public action accepts only the repository path"
+        declared,
+        ["frontier", "repository"],
+        "the public action accepts only the repository path, under its current name and the deprecated alias a pinned consumer passes"
     );
 
     let install = step_named(&action["runs"], "Install Vela");
@@ -169,8 +178,23 @@ fn root_action_is_read_only_and_nonfinalizing() {
         "the step must invoke the pinned binary"
     );
     assert!(
-        strict.contains("\"$FRONTIER\" --json"),
+        strict.contains("\"$REPOSITORY_PATH\" --json"),
         "the step must verify the consumer's repository as JSON"
+    );
+
+    /* The coalesce, asserted where the rest of the action's shape is. Both
+    keys must reach it and neither may reach anything else: a step that read
+    `inputs.frontier` for itself would take the alias without the check that
+    the two agree, and that is how one action ends up verifying two paths. */
+    let resolve = script_named(&action["runs"], "Resolve the repository path");
+    assert!(
+        resolve.contains("REPOSITORY:-") && resolve.contains("FRONTIER:-"),
+        "the resolve step must coalesce both keys, preferring the current one"
+    );
+    assert_eq!(
+        ROOT_ACTION.matches("inputs.frontier").count(),
+        1,
+        "the deprecated alias must be read once, by the step that coalesces it"
     );
 
     /* The two shape checks every repository owes and none of them owns. They are

@@ -68,6 +68,20 @@
   `paper/vela.md` and `paper/artifacts/state-lift/README.md` link into that
   history rather than into the tree.
 
+- The published Action takes `repository`. `frontier` remains, declared and
+  documented as a deprecated alias, because four pinned consumer workflows pass
+  it and a pin cannot be edited from here. A composite action has no alias
+  mechanism, so the two are separate inputs coalesced in one step: `repository`
+  wins when set, `frontier` warns, and two different non-empty paths fail
+  rather than being resolved silently to one of them. Both inputs default to
+  empty so that unset stays distinguishable from set — a `"."` default on
+  `repository` would make every legacy caller passing a subdirectory look like
+  a disagreement. The internal `FRONTIER` variable is `REPOSITORY_PATH`.
+
+  ```text
+  frontier:  <path>   ->  repository: <path>
+  ```
+
 - `docs/CLI.md`'s verb grid is bound to the parser. The published reference
   named the same commands a third time — after the two printed grids, which
   were bound last release — and nothing held it to them, so a renamed verb left

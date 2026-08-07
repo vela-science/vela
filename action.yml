@@ -5,7 +5,7 @@
 #   - uses: actions/checkout@v5
 #   - uses: vela-science/vela@v0.967.0
 #     with:
-#       frontier: .
+#       repository: .
 #
 # Current repositories carry one signed repository origin and authority
 # initialization record. The action verifies that closed boundary directly
@@ -31,13 +31,19 @@ description: >-
   macOS, then checks its source lock and repository shape. Read-only.
 
 inputs:
-  frontier:
-    # The key stays `frontier` because a consumer workflow names it, and a
-    # pinned consumer cannot be edited from here. Renaming it is a major bump
-    # that ships a `repository` key with this one kept as an alias.
-    description: Path to the repository directory within the consumer repo.
+  repository:
+    description: Path to the Vela repository directory within the consumer repo.
     required: false
-    default: "."
+    default: ""
+  frontier:
+    description: >-
+      DEPRECATED alias for `repository`. ADR 0039 made the Repository the
+      authority boundary and left the Frontier derived, so this key names
+      something the action never took. It stays because pinned consumer
+      workflows pass it and cannot be edited from here; new callers pass
+      `repository`. Setting both to different paths fails.
+    required: false
+    default: ""
 runs:
   using: composite
   steps:
@@ -48,6 +54,39 @@ runs:
           Linux|macOS) ;;
           *) echo "::error::vela-repository-verify supports Linux and macOS runners"; exit 2 ;;
         esac
+
+    # A composite action has no alias mechanism: two keys are two inputs, and
+    # the only place they can be made one is a step. Both default to empty
+    # rather than to "." so that unset stays distinguishable from set — with a
+    # "." default on `repository`, a pinned consumer passing `frontier: subdir`
+    # would arrive here as two different non-empty paths and trip the
+    # disagreement check that exists to protect it. The "." this action has
+    # always meant is restored below, once, after the coalesce.
+    - name: Resolve the repository path
+      id: resolve
+      shell: bash
+      env:
+        REPOSITORY: ${{ inputs.repository }}
+        FRONTIER: ${{ inputs.frontier }}
+      run: |
+        set -euo pipefail
+        if [ -n "$FRONTIER" ]; then
+          echo "::warning::the 'frontier' input is deprecated; rename it to 'repository'"
+        fi
+        if [ -n "$REPOSITORY" ] && [ -n "$FRONTIER" ] && [ "$REPOSITORY" != "$FRONTIER" ]; then
+          echo "::error::repository ($REPOSITORY) and its deprecated alias frontier ($FRONTIER) name different paths; pass one"
+          exit 2
+        fi
+        resolved="${REPOSITORY:-${FRONTIER:-.}}"
+        # A step output is a line in a file, so a value carrying a newline
+        # writes a second key rather than a path. No repository directory is
+        # spelled that way; a value that is has been constructed.
+        if [ "$resolved" != "${resolved%%$'\n'*}" ]; then
+          echo "::error::the repository path must be a single line"
+          exit 2
+        fi
+        echo "path=$resolved" >> "${GITHUB_OUTPUT:?}"
+        echo "verifying the repository at $resolved"
 
     - name: Install Vela
       shell: bash
@@ -76,12 +115,12 @@ runs:
     - name: Read-only repository verification
       shell: bash
       env:
-        FRONTIER: ${{ inputs.frontier }}
+        REPOSITORY_PATH: ${{ steps.resolve.outputs.path }}
       run: |
         set -euo pipefail
         requested="$(sed -n 's/^version = "\([0-9][0-9.]*\)"$/\1/p' "${{ github.action_path }}/Cargo.toml" | head -n 1)"
         vela_bin="${RUNNER_TEMP:?}/vela-action-$requested/bin/vela"
-        if ! "$vela_bin" replay "$FRONTIER" --json; then
+        if ! "$vela_bin" replay "$REPOSITORY_PATH" --json; then
           echo "::error::Vela replay failed; the log, repository context, signatures, committed projections, or trust debt is blocking"
           exit 1
         fi
@@ -110,43 +149,43 @@ runs:
       shell: bash
       env:
         ACTION_PATH: ${{ github.action_path }}
-        FRONTIER: ${{ inputs.frontier }}
+        REPOSITORY_PATH: ${{ steps.resolve.outputs.path }}
       run: |
         set -euo pipefail
         # zizmor errors rather than passing when collection finds nothing, so a
         # repository that runs no Actions at all is skipped here explicitly. Same
         # shape, and same reason, as the source-declaration check below: absent
         # is not the same as failing.
-        if [ ! -d "$FRONTIER/.github" ]; then
+        if [ ! -d "$REPOSITORY_PATH/.github" ]; then
           echo "no GitHub Actions in this repository; nothing to audit"
           exit 0
         fi
         uv run --project "$ACTION_PATH/conformance" --locked \
-          zizmor --offline --min-severity medium --no-progress "$FRONTIER"
+          zizmor --offline --min-severity medium --no-progress "$REPOSITORY_PATH"
 
     - name: Committed source lock matches its declaration
       shell: bash
       env:
         ACTION_PATH: ${{ github.action_path }}
-        FRONTIER: ${{ inputs.frontier }}
+        REPOSITORY_PATH: ${{ steps.resolve.outputs.path }}
       run: |
         set -euo pipefail
         # No declaration, nothing to check. A lock without one is not silently
         # accepted here — the linter's generated-file rule owns that case, and
         # restating it would make two owners that can disagree.
-        if [ ! -f "$FRONTIER/sources.yaml" ]; then
+        if [ ! -f "$REPOSITORY_PATH/sources.yaml" ]; then
           echo "no source declaration in this repository; nothing to check"
           exit 0
         fi
         uv run --project "$ACTION_PATH/packages/vela-source-manifest" --locked \
-          vela-source-lock --check "$FRONTIER"
+          vela-source-lock --check "$REPOSITORY_PATH"
 
     - name: Repository shape
       shell: bash
       env:
         ACTION_PATH: ${{ github.action_path }}
-        FRONTIER: ${{ inputs.frontier }}
+        REPOSITORY_PATH: ${{ steps.resolve.outputs.path }}
       run: |
         set -euo pipefail
         uv run --project "$ACTION_PATH/conformance" --locked \
-          python "$ACTION_PATH/conformance/repository_lint.py" "$FRONTIER"
+          python "$ACTION_PATH/conformance/repository_lint.py" "$REPOSITORY_PATH"
