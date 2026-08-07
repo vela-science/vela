@@ -257,6 +257,14 @@ if [ -n "$SIGN_KEY" ]; then
   echo "signer: $(ssh-keygen -lf "$SIGN_KEY" -E sha256 | awk '{print $2}')"
   ( cd "$DIST" && shasum -a 256 "$MANIFEST_NAME" > "$MANIFEST_NAME.sha256" )
 else
+  # An unsigned run must not leave a previous run's signature beside the
+  # manifest it no longer covers. `dist/` survives between runs, so a signed
+  # build followed by an unsigned one left a stale `.sig` sitting next to fresh
+  # bytes: `ssh-keygen -Y verify` would have rejected it, but only if someone
+  # ran it, and nothing in this pipeline does. The archive checksums are
+  # rewritten every run and re-checked by the smoke test, so they cannot rot
+  # this way; the manifest sidecars are the pair that can.
+  rm -f "$MANIFEST.sig" "$MANIFEST.sha256"
   cat <<EOF
 manifest is unsigned. To sign it, load the distribution identity into ssh-agent
 and re-run with its public key:
