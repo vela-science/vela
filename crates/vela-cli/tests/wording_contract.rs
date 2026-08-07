@@ -55,6 +55,42 @@ fn assert_vocabulary_retired(surface: &str, rendered: &str) {
     );
 }
 
+/// The retired word as a JSON *key*, anywhere in a document at any depth.
+///
+/// The prose check above cannot be run against `--json`: a repository whose
+/// directory a caller named `frontier` puts the substring in every payload that
+/// echoes the path, and refusing that would be refusing the caller's own
+/// filename. So keys are checked instead, which is the half a consumer actually
+/// binds to.
+///
+/// This exists because three payloads kept the key after `replay` gave it up.
+/// `vela.review-decision`, `vela.authority-trust-pin-result` and
+/// `vela.authority-initialization-result` each carried `"frontier"` holding a
+/// filesystem path, beside a `repository_id` naming the thing at that path —
+/// one document with two vocabularies, in the only place where the word had a
+/// consumer. Each was renamed to `repository_path` and bumped a version,
+/// because a published key moves with a version rather than in a sweep.
+fn assert_no_retired_key(surface: &str, document: &serde_json::Value) {
+    match document {
+        serde_json::Value::Object(fields) => {
+            for (key, value) in fields {
+                assert!(
+                    !key.to_ascii_lowercase()
+                        .contains(RETIRED_ON_THE_PRODUCT_SURFACE),
+                    "{surface} publishes `{key}` as a key; ADR 0039 retired that noun and a caller binds to this:\n{document}"
+                );
+                assert_no_retired_key(surface, value);
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for item in items {
+                assert_no_retired_key(surface, item);
+            }
+        }
+        _ => {}
+    }
+}
+
 fn run(cwd: &Path, home: &Path, socket: &Path, args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_vela"))
         .current_dir(cwd)
@@ -318,6 +354,28 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
         withdrawn["command"], "review.withdraw",
         "`command` must name the verb the CLI accepts"
     );
+
+    /* Every document this test produced, swept for the retired noun as a key.
+    Asserting `frontier` absent from `replay` alone was a fix for one payload
+    where the rule wanted all of them, and three others kept the key for a
+    release after that assertion was written.
+
+    Six is not every `--json` payload the binary can emit. `vela init` renders
+    prose in this fixture, and `authority trust pin` and `review accept` need
+    setup this test does not build; those carry the assertion in
+    `review_acceptance.rs` and in their own version bumps instead. This is a
+    floor that grows for free — a payload a later assertion adds to this test
+    joins the sweep by adding one line below. */
+    for (surface, document) in [
+        ("vela status --json", &status),
+        ("vela replay --json", &replayed),
+        ("vela reproduce --json", &reproduced),
+        ("vela submit --json", &second),
+        ("vela review withdraw --json", &withdrawn),
+        ("vela review withdraw --json (refused)", &refused),
+    ] {
+        assert_no_retired_key(surface, document);
+    }
 }
 
 /// Run the binary with no repository, agent, or home in play.

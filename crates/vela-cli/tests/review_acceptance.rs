@@ -423,7 +423,20 @@ fn review_accept_admits_the_event_that_moves_standing() {
             "--json",
         ],
     ));
-    assert_eq!(accepted["schema"], "vela.review-decision.v3");
+    assert_eq!(accepted["schema"], "vela.review-decision.v4");
+    /* `.v3` carried the reviewed path under `"frontier"`, beside a
+    `repository_id` naming the thing at that path — one document with two
+    vocabularies, in the only place where the retired noun had a consumer.
+    `.v4` publishes it as `repository_path`, the key `replay` already uses.
+    Both halves are asserted so a revert fails here. */
+    assert!(
+        accepted["repository_path"].is_string(),
+        "`repository_path` is the published path key of .v4:\n{accepted}"
+    );
+    assert!(
+        accepted.get("frontier").is_none(),
+        "`.v4` retired the `frontier` key:\n{accepted}"
+    );
     assert_eq!(accepted["command"], "review.accept");
     assert_eq!(accepted["action"], "accept");
     assert_eq!(accepted["scientific_state_changed"], true);

@@ -93,8 +93,8 @@ fn cmd_current_review_decide(
     let payload = serde_json::json!({
         "ok": true,
         "command": format!("review.{}", action.as_str()),
-        "schema": "vela.review-decision.v3",
-        "frontier": frontier.display().to_string(),
+        "schema": "vela.review-decision.v4",
+        "repository_path": frontier.display().to_string(),
         "repository_id": plan.repository_id,
         "repository_before": plan.repository_root,
         "proposal_id": plan.proposal_id,

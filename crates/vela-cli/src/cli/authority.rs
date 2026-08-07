@@ -382,10 +382,10 @@ fn pin_repository_authority(
         .clone()
         .ok_or_else(|| "repository authority has no initialization boundary".to_string())?;
     Ok(json!({
-        "schema": "vela.authority-trust-pin-result.v1",
+        "schema": "vela.authority-trust-pin-result.v2",
         "ok": true,
         "command": "authority.trust.pin",
-        "frontier": frontier.display().to_string(),
+        "repository_path": frontier.display().to_string(),
         "repository_id": repository.repository_id,
         "first_authority_record_id": first_record.record_id,
         "first_authority_record_root": observed_root,
@@ -717,9 +717,9 @@ fn initialize_current_repository_authority(
             )),
         })?;
     Ok(json!({
-        "schema": "vela.authority-initialization-result.v2",
+        "schema": "vela.authority-initialization-result.v3",
         "ok": true,
-        "frontier": frontier.display().to_string(),
+        "repository_path": frontier.display().to_string(),
         "repository_id": profile.repository_id,
         "principal_id": principal.principal_id,
         "repository_key_id": identity.key_id,
