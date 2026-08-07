@@ -12,7 +12,6 @@ mod kernel;
 pub use kernel::{
     authentication, authority, authority_history, authorization, canonical, events, principal, sign,
 };
-mod computed;
 mod objects;
 pub use objects::{
     claim_record, current_repository, execution_binding, identity, proposal_v1,

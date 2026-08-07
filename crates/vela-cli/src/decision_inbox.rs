@@ -573,7 +573,6 @@ fn sort_entries(entries: &mut [DecisionInboxEntry]) {
 
 /// Rebuild the complete pending scientific Decision Inbox from exact current
 /// repository state. This function performs no writes and has no side effects.
-#[allow(dead_code)]
 pub(crate) fn project(frontier: &Path) -> Result<DecisionInboxProjection, String> {
     let repository = crate::current_repository::load_current_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
