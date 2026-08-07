@@ -18,11 +18,11 @@ ROOT="$(mktemp -d)"
 agent_started=false
 trust_pin_path=""
 cleanup() {
-  case "$trust_pin_path" in
-    */.vela/trust/authorities/vfr_*.json)
-      rm -f -- "$trust_pin_path"
-      ;;
-  esac
+  # Assigned only after the shape check below, so this is always a path this
+  # script minted under the invoking user's real home.
+  if [[ -n "$trust_pin_path" ]]; then
+    rm -f -- "$trust_pin_path"
+  fi
   if [[ "$agent_started" == true ]]; then
     ssh-agent -k >/dev/null 2>&1 || true
   fi
@@ -63,7 +63,22 @@ REPO="$ROOT/repository"
   --scope "Does this bundle read the current repository profile?" \
   --key "$AUTHORITY_FINGERPRINT" \
   --json > "$ROOT/init.json"
-trust_pin_path="$("$python_bin" -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["authority"]["local_trust"]["anchor_path"])' "$ROOT/init.json")"
+anchor_path="$("$python_bin" -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["authority"]["local_trust"]["anchor_path"])' "$ROOT/init.json")"
+# `vela init` installs this anchor under the invoking user's real home, not
+# under $ROOT, so the trap has to remove it by name. The old cleanup matched
+# `vfr_*.json` and kept matching nothing after repository ids became `vrepo_`,
+# which left an anchor behind on the runner every release. Check the shape here
+# instead of inside the trap: the next id rename fails the smoke loudly rather
+# than turning cleanup back into a no-op.
+case "$anchor_path" in
+  */.vela/trust/authorities/vrepo_*.json) ;;
+  *)
+    echo "unexpected authority trust anchor path: $anchor_path" >&2
+    exit 1
+    ;;
+esac
+trust_pin_path="$anchor_path"
+test -f "$trust_pin_path"
 test -f "$REPO/vela.toml"
 test ! -e "$REPO/frontier.toml"
 "$UNPACK/vela" status "$REPO" --json > "$ROOT/status.json"
