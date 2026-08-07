@@ -191,8 +191,9 @@ policy-bundle rotation on a live authority rather than a wording change.
 `vela-science/quantum-codes-frontier`,
 `vela-science/formal-conjectures-frontier`.
 
-Preserved exactly as historical Vela repositories. No further architecture work
-inside them beyond integrity fixes. `formal-conjectures-frontier` is
+All four are archived on GitHub and read-only. Preserved exactly as historical
+Vela repositories. No further architecture work inside them beyond integrity
+fixes. `formal-conjectures-frontier` is
 additionally dissolved: all 18 of its Claims are Erdős problems and both its
 declared sources are already declared by `erdos-frontier`.
 
@@ -229,7 +230,7 @@ Vela-format distribution channel.
 | Python tools | PyPI | `uv.lock`, `uv run --locked` | `packages/vela-source-manifest/` (pyproject.toml + uv.lock) |
 | TypeScript | npm, `@vela-science/*` | `bun.lock` (`vela-web` uses `bun@1.3.12`) | none currently published; `@vela-science/protocol@0.1.0` was published and then removed |
 | Lean | Lake, pinned to an immutable Git revision | `lake-manifest.json` | in Frontier repositories only |
-| Binaries | GitHub Releases | SHA-256 checksums, SPDX SBOM, build provenance attestation | `.github/workflows/release.yml`; two targets, `vela-linux-x86_64` and `vela-macos-aarch64` |
+| Binaries | GitHub Releases | SHA-256 checksums, SPDX SBOM, release manifest (signable; unsigned in CI), build provenance attestation | `scripts/release.sh`, called by `.github/workflows/release.yml`; two targets, `vela-linux-x86_64` and `vela-macos-aarch64` |
 | Containers | GHCR | image digest | none |
 | Vela-format contracts | none | none | empty set |
 
@@ -238,23 +239,41 @@ native registry can carry. On current evidence that set is empty, which is why
 there is nothing to distribute and no registry to build.
 
 Three notes on what is not in the table. Windows distribution is not restored.
-Linux ARM64 is not built. A single attested `release-manifest.json` binding the
-source commit, tree, Vela version, Rust version, target triples and every asset
-SHA-256 does not exist; per-asset attestation already does
-(`actions/attest-build-provenance` is pinned at `release.yml:106`), so this is a
-small addition rather than a new capability.
+Linux ARM64 is not built. The release manifest now exists, and binds a
+different set than this paragraph used to promise: `scripts/release.sh` emits
+one `release-manifest.json` per built bundle under
+`vela.release-bundle-manifest.v1`, binding the source commit and tree, the Vela
+version and tag, the toolchain channel and the exact rustc, the target triple,
+the build command, the binary digest, and every asset and SBOM digest. One
+manifest per bundle rather than one per release: a cross-target manifest would
+have to be assembled in a job holding both targets and signed by whatever key
+that job could reach, which is the provider coupling the manifest exists to
+remove. It is signable with `ssh-keygen -Y sign` under a distribution identity
+separate from the repository-authority key, and it is unsigned in CI for the
+same reason. Per-asset attestation is unchanged and stays provider-bound:
+`actions/attest-build-provenance` is OIDC-bound to a GitHub identity and has no
+neutral equivalent.
 
 ## 6. Known gaps
 
 Stated plainly. Each of these is either false in the documentation today or
 absent from the code.
 
-### Problem and Obligation are vocabulary without objects
+### Obligation is vocabulary without an object
 
-**Problem.** No protocol object, no projection table. It is synthesized in SQL
-by joining `graph_nodes` to `claims` and regex-parsing the Claim's assertion
-text for prize and tags. ADR 0039 promotes Problem to a boundary; nothing
-implements it. There is no ADR that decides what a Problem object is.
+**Problem.** Resolved 2026-08-07, and resolved as ADR 0039 intends rather than
+by adding an object. Problem has no protocol object and should not have one: it
+is derived and owns nothing. What was wrong was where the derivation started.
+It was synthesized by joining `graph_nodes` to `claims` — an inner join, so a
+question could not exist until this authority had already answered it — and its
+prize and tags were regex-parsed out of the Claim's assertion string.
+
+It is now anchored on `observatory.native_records` scoped through
+`release_sources`, with the Claim a `LEFT JOIN LATERAL`, and its declared
+status, formalization, prize and subject tags read from the Source record's
+metadata, where upstream publishes them. The live projection carries 1,217
+Problems against zero Claims, which is a shape the previous derivation could
+not express at all.
 
 **Obligation.** Further along than it looks, and still not a first-class object.
 It has a rooted wire identity:
@@ -269,17 +288,28 @@ is a JSON Schema in `schemas/` (which holds eight), a projection table, and a
 route. Unlike Problem, Obligation does not lack a decision — ADR 0039 §4 and §6
 name it twice. It lacks an implementation of a decision that exists.
 
-### 1,217 open Problems are stored as accepted Claims
+### 1,217 open Problems were stored as accepted Claims
 
-The Erdős catalogue was bulk-imported as Standing. A catalogue row was being
-presented as adjudicated scientific state. This is the largest single defect in
-the ecosystem and the reason for the reset.
+Resolved 2026-08-07. The Erdős catalogue had been bulk-imported as Standing: a
+catalogue row presented as adjudicated scientific state. This was the largest
+single defect in the ecosystem and the reason for the reset.
 
-Reclassifying the corpus is not a safe change to the map, it is a rewrite of it.
-The Problem product's join key *is* `observatory.claims`, and its prize and tags
-come out of the Claim's assertion string. If the corpus stops being Claims, the
-Problem surface loses both in the same commit. Plan the replacement before the
-reclassification, not after.
+`vela-science/math` does not inherit the defect: its manifest carries zero
+accepted Claims, zero Proposals and zero Submissions at genesis, so whatever the
+Erdős corpus becomes there, it does not arrive as Standing by import. The
+statement below is about the four frozen repositories, where it remains exactly
+true and is now read-only.
+
+Reclassifying the corpus was not a safe change to the map but a rewrite of it,
+and the warning stood: the Problem product's join key *was* `observatory.claims`
+and its prize and tags came out of the Claim's assertion string, so the corpus
+could not stop being Claims without the surface losing both in the same commit.
+The replacement was built first. The catalogue is now acquired as Source
+observations from the pinned upstream registry, the ledger reads it directly,
+and the live release publishes 1,217 Problems with no Claim behind any of them.
+
+What the corpus does not yet have is Standing, and that is the point rather than
+a gap: a Claim in `math` arrives by Decision on evidence, one at a time.
 
 **On the numbers, one honest correction.** ADR 0039's own measured table reads:
 
