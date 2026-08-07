@@ -39,7 +39,7 @@ use crate::authority_transaction::{
     AuthorityTransactionRequest, authority_policy_material_paths, execute_authority_transaction,
     execution_binary_sha256,
 };
-use crate::frontier_txn::{ContentDigest, FrontierTxn, WriteClass};
+use crate::repository_txn::{ContentDigest, RepositoryTxn, WriteClass};
 use crate::repository_authority_provider::{
     SshAgentRepositoryAuthoritySigner, select_repository_authority_identity,
 };
@@ -164,7 +164,7 @@ const AUTHORITY_POLICY_TESTS_ROOT: &str =
 
 pub(crate) fn fresh_authority_policy_for_frontier(
     frontier: &Path,
-    frontier_id: &str,
+    repository_id: &str,
     principal_id: &str,
     observed_at: &str,
 ) -> Result<(PolicyBundleV1, CedarEvaluationInput), String> {
@@ -172,7 +172,7 @@ pub(crate) fn fresh_authority_policy_for_frontier(
     let _ = observed_at;
     let entities = json!([
         {
-            "uid": {"type": "Frontier", "id": frontier_id},
+            "uid": {"type": "Frontier", "id": repository_id},
             "attrs": {},
             "parents": []
         },
@@ -187,7 +187,7 @@ pub(crate) fn fresh_authority_policy_for_frontier(
     let policies = format!("{human_policy}\n");
     let bundle = PolicyBundleV1 {
         schema: POLICY_BUNDLE_SCHEMA_V1.into(),
-        frontier_id: frontier_id.to_string(),
+        repository_id: repository_id.to_string(),
         cedar_schema_root: ContentDigest::hash(schema.as_bytes()).as_str().into(),
         policies_root: ContentDigest::hash(policies.as_bytes()).as_str().into(),
         entities_root: ContentDigest::hash(to_canonical_bytes(&entities)?)
@@ -207,7 +207,7 @@ pub(crate) fn fresh_authority_policy_for_frontier(
         principal: format!("Human::{}", serde_json::to_string(principal_id).unwrap()),
         principal_class: PrincipalClass::Human,
         action: AUTHORITY_INITIALIZE_ACTION.into(),
-        resource: format!("Frontier::{}", serde_json::to_string(frontier_id).unwrap()),
+        resource: format!("Frontier::{}", serde_json::to_string(repository_id).unwrap()),
         context: json!({"exact": true}),
     };
     let evaluation = vela_authority::evaluate(&CedarEvaluationInput {
@@ -281,7 +281,7 @@ pub(crate) fn cmd_authority_trust_pin(
         print_json(&result);
     } else {
         println!("repository authority pinned");
-        println!("  frontier: {}", result["frontier_id"]);
+        println!("  frontier: {}", result["repository_id"]);
         println!(
             "  sequence-1 record: {}",
             result["first_authority_record_root"]
@@ -325,12 +325,12 @@ fn pin_repository_authority(
     }
     let anchor = AuthorityTrustAnchorV1 {
         schema: AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.to_string(),
-        frontier_id: repository.frontier_id.clone(),
+        repository_id: repository.repository_id.clone(),
         first_authority_record_root: observed_root.clone(),
     };
     let user_home =
-        crate::frontier_txn::operating_system_account_home().map_err(|error| error.to_string())?;
-    let existing = load_authority_trust_anchor_from_home(&user_home, &repository.frontier_id)?;
+        crate::repository_txn::operating_system_account_home().map_err(|error| error.to_string())?;
+    let existing = load_authority_trust_anchor_from_home(&user_home, &repository.repository_id)?;
     let (installed, operation, writes) = match existing {
         Some(existing) if existing.anchor == anchor => (existing, "unchanged", Vec::new()),
         Some(existing) => {
@@ -344,7 +344,7 @@ fn pin_repository_authority(
             })?;
             let expected = AuthorityTrustAnchorV1 {
                 schema: AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.to_string(),
-                frontier_id: repository.frontier_id.clone(),
+                repository_id: repository.repository_id.clone(),
                 first_authority_record_root: previous_root.to_string(),
             };
             let rebound = rebind_authority_trust_anchor_from_home(&user_home, &expected, &anchor)?;
@@ -372,7 +372,7 @@ fn pin_repository_authority(
         "ok": true,
         "command": "authority.trust.pin",
         "frontier": frontier.display().to_string(),
-        "frontier_id": repository.frontier_id,
+        "repository_id": repository.repository_id,
         "first_authority_record_id": first_record.record_id,
         "first_authority_record_root": observed_root,
         "initial_authority_keyset_root": first_record.content.authority_keyset_root,
@@ -400,7 +400,7 @@ pub(crate) enum RepositoryAuthorityInitError {
     /// Frontier already selects a different sequence-one root. The Frontier
     /// still cannot take an authority write until the pin is reconciled.
     TrustPinCollision {
-        frontier_id: String,
+        repository_id: String,
         record_root: String,
         pin_path: String,
         pinned_root: String,
@@ -450,7 +450,7 @@ fn initialize_current_repository_authority(
     };
     let authority_keyset = AuthorityKeysetV1 {
         schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
-        frontier_id: profile.frontier_id.clone(),
+        repository_id: profile.repository_id.clone(),
         generation: 1,
         threshold: 1,
         keys: vec![AuthorityKeyV1 {
@@ -468,21 +468,21 @@ fn initialize_current_repository_authority(
     authority_keyset.validate()?;
     let (policy_bundle, authorization_input) = fresh_authority_policy_for_frontier(
         frontier,
-        &profile.frontier_id,
+        &profile.repository_id,
         &local.principal_id,
         &recorded_at,
     )?;
     let keyset_root = authority_keyset.root()?;
     let policy_root = policy_bundle.root()?;
     let origin = RepositoryOriginV1::genesis(
-        profile.frontier_id.clone(),
+        profile.repository_id.clone(),
         profile_root.clone(),
         reason.to_string(),
     )?;
     let origin_root = origin.canonical_root()?;
     let repository = CurrentRepositoryV4 {
         schema: CURRENT_REPOSITORY_SCHEMA_V4.into(),
-        frontier_id: profile.frontier_id.clone(),
+        repository_id: profile.repository_id.clone(),
         profile_root: profile_root.clone(),
         origin_id: origin.origin_id.clone(),
         origin_root: origin_root.clone(),
@@ -500,7 +500,7 @@ fn initialize_current_repository_authority(
     let repository_root = repository.canonical_root()?;
     let initialization = AuthorityInitializationV1 {
         schema: vela_protocol::authority_history::AUTHORITY_INITIALIZATION_SCHEMA_V1.into(),
-        frontier_id: profile.frontier_id.clone(),
+        repository_id: profile.repository_id.clone(),
         initial_event_log_root: empty_repository_event_log_root(),
         initial_actor_registry_root: empty_repository_actor_registry_root(),
         new_authority_keyset_root: keyset_root.clone(),
@@ -512,7 +512,7 @@ fn initialize_current_repository_authority(
     initialization.validate()?;
     let intent_digest = ContentDigest::hash(to_canonical_bytes(&json!({
         "schema": "vela.repository-origin-intent.v1",
-        "frontier_id": profile.frontier_id,
+        "repository_id": profile.repository_id,
         "profile_root": profile_root,
         "origin_root": origin_root,
         "repository_root": repository_root,
@@ -526,7 +526,7 @@ fn initialize_current_repository_authority(
     let binary_sha256 = execution_binary_sha256(&executable)?;
     let journal_dir = crate::repository_ops::frontier_transaction_journal_dir(frontier)?;
     let barrier =
-        FrontierTxn::acquire_repository_authority_initialization_barrier(frontier, &journal_dir)
+        RepositoryTxn::acquire_repository_authority_initialization_barrier(frontier, &journal_dir)
             .map_err(|error| error.to_string())?;
     let mut authentication = local;
     let mut signer = SshAgentRepositoryAuthoritySigner::from_environment(
@@ -538,7 +538,7 @@ fn initialize_current_repository_authority(
         frontier,
         AuthorityTransactionRequest {
             history: AuthorityHistorySnapshot {
-                frontier_id: profile.frontier_id.clone(),
+                repository_id: profile.repository_id.clone(),
                 initial_event_log_root: empty_repository_event_log_root(),
                 initial_actor_registry_root: empty_repository_actor_registry_root(),
                 initial_snapshots_preexisting: false,
@@ -569,7 +569,7 @@ fn initialize_current_repository_authority(
                 kind: EventKind::Other(AUTHORITY_INITIALIZED_EVENT_KIND.into()),
                 target: StateTarget {
                     r#type: "frontier".into(),
-                    id: profile.frontier_id.clone(),
+                    id: profile.repository_id.clone(),
                 },
                 actor: StateActor {
                     r#type: "human".into(),
@@ -625,7 +625,7 @@ fn initialize_current_repository_authority(
             "README.md",
             "AGENTS.md",
             "CLAUDE.md",
-            "frontier.toml",
+            "vela.toml",
             ".gitignore",
             ".gitattributes",
             ".vela/origin.json",
@@ -671,19 +671,19 @@ fn initialize_current_repository_authority(
     let git_tree = vela_edge::git::text(frontier, &["rev-parse", "HEAD^{tree}"])?;
     let local_anchor = AuthorityTrustAnchorV1 {
         schema: AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.to_string(),
-        frontier_id: profile.frontier_id.clone(),
+        repository_id: profile.repository_id.clone(),
         first_authority_record_root: result.authority_record_root.clone(),
     };
     let user_home =
-        crate::frontier_txn::operating_system_account_home().map_err(|error| error.to_string())?;
+        crate::repository_txn::operating_system_account_home().map_err(|error| error.to_string())?;
     let installed_anchor = install_authority_trust_anchor_from_home(&user_home, &local_anchor)
         .map_err(|error| match load_authority_trust_anchor_from_home(
             &user_home,
-            &profile.frontier_id,
+            &profile.repository_id,
         ) {
             Ok(Some(existing)) if existing.anchor != local_anchor => {
                 RepositoryAuthorityInitError::TrustPinCollision {
-                    frontier_id: profile.frontier_id.clone(),
+                    repository_id: profile.repository_id.clone(),
                     record_root: result.authority_record_root.clone(),
                     pin_path: existing.path.display().to_string(),
                     pinned_root: existing.anchor.first_authority_record_root.clone(),
@@ -698,7 +698,7 @@ fn initialize_current_repository_authority(
         "schema": "vela.authority-initialization-result.v2",
         "ok": true,
         "frontier": frontier.display().to_string(),
-        "frontier_id": profile.frontier_id,
+        "repository_id": profile.repository_id,
         "principal_id": principal.principal_id,
         "repository_key_id": identity.key_id,
         "repository_key_fingerprint": identity.fingerprint,
@@ -715,7 +715,7 @@ fn initialize_current_repository_authority(
         "after_event_log_root": result.after_event_log_root,
         "local_trust": {
             "schema": AUTHORITY_TRUST_ANCHOR_SCHEMA_V1,
-            "frontier_id": profile.frontier_id,
+            "repository_id": profile.repository_id,
             "first_authority_record_root": result.authority_record_root,
             "anchor_root": installed_anchor.root,
             "anchor_path": installed_anchor.path,
@@ -734,7 +734,7 @@ pub(crate) fn load_current_repository_authority(
     repository: &vela_protocol::current_repository::CurrentRepositoryV4,
     origin: &vela_protocol::repository_origin::RepositoryOriginV1,
 ) -> Result<LoadedRepositoryAuthority, String> {
-    if repository.frontier_id != origin.frontier_id
+    if repository.repository_id != origin.repository_id
         || repository.profile_root != origin.profile_root
         || repository.origin_id != origin.origin_id
         || repository.origin_root != origin.canonical_root()?
@@ -776,7 +776,7 @@ pub(crate) fn load_current_repository_authority(
         .map(|(_, envelope)| envelope)
         .collect::<Vec<_>>();
     let verification = verify_authority_history(AuthorityHistoryInput {
-        frontier_id: &repository.frontier_id,
+        repository_id: &repository.repository_id,
         initial_event_log_root,
         initial_actor_registry_root,
         initial_snapshots_preexisting: origin.predecessor.is_some(),
@@ -811,7 +811,7 @@ pub(crate) fn load_current_repository_authority(
     let policy_material = load_retained_policy_material(frontier, &policy_bundle)?;
     Ok(LoadedRepositoryAuthority {
         history: AuthorityHistorySnapshot {
-            frontier_id: repository.frontier_id.clone(),
+            repository_id: repository.repository_id.clone(),
             initial_event_log_root: initial_event_log_root.to_string(),
             initial_actor_registry_root: initial_actor_registry_root.to_string(),
             initial_snapshots_preexisting: origin.predecessor.is_some(),
@@ -1047,7 +1047,7 @@ mod tests {
         let temporary = TempDir::new().unwrap();
         let (bundle, authorization) = fresh_authority_policy_for_frontier(
             temporary.path(),
-            "vfr_0000000000000000",
+            "vrepo_0000000000000000",
             "local:device-fixture|uid:501",
             "2026-07-27T00:00:00Z",
         )

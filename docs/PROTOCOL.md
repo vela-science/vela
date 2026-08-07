@@ -53,8 +53,8 @@ Interfaces use the object names above as proper terms. They do not rename a
 Submission as a pull request, a Verification Record as approval, a Decision as
 verification, or Standing as status. `Review` is the CLI and product area that
 shows Proposals, Verification Records, and Decisions; it is not another
-protocol object. A native run is external execution activity, not a Vela
-Attempt object.
+protocol object. A native run is external execution activity, and Vela
+retains no object of its own for it.
 
 The canonical closed-loop Frontier is:
 
@@ -90,7 +90,7 @@ must not invent substitute protocol nouns or imply authority from a grouping.
 A current Frontier contains:
 
 ```text
-frontier.toml
+vela.toml
 .vela/repository.json
 .vela/origin.json
 .vela/authority/events/
@@ -107,7 +107,7 @@ records/artifacts/sha256/
 targets.json
 ```
 
-`frontier.toml` identifies the bounded repository. `.vela/repository.json`
+`vela.toml` identifies the bounded repository. `.vela/repository.json`
 is the closed `vela.repository.v4` index of active object sets.
 `.vela/origin.json` is the immutable `vela.repository-origin.v1` commitment.
 
@@ -423,7 +423,7 @@ after signing failure and changes no scientific Standing.
 - declared verifier profile; and
 - the human-Decision authority ceiling.
 
-It creates no file, lease, Attempt, counter, budget, canonical Event,
+It creates no file, lease, run record, counter, budget, canonical Event,
 repository record, or authority-key read. Vela does not launch or wrap an
 agent, verifier, or workflow engine.
 

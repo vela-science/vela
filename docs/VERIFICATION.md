@@ -163,7 +163,7 @@ human scientific key and accepts no copied root, timestamp, batch answer, or
 custom-helper response.
 
 Any drift aborts before the commit marker. Acceptance additionally requires an
-eligible Review Packet and strict aggregate Engine gate, then verifies that
+eligible Proposal and strict aggregate Engine gate, then verifies that
 the covered scientific domain event and explicit review event replay together
 across both histories. Rejection changes no accepted scientific state.
 

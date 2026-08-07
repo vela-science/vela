@@ -129,7 +129,7 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
             socket,
             &[
                 "submit",
-                "--frontier",
+                "--repo",
                 &frontier_text,
                 "--claim",
                 assertion,

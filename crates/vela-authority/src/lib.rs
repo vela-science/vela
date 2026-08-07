@@ -294,13 +294,13 @@ pub fn evaluate_authorization_v1(
             AuthorizationReasonV1::ModelRootMismatch,
             None,
         )
-    } else if request.frontier_id != model.frontier_id {
+    } else if request.repository_id != model.repository_id {
         (
             AuthorizationDecisionV1::Deny,
             AuthorizationReasonV1::FrontierMismatch,
             None,
         )
-    } else if request.resource.frontier_id != request.frontier_id {
+    } else if request.resource.repository_id != request.repository_id {
         (
             AuthorizationDecisionV1::Deny,
             AuthorizationReasonV1::ResourceFrontierMismatch,
@@ -438,7 +438,7 @@ mod tests {
         AuthorizationModelV1 {
             schema: AUTHORIZATION_MODEL_SCHEMA_V1.into(),
             profile: AUTHORIZATION_PROFILE_V1.into(),
-            frontier_id: "vfr_fixture".into(),
+            repository_id: "vrepo_fixture".into(),
             members: vec![
                 AuthorityMemberV1 {
                     principal_id: "local:device-1|uid:501".into(),
@@ -460,12 +460,12 @@ mod tests {
             schema: AUTHORIZATION_REQUEST_SCHEMA_V1.into(),
             profile: AUTHORIZATION_PROFILE_V1.into(),
             model_root: model.root().unwrap(),
-            frontier_id: "vfr_fixture".into(),
+            repository_id: "vrepo_fixture".into(),
             principal_id: "local:device-1|uid:501".into(),
             principal_class: PrincipalClass::Human,
             action: AuthorityActionV1::ReviewAccept,
             resource: AuthorizationResourceV1 {
-                frontier_id: "vfr_fixture".into(),
+                repository_id: "vrepo_fixture".into(),
                 resource_type: AuthorityResourceTypeV1::Proposal,
                 resource_id: "vpr_0123456789abcdef".into(),
             },
@@ -488,9 +488,9 @@ mod tests {
         let mut administrator_request = closed_request(&model);
         administrator_request.action = AuthorityActionV1::AuthorityInitialize;
         administrator_request.resource = AuthorizationResourceV1 {
-            frontier_id: "vfr_fixture".into(),
+            repository_id: "vrepo_fixture".into(),
             resource_type: AuthorityResourceTypeV1::Frontier,
-            resource_id: "vfr_fixture".into(),
+            resource_id: "vrepo_fixture".into(),
         };
         let administrator = evaluate_authorization_v1(&model, &administrator_request).unwrap();
         assert_eq!(administrator.decision, AuthorizationDecisionV1::Allow);
@@ -514,7 +514,7 @@ mod tests {
         );
 
         let mut wrong_frontier = closed_request(&model);
-        wrong_frontier.frontier_id = "vfr_other".into();
+        wrong_frontier.repository_id = "vrepo_other".into();
         assert_eq!(
             evaluate_authorization_v1(&model, &wrong_frontier)
                 .unwrap()
@@ -523,7 +523,7 @@ mod tests {
         );
 
         let mut wrong_resource_frontier = closed_request(&model);
-        wrong_resource_frontier.resource.frontier_id = "vfr_other".into();
+        wrong_resource_frontier.resource.repository_id = "vrepo_other".into();
         assert_eq!(
             evaluate_authorization_v1(&model, &wrong_resource_frontier)
                 .unwrap()
@@ -557,7 +557,7 @@ mod tests {
 
         let mut wrong_resource_type = closed_request(&model);
         wrong_resource_type.resource.resource_type = AuthorityResourceTypeV1::Frontier;
-        wrong_resource_type.resource.resource_id = "vfr_fixture".into();
+        wrong_resource_type.resource.resource_id = "vrepo_fixture".into();
         assert_eq!(
             evaluate_authorization_v1(&model, &wrong_resource_type)
                 .unwrap()
@@ -683,7 +683,7 @@ mod tests {
         let root = format!("sha256:{}", "a".repeat(64));
         let bundle = PolicyBundleV1 {
             schema: POLICY_BUNDLE_SCHEMA_V1.into(),
-            frontier_id: "vfr_fixture".into(),
+            repository_id: "vrepo_fixture".into(),
             cedar_schema_root: root.clone(),
             policies_root: root.clone(),
             entities_root: root.clone(),
@@ -711,7 +711,7 @@ mod tests {
         let material = CedarPolicyMaterial::from_evaluation(&input);
         let bundle = PolicyBundleV1 {
             schema: POLICY_BUNDLE_SCHEMA_V1.into(),
-            frontier_id: "vfr_fixture".into(),
+            repository_id: "vrepo_fixture".into(),
             cedar_schema_root: sha256_root(material.schema.as_bytes()),
             policies_root: sha256_root(material.policies.as_bytes()),
             entities_root: sha256_root(&material.canonical_entities().unwrap()),

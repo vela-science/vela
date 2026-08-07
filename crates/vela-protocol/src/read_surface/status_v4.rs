@@ -1,4 +1,4 @@
-//! `vela.status.v3`: the one document `vela status` answers with.
+//! `vela.status.v4`: the one document `vela status` answers with.
 //!
 //! This was two `serde_json::json!` literals in `vela-cli`, one per branch —
 //! a Frontier whose repository authority has not finished initializing, and a
@@ -15,14 +15,14 @@
 //! union. Each landed as a fail-closed break of the projection refresh, found
 //! by running it rather than by anything holding the two shapes together.
 //! `wire_schema::published()` now renders this type to
-//! `schemas/status-v3.schema.json`, which is what the other repository gates
+//! `schemas/status-v4.schema.json`, which is what the other repository gates
 //! its parser against.
 //!
 //! ## Null is not absence here
 //!
 //! Every optional-looking field on this document is *present and null* on the
 //! branch that cannot fill it — a bootstrapping Frontier has a Git pointer
-//! with the role `frontier_head` and no commit behind it yet, not an absent
+//! with the role `repository_head` and no commit behind it yet, not an absent
 //! pointer. The `json!` literals spelled that as an explicit `Value::Null`.
 //!
 //! `Option<T>` alone does not say that. serde still emits the key, but
@@ -44,7 +44,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// The schema tag this document carries. `vela-web` pins it as a zod literal.
-pub const STATUS_V3_SCHEMA: &str = "vela.status.v3";
+pub const STATUS_V3_SCHEMA: &str = "vela.status.v4";
 
 /// The `command` tag this document carries, matching the verb that emits it.
 pub const STATUS_V3_COMMAND: &str = "status";
@@ -53,7 +53,7 @@ pub const STATUS_V3_COMMAND: &str = "status";
 ///
 /// It is what the pointer *means*, not whether it has reached a commit, which
 /// is why it is stated even on the branch where `commit` and `tree` are null.
-pub const FRONTIER_HEAD_ROLE: &str = "frontier_head";
+pub const REPOSITORY_HEAD_ROLE: &str = "repository_head";
 
 /// Whether replay reproduced the retained history.
 ///
@@ -78,8 +78,8 @@ pub enum StrictState {
 /// The Frontier this document is about.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct StatusFrontier {
-    #[schemars(schema_with = "crate::wire_schema::frontier_id")]
+pub struct StatusRepository {
+    #[schemars(schema_with = "crate::wire_schema::repository_id")]
     pub id: String,
     #[schemars(schema_with = "crate::wire_schema::text")]
     pub name: String,
@@ -91,7 +91,7 @@ pub struct StatusFrontier {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct StatusGit {
-    #[schemars(schema_with = "crate::wire_schema::frontier_head_role_tag")]
+    #[schemars(schema_with = "crate::wire_schema::repository_head_role_tag")]
     pub role: String,
     #[schemars(required, schema_with = "crate::wire_schema::nullable_git_object_id")]
     pub commit: Option<String>,
@@ -239,14 +239,14 @@ pub struct StatusActions {
 /// The whole document.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct StatusV3 {
+pub struct StatusV4 {
     #[schemars(schema_with = "crate::wire_schema::status_schema_tag")]
     pub schema: String,
     #[schemars(schema_with = "crate::wire_schema::ok_true")]
     pub ok: bool,
     #[schemars(schema_with = "crate::wire_schema::status_command_tag")]
     pub command: String,
-    pub frontier: StatusFrontier,
+    pub repository: StatusRepository,
     pub git: StatusGit,
     pub integrity: StatusIntegrity,
     pub roots: StatusRoots,
@@ -256,11 +256,11 @@ pub struct StatusV3 {
     pub actions: StatusActions,
 }
 
-impl StatusV3 {
+impl StatusV4 {
     /// Build the envelope every branch shares, so the three tags cannot be
     /// spelled per-branch again.
     pub fn new(
-        frontier: StatusFrontier,
+        repository: StatusRepository,
         git: StatusGit,
         integrity: StatusIntegrity,
         roots: StatusRoots,
@@ -273,7 +273,7 @@ impl StatusV3 {
             schema: STATUS_V3_SCHEMA.into(),
             ok: true,
             command: STATUS_V3_COMMAND.into(),
-            frontier,
+            repository,
             git,
             integrity,
             roots,
@@ -337,7 +337,7 @@ mod tests {
     fn published_schema() -> Value {
         crate::wire_schema::published()
             .into_iter()
-            .find(|(file, _)| *file == "status-v3.schema.json")
+            .find(|(file, _)| *file == "status-v4.schema.json")
             .expect("status v3 is published")
             .1
     }
@@ -359,14 +359,14 @@ mod tests {
     /// report `git: serialized without commit`.
     #[test]
     fn the_serialized_document_carries_every_required_key() {
-        let bootstrapping = super::StatusV3::new(
-            super::StatusFrontier {
-                id: "vfr_0000000000000000".into(),
+        let bootstrapping = super::StatusV4::new(
+            super::StatusRepository {
+                id: "vrepo_0000000000000000".into(),
                 name: "fixture".into(),
                 profile_root: format!("sha256:{}", "0".repeat(64)),
             },
             super::StatusGit {
-                role: super::FRONTIER_HEAD_ROLE.into(),
+                role: super::REPOSITORY_HEAD_ROLE.into(),
                 commit: None,
                 tree: None,
             },

@@ -7,7 +7,7 @@ mutable state into a second source of truth.
 | Repository | Owns | Must not own |
 | --- | --- | --- |
 | `vela` | Protocol semantics, Rust CLI and libraries, wire schemas, conformance fixtures, protocol-wide ADRs, release artifacts, and cross-Frontier evidence claims in the paper | Frontier Target packets, case-specific execution artifacts, scientific Decisions, web projection code, or deployment state |
-| Frontier repositories such as `erdos-frontier` | Source locks, local admission policy, Target packets, Claims, Submissions, Verifications, Decisions, artifacts, replay state, and exact next obligations | Generic Vela protocol behavior, web rendering, or authority over another Frontier |
+| Scientific repositories such as `vela-science/math` | Source locks, local admission policy, Target packets, Claims, Submissions, Verifications, Decisions, artifacts, replay state, and exact next obligations | Generic Vela protocol behavior, web rendering, or authority over another repository |
 | `vela-web` | Root-bound read projections, Result Dossier declarations, rendering, search, SELECT-only storage, deployment manifests, and product-qualification evidence | Scientific writers, authority credentials, inferred Standing, or duplicate canonical Frontier records |
 | Native source and execution repositories | Proofs, computations, datasets, model runs, and native package/toolchain state | Vela Standing or Frontier authority unless separately admitted through the protocol |
 | Memos | Research input and recommendations | Canonical product, protocol, or scientific state |

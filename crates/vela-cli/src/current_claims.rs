@@ -138,7 +138,7 @@ pub(crate) fn cmd_claims(
     json_out: bool,
 ) {
     crate::ui::set_mode("claims", json_out);
-    crate::ui::require_initialized_frontier(frontier);
+    crate::ui::require_initialized_repo(frontier);
     let status = status.unwrap_or("accepted");
     if !STATUS_VALUES.contains(&status) {
         crate::cli::fail_kind(
@@ -146,7 +146,7 @@ pub(crate) fn cmd_claims(
             "claims status must be accepted, unassessed, or all",
         );
     }
-    let frontier = crate::ui::canonicalize_frontier(frontier);
+    let frontier = crate::ui::canonicalize_repo(frontier);
     /* The same load `review list` uses: the manifest is only worth listing if
     repository authority covers it. */
     let repository = crate::current_repository::load_current_repository_at(&frontier, true)
@@ -222,7 +222,7 @@ pub(crate) fn cmd_claims(
         "schema": "vela.claims.v1",
         "ok": true,
         "command": "claims",
-        "frontier_id": repository.frontier_id,
+        "repository_id": repository.repository_id,
         "repository_root": repository_root,
         "origin_id": repository.origin_id,
         "generation": origin.generation,
@@ -261,7 +261,7 @@ fn render(payload: &Value, status: &str) {
     let unreadable = payload["unreadable_returned"].as_u64().unwrap_or_default();
     println!(
         "claims · {total} {status} · {}",
-        payload["frontier_id"].as_str().unwrap_or("")
+        payload["repository_id"].as_str().unwrap_or("")
     );
     println!("  {returned} shown, ordered by Claim id");
     println!(

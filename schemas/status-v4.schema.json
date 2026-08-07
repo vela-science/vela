@@ -1,5 +1,5 @@
 {
-  "$id": "https://vela.science/schemas/status-v3.schema.json",
+  "$id": "https://vela.science/schemas/status-v4.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
@@ -251,31 +251,6 @@
       ],
       "type": "object"
     },
-    "frontier": {
-      "additionalProperties": false,
-      "properties": {
-        "id": {
-          "pattern": "^vfr_[0-9a-f]{16}$",
-          "type": "string"
-        },
-        "name": {
-          "maxLength": 16384,
-          "minLength": 1,
-          "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
-          "type": "string"
-        },
-        "profile_root": {
-          "pattern": "^sha256:[0-9a-f]{64}$",
-          "type": "string"
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "profile_root"
-      ],
-      "type": "object"
-    },
     "git": {
       "additionalProperties": false,
       "properties": {
@@ -287,7 +262,7 @@
           ]
         },
         "role": {
-          "const": "frontier_head",
+          "const": "repository_head",
           "type": "string"
         },
         "tree": {
@@ -348,6 +323,31 @@
       "const": true,
       "type": "boolean"
     },
+    "repository": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^vrepo_[0-9a-f]{16}$",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 16384,
+          "minLength": 1,
+          "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+          "type": "string"
+        },
+        "profile_root": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "profile_root"
+      ],
+      "type": "object"
+    },
     "roots": {
       "additionalProperties": false,
       "properties": {
@@ -389,7 +389,7 @@
       "type": "object"
     },
     "schema": {
-      "const": "vela.status.v3",
+      "const": "vela.status.v4",
       "type": "string"
     },
     "work": {
@@ -411,7 +411,7 @@
     "schema",
     "ok",
     "command",
-    "frontier",
+    "repository",
     "git",
     "integrity",
     "roots",
@@ -420,6 +420,6 @@
     "decision_inbox",
     "actions"
   ],
-  "title": "Vela Status v3",
+  "title": "Vela Status v4",
   "type": "object"
 }

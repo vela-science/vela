@@ -167,7 +167,7 @@ fn root_action_is_read_only_and_nonfinalizing() {
     );
     assert!(
         script_named(&action["runs"], "Frontier repository shape")
-            .contains("conformance/frontier_lint.py")
+            .contains("conformance/repository_lint.py")
     );
 
     /* The action now uses a hosted action of its own. Consumers pin this file

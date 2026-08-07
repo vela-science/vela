@@ -36,7 +36,7 @@ fn init_frontier(dir: &std::path::Path) {
         Some(1),
         "expected signing refusal: {out:?}"
     );
-    assert!(dir.join("frontier.toml").is_file());
+    assert!(dir.join("vela.toml").is_file());
 }
 
 fn run_in(dir: &std::path::Path, args: &[&str]) -> std::process::Output {

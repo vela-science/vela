@@ -8,7 +8,7 @@
 //! taste and will change; that these words stay out of it is the contract.
 //!
 //! One exception is deliberate and asserted here too. `integrity.replay` in
-//! `vela.status.v3` is a wire token, not prose: vela-web pins it as
+//! `vela.status.v4` is a wire token, not prose: vela-web pins it as
 //! `z.literal("verified")`. Retiring it is a coordinated schema change, so a
 //! later prose sweep must not quietly take it with the others.
 //!
@@ -139,7 +139,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
     ));
     assert_eq!(
         status["integrity"]["replay"], "verified",
-        "vela.status.v3 carries `verified` as a wire token; vela-web pins it as z.literal(\"verified\"), so it moves only with a schema bump"
+        "vela.status.v4 carries `verified` as a wire token; vela-web pins it as z.literal(\"verified\"), so it moves only with a schema bump"
     );
 
     std::fs::create_dir_all(frontier.join("artifacts")).expect("artifacts directory");
@@ -150,7 +150,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
     .expect("fixture artifact");
     let submit = [
         "submit",
-        "--frontier",
+        "--repo",
         &frontier_text,
         "--claim",
         "Exact bounded fixture claim.",

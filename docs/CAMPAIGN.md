@@ -41,7 +41,7 @@ problem pages, candidate profiles, source adapters, or case dossiers.
 Vela core will not run reviewer-recruitment studies, maintain case-specific
 campaign portfolios, host a package registry, schedule research agents, or add
 an interoperability service without a concrete second consumer. The programme
-adds no `vela-math` repository, second database, universal ontology, or
+adds no mathematics library, second database, universal ontology, or
 automatic authority path. Git history preserves retired experiments; they are
 not active product surface.
 

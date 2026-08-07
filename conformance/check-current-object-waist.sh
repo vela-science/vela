@@ -79,7 +79,7 @@ git --git-dir="$remote" symbolic-ref HEAD refs/heads/main
 accepted_claims_before="$(jq -r '.counts.accepted_claims' "$root/status-before.json")"
 run_json "$root/submit.json" \
   "$vela" submit "$repo/conformance/current-objects/submission.json" \
-  --frontier "$frontier" \
+  --repo "$frontier" \
   --as agent:independent-js \
   --json
 publish_fixture_delta 'Register independent Submission'

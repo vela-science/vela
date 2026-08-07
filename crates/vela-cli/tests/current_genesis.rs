@@ -150,11 +150,11 @@ fn install_current_target_index(frontier: &Path, _socket: &Path) {
     let source = git_text(frontier, &["rev-parse", "HEAD^{commit}"]);
     let source_tree = git_text(frontier, &["rev-parse", "HEAD^{tree}"]);
     let profile_source =
-        std::fs::read_to_string(frontier.join("frontier.toml")).expect("frontier profile");
-    let frontier_id =
-        vela_protocol::current_repository::CurrentFrontierProfileV2::from_toml_str(&profile_source)
+        std::fs::read_to_string(frontier.join("vela.toml")).expect("frontier profile");
+    let repository_id =
+        vela_protocol::current_repository::CurrentRepositoryProfileV1::from_toml_str(&profile_source)
             .expect("current profile")
-            .frontier_id;
+            .repository_id;
     let repository_bytes =
         std::fs::read(frontier.join(".vela/repository.json")).expect("repository manifest");
     let repository =
@@ -176,7 +176,7 @@ fn install_current_target_index(frontier: &Path, _socket: &Path) {
         std::fs::read(frontier.join("site/problems/1056.json")).expect("packet bytes");
     let mut index = vela_edge::target_index::TargetIndexV5 {
         schema: vela_edge::target_index::TARGET_INDEX_SCHEMA_V5.to_string(),
-        frontier_id,
+        repository_id,
         source: vela_edge::target_index::TargetIndexSourceV2 {
             git_object_format: vela_protocol::repository_inputs::GitObjectFormat::Sha1,
             git_commit: source,
@@ -264,7 +264,7 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
             "--json",
         ],
     ));
-    assert_eq!(initialized["schema"], "vela.frontier-init.v3");
+    assert_eq!(initialized["schema"], "vela.repository-init.v1");
     assert_eq!(initialized["authority"]["state"], "initialized");
     for retired in [
         ".vela/events",
@@ -287,7 +287,7 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
     let checked = success_json(&run(&frontier, None, &["replay", ".", "--json"]));
     assert_eq!(checked["repository_root"], verified["repository_root"]);
     let status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
-    assert_eq!(status["schema"], "vela.status.v3");
+    assert_eq!(status["schema"], "vela.status.v4");
     assert_eq!(status["integrity"]["replay"], "verified");
     assert_eq!(status["integrity"]["strict"], "pass");
     assert_eq!(status["work"]["ready_target_count"], 0);
@@ -332,7 +332,7 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
 fn current_replay_refuses_retired_repositories_before_parsing_them() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     std::fs::write(
-        temporary.path().join("frontier.toml"),
+        temporary.path().join("vela.toml"),
         "schema = \"vela.frontier-profile.v1\"\n",
     )
     .expect("write retired profile marker");
@@ -476,7 +476,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let briefing = success_json(&run(
         &frontier,
         None,
-        &["start", "erdos:1056", "--frontier", ".", "--json"],
+        &["start", "erdos:1056", "--repo", ".", "--json"],
     ));
     assert_eq!(briefing["schema"], "vela.start-briefing.v2");
     assert_eq!(briefing["target"]["id"], "erdos:1056");
@@ -504,7 +504,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let absent = run(
         &frontier,
         None,
-        &["start", "erdos:0", "--frontier", ".", "--json"],
+        &["start", "erdos:0", "--repo", ".", "--json"],
     );
     assert_eq!(absent.status.code(), Some(3), "start on an absent Target");
     let absent: Value = serde_json::from_slice(&absent.stdout).expect("decode start failure");
@@ -619,7 +619,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let submitted = success_json(&run(
         &frontier,
         None,
-        &["submit", &submission_path_text, "--frontier", ".", "--json"],
+        &["submit", &submission_path_text, "--repo", ".", "--json"],
     ));
     assert_eq!(submitted["schema"], "vela.submit-result.v1");
     assert_eq!(submitted["route"], "pending_review");
@@ -948,8 +948,8 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert_eq!(checked["counts"]["pending_claims"], 1);
     assert_eq!(checked["counts"]["verifications"], 1);
     let status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
-    assert_eq!(status["schema"], "vela.status.v3");
-    assert_eq!(status["git"]["role"], "frontier_head");
+    assert_eq!(status["schema"], "vela.status.v4");
+    assert_eq!(status["git"]["role"], "repository_head");
     assert_eq!(status["integrity"]["strict"], "pass");
     assert_eq!(status["work"]["ready_target_count"], 1);
     assert_eq!(status["decision_inbox"]["pending_count"], 1);

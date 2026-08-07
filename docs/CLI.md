@@ -10,7 +10,7 @@ Standing, and Git preserves the exact repository history.
 vela status . --json
 vela next . --limit 1 --json
 
-vela submit --frontier . \
+vela submit --repo . \
   --claim "<bounded result>" \
   --type computational \
   --replayability exact \
@@ -164,7 +164,7 @@ producer queue.
 - the explicit boundary that evidence may enter review but only a human
   Decision changes Standing.
 
-It writes no file, lease, Attempt, counter, budget, Event, or canonical object
+It writes no file, lease, run record, counter, budget, Event, or canonical object
 and reads no authority key.
 
 The default remains one short command:
@@ -215,7 +215,7 @@ Corrective Submissions bind the full historical Claim identity and exact Claim
 root:
 
 ```bash
-vela submit --frontier . \
+vela submit --repo . \
   --claim "<replacement bounded claim>" \
   --type theoretical \
   --replayability exact \
@@ -395,7 +395,7 @@ active paths. The one-time migration writer is not part of the current binary.
 - `review list --json` returns compact Proposal summaries.
 - `review inbox --json` returns rooted consequence-only decision summaries
   with an explicit target-scoped Standing delta.
-- `review show --json` returns one pending Review Packet or terminal Decision.
+- `review show --json` returns one pending Proposal or terminal Decision.
 
 Default JSON does not embed full packet bodies, review collections, private
 coordination, test telemetry, or secret material.

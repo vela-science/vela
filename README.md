@@ -115,8 +115,8 @@ Install the GitHub-attested release:
 Vela supports Linux x86-64 and macOS Apple-silicon release bundles.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.966.4/install.sh | \
-  VELA_VERSION=v0.966.4 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.967.0/install.sh | \
+  VELA_VERSION=v0.967.0 bash
 vela --version
 ```
 
@@ -159,11 +159,11 @@ remote, untrusted, or proposal-supplied code.
 vela status . --json
 vela next . --limit 1 --json
 # Optional: print the exact stateless Target briefing.
-vela start <target> --frontier . --json
+vela start <target> --repo . --json
 
 # Produce the bounded artifact and run the declared verifier.
 
-vela submit --frontier . \
+vela submit --repo . \
   --claim "<bounded result>" \
   --type computational \
   --replayability exact \

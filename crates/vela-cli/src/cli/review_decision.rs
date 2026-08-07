@@ -27,7 +27,7 @@ pub(crate) fn cmd_review_decide(
         },
         json,
     );
-    ui::require_initialized_frontier(&frontier);
+    ui::require_initialized_repo(&frontier);
     if reason.trim().is_empty() {
         ui::fail_with(ErrorKind::Usage, "--reason must not be empty", None);
     }
@@ -95,7 +95,7 @@ fn cmd_current_review_decide(
         "command": format!("review.{}", action.as_str()),
         "schema": "vela.review-decision.v3",
         "frontier": frontier.display().to_string(),
-        "frontier_id": plan.frontier_id,
+        "repository_id": plan.repository_id,
         "repository_before": plan.repository_root,
         "proposal_id": plan.proposal_id,
         "proposal_root": plan.proposal_root,

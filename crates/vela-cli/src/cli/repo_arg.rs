@@ -3,14 +3,14 @@
 //! The surface used to carry four shapes and four resolution behaviours for
 //! the same concept: a required leading positional on `show`, `why`, `review`,
 //! and `verification`; an optional one on `status`, `next`, and `log`; a
-//! `default_value = "."` one on `authority trust pin`; and a `--frontier` flag
+//! `default_value = "."` one on `authority trust pin`; and a `--repo` flag
 //! on `start` and `submit`. A reader who learned `vela status` and then typed
 //! `vela show vcl_…` had the object id silently bound to the Frontier slot and
 //! was told the *object id* was missing.
 //!
 //! One rule now covers every verb that acts on an existing Frontier:
 //!
-//!   1. `--frontier <path>` is accepted everywhere.
+//!   1. `--repo <path>` is accepted everywhere.
 //!   2. The Frontier may also be the leading positional.
 //!   3. Omitted entirely, it is discovered upward from the current directory.
 //!
@@ -44,8 +44,8 @@ pub(crate) fn looks_like_object_id(token: &str) -> bool {
 fn given_twice(verb: &str) -> ! {
     ui::fail_with(
         ErrorKind::Usage,
-        "the Frontier was given twice: once positionally and once with --frontier",
-        Some(&format!("drop one, e.g. `vela {verb} --frontier <path>`")),
+        "the Frontier was given twice: once positionally and once with --repo",
+        Some(&format!("drop one, e.g. `vela {verb} --repo <path>`")),
     );
 }
 
@@ -53,7 +53,7 @@ fn given_twice(verb: &str) -> ! {
 /// instead of letting it fall through to "Frontier directory does not exist"
 /// with a hint pointing at `vela init` — a *writing* verb offered to repair an
 /// argument-order mistake.
-fn reject_object_id_as_frontier(verb: &str, candidate: &Path) {
+fn reject_object_id_as_repo(verb: &str, candidate: &Path) {
     let Some(token) = candidate.to_str() else {
         return;
     };
@@ -72,7 +72,7 @@ fn reject_object_id_as_frontier(verb: &str, candidate: &Path) {
 /// Verbs whose only Frontier-shaped argument is the Frontier itself:
 /// `status`, `next`, `replay`, `review inbox`, `review list`,
 /// `authority trust pin`.
-pub(crate) fn bind_frontier(
+pub(crate) fn bind_repo(
     verb: &str,
     positional: Option<PathBuf>,
     flag: Option<PathBuf>,
@@ -80,10 +80,10 @@ pub(crate) fn bind_frontier(
     match (positional, flag) {
         (Some(_), Some(_)) => given_twice(verb),
         (Some(path), None) => {
-            reject_object_id_as_frontier(verb, &path);
+            reject_object_id_as_repo(verb, &path);
             path
         }
-        (None, explicit) => ui::resolve_frontier(explicit),
+        (None, explicit) => ui::resolve_repo(explicit),
     }
 }
 
@@ -94,7 +94,7 @@ pub(crate) fn bind_frontier(
 /// `object` names the missing argument in the usage error — `"a Claim id
 /// (vcl_...)"` — and `value_name` is its slot in the usage line, so an omitted
 /// object is reported as an omitted object rather than as a missing Frontier.
-pub(crate) fn bind_frontier_and_object(
+pub(crate) fn bind_repo_and_object(
     verb: &str,
     object: &str,
     value_name: &str,
@@ -115,7 +115,7 @@ pub(crate) fn bind_frontier_and_object(
         (Some(_), Some(_)) if flag.is_some() => given_twice(verb),
         (Some(frontier), Some(object)) => {
             let frontier = PathBuf::from(frontier);
-            reject_object_id_as_frontier(verb, &frontier);
+            reject_object_id_as_repo(verb, &frontier);
             (frontier, object)
         }
         (Some(lone), None) => {
@@ -126,7 +126,7 @@ pub(crate) fn bind_frontier_and_object(
             if flag.is_none() && !looks_like_object_id(&lone) && Path::new(&lone).is_dir() {
                 missing();
             }
-            (ui::resolve_frontier(flag), lone)
+            (ui::resolve_repo(flag), lone)
         }
         (None, _) => missing(),
     }
@@ -134,7 +134,7 @@ pub(crate) fn bind_frontier_and_object(
 
 /// `log`, the one verb whose object filter is optional too. Count cannot
 /// separate a lone positional, so shape does — after `is_dir`.
-pub(crate) fn bind_frontier_and_optional_object(
+pub(crate) fn bind_repo_and_optional_object(
     verb: &str,
     first: Option<String>,
     second: Option<String>,
@@ -144,20 +144,20 @@ pub(crate) fn bind_frontier_and_optional_object(
         (Some(_), Some(_)) if flag.is_some() => given_twice(verb),
         (Some(frontier), Some(object)) => {
             let frontier = PathBuf::from(frontier);
-            reject_object_id_as_frontier(verb, &frontier);
+            reject_object_id_as_repo(verb, &frontier);
             (frontier, Some(object))
         }
         (Some(lone), None) => {
             if flag.is_some() {
-                return (ui::resolve_frontier(flag), Some(lone));
+                return (ui::resolve_repo(flag), Some(lone));
             }
             let candidate = PathBuf::from(&lone);
             if !candidate.is_dir() && looks_like_object_id(&lone) {
-                return (ui::resolve_frontier(None), Some(lone));
+                return (ui::resolve_repo(None), Some(lone));
             }
             (candidate, None)
         }
-        (None, _) => (ui::resolve_frontier(flag), None),
+        (None, _) => (ui::resolve_repo(flag), None),
     }
 }
 

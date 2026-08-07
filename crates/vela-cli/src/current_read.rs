@@ -292,8 +292,8 @@ fn origin_standing_history(
         };
         let manifest: Value = serde_json::from_slice(&repository_bytes)
             .map_err(|error| format!("parse predecessor repository manifest: {error}"))?;
-        if manifest.get("frontier_id").and_then(Value::as_str)
-            != Some(context.repository.frontier_id.as_str())
+        if manifest.get("repository_id").and_then(Value::as_str)
+            != Some(context.repository.repository_id.as_str())
         {
             return Err("repository origin predecessor belongs to the wrong Frontier".into());
         }
@@ -366,7 +366,7 @@ fn origin_standing_history(
             break;
         };
         let nested_origin = RepositoryOriginV1::parse(&origin_bytes)?;
-        if nested_origin.frontier_id != context.origin.frontier_id
+        if nested_origin.repository_id != context.origin.repository_id
             || nested_origin.profile_root != context.origin.profile_root
             || nested_origin.generation != expected_generation
         {
@@ -482,7 +482,7 @@ fn supersession_event<'a>(
     claim_id: &str,
 ) -> Option<&'a AuthorityEventV1> {
     authority_events.iter().rev().find(|event| {
-        event.content.kind.as_str() == "finding.superseded"
+        event.content.kind.as_str() == "claim.superseded"
             && event.content.target.r#type == "claim"
             && event.content.target.id == claim_id
     })
@@ -689,7 +689,7 @@ fn object_projection(
         "ok": true,
         "command": "show",
         "schema": "vela.object-view.v1",
-        "frontier_id": context.repository.frontier_id,
+        "repository_id": context.repository.repository_id,
         "repository_root": context.repository_root,
         "object_id": object_id,
         "object_kind": object_kind,
@@ -880,7 +880,7 @@ pub(crate) fn why_payload(frontier: &Path, claim_id: &str) -> Result<Value, Stri
         let successor_claim_id = event
             .pointer("/content/payload/claim_id")
             .and_then(Value::as_str);
-        (event.pointer("/content/kind").and_then(Value::as_str) == Some("finding.superseded")
+        (event.pointer("/content/kind").and_then(Value::as_str) == Some("claim.superseded")
             && (predecessor_claim_id == Some(claim_id) || successor_claim_id == Some(claim_id)))
         .then(|| {
             json!({
@@ -900,7 +900,7 @@ pub(crate) fn why_payload(frontier: &Path, claim_id: &str) -> Result<Value, Stri
         "ok": true,
         "command": "why",
         "schema": "vela.standing-explanation.v1",
-        "frontier_id": context.repository.frontier_id,
+        "repository_id": context.repository.repository_id,
         "repository_root": context.repository_root,
         "claim_id": claim_id,
         "claim_root": claim_root,
@@ -1029,7 +1029,7 @@ pub(crate) fn log_payload(
         "ok": true,
         "command": "log",
         "schema": "vela.authority-log.v1",
-        "frontier_id": context.repository.frontier_id,
+        "repository_id": context.repository.repository_id,
         "repository_root": context.repository_root,
         "source_era": "current",
         "object_id": object_id,
@@ -1040,7 +1040,7 @@ pub(crate) fn log_payload(
 
 pub(crate) fn cmd_show(frontier: &Path, object_id: &str, json_out: bool) {
     crate::ui::set_mode("show", json_out);
-    crate::ui::require_initialized_frontier(frontier);
+    crate::ui::require_initialized_repo(frontier);
     let projection = show_payload(frontier, object_id).unwrap_or_else(|error| fail_return(&error));
     if json_out {
         print_json(&projection);
@@ -1078,7 +1078,7 @@ fn render_show(projection: &Value) {
 
 pub(crate) fn cmd_why(frontier: &Path, claim_id: &str, json_out: bool) {
     crate::ui::set_mode("why", json_out);
-    crate::ui::require_initialized_frontier(frontier);
+    crate::ui::require_initialized_repo(frontier);
     if !claim_id.starts_with("vcl_") {
         crate::ui::fail_with(
             crate::ui::ErrorKind::Usage,
@@ -1221,7 +1221,7 @@ mod tests {
             &["config", "user.email", "vela@example.invalid"],
         );
         fs::create_dir_all(temp.path().join(".vela")).expect("create fixture .vela");
-        let repository_bytes = br#"{"frontier_id":"vfr_fixture","proposals":[],"schema":"vela.repository.v2","verifications":[]}"#.to_vec();
+        let repository_bytes = br#"{"repository_id":"vrepo_fixture","proposals":[],"schema":"vela.repository.v2","verifications":[]}"#.to_vec();
         fs::write(temp.path().join(".vela/repository.json"), &repository_bytes)
             .expect("write fixture repository");
         git(temp.path(), &["add", ".vela/repository.json"]);
@@ -1264,7 +1264,7 @@ mod tests {
     fn current_log_kind_filter_is_literal() {
         let filter = "review.";
         assert!("review.accepted".contains(filter));
-        assert!(!"finding.asserted".contains(filter));
+        assert!(!"claim.asserted".contains(filter));
     }
 
     #[test]
@@ -1273,7 +1273,7 @@ mod tests {
             transaction_id: "vtx_fixture".into(),
             principal_id: "local:fixture|uid:501".into(),
             authority_mode: AUTHORITY_MODE.into(),
-            kind: EventKind::FindingSuperseded,
+            kind: EventKind::ClaimSuperseded,
             target: StateTarget {
                 r#type: "claim".into(),
                 id: "vcl_predecessor".into(),

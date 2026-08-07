@@ -277,17 +277,17 @@ fn verification_help_exposes_ordinary_authoring_without_key_flags() {
             "verification record help omitted {flag}"
         );
     }
-    // The Frontier is optional on every verb that acts on an existing Frontier: it is
+    // The repository is optional on every verb that acts on an existing one: it is
     // discovered upward when omitted, and may be given either as the leading positional
-    // or as `--frontier`. Help must show both spellings, and must show the positional as
-    // optional -- `<FRONTIER>` here would assert the retired required-positional surface.
+    // or as `--repo`. Help must show both spellings, and must show the positional as
+    // optional -- `<REPO>` here would assert the retired required-positional surface.
     assert!(
-        help.contains("[FRONTIER]"),
-        "verification record help omitted the optional Frontier positional"
+        help.contains("[REPO]"),
+        "verification record help omitted the optional repository positional"
     );
     assert!(
-        help.contains("--frontier"),
-        "verification record help omitted the --frontier spelling"
+        help.contains("--repo"),
+        "verification record help omitted the --repo spelling"
     );
     // The Proposal stays required, and the usage line is what states so.
     assert!(help.contains("<PROPOSAL>"));

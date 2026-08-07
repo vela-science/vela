@@ -84,7 +84,7 @@ pub struct AuthorityMemberV1 {
 pub struct AuthorizationModelV1 {
     pub schema: String,
     pub profile: String,
-    pub frontier_id: String,
+    pub repository_id: String,
     pub members: Vec<AuthorityMemberV1>,
     pub previous_model_root: Option<String>,
 }
@@ -95,7 +95,7 @@ impl AuthorizationModelV1 {
         {
             return Err("authorization model schema or profile is invalid".into());
         }
-        require_identifier("authorization model frontier_id", &self.frontier_id, "vfr_")?;
+        require_identifier("authorization model repository_id", &self.repository_id, "vrepo_")?;
         if self.members.is_empty() {
             return Err("authorization model must contain at least one member".into());
         }
@@ -136,7 +136,7 @@ impl AuthorizationModelV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AuthorizationResourceV1 {
-    pub frontier_id: String,
+    pub repository_id: String,
     pub resource_type: AuthorityResourceTypeV1,
     pub resource_id: String,
 }
@@ -144,12 +144,12 @@ pub struct AuthorizationResourceV1 {
 impl AuthorizationResourceV1 {
     pub fn validate(&self) -> Result<(), String> {
         require_identifier(
-            "authorization resource frontier_id",
-            &self.frontier_id,
-            "vfr_",
+            "authorization resource repository_id",
+            &self.repository_id,
+            "vrepo_",
         )?;
         let prefix = match self.resource_type {
-            AuthorityResourceTypeV1::Frontier => "vfr_",
+            AuthorityResourceTypeV1::Frontier => "vrepo_",
             AuthorityResourceTypeV1::Proposal => "vpr_",
         };
         require_identifier("authorization resource_id", &self.resource_id, prefix)
@@ -163,7 +163,7 @@ pub struct AuthorizationRequestV1 {
     pub schema: String,
     pub profile: String,
     pub model_root: String,
-    pub frontier_id: String,
+    pub repository_id: String,
     pub principal_id: String,
     pub principal_class: PrincipalClass,
     pub action: AuthorityActionV1,
@@ -183,9 +183,9 @@ impl AuthorizationRequestV1 {
         }
         require_sha256("authorization request model_root", &self.model_root)?;
         require_identifier(
-            "authorization request frontier_id",
-            &self.frontier_id,
-            "vfr_",
+            "authorization request repository_id",
+            &self.repository_id,
+            "vrepo_",
         )?;
         crate::shape::require_bounded_text(
             "authorization request principal_id",
@@ -306,7 +306,7 @@ mod tests {
         AuthorizationModelV1 {
             schema: AUTHORIZATION_MODEL_SCHEMA_V1.into(),
             profile: AUTHORIZATION_PROFILE_V1.into(),
-            frontier_id: "vfr_fixture".into(),
+            repository_id: "vrepo_fixture".into(),
             members: vec![
                 AuthorityMemberV1 {
                     principal_id: "local:device-1|uid:501".into(),
@@ -328,12 +328,12 @@ mod tests {
             schema: AUTHORIZATION_REQUEST_SCHEMA_V1.into(),
             profile: AUTHORIZATION_PROFILE_V1.into(),
             model_root,
-            frontier_id: "vfr_fixture".into(),
+            repository_id: "vrepo_fixture".into(),
             principal_id: "local:device-1|uid:501".into(),
             principal_class: PrincipalClass::Human,
             action: AuthorityActionV1::ReviewAccept,
             resource: AuthorizationResourceV1 {
-                frontier_id: "vfr_fixture".into(),
+                repository_id: "vrepo_fixture".into(),
                 resource_type: AuthorityResourceTypeV1::Proposal,
                 resource_id: "vpr_0123456789abcdef".into(),
             },

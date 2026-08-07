@@ -67,7 +67,7 @@ pub(crate) fn from_proposal_status(status: &str) -> &'static str {
 /// out of repository state, and reading the verdict alone reported the
 /// retracted Claim as `accepted` — the strongest word on the axis, for the one
 /// act that removes standing. `retracted` is what `docs/TERMINOLOGY.md`
-/// declares for it, and the `finding.retracted` Event the same transaction
+/// declares for it, and the `claim.retracted` Event the same transaction
 /// commits is the authority behind the word.
 pub(crate) fn from_proposal_outcome(action: &str, status: &str) -> &'static str {
     match (action, status) {

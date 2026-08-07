@@ -7,8 +7,13 @@ encoding; the containing schema and field identify what was hashed.
 
 1. Security comparisons use the full digest, root kind, and canonicalization
    profile.
-2. Readable prefixes such as `vfr_`, `vcl_`, `vsb_`, `vvr_`, `vpr_`,
+2. Readable prefixes such as `vrepo_`, `vcl_`, `vsb_`, `vvr_`, `vpr_`,
    and `vev_` are routing handles, not interchangeable security roots.
+   Most take the form `v` plus two letters; `vrepo_` is four, because both
+   three-letter spellings of "repository" transpose into prefixes already in
+   service and the top-level identity is the worst one to misread. A prefix is
+   never reused across epochs: `vfr_` names an epoch-1 repository and stays
+   bound to it.
 3. Roots from different domains remain different typed commitments even when
    their 64 hexadecimal characters coincide.
 4. Missing, malformed, shortened, ambiguous, or differently typed roots fail

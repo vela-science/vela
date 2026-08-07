@@ -12,9 +12,9 @@ use std::path::Path;
 use serde::Serialize;
 
 use crate::authority_transaction::{AuthorityDerivedDraft, AuthorityObjectDraft};
-use crate::frontier_txn::{
-    CanonicalWriteBarrier, ContentDigest, DeltaDraft, FrontierBinding, FrontierTxn,
-    FrontierTxnError, FrontierTxnPlan, FrontierTxnPlanSpec, InputBinding, OperationId,
+use crate::repository_txn::{
+    CanonicalWriteBarrier, ContentDigest, DeltaDraft, RepositoryBinding, RepositoryTxn,
+    RepositoryTxnError, RepositoryTxnPlan, RepositoryTxnPlanSpec, InputBinding, OperationId,
     OperationKind, PlannedWrite, RepoPath, WriteClass,
 };
 
@@ -24,7 +24,7 @@ const RESULT_SCHEMA: &str = "vela.routine-evidence-transaction-result.internal.v
 #[derive(Serialize)]
 struct LayoutCommitment<'a> {
     schema: &'static str,
-    frontier_id: &'a str,
+    repository_id: &'a str,
     object_paths: Vec<&'a str>,
     derived_paths: Vec<&'a str>,
 }
@@ -39,13 +39,13 @@ struct DurableResult<'a> {
 /// Prepared routine evidence write with the same durability/publication
 /// surface as an authority transaction, but no authority signer or envelope.
 pub(crate) struct PreparedRoutineEvidenceTransaction {
-    transaction: FrontierTxn,
+    transaction: RepositoryTxn,
 }
 
 impl PreparedRoutineEvidenceTransaction {
     pub(crate) fn resolved_public_writes(
         &self,
-    ) -> Result<Vec<crate::frontier_txn::ResolvedWrite>, FrontierTxnError> {
+    ) -> Result<Vec<crate::repository_txn::ResolvedWrite>, RepositoryTxnError> {
         self.transaction.resolved_public_writes()
     }
 
@@ -53,23 +53,23 @@ impl PreparedRoutineEvidenceTransaction {
         self.transaction.canonical_delta_root()
     }
 
-    pub(crate) fn abort_prepared(&mut self) -> Result<(), FrontierTxnError> {
+    pub(crate) fn abort_prepared(&mut self) -> Result<(), RepositoryTxnError> {
         self.transaction.abort_prepared()
     }
 
-    pub(crate) fn mark_committed(&mut self) -> Result<(), FrontierTxnError> {
+    pub(crate) fn mark_committed(&mut self) -> Result<(), RepositoryTxnError> {
         self.transaction.mark_committed()
     }
 
-    pub(crate) fn install(&mut self) -> Result<(), FrontierTxnError> {
+    pub(crate) fn install(&mut self) -> Result<(), RepositoryTxnError> {
         self.transaction.install()
     }
 
-    pub(crate) fn complete(&mut self) -> Result<(), FrontierTxnError> {
+    pub(crate) fn complete(&mut self) -> Result<(), RepositoryTxnError> {
         self.transaction.complete()
     }
 
-    pub(crate) fn retire_completed_recovery_blobs(&mut self) -> Result<usize, FrontierTxnError> {
+    pub(crate) fn retire_completed_recovery_blobs(&mut self) -> Result<usize, RepositoryTxnError> {
         self.transaction.retire_completed_recovery_blobs()
     }
 }
@@ -78,7 +78,7 @@ impl PreparedRoutineEvidenceTransaction {
 pub(crate) fn prepare_routine_evidence_transaction(
     barrier: CanonicalWriteBarrier,
     frontier: &Path,
-    frontier_id: &str,
+    repository_id: &str,
     kind: OperationKind,
     operation_id: OperationId,
     request_root: &str,
@@ -122,7 +122,7 @@ pub(crate) fn prepare_routine_evidence_transaction(
     }
     let layout = vela_protocol::canonical::to_canonical_bytes(&LayoutCommitment {
         schema: LAYOUT_SCHEMA,
-        frontier_id,
+        repository_id,
         object_paths: object_drafts
             .iter()
             .map(|draft| draft.path.as_str())
@@ -132,13 +132,13 @@ pub(crate) fn prepare_routine_evidence_transaction(
             .map(|draft| draft.path.as_str())
             .collect(),
     })?;
-    let plan = FrontierTxnPlan::new(
-        FrontierTxnPlanSpec {
+    let plan = RepositoryTxnPlan::new(
+        RepositoryTxnPlanSpec {
             kind,
             operation_id: operation_id.clone(),
             request_root: ContentDigest::parse(request_root.to_string())
                 .map_err(|error| error.to_string())?,
-            frontier: FrontierBinding::new(frontier, frontier_id, &layout)
+            frontier: RepositoryBinding::new(frontier, repository_id, &layout)
                 .map_err(|error| error.to_string())?,
             fixed_time,
             read_set,
@@ -152,7 +152,7 @@ pub(crate) fn prepare_routine_evidence_transaction(
         draft.delta.clone(),
     )
     .map_err(|error| error.to_string())?;
-    let transaction = FrontierTxn::prepare_with_barrier(barrier, plan, draft)
+    let transaction = RepositoryTxn::prepare_with_barrier(barrier, plan, draft)
         .map_err(|error| error.to_string())?;
     Ok(PreparedRoutineEvidenceTransaction { transaction })
 }

@@ -31,9 +31,9 @@ Ed25519 identity is loaded, select the intended full fingerprint with
 vela status . --json
 vela next . --limit 1 --json
 # Optional write-free Target briefing.
-vela start <target> --frontier . --json
+vela start <target> --repo . --json
 
-vela submit --frontier . \
+vela submit --repo . \
   --claim "<scoped result>" \
   --type <computational|theoretical|empirical|negative|contradiction> \
   --replayability <exact|bounded|approximate|unavailable|unknown> \
@@ -44,7 +44,7 @@ vela submit --frontier . \
 ```
 
 The agent, workbench, notebook, proof assistant, or laboratory system performs
-the work directly. Vela does not wrap it. `start` writes no Attempt, lease,
+the work directly. Vela does not wrap it. `start` writes no run record, lease,
 budget, or workflow state; it only returns the exact Target briefing. The
 producer retains native files and submits only the
 bounded artifact and Claim needed for review. Benchmarks use Harbor tasks

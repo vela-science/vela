@@ -3,13 +3,13 @@
 //! It used to have four of each: a required leading positional on `show`,
 //! `why`, `review *` and `verification *`; an optional one on `status`, `next`
 //! and `log`; `default_value = "."` on `authority trust pin`; and a
-//! `--frontier` flag on `start` and `submit`. A reader who learned `vela
+//! `--repo` flag on `start` and `submit`. A reader who learned `vela
 //! status` and then typed `vela show vcl_…` had the object id bound to the
 //! Frontier slot and was told the *object id* was missing.
 //!
 //! These tests assert the convention itself rather than any message: every
 //! documented spelling still binds the same way, the short spelling produces
-//! the identical payload, `--frontier` is accepted everywhere, and a usage
+//! the identical payload, `--repo` is accepted everywhere, and a usage
 //! error names the argument that is actually absent.
 
 use std::path::Path;
@@ -239,23 +239,23 @@ fn one_frontier_convention_across_the_surface() {
             short.join(" ")
         );
 
-        /* The third spelling. `--frontier` was previously accepted on
+        /* The third spelling. `--repo` was previously accepted on
         `start` and `submit` only, which is why a user could not carry the
         habit; it now works on every verb that acts on a Frontier, and it
         works from outside the tree, where discovery has nothing to find. */
         let mut flagged = short.clone();
-        flagged.extend_from_slice(&["--frontier", frontier]);
+        flagged.extend_from_slice(&["--repo", frontier]);
         let flagged = fixture.outside(&flagged);
         assert!(
             flagged.status.success(),
-            "`vela {} --frontier <path>` must work from outside the Frontier: {}",
+            "`vela {} --repo <path>` must work from outside the Frontier: {}",
             short.join(" "),
             stderr(&flagged)
         );
         assert_eq!(
             json(&long),
             json(&flagged),
-            "`--frontier` must name the same Frontier the positional does"
+            "`--repo` must name the same Frontier the positional does"
         );
     }
 
@@ -285,7 +285,7 @@ fn one_frontier_convention_across_the_surface() {
         vec![
             "verification",
             "import",
-            "--frontier",
+            "--repo",
             ".",
             "not-a-record.json",
             "--as",
@@ -373,7 +373,7 @@ fn a_missing_argument_error_names_the_missing_argument(fixture: &Fixture) {
 
     /* Both spellings at once is ambiguous, and guessing would be worse than
     refusing. */
-    let twice = fixture.inside(&["why", "--frontier", ".", ".", &claim, "--json"]);
+    let twice = fixture.inside(&["why", "--repo", ".", ".", &claim, "--json"]);
     assert_eq!(twice.status.code(), Some(2));
     assert!(
         json(&twice)["error"]["message"]

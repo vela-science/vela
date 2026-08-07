@@ -11,6 +11,7 @@
 ## Current contracts
 
 - [Protocol](PROTOCOL.md)
+- [Ecosystem](ECOSYSTEM.md)
 - [Architecture](ARCHITECTURE.md)
 - [Authority and attribution](SIGNING.md)
 - [Verification](VERIFICATION.md)

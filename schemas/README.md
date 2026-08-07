@@ -7,13 +7,24 @@ producer, verifier, and authority-envelope structure:
 - `vela.verification-record.v1`; and
 - `vela.proposal-withdrawal.v1`.
 
+And the three objects that carry the science:
+
+- `vela.claim-record.v1`;
+- `vela.proposal.v1`; and
+- `vela.repository-origin.v1`.
+
+Those three were unpublished until they were derived, which meant the schema
+for a Claim Record could not be generated at all — the contract a reader most
+needs to check a Claim without this implementation was the one contract the
+repository did not state.
+
 `authority-envelope-v1.schema.json` describes the current DSSE authority
 envelope. In accordance with DSSE, the envelope and signature entries permit
 unknown fields; the decoded Vela authority payload remains closed.
 
 ## One of these is a read surface
 
-`status-v3.schema.json` describes `vela.status.v3`, the document
+`status-v4.schema.json` describes `vela.status.v4`, the document
 `vela status --json` answers with. It signs nothing and roots nothing. It is
 published because a second implementation parses it: the Observatory in
 `vela-web` builds its whole projection from this document, and until this file
@@ -49,7 +60,7 @@ identifiers, Ed25519 signatures, referenced objects, actor relationships,
 repository invariants, human Decision authority, or Standing. The schemas use
 `format: date-time` as an assertion in Vela's conformance check.
 
-`status-v3.schema.json` states one rule its consumer does not have to restate:
+`status-v4.schema.json` states one rule its consumer does not have to restate:
 every field is `required`, including the ones whose value is `null` on a
 Frontier that cannot fill them. A bootstrapping repository has a Git pointer
 with no commit behind it, not an absent Git pointer, and a schema that let the

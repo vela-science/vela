@@ -49,7 +49,7 @@ The current CLI exposes closed JSON for:
 - write-free Target briefings;
 - typed object inspection;
 - Claim Standing explanations;
-- Proposal lists and Review Packets;
+- Proposal lists and their rendered detail;
 - strict checks and reproduction; and
 - authority and repository verification.
 

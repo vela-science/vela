@@ -17,7 +17,7 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
         VerifyAction::Record {
             first,
             second,
-            frontier_flag,
+            repo_flag,
             profile,
             method,
             property,
@@ -30,17 +30,17 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
             json,
         } => {
             crate::ui::set_mode("verification.record", json);
-            let (frontier, proposal) = crate::cli::frontier_arg::bind_frontier_and_object(
+            let (repository, proposal) = crate::cli::repo_arg::bind_repo_and_object(
                 "verification record",
                 "a Proposal id (vpr_...)",
                 "PROPOSAL",
                 first,
                 second,
-                frontier_flag,
+                repo_flag,
             );
-            crate::ui::require_initialized_frontier(&frontier);
+            crate::ui::require_initialized_repo(&repository);
             let record = crate::current_verification::author_record(
-                &frontier,
+                &repository,
                 crate::current_verification::VerificationRecordRequest {
                     proposal_id: proposal,
                     profile,
@@ -68,28 +68,28 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                 }
                 fail_return(&error)
             });
-            let result = crate::repository_ops::import_verification(&frontier, &record, &actor)
+            let result = crate::repository_ops::import_verification(&repository, &record, &actor)
                 .unwrap_or_else(|error| fail_return(&error));
             print_verification_result(&result, "verification record", json);
         }
         VerifyAction::Import {
             first,
             second,
-            frontier_flag,
+            repo_flag,
             actor,
             json,
         } => {
             crate::ui::set_mode("verification.import", json);
-            let (frontier, record) = crate::cli::frontier_arg::bind_frontier_and_object(
+            let (repository, record) = crate::cli::repo_arg::bind_repo_and_object(
                 "verification import",
                 "a signed Verification Record file",
                 "RECORD",
                 first,
                 second,
-                frontier_flag,
+                repo_flag,
             );
             let record = std::path::PathBuf::from(record);
-            crate::ui::require_initialized_frontier(&frontier);
+            crate::ui::require_initialized_repo(&repository);
             let bytes = crate::bounded_file::read_bounded_file(
                 &record,
                 vela_protocol::verification_record::VERIFICATION_RECORD_MAX_BYTES as u64,
@@ -103,7 +103,7 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                         record.display()
                     ))
                 });
-            let result = crate::repository_ops::import_verification(&frontier, &record, &actor)
+            let result = crate::repository_ops::import_verification(&repository, &record, &actor)
                 .unwrap_or_else(|error| fail_return(&error));
             print_verification_result(&result, "verification import", json);
         }
@@ -128,7 +128,7 @@ fn print_verification_result(
 }
 
 fn verified_frontier_file(
-    frontier: &Path,
+    repository: &Path,
     label: &str,
     locator: &str,
     expected_root: &str,
@@ -142,11 +142,11 @@ fn verified_frontier_file(
             )
         })
     {
-        return Err(format!("{label} path must remain frontier-relative"));
+        return Err(format!("{label} path must remain repository-relative"));
     }
-    let frontier_root = std::fs::canonicalize(frontier)
-        .map_err(|error| format!("resolve frontier root: {error}"))?;
-    let file = frontier.join(relative);
+    let frontier_root = std::fs::canonicalize(repository)
+        .map_err(|error| format!("resolve repository root: {error}"))?;
+    let file = repository.join(relative);
     let metadata =
         std::fs::symlink_metadata(&file).map_err(|error| format!("inspect {label}: {error}"))?;
     if !metadata.file_type().is_file() || metadata.file_type().is_symlink() {
@@ -155,7 +155,7 @@ fn verified_frontier_file(
     let resolved =
         std::fs::canonicalize(&file).map_err(|error| format!("resolve {label}: {error}"))?;
     if !resolved.starts_with(&frontier_root) {
-        return Err(format!("{label} resolves outside the frontier"));
+        return Err(format!("{label} resolves outside the repository"));
     }
     use sha2::{Digest, Sha256};
     let bytes = std::fs::read(&resolved).map_err(|error| format!("read {label}: {error}"))?;
@@ -168,11 +168,11 @@ fn verified_frontier_file(
     Ok(resolved)
 }
 
-fn reproduction_result_path(frontier: &Path, file: &Path, proposal_scoped: bool) -> String {
+fn reproduction_result_path(repository: &Path, file: &Path, proposal_scoped: bool) -> String {
     if !proposal_scoped {
         return file.display().to_string();
     }
-    let root = std::fs::canonicalize(frontier).unwrap_or_else(|_| frontier.to_path_buf());
+    let root = std::fs::canonicalize(repository).unwrap_or_else(|_| repository.to_path_buf());
     let resolved = std::fs::canonicalize(file).unwrap_or_else(|_| file.to_path_buf());
     resolved.strip_prefix(&root).map_or_else(
         |_| {
@@ -192,12 +192,12 @@ struct NativeReplayHint {
 }
 
 fn proposal_native_replay_hint(
-    frontier: &Path,
+    repository: &Path,
     proposal_id: &str,
     proposal_path: &str,
     proposal_root: &str,
 ) -> Result<Option<NativeReplayHint>, String> {
-    let reproductions = frontier.join("reproductions");
+    let reproductions = repository.join("reproductions");
     if !reproductions.is_dir() {
         return Ok(None);
     }
@@ -262,7 +262,7 @@ fn proposal_native_replay_hint(
             ));
         }
         verified_frontier_file(
-            frontier,
+            repository,
             "source-local replay Proposal",
             retained_proposal_path,
             retained_proposal_root,
@@ -281,7 +281,7 @@ fn proposal_native_replay_hint(
                 format!("source-local replay capsule for proposal {proposal_id} has no implementation root")
             })?;
         let implementation = verified_frontier_file(
-            frontier,
+            repository,
             "source-local replay implementation",
             implementation_path,
             implementation_root,
@@ -295,7 +295,7 @@ fn proposal_native_replay_hint(
                 "source-local replay implementation for proposal {proposal_id} is not a directly inspectable Python program"
             ));
         }
-        let implementation_relative = reproduction_result_path(frontier, &implementation, true);
+        let implementation_relative = reproduction_result_path(repository, &implementation, true);
         let source = capsule
             .pointer("/source/repository")
             .and_then(Value::as_str)
@@ -439,8 +439,8 @@ pub(crate) fn proposal_reproduction_files(
 
 pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output: bool) {
     crate::ui::set_mode("reproduce", json_output);
-    if path.is_dir() && path.join("frontier.toml").is_file() {
-        crate::ui::require_initialized_frontier(path);
+    if path.is_dir() && path.join("vela.toml").is_file() {
+        crate::ui::require_initialized_repo(path);
     }
     let mut scope = if path.is_file() {
         "standalone_artifact"
@@ -489,7 +489,7 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
                     );
                 }
                 None => fail(&format!(
-                    "proposal {proposal_id} has no frontier-local frozen witness or rooted source-local replay to reproduce; inspect its retained artifacts and verifier evidence"
+                    "proposal {proposal_id} has no repository-local frozen witness or rooted source-local replay to reproduce; inspect its retained artifacts and verifier evidence"
                 )),
             }
         }
@@ -651,31 +651,31 @@ mod gate_tests {
 
     #[test]
     fn proposal_reproduction_reads_only_rooted_frontier_files() {
-        let frontier = tempfile::tempdir().unwrap();
-        std::fs::create_dir(frontier.path().join("records")).unwrap();
+        let repository = tempfile::tempdir().unwrap();
+        std::fs::create_dir(repository.path().join("records")).unwrap();
         let bytes = br#"{"schema":"fixture"}"#;
-        std::fs::write(frontier.path().join("records/witness.json"), bytes).unwrap();
+        std::fs::write(repository.path().join("records/witness.json"), bytes).unwrap();
         let root = format!("sha256:{}", hex::encode(Sha256::digest(bytes)));
         let resolved = verified_frontier_file(
-            frontier.path(),
+            repository.path(),
             "fixture witness",
             "records/witness.json",
             &root,
         )
         .unwrap();
-        assert!(resolved.starts_with(std::fs::canonicalize(frontier.path()).unwrap()));
+        assert!(resolved.starts_with(std::fs::canonicalize(repository.path()).unwrap()));
         assert_eq!(
-            reproduction_result_path(frontier.path(), &resolved, true),
+            reproduction_result_path(repository.path(), &resolved, true),
             "records/witness.json"
         );
 
         let traversal =
-            verified_frontier_file(frontier.path(), "fixture witness", "../secret.json", &root)
+            verified_frontier_file(repository.path(), "fixture witness", "../secret.json", &root)
                 .unwrap_err();
-        assert!(traversal.contains("frontier-relative"));
+        assert!(traversal.contains("repository-relative"));
 
         let tampered = verified_frontier_file(
-            frontier.path(),
+            repository.path(),
             "fixture witness",
             "records/witness.json",
             &format!("sha256:{}", "0".repeat(64)),
@@ -686,19 +686,19 @@ mod gate_tests {
 
     #[test]
     fn proposal_native_replay_hint_binds_current_proposal_and_implementation() {
-        let frontier = tempfile::tempdir().unwrap();
-        std::fs::create_dir_all(frontier.path().join("records/proposals/sha256")).unwrap();
-        std::fs::create_dir_all(frontier.path().join("reproductions/example")).unwrap();
+        let repository = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(repository.path().join("records/proposals/sha256")).unwrap();
+        std::fs::create_dir_all(repository.path().join("reproductions/example")).unwrap();
 
         let proposal_bytes = br#"{"schema":"fixture-proposal"}"#;
         let proposal_path = "records/proposals/sha256/proposal.json";
-        std::fs::write(frontier.path().join(proposal_path), proposal_bytes).unwrap();
+        std::fs::write(repository.path().join(proposal_path), proposal_bytes).unwrap();
         let proposal_root = format!("sha256:{}", hex::encode(Sha256::digest(proposal_bytes)));
 
         let implementation_bytes = b"#!/usr/bin/env python3\n";
         let implementation_path = "reproductions/example/replay.py";
         std::fs::write(
-            frontier.path().join(implementation_path),
+            repository.path().join(implementation_path),
             implementation_bytes,
         )
         .unwrap();
@@ -708,7 +708,7 @@ mod gate_tests {
         );
 
         std::fs::write(
-            frontier.path().join("reproductions/example/capsule.json"),
+            repository.path().join("reproductions/example/capsule.json"),
             serde_json::to_vec_pretty(&json!({
                 "authority": "evidence_only",
                 "standing_effect": "none",
@@ -733,7 +733,7 @@ mod gate_tests {
         .unwrap();
 
         let hint = proposal_native_replay_hint(
-            frontier.path(),
+            repository.path(),
             "vpr_fixture",
             proposal_path,
             &proposal_root,
@@ -750,7 +750,7 @@ mod gate_tests {
         );
 
         let mismatch = proposal_native_replay_hint(
-            frontier.path(),
+            repository.path(),
             "vpr_fixture",
             proposal_path,
             &format!("sha256:{}", "0".repeat(64)),

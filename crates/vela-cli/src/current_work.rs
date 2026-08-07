@@ -22,7 +22,7 @@ fn briefing(frontier: &Path, target_id: &str) -> Result<Value, String> {
     }
     let assessment = vela_edge::target_index::assess_current_target_index(
         frontier,
-        &repository.frontier_id,
+        &repository.repository_id,
         &repository.origin_id,
         &repository_root,
     )?
@@ -70,7 +70,7 @@ fn briefing(frontier: &Path, target_id: &str) -> Result<Value, String> {
         "packet": packet,
         "packet_root": target.packet.sha256,
         "repository": {
-            "frontier_id": repository.frontier_id,
+            "repository_id": repository.repository_id,
             "origin_id": repository.origin_id,
             "root": repository_root,
         },
@@ -89,7 +89,7 @@ fn briefing(frontier: &Path, target_id: &str) -> Result<Value, String> {
 
 pub(crate) fn cmd_start(frontier: &Path, target: &str, json_out: bool) {
     crate::ui::set_mode("start", json_out);
-    crate::ui::require_initialized_frontier(frontier);
+    crate::ui::require_initialized_repo(frontier);
     let result = briefing(frontier, target).unwrap_or_else(|error| crate::cli::fail_return(&error));
     if json_out {
         crate::cli::print_json(&result);

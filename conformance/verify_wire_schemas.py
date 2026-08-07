@@ -92,17 +92,17 @@ def verify_manifest() -> None:
 
 
 def status_document(**overrides: object) -> dict:
-    """A replaying Frontier's `vela.status.v3`, as the CLI emits it."""
+    """A replaying Frontier's `vela.status.v4`, as the CLI emits it."""
     document = {
-        "schema": "vela.status.v3",
+        "schema": "vela.status.v4",
         "ok": True,
         "command": "status",
-        "frontier": {
-            "id": "vfr_0a25edabc16db143",
-            "name": "Fixture frontier",
+        "repository": {
+            "id": "vrepo_0a25edabc16db143",
+            "name": "Fixture repository",
             "profile_root": "sha256:" + "1" * 64,
         },
-        "git": {"role": "frontier_head", "commit": "a" * 40, "tree": "b" * 40},
+        "git": {"role": "repository_head", "commit": "a" * 40, "tree": "b" * 40},
         "integrity": {
             "replay": "verified",
             "strict": "pass",
@@ -149,7 +149,7 @@ def status_document(**overrides: object) -> dict:
 
 
 def verify_status_read_surface() -> tuple[int, int]:
-    """Hold `status-v3.schema.json` to the two documents `vela status` emits.
+    """Hold `status-v4.schema.json` to the two documents `vela status` emits.
 
     This schema describes a read surface rather than a signed object, so there
     is no canonical-bytes fixture behind it and no signature to check. What
@@ -163,7 +163,7 @@ def verify_status_read_surface() -> tuple[int, int]:
     Observatory as fail-closed breaks in one week; a dropped key would reach it
     as a field silently read as absent.
     """
-    check = validator("status-v3.schema.json")
+    check = validator("status-v4.schema.json")
 
     replaying = status_document()
     check.validate(replaying)
@@ -171,7 +171,7 @@ def verify_status_read_surface() -> tuple[int, int]:
     # A Frontier whose repository authority has not finished initializing
     # answers the same document, with the anchors it does not have yet null.
     bootstrapping = status_document(
-        git={"role": "frontier_head", "commit": None, "tree": None},
+        git={"role": "repository_head", "commit": None, "tree": None},
         integrity={
             "replay": "not_initialized",
             "strict": "blocked",

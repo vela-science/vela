@@ -72,13 +72,13 @@ pub(crate) fn cmd_init(
             );
         }
         json!({
-            "schema": "vela.frontier-init.v2",
+            "schema": "vela.repository-init-draft.v1",
             "ok": true,
             "layout": "vela.repository-bootstrap.v1",
             "path": path.display().to_string(),
             "name": profile.name,
             "scope": profile.scope.question,
-            "frontier_id": profile.frontier_id,
+            "repository_id": profile.repository_id,
             "profile_root": profile.profile_root()
                 .unwrap_or_else(|error| fail_return(&error)),
             "authority": "uninitialized",
@@ -116,18 +116,18 @@ pub(crate) fn cmd_init(
                 )
             }
             RepositoryAuthorityInitError::TrustPinCollision {
-                frontier_id,
+                repository_id,
                 record_root,
                 pin_path,
                 pinned_root,
             } => crate::ui::fail_with(
                 crate::ui::ErrorKind::Domain,
                 &format!(
-                    "repository authority initialized at {record_root}, but the local trust pin for {frontier_id} at {pin_path} already selects {pinned_root}"
+                    "repository authority initialized at {record_root}, but the local trust pin for {repository_id} at {pin_path} already selects {pinned_root}"
                 ),
                 Some(&trust_pin_collision_hint(
                     path,
-                    &frontier_id,
+                    &repository_id,
                     &record_root,
                     &pin_path,
                     &pinned_root,
@@ -135,7 +135,7 @@ pub(crate) fn cmd_init(
                 )),
             ),
         });
-    payload["schema"] = json!("vela.frontier-init.v3");
+    payload["schema"] = json!("vela.repository-init.v1");
     payload["authority"] = json!({
         "state": "initialized",
         "principal_id": authority["principal_id"],
@@ -155,7 +155,7 @@ pub(crate) fn cmd_init(
         "git_tree": authority["git_tree"],
     });
     payload["next_action"] = json!(format!(
-        "vela submit --frontier {} --help",
+        "vela submit --repo {} --help",
         shell_arg(&path.display().to_string())
     ));
     if json_output {
@@ -214,11 +214,11 @@ fn resume_command(
 
 /// The remedy for a pin collision is never a key operation: a new key produces
 /// a new record root, hence the same collision. It is also not automatically a
-/// rebind — frontier_id is derived from name and scope, so the installed pin
+/// rebind — repository_id is derived from name and scope, so the installed pin
 /// may belong to a different repository that chose the same two.
 fn trust_pin_collision_hint(
     path: &Path,
-    frontier_id: &str,
+    repository_id: &str,
     record_root: &str,
     pin_path: &str,
     pinned_root: &str,
@@ -232,7 +232,7 @@ fn trust_pin_collision_hint(
         rebind.push_str(" --json");
     }
     format!(
-        "the pin is a write gate, so this Frontier cannot take an authority write until it is reconciled; read {pin_path} first. If it pins a different repository, rerun `vela init` with a --name or --scope that does not derive {frontier_id}. If it is a stale pin for this Frontier and you have independently verified the new root, advance it with: {rebind}"
+        "the pin is a write gate, so this Frontier cannot take an authority write until it is reconciled; read {pin_path} first. If it pins a different repository, rerun `vela init` with a --name or --scope that does not derive {repository_id}. If it is a stale pin for this Frontier and you have independently verified the new root, advance it with: {rebind}"
     )
 }
 

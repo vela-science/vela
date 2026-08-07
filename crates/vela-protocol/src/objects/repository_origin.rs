@@ -1,18 +1,19 @@
 //! Single current repository origin used after the pre-release compaction.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 pub const REPOSITORY_ORIGIN_V1_SCHEMA: &str = "vela.repository-origin.v1";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum RepositoryOriginKind {
     Genesis,
     Compaction,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RepositoryOriginPredecessorV1 {
     pub remote: String,
@@ -28,12 +29,12 @@ pub struct RepositoryOriginPredecessorV1 {
     pub equivalence_report_root: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RepositoryOriginV1 {
     pub schema: String,
     pub origin_id: String,
-    pub frontier_id: String,
+    pub repository_id: String,
     pub generation: u64,
     pub profile_root: String,
     pub initial_object_set_root: String,
@@ -45,12 +46,12 @@ pub struct RepositoryOriginV1 {
 
 impl RepositoryOriginV1 {
     pub fn genesis(
-        frontier_id: String,
+        repository_id: String,
         profile_root: String,
         reason: String,
     ) -> Result<Self, String> {
         Self::build(
-            frontier_id,
+            repository_id,
             1,
             profile_root,
             empty_object_set_root()?,
@@ -61,7 +62,7 @@ impl RepositoryOriginV1 {
     }
 
     pub fn compaction(
-        frontier_id: String,
+        repository_id: String,
         generation: u64,
         profile_root: String,
         initial_object_set_root: String,
@@ -69,7 +70,7 @@ impl RepositoryOriginV1 {
         reason: String,
     ) -> Result<Self, String> {
         Self::build(
-            frontier_id,
+            repository_id,
             generation,
             profile_root,
             initial_object_set_root,
@@ -80,7 +81,7 @@ impl RepositoryOriginV1 {
     }
 
     fn build(
-        frontier_id: String,
+        repository_id: String,
         generation: u64,
         profile_root: String,
         initial_object_set_root: String,
@@ -91,7 +92,7 @@ impl RepositoryOriginV1 {
         let mut value = Self {
             schema: REPOSITORY_ORIGIN_V1_SCHEMA.into(),
             origin_id: String::new(),
-            frontier_id,
+            repository_id,
             generation,
             profile_root,
             initial_object_set_root,
@@ -155,7 +156,7 @@ impl RepositoryOriginV1 {
                 "repository origin schema must be `{REPOSITORY_ORIGIN_V1_SCHEMA}`"
             ));
         }
-        require_prefixed("frontier_id", &self.frontier_id, "vfr_")?;
+        require_prefixed("repository_id", &self.repository_id, "vrepo_")?;
         require_sha256("profile_root", &self.profile_root)?;
         require_sha256("initial_object_set_root", &self.initial_object_set_root)?;
         require_text("reason", &self.reason)?;
@@ -300,9 +301,9 @@ mod tests {
     #[test]
     fn genesis_is_one_closed_current_origin() {
         let origin = RepositoryOriginV1::genesis(
-            "vfr_fixture".into(),
+            "vrepo_fixture".into(),
             root('a'),
-            "Create one current Frontier.".into(),
+            "Create one current repository.".into(),
         )
         .unwrap();
         assert_eq!(origin.kind, RepositoryOriginKind::Genesis);
@@ -313,7 +314,7 @@ mod tests {
     #[test]
     fn compaction_binds_exact_predecessor_and_equivalence() {
         let origin = RepositoryOriginV1::compaction(
-            "vfr_fixture".into(),
+            "vrepo_fixture".into(),
             2,
             root('a'),
             root('b'),
@@ -329,7 +330,7 @@ mod tests {
     #[test]
     fn origin_kind_and_predecessor_cannot_be_substituted() {
         let mut origin = RepositoryOriginV1::compaction(
-            "vfr_fixture".into(),
+            "vrepo_fixture".into(),
             2,
             root('a'),
             root('b'),
@@ -344,7 +345,7 @@ mod tests {
     #[test]
     fn compaction_equivalence_root_is_load_bearing() {
         let mut origin = RepositoryOriginV1::compaction(
-            "vfr_fixture".into(),
+            "vrepo_fixture".into(),
             2,
             root('a'),
             root('b'),

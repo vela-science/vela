@@ -48,8 +48,9 @@ create -> submit -> verify -> decide -> replay
 
 - A Vela agent runner, scheduler, graph authority, automatic Decision path,
   hosted package registry, or reviewer-recruitment program.
-- A `vela-math` repository, competing theorem library, universal ontology, or
-  separate canonical `problems.science` database.
+- A Vela mathematics library, competing theorem library, universal ontology, or
+  separate canonical `problems.science` database. One repository per authority
+  is not this: see ADR 0039 §11.
 - General usability, productivity, adoption, or scientific-lift claims from
   internal instrumentation.
 - Source-specific scientific campaigns in the Vela core repository.

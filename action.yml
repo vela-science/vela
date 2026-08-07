@@ -3,7 +3,7 @@
 # Consume from a frontier repository:
 #
 #   - uses: actions/checkout@v5
-#   - uses: vela-science/vela@v0.966.4
+#   - uses: vela-science/vela@v0.967.0
 #     with:
 #       frontier: .
 #
@@ -98,7 +98,7 @@ runs:
     # runs over its own workflows. It arrives through the pin a Frontier already
     # consumes, so adopting it is not a fifth edit in a fifth repository.
     #
-    # This replaced a hand-written `unpinned-action` rule in `frontier_lint.py`.
+    # This replaced a hand-written `unpinned-action` rule in `repository_lint.py`.
     # zizmor's blanket policy already requires a hash — with no configuration
     # file — and it reads the workflow rather than the line, so it also reports
     # the permission scopes, credential persistence and cache exposure that a
@@ -146,4 +146,4 @@ runs:
       run: |
         set -euo pipefail
         uv run --project "$ACTION_PATH/conformance" --locked \
-          python "$ACTION_PATH/conformance/frontier_lint.py" "$FRONTIER"
+          python "$ACTION_PATH/conformance/repository_lint.py" "$FRONTIER"

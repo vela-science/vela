@@ -1674,58 +1674,6 @@ fn claim_witness_faithful_from_verification(
     }
 }
 
-/// The canonical, WITNESS-DERIVED verified claim for a floor-admissible witness:
-/// exactly the lower bound the witness structurally establishes, independent of
-/// the author's assertion prose. Surfaces should DISPLAY this as the verified
-/// `machine_verified` claim (with the prose shown only as an unverified
-/// description), so author prose cannot puff a true bound into a false headline.
-/// `None` for kinds that are not floor-admissible. Mirrors the binding in
-/// `claim_witness_faithful` (kind, n, the bound-defining parameters, size).
-pub fn canonical_claim(witness: &Witness) -> Option<String> {
-    match witness {
-        Witness::Sidon { n, points, .. } => Some(format!(
-            "Sidon set: a({n}) >= {} (a Sidon set of {} points in {{0,1}}^{n})",
-            points.len(),
-            points.len()
-        )),
-        Witness::Cap { n, points, .. } => Some(format!(
-            "cap set: a({n}) >= {} (a cap set of {} points in F_3^{n})",
-            points.len(),
-            points.len()
-        )),
-        Witness::Gf2Sidon { elements, .. } => {
-            // The witness lives in GF(2)^n for n = the widest element's bit
-            // width; that is the strongest (smallest-n) true statement.
-            let n = elements
-                .iter()
-                .map(|e| (64 - e.leading_zeros()) as usize)
-                .max()
-                .unwrap_or(0);
-            Some(format!(
-                "GF(2)-Sidon set: a({n}) >= {} (a Sidon set of {} elements in GF(2)^{n})",
-                elements.len(),
-                elements.len()
-            ))
-        }
-        Witness::UnionFree { n, sets, .. } => Some(format!(
-            "union-free family: a({n}) >= {} (a union-free family of {} subsets of {{1..{n}}})",
-            sets.len(),
-            sets.len()
-        )),
-        Witness::Bh { n, h, points, .. } => Some(format!(
-            "B_{h} set: a({n}) >= {} (a B_{h} set of {} points in {{0,1}}^{n})",
-            points.len(),
-            points.len()
-        )),
-        Witness::ConstantWeight { n, d, w, words, .. } => Some(format!(
-            "constant-weight code: A({n},{d},{w}) >= {} ({} codewords of length {n}, weight {w}, min distance {d})",
-            words.len(),
-            words.len()
-        )),
-        // Not floor-admissible (golomb, covering, costas, rook, linear_code, ...).
-        _ => None,
-    }
-}
 
 /// Fold a `claimed_size` cross-check into a verifier result: the witness
 /// must pass AND have exactly the claimed number of elements.
@@ -3569,32 +3517,6 @@ mod tests {
         );
     }
 
-    // The canonical, witness-derived verified claim (residual #1): the displayed
-    // claim is DERIVED from the witness, so prose cannot puff a true bound.
-    #[test]
-    fn canonical_claim_is_witness_derived() {
-        let s = Witness::Sidon {
-            n: 3,
-            points: small_sidon(),
-            claimed_size: None,
-        };
-        let c = canonical_claim(&s).expect("sidon has a canonical claim");
-        assert!(c.contains("a(3) >= 4"), "{c}");
-        // GF(2): n is the widest element's bit width (here 4 -> bit index 2).
-        let g = Witness::Gf2Sidon {
-            elements: vec![1, 2, 4],
-            claimed_size: None,
-        };
-        let cg = canonical_claim(&g).expect("gf2 has a canonical claim");
-        assert!(cg.contains("a(3) >= 3"), "{cg}");
-        // golomb (not floor-admissible) has no canonical claim.
-        assert!(
-            canonical_claim(&Witness::Golomb {
-                marks: vec![0, 1, 3]
-            })
-            .is_none()
-        );
-    }
 
     // Golomb has no sound witness->lower-bound binding defined: route to review.
     #[test]

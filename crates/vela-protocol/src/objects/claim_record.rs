@@ -6,6 +6,7 @@
 
 use std::collections::BTreeMap;
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -14,14 +15,14 @@ use super::artifact_reference::require_artifact_reference_id;
 
 pub const CLAIM_RECORD_V1_SCHEMA: &str = "vela.claim-record.v1";
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ClaimAssertion {
     pub text: String,
     pub kind: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ClaimEvidenceRef {
     pub relation: String,
@@ -32,7 +33,7 @@ pub struct ClaimEvidenceRef {
     pub artifact_path: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ClaimSource {
     pub kind: String,
@@ -45,7 +46,7 @@ pub struct ClaimSource {
     pub year: Option<i32>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ClaimRelation {
     pub kind: String,
@@ -141,7 +142,7 @@ impl ClaimRelation {
 
 /// A versioned Claim body. The full canonical root is security identity; the
 /// readable `vcl_` prefix is routing only.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ClaimRecordV1 {
     pub schema: String,
@@ -426,7 +427,7 @@ mod tests {
             }],
             vec![ClaimSource {
                 kind: "repository_import".into(),
-                title: "Historical Finding vf_fixture".into(),
+                title: "Historical import vf_fixture".into(),
                 locator: None,
                 authors: vec![],
                 year: None,

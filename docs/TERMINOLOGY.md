@@ -31,10 +31,10 @@ decide    lets named local authority accept, reject, or correct
 remap     derives current territory, blockers, and next work from the new root
 ```
 
-`MAP -> ADVANCE -> REMAP` is the shorter product compression. `Frontier
-Commit` remains an optional product-level description of an authorized
-Decision, Event, and root transition. It is not a protocol object, Git merge,
-verifier result, package publication, or new authority path.
+`MAP -> ADVANCE -> REMAP` is the shorter product compression. An authorized
+transition is named by the objects that carry it — the Decision, its Event, and
+the exact before and after roots — and by nothing further. A Git merge, a
+verifier result, or a package publication is none of those things.
 
 The operator loop remains:
 
@@ -44,30 +44,127 @@ init -> submit -> verify -> decide -> replay
 
 ## Canonical current vocabulary
 
+Four boundaries, and they are not the same boundary. `Frontier` used to be all
+of them at once, which is why the repositories drifted. A **Repository** exists
+because there is a new authority, never because there is a new topic.
+
 | Term | Meaning | Authority effect |
 | --- | --- | ---: |
-| Frontier | One independently clonable Git repository with bounded scope, stable identity, canonical history, authority, and correction policy | Boundary only |
-| Frontier map | An exact, removable read projection of current territory, coverage, uncertainty, retained work, and next valid action | None |
-| Problem | A bounded scientific question organizing Claims, Obligations, Targets, and native runs | None |
+| Repository | One independently clonable Git repository with stable identity, trust root, canonical history, named authority, and correction policy | Authority boundary |
+| Source | A declared external system whose native records are observed exactly, never governed | None |
+| Problem | A bounded scientific question organizing Claims, Obligations and Targets | None |
 | Obligation | One unresolved requirement needed to assess or advance a Claim | None |
 | Target | One machine-addressable, bounded unit of work | None |
 | Offer | A derived recommendation that a Target is available | None |
-| Attempt | Optional provenance name for an effort retained by a native workbench; Vela does not create or govern it | None |
 | Run | One execution occurrence in a workbench or verifier | None |
 | Claim | One exact assertion under explicit scope and conditions | None |
 | Claim Record | Canonical record of a Claim revision, conditions, evidence, provenance, and typed relations | None by itself |
-| Finding | Editorial label for a Claim with positive standing in a named Frontier | View only |
 | Artifact | Retained bytes or an immutable locator with exact identity and provenance | None |
 | Evidence | A typed role played by an Artifact or Observation relative to a Claim | None |
-| Submission | The portable producer package offered to a Frontier | None |
-| Proposal | An exact candidate transition in Frontier standing | None |
+| Submission | The portable producer package, bound to no Repository | None |
+| Proposal | An exact candidate transition in Standing, against one Repository | None |
 | Verification Record | A verifier's scoped observation over exact inputs under a named method | None |
-| Review Packet | A derived, root-bound presentation of one Proposal | None |
 | Decision | An authorized judgment over one exact Proposal | Defines transition intent |
 | Event | The append-only canonical transition record | Replays authorized effect |
-| Frontier Commit | Product term for an authorized Decision, canonical Event, exact before/after roots, and replayed Standing | No independent effect |
 | Standing | The deterministic current status derived from valid Events | Resulting state |
-| Observatory | A removable read-only projection | None |
+| Frontier | The derived boundary of unresolved scientific state around one or more Problems | None, owns nothing |
+| Atlas | A projection across Repositories, Sources, Problems and Frontiers | None |
+| Observatory | The first Atlas: a removable read-only projection | None |
+
+**A Frontier has no identifier.** It is a query, not an object: the Problems
+with open Obligations, or the Claims lacking Verification, or everything drawn
+from one Source. Two Frontiers may overlap completely and neither is wrong,
+because neither holds Standing. Wanting to mint a stable id for one is the
+signal it has stopped being derived.
+
+## What each term already is elsewhere
+
+Most of the table above is not new. Vela is Git-native and review-shaped, and a
+reader arriving from GitHub or from scholarly peer review already knows nearly
+all of it. Naming the existing concept is not a weakening of the protocol; it
+is what lets the small genuinely new part be seen.
+
+| Term | If you already know |
+| --- | --- |
+| Repository | a Git repository, with a trust root and a named signing authority |
+| Source | an upstream you vendor from, pinned to a revision |
+| Problem | a milestone, or a Benchling project |
+| Target | an issue |
+| Offer | an issue surfacing as ready to pick up |
+| Run | a workflow run |
+| Artifact | a build artifact, or a deposited file |
+| Submission | a pushed branch and its package; a submission in peer review |
+| Proposal | a pull request, opened against one Repository |
+| Verification Record | a check run, with its scope and its nonclaims written down |
+| Decision | the merge ruling; a decision in peer review |
+| Event | a commit to an append-only authority log |
+| Standing | the state an event-sourced reducer derives |
+| Atlas | a read model |
+
+**Claim and Evidence are not new, and this document used to say they were.**
+A nanopublication is four named graphs — head, assertion, provenance, pubinfo —
+where the assertion graph holds one atomic attributed statement, the whole is
+content-addressed by a Trusty URI, and the whole is signed. A Claim Record
+reaches the same decomposition: the assertion, its evidence and sources as
+provenance, the producer identity and DSSE envelope as pubinfo, and a SHA-256
+over canonical bytes as the artifact code. Groth et al. published the anatomy in
+2010 and Kuhn et al. the signed decentralised model in 2016. The correction
+algebra converged too: `CORRECTION_RELATION_KINDS` is exactly
+`["corrects", "supersedes"]`, and nanopublications landed on `npx:supersedes`
+and `npx:retracts`. That is external validation, not arrival, and
+`paper/vela.md` already says so.
+
+The decomposition is the same. The serialisation is not — a nanopublication
+assertion is RDF quads with dereferenceable IRIs queryable over SPARQL, where
+`ClaimAssertion` is prose plus a kind label.
+
+Two things do survive that comparison:
+
+- **Obligation** — what is still missing before a Claim can be assessed or
+  advanced, retained as state rather than left in a review thread. Nothing in
+  the nanopublication literature holds it.
+- **The four independent axes** — Claim standing, Verification outcome,
+  Proposal status, and repository integrity are separately derived and never
+  collapsed. A passing check is not an acceptance; an acceptance is not a
+  reproduction; a merge is not a scientific Decision.
+
+And one difference in the admission rule, which is the actual contribution and
+is narrower than it is tempting to claim. In the nanopublication network the
+rule is fixed in the protocol and keyed to the producer: a retraction is valid
+only when signed with the key that signed the original, and the default view
+hides validly retracted nanopublications. Vela makes the admission rule a named
+**repository authority** whose Decisions are the Events that Standing replays,
+so a third party can correct someone else's Claim and move its Standing, and the
+correction's validity is settled by a declared trust root rather than by key
+equality.
+
+That is the whole of it, and it is enough. The novelty is integration around
+authority-scoped append, replay, and root-bound next work. It is not the
+invention of identifiers, provenance, research packaging, correction metadata,
+or structured claims.
+
+## Retired names
+
+These were removed from the controlled vocabulary because each named something
+that already had a name, or something Vela does not govern. They are listed so
+a reader meeting one in an older document knows it is not a current object.
+
+| Retired | Say instead |
+| --- | --- |
+| Finding | accepted Claim |
+| Frontier Commit | the Decision, its Event, and the before/after roots |
+| Review Packet | the Proposal |
+| Frontier map | `vela status`, or the Observatory |
+| Attempt | the workbench's own run identity, as provenance |
+
+The Event kinds moved with the words. `finding.asserted`, `finding.noted`,
+`finding.superseded`, `finding.retracted` and `attempt.claimed` are now
+`claim.asserted`, `claim.noted`, `claim.superseded`, `claim.retracted` and
+`target.claimed`. Because an Event id is derived from its content, this changes
+the id of every Event that carried an old kind — which is why the repositories are
+re-issued from a fresh genesis rather than patched. `EventKind::Other`
+round-trips any unrecognized string, so a repository from an older era still
+parses; it simply is not a current Frontier.
 
 ## Research and evaluation properties
 
@@ -81,8 +178,8 @@ These terms describe bounded system behavior. They are not protocol objects:
 | Frontier closure | State, coverage, Targets, Decisions, corrections, and handoff each close over exact current inputs or fail explicitly |
 | compounding | Inherited Frontier state measurably improves later correct scientific work under a matched comparison |
 
-The current **Math Atlas** is the bounded first-party read product over the four
-maintained mathematical Frontiers. A future federated Atlas is an unearned
+The current **Math Atlas** is the bounded first-party read product over the
+three maintained mathematical Frontiers. A future federated Atlas is an unearned
 cross-Frontier concept, not a current global authority or completeness claim.
 
 ## Daily commands
@@ -129,7 +226,8 @@ scope, and nonclaims. It changes no standing by itself.
 
 A current correction, supersession, or retraction is a new authenticated
 Submission whose requested change binds the exact historical Claim ID and full
-Finding root. It never edits the prior Submission, Event, Finding, or Decision.
+Claim Record root. It never edits the prior Submission, Event, Claim Record, or
+Decision.
 
 An acceptance must name the exact Proposal, authorized human principal,
 Frontier repository authority, Event, and before/after state roots.

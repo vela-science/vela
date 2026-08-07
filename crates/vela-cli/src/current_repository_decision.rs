@@ -33,8 +33,8 @@ use crate::authority_transaction::{
 use crate::config::git_publish::{
     PublicationState, PublishOptions, exact_publication_preflight, publish_exact_delta,
 };
-use crate::frontier_txn::{
-    ContentDigest, FrontierRecoveryBarrier, FrontierTxn, InputBinding, WriteClass,
+use crate::repository_txn::{
+    ContentDigest, RepositoryRecoveryBarrier, RepositoryTxn, InputBinding, WriteClass,
 };
 use crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner;
 use crate::repository_ops::publication_delta;
@@ -62,7 +62,7 @@ impl DecisionAction {
 #[serde(deny_unknown_fields)]
 pub(crate) struct CurrentReviewDecisionPlan {
     pub(crate) schema: String,
-    pub(crate) frontier_id: String,
+    pub(crate) repository_id: String,
     pub(crate) frontier_name: String,
     pub(crate) repository_root: String,
     pub(crate) proposal_id: String,
@@ -402,14 +402,14 @@ pub(crate) fn prepare(
             ));
         }
     }
-    let profile = vela_protocol::current_repository::CurrentFrontierProfileV2::from_toml_str(
-        &fs::read_to_string(frontier.join("frontier.toml"))
+    let profile = vela_protocol::current_repository::CurrentRepositoryProfileV1::from_toml_str(
+        &fs::read_to_string(frontier.join("vela.toml"))
             .map_err(|error| format!("read current Frontier Profile: {error}"))?,
     )?;
     let local = crate::cli::local_session(observed_at)?;
     let mut plan = CurrentReviewDecisionPlan {
         schema: PLAN_SCHEMA.into(),
-        frontier_id: repository.frontier_id.clone(),
+        repository_id: repository.repository_id.clone(),
         frontier_name: profile.name,
         repository_root,
         proposal_id: proposal.proposal_id.clone(),
@@ -452,9 +452,9 @@ pub(crate) fn prepare_locked(
     action: DecisionAction,
     reason: &str,
     observed_at: &str,
-) -> Result<(PreparedCurrentReviewDecision, FrontierRecoveryBarrier), String> {
+) -> Result<(PreparedCurrentReviewDecision, RepositoryRecoveryBarrier), String> {
     let journal_dir = crate::repository_ops::frontier_transaction_journal_dir(frontier)?;
-    let barrier = FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir)
+    let barrier = RepositoryTxn::acquire_recovery_barrier(frontier, &journal_dir)
         .map_err(|error| error.to_string())?;
     let prepared = prepare(frontier, proposal_id, action, reason, observed_at)?;
     Ok((prepared, barrier))
@@ -590,7 +590,7 @@ fn decision_events(
 
     let (kind, target, before_hash, after_hash) = match proposal.action.as_str() {
         "claim.add" => (
-            EventKind::FindingAsserted,
+            EventKind::ClaimAsserted,
             claim.claim_id.clone(),
             NULL_HASH.into(),
             plan.claim_root.clone(),
@@ -611,14 +611,14 @@ fn decision_events(
                 .claim_root
                 .clone();
             (
-                EventKind::FindingSuperseded,
+                EventKind::ClaimSuperseded,
                 target,
                 before,
                 plan.claim_root.clone(),
             )
         }
         "claim.withdraw" => (
-            EventKind::FindingRetracted,
+            EventKind::ClaimRetracted,
             claim.claim_id.clone(),
             plan.claim_root.clone(),
             NULL_HASH.into(),
@@ -673,7 +673,7 @@ fn decision_events(
 pub(crate) fn execute_prepared(
     frontier: &Path,
     prepared: PreparedCurrentReviewDecision,
-    recovery_barrier: FrontierRecoveryBarrier,
+    recovery_barrier: RepositoryRecoveryBarrier,
     action: DecisionAction,
 ) -> Result<AuthorityTransactionResult, String> {
     let expected = &prepared.plan;
@@ -908,7 +908,7 @@ mod tests {
     fn repository() -> CurrentRepositoryV4 {
         CurrentRepositoryV4 {
             schema: CURRENT_REPOSITORY_SCHEMA_V4.into(),
-            frontier_id: "vfr_0123456789abcdef".into(),
+            repository_id: "vrepo_0123456789abcdef".into(),
             profile_root: root('a'),
             origin_id: "vro_0123456789abcdef".into(),
             origin_root: root('b'),
@@ -1088,7 +1088,7 @@ mod tests {
     fn plan() -> CurrentReviewDecisionPlan {
         let mut plan = CurrentReviewDecisionPlan {
             schema: PLAN_SCHEMA.into(),
-            frontier_id: "vfr_0123456789abcdef".into(),
+            repository_id: "vrepo_0123456789abcdef".into(),
             frontier_name: "Fixture frontier".into(),
             repository_root: root('1'),
             proposal_id: "vpr_fixture".into(),
@@ -1324,7 +1324,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(events.len(), 2);
-        assert_eq!(events[0].kind, EventKind::FindingAsserted);
+        assert_eq!(events[0].kind, EventKind::ClaimAsserted);
         assert_eq!(events[1].kind, EventKind::ReviewAccepted);
         assert_eq!(
             events[1].payload["applied_event_id"],

@@ -11,8 +11,8 @@ use serde::Serialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use vela_protocol::current_repository::{
-    CURRENT_FRONTIER_PROFILE_SCHEMA_V2, CurrentFrontierProfileV2, FrontierProfileLicenseV2,
-    FrontierProfileScopeV2,
+    CURRENT_REPOSITORY_PROFILE_SCHEMA_V1, CurrentRepositoryProfileV1, RepositoryProfileLicenseV1,
+    RepositoryProfileScopeV1,
 };
 
 #[derive(Debug, Clone)]
@@ -26,12 +26,12 @@ pub(crate) struct CurrentInitOptions<'a> {
 its identity must distinguish repositories rather than questions. The v1
 preimage was exactly the declared name and scope, which handed two unrelated
 repositories that chose the same wording one identity; the user-local trust
-store keys on `vfr_`, so the second repository's authority anchor then refused
+store keys on `vrepo_`, so the second repository's authority anchor then refused
 to install over the first. The repository origin would be the natural
-distinguishing commitment, but `vro_` is derived from the frontier_id, and it
+distinguishing commitment, but `vro_` is derived from the repository_id, and it
 is written by `vela authority init` after this point, so it cannot enter this
 preimage. A fresh 256-bit draw from the OS CSPRNG is what makes this repository
-this one. It is not retained: nothing recomputes a frontier_id, and a retained
+this one. It is not retained: nothing recomputes a repository_id, and a retained
 nonce would not make the identity checkable, because the creator chooses it. */
 #[derive(Serialize)]
 struct FrontierGenesisIdentity<'a> {
@@ -167,24 +167,24 @@ fn initialize_in_place(path: &Path, options: &CurrentInitOptions<'_>) -> Result<
     let scope = options.scope.trim();
     let genesis_entropy = draw_genesis_entropy()?;
     let identity_bytes = vela_protocol::canonical::to_canonical_bytes(&FrontierGenesisIdentity {
-        schema: "vela.frontier-genesis-identity.v2",
+        schema: "vela.repository-genesis-identity.v1",
         name,
         scope,
         genesis_entropy: &genesis_entropy,
     })?;
-    let frontier_id = format!("vfr_{}", &hex::encode(Sha256::digest(identity_bytes))[..16]);
-    let profile = CurrentFrontierProfileV2 {
-        schema: CURRENT_FRONTIER_PROFILE_SCHEMA_V2.into(),
-        frontier_id: frontier_id.clone(),
+    let repository_id = format!("vrepo_{}", &hex::encode(Sha256::digest(identity_bytes))[..16]);
+    let profile = CurrentRepositoryProfileV1 {
+        schema: CURRENT_REPOSITORY_PROFILE_SCHEMA_V1.into(),
+        repository_id: repository_id.clone(),
         name: name.into(),
         summary: scope.into(),
-        scope: FrontierProfileScopeV2 {
+        scope: RepositoryProfileScopeV1 {
             question: scope.into(),
             includes: Vec::new(),
             excludes: Vec::new(),
         },
         maintainers: Vec::new(),
-        license: FrontierProfileLicenseV2 {
+        license: RepositoryProfileLicenseV1 {
             content: "CC-BY-4.0".into(),
             code: "Apache-2.0".into(),
             data: "varies".into(),
@@ -194,29 +194,29 @@ fn initialize_in_place(path: &Path, options: &CurrentInitOptions<'_>) -> Result<
     let profile_root = profile.profile_root()?;
 
     fs::write(
-        path.join("frontier.toml"),
+        path.join("vela.toml"),
         toml::to_string_pretty(&profile)
             .map_err(|error| format!("serialize current Profile: {error}"))?,
     )
-    .map_err(|error| format!("write frontier.toml: {error}"))?;
+    .map_err(|error| format!("write vela.toml: {error}"))?;
     fs::create_dir_all(path.join(".vela")).map_err(|error| format!("create .vela: {error}"))?;
     write_scaffold(path, name, scope)?;
     initialize_git(path, options.initialize_git)?;
 
     Ok(json!({
-        "schema": "vela.frontier-init.v2",
+        "schema": "vela.repository-init-draft.v1",
         "ok": true,
         "layout": "vela.repository-bootstrap.v1",
         "path": path.display().to_string(),
         "name": name,
         "scope": scope,
-        "frontier_id": frontier_id,
+        "repository_id": repository_id,
         "profile_root": profile_root,
         "authority": "uninitialized",
         "scientific_object_count": 0,
         "wrote": [
             "README.md",
-            "frontier.toml",
+            "vela.toml",
             ".gitignore",
             ".gitattributes",
             "AGENTS.md",
@@ -237,15 +237,15 @@ fn write_scaffold(path: &Path, name: &str, scope: &str) -> Result<(), String> {
     write(
         "README.md",
         &format!(
-            "# {name}\n\n{scope}\n\nThis is a Vela Frontier. Git stores exact Claims, Submissions, Verification Records, Decisions, and authority history. Derived views are rebuildable.\n\n## Operator loop\n\n```bash\nvela status . --json\nvela next . --limit 1 --json\nvela submit --frontier . --claim \"<bounded result>\" --type computational --replayability exact --artifact <path>:<kind> --caveat \"<limit>\" --as agent:<name> --json\n\n# Verification binds method bytes already retained at the current Git commit.\ngit add -- verification/method.json\ngit commit -m \"Retain verification method\"\nvela verification record . <vpr_id> --profile <profile> --method verification/method.json --outcome pass --does-not-establish \"Scientific acceptance.\" --as verifier:<name> --json\n\nvela review inbox . --json\n# Only an authorized operator may make the exact accept or reject Decision.\nvela review accept . <vpr_id> --reason \"<reason>\" --if-entry-root sha256:... --json\nvela replay . --json\n```\n"
+            "# {name}\n\n{scope}\n\nThis is a Vela Frontier. Git stores exact Claims, Submissions, Verification Records, Decisions, and authority history. Derived views are rebuildable.\n\n## Operator loop\n\n```bash\nvela status . --json\nvela next . --limit 1 --json\nvela submit --repo . --claim \"<bounded result>\" --type computational --replayability exact --artifact <path>:<kind> --caveat \"<limit>\" --as agent:<name> --json\n\n# Verification binds method bytes already retained at the current Git commit.\ngit add -- verification/method.json\ngit commit -m \"Retain verification method\"\nvela verification record . <vpr_id> --profile <profile> --method verification/method.json --outcome pass --does-not-establish \"Scientific acceptance.\" --as verifier:<name> --json\n\nvela review inbox . --json\n# Only an authorized operator may make the exact accept or reject Decision.\nvela review accept . <vpr_id> --reason \"<reason>\" --if-entry-root sha256:... --json\nvela replay . --json\n```\n"
         ),
     )?;
-    /* No SCOPE.md. It restated the scope already in `frontier.toml`, which
+    /* No SCOPE.md. It restated the scope already in `vela.toml`, which
     `profile_root` commits to, and the scaffold could only fill its Includes and
     Excludes with "none are declared" — so the file arrived saying nothing and
     then drifted from the declaration it duplicated. Three published Frontiers
     carried byte-identical copies whose own text said scope lives in
-    `frontier.toml`; they have been deleted, and a fresh `vela init` must not
+    `vela.toml`; they have been deleted, and a fresh `vela init` must not
     recreate what they dropped. */
     /* The runtime creates more under `.vela` than this used to list, so a fresh
     Frontier staged its task leases, workspaces, source inbox, agent state and
@@ -278,7 +278,7 @@ fn write_scaffold(path: &Path, name: &str, scope: &str) -> Result<(), String> {
         // checkout, and replay then reads a file whose digest is not the one the
         // manifest binds. All four published Frontiers carry `-text` here and
         // had to hand-correct this scaffold to get it; erdos still carries a
-        // comment explaining the fix. `frontier.toml` and `targets.json` keep
+        // comment explaining the fix. `vela.toml` and `targets.json` keep
         // `text eol=lf` because they are configuration a human edits, and
         // neither is hashed by content.
         "* text=auto eol=lf\n.vela/** -filter -ident -working-tree-encoding -merge -text\nrecords/** -filter -ident -working-tree-encoding -merge -text\nartifacts/** -filter -ident -working-tree-encoding -merge -text\nfrontier.toml -filter -ident -working-tree-encoding -merge diff text eol=lf\ntargets.json -filter -ident -working-tree-encoding -merge diff text eol=lf\n",
@@ -290,7 +290,7 @@ fn write_scaffold(path: &Path, name: &str, scope: &str) -> Result<(), String> {
     write(
         "AGENTS.md",
         &format!(
-            "# {name} — agent charter\n\nCanonical state is Git history plus the current `.vela/repository.json` manifest. Producers may inspect exact Target briefings, submit signed evidence directly, and record scoped Verification. Only an authorized human Decision changes scientific standing.\n\nAgents must not invoke `vela review accept` or `vela review reject`, access repository-authority credentials, hand-edit canonical records, or describe Verification as acceptance. A Verification method manifest must be tracked, clean, and retained in the current Git commit before `vela verification record`.\n\n```bash\nvela status . --json\nvela next . --limit 1 --json\nvela start <target> --json\nvela submit --frontier . --claim <bounded-claim> --type computational --replayability exact --artifact <path>:<kind> --caveat <limit> --as agent:<name> --json\nvela verification record . <vpr_id> --profile <profile> --method <committed-method> --outcome <outcome> --does-not-establish <limit> --as verifier:<name> --json\nvela review inbox . --json\nvela replay . --json\n```\n\nHand the rooted Decision Inbox entry to the authorized operator; do not decide it yourself.\n"
+            "# {name} — agent charter\n\nCanonical state is Git history plus the current `.vela/repository.json` manifest. Producers may inspect exact Target briefings, submit signed evidence directly, and record scoped Verification. Only an authorized human Decision changes scientific standing.\n\nAgents must not invoke `vela review accept` or `vela review reject`, access repository-authority credentials, hand-edit canonical records, or describe Verification as acceptance. A Verification method manifest must be tracked, clean, and retained in the current Git commit before `vela verification record`.\n\n```bash\nvela status . --json\nvela next . --limit 1 --json\nvela start <target> --json\nvela submit --repo . --claim <bounded-claim> --type computational --replayability exact --artifact <path>:<kind> --caveat <limit> --as agent:<name> --json\nvela verification record . <vpr_id> --profile <profile> --method <committed-method> --outcome <outcome> --does-not-establish <limit> --as verifier:<name> --json\nvela review inbox . --json\nvela replay . --json\n```\n\nHand the rooted Decision Inbox entry to the authorized operator; do not decide it yourself.\n"
         ),
     )?;
     /* One line pointing at the charter. All four published Frontiers carry
@@ -337,10 +337,10 @@ mod tests {
         .expect("initialize a fresh Frontier")
     }
 
-    fn frontier_id(payload: &Value) -> String {
-        payload["frontier_id"]
+    fn repository_id(payload: &Value) -> String {
+        payload["repository_id"]
             .as_str()
-            .expect("frontier_id is a string")
+            .expect("repository_id is a string")
             .to_string()
     }
 
@@ -359,24 +359,24 @@ mod tests {
         );
 
         assert_ne!(
-            frontier_id(&first),
-            frontier_id(&second),
+            repository_id(&first),
+            repository_id(&second),
             "two independently created repositories must not share one identity"
         );
         assert_ne!(first["profile_root"], second["profile_root"]);
     }
 
     #[test]
-    fn genesis_identity_keeps_the_declared_frontier_id_shape() {
+    fn genesis_identity_keeps_the_declared_repository_id_shape() {
         let parent = tempfile::tempdir().expect("staging parent");
         let payload = initialize(
             &parent.path().join("frontier"),
             "Bounded name",
             "Does X hold?",
         );
-        let id = frontier_id(&payload);
+        let id = repository_id(&payload);
 
-        let suffix = id.strip_prefix("vfr_").expect("vfr_ prefix");
+        let suffix = id.strip_prefix("vrepo_").expect("vrepo_ prefix");
         assert_eq!(suffix.len(), 16);
         assert!(
             suffix
@@ -384,12 +384,12 @@ mod tests {
                 .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
         );
 
-        let profile = vela_protocol::current_repository::CurrentFrontierProfileV2::from_toml_str(
-            &fs::read_to_string(parent.path().join("frontier").join("frontier.toml"))
-                .expect("read retained frontier.toml"),
+        let profile = vela_protocol::current_repository::CurrentRepositoryProfileV1::from_toml_str(
+            &fs::read_to_string(parent.path().join("frontier").join("vela.toml"))
+                .expect("read retained vela.toml"),
         )
         .expect("retained profile validates");
-        assert_eq!(profile.frontier_id, id);
+        assert_eq!(profile.repository_id, id);
     }
 
     #[test]
