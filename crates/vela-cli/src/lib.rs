@@ -28,6 +28,11 @@ mod operation_journal;
 pub(crate) mod repository_txn;
 pub(crate) mod ui;
 
+/// The stable codes `error.code` may carry, re-exported because they are the
+/// published half of the error surface. `tests/wording_contract.rs` holds the
+/// emitted set to this list; the module around it stays crate-private.
+pub use ui::ERROR_CODES;
+
 pub mod cli;
 
 pub fn run() {

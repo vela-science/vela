@@ -29,6 +29,28 @@ impl BoundedFileError {
             opened,
         }
     }
+
+    /// This module's code as one of the CLI's published `error.code` values.
+    ///
+    /// The twelve codes here distinguish causes a caller of *this* module acts
+    /// on; the published set is what a caller of the *binary* acts on, and the
+    /// four ways an open or a read can fail underneath us are one fact to
+    /// someone holding a path that did not produce bytes. Everything a caller
+    /// could actually respond to differently — it is not there, it is a
+    /// symlink, it is too large, it moved while we read it, the path is not one
+    /// we accept — keeps its own name.
+    pub(crate) fn published_code(&self) -> &'static str {
+        match self.code {
+            "missing" => "file_missing",
+            "not_regular" => "file_not_regular",
+            "symlink" => "file_symlink",
+            "oversized" => "file_oversized",
+            "path_escape" => "file_path_escape",
+            "path_invalid" => "file_path_invalid",
+            "path_changed" => "file_path_changed",
+            _ => "file_unreadable",
+        }
+    }
 }
 
 impl std::fmt::Display for BoundedFileError {

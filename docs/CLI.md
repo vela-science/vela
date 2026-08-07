@@ -402,7 +402,20 @@ coordination, test telemetry, or secret material.
 
 Every `--json` outcome, success or failure, is one object carrying `ok` and
 `command`. A success also names its `schema`; a failure carries an `error` with
-a `kind`, a message, and a hint naming the next command.
+a `kind`, a `code`, a message, and a hint naming the next command.
+
+The three failure fields have three different contracts, and mixing them up is
+how a caller ends up parsing English:
+
+- `kind` is one of six classes and chooses the exit code. It is stable.
+- `code` names *which* failure this is, when the binary knows something the
+  class does not — that the file was oversized rather than absent, that the
+  repository has an unfinished `vela init` rather than a missing file. It is
+  stable, it is `null` when the class is the whole story, and the key is always
+  present. Adding a code is additive; renaming one is a breaking change.
+- The message and the hint are written for a person and **will be reworded**.
+  Do not branch on them. `crates/vela-cli/tests/wording_contract.rs` says so as
+  a test rather than as a promise.
 
 The exit code says which kind of failure it was, so a caller can act on it
 without parsing prose:

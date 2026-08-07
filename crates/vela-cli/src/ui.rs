@@ -64,6 +64,47 @@ impl ErrorKind {
     }
 }
 
+/// Every stable code this binary may put in `error.code`, and the whole list.
+///
+/// `kind` above is the six-value class that chooses the exit code. `message` is
+/// prose, and `tests/wording_contract.rs` says outright what its contract is:
+/// "the replacement is a matter of taste and will change; that these words stay
+/// out of it is the contract". Between the two there was nothing a caller could
+/// key on, so the only thing distinguishing one failure from another was the
+/// one field this project had already promised to churn. Something downstream
+/// was already paying for it — the Observatory derived an HTTP status by
+/// substring-matching a thrown sentence, and got it wrong.
+///
+/// A code says what the kind cannot. It is present when this binary knows
+/// something more specific than the class, and null otherwise; a null code is
+/// not an unclassified failure, it is one where the class is the whole story.
+///
+/// The list is short and should stay short. Adding a code is additive and needs
+/// no coordination. Removing or renaming one breaks every caller that branched
+/// on it, which is precisely the promise `message` does not make, so the two
+/// fields are governed differently on purpose. `wording_contract.rs` holds the
+/// emitted set to this list.
+pub const ERROR_CODES: &[&str] = &[
+    // A retained file a command was told to read. `bounded_file` distinguishes
+    // twelve causes; the submit preflight chose an `ErrorKind` from one of them
+    // and discarded the rest, so a caller could not learn whether the artifact
+    // it named was absent, oversized, or a symlink.
+    "file_missing",
+    "file_not_regular",
+    "file_symlink",
+    "file_oversized",
+    "file_path_escape",
+    "file_path_invalid",
+    "file_path_changed",
+    "file_unreadable",
+    // The four distinct refusals of the current-repository gate, which reported
+    // three of them as one `ErrorKind::Domain` and one sentence apiece.
+    "repository_missing",
+    "repository_authority_uninitialized",
+    "repository_incomplete",
+    "repository_predecessor_layout",
+];
+
 /// The per-invocation output mode, set once by the dispatch arm. A CLI
 /// process runs exactly one command, so a process-global is the honest
 /// scope (and lets `fail_*` sites deep in call stacks emit correctly
@@ -114,9 +155,24 @@ pub(crate) fn warn_nonfatal(message: &str) {
 
 /// Terminate with the one error grammar. Human mode:
 /// `err · <message>` + optional `hint: <next command>`; JSON mode: a
-/// single `{ok:false, command, error:{kind,message,hint}}` object on
+/// single `{ok:false, command, error:{kind,code,message,hint}}` object on
 /// stdout. Exit code from the kind, always.
 pub fn fail_with(kind: ErrorKind, message: &str, hint: Option<&str>) -> ! {
+    fail_coded(kind, None, message, hint)
+}
+
+/// [`fail_with`], naming which failure this is. The code is one of
+/// [`ERROR_CODES`]; see that list for what the field promises and does not.
+pub fn fail_coded(
+    kind: ErrorKind,
+    code: Option<&'static str>,
+    message: &str,
+    hint: Option<&str>,
+) -> ! {
+    debug_assert!(
+        code.is_none_or(|code| ERROR_CODES.contains(&code)),
+        "error code {code:?} is not declared in ERROR_CODES"
+    );
     let (command, json) = mode();
     if json {
         let payload = json!({
@@ -124,6 +180,7 @@ pub fn fail_with(kind: ErrorKind, message: &str, hint: Option<&str>) -> ! {
             "command": if command.is_empty() { serde_json::Value::Null } else { json!(command) },
             "error": {
                 "kind": kind.as_str(),
+                "code": code,
                 "message": message,
                 "hint": hint,
             },
@@ -150,6 +207,22 @@ pub fn fail_with(kind: ErrorKind, message: &str, hint: Option<&str>) -> ! {
 /// The retained operation id lets a human correlate the repaired retry without
 /// implying that a transaction marker or scientific result exists.
 pub fn fail_unchanged(kind: ErrorKind, message: &str, operation_id: &str, next_command: &str) -> ! {
+    fail_unchanged_coded(kind, None, message, operation_id, next_command)
+}
+
+/// [`fail_unchanged`], naming which failure this is. The code is one of
+/// [`ERROR_CODES`].
+pub fn fail_unchanged_coded(
+    kind: ErrorKind,
+    code: Option<&'static str>,
+    message: &str,
+    operation_id: &str,
+    next_command: &str,
+) -> ! {
+    debug_assert!(
+        code.is_none_or(|code| ERROR_CODES.contains(&code)),
+        "error code {code:?} is not declared in ERROR_CODES"
+    );
     let (command, json) = mode();
     if json {
         let payload = json!({
@@ -165,6 +238,7 @@ pub fn fail_unchanged(kind: ErrorKind, message: &str, operation_id: &str, next_c
             "next": next_command,
             "error": {
                 "kind": kind.as_str(),
+                "code": code,
                 "message": message,
                 "hint": next_command,
             },
@@ -277,6 +351,12 @@ pub fn canonicalize_repo(frontier: &std::path::Path) -> std::path::PathBuf {
 /// Refuse commands that require an initialized current repository with one
 /// phase-aware, actionable error. `status` and resumable `init` deliberately do
 /// not call this helper because they are the two valid bootstrap operations.
+///
+/// Four refusals, three of which shared one `ErrorKind::Domain` and were told
+/// apart only by their sentence. Resuming an interrupted `vela init`, restoring
+/// a file someone deleted, and reaching for a predecessor layout this release
+/// does not read are three different situations with three different next
+/// moves, so each names itself.
 pub fn require_initialized_repo(frontier: &std::path::Path) {
     let store = frontier.join(".vela");
     let origin = store.join("origin.json");
@@ -285,8 +365,9 @@ pub fn require_initialized_repo(frontier: &std::path::Path) {
         return;
     }
     if !frontier.is_dir() {
-        fail_with(
+        fail_coded(
             ErrorKind::NotFound,
+            Some("repository_missing"),
             &format!(
                 "repository directory does not exist: {}",
                 frontier.display()
@@ -300,21 +381,24 @@ pub fn require_initialized_repo(frontier: &std::path::Path) {
         && !repository.exists()
     {
         let next = format!("vela init '{}' --json", frontier.display());
-        fail_with(
+        fail_coded(
             ErrorKind::Domain,
+            Some("repository_authority_uninitialized"),
             "repository authority is not initialized",
             Some(&next),
         );
     }
     if origin.exists() || repository.exists() {
-        fail_with(
+        fail_coded(
             ErrorKind::Domain,
+            Some("repository_incomplete"),
             "current repository is incomplete: expected both `.vela/origin.json` and `.vela/repository.json`",
             Some("restore the exact missing tracked file, then run `vela replay`"),
         );
     }
-    fail_with(
+    fail_coded(
         ErrorKind::Domain,
+        Some("repository_predecessor_layout"),
         "this Vela release verifies only current repository origins",
         Some(
             "inspect a predecessor with its pinned historical Vela release; create new work with `vela init <dir>`",

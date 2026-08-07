@@ -272,12 +272,25 @@ pub fn run_command() {
                 let raw =
                     crate::bounded_file::read_bounded_file(&path, 8 * 1024 * 1024, "Submission v1")
                         .unwrap_or_else(|error| {
+                            /* `bounded_file` distinguishes twelve reasons a
+                               named file did not produce bytes. This read one
+                               of them to pick an exit code and dropped the
+                               rest, so a caller was told the Submission file
+                               was a domain failure and could not learn whether
+                               it was oversized, a symlink, or swapped while
+                               being read — three different things to do next. */
                             let kind = if error.code == "missing" {
                                 crate::ui::ErrorKind::NotFound
                             } else {
                                 crate::ui::ErrorKind::Domain
                             };
-                            fail_preflight(kind, error.to_string())
+                            crate::ui::fail_unchanged_coded(
+                                kind,
+                                Some(error.published_code()),
+                                &error.to_string(),
+                                &preflight_id,
+                                "vela submit --help",
+                            )
                         });
                 let parsed = vela_protocol::submission_v1::SubmissionV1::parse(&raw)
                     .unwrap_or_else(|error| {
