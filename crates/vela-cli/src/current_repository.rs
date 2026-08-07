@@ -11,15 +11,15 @@ use vela_protocol::authority::AuthorityEventV1;
 use vela_protocol::authority_history::AuthorityInitializationV1;
 use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::current_repository::{
-    ClaimStandingRefV1, CurrentFrontierProfileV2, CurrentRepositoryV4, RepositoryObjectRefV1,
+    ClaimStandingRefV1, CurrentRepositoryProfileV1, CurrentRepositoryV4, RepositoryObjectRefV1,
 };
 use vela_protocol::events::{EventKind, NULL_HASH};
 use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::proposal_withdrawal_v1::ProposalWithdrawalV1;
 use vela_protocol::repository_origin::RepositoryOriginV1;
 use vela_protocol::status_v3::{
-    FRONTIER_HEAD_ROLE, ReplayState, StatusActions, StatusCounts, StatusDecisionInbox,
-    StatusFrontier, StatusGit, StatusIntegrity, StatusReviewAction, StatusRoots, StatusV3,
+    REPOSITORY_HEAD_ROLE, ReplayState, StatusActions, StatusCounts, StatusDecisionInbox,
+    StatusRepository, StatusGit, StatusIntegrity, StatusReviewAction, StatusRoots, StatusV3,
     StatusWork, StatusWorkAction, StrictState,
 };
 use vela_protocol::submission_v1::SubmissionV1;
@@ -38,7 +38,7 @@ pub(crate) struct CurrentProposalDecision {
 
 pub(crate) fn cmd_replay_repository(frontier: &Path, json_out: bool) {
     crate::ui::set_mode("replay", json_out);
-    let frontier = crate::ui::canonicalize_frontier(frontier);
+    let frontier = crate::ui::canonicalize_repo(frontier);
     let sensitive = sensitive_paths(&frontier);
     if !sensitive.is_empty() {
         let listed = sensitive
@@ -186,12 +186,12 @@ fn decision_inbox_status_summary(
 
 pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
     crate::ui::set_mode("status", json_out);
-    let frontier = crate::ui::canonicalize_frontier(frontier);
+    let frontier = crate::ui::canonicalize_repo(frontier);
     let profile_source =
         fs::read_to_string(frontier.join("frontier.toml")).unwrap_or_else(|error| {
             crate::cli::fail_return(&format!("read current Frontier Profile: {error}"))
         });
-    let profile = CurrentFrontierProfileV2::from_toml_str(&profile_source)
+    let profile = CurrentRepositoryProfileV1::from_toml_str(&profile_source)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     if !frontier.join(".vela/origin.json").exists()
         && !frontier.join(".vela/repository.json").exists()
@@ -215,7 +215,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         nulls below stay explicit `None`s of always-present fields: see the
         type's header on why absence is a different document. */
         let payload = StatusV3::new(
-            StatusFrontier {
+            StatusRepository {
                 id: profile.frontier_id.clone(),
                 name: profile.name.clone(),
                 profile_root: profile
@@ -225,7 +225,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
             /* The role is what this Git pointer means, not whether it has
             reached a commit yet; a bootstrap has the role and null anchors. */
             StatusGit {
-                role: FRONTIER_HEAD_ROLE.into(),
+                role: REPOSITORY_HEAD_ROLE.into(),
                 commit,
                 tree,
             },
@@ -335,13 +335,13 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         }
     };
     let payload = StatusV3::new(
-        StatusFrontier {
+        StatusRepository {
             id: repository.frontier_id.clone(),
             name: profile.name,
             profile_root: repository.profile_root.clone(),
         },
         StatusGit {
-            role: FRONTIER_HEAD_ROLE.into(),
+            role: REPOSITORY_HEAD_ROLE.into(),
             commit: Some(commit),
             tree: Some(tree),
         },
@@ -428,13 +428,13 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
     }
 }
 
-pub(crate) fn verify_current_profile_at(root: &Path) -> Result<CurrentFrontierProfileV2, String> {
+pub(crate) fn verify_current_profile_at(root: &Path) -> Result<CurrentRepositoryProfileV1, String> {
     let profile_source = fs::read_to_string(root.join("frontier.toml"))
         .map_err(|error| format!("read current frontier.toml: {error}"))?;
-    CurrentFrontierProfileV2::from_toml_str(&profile_source)
+    CurrentRepositoryProfileV1::from_toml_str(&profile_source)
 }
 
-pub(crate) fn verify_current_bootstrap_at(root: &Path) -> Result<CurrentFrontierProfileV2, String> {
+pub(crate) fn verify_current_bootstrap_at(root: &Path) -> Result<CurrentRepositoryProfileV1, String> {
     let profile = verify_current_profile_at(root)?;
     if root.join(".vela/epoch.json").exists() {
         return Err("repository retains the retired .vela/epoch.json path".into());
@@ -462,7 +462,7 @@ pub(crate) fn verify_current_bootstrap_at(root: &Path) -> Result<CurrentFrontier
 
 pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
     crate::ui::set_mode("next", json_out);
-    let frontier = crate::ui::canonicalize_frontier(frontier);
+    let frontier = crate::ui::canonicalize_repo(frontier);
     let repository = load_current_repository_at(&frontier, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let repository_root = repository
@@ -938,7 +938,7 @@ pub(crate) fn cmd_current_review_list(
     json_out: bool,
 ) {
     crate::ui::set_mode("review list", json_out);
-    crate::ui::require_initialized_frontier(frontier);
+    crate::ui::require_initialized_repo(frontier);
     let status = status.unwrap_or("pending_review");
     if !["pending_review", "accepted", "rejected", "withdrawn", "all"].contains(&status) {
         crate::cli::fail_kind(
@@ -946,7 +946,7 @@ pub(crate) fn cmd_current_review_list(
             "current review status must be pending_review, accepted, rejected, withdrawn, or all",
         );
     }
-    let frontier = crate::ui::canonicalize_frontier(frontier);
+    let frontier = crate::ui::canonicalize_repo(frontier);
     let repository = load_current_repository_at(&frontier, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let decisions = load_current_proposal_decisions(&frontier, &repository)
@@ -1047,8 +1047,8 @@ pub(crate) fn cmd_current_review_list(
 
 pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_out: bool) {
     crate::ui::set_mode("review show", json_out);
-    crate::ui::require_initialized_frontier(frontier);
-    let frontier = crate::ui::canonicalize_frontier(frontier);
+    crate::ui::require_initialized_repo(frontier);
+    let frontier = crate::ui::canonicalize_repo(frontier);
     let repository = load_current_repository_at(&frontier, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let decisions = load_current_proposal_decisions(&frontier, &repository)
@@ -1358,7 +1358,7 @@ pub(crate) fn load_current_repository_at(
 ) -> Result<CurrentRepositoryV4, String> {
     let profile_source = fs::read_to_string(root.join("frontier.toml"))
         .map_err(|error| format!("read current frontier.toml: {error}"))?;
-    let profile = CurrentFrontierProfileV2::from_toml_str(&profile_source)?;
+    let profile = CurrentRepositoryProfileV1::from_toml_str(&profile_source)?;
     let profile_root = profile.profile_root()?;
     if root.join(".vela/epoch.json").exists() {
         return Err("current repository cannot retain an epoch boundary".into());

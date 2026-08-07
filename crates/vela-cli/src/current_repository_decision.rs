@@ -33,8 +33,8 @@ use crate::authority_transaction::{
 use crate::config::git_publish::{
     PublicationState, PublishOptions, exact_publication_preflight, publish_exact_delta,
 };
-use crate::frontier_txn::{
-    ContentDigest, FrontierRecoveryBarrier, FrontierTxn, InputBinding, WriteClass,
+use crate::repository_txn::{
+    ContentDigest, RepositoryRecoveryBarrier, RepositoryTxn, InputBinding, WriteClass,
 };
 use crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner;
 use crate::repository_ops::publication_delta;
@@ -402,7 +402,7 @@ pub(crate) fn prepare(
             ));
         }
     }
-    let profile = vela_protocol::current_repository::CurrentFrontierProfileV2::from_toml_str(
+    let profile = vela_protocol::current_repository::CurrentRepositoryProfileV1::from_toml_str(
         &fs::read_to_string(frontier.join("frontier.toml"))
             .map_err(|error| format!("read current Frontier Profile: {error}"))?,
     )?;
@@ -452,9 +452,9 @@ pub(crate) fn prepare_locked(
     action: DecisionAction,
     reason: &str,
     observed_at: &str,
-) -> Result<(PreparedCurrentReviewDecision, FrontierRecoveryBarrier), String> {
+) -> Result<(PreparedCurrentReviewDecision, RepositoryRecoveryBarrier), String> {
     let journal_dir = crate::repository_ops::frontier_transaction_journal_dir(frontier)?;
-    let barrier = FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir)
+    let barrier = RepositoryTxn::acquire_recovery_barrier(frontier, &journal_dir)
         .map_err(|error| error.to_string())?;
     let prepared = prepare(frontier, proposal_id, action, reason, observed_at)?;
     Ok((prepared, barrier))
@@ -673,7 +673,7 @@ fn decision_events(
 pub(crate) fn execute_prepared(
     frontier: &Path,
     prepared: PreparedCurrentReviewDecision,
-    recovery_barrier: FrontierRecoveryBarrier,
+    recovery_barrier: RepositoryRecoveryBarrier,
     action: DecisionAction,
 ) -> Result<AuthorityTransactionResult, String> {
     let expected = &prepared.plan;

@@ -43,7 +43,7 @@ impl AuthorityTrustAnchorV1 {
                 "authority trust anchor schema must be {AUTHORITY_TRUST_ANCHOR_SCHEMA_V1}"
             ));
         }
-        validate_frontier_id(&self.frontier_id)?;
+        validate_repository_id(&self.frontier_id)?;
         validate_sha256_root(
             "authority trust anchor first_authority_record_root",
             &self.first_authority_record_root,
@@ -895,7 +895,7 @@ impl PreparedRepositoryFileReplacement {
 /// Deterministic path for the independently distributed sequence-1 authority
 /// root. Repository bytes and environment variables cannot redirect it.
 pub fn authority_trust_anchor_path(user_home: &Path, frontier_id: &str) -> Result<PathBuf, String> {
-    validate_frontier_id(frontier_id)?;
+    validate_repository_id(frontier_id)?;
     Ok(user_home
         .join(".vela")
         .join("trust")
@@ -1146,7 +1146,7 @@ fn install_private_trust_document<T: Serialize + DeserializeOwned + PartialEq>(
     Ok(())
 }
 
-fn validate_frontier_id(value: &str) -> Result<(), String> {
+fn validate_repository_id(value: &str) -> Result<(), String> {
     let Some(suffix) = value.strip_prefix("vfr_") else {
         return Err("trust anchor frontier_id must be vfr_<16 lowercase hex>".to_string());
     };

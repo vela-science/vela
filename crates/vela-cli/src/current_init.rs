@@ -11,8 +11,8 @@ use serde::Serialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use vela_protocol::current_repository::{
-    CURRENT_FRONTIER_PROFILE_SCHEMA_V2, CurrentFrontierProfileV2, FrontierProfileLicenseV2,
-    FrontierProfileScopeV2,
+    CURRENT_REPOSITORY_PROFILE_SCHEMA_V1, CurrentRepositoryProfileV1, RepositoryProfileLicenseV1,
+    RepositoryProfileScopeV1,
 };
 
 #[derive(Debug, Clone)]
@@ -173,18 +173,18 @@ fn initialize_in_place(path: &Path, options: &CurrentInitOptions<'_>) -> Result<
         genesis_entropy: &genesis_entropy,
     })?;
     let frontier_id = format!("vfr_{}", &hex::encode(Sha256::digest(identity_bytes))[..16]);
-    let profile = CurrentFrontierProfileV2 {
-        schema: CURRENT_FRONTIER_PROFILE_SCHEMA_V2.into(),
+    let profile = CurrentRepositoryProfileV1 {
+        schema: CURRENT_REPOSITORY_PROFILE_SCHEMA_V1.into(),
         frontier_id: frontier_id.clone(),
         name: name.into(),
         summary: scope.into(),
-        scope: FrontierProfileScopeV2 {
+        scope: RepositoryProfileScopeV1 {
             question: scope.into(),
             includes: Vec::new(),
             excludes: Vec::new(),
         },
         maintainers: Vec::new(),
-        license: FrontierProfileLicenseV2 {
+        license: RepositoryProfileLicenseV1 {
             content: "CC-BY-4.0".into(),
             code: "Apache-2.0".into(),
             data: "varies".into(),
@@ -384,7 +384,7 @@ mod tests {
                 .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
         );
 
-        let profile = vela_protocol::current_repository::CurrentFrontierProfileV2::from_toml_str(
+        let profile = vela_protocol::current_repository::CurrentRepositoryProfileV1::from_toml_str(
             &fs::read_to_string(parent.path().join("frontier").join("frontier.toml"))
                 .expect("read retained frontier.toml"),
         )

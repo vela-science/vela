@@ -22,7 +22,7 @@ use crate::config::git_publish::{
     PublicationOutcome, PublicationState, PublishOptions, exact_publication_preflight,
     publish_exact_delta,
 };
-use crate::frontier_txn::{ContentDigest, InputBinding, OperationId, OperationKind, WriteClass};
+use crate::repository_txn::{ContentDigest, InputBinding, OperationId, OperationKind, WriteClass};
 use crate::repository_ops::publication_delta;
 
 /* One name for the verb on every path. The success payload said
@@ -197,7 +197,7 @@ pub(crate) fn withdraw(
     }
 
     let journal_dir = crate::repository_ops::frontier_transaction_journal_dir(frontier)?;
-    let barrier = crate::frontier_txn::FrontierTxn::acquire_routine_evidence_write_barrier(
+    let barrier = crate::repository_txn::RepositoryTxn::acquire_routine_evidence_write_barrier(
         frontier,
         &journal_dir,
     )
@@ -379,8 +379,8 @@ pub(crate) fn cmd_withdraw(
     json_out: bool,
 ) {
     crate::ui::set_mode(COMMAND, json_out);
-    crate::ui::require_initialized_frontier(frontier);
-    let frontier = crate::ui::canonicalize_frontier(frontier);
+    crate::ui::require_initialized_repo(frontier);
+    let frontier = crate::ui::canonicalize_repo(frontier);
     let outcome = withdraw(&frontier, proposal_id, actor, reason)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     if json_out {

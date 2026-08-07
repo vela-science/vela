@@ -24,7 +24,7 @@ use crate::config::git_publish::{
     PublicationOutcome, PublicationState, PublishOptions, exact_publication_preflight,
     publish_exact_delta,
 };
-use crate::frontier_txn::{ContentDigest, InputBinding, WriteClass};
+use crate::repository_txn::{ContentDigest, InputBinding, WriteClass};
 use crate::repository_ops::{
     PreparedSubmissionArtifacts, SubmitOutcome, prepare_submission_artifacts, publication_delta,
     submission_publication_inputs,
@@ -332,7 +332,7 @@ fn existing_outcome(
     };
     let (_, proposal) = proposal_reference;
     let request_root = submit_request_root(repository, submission_root)?;
-    let operation_id = crate::frontier_txn::OperationId::derive("submit", request_root.as_bytes());
+    let operation_id = crate::repository_txn::OperationId::derive("submit", request_root.as_bytes());
     Ok(Some(SubmitOutcome {
         schema: "vela.submit-result.v1",
         operation_id: operation_id.as_str().into(),
@@ -429,7 +429,7 @@ fn submit_inner(
     }
 
     let journal_dir = crate::repository_ops::frontier_transaction_journal_dir(frontier)?;
-    let barrier = crate::frontier_txn::FrontierTxn::acquire_routine_evidence_write_barrier(
+    let barrier = crate::repository_txn::RepositoryTxn::acquire_routine_evidence_write_barrier(
         frontier,
         &journal_dir,
     )
@@ -517,7 +517,7 @@ fn submit_inner(
         )?;
     }
     let request_root = submit_request_root(&held_repository, &submission_root)?;
-    let operation_id = crate::frontier_txn::OperationId::derive("submit", request_root.as_bytes());
+    let operation_id = crate::repository_txn::OperationId::derive("submit", request_root.as_bytes());
     next_repository.verify()?;
     let derived_drafts = rebind_target_index(frontier, &next_repository)?;
     object_drafts.extend([
@@ -556,7 +556,7 @@ fn submit_inner(
         barrier,
         frontier,
         &held_repository.frontier_id,
-        crate::frontier_txn::OperationKind::Submission,
+        crate::repository_txn::OperationKind::Submission,
         operation_id.clone(),
         &request_root,
         fixed_time,

@@ -39,7 +39,7 @@ use crate::authority_transaction::{
     AuthorityTransactionRequest, authority_policy_material_paths, execute_authority_transaction,
     execution_binary_sha256,
 };
-use crate::frontier_txn::{ContentDigest, FrontierTxn, WriteClass};
+use crate::repository_txn::{ContentDigest, RepositoryTxn, WriteClass};
 use crate::repository_authority_provider::{
     SshAgentRepositoryAuthoritySigner, select_repository_authority_identity,
 };
@@ -329,7 +329,7 @@ fn pin_repository_authority(
         first_authority_record_root: observed_root.clone(),
     };
     let user_home =
-        crate::frontier_txn::operating_system_account_home().map_err(|error| error.to_string())?;
+        crate::repository_txn::operating_system_account_home().map_err(|error| error.to_string())?;
     let existing = load_authority_trust_anchor_from_home(&user_home, &repository.frontier_id)?;
     let (installed, operation, writes) = match existing {
         Some(existing) if existing.anchor == anchor => (existing, "unchanged", Vec::new()),
@@ -526,7 +526,7 @@ fn initialize_current_repository_authority(
     let binary_sha256 = execution_binary_sha256(&executable)?;
     let journal_dir = crate::repository_ops::frontier_transaction_journal_dir(frontier)?;
     let barrier =
-        FrontierTxn::acquire_repository_authority_initialization_barrier(frontier, &journal_dir)
+        RepositoryTxn::acquire_repository_authority_initialization_barrier(frontier, &journal_dir)
             .map_err(|error| error.to_string())?;
     let mut authentication = local;
     let mut signer = SshAgentRepositoryAuthoritySigner::from_environment(
@@ -675,7 +675,7 @@ fn initialize_current_repository_authority(
         first_authority_record_root: result.authority_record_root.clone(),
     };
     let user_home =
-        crate::frontier_txn::operating_system_account_home().map_err(|error| error.to_string())?;
+        crate::repository_txn::operating_system_account_home().map_err(|error| error.to_string())?;
     let installed_anchor = install_authority_trust_anchor_from_home(&user_home, &local_anchor)
         .map_err(|error| match load_authority_trust_anchor_from_home(
             &user_home,

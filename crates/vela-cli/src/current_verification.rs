@@ -24,7 +24,7 @@ use crate::config::git_publish::{
     PublicationOutcome, PublicationState, PublishOptions, exact_publication_preflight,
     publish_exact_delta,
 };
-use crate::frontier_txn::{ContentDigest, InputBinding, WriteClass};
+use crate::repository_txn::{ContentDigest, InputBinding, WriteClass};
 use crate::repository_ops::{VerificationImportOutcome, publication_delta};
 
 const METHOD_MANIFEST_MAX_BYTES: u64 = 1024 * 1024;
@@ -521,7 +521,7 @@ fn import_inner(
         }))?
     );
     let operation_id =
-        crate::frontier_txn::OperationId::derive("verification-import", request_root.as_bytes());
+        crate::repository_txn::OperationId::derive("verification-import", request_root.as_bytes());
     if let Some(outcome) = existing_outcome(
         frontier,
         &repository,
@@ -534,7 +534,7 @@ fn import_inner(
     ensure_pending_proposal(frontier, &repository, &record.subject.proposal_id)?;
 
     let journal_dir = crate::repository_ops::frontier_transaction_journal_dir(frontier)?;
-    let barrier = crate::frontier_txn::FrontierTxn::acquire_routine_evidence_write_barrier(
+    let barrier = crate::repository_txn::RepositoryTxn::acquire_routine_evidence_write_barrier(
         frontier,
         &journal_dir,
     )
@@ -574,7 +574,7 @@ fn import_inner(
         barrier,
         frontier,
         &held_repository.frontier_id,
-        crate::frontier_txn::OperationKind::Verification,
+        crate::repository_txn::OperationKind::Verification,
         operation_id.clone(),
         &request_root,
         recorded_at,

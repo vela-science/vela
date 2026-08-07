@@ -55,7 +55,7 @@ pub(crate) enum Commands {
         #[arg(value_name = "FRONTIER", help = HELP_FRONTIER)]
         frontier: Option<PathBuf>,
         #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
-        frontier_flag: Option<PathBuf>,
+        repo_flag: Option<PathBuf>,
         /// Output stable JSON
         #[arg(long, help = HELP_JSON)]
         json: bool,
@@ -66,7 +66,7 @@ pub(crate) enum Commands {
         #[arg(value_name = "FRONTIER", help = HELP_FRONTIER)]
         frontier: Option<PathBuf>,
         #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
-        frontier_flag: Option<PathBuf>,
+        repo_flag: Option<PathBuf>,
         /// Output stable JSON for programmatic callers.
         #[arg(long, help = HELP_JSON)]
         json: bool,
@@ -79,7 +79,7 @@ pub(crate) enum Commands {
         #[arg(value_name = "FRONTIER", help = HELP_FRONTIER)]
         frontier: Option<PathBuf>,
         #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
-        frontier_flag: Option<PathBuf>,
+        repo_flag: Option<PathBuf>,
         /// Standing filter: accepted, unassessed, or all.
         #[arg(long)]
         status: Option<String>,
@@ -102,7 +102,7 @@ pub(crate) enum Commands {
         /// Given alone, the Frontier is discovered.
         object_id: Option<String>,
         #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
-        frontier_flag: Option<PathBuf>,
+        repo_flag: Option<PathBuf>,
         /// How many recent events to show.
         #[arg(long, default_value = "20")]
         limit: usize,
@@ -185,7 +185,7 @@ pub(crate) enum Commands {
         #[arg(value_name = "OBJECT_ID")]
         second: Option<String>,
         #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
-        frontier_flag: Option<PathBuf>,
+        repo_flag: Option<PathBuf>,
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },
@@ -201,7 +201,7 @@ pub(crate) enum Commands {
         #[arg(value_name = "CLAIM_ID")]
         second: Option<String>,
         #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
-        frontier_flag: Option<PathBuf>,
+        repo_flag: Option<PathBuf>,
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },
@@ -213,7 +213,7 @@ pub(crate) enum Commands {
         #[arg(value_name = "FRONTIER", help = HELP_FRONTIER)]
         frontier: Option<PathBuf>,
         #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
-        frontier_flag: Option<PathBuf>,
+        repo_flag: Option<PathBuf>,
         #[arg(long, default_value_t = 5)]
         limit: usize,
         #[arg(long, help = HELP_JSON)]
@@ -317,7 +317,7 @@ pub(crate) enum VerifyAction {
         #[arg(value_name = "PROPOSAL")]
         second: Option<String>,
         #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
-        frontier_flag: Option<PathBuf>,
+        repo_flag: Option<PathBuf>,
         /// Named verifier profile used for this observation.
         #[arg(long)]
         profile: String,
@@ -361,7 +361,7 @@ pub(crate) enum VerifyAction {
         #[arg(value_name = "RECORD")]
         second: Option<String>,
         #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
-        frontier_flag: Option<PathBuf>,
+        repo_flag: Option<PathBuf>,
         #[arg(long = "as", help = HELP_REQUIRED_AS)]
         actor: String,
         #[arg(long, help = HELP_JSON)]
@@ -385,7 +385,7 @@ pub(crate) enum AuthorityTrustAction {
         #[arg(value_name = "FRONTIER", help = HELP_FRONTIER)]
         frontier: Option<PathBuf>,
         #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
-        frontier_flag: Option<PathBuf>,
+        repo_flag: Option<PathBuf>,
         /// Full sequence-1 authority-record root from an independent channel.
         #[arg(long)]
         record_root: String,
@@ -404,7 +404,7 @@ pub(crate) enum ReviewAction {
         #[arg(value_name = "FRONTIER", help = HELP_FRONTIER)]
         frontier: Option<PathBuf>,
         #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
-        frontier_flag: Option<PathBuf>,
+        repo_flag: Option<PathBuf>,
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },
@@ -413,7 +413,7 @@ pub(crate) enum ReviewAction {
         #[arg(value_name = "FRONTIER", help = HELP_FRONTIER)]
         frontier: Option<PathBuf>,
         #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
-        frontier_flag: Option<PathBuf>,
+        repo_flag: Option<PathBuf>,
         /// Proposal status filter: pending_review, accepted, rejected, withdrawn, or all.
         #[arg(long)]
         status: Option<String>,
@@ -435,7 +435,7 @@ pub(crate) enum ReviewAction {
         #[arg(value_name = "PROPOSAL_ID")]
         second: Option<String>,
         #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
-        frontier_flag: Option<PathBuf>,
+        repo_flag: Option<PathBuf>,
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },
@@ -450,7 +450,7 @@ pub(crate) enum ReviewAction {
         #[arg(value_name = "PROPOSAL_ID")]
         second: Option<String>,
         #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
-        frontier_flag: Option<PathBuf>,
+        repo_flag: Option<PathBuf>,
         /// Require the exact Decision Inbox entry that was reviewed.
         #[arg(long)]
         if_entry_root: Option<String>,
@@ -471,7 +471,7 @@ pub(crate) enum ReviewAction {
         #[arg(value_name = "PROPOSAL_ID")]
         second: Option<String>,
         #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
-        frontier_flag: Option<PathBuf>,
+        repo_flag: Option<PathBuf>,
         /// Require the exact Decision Inbox entry that was reviewed.
         #[arg(long)]
         if_entry_root: Option<String>,
@@ -492,7 +492,7 @@ pub(crate) enum ReviewAction {
         #[arg(value_name = "PROPOSAL_ID")]
         second: Option<String>,
         #[arg(long = "frontier", value_name = "PATH", help = HELP_FRONTIER)]
-        frontier_flag: Option<PathBuf>,
+        repo_flag: Option<PathBuf>,
         /// Exact producer identity that signed the retained Submission.
         #[arg(long = "as")]
         actor: String,

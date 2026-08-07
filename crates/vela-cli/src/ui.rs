@@ -217,7 +217,7 @@ pub fn header(command: &str, subject: &str, note: Option<&str>) {
 /// pattern — `vela status` from anywhere inside a frontier just works).
 /// Discover a current repository or its native pre-authority bootstrap;
 /// predecessor layouts require their pinned historical Vela release.
-pub fn resolve_frontier(explicit: Option<std::path::PathBuf>) -> std::path::PathBuf {
+pub fn resolve_repo(explicit: Option<std::path::PathBuf>) -> std::path::PathBuf {
     if let Some(path) = explicit {
         return path;
     }
@@ -256,10 +256,10 @@ pub fn resolve_frontier(explicit: Option<std::path::PathBuf>) -> std::path::Path
 /// Canonicalize a Frontier path the user typed, keeping the kind the failure
 /// actually has. A path that is not there is a not-found, which the exit-code
 /// contract distinguishes from a domain failure; without this the same missing
-/// directory exits 3 through [`require_initialized_frontier`] and 1 through the
+/// directory exits 3 through [`require_initialized_repo`] and 1 through the
 /// verbs that canonicalize first. Every other io failure stays Domain because
 /// this call cannot tell a permission refusal from a broken repository.
-pub fn canonicalize_frontier(frontier: &std::path::Path) -> std::path::PathBuf {
+pub fn canonicalize_repo(frontier: &std::path::Path) -> std::path::PathBuf {
     frontier.canonicalize().unwrap_or_else(|error| {
         let kind = if error.kind() == std::io::ErrorKind::NotFound {
             ErrorKind::NotFound
@@ -277,7 +277,7 @@ pub fn canonicalize_frontier(frontier: &std::path::Path) -> std::path::PathBuf {
 /// Refuse commands that require an initialized current repository with one
 /// phase-aware, actionable error. `status` and resumable `init` deliberately do
 /// not call this helper because they are the two valid bootstrap operations.
-pub fn require_initialized_frontier(frontier: &std::path::Path) {
+pub fn require_initialized_repo(frontier: &std::path::Path) {
     let store = frontier.join(".vela");
     let origin = store.join("origin.json");
     let repository = store.join("repository.json");

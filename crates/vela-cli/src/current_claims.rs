@@ -138,7 +138,7 @@ pub(crate) fn cmd_claims(
     json_out: bool,
 ) {
     crate::ui::set_mode("claims", json_out);
-    crate::ui::require_initialized_frontier(frontier);
+    crate::ui::require_initialized_repo(frontier);
     let status = status.unwrap_or("accepted");
     if !STATUS_VALUES.contains(&status) {
         crate::cli::fail_kind(
@@ -146,7 +146,7 @@ pub(crate) fn cmd_claims(
             "claims status must be accepted, unassessed, or all",
         );
     }
-    let frontier = crate::ui::canonicalize_frontier(frontier);
+    let frontier = crate::ui::canonicalize_repo(frontier);
     /* The same load `review list` uses: the manifest is only worth listing if
     repository authority covers it. */
     let repository = crate::current_repository::load_current_repository_at(&frontier, true)

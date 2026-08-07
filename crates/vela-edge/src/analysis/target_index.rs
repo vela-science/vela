@@ -31,7 +31,7 @@ const SOURCE_VIEW_BLOB_MAX_BYTES: u64 = 64 * 1024 * 1024;
 const SOURCE_VIEW_TOTAL_MAX_BYTES: u64 = 1024 * 1024 * 1024;
 
 pub const CODE_SCHEMA_INVALID: &str = "target_index_schema_invalid";
-pub const CODE_FRONTIER_MISMATCH: &str = "target_index_frontier_mismatch";
+pub const CODE_REPOSITORY_MISMATCH: &str = "target_index_frontier_mismatch";
 pub const CODE_SOURCE_UNAVAILABLE: &str = "target_index_source_unavailable";
 pub const CODE_SOURCE_NOT_ANCESTOR: &str = "target_index_source_not_ancestor";
 pub const CODE_SOURCE_TREE_MISMATCH: &str = "target_index_source_tree_mismatch";
@@ -151,7 +151,7 @@ fn require_sha256_root(field: &str, value: &str) -> Result<(), String> {
     }
 }
 
-fn require_frontier_id(value: &str) -> Result<(), String> {
+fn require_repository_id(value: &str) -> Result<(), String> {
     let Some(suffix) = value.strip_prefix("vfr_") else {
         return Err("frontier_id must use the vfr_<16 lowercase hex> form".to_string());
     };
@@ -244,7 +244,7 @@ fn portable_path_key(path: &str) -> String {
     path.nfc().flat_map(char::to_lowercase).collect()
 }
 
-fn is_protected_frontier_path(path: &str) -> bool {
+fn is_protected_repository_path(path: &str) -> bool {
     path == "frontier.toml"
         || path == "frontier.json"
         || path == "vela.lock"
@@ -440,7 +440,7 @@ impl TargetPacketRefV2 {
     fn validate(&self) -> Result<(), String> {
         bounded_text(&self.schema, "packet.schema", 256)?;
         validate_repository_path(&self.path, "packet.path", 1_024)?;
-        if is_protected_frontier_path(&self.path) {
+        if is_protected_repository_path(&self.path) {
             return Err(format!(
                 "packet path {:?} overlaps protected Frontier state",
                 self.path
@@ -477,7 +477,7 @@ fn validate_target_index_common(
     claim_boundary: &TargetIndexClaimBoundaryV2,
     targets: &[TargetIndexEntryV2],
 ) -> Result<(), String> {
-    require_frontier_id(frontier_id)?;
+    require_repository_id(frontier_id)?;
     require_git_object(
         "source.git_commit",
         &source.git_commit,
@@ -1282,7 +1282,7 @@ pub fn assess_current_target_index(
     origin_id: &str,
     repository_root: &str,
 ) -> Result<Option<CurrentTargetIndexAssessment>, String> {
-    require_frontier_id(frontier_id)?;
+    require_repository_id(frontier_id)?;
     require_origin_id("origin_id", origin_id)?;
     require_sha256_root("repository_root", repository_root)?;
     let path = repo_path.join("targets.json");
@@ -1322,7 +1322,7 @@ pub fn assess_current_target_index(
     let mut packet_values = BTreeMap::new();
     if index.frontier_id != frontier_id {
         global_issues.push(issue(
-            CODE_FRONTIER_MISMATCH,
+            CODE_REPOSITORY_MISMATCH,
             "index Frontier differs from the current repository",
         ));
     }

@@ -659,7 +659,7 @@ pub struct VerifiedAuthorityRecord {
 pub fn verify_authority_envelope(
     envelope: &AuthorityEnvelopeV1,
     keyset: &AuthorityKeysetV1,
-    expected_frontier_id: &str,
+    expected_repository_id: &str,
     expected_sequence: u64,
     expected_previous_root: Option<&str>,
 ) -> Result<VerifiedAuthorityRecord, String> {
@@ -720,7 +720,7 @@ pub fn verify_authority_envelope(
         return Err("authority record payload is not canonical JSON".into());
     }
     record.validate()?;
-    if record.content.frontier_id != expected_frontier_id
+    if record.content.frontier_id != expected_repository_id
         || record.content.frontier_id != keyset.frontier_id
         || record.content.sequence != expected_sequence
         || record.content.previous_authority_record_root.as_deref() != expected_previous_root

@@ -152,7 +152,7 @@ fn install_current_target_index(frontier: &Path, _socket: &Path) {
     let profile_source =
         std::fs::read_to_string(frontier.join("frontier.toml")).expect("frontier profile");
     let frontier_id =
-        vela_protocol::current_repository::CurrentFrontierProfileV2::from_toml_str(&profile_source)
+        vela_protocol::current_repository::CurrentRepositoryProfileV1::from_toml_str(&profile_source)
             .expect("current profile")
             .frontier_id;
     let repository_bytes =

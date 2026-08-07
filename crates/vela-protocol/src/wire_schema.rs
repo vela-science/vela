@@ -37,7 +37,7 @@ use crate::identity::IDENTITY_BINDING_SCHEMA;
 use crate::proposal_withdrawal_v1::{
     PROPOSAL_WITHDRAWAL_V1_AUTH_ALGORITHM, PROPOSAL_WITHDRAWAL_V1_SCHEMA,
 };
-use crate::status_v3::{FRONTIER_HEAD_ROLE, STATUS_V3_COMMAND, STATUS_V3_SCHEMA};
+use crate::status_v3::{REPOSITORY_HEAD_ROLE, STATUS_V3_COMMAND, STATUS_V3_SCHEMA};
 use crate::submission_v1::{
     CLAIM_TYPES, PRODUCER_CHECK_OUTCOMES, PRODUCER_REPORTED_AUTHORITY, REPLAYABILITY_LEVELS,
     REQUESTED_CHANGE_KINDS, SUBMISSION_V1_AUTH_ALGORITHM, SUBMISSION_V1_SCHEMA,
@@ -352,7 +352,7 @@ pub fn status_command_tag(_: &mut SchemaGenerator) -> Schema {
 
 /// The one role a Frontier's tracked Git pointer plays.
 pub fn frontier_head_role_tag(_: &mut SchemaGenerator) -> Schema {
-    tag(FRONTIER_HEAD_ROLE)
+    tag(REPOSITORY_HEAD_ROLE)
 }
 
 /// The one signature algorithm a Submission may declare.

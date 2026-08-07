@@ -48,12 +48,12 @@ pub fn run_command() {
     match cli.command {
         Commands::Replay {
             frontier,
-            frontier_flag,
+            repo_flag,
             json,
-        } => cmd_replay(frontier, frontier_flag, json),
+        } => cmd_replay(frontier, repo_flag, json),
         Commands::Status {
             frontier,
-            frontier_flag,
+            repo_flag,
             json,
         } => {
             /* Bind after set_mode, never before: argument binding can fail,
@@ -61,20 +61,20 @@ pub fn run_command() {
             envelope for a usage error as for a domain one. */
             crate::ui::set_mode("status", json);
             cmd_status_compact(
-                &frontier_arg::bind_frontier("status", frontier, frontier_flag),
+                &frontier_arg::bind_repo("status", frontier, repo_flag),
                 json,
             );
         }
         Commands::Claims {
             frontier,
-            frontier_flag,
+            repo_flag,
             status,
             limit,
             cursor,
             json,
         } => {
             crate::ui::set_mode("claims", json);
-            let frontier = frontier_arg::bind_frontier("claims", frontier, frontier_flag);
+            let frontier = frontier_arg::bind_repo("claims", frontier, repo_flag);
             crate::current_claims::cmd_claims(
                 &frontier,
                 status.as_deref(),
@@ -86,7 +86,7 @@ pub fn run_command() {
         Commands::Log {
             frontier,
             object_id,
-            frontier_flag,
+            repo_flag,
             limit,
             kind,
             as_of,
@@ -97,9 +97,9 @@ pub fn run_command() {
                 "log",
                 frontier,
                 object_id,
-                frontier_flag,
+                repo_flag,
             );
-            crate::ui::require_initialized_frontier(&frontier);
+            crate::ui::require_initialized_repo(&frontier);
             cmd_log(
                 &frontier,
                 object_id.as_deref(),
@@ -135,17 +135,17 @@ pub fn run_command() {
             AuthorityAction::Trust { action } => match action {
                 AuthorityTrustAction::Pin {
                     frontier,
-                    frontier_flag,
+                    repo_flag,
                     record_root,
                     previous_record_root,
                     json,
                 } => {
                     crate::ui::set_mode("authority trust pin", json);
                     cmd_authority_trust_pin(
-                        &frontier_arg::bind_frontier(
+                        &frontier_arg::bind_repo(
                             "authority trust pin",
                             frontier,
-                            frontier_flag,
+                            repo_flag,
                         ),
                         &record_root,
                         previous_record_root.as_deref(),
@@ -173,7 +173,7 @@ pub fn run_command() {
         Commands::Show {
             first,
             second,
-            frontier_flag,
+            repo_flag,
             json,
         } => {
             crate::ui::set_mode("show", json);
@@ -183,14 +183,14 @@ pub fn run_command() {
                 "OBJECT_ID",
                 first,
                 second,
-                frontier_flag,
+                repo_flag,
             );
             crate::current_read::cmd_show(&frontier, &object_id, json);
         }
         Commands::Why {
             first,
             second,
-            frontier_flag,
+            repo_flag,
             json,
         } => {
             crate::ui::set_mode("why", json);
@@ -200,19 +200,19 @@ pub fn run_command() {
                 "CLAIM_ID",
                 first,
                 second,
-                frontier_flag,
+                repo_flag,
             );
             crate::current_read::cmd_why(&frontier, &claim_id, json);
         }
         Commands::Next {
             frontier,
-            frontier_flag,
+            repo_flag,
             limit,
             json,
         } => {
             crate::ui::set_mode("next", json);
-            let dir = frontier_arg::bind_frontier("next", frontier, frontier_flag);
-            crate::ui::require_initialized_frontier(&dir);
+            let dir = frontier_arg::bind_repo("next", frontier, repo_flag);
+            crate::ui::require_initialized_repo(&dir);
             crate::current_repository::cmd_current_next(&dir, limit, json);
         }
         Commands::Start {
@@ -221,8 +221,8 @@ pub fn run_command() {
             json,
         } => {
             crate::ui::set_mode("start", json);
-            let dir = crate::ui::resolve_frontier(frontier);
-            crate::ui::require_initialized_frontier(&dir);
+            let dir = crate::ui::resolve_repo(frontier);
+            crate::ui::require_initialized_repo(&dir);
             crate::current_work::cmd_start(&dir, &target, json);
         }
         Commands::Submit {
@@ -247,7 +247,7 @@ pub fn run_command() {
             json,
         } => {
             crate::ui::set_mode("submit", json);
-            let dir = crate::ui::resolve_frontier(frontier);
+            let dir = crate::ui::resolve_repo(frontier);
             let authored_actor = submission
                 .is_none()
                 .then(|| crate::cli_identity::resolve_actor(r#as.as_deref()));
@@ -389,7 +389,7 @@ pub fn run_command() {
                 });
                 (authored, None, actor)
             };
-            crate::ui::require_initialized_frontier(&dir);
+            crate::ui::require_initialized_repo(&dir);
             match crate::repository_ops::submit(&dir, &submission, &actor, bundle_root.as_deref()) {
                 Ok(outcome) => {
                     if json {
@@ -522,23 +522,23 @@ fn cmd_review(action: ReviewAction) {
     match action {
         ReviewAction::Inbox {
             frontier,
-            frontier_flag,
+            repo_flag,
             json,
         } => {
             crate::ui::set_mode("review.inbox", json);
-            let frontier = frontier_arg::bind_frontier("review inbox", frontier, frontier_flag);
+            let frontier = frontier_arg::bind_repo("review inbox", frontier, repo_flag);
             crate::decision_inbox::cmd_decision_inbox(&frontier, json);
         }
         ReviewAction::List {
             frontier,
-            frontier_flag,
+            repo_flag,
             status,
             limit,
             cursor,
             json,
         } => {
             crate::ui::set_mode("review list", json);
-            let frontier = frontier_arg::bind_frontier("review list", frontier, frontier_flag);
+            let frontier = frontier_arg::bind_repo("review list", frontier, repo_flag);
             crate::current_repository::cmd_current_review_list(
                 &frontier,
                 status.as_deref(),
@@ -550,7 +550,7 @@ fn cmd_review(action: ReviewAction) {
         ReviewAction::Show {
             first,
             second,
-            frontier_flag,
+            repo_flag,
             json,
         } => {
             crate::ui::set_mode("review show", json);
@@ -560,14 +560,14 @@ fn cmd_review(action: ReviewAction) {
                 PROPOSAL.1,
                 first,
                 second,
-                frontier_flag,
+                repo_flag,
             );
             crate::current_repository::cmd_current_review_show(&frontier, &proposal_id, json);
         }
         ReviewAction::Accept {
             first,
             second,
-            frontier_flag,
+            repo_flag,
             if_entry_root,
             reason,
             json,
@@ -579,7 +579,7 @@ fn cmd_review(action: ReviewAction) {
                 PROPOSAL.1,
                 first,
                 second,
-                frontier_flag,
+                repo_flag,
             );
             review_decision::cmd_review_decide(
                 frontier,
@@ -593,7 +593,7 @@ fn cmd_review(action: ReviewAction) {
         ReviewAction::Reject {
             first,
             second,
-            frontier_flag,
+            repo_flag,
             if_entry_root,
             reason,
             json,
@@ -605,7 +605,7 @@ fn cmd_review(action: ReviewAction) {
                 PROPOSAL.1,
                 first,
                 second,
-                frontier_flag,
+                repo_flag,
             );
             review_decision::cmd_review_decide(
                 frontier,
@@ -619,7 +619,7 @@ fn cmd_review(action: ReviewAction) {
         ReviewAction::Withdraw {
             first,
             second,
-            frontier_flag,
+            repo_flag,
             actor,
             reason,
             json,
@@ -631,7 +631,7 @@ fn cmd_review(action: ReviewAction) {
                 PROPOSAL.1,
                 first,
                 second,
-                frontier_flag,
+                repo_flag,
             );
             crate::current_withdrawal::cmd_withdraw(&frontier, &proposal_id, &actor, &reason, json);
         }
@@ -640,12 +640,12 @@ fn cmd_review(action: ReviewAction) {
 
 fn cmd_replay(
     frontier: Option<std::path::PathBuf>,
-    frontier_flag: Option<std::path::PathBuf>,
+    repo_flag: Option<std::path::PathBuf>,
     json_output: bool,
 ) {
     crate::ui::set_mode("replay", json_output);
-    let frontier = frontier_arg::bind_frontier("replay", frontier, frontier_flag);
-    crate::ui::require_initialized_frontier(&frontier);
+    let frontier = frontier_arg::bind_repo("replay", frontier, repo_flag);
+    crate::ui::require_initialized_repo(&frontier);
     crate::current_repository::cmd_replay_repository(&frontier, json_output);
 }
 

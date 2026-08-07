@@ -27,7 +27,7 @@ pub(crate) fn cmd_review_decide(
         },
         json,
     );
-    ui::require_initialized_frontier(&frontier);
+    ui::require_initialized_repo(&frontier);
     if reason.trim().is_empty() {
         ui::fail_with(ErrorKind::Usage, "--reason must not be empty", None);
     }

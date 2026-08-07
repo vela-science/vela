@@ -753,7 +753,7 @@ pub(crate) fn review_context(
 
 pub(crate) fn cmd_decision_inbox(frontier: &Path, json_output: bool) {
     crate::ui::set_mode("review.inbox", json_output);
-    crate::ui::require_initialized_frontier(frontier);
+    crate::ui::require_initialized_repo(frontier);
     let projection = project(frontier).unwrap_or_else(|error| crate::cli::fail(&error));
     if json_output {
         /* The envelope wraps the projection rather than joining it. Adding

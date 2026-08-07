@@ -89,7 +89,7 @@ fn briefing(frontier: &Path, target_id: &str) -> Result<Value, String> {
 
 pub(crate) fn cmd_start(frontier: &Path, target: &str, json_out: bool) {
     crate::ui::set_mode("start", json_out);
-    crate::ui::require_initialized_frontier(frontier);
+    crate::ui::require_initialized_repo(frontier);
     let result = briefing(frontier, target).unwrap_or_else(|error| crate::cli::fail_return(&error));
     if json_out {
         crate::cli::print_json(&result);

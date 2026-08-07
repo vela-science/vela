@@ -53,7 +53,7 @@ pub const STATUS_V3_COMMAND: &str = "status";
 ///
 /// It is what the pointer *means*, not whether it has reached a commit, which
 /// is why it is stated even on the branch where `commit` and `tree` are null.
-pub const FRONTIER_HEAD_ROLE: &str = "frontier_head";
+pub const REPOSITORY_HEAD_ROLE: &str = "frontier_head";
 
 /// Whether replay reproduced the retained history.
 ///
@@ -78,7 +78,7 @@ pub enum StrictState {
 /// The Frontier this document is about.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct StatusFrontier {
+pub struct StatusRepository {
     #[schemars(schema_with = "crate::wire_schema::frontier_id")]
     pub id: String,
     #[schemars(schema_with = "crate::wire_schema::text")]
@@ -246,7 +246,7 @@ pub struct StatusV3 {
     pub ok: bool,
     #[schemars(schema_with = "crate::wire_schema::status_command_tag")]
     pub command: String,
-    pub frontier: StatusFrontier,
+    pub frontier: StatusRepository,
     pub git: StatusGit,
     pub integrity: StatusIntegrity,
     pub roots: StatusRoots,
@@ -260,7 +260,7 @@ impl StatusV3 {
     /// Build the envelope every branch shares, so the three tags cannot be
     /// spelled per-branch again.
     pub fn new(
-        frontier: StatusFrontier,
+        frontier: StatusRepository,
         git: StatusGit,
         integrity: StatusIntegrity,
         roots: StatusRoots,
@@ -360,13 +360,13 @@ mod tests {
     #[test]
     fn the_serialized_document_carries_every_required_key() {
         let bootstrapping = super::StatusV3::new(
-            super::StatusFrontier {
+            super::StatusRepository {
                 id: "vfr_0000000000000000".into(),
                 name: "fixture".into(),
                 profile_root: format!("sha256:{}", "0".repeat(64)),
             },
             super::StatusGit {
-                role: super::FRONTIER_HEAD_ROLE.into(),
+                role: super::REPOSITORY_HEAD_ROLE.into(),
                 commit: None,
                 tree: None,
             },

@@ -42,9 +42,9 @@ use vela_protocol::events::event_log_hash;
 use vela_protocol::events::{EventKind, StateActor, StateTarget};
 use vela_protocol::principal::HUMAN_ONLY_AUTHORITY_ACTIONS_V1;
 
-use crate::frontier_txn::{
-    CanonicalWriteBarrier, ContentDigest, DeltaDraft, FrontierBinding, FrontierTxn,
-    FrontierTxnError, FrontierTxnPlan, FrontierTxnPlanSpec, InputBinding, OperationId,
+use crate::repository_txn::{
+    CanonicalWriteBarrier, ContentDigest, DeltaDraft, RepositoryBinding, RepositoryTxn,
+    RepositoryTxnError, RepositoryTxnPlan, RepositoryTxnPlanSpec, InputBinding, OperationId,
     OperationKind, PlannedWrite, RepoPath, WriteClass,
 };
 
@@ -166,7 +166,7 @@ struct DurableAuthorityTransactionResult {
 
 #[derive(Debug)]
 pub(crate) struct PreparedAuthorityTransaction {
-    transaction: FrontierTxn,
+    transaction: RepositoryTxn,
     pub(crate) result: AuthorityTransactionResult,
     #[cfg(test)]
     pub(crate) events: Vec<AuthorityEventV1>,
@@ -177,7 +177,7 @@ pub(crate) struct PreparedAuthorityTransaction {
 impl PreparedAuthorityTransaction {
     pub(crate) fn resolved_public_writes(
         &self,
-    ) -> Result<Vec<crate::frontier_txn::ResolvedWrite>, AuthorityTransactionError> {
+    ) -> Result<Vec<crate::repository_txn::ResolvedWrite>, AuthorityTransactionError> {
         self.transaction
             .resolved_public_writes()
             .map_err(AuthorityTransactionError::Transaction)
@@ -214,7 +214,7 @@ impl PreparedAuthorityTransaction {
     }
 
     #[cfg(test)]
-    fn transaction_mut(&mut self) -> &mut FrontierTxn {
+    fn transaction_mut(&mut self) -> &mut RepositoryTxn {
         &mut self.transaction
     }
 }
@@ -225,7 +225,7 @@ pub(crate) enum AuthorityTransactionError {
     History(String),
     Authentication(AuthorityPreflightFailure),
     Signing(String),
-    Transaction(FrontierTxnError),
+    Transaction(RepositoryTxnError),
 }
 
 impl fmt::Display for AuthorityTransactionError {
@@ -589,7 +589,7 @@ where
     if record_writes.len() != 1
         || !matches!(
             record_writes[0].preimage,
-            crate::frontier_txn::FileState::Absent
+            crate::repository_txn::FileState::Absent
         )
         || content_delta != unsigned_draft.delta.writes()
         || record.content.object_delta != record_object_delta
@@ -631,13 +631,13 @@ where
         authority_record_path: &authority_record_path(&record.record_id),
     })
     .map_err(AuthorityTransactionError::Invalid)?;
-    let plan = FrontierTxnPlan::new(
-        FrontierTxnPlanSpec {
+    let plan = RepositoryTxnPlan::new(
+        RepositoryTxnPlanSpec {
             kind: OperationKind::Decision,
             operation_id,
             request_root: ContentDigest::parse(request.intent_digest.clone())
                 .map_err(AuthorityTransactionError::Transaction)?,
-            frontier: FrontierBinding::new(
+            frontier: RepositoryBinding::new(
                 frontier_root,
                 &request.history.frontier_id,
                 &layout_identity,
@@ -654,7 +654,7 @@ where
         draft.delta.clone(),
     )
     .map_err(AuthorityTransactionError::Transaction)?;
-    let transaction = FrontierTxn::prepare_with_barrier(barrier, plan, draft)
+    let transaction = RepositoryTxn::prepare_with_barrier(barrier, plan, draft)
         .map_err(AuthorityTransactionError::Transaction)?;
     Ok(PreparedAuthorityTransaction {
         transaction,
@@ -1184,7 +1184,7 @@ fn normalize_authority_snapshots(
             }
             Err(error) => {
                 return Err(AuthorityTransactionError::Transaction(
-                    FrontierTxnError::Io(format!(
+                    RepositoryTxnError::Io(format!(
                         "inspect authority snapshot {}: {error}",
                         absolute.display()
                     )),
@@ -1594,10 +1594,10 @@ fn authority_object_delta(
         .collect()
 }
 
-fn file_state_root(state: &crate::frontier_txn::FileState) -> Option<String> {
+fn file_state_root(state: &crate::repository_txn::FileState) -> Option<String> {
     match state {
-        crate::frontier_txn::FileState::Absent => None,
-        crate::frontier_txn::FileState::File { digest, .. } => Some(digest.as_str().to_string()),
+        crate::repository_txn::FileState::Absent => None,
+        crate::repository_txn::FileState::File { digest, .. } => Some(digest.as_str().to_string()),
     }
 }
 
@@ -1999,7 +1999,7 @@ mod tests {
     use vela_protocol::principal::PrincipalClass;
 
     use super::*;
-    use crate::frontier_txn::{FrontierTxnStep, RecoveryOutcome};
+    use crate::repository_txn::{RepositoryTxnStep, RecoveryOutcome};
 
     const FRONTIER_ID: &str = "vfr_0123456789abcdef";
     const REPOSITORY_PRINCIPAL: &str = "local:device-1|uid:501";
@@ -2214,7 +2214,7 @@ mod tests {
         }
 
         fn barrier(&self) -> CanonicalWriteBarrier {
-            FrontierTxn::acquire_write_barrier_for_test(self.temporary.path(), &self.journal_dir())
+            RepositoryTxn::acquire_write_barrier_for_test(self.temporary.path(), &self.journal_dir())
                 .unwrap()
         }
 
@@ -3082,7 +3082,7 @@ mod tests {
                 assert!(
                     matches!(
                         error,
-                        AuthorityTransactionError::Transaction(FrontierTxnError::StaleInput { .. })
+                        AuthorityTransactionError::Transaction(RepositoryTxnError::StaleInput { .. })
                     ),
                     "{error:?}"
                 );
@@ -3708,7 +3708,7 @@ mod tests {
         assert!(
             matches!(
                 error,
-                AuthorityTransactionError::Transaction(FrontierTxnError::StaleInput { .. })
+                AuthorityTransactionError::Transaction(RepositoryTxnError::StaleInput { .. })
             ),
             "{error:?}"
         );
@@ -3738,7 +3738,7 @@ mod tests {
         assert!(
             matches!(
                 error,
-                AuthorityTransactionError::Transaction(FrontierTxnError::StaleSnapshot { .. })
+                AuthorityTransactionError::Transaction(RepositoryTxnError::StaleSnapshot { .. })
             ),
             "{error:?}"
         );
@@ -3865,13 +3865,13 @@ mod tests {
         let error = prepared.mark_committed().unwrap_err();
         assert!(matches!(
             error,
-            AuthorityTransactionError::Transaction(FrontierTxnError::StaleInput { .. })
+            AuthorityTransactionError::Transaction(RepositoryTxnError::StaleInput { .. })
         ));
         assert!(authority_transaction_postimages_absent(&fixture));
         assert!(!prepared.transaction.plan().operation_id.as_str().is_empty());
         assert!(matches!(
             prepared.transaction.recovery_state(),
-            crate::frontier_txn::RecoveryState::Aborted
+            crate::repository_txn::RecoveryState::Aborted
         ));
     }
 
@@ -3905,7 +3905,7 @@ mod tests {
         let error = prepared.mark_committed().unwrap_err();
         assert!(matches!(
             error,
-            AuthorityTransactionError::Transaction(FrontierTxnError::StaleInput { .. })
+            AuthorityTransactionError::Transaction(RepositoryTxnError::StaleInput { .. })
         ));
         assert_eq!(signer.calls, 1);
         assert!(authority_transaction_postimages_absent(&fixture));
@@ -4064,7 +4064,7 @@ mod tests {
         let error = prepared.mark_committed().unwrap_err();
         assert!(matches!(
             error,
-            AuthorityTransactionError::Transaction(FrontierTxnError::StaleInput { .. })
+            AuthorityTransactionError::Transaction(RepositoryTxnError::StaleInput { .. })
         ));
         assert_eq!(signer.calls, 1);
 
@@ -4139,7 +4139,7 @@ mod tests {
         .unwrap_err();
         assert!(matches!(
             error,
-            AuthorityTransactionError::Transaction(FrontierTxnError::CorruptPlan(message))
+            AuthorityTransactionError::Transaction(RepositoryTxnError::CorruptPlan(message))
                 if message.contains("membership differs")
         ));
         assert_eq!(stale_signer.calls, 0);
@@ -4166,7 +4166,7 @@ mod tests {
         let error = prepared.mark_committed().unwrap_err();
         assert!(matches!(
             error,
-            AuthorityTransactionError::Transaction(FrontierTxnError::StaleSnapshot { .. })
+            AuthorityTransactionError::Transaction(RepositoryTxnError::StaleSnapshot { .. })
         ));
         assert_eq!(signer.calls, 1);
         fs::remove_file(
@@ -4555,18 +4555,18 @@ mod tests {
         prepared.mark_committed().unwrap();
         let error = prepared
             .transaction_mut()
-            .install_at_failpoint(FrontierTxnStep::BeforeInstallWrite { index: 1 })
+            .install_at_failpoint(RepositoryTxnStep::BeforeInstallWrite { index: 1 })
             .unwrap_err();
         assert!(matches!(
             error,
-            FrontierTxnError::InjectedFailure {
-                step: FrontierTxnStep::BeforeInstallWrite { index: 1 }
+            RepositoryTxnError::InjectedFailure {
+                step: RepositoryTxnStep::BeforeInstallWrite { index: 1 }
             }
         ));
         drop(prepared);
         let operation_id = OperationId::parse(result.operation_id).unwrap();
         assert_eq!(
-            FrontierTxn::recover(
+            RepositoryTxn::recover(
                 fixture.temporary.path(),
                 &fixture.journal_dir(),
                 &operation_id,
@@ -4620,19 +4620,19 @@ mod tests {
         prepared.mark_committed().unwrap();
         let error = prepared
             .transaction_mut()
-            .install_at_failpoint(FrontierTxnStep::BeforeInstallWrite { index: 1 })
+            .install_at_failpoint(RepositoryTxnStep::BeforeInstallWrite { index: 1 })
             .unwrap_err();
         assert!(matches!(
             error,
-            FrontierTxnError::InjectedFailure {
-                step: FrontierTxnStep::BeforeInstallWrite { index: 1 }
+            RepositoryTxnError::InjectedFailure {
+                step: RepositoryTxnStep::BeforeInstallWrite { index: 1 }
             }
         ));
         drop(prepared);
 
         let operation_id = OperationId::parse(result.operation_id).unwrap();
         assert_eq!(
-            FrontierTxn::recover(
+            RepositoryTxn::recover(
                 fixture.temporary.path(),
                 &fixture.journal_dir(),
                 &operation_id,

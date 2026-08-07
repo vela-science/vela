@@ -62,7 +62,7 @@ impl AuthorityCloseV1 {
                 "authority close schema must be {AUTHORITY_CLOSE_SCHEMA_V1}"
             ));
         }
-        require_frontier(&self.frontier_id)?;
+        require_repository(&self.frontier_id)?;
         for (name, root) in [
             (
                 "last_trusted_authority_record_root",
@@ -116,7 +116,7 @@ impl AuthorityInitializationV1 {
                 "authority initialization schema must be {AUTHORITY_INITIALIZATION_SCHEMA_V1}"
             ));
         }
-        require_frontier(&self.frontier_id)?;
+        require_repository(&self.frontier_id)?;
         for (name, root) in [
             (
                 "initial_event_log_root",
@@ -195,7 +195,7 @@ pub struct AuthorityHistoryInput<'a> {
 pub fn verify_authority_history(
     input: AuthorityHistoryInput<'_>,
 ) -> Result<AuthorityHistoryVerification, String> {
-    require_frontier(input.frontier_id)?;
+    require_repository(input.frontier_id)?;
     require_sha256_root("initial event_log_root", input.initial_event_log_root)?;
     require_sha256_root(
         "initial actor_registry_root",
@@ -660,7 +660,7 @@ pub fn verify_origin_authority_initialization(
     policy_bundle: &PolicyBundleV1,
     initialization_event: &AuthorityEventV1,
 ) -> Result<AuthorityInitializationV1, String> {
-    require_frontier(frontier_id)?;
+    require_repository(frontier_id)?;
     require_sha256_root("initial event_log_root", initial_event_log_root)?;
     require_sha256_root("initial actor_registry_root", initial_actor_registry_root)?;
     let payload = initialization_payload_from_event(initialization_event)?;
@@ -883,7 +883,7 @@ fn verify_event_object_delta(
     Ok(())
 }
 
-fn require_frontier(frontier_id: &str) -> Result<(), String> {
+fn require_repository(frontier_id: &str) -> Result<(), String> {
     if frontier_id.starts_with("vfr_") {
         Ok(())
     } else {

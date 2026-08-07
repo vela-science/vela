@@ -17,7 +17,7 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
         VerifyAction::Record {
             first,
             second,
-            frontier_flag,
+            repo_flag,
             profile,
             method,
             property,
@@ -36,9 +36,9 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                 "PROPOSAL",
                 first,
                 second,
-                frontier_flag,
+                repo_flag,
             );
-            crate::ui::require_initialized_frontier(&frontier);
+            crate::ui::require_initialized_repo(&frontier);
             let record = crate::current_verification::author_record(
                 &frontier,
                 crate::current_verification::VerificationRecordRequest {
@@ -75,7 +75,7 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
         VerifyAction::Import {
             first,
             second,
-            frontier_flag,
+            repo_flag,
             actor,
             json,
         } => {
@@ -86,10 +86,10 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                 "RECORD",
                 first,
                 second,
-                frontier_flag,
+                repo_flag,
             );
             let record = std::path::PathBuf::from(record);
-            crate::ui::require_initialized_frontier(&frontier);
+            crate::ui::require_initialized_repo(&frontier);
             let bytes = crate::bounded_file::read_bounded_file(
                 &record,
                 vela_protocol::verification_record::VERIFICATION_RECORD_MAX_BYTES as u64,
@@ -440,7 +440,7 @@ pub(crate) fn proposal_reproduction_files(
 pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output: bool) {
     crate::ui::set_mode("reproduce", json_output);
     if path.is_dir() && path.join("frontier.toml").is_file() {
-        crate::ui::require_initialized_frontier(path);
+        crate::ui::require_initialized_repo(path);
     }
     let mut scope = if path.is_file() {
         "standalone_artifact"

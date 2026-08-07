@@ -1040,7 +1040,7 @@ pub(crate) fn log_payload(
 
 pub(crate) fn cmd_show(frontier: &Path, object_id: &str, json_out: bool) {
     crate::ui::set_mode("show", json_out);
-    crate::ui::require_initialized_frontier(frontier);
+    crate::ui::require_initialized_repo(frontier);
     let projection = show_payload(frontier, object_id).unwrap_or_else(|error| fail_return(&error));
     if json_out {
         print_json(&projection);
@@ -1078,7 +1078,7 @@ fn render_show(projection: &Value) {
 
 pub(crate) fn cmd_why(frontier: &Path, claim_id: &str, json_out: bool) {
     crate::ui::set_mode("why", json_out);
-    crate::ui::require_initialized_frontier(frontier);
+    crate::ui::require_initialized_repo(frontier);
     if !claim_id.starts_with("vcl_") {
         crate::ui::fail_with(
             crate::ui::ErrorKind::Usage,

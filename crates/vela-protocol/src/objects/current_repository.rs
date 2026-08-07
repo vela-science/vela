@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 
 pub const CURRENT_REPOSITORY_SCHEMA_V4: &str = "vela.repository.v4";
-pub const CURRENT_FRONTIER_PROFILE_SCHEMA_V2: &str = "vela.frontier-profile.v2";
+pub const CURRENT_REPOSITORY_PROFILE_SCHEMA_V1: &str = "vela.frontier-profile.v2";
 const PROFILE_NAME_MAX_BYTES: usize = 256;
 const PROFILE_SUMMARY_MAX_BYTES: usize = 2 * 1024;
 const PROFILE_QUESTION_MAX_BYTES: usize = 4 * 1024;
@@ -23,7 +23,7 @@ const PROFILE_ENCODED_MAX_BYTES: usize = 64 * 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-pub struct FrontierProfileScopeV2 {
+pub struct RepositoryProfileScopeV1 {
     pub question: String,
     pub includes: Vec<String>,
     pub excludes: Vec<String>,
@@ -31,7 +31,7 @@ pub struct FrontierProfileScopeV2 {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-pub struct FrontierProfileLicenseV2 {
+pub struct RepositoryProfileLicenseV1 {
     pub content: String,
     pub code: String,
     pub data: String,
@@ -44,37 +44,37 @@ pub struct FrontierProfileLicenseV2 {
 /// `.vela/repository.json`, never from a generated compatibility view.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CurrentFrontierProfileV2 {
+pub struct CurrentRepositoryProfileV1 {
     pub schema: String,
     pub frontier_id: String,
     pub name: String,
     pub summary: String,
-    pub scope: FrontierProfileScopeV2,
+    pub scope: RepositoryProfileScopeV1,
     pub maintainers: Vec<String>,
-    pub license: FrontierProfileLicenseV2,
+    pub license: RepositoryProfileLicenseV1,
 }
 
-impl CurrentFrontierProfileV2 {
+impl CurrentRepositoryProfileV1 {
     pub fn from_toml_str(source: &str) -> Result<Self, String> {
         if source.len() > PROFILE_ENCODED_MAX_BYTES {
             return Err(format!(
-                "{CURRENT_FRONTIER_PROFILE_SCHEMA_V2} exceeds the 64 KiB encoded limit"
+                "{CURRENT_REPOSITORY_PROFILE_SCHEMA_V1} exceeds the 64 KiB encoded limit"
             ));
         }
         let profile: Self = toml::from_str(source).map_err(|error| {
-            format!("invalid {CURRENT_FRONTIER_PROFILE_SCHEMA_V2} TOML: {error}")
+            format!("invalid {CURRENT_REPOSITORY_PROFILE_SCHEMA_V1} TOML: {error}")
         })?;
         profile.validate()?;
         Ok(profile)
     }
 
     pub fn validate(&self) -> Result<(), String> {
-        if self.schema != CURRENT_FRONTIER_PROFILE_SCHEMA_V2 {
+        if self.schema != CURRENT_REPOSITORY_PROFILE_SCHEMA_V1 {
             return Err(format!(
-                "profile.schema must be `{CURRENT_FRONTIER_PROFILE_SCHEMA_V2}`"
+                "profile.schema must be `{CURRENT_REPOSITORY_PROFILE_SCHEMA_V1}`"
             ));
         }
-        validate_frontier_id(&self.frontier_id)?;
+        validate_repository_id(&self.frontier_id)?;
         validate_profile_text("profile.name", &self.name, PROFILE_NAME_MAX_BYTES)?;
         validate_profile_text("profile.summary", &self.summary, PROFILE_SUMMARY_MAX_BYTES)?;
         validate_profile_text(
@@ -292,7 +292,7 @@ fn verify_object_refs(field: &str, references: &[RepositoryObjectRefV1]) -> Resu
     Ok(())
 }
 
-fn validate_frontier_id(value: &str) -> Result<(), String> {
+fn validate_repository_id(value: &str) -> Result<(), String> {
     let suffix = value
         .strip_prefix("vfr_")
         .ok_or_else(|| "profile.frontier_id must be vfr_<16 lowercase hex>".to_string())?;
@@ -452,25 +452,25 @@ mod tests {
 
     #[test]
     fn current_profile_is_native_closed_metadata() {
-        let current = CurrentFrontierProfileV2 {
-            schema: CURRENT_FRONTIER_PROFILE_SCHEMA_V2.into(),
+        let current = CurrentRepositoryProfileV1 {
+            schema: CURRENT_REPOSITORY_PROFILE_SCHEMA_V1.into(),
             frontier_id: "vfr_0123456789abcdef".into(),
             name: "Example".into(),
             summary: "A bounded example Frontier.".into(),
-            scope: FrontierProfileScopeV2 {
+            scope: RepositoryProfileScopeV1 {
                 question: "What is true?".into(),
                 includes: vec!["Exact claims.".into()],
                 excludes: vec!["Unbounded claims.".into()],
             },
             maintainers: vec!["Example Maintainer".into()],
-            license: FrontierProfileLicenseV2 {
+            license: RepositoryProfileLicenseV1 {
                 content: "CC-BY-4.0".into(),
                 code: "Apache-2.0 OR MIT".into(),
                 data: "CC0-1.0".into(),
             },
         };
         let toml = toml::to_string_pretty(&current).unwrap();
-        let parsed = CurrentFrontierProfileV2::from_toml_str(&toml).unwrap();
+        let parsed = CurrentRepositoryProfileV1::from_toml_str(&toml).unwrap();
         assert_eq!(parsed, current);
         assert_eq!(
             current.profile_root().unwrap(),
@@ -497,18 +497,18 @@ content = "CC-BY-4.0"
 code = "Apache-2.0 OR MIT"
 data = "CC0-1.0"
 "#;
-        CurrentFrontierProfileV2::from_toml_str(valid).unwrap();
+        CurrentRepositoryProfileV1::from_toml_str(valid).unwrap();
         assert!(
-            CurrentFrontierProfileV2::from_toml_str(&format!("{valid}\nunknown = 1\n")).is_err()
+            CurrentRepositoryProfileV1::from_toml_str(&format!("{valid}\nunknown = 1\n")).is_err()
         );
         let duplicate = valid.replacen(
             "name = \"Example\"",
             "name = \"Example\"\nname = \"Again\"",
             1,
         );
-        assert!(CurrentFrontierProfileV2::from_toml_str(&duplicate).is_err());
+        assert!(CurrentRepositoryProfileV1::from_toml_str(&duplicate).is_err());
         assert!(
-            CurrentFrontierProfileV2::from_toml_str(&"x".repeat(PROFILE_ENCODED_MAX_BYTES + 1))
+            CurrentRepositoryProfileV1::from_toml_str(&"x".repeat(PROFILE_ENCODED_MAX_BYTES + 1))
                 .is_err()
         );
     }
