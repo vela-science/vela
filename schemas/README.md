@@ -13,7 +13,7 @@ unknown fields; the decoded Vela authority payload remains closed.
 
 ## One of these is a read surface
 
-`status-v3.schema.json` describes `vela.status.v3`, the document
+`status-v4.schema.json` describes `vela.status.v4`, the document
 `vela status --json` answers with. It signs nothing and roots nothing. It is
 published because a second implementation parses it: the Observatory in
 `vela-web` builds its whole projection from this document, and until this file
@@ -49,7 +49,7 @@ identifiers, Ed25519 signatures, referenced objects, actor relationships,
 repository invariants, human Decision authority, or Standing. The schemas use
 `format: date-time` as an assertion in Vela's conformance check.
 
-`status-v3.schema.json` states one rule its consumer does not have to restate:
+`status-v4.schema.json` states one rule its consumer does not have to restate:
 every field is `required`, including the ones whose value is `null` on a
 Frontier that cannot fill them. A bootstrapping repository has a Git pointer
 with no commit behind it, not an absent Git pointer, and a schema that let the

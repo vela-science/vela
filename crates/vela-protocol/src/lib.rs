@@ -20,4 +20,4 @@ pub use objects::{
     verification_record,
 };
 mod read_surface;
-pub use read_surface::status_v3;
+pub use read_surface::status_v4;

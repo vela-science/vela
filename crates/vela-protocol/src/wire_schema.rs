@@ -1,6 +1,6 @@
 //! The published wire JSON Schemas, generated from the types on the wire.
 //!
-//! Four of these describe objects that sign. The fifth, `status-v3`, does not:
+//! Four of these describe objects that sign. The fifth, `status-v4`, does not:
 //! it is a read surface, a document `vela status` answers with and another
 //! repository parses. It is here because the question this module answers is
 //! not "does this object carry a signature" but "does a second implementation
@@ -37,7 +37,7 @@ use crate::identity::IDENTITY_BINDING_SCHEMA;
 use crate::proposal_withdrawal_v1::{
     PROPOSAL_WITHDRAWAL_V1_AUTH_ALGORITHM, PROPOSAL_WITHDRAWAL_V1_SCHEMA,
 };
-use crate::status_v3::{REPOSITORY_HEAD_ROLE, STATUS_V3_COMMAND, STATUS_V3_SCHEMA};
+use crate::status_v4::{REPOSITORY_HEAD_ROLE, STATUS_V3_COMMAND, STATUS_V3_SCHEMA};
 use crate::submission_v1::{
     CLAIM_TYPES, PRODUCER_CHECK_OUTCOMES, PRODUCER_REPORTED_AUTHORITY, REPLAYABILITY_LEVELS,
     REQUESTED_CHANGE_KINDS, SUBMISSION_V1_AUTH_ALGORITHM, SUBMISSION_V1_SCHEMA,
@@ -198,9 +198,9 @@ pub fn nullable_git_object_id(_: &mut SchemaGenerator) -> Schema {
     json_schema!({ "type": ["string", "null"], "pattern": GIT_OBJECT_ID_PATTERN })
 }
 
-/// `vfr_` and 16 hex digits.
-pub fn frontier_id(_: &mut SchemaGenerator) -> Schema {
-    json_schema!({ "type": "string", "pattern": "^vfr_[0-9a-f]{16}$" })
+/// `vrepo_` and 16 hex digits.
+pub fn repository_id(_: &mut SchemaGenerator) -> Schema {
+    json_schema!({ "type": "string", "pattern": "^vrepo_[0-9a-f]{16}$" })
 }
 
 /// The review lane's action, or null when no Decision is waiting.
@@ -211,7 +211,7 @@ pub fn frontier_id(_: &mut SchemaGenerator) -> Schema {
 /// null arm has to be added here, where the subschema is in hand.
 pub fn nullable_review_action(generator: &mut SchemaGenerator) -> Schema {
     let action =
-        serde_json::to_value(generator.subschema_for::<crate::status_v3::StatusReviewAction>())
+        serde_json::to_value(generator.subschema_for::<crate::status_v4::StatusReviewAction>())
             .expect("a generated subschema serializes");
     Schema::try_from(serde_json::json!({ "anyOf": [action, { "type": "null" }] }))
         .expect("the nullable review action is an object schema")
@@ -340,7 +340,7 @@ pub fn identity_binding_schema_tag(_: &mut SchemaGenerator) -> Schema {
     tag(IDENTITY_BINDING_SCHEMA)
 }
 
-/// `vela.status.v3`.
+/// `vela.status.v4`.
 pub fn status_schema_tag(_: &mut SchemaGenerator) -> Schema {
     tag(STATUS_V3_SCHEMA)
 }
@@ -351,7 +351,7 @@ pub fn status_command_tag(_: &mut SchemaGenerator) -> Schema {
 }
 
 /// The one role a Frontier's tracked Git pointer plays.
-pub fn frontier_head_role_tag(_: &mut SchemaGenerator) -> Schema {
+pub fn repository_head_role_tag(_: &mut SchemaGenerator) -> Schema {
     tag(REPOSITORY_HEAD_ROLE)
 }
 
@@ -524,8 +524,8 @@ pub fn published() -> Vec<(&'static str, Value)> {
             ),
         ),
         (
-            "status-v3.schema.json",
-            document::<crate::status_v3::StatusV3>("status-v3.schema.json", "Vela Status v3"),
+            "status-v4.schema.json",
+            document::<crate::status_v4::StatusV4>("status-v4.schema.json", "Vela Status v4"),
         ),
     ]
 }

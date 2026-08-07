@@ -26,12 +26,12 @@ pub(crate) struct CurrentInitOptions<'a> {
 its identity must distinguish repositories rather than questions. The v1
 preimage was exactly the declared name and scope, which handed two unrelated
 repositories that chose the same wording one identity; the user-local trust
-store keys on `vfr_`, so the second repository's authority anchor then refused
+store keys on `vrepo_`, so the second repository's authority anchor then refused
 to install over the first. The repository origin would be the natural
-distinguishing commitment, but `vro_` is derived from the frontier_id, and it
+distinguishing commitment, but `vro_` is derived from the repository_id, and it
 is written by `vela authority init` after this point, so it cannot enter this
 preimage. A fresh 256-bit draw from the OS CSPRNG is what makes this repository
-this one. It is not retained: nothing recomputes a frontier_id, and a retained
+this one. It is not retained: nothing recomputes a repository_id, and a retained
 nonce would not make the identity checkable, because the creator chooses it. */
 #[derive(Serialize)]
 struct FrontierGenesisIdentity<'a> {
@@ -172,10 +172,10 @@ fn initialize_in_place(path: &Path, options: &CurrentInitOptions<'_>) -> Result<
         scope,
         genesis_entropy: &genesis_entropy,
     })?;
-    let frontier_id = format!("vfr_{}", &hex::encode(Sha256::digest(identity_bytes))[..16]);
+    let repository_id = format!("vrepo_{}", &hex::encode(Sha256::digest(identity_bytes))[..16]);
     let profile = CurrentRepositoryProfileV1 {
         schema: CURRENT_REPOSITORY_PROFILE_SCHEMA_V1.into(),
-        frontier_id: frontier_id.clone(),
+        repository_id: repository_id.clone(),
         name: name.into(),
         summary: scope.into(),
         scope: RepositoryProfileScopeV1 {
@@ -210,7 +210,7 @@ fn initialize_in_place(path: &Path, options: &CurrentInitOptions<'_>) -> Result<
         "path": path.display().to_string(),
         "name": name,
         "scope": scope,
-        "frontier_id": frontier_id,
+        "repository_id": repository_id,
         "profile_root": profile_root,
         "authority": "uninitialized",
         "scientific_object_count": 0,
@@ -337,10 +337,10 @@ mod tests {
         .expect("initialize a fresh Frontier")
     }
 
-    fn frontier_id(payload: &Value) -> String {
-        payload["frontier_id"]
+    fn repository_id(payload: &Value) -> String {
+        payload["repository_id"]
             .as_str()
-            .expect("frontier_id is a string")
+            .expect("repository_id is a string")
             .to_string()
     }
 
@@ -359,24 +359,24 @@ mod tests {
         );
 
         assert_ne!(
-            frontier_id(&first),
-            frontier_id(&second),
+            repository_id(&first),
+            repository_id(&second),
             "two independently created repositories must not share one identity"
         );
         assert_ne!(first["profile_root"], second["profile_root"]);
     }
 
     #[test]
-    fn genesis_identity_keeps_the_declared_frontier_id_shape() {
+    fn genesis_identity_keeps_the_declared_repository_id_shape() {
         let parent = tempfile::tempdir().expect("staging parent");
         let payload = initialize(
             &parent.path().join("frontier"),
             "Bounded name",
             "Does X hold?",
         );
-        let id = frontier_id(&payload);
+        let id = repository_id(&payload);
 
-        let suffix = id.strip_prefix("vfr_").expect("vfr_ prefix");
+        let suffix = id.strip_prefix("vrepo_").expect("vrepo_ prefix");
         assert_eq!(suffix.len(), 16);
         assert!(
             suffix
@@ -389,7 +389,7 @@ mod tests {
                 .expect("read retained frontier.toml"),
         )
         .expect("retained profile validates");
-        assert_eq!(profile.frontier_id, id);
+        assert_eq!(profile.repository_id, id);
     }
 
     #[test]

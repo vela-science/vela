@@ -133,8 +133,8 @@ fn bootstrap_discovery_and_blocked_commands_name_the_one_valid_next_action() {
     assert!(status.status.success());
     let status = json(&status);
     /* One command, one document: a cold Frontier and a replaying one both
-    answer `vela.status.v3`, and the phase is a value inside it. */
-    assert_eq!(status["schema"], "vela.status.v3");
+    answer `vela.status.v4`, and the phase is a value inside it. */
+    assert_eq!(status["schema"], "vela.status.v4");
     assert_eq!(status["actions"]["work"]["mode"], "authority_uninitialized");
     assert!(
         status["actions"]["work"]["command"]
@@ -272,7 +272,7 @@ fn init_creates_a_signed_ready_frontier_in_one_command() {
     let status = json(&status);
     /* The same literal the cold-start test asserts, so the two branches cannot
     drift back into two documents without one of them failing here. */
-    assert_eq!(status["schema"], "vela.status.v3");
+    assert_eq!(status["schema"], "vela.status.v4");
     assert_eq!(status["integrity"]["strict"], "pass");
     assert_eq!(status["actions"]["work"]["mode"], "direct_submission");
     assert!(
@@ -340,7 +340,7 @@ fn review_decision_preflight_keeps_json_error_contract() {
 
 #[test]
 fn a_colliding_trust_pin_is_not_reported_as_a_signing_failure() {
-    // The pin lives under the OS account home and keys on frontier_id, so a
+    // The pin lives under the OS account home and keys on repository_id, so a
     // second authority initialization of the same retained Profile, with a
     // different key, targets the same pin path with a different record root.
     // That is not a signing failure and no key operation can clear it. Two
@@ -384,7 +384,7 @@ fn a_colliding_trust_pin_is_not_reported_as_a_signing_failure() {
     let second_frontier = temporary.path().join("second/frontier");
     let second_frontier_text = second_frontier.to_string_lossy().into_owned();
     // Copy the first repository's retained bootstrap, which carries its exact
-    // frontier_id, and resume `vela init` there against the second key.
+    // repository_id, and resume `vela init` there against the second key.
     std::fs::create_dir_all(second_frontier.join(".vela")).expect("second bootstrap .vela");
     for retained in [
         "frontier.toml",
@@ -472,9 +472,9 @@ fn two_repositories_on_the_same_question_receive_different_identities() {
                 .expect("local trust anchor path"),
         )));
         identities.push(
-            created["frontier_id"]
+            created["repository_id"]
                 .as_str()
-                .expect("frontier_id")
+                .expect("repository_id")
                 .to_string(),
         );
     }

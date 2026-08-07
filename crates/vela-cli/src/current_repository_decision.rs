@@ -62,7 +62,7 @@ impl DecisionAction {
 #[serde(deny_unknown_fields)]
 pub(crate) struct CurrentReviewDecisionPlan {
     pub(crate) schema: String,
-    pub(crate) frontier_id: String,
+    pub(crate) repository_id: String,
     pub(crate) frontier_name: String,
     pub(crate) repository_root: String,
     pub(crate) proposal_id: String,
@@ -409,7 +409,7 @@ pub(crate) fn prepare(
     let local = crate::cli::local_session(observed_at)?;
     let mut plan = CurrentReviewDecisionPlan {
         schema: PLAN_SCHEMA.into(),
-        frontier_id: repository.frontier_id.clone(),
+        repository_id: repository.repository_id.clone(),
         frontier_name: profile.name,
         repository_root,
         proposal_id: proposal.proposal_id.clone(),
@@ -908,7 +908,7 @@ mod tests {
     fn repository() -> CurrentRepositoryV4 {
         CurrentRepositoryV4 {
             schema: CURRENT_REPOSITORY_SCHEMA_V4.into(),
-            frontier_id: "vfr_0123456789abcdef".into(),
+            repository_id: "vrepo_0123456789abcdef".into(),
             profile_root: root('a'),
             origin_id: "vro_0123456789abcdef".into(),
             origin_root: root('b'),
@@ -1088,7 +1088,7 @@ mod tests {
     fn plan() -> CurrentReviewDecisionPlan {
         let mut plan = CurrentReviewDecisionPlan {
             schema: PLAN_SCHEMA.into(),
-            frontier_id: "vfr_0123456789abcdef".into(),
+            repository_id: "vrepo_0123456789abcdef".into(),
             frontier_name: "Fixture frontier".into(),
             repository_root: root('1'),
             proposal_id: "vpr_fixture".into(),

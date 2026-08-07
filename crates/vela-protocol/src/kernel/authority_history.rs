@@ -45,7 +45,7 @@ fn require_sha256_root(field: &str, value: &str) -> Result<(), String> {
 #[serde(deny_unknown_fields)]
 pub struct AuthorityCloseV1 {
     pub schema: String,
-    pub frontier_id: String,
+    pub repository_id: String,
     pub last_trusted_sequence: u64,
     pub last_trusted_authority_record_root: String,
     pub previous_authority_keyset_root: String,
@@ -62,7 +62,7 @@ impl AuthorityCloseV1 {
                 "authority close schema must be {AUTHORITY_CLOSE_SCHEMA_V1}"
             ));
         }
-        require_repository(&self.frontier_id)?;
+        require_repository(&self.repository_id)?;
         for (name, root) in [
             (
                 "last_trusted_authority_record_root",
@@ -99,7 +99,7 @@ impl AuthorityCloseV1 {
 #[serde(deny_unknown_fields)]
 pub struct AuthorityInitializationV1 {
     pub schema: String,
-    pub frontier_id: String,
+    pub repository_id: String,
     pub initial_event_log_root: String,
     pub initial_actor_registry_root: String,
     pub new_authority_keyset_root: String,
@@ -116,7 +116,7 @@ impl AuthorityInitializationV1 {
                 "authority initialization schema must be {AUTHORITY_INITIALIZATION_SCHEMA_V1}"
             ));
         }
-        require_repository(&self.frontier_id)?;
+        require_repository(&self.repository_id)?;
         for (name, root) in [
             (
                 "initial_event_log_root",
@@ -161,7 +161,7 @@ pub enum AuthorityHistoryEra {
 #[serde(deny_unknown_fields)]
 pub struct AuthorityHistoryVerification {
     pub era: AuthorityHistoryEra,
-    pub frontier_id: String,
+    pub repository_id: String,
     pub authority_event_count: usize,
     pub authority_record_count: usize,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -179,7 +179,7 @@ pub struct AuthorityHistoryVerification {
 
 /// Complete current read-side inputs.
 pub struct AuthorityHistoryInput<'a> {
-    pub frontier_id: &'a str,
+    pub repository_id: &'a str,
     pub initial_event_log_root: &'a str,
     pub initial_actor_registry_root: &'a str,
     /// Compacted origins retained initial keyset and policy snapshots as
@@ -195,7 +195,7 @@ pub struct AuthorityHistoryInput<'a> {
 pub fn verify_authority_history(
     input: AuthorityHistoryInput<'_>,
 ) -> Result<AuthorityHistoryVerification, String> {
-    require_repository(input.frontier_id)?;
+    require_repository(input.repository_id)?;
     require_sha256_root("initial event_log_root", input.initial_event_log_root)?;
     require_sha256_root(
         "initial actor_registry_root",
@@ -204,7 +204,7 @@ pub fn verify_authority_history(
     if input.authority_events.is_empty() && input.authority_envelopes.is_empty() {
         return Ok(AuthorityHistoryVerification {
             era: AuthorityHistoryEra::Uninitialized,
-            frontier_id: input.frontier_id.into(),
+            repository_id: input.repository_id.into(),
             authority_event_count: 0,
             authority_record_count: 0,
             initialization_event_id: None,
@@ -221,8 +221,8 @@ pub fn verify_authority_history(
         return Err("repository-authority history has no covering authority record".into());
     }
 
-    let authority_keysets = index_authority_keysets(input.frontier_id, input.authority_keysets)?;
-    let policy_bundles = index_policy_bundles(input.frontier_id, input.policy_bundles)?;
+    let authority_keysets = index_authority_keysets(input.repository_id, input.authority_keysets)?;
+    let policy_bundles = index_policy_bundles(input.repository_id, input.policy_bundles)?;
     let initializations = input
         .authority_events
         .iter()
@@ -245,7 +245,7 @@ pub fn verify_authority_history(
         .copied()
         .ok_or_else(|| "initial policy bundle is not retained".to_string())?;
     verify_origin_authority_initialization(
-        input.frontier_id,
+        input.repository_id,
         input.initial_event_log_root,
         input.initial_actor_registry_root,
         active_keyset,
@@ -295,7 +295,7 @@ pub fn verify_authority_history(
         let verified = verify_authority_envelope(
             envelope,
             active_keyset,
-            input.frontier_id,
+            input.repository_id,
             sequence,
             previous_record_root.as_deref(),
         )?;
@@ -443,7 +443,7 @@ pub fn verify_authority_history(
 
     Ok(AuthorityHistoryVerification {
         era: AuthorityHistoryEra::RepositoryAuthority,
-        frontier_id: input.frontier_id.into(),
+        repository_id: input.repository_id.into(),
         authority_event_count: input.authority_events.len(),
         authority_record_count: verified_records.len(),
         initialization_event_id: Some(initialization_event.id.clone()),
@@ -460,13 +460,13 @@ pub fn verify_authority_history(
 }
 
 fn index_authority_keysets<'a>(
-    frontier_id: &str,
+    repository_id: &str,
     keysets: &'a [AuthorityKeysetV1],
 ) -> Result<BTreeMap<String, &'a AuthorityKeysetV1>, String> {
     let mut indexed = BTreeMap::new();
     for keyset in keysets {
         keyset.validate()?;
-        if keyset.frontier_id != frontier_id {
+        if keyset.repository_id != repository_id {
             return Err("retained authority keyset names a different Frontier".into());
         }
         let root = keyset.root()?;
@@ -478,13 +478,13 @@ fn index_authority_keysets<'a>(
 }
 
 fn index_policy_bundles<'a>(
-    frontier_id: &str,
+    repository_id: &str,
     bundles: &'a [PolicyBundleV1],
 ) -> Result<BTreeMap<String, &'a PolicyBundleV1>, String> {
     let mut indexed = BTreeMap::new();
     for bundle in bundles {
         bundle.validate()?;
-        if bundle.frontier_id != frontier_id {
+        if bundle.repository_id != repository_id {
             return Err("retained policy bundle names a different Frontier".into());
         }
         let root = bundle.root()?;
@@ -623,7 +623,7 @@ fn verify_authority_close_record(
     let event = transaction_events[0];
     if event.content.kind.as_str() != AUTHORITY_CLOSED_EVENT_KIND
         || event.content.target.r#type != "frontier"
-        || event.content.target.id != verified.record.content.frontier_id
+        || event.content.target.id != verified.record.content.repository_id
         || event.content.actor.r#type != "human"
         || event.content.before_hash != event.content.after_hash
     {
@@ -638,7 +638,7 @@ fn verify_authority_close_record(
         .previous_authority_record_root
         .as_deref()
         .ok_or_else(|| "authority close lacks its prior chain head".to_string())?;
-    if payload.frontier_id != verified.record.content.frontier_id
+    if payload.repository_id != verified.record.content.repository_id
         || payload.last_trusted_sequence != sequence.saturating_sub(1)
         || payload.last_trusted_authority_record_root != previous_record_root
         || payload.previous_authority_keyset_root != previous_keyset_root
@@ -653,18 +653,18 @@ fn verify_authority_close_record(
 
 /// Verify sequence-one initialization against the immutable repository origin.
 pub fn verify_origin_authority_initialization(
-    frontier_id: &str,
+    repository_id: &str,
     initial_event_log_root: &str,
     initial_actor_registry_root: &str,
     authority_keyset: &AuthorityKeysetV1,
     policy_bundle: &PolicyBundleV1,
     initialization_event: &AuthorityEventV1,
 ) -> Result<AuthorityInitializationV1, String> {
-    require_repository(frontier_id)?;
+    require_repository(repository_id)?;
     require_sha256_root("initial event_log_root", initial_event_log_root)?;
     require_sha256_root("initial actor_registry_root", initial_actor_registry_root)?;
     let payload = initialization_payload_from_event(initialization_event)?;
-    if payload.frontier_id != frontier_id
+    if payload.repository_id != repository_id
         || payload.initial_event_log_root != initial_event_log_root
         || payload.initial_actor_registry_root != initial_actor_registry_root
     {
@@ -672,8 +672,8 @@ pub fn verify_origin_authority_initialization(
     }
     authority_keyset.validate()?;
     policy_bundle.validate()?;
-    if authority_keyset.frontier_id != frontier_id
-        || policy_bundle.frontier_id != frontier_id
+    if authority_keyset.repository_id != repository_id
+        || policy_bundle.repository_id != repository_id
         || payload.new_authority_keyset_root != authority_keyset.root()?
         || payload.new_policy_bundle_root != policy_bundle.root()?
     {
@@ -699,7 +699,7 @@ pub fn initialization_payload_from_event(
     let payload: AuthorityInitializationV1 = serde_json::from_value(event.content.payload.clone())
         .map_err(|error| format!("authority initialization payload is invalid: {error}"))?;
     payload.validate()?;
-    if event.content.target.id != payload.frontier_id
+    if event.content.target.id != payload.repository_id
         || event.content.reason != payload.reason
         || event.content.principal_id != payload.new_principal_id
         || event.content.actor.id != payload.new_principal_id
@@ -883,11 +883,11 @@ fn verify_event_object_delta(
     Ok(())
 }
 
-fn require_repository(frontier_id: &str) -> Result<(), String> {
-    if frontier_id.starts_with("vfr_") {
+fn require_repository(repository_id: &str) -> Result<(), String> {
+    if repository_id.starts_with("vrepo_") {
         Ok(())
     } else {
-        Err("authority history frontier_id must start with vfr_".into())
+        Err("authority history repository_id must start with vrepo_".into())
     }
 }
 
@@ -903,7 +903,7 @@ mod tests {
     fn initialization_is_closed_and_root_bound() {
         let value = AuthorityInitializationV1 {
             schema: AUTHORITY_INITIALIZATION_SCHEMA_V1.into(),
-            frontier_id: "vfr_fixture".into(),
+            repository_id: "vrepo_fixture".into(),
             initial_event_log_root: root('1'),
             initial_actor_registry_root: root('2'),
             new_authority_keyset_root: root('3'),
@@ -924,7 +924,7 @@ mod tests {
         let initial_event_root = root('a');
         let initial_actor_root = root('b');
         let verification = verify_authority_history(AuthorityHistoryInput {
-            frontier_id: "vfr_fixture",
+            repository_id: "vrepo_fixture",
             initial_event_log_root: &initial_event_root,
             initial_actor_registry_root: &initial_actor_root,
             initial_snapshots_preexisting: true,

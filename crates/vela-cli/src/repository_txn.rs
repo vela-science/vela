@@ -435,26 +435,26 @@ impl DeltaDraft {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct RepositoryBinding {
     canonical_root: String,
-    frontier_id: String,
+    repository_id: String,
     layout_root: ContentDigest,
 }
 
 impl RepositoryBinding {
     pub(crate) fn new(
         frontier_root: &Path,
-        frontier_id: impl Into<String>,
+        repository_id: impl Into<String>,
         layout_identity: &[u8],
     ) -> Result<Self, RepositoryTxnError> {
         let root = canonical_frontier_root(frontier_root)?;
-        let frontier_id = frontier_id.into();
-        if frontier_id.trim().is_empty() {
+        let repository_id = repository_id.into();
+        if repository_id.trim().is_empty() {
             return Err(RepositoryTxnError::CorruptPlan(
                 "frontier binding has an empty frontier id".to_string(),
             ));
         }
         Ok(Self {
             canonical_root: root.to_string_lossy().into_owned(),
-            frontier_id,
+            repository_id,
             layout_root: ContentDigest::hash(layout_identity),
         })
     }
@@ -1086,14 +1086,14 @@ pub(crate) struct CanonicalWriteBarrier {
 
 #[derive(Debug)]
 struct RepositoryAuthorityWriteAuthorization {
-    frontier_id: String,
+    repository_id: String,
     boundary_event_id: String,
     boundary_event_root: ContentDigest,
 }
 
 #[derive(Debug)]
 struct RoutineEvidenceWriteAuthorization {
-    frontier_id: String,
+    repository_id: String,
     origin_id: String,
     repository_root: ContentDigest,
     authority_record_root: ContentDigest,
@@ -1102,7 +1102,7 @@ struct RoutineEvidenceWriteAuthorization {
 
 #[derive(Debug)]
 struct FreshRepositoryAuthorization {
-    frontier_id: String,
+    repository_id: String,
     context_root: ContentDigest,
     trusted_user_home: PathBuf,
     delta_root: Option<ContentDigest>,
@@ -1139,9 +1139,9 @@ fn verify_fresh_repository_authorization(
                 reason,
             })?;
     let context_root =
-        fresh_repository_context_root(&profile.frontier_id, &profile_root, &trusted_user_home)?;
+        fresh_repository_context_root(&profile.repository_id, &profile_root, &trusted_user_home)?;
     Ok(FreshRepositoryAuthorization {
-        frontier_id: profile.frontier_id,
+        repository_id: profile.repository_id,
         context_root,
         trusted_user_home,
         delta_root: None,
@@ -1149,14 +1149,14 @@ fn verify_fresh_repository_authorization(
 }
 
 fn fresh_repository_context_root(
-    frontier_id: &str,
+    repository_id: &str,
     profile_root: &str,
     trusted_user_home: &Path,
 ) -> Result<ContentDigest, RepositoryTxnError> {
     Ok(ContentDigest::hash(
         vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
             "schema": "vela.repository-bootstrap-authorization.internal.v3",
-            "frontier_id": frontier_id,
+            "repository_id": repository_id,
             "profile_root": profile_root,
             "trusted_user_home": trusted_user_home.to_string_lossy(),
         }))
@@ -1214,7 +1214,7 @@ fn verify_routine_evidence_write_era(
         }
     })?)?;
     Ok(RoutineEvidenceWriteAuthorization {
-        frontier_id: repository.frontier_id,
+        repository_id: repository.repository_id,
         origin_id: origin.origin_id,
         repository_root,
         authority_record_root: ContentDigest::parse(authority_record_root.to_string())?,
@@ -1269,7 +1269,7 @@ fn verified_repository_authority_write_authorization(
         })?;
     let trusted_user_home = operating_system_account_home()?;
     let anchor =
-        load_authority_trust_anchor_from_home(&trusted_user_home, &repository.frontier_id)
+        load_authority_trust_anchor_from_home(&trusted_user_home, &repository.repository_id)
             .map_err(|error| RepositoryTxnError::RepositoryWriteIntentDenied {
                 intent: "repository_authority",
                 reason: format!("load local authority trust anchor: {error}"),
@@ -1282,7 +1282,7 @@ fn verified_repository_authority_write_authorization(
             })?;
     let anchor_selects = anchor
         .anchor
-        .verify_sequence_one(&repository.frontier_id, first_root)
+        .verify_sequence_one(&repository.repository_id, first_root)
         .is_ok();
     if !anchor_selects {
         return Err(RepositoryTxnError::RepositoryWriteIntentDenied {
@@ -1312,7 +1312,7 @@ fn verified_repository_authority_write_authorization(
             ),
         })?;
     Ok(RepositoryAuthorityWriteAuthorization {
-        frontier_id: repository.frontier_id.clone(),
+        repository_id: repository.repository_id.clone(),
         boundary_event_id: initialization_event_id.to_string(),
         boundary_event_root: ContentDigest::parse(event.root().map_err(|error| {
             RepositoryTxnError::RepositoryWriteIntentDenied {
@@ -1474,7 +1474,7 @@ fn verify_fresh_repository_delta(
     let origin_root = origin
         .canonical_root()
         .map_err(RepositoryTxnError::CorruptPlan)?;
-    if repository.frontier_id != origin.frontier_id
+    if repository.repository_id != origin.repository_id
         || repository.profile_root != origin.profile_root
         || repository.origin_id != origin.origin_id
         || repository.origin_root != origin_root
@@ -1672,7 +1672,7 @@ fn reverify_transaction_authorization(
         }
         RepositoryTxnAuthorization::RepositoryAuthority(expected) => {
             let actual = verify_repository_authority_write_era(root)?;
-            if actual.frontier_id != expected.frontier_id
+            if actual.repository_id != expected.repository_id
                 || actual.boundary_event_id != expected.boundary_event_id
                 || actual.boundary_event_root != expected.boundary_event_root
             {
@@ -1685,7 +1685,7 @@ fn reverify_transaction_authorization(
         }
         RepositoryTxnAuthorization::RoutineEvidence(expected) => {
             let actual = verify_routine_evidence_write_era(root)?;
-            if actual.frontier_id != expected.frontier_id
+            if actual.repository_id != expected.repository_id
                 || actual.origin_id != expected.origin_id
                 || actual.repository_root != expected.repository_root
                 || actual.authority_record_root != expected.authority_record_root
@@ -2236,11 +2236,11 @@ enum RepositoryTxnAuthorization {
 }
 
 impl RepositoryTxnAuthorization {
-    fn verified_frontier_id(&self) -> Option<&str> {
+    fn verified_repository_id(&self) -> Option<&str> {
         match self {
-            Self::FreshRepository(authorization) => Some(&authorization.frontier_id),
-            Self::RepositoryAuthority(authorization) => Some(&authorization.frontier_id),
-            Self::RoutineEvidence(authorization) => Some(&authorization.frontier_id),
+            Self::FreshRepository(authorization) => Some(&authorization.repository_id),
+            Self::RepositoryAuthority(authorization) => Some(&authorization.repository_id),
+            Self::RoutineEvidence(authorization) => Some(&authorization.repository_id),
             #[cfg(test)]
             Self::TestHarness => None,
         }
@@ -2430,12 +2430,12 @@ impl RepositoryTxn {
                 Ok(bytes)
             })?;
         }
-        if let Some(authorized) = authorization.verified_frontier_id()
-            && plan.frontier.frontier_id != authorized
+        if let Some(authorized) = authorization.verified_repository_id()
+            && plan.frontier.repository_id != authorized
         {
             return Err(RepositoryTxnError::WriteAuthorizationFrontierMismatch {
                 authorized: authorized.to_string(),
-                planned: plan.frontier.frontier_id.clone(),
+                planned: plan.frontier.repository_id.clone(),
             });
         }
         if plan.canonical_delta != draft.delta {
@@ -3669,7 +3669,7 @@ mod tests {
         format!("sha256:{}", byte.to_string().repeat(64))
     }
 
-    fn fixture_authority_initialization_write(frontier_id: &str) -> PlannedWrite {
+    fn fixture_authority_initialization_write(repository_id: &str) -> PlannedWrite {
         let event = vela_protocol::authority::AuthorityEventV1::new(
             vela_protocol::authority::AuthorityEventContentV1 {
                 transaction_id: "vtx_fixture_initialization".into(),
@@ -3680,7 +3680,7 @@ mod tests {
                 ),
                 target: vela_protocol::events::StateTarget {
                     r#type: "frontier".into(),
-                    id: frontier_id.into(),
+                    id: repository_id.into(),
                 },
                 actor: vela_protocol::events::StateActor {
                     r#type: "human".into(),
@@ -3715,7 +3715,7 @@ mod tests {
     ) -> vela_protocol::current_repository::CurrentRepositoryV4 {
         vela_protocol::current_repository::CurrentRepositoryV4 {
             schema: vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V4.into(),
-            frontier_id: origin.frontier_id.clone(),
+            repository_id: origin.repository_id.clone(),
             profile_root: origin.profile_root.clone(),
             origin_id: origin.origin_id.clone(),
             origin_root: origin.canonical_root().unwrap(),
@@ -3747,7 +3747,7 @@ mod tests {
                 WriteClass::CanonicalEvidence,
                 repository.canonical_bytes().unwrap(),
             ),
-            fixture_authority_initialization_write(&origin.frontier_id),
+            fixture_authority_initialization_write(&origin.repository_id),
             fixture_covering_authority_record_write(),
         ];
         let draft = DeltaDraft::prepare(root, writes).unwrap();
@@ -3765,10 +3765,10 @@ mod tests {
     fn fresh_repository_delta_accepts_only_empty_genesis_origin() {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path();
-        let frontier_id = "vfr_0123456789abcdef";
+        let repository_id = "vrepo_0123456789abcdef";
         let profile_root = fixture_root('c');
         let genesis = vela_protocol::repository_origin::RepositoryOriginV1::genesis(
-            frontier_id.into(),
+            repository_id.into(),
             profile_root.clone(),
             "Establish current repository authority.".into(),
         )
@@ -3776,7 +3776,7 @@ mod tests {
         verify_fresh_fixture(root, &genesis).unwrap();
 
         let compaction = vela_protocol::repository_origin::RepositoryOriginV1::compaction(
-            frontier_id.into(),
+            repository_id.into(),
             2,
             profile_root,
             genesis.initial_object_set_root.clone(),
@@ -3805,15 +3805,15 @@ mod tests {
     fn fixture_plan(root: &Path, draft: &DeltaDraft, identity: &[u8]) -> RepositoryTxnPlan {
         let operation_id = OperationId::derive("submission", identity);
         let request_root = ContentDigest::hash(identity);
-        let frontier_id = crate::current_repository::verify_current_repository_at(root, false)
-            .map(|repository| repository.frontier_id)
-            .unwrap_or_else(|_| "vfr_test".to_string());
+        let repository_id = crate::current_repository::verify_current_repository_at(root, false)
+            .map(|repository| repository.repository_id)
+            .unwrap_or_else(|_| "vrepo_test".to_string());
         RepositoryTxnPlan::new(
             RepositoryTxnPlanSpec {
                 kind: OperationKind::Submission,
                 operation_id,
                 request_root,
-                frontier: RepositoryBinding::new(root, frontier_id, b"split-layout-v1").unwrap(),
+                frontier: RepositoryBinding::new(root, repository_id, b"split-layout-v1").unwrap(),
                 fixed_time: "2026-07-13T00:00:00Z".to_string(),
                 read_set: vec![InputBinding {
                     name: "receipt".to_string(),
@@ -4912,7 +4912,7 @@ mod tests {
         fs::create_dir_all(root.join(".vela")).unwrap();
 
         let predecessor_origin = vela_protocol::repository_origin::RepositoryOriginV1::genesis(
-            "vfr_0123456789abcdef".into(),
+            "vrepo_0123456789abcdef".into(),
             fixture_root('1'),
             "Predecessor generation fixture.".into(),
         )
@@ -4988,7 +4988,7 @@ mod tests {
 
         let compaction_origin = |repository_root: String| {
             vela_protocol::repository_origin::RepositoryOriginV1::compaction(
-                predecessor_origin.frontier_id.clone(),
+                predecessor_origin.repository_id.clone(),
                 2,
                 predecessor_origin.profile_root.clone(),
                 predecessor_origin.initial_object_set_root.clone(),

@@ -24,7 +24,7 @@ const RESULT_SCHEMA: &str = "vela.routine-evidence-transaction-result.internal.v
 #[derive(Serialize)]
 struct LayoutCommitment<'a> {
     schema: &'static str,
-    frontier_id: &'a str,
+    repository_id: &'a str,
     object_paths: Vec<&'a str>,
     derived_paths: Vec<&'a str>,
 }
@@ -78,7 +78,7 @@ impl PreparedRoutineEvidenceTransaction {
 pub(crate) fn prepare_routine_evidence_transaction(
     barrier: CanonicalWriteBarrier,
     frontier: &Path,
-    frontier_id: &str,
+    repository_id: &str,
     kind: OperationKind,
     operation_id: OperationId,
     request_root: &str,
@@ -122,7 +122,7 @@ pub(crate) fn prepare_routine_evidence_transaction(
     }
     let layout = vela_protocol::canonical::to_canonical_bytes(&LayoutCommitment {
         schema: LAYOUT_SCHEMA,
-        frontier_id,
+        repository_id,
         object_paths: object_drafts
             .iter()
             .map(|draft| draft.path.as_str())
@@ -138,7 +138,7 @@ pub(crate) fn prepare_routine_evidence_transaction(
             operation_id: operation_id.clone(),
             request_root: ContentDigest::parse(request_root.to_string())
                 .map_err(|error| error.to_string())?,
-            frontier: RepositoryBinding::new(frontier, frontier_id, &layout)
+            frontier: RepositoryBinding::new(frontier, repository_id, &layout)
                 .map_err(|error| error.to_string())?,
             fixed_time,
             read_set,

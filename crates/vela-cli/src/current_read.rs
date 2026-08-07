@@ -292,8 +292,8 @@ fn origin_standing_history(
         };
         let manifest: Value = serde_json::from_slice(&repository_bytes)
             .map_err(|error| format!("parse predecessor repository manifest: {error}"))?;
-        if manifest.get("frontier_id").and_then(Value::as_str)
-            != Some(context.repository.frontier_id.as_str())
+        if manifest.get("repository_id").and_then(Value::as_str)
+            != Some(context.repository.repository_id.as_str())
         {
             return Err("repository origin predecessor belongs to the wrong Frontier".into());
         }
@@ -366,7 +366,7 @@ fn origin_standing_history(
             break;
         };
         let nested_origin = RepositoryOriginV1::parse(&origin_bytes)?;
-        if nested_origin.frontier_id != context.origin.frontier_id
+        if nested_origin.repository_id != context.origin.repository_id
             || nested_origin.profile_root != context.origin.profile_root
             || nested_origin.generation != expected_generation
         {
@@ -689,7 +689,7 @@ fn object_projection(
         "ok": true,
         "command": "show",
         "schema": "vela.object-view.v1",
-        "frontier_id": context.repository.frontier_id,
+        "repository_id": context.repository.repository_id,
         "repository_root": context.repository_root,
         "object_id": object_id,
         "object_kind": object_kind,
@@ -900,7 +900,7 @@ pub(crate) fn why_payload(frontier: &Path, claim_id: &str) -> Result<Value, Stri
         "ok": true,
         "command": "why",
         "schema": "vela.standing-explanation.v1",
-        "frontier_id": context.repository.frontier_id,
+        "repository_id": context.repository.repository_id,
         "repository_root": context.repository_root,
         "claim_id": claim_id,
         "claim_root": claim_root,
@@ -1029,7 +1029,7 @@ pub(crate) fn log_payload(
         "ok": true,
         "command": "log",
         "schema": "vela.authority-log.v1",
-        "frontier_id": context.repository.frontier_id,
+        "repository_id": context.repository.repository_id,
         "repository_root": context.repository_root,
         "source_era": "current",
         "object_id": object_id,
@@ -1221,7 +1221,7 @@ mod tests {
             &["config", "user.email", "vela@example.invalid"],
         );
         fs::create_dir_all(temp.path().join(".vela")).expect("create fixture .vela");
-        let repository_bytes = br#"{"frontier_id":"vfr_fixture","proposals":[],"schema":"vela.repository.v2","verifications":[]}"#.to_vec();
+        let repository_bytes = br#"{"repository_id":"vrepo_fixture","proposals":[],"schema":"vela.repository.v2","verifications":[]}"#.to_vec();
         fs::write(temp.path().join(".vela/repository.json"), &repository_bytes)
             .expect("write fixture repository");
         git(temp.path(), &["add", ".vela/repository.json"]);

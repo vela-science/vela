@@ -61,7 +61,7 @@ const OPERATION_DOMAIN: &str = "authority_transaction";
 /// caller-asserted head root or sequence.
 #[derive(Debug, Clone)]
 pub(crate) struct AuthorityHistorySnapshot {
-    pub(crate) frontier_id: String,
+    pub(crate) repository_id: String,
     pub(crate) initial_event_log_root: String,
     pub(crate) initial_actor_registry_root: String,
     pub(crate) initial_snapshots_preexisting: bool,
@@ -286,7 +286,7 @@ where
     normalize_derived_drafts(frontier_root, &mut request)?;
     validate_request_shape(&request)?;
     let history = verify_authority_history(AuthorityHistoryInput {
-        frontier_id: &request.history.frontier_id,
+        repository_id: &request.history.repository_id,
         initial_event_log_root: &request.history.initial_event_log_root,
         initial_actor_registry_root: &request.history.initial_actor_registry_root,
         initial_snapshots_preexisting: request.history.initial_snapshots_preexisting,
@@ -452,7 +452,7 @@ where
     let operation_id = OperationId::derive(OPERATION_DOMAIN, transaction_id.as_bytes());
 
     let record = AuthorityRecordV1::new(AuthorityRecordContentV1 {
-        frontier_id: request.history.frontier_id.clone(),
+        repository_id: request.history.repository_id.clone(),
         sequence,
         previous_authority_record_root,
         operation_id: operation_id.as_str().into(),
@@ -493,7 +493,7 @@ where
     let verified = verify_authority_envelope(
         &envelope,
         &request.history.authority_keyset,
-        &request.history.frontier_id,
+        &request.history.repository_id,
         sequence,
         record.content.previous_authority_record_root.as_deref(),
     )
@@ -522,7 +522,7 @@ where
     let mut candidate_envelopes = request.history.authority_envelopes.clone();
     candidate_envelopes.push(envelope.clone());
     let candidate_history = verify_authority_history(AuthorityHistoryInput {
-        frontier_id: &request.history.frontier_id,
+        repository_id: &request.history.repository_id,
         initial_event_log_root: &request.history.initial_event_log_root,
         initial_actor_registry_root: &request.history.initial_actor_registry_root,
         initial_snapshots_preexisting: request.history.initial_snapshots_preexisting,
@@ -613,7 +613,7 @@ where
     };
     let layout_identity = to_canonical_bytes(&LayoutCommitment {
         schema: LAYOUT_SCHEMA,
-        frontier_id: &request.history.frontier_id,
+        repository_id: &request.history.repository_id,
         authority_event_paths: &event_ids
             .iter()
             .map(|event_id| authority_event_path(event_id))
@@ -639,7 +639,7 @@ where
                 .map_err(AuthorityTransactionError::Transaction)?,
             frontier: RepositoryBinding::new(
                 frontier_root,
-                &request.history.frontier_id,
+                &request.history.repository_id,
                 &layout_identity,
             )
             .map_err(AuthorityTransactionError::Transaction)?,
@@ -845,7 +845,7 @@ fn validate_fresh_initialization_request(
         ),
         (draft.target.r#type == "frontier", "target_type"),
         (
-            draft.target.id == request.history.frontier_id,
+            draft.target.id == request.history.repository_id,
             "target_frontier",
         ),
         (draft.actor.r#type == "human", "actor_type"),
@@ -862,7 +862,7 @@ fn validate_fresh_initialization_request(
             "after_root",
         ),
         (
-            payload.frontier_id == request.history.frontier_id,
+            payload.repository_id == request.history.repository_id,
             "payload_frontier",
         ),
         (
@@ -1011,7 +1011,7 @@ fn validate_requested_close(
     let draft = &request.event_drafts[0];
     if draft.kind.as_str() != AUTHORITY_CLOSED_EVENT_KIND
         || draft.target.r#type != "frontier"
-        || draft.target.id != request.history.frontier_id
+        || draft.target.id != request.history.repository_id
         || draft.actor.r#type != "human"
         || draft.before_hash != draft.after_hash
     {
@@ -1041,7 +1041,7 @@ fn validate_requested_close(
         .policy_bundle
         .root()
         .map_err(AuthorityTransactionError::Invalid)?;
-    if payload.frontier_id != request.history.frontier_id
+    if payload.repository_id != request.history.repository_id
         || payload.last_trusted_sequence != record_sequence.saturating_sub(1)
         || payload.last_trusted_authority_record_root != previous_authority_record_root
         || payload.previous_authority_keyset_root != current_keyset_root
@@ -1614,8 +1614,8 @@ fn validate_request_shape(
         .policy_bundle
         .validate()
         .map_err(AuthorityTransactionError::Invalid)?;
-    if request.history.frontier_id != request.history.authority_keyset.frontier_id
-        || request.history.frontier_id != request.history.policy_bundle.frontier_id
+    if request.history.repository_id != request.history.authority_keyset.repository_id
+        || request.history.repository_id != request.history.policy_bundle.repository_id
     {
         return Err(AuthorityTransactionError::Invalid(
             "history, keyset, and policy bundle name different frontiers".into(),
@@ -1734,7 +1734,7 @@ fn transaction_id(
         b"vela.authority-transaction-id.internal.v1\0",
         &TransactionIdCommitment {
             schema: TRANSACTION_ID_SCHEMA,
-            frontier_id: &request.history.frontier_id,
+            repository_id: &request.history.repository_id,
             intent_digest: &request.intent_digest,
             before_event_log_root,
             previous_authority_record_root,
@@ -1788,7 +1788,7 @@ fn read_set_root(
         b"vela.authority-read-set.internal.v1\0",
         &ReadSetCommitment {
             schema: READ_SET_SCHEMA,
-            frontier_id: &request.history.frontier_id,
+            repository_id: &request.history.repository_id,
             current_event_log_root,
             previous_authority_record_root,
             authority_keyset_root,
@@ -1904,7 +1904,7 @@ fn authority_snapshot_stem(root: &str) -> Result<&str, AuthorityTransactionError
 #[derive(Serialize)]
 struct TransactionIdCommitment<'a> {
     schema: &'static str,
-    frontier_id: &'a str,
+    repository_id: &'a str,
     intent_digest: &'a str,
     before_event_log_root: &'a str,
     previous_authority_record_root: Option<&'a str>,
@@ -1936,7 +1936,7 @@ struct AuthorizationRequestCommitment<'a> {
 #[derive(Serialize)]
 struct ReadSetCommitment<'a> {
     schema: &'static str,
-    frontier_id: &'a str,
+    repository_id: &'a str,
     current_event_log_root: &'a str,
     previous_authority_record_root: Option<&'a str>,
     authority_keyset_root: &'a str,
@@ -1957,7 +1957,7 @@ struct WriteSetCommitment<'a> {
 #[derive(Serialize)]
 struct LayoutCommitment<'a> {
     schema: &'static str,
-    frontier_id: &'a str,
+    repository_id: &'a str,
     authority_event_paths: &'a [String],
     object_paths: &'a [String],
     derived_paths: &'a [String],
@@ -2001,7 +2001,7 @@ mod tests {
     use super::*;
     use crate::repository_txn::{RepositoryTxnStep, RecoveryOutcome};
 
-    const FRONTIER_ID: &str = "vfr_0123456789abcdef";
+    const FRONTIER_ID: &str = "vrepo_0123456789abcdef";
     const REPOSITORY_PRINCIPAL: &str = "local:device-1|uid:501";
     const RECORDED_AT: &str = "2026-07-24T12:05:00Z";
 
@@ -2251,7 +2251,7 @@ mod tests {
         let authorization_input = fixture_authorization_input();
         let keyset = AuthorityKeysetV1 {
             schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
-            frontier_id: FRONTIER_ID.into(),
+            repository_id: FRONTIER_ID.into(),
             generation: 1,
             threshold: 1,
             keys: vec![AuthorityKeyV1 {
@@ -2268,7 +2268,7 @@ mod tests {
         };
         let policy_bundle = PolicyBundleV1 {
             schema: POLICY_BUNDLE_SCHEMA_V1.into(),
-            frontier_id: FRONTIER_ID.into(),
+            repository_id: FRONTIER_ID.into(),
             cedar_schema_root: ContentDigest::hash(authorization_input.schema.as_bytes())
                 .as_str()
                 .into(),
@@ -2294,7 +2294,7 @@ mod tests {
         let policy_bundle_root = policy_bundle.root().unwrap();
         let initialization = AuthorityInitializationV1 {
             schema: AUTHORITY_INITIALIZATION_SCHEMA_V1.into(),
-            frontier_id: FRONTIER_ID.into(),
+            repository_id: FRONTIER_ID.into(),
             initial_event_log_root: initial_event_log_root.clone(),
             initial_actor_registry_root: initial_actor_registry_root.clone(),
             new_authority_keyset_root: keyset.root().unwrap(),
@@ -2330,7 +2330,7 @@ mod tests {
             authority_event_log_root(&initial_event_log_root, &[&initialization_event]).unwrap();
 
         let first_record = AuthorityRecordV1::new(AuthorityRecordContentV1 {
-            frontier_id: FRONTIER_ID.into(),
+            repository_id: FRONTIER_ID.into(),
             sequence: 1,
             previous_authority_record_root: None,
             operation_id: "vop_initialization".into(),
@@ -2477,7 +2477,7 @@ mod tests {
         .unwrap();
         let request = AuthorityTransactionRequest {
             history: AuthorityHistorySnapshot {
-                frontier_id: FRONTIER_ID.into(),
+                repository_id: FRONTIER_ID.into(),
                 initial_event_log_root,
                 initial_actor_registry_root,
                 initial_snapshots_preexisting: false,
@@ -2555,7 +2555,7 @@ mod tests {
         let mut authority_events = fixture.request.history.authority_events.clone();
         authority_events.extend_from_slice(events);
         let result = verify_authority_history(AuthorityHistoryInput {
-            frontier_id: FRONTIER_ID,
+            repository_id: FRONTIER_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
             initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
@@ -2571,7 +2571,7 @@ mod tests {
 
     fn verified_fixture_history(fixture: &Fixture) -> AuthorityHistoryVerification {
         verify_authority_history(AuthorityHistoryInput {
-            frontier_id: FRONTIER_ID,
+            repository_id: FRONTIER_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
             initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
@@ -2635,7 +2635,7 @@ mod tests {
         }];
         let initialization = AuthorityInitializationV1 {
             schema: AUTHORITY_INITIALIZATION_SCHEMA_V1.into(),
-            frontier_id: FRONTIER_ID.into(),
+            repository_id: FRONTIER_ID.into(),
             initial_event_log_root: archived_event_root.clone(),
             initial_actor_registry_root: archived_actor_root,
             new_authority_keyset_root: keyset_root,
@@ -2671,7 +2671,7 @@ mod tests {
         assert!(error.to_string().contains("initial_event_log_root"));
 
         let history = verify_authority_history(AuthorityHistoryInput {
-            frontier_id: &fixture.request.history.frontier_id,
+            repository_id: &fixture.request.history.repository_id,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
             initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
@@ -3098,7 +3098,7 @@ mod tests {
         let next_key = SigningKey::from_bytes(&[13; 32]);
         let next_keyset = AuthorityKeysetV1 {
             schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
-            frontier_id: FRONTIER_ID.into(),
+            repository_id: FRONTIER_ID.into(),
             generation: 2,
             threshold: 1,
             keys: vec![AuthorityKeyV1 {
@@ -3210,7 +3210,7 @@ mod tests {
         let mut envelopes = fixture.request.history.authority_envelopes.clone();
         envelopes.push(envelope);
         let replay = verify_authority_history(AuthorityHistoryInput {
-            frontier_id: FRONTIER_ID,
+            repository_id: FRONTIER_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
             initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
@@ -3309,7 +3309,7 @@ mod tests {
         let mut final_envelopes = envelopes;
         final_envelopes.push(followup_envelope);
         let final_replay = verify_authority_history(AuthorityHistoryInput {
-            frontier_id: FRONTIER_ID,
+            repository_id: FRONTIER_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
             initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
@@ -3377,7 +3377,7 @@ mod tests {
         let next_key = SigningKey::from_bytes(&[14; 32]);
         both.next_authority_keyset = Some(AuthorityKeysetV1 {
             schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
-            frontier_id: FRONTIER_ID.into(),
+            repository_id: FRONTIER_ID.into(),
             generation: 2,
             threshold: 1,
             keys: vec![AuthorityKeyV1 {
@@ -3453,7 +3453,7 @@ mod tests {
         let mut envelopes = fixture.request.history.authority_envelopes.clone();
         envelopes.push(envelope);
         let replay = verify_authority_history(AuthorityHistoryInput {
-            frontier_id: FRONTIER_ID,
+            repository_id: FRONTIER_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
             initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
@@ -3482,7 +3482,7 @@ mod tests {
         let current_policy_root = fixture.request.history.policy_bundle.root().unwrap();
         let closed_keyset = AuthorityKeysetV1 {
             schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
-            frontier_id: FRONTIER_ID.into(),
+            repository_id: FRONTIER_ID.into(),
             generation: 2,
             threshold: 0,
             keys: Vec::new(),
@@ -3493,7 +3493,7 @@ mod tests {
         let reason = "Close future authority after the disposable compromise drill.";
         let payload = AuthorityCloseV1 {
             schema: vela_protocol::authority_history::AUTHORITY_CLOSE_SCHEMA_V1.into(),
-            frontier_id: FRONTIER_ID.into(),
+            repository_id: FRONTIER_ID.into(),
             last_trusted_sequence: 1,
             last_trusted_authority_record_root: current_record_root,
             previous_authority_keyset_root: current_keyset_root,
@@ -3590,7 +3590,7 @@ mod tests {
         let mut envelopes = fixture.request.history.authority_envelopes.clone();
         envelopes.push(envelope.clone());
         let replay = verify_authority_history(AuthorityHistoryInput {
-            frontier_id: FRONTIER_ID,
+            repository_id: FRONTIER_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
             initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
@@ -3613,7 +3613,7 @@ mod tests {
 
         envelopes.push(envelope);
         let error = verify_authority_history(AuthorityHistoryInput {
-            frontier_id: FRONTIER_ID,
+            repository_id: FRONTIER_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
             initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
@@ -4396,7 +4396,7 @@ mod tests {
         .unwrap();
         envelopes.push(envelope);
         let verification = verify_authority_history(AuthorityHistoryInput {
-            frontier_id: FRONTIER_ID,
+            repository_id: FRONTIER_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
             initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,

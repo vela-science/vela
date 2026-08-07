@@ -362,7 +362,7 @@ fn submit_request_root(
         "sha256:{}",
         vela_protocol::canonical::sha256_canonical(&json!({
             "schema": "vela.current-submit-request.v2",
-            "frontier_id": repository.frontier_id,
+            "repository_id": repository.repository_id,
             "origin_id": repository.origin_id,
             "submission_root": submission_root,
         }))?
@@ -555,7 +555,7 @@ fn submit_inner(
     let mut prepared = crate::routine_evidence_transaction::prepare_routine_evidence_transaction(
         barrier,
         frontier,
-        &held_repository.frontier_id,
+        &held_repository.repository_id,
         crate::repository_txn::OperationKind::Submission,
         operation_id.clone(),
         &request_root,
@@ -665,7 +665,7 @@ mod tests {
     fn repository() -> CurrentRepositoryV4 {
         CurrentRepositoryV4 {
             schema: CURRENT_REPOSITORY_SCHEMA_V4.into(),
-            frontier_id: "vfr_0123456789abcdef".into(),
+            repository_id: "vrepo_0123456789abcdef".into(),
             profile_root: root('a'),
             origin_id: "vro_0123456789abcdef".into(),
             origin_root: root('b'),

@@ -157,7 +157,7 @@ pub(crate) struct DecisionInboxNextObligation {
 #[serde(deny_unknown_fields)]
 pub(crate) struct DecisionInboxEntry {
     pub(crate) schema: String,
-    pub(crate) frontier_id: String,
+    pub(crate) repository_id: String,
     pub(crate) proposal_id: String,
     pub(crate) created_at: String,
     pub(crate) requested_decision: String,
@@ -183,7 +183,7 @@ pub(crate) struct DecisionInboxEntry {
 #[serde(deny_unknown_fields)]
 pub(crate) struct DecisionInboxProjection {
     pub(crate) schema: String,
-    pub(crate) frontier_id: String,
+    pub(crate) repository_id: String,
     pub(crate) repository_root: String,
     pub(crate) order: String,
     pub(crate) entries: Vec<DecisionInboxEntry>,
@@ -462,7 +462,7 @@ fn derive_entry(inputs: EntryInputs<'_>) -> Result<DecisionInboxEntry, String> {
     };
     let mut entry = DecisionInboxEntry {
         schema: ENTRY_SCHEMA.into(),
-        frontier_id: inputs.repository.frontier_id.clone(),
+        repository_id: inputs.repository.repository_id.clone(),
         proposal_id: proposal.proposal_id.clone(),
         created_at: proposal.created_at.clone(),
         requested_decision: "accept_or_reject".into(),
@@ -638,7 +638,7 @@ pub(crate) fn project(frontier: &Path) -> Result<DecisionInboxProjection, String
     sort_entries(&mut entries);
     let mut projection = DecisionInboxProjection {
         schema: PROJECTION_SCHEMA.into(),
-        frontier_id: repository.frontier_id,
+        repository_id: repository.repository_id,
         repository_root,
         order: "protocol_ready_first_then_created_at_asc_then_proposal_id".into(),
         entries,
@@ -785,7 +785,7 @@ pub(crate) fn cmd_decision_inbox(frontier: &Path, json_output: bool) {
             "s"
         }
     );
-    println!("  Frontier: {}", projection.frontier_id);
+    println!("  Frontier: {}", projection.repository_id);
     println!("  Repository: {}", projection.repository_root);
     println!("  Projection: {}", projection.projection_root);
     if projection.entries.is_empty() {
@@ -1063,7 +1063,7 @@ mod tests {
         let verification_root = verification.canonical_root().unwrap();
         CurrentRepositoryV4 {
             schema: CURRENT_REPOSITORY_SCHEMA_V4.into(),
-            frontier_id: "vfr_0123456789abcdef".into(),
+            repository_id: "vrepo_0123456789abcdef".into(),
             profile_root: root('1'),
             origin_id: "vro_0123456789abcdef".into(),
             origin_root: root('2'),
@@ -1275,7 +1275,7 @@ mod tests {
         );
         let mut projection = DecisionInboxProjection {
             schema: PROJECTION_SCHEMA.into(),
-            frontier_id: repository.frontier_id.clone(),
+            repository_id: repository.repository_id.clone(),
             repository_root: repository.canonical_root().unwrap(),
             order: "protocol_ready_first_then_created_at_asc_then_proposal_id".into(),
             entries: vec![entry.clone()],

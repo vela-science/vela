@@ -107,7 +107,7 @@ pub struct TargetIndexRepositoryV4 {
 #[serde(deny_unknown_fields)]
 pub struct TargetIndexV5 {
     pub schema: String,
-    pub frontier_id: String,
+    pub repository_id: String,
     pub source: TargetIndexSourceV2,
     pub inputs: TargetIndexInputManifestV1,
     pub repository: TargetIndexRepositoryV4,
@@ -152,8 +152,8 @@ fn require_sha256_root(field: &str, value: &str) -> Result<(), String> {
 }
 
 fn require_repository_id(value: &str) -> Result<(), String> {
-    let Some(suffix) = value.strip_prefix("vfr_") else {
-        return Err("frontier_id must use the vfr_<16 lowercase hex> form".to_string());
+    let Some(suffix) = value.strip_prefix("vrepo_") else {
+        return Err("repository_id must use the vrepo_<16 lowercase hex> form".to_string());
     };
     if suffix.len() == 16
         && suffix
@@ -162,7 +162,7 @@ fn require_repository_id(value: &str) -> Result<(), String> {
     {
         Ok(())
     } else {
-        Err("frontier_id must use the vfr_<16 lowercase hex> form".to_string())
+        Err("repository_id must use the vrepo_<16 lowercase hex> form".to_string())
     }
 }
 
@@ -471,13 +471,13 @@ impl TargetIndexEntryV2 {
 }
 
 fn validate_target_index_common(
-    frontier_id: &str,
+    repository_id: &str,
     source: &TargetIndexSourceV2,
     inputs: &TargetIndexInputManifestV1,
     claim_boundary: &TargetIndexClaimBoundaryV2,
     targets: &[TargetIndexEntryV2],
 ) -> Result<(), String> {
-    require_repository_id(frontier_id)?;
+    require_repository_id(repository_id)?;
     require_git_object(
         "source.git_commit",
         &source.git_commit,
@@ -548,7 +548,7 @@ impl TargetIndexV5 {
             return Err(format!("schema must be {TARGET_INDEX_SCHEMA_V5}"));
         }
         validate_target_index_common(
-            &self.frontier_id,
+            &self.repository_id,
             &self.source,
             &self.inputs,
             &self.claim_boundary,
@@ -1278,11 +1278,11 @@ fn validate_input_git_bytes_for(
 /// work-advice guarantees as Target Index v2 without consulting Era-0 state.
 pub fn assess_current_target_index(
     repo_path: &Path,
-    frontier_id: &str,
+    repository_id: &str,
     origin_id: &str,
     repository_root: &str,
 ) -> Result<Option<CurrentTargetIndexAssessment>, String> {
-    require_repository_id(frontier_id)?;
+    require_repository_id(repository_id)?;
     require_origin_id("origin_id", origin_id)?;
     require_sha256_root("repository_root", repository_root)?;
     let path = repo_path.join("targets.json");
@@ -1320,7 +1320,7 @@ pub fn assess_current_target_index(
     let mut global_issues = Vec::new();
     let mut target_issues = BTreeMap::new();
     let mut packet_values = BTreeMap::new();
-    if index.frontier_id != frontier_id {
+    if index.repository_id != repository_id {
         global_issues.push(issue(
             CODE_REPOSITORY_MISMATCH,
             "index Frontier differs from the current repository",

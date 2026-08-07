@@ -151,10 +151,10 @@ fn install_current_target_index(frontier: &Path, _socket: &Path) {
     let source_tree = git_text(frontier, &["rev-parse", "HEAD^{tree}"]);
     let profile_source =
         std::fs::read_to_string(frontier.join("frontier.toml")).expect("frontier profile");
-    let frontier_id =
+    let repository_id =
         vela_protocol::current_repository::CurrentRepositoryProfileV1::from_toml_str(&profile_source)
             .expect("current profile")
-            .frontier_id;
+            .repository_id;
     let repository_bytes =
         std::fs::read(frontier.join(".vela/repository.json")).expect("repository manifest");
     let repository =
@@ -176,7 +176,7 @@ fn install_current_target_index(frontier: &Path, _socket: &Path) {
         std::fs::read(frontier.join("site/problems/1056.json")).expect("packet bytes");
     let mut index = vela_edge::target_index::TargetIndexV5 {
         schema: vela_edge::target_index::TARGET_INDEX_SCHEMA_V5.to_string(),
-        frontier_id,
+        repository_id,
         source: vela_edge::target_index::TargetIndexSourceV2 {
             git_object_format: vela_protocol::repository_inputs::GitObjectFormat::Sha1,
             git_commit: source,
@@ -287,7 +287,7 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
     let checked = success_json(&run(&frontier, None, &["replay", ".", "--json"]));
     assert_eq!(checked["repository_root"], verified["repository_root"]);
     let status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
-    assert_eq!(status["schema"], "vela.status.v3");
+    assert_eq!(status["schema"], "vela.status.v4");
     assert_eq!(status["integrity"]["replay"], "verified");
     assert_eq!(status["integrity"]["strict"], "pass");
     assert_eq!(status["work"]["ready_target_count"], 0);
@@ -948,8 +948,8 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert_eq!(checked["counts"]["pending_claims"], 1);
     assert_eq!(checked["counts"]["verifications"], 1);
     let status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
-    assert_eq!(status["schema"], "vela.status.v3");
-    assert_eq!(status["git"]["role"], "frontier_head");
+    assert_eq!(status["schema"], "vela.status.v4");
+    assert_eq!(status["git"]["role"], "repository_head");
     assert_eq!(status["integrity"]["strict"], "pass");
     assert_eq!(status["work"]["ready_target_count"], 1);
     assert_eq!(status["decision_inbox"]["pending_count"], 1);

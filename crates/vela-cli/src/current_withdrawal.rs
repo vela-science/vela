@@ -106,7 +106,7 @@ fn request_root(
         "sha256:{}",
         vela_protocol::canonical::sha256_canonical(&json!({
             "schema": "vela.current-proposal-withdrawal-request.v1",
-            "frontier_id": repository.frontier_id,
+            "repository_id": repository.repository_id,
             "origin_id": repository.origin_id,
             "repository_before": repository.canonical_root()?,
             "proposal_root": proposal_root,
@@ -285,7 +285,7 @@ pub(crate) fn withdraw(
     let mut prepared = crate::routine_evidence_transaction::prepare_routine_evidence_transaction(
         barrier,
         frontier,
-        &held.frontier_id,
+        &held.repository_id,
         OperationKind::ProposalWithdrawal,
         operation_id.clone(),
         &request_root,

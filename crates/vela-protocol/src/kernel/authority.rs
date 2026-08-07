@@ -68,7 +68,7 @@ pub struct CedarEvaluation {
 #[serde(deny_unknown_fields)]
 pub struct PolicyBundleV1 {
     pub schema: String,
-    pub frontier_id: String,
+    pub repository_id: String,
     pub cedar_schema_root: String,
     pub policies_root: String,
     pub entities_root: String,
@@ -104,7 +104,7 @@ impl PolicyBundleV1 {
         if let Some(root) = &self.previous_bundle_root {
             require_sha256("previous_bundle_root", root)?;
         }
-        if self.frontier_id.trim().is_empty() || self.authority_summary.trim().is_empty() {
+        if self.repository_id.trim().is_empty() || self.authority_summary.trim().is_empty() {
             return Err("policy bundle frontier and authority summary must be non-empty".into());
         }
         Ok(())
@@ -235,7 +235,7 @@ pub struct AuthorityKeyV1 {
 #[serde(deny_unknown_fields)]
 pub struct AuthorityKeysetV1 {
     pub schema: String,
-    pub frontier_id: String,
+    pub repository_id: String,
     pub generation: u64,
     pub threshold: u32,
     pub keys: Vec<AuthorityKeyV1>,
@@ -255,7 +255,7 @@ impl AuthorityKeysetV1 {
                 "authority keyset schema must be {AUTHORITY_KEYSET_SCHEMA_V1}"
             ));
         }
-        if self.frontier_id.trim().is_empty() || self.generation == 0 {
+        if self.repository_id.trim().is_empty() || self.generation == 0 {
             return Err("authority keyset frontier and generation must be set".into());
         }
         if self.closed {
@@ -345,7 +345,7 @@ pub fn verify_authority_keyset_transition(
     if activation_sequence <= 1 {
         return Err("rotated authority keyset cannot activate at sequence 1".into());
     }
-    if current.frontier_id != next.frontier_id
+    if current.repository_id != next.repository_id
         || next.generation != current.generation.saturating_add(1)
         || next.previous_keyset_root.as_deref() != Some(current.root()?.as_str())
         || next.activation_record_root.as_deref() != Some(previous_authority_record_root)
@@ -384,7 +384,7 @@ pub fn verify_policy_bundle_transition(
 ) -> Result<(), String> {
     current.validate()?;
     next.validate()?;
-    if current.frontier_id != next.frontier_id
+    if current.repository_id != next.repository_id
         || next.previous_bundle_root.as_deref() != Some(current.root()?.as_str())
     {
         return Err("rotated policy bundle does not extend the exact prior bundle".into());
@@ -448,7 +448,7 @@ pub struct ExecutionClaimV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AuthorityRecordContentV1 {
-    pub frontier_id: String,
+    pub repository_id: String,
     pub sequence: u64,
     pub previous_authority_record_root: Option<String>,
     pub operation_id: String,
@@ -510,7 +510,7 @@ impl AuthorityRecordV1 {
             return Err("authority record ID does not match its content".into());
         }
         let content = &self.content;
-        if content.frontier_id.trim().is_empty()
+        if content.repository_id.trim().is_empty()
             || content.operation_id.trim().is_empty()
             || content.transaction_id.trim().is_empty()
             || (content.event_ids.is_empty() && content.object_delta.is_empty())
@@ -720,8 +720,8 @@ pub fn verify_authority_envelope(
         return Err("authority record payload is not canonical JSON".into());
     }
     record.validate()?;
-    if record.content.frontier_id != expected_repository_id
-        || record.content.frontier_id != keyset.frontier_id
+    if record.content.repository_id != expected_repository_id
+        || record.content.repository_id != keyset.repository_id
         || record.content.sequence != expected_sequence
         || record.content.previous_authority_record_root.as_deref() != expected_previous_root
     {
@@ -899,7 +899,7 @@ mod tests {
         let key = SigningKey::from_bytes(&[7; 32]);
         let mut keyset = AuthorityKeysetV1 {
             schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
-            frontier_id: "vfr_fixture".into(),
+            repository_id: "vrepo_fixture".into(),
             generation: 1,
             threshold: 1,
             keys: vec![AuthorityKeyV1 {
@@ -915,7 +915,7 @@ mod tests {
             closed: false,
         };
         let content = AuthorityRecordContentV1 {
-            frontier_id: "vfr_fixture".into(),
+            repository_id: "vrepo_fixture".into(),
             sequence: 1,
             previous_authority_record_root: None,
             operation_id: "vop_fixture".into(),
@@ -1018,7 +1018,7 @@ mod tests {
             BASE64_STANDARD.encode(to_canonical_bytes(&record).unwrap())
         );
         let verified =
-            verify_authority_envelope(&envelope, &keyset, "vfr_fixture", 1, None).unwrap();
+            verify_authority_envelope(&envelope, &keyset, "vrepo_fixture", 1, None).unwrap();
         assert_eq!(verified.record, record);
         assert_eq!(verified.verified_key_ids, vec!["repo-key-1"]);
     }
@@ -1045,7 +1045,7 @@ mod tests {
         };
 
         let error =
-            verify_authority_envelope(&envelope, &keyset, "vfr_fixture", 1, None).unwrap_err();
+            verify_authority_envelope(&envelope, &keyset, "vrepo_fixture", 1, None).unwrap_err();
         assert!(error.contains("duplicate JSON property `scope`"), "{error}");
     }
 
@@ -1059,7 +1059,7 @@ mod tests {
             .encode(BASE64_STANDARD.decode(&envelope.signatures[0].sig).unwrap());
 
         let verified =
-            verify_authority_envelope(&envelope, &keyset, "vfr_fixture", 1, None).unwrap();
+            verify_authority_envelope(&envelope, &keyset, "vrepo_fixture", 1, None).unwrap();
         assert_eq!(verified.record, record);
         assert_eq!(verified.verified_key_ids, vec!["repo-key-1"]);
     }
@@ -1078,7 +1078,7 @@ mod tests {
         let envelope: AuthorityEnvelopeV1 = serde_json::from_value(value).unwrap();
 
         let verified =
-            verify_authority_envelope(&envelope, &keyset, "vfr_fixture", 1, None).unwrap();
+            verify_authority_envelope(&envelope, &keyset, "vrepo_fixture", 1, None).unwrap();
         assert_eq!(verified.record, record);
         assert_eq!(verified.verified_key_ids, vec!["repo-key-1"]);
     }
@@ -1096,7 +1096,7 @@ mod tests {
         );
 
         let verified =
-            verify_authority_envelope(&envelope, &keyset, "vfr_fixture", 1, None).unwrap();
+            verify_authority_envelope(&envelope, &keyset, "vrepo_fixture", 1, None).unwrap();
         assert_eq!(verified.record, record);
         assert_eq!(verified.verified_key_ids, vec!["repo-key-1"]);
     }
@@ -1136,7 +1136,7 @@ mod tests {
             serde_json::from_slice(&BASE64_STANDARD.decode(&envelope.payload).unwrap()).unwrap();
         value["content"]["after_event_log_root"] = serde_json::json!(root('9'));
         envelope.payload = BASE64_STANDARD.encode(to_canonical_bytes(&value).unwrap());
-        assert!(verify_authority_envelope(&envelope, &keyset, "vfr_fixture", 1, None).is_err());
+        assert!(verify_authority_envelope(&envelope, &keyset, "vrepo_fixture", 1, None).is_err());
     }
 
     #[test]
@@ -1159,21 +1159,21 @@ mod tests {
 
         let mut wrong_type = envelope.clone();
         wrong_type.payload_type = "application/json".into();
-        assert!(verify_authority_envelope(&wrong_type, &keyset, "vfr_fixture", 1, None).is_err());
+        assert!(verify_authority_envelope(&wrong_type, &keyset, "vrepo_fixture", 1, None).is_err());
 
         let wrong_key = SigningKey::from_bytes(&[8; 32]);
         assert!(
             verify_authority_envelope(
                 &signed_envelope(&record, &wrong_key),
                 &keyset,
-                "vfr_fixture",
+                "vrepo_fixture",
                 1,
                 None
             )
             .is_err()
         );
         assert!(
-            verify_authority_envelope(&envelope, &keyset, "vfr_fixture", 2, Some(&root('9')))
+            verify_authority_envelope(&envelope, &keyset, "vrepo_fixture", 2, Some(&root('9')))
                 .is_err()
         );
     }
@@ -1188,7 +1188,7 @@ mod tests {
         )
         .unwrap();
         envelope.payload = BASE64_STANDARD.encode(pretty);
-        assert!(verify_authority_envelope(&envelope, &keyset, "vfr_fixture", 1, None).is_err());
+        assert!(verify_authority_envelope(&envelope, &keyset, "vrepo_fixture", 1, None).is_err());
 
         let second_key = SigningKey::from_bytes(&[8; 32]);
         let mut threshold_keyset = keyset;
@@ -1207,7 +1207,7 @@ mod tests {
         let mut duplicate = signed_envelope(&threshold_record, &key);
         duplicate.signatures.push(duplicate.signatures[0].clone());
         let error =
-            verify_authority_envelope(&duplicate, &threshold_keyset, "vfr_fixture", 1, None)
+            verify_authority_envelope(&duplicate, &threshold_keyset, "vrepo_fixture", 1, None)
                 .unwrap_err();
         assert!(error.contains("threshold"), "{error}");
     }
@@ -1219,7 +1219,7 @@ mod tests {
         let error = verify_authority_envelope(
             &signed_envelope(&record, &key),
             &keyset,
-            "vfr_fixture",
+            "vrepo_fixture",
             1,
             None,
         )
@@ -1263,7 +1263,7 @@ mod tests {
         let previous_record_root = root('9');
         let mut next = AuthorityKeysetV1 {
             schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
-            frontier_id: current.frontier_id.clone(),
+            repository_id: current.repository_id.clone(),
             generation: 2,
             threshold: 1,
             keys: vec![AuthorityKeyV1 {
@@ -1303,7 +1303,7 @@ mod tests {
 
         let closed = AuthorityKeysetV1 {
             schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
-            frontier_id: current.frontier_id.clone(),
+            repository_id: current.repository_id.clone(),
             generation: 2,
             threshold: 0,
             keys: Vec::new(),
@@ -1332,7 +1332,7 @@ mod tests {
     fn policy_bundle_rotation_extends_one_exact_root() {
         let current = PolicyBundleV1 {
             schema: POLICY_BUNDLE_SCHEMA_V1.into(),
-            frontier_id: "vfr_fixture".into(),
+            repository_id: "vrepo_fixture".into(),
             cedar_schema_root: root('1'),
             policies_root: root('2'),
             entities_root: root('3'),

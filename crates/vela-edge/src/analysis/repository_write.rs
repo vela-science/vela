@@ -32,7 +32,7 @@ pub const AUTHORITY_TRUST_ANCHOR_SCHEMA_V1: &str = "vela.authority-trust-anchor.
 #[serde(deny_unknown_fields)]
 pub struct AuthorityTrustAnchorV1 {
     pub schema: String,
-    pub frontier_id: String,
+    pub repository_id: String,
     pub first_authority_record_root: String,
 }
 
@@ -43,7 +43,7 @@ impl AuthorityTrustAnchorV1 {
                 "authority trust anchor schema must be {AUTHORITY_TRUST_ANCHOR_SCHEMA_V1}"
             ));
         }
-        validate_repository_id(&self.frontier_id)?;
+        validate_repository_id(&self.repository_id)?;
         validate_sha256_root(
             "authority trust anchor first_authority_record_root",
             &self.first_authority_record_root,
@@ -57,11 +57,11 @@ impl AuthorityTrustAnchorV1 {
 
     pub fn verify_sequence_one(
         &self,
-        frontier_id: &str,
+        repository_id: &str,
         first_authority_record_root: &str,
     ) -> Result<(), String> {
         self.validate()?;
-        if self.frontier_id != frontier_id
+        if self.repository_id != repository_id
             || self.first_authority_record_root != first_authority_record_root
         {
             return Err(
@@ -894,20 +894,20 @@ impl PreparedRepositoryFileReplacement {
 
 /// Deterministic path for the independently distributed sequence-1 authority
 /// root. Repository bytes and environment variables cannot redirect it.
-pub fn authority_trust_anchor_path(user_home: &Path, frontier_id: &str) -> Result<PathBuf, String> {
-    validate_repository_id(frontier_id)?;
+pub fn authority_trust_anchor_path(user_home: &Path, repository_id: &str) -> Result<PathBuf, String> {
+    validate_repository_id(repository_id)?;
     Ok(user_home
         .join(".vela")
         .join("trust")
         .join("authorities")
-        .join(format!("{frontier_id}.json")))
+        .join(format!("{repository_id}.json")))
 }
 
 pub fn load_authority_trust_anchor_from_home(
     user_home: &Path,
-    frontier_id: &str,
+    repository_id: &str,
 ) -> Result<Option<LoadedAuthorityTrustAnchorV1>, String> {
-    let path = authority_trust_anchor_path(user_home, frontier_id)?;
+    let path = authority_trust_anchor_path(user_home, repository_id)?;
     let Some(anchor) = load_private_trust_document::<AuthorityTrustAnchorV1>(
         user_home,
         "authorities",
@@ -918,10 +918,10 @@ pub fn load_authority_trust_anchor_from_home(
         return Ok(None);
     };
     anchor.validate()?;
-    if anchor.frontier_id != frontier_id {
+    if anchor.repository_id != repository_id {
         return Err(format!(
-            "authority trust anchor frontier {} does not match requested {frontier_id}",
-            anchor.frontier_id
+            "authority trust anchor frontier {} does not match requested {repository_id}",
+            anchor.repository_id
         ));
     }
     Ok(Some(LoadedAuthorityTrustAnchorV1 {
@@ -936,7 +936,7 @@ pub fn install_authority_trust_anchor_from_home(
     anchor: &AuthorityTrustAnchorV1,
 ) -> Result<LoadedAuthorityTrustAnchorV1, String> {
     anchor.validate()?;
-    let path = authority_trust_anchor_path(user_home, &anchor.frontier_id)?;
+    let path = authority_trust_anchor_path(user_home, &anchor.repository_id)?;
     install_private_trust_document(
         user_home,
         "authorities",
@@ -945,7 +945,7 @@ pub fn install_authority_trust_anchor_from_home(
         "authority trust anchor",
         ".authority-trust-anchor-",
     )?;
-    load_authority_trust_anchor_from_home(user_home, &anchor.frontier_id)?
+    load_authority_trust_anchor_from_home(user_home, &anchor.repository_id)?
         .ok_or_else(|| "installed authority trust anchor could not be read back".to_string())
 }
 
@@ -965,10 +965,10 @@ pub fn rebind_authority_trust_anchor_from_home(
 ) -> Result<LoadedAuthorityTrustAnchorV1, String> {
     expected.validate()?;
     replacement.validate()?;
-    if expected.frontier_id != replacement.frontier_id {
+    if expected.repository_id != replacement.repository_id {
         return Err("authority trust-anchor rebind cannot change Frontier identity".to_string());
     }
-    let loaded = load_authority_trust_anchor_from_home(user_home, &expected.frontier_id)?
+    let loaded = load_authority_trust_anchor_from_home(user_home, &expected.repository_id)?
         .ok_or_else(|| {
             "authority trust-anchor rebind requires an existing exact pin".to_string()
         })?;
@@ -990,7 +990,7 @@ pub fn rebind_authority_trust_anchor_from_home(
     let relative = PathBuf::from(".vela")
         .join("trust")
         .join("authorities")
-        .join(format!("{}.json", replacement.frontier_id));
+        .join(format!("{}.json", replacement.repository_id));
     PreparedRepositoryFileReplacement::prepare_exact(
         user_home,
         &relative,
@@ -1000,7 +1000,7 @@ pub fn rebind_authority_trust_anchor_from_home(
         4 * 1024,
     )?
     .install()?;
-    let rebound = load_authority_trust_anchor_from_home(user_home, &replacement.frontier_id)?
+    let rebound = load_authority_trust_anchor_from_home(user_home, &replacement.repository_id)?
         .ok_or_else(|| "rebound authority trust anchor could not be read back".to_string())?;
     if rebound.anchor != *replacement {
         return Err(
@@ -1147,15 +1147,15 @@ fn install_private_trust_document<T: Serialize + DeserializeOwned + PartialEq>(
 }
 
 fn validate_repository_id(value: &str) -> Result<(), String> {
-    let Some(suffix) = value.strip_prefix("vfr_") else {
-        return Err("trust anchor frontier_id must be vfr_<16 lowercase hex>".to_string());
+    let Some(suffix) = value.strip_prefix("vrepo_") else {
+        return Err("trust anchor repository_id must be vrepo_<16 lowercase hex>".to_string());
     };
     if suffix.len() != 16
         || !suffix
             .bytes()
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
     {
-        return Err("trust anchor frontier_id must be vfr_<16 lowercase hex>".to_string());
+        return Err("trust anchor repository_id must be vrepo_<16 lowercase hex>".to_string());
     }
     Ok(())
 }
@@ -1370,7 +1370,7 @@ mod tests {
     fn authority_trust_anchor() -> AuthorityTrustAnchorV1 {
         AuthorityTrustAnchorV1 {
             schema: AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.to_string(),
-            frontier_id: "vfr_0123456789abcdef".to_string(),
+            repository_id: "vrepo_0123456789abcdef".to_string(),
             first_authority_record_root: format!("sha256:{}", "4".repeat(64)),
         }
     }
@@ -1546,9 +1546,9 @@ mod tests {
         assert_eq!(
             installed.path,
             home.path()
-                .join(".vela/trust/authorities/vfr_0123456789abcdef.json")
+                .join(".vela/trust/authorities/vrepo_0123456789abcdef.json")
         );
-        let loaded = load_authority_trust_anchor_from_home(home.path(), "vfr_0123456789abcdef")
+        let loaded = load_authority_trust_anchor_from_home(home.path(), "vrepo_0123456789abcdef")
             .unwrap()
             .unwrap();
         assert_eq!(loaded, installed);

@@ -1,4 +1,4 @@
-//! Closed current-only repository manifest for Frontier Profile v2.
+//! Closed current-only repository manifest for Repository Profile v1.
 //!
 //! The manifest indexes active content-addressed objects and the authority
 //! material that can change their standing. It carries no decision or
@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 
 pub const CURRENT_REPOSITORY_SCHEMA_V4: &str = "vela.repository.v4";
-pub const CURRENT_REPOSITORY_PROFILE_SCHEMA_V1: &str = "vela.frontier-profile.v2";
+pub const CURRENT_REPOSITORY_PROFILE_SCHEMA_V1: &str = "vela.repository-profile.v1";
 const PROFILE_NAME_MAX_BYTES: usize = 256;
 const PROFILE_SUMMARY_MAX_BYTES: usize = 2 * 1024;
 const PROFILE_QUESTION_MAX_BYTES: usize = 4 * 1024;
@@ -46,7 +46,7 @@ pub struct RepositoryProfileLicenseV1 {
 #[serde(deny_unknown_fields)]
 pub struct CurrentRepositoryProfileV1 {
     pub schema: String,
-    pub frontier_id: String,
+    pub repository_id: String,
     pub name: String,
     pub summary: String,
     pub scope: RepositoryProfileScopeV1,
@@ -74,7 +74,7 @@ impl CurrentRepositoryProfileV1 {
                 "profile.schema must be `{CURRENT_REPOSITORY_PROFILE_SCHEMA_V1}`"
             ));
         }
-        validate_repository_id(&self.frontier_id)?;
+        validate_repository_id(&self.repository_id)?;
         validate_profile_text("profile.name", &self.name, PROFILE_NAME_MAX_BYTES)?;
         validate_profile_text("profile.summary", &self.summary, PROFILE_SUMMARY_MAX_BYTES)?;
         validate_profile_text(
@@ -149,7 +149,7 @@ pub struct ClaimStandingRefV1 {
 #[serde(deny_unknown_fields)]
 pub struct CurrentRepositoryV4 {
     pub schema: String,
-    pub frontier_id: String,
+    pub repository_id: String,
     pub profile_root: String,
     pub origin_id: String,
     pub origin_root: String,
@@ -185,7 +185,7 @@ impl CurrentRepositoryV4 {
                 "current repository schema must be `{CURRENT_REPOSITORY_SCHEMA_V4}`"
             ));
         }
-        require_prefixed("frontier_id", &self.frontier_id, "vfr_")?;
+        require_prefixed("repository_id", &self.repository_id, "vrepo_")?;
         require_sha256("profile_root", &self.profile_root)?;
         require_prefixed("origin_id", &self.origin_id, "vro_")?;
         require_sha256("origin_root", &self.origin_root)?;
@@ -294,10 +294,10 @@ fn verify_object_refs(field: &str, references: &[RepositoryObjectRefV1]) -> Resu
 
 fn validate_repository_id(value: &str) -> Result<(), String> {
     let suffix = value
-        .strip_prefix("vfr_")
-        .ok_or_else(|| "profile.frontier_id must be vfr_<16 lowercase hex>".to_string())?;
+        .strip_prefix("vrepo_")
+        .ok_or_else(|| "profile.repository_id must be vrepo_<16 lowercase hex>".to_string())?;
     if suffix.len() != 16 || !suffix.bytes().all(crate::shape::is_lower_hex) {
-        return Err("profile.frontier_id must be vfr_<16 lowercase hex>".into());
+        return Err("profile.repository_id must be vrepo_<16 lowercase hex>".into());
     }
     Ok(())
 }
@@ -413,7 +413,7 @@ mod tests {
     fn fixture() -> CurrentRepositoryV4 {
         CurrentRepositoryV4 {
             schema: CURRENT_REPOSITORY_SCHEMA_V4.into(),
-            frontier_id: "vfr_0123456789abcdef".into(),
+            repository_id: "vrepo_0123456789abcdef".into(),
             profile_root: root('a'),
             origin_id: "vro_0123456789abcdef".into(),
             origin_root: root('b'),
@@ -454,9 +454,9 @@ mod tests {
     fn current_profile_is_native_closed_metadata() {
         let current = CurrentRepositoryProfileV1 {
             schema: CURRENT_REPOSITORY_PROFILE_SCHEMA_V1.into(),
-            frontier_id: "vfr_0123456789abcdef".into(),
+            repository_id: "vrepo_0123456789abcdef".into(),
             name: "Example".into(),
-            summary: "A bounded example Frontier.".into(),
+            summary: "A bounded example repository.".into(),
             scope: RepositoryProfileScopeV1 {
                 question: "What is true?".into(),
                 includes: vec!["Exact claims.".into()],
@@ -474,17 +474,17 @@ mod tests {
         assert_eq!(parsed, current);
         assert_eq!(
             current.profile_root().unwrap(),
-            "sha256:deb7e30bb8d359c6c6eeec8797bd7f701f13afee4377adf2bbec798a914e1e9b"
+            "sha256:24c698f74b7eb1c438a01968c2b21c3c165d1483a1d055f2d0a583dc2d3266be"
         );
     }
 
     #[test]
     fn current_profile_rejects_unknown_duplicate_and_oversized_toml() {
         let valid = r#"
-schema = "vela.frontier-profile.v2"
-frontier_id = "vfr_0123456789abcdef"
+schema = "vela.repository-profile.v1"
+repository_id = "vrepo_0123456789abcdef"
 name = "Example"
-summary = "A bounded example Frontier."
+summary = "A bounded example repository."
 maintainers = []
 
 [scope]

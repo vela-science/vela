@@ -17,9 +17,9 @@ use vela_protocol::events::{EventKind, NULL_HASH};
 use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::proposal_withdrawal_v1::ProposalWithdrawalV1;
 use vela_protocol::repository_origin::RepositoryOriginV1;
-use vela_protocol::status_v3::{
+use vela_protocol::status_v4::{
     REPOSITORY_HEAD_ROLE, ReplayState, StatusActions, StatusCounts, StatusDecisionInbox,
-    StatusRepository, StatusGit, StatusIntegrity, StatusReviewAction, StatusRoots, StatusV3,
+    StatusRepository, StatusGit, StatusIntegrity, StatusReviewAction, StatusRoots, StatusV4,
     StatusWork, StatusWorkAction, StrictState,
 };
 use vela_protocol::submission_v1::SubmissionV1;
@@ -73,7 +73,7 @@ pub(crate) fn cmd_replay_repository(frontier: &Path, json_out: bool) {
         "ok": true,
         "command": "replay",
         "frontier": frontier.display().to_string(),
-        "frontier_id": repository.frontier_id,
+        "repository_id": repository.repository_id,
         "git_commit": commit,
         "git_tree": tree,
         "origin_id": origin.origin_id,
@@ -98,7 +98,7 @@ pub(crate) fn cmd_replay_repository(frontier: &Path, json_out: bool) {
         /* TERMINOLOGY.md forbids an unqualified "verified", so this line names
         what the replay actually matched instead of asserting a standing. */
         println!("current repository replay matched: signatures, roots, and canonical bytes");
-        println!("  frontier: {}", payload["frontier_id"]);
+        println!("  frontier: {}", payload["repository_id"]);
         println!("  origin: {}", payload["origin_id"]);
         println!("  claims: {}", payload["counts"]["accepted_claims"]);
         println!("  repository root: {}", payload["repository_root"]);
@@ -202,7 +202,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         let tree = git_text(&frontier, &["rev-parse", "HEAD^{tree}"]).ok();
         /* One command reports one document. This branch answered `status` with
         `vela.status.v1` while the initialized branch below answered with
-        `vela.status.v3`: not two versions of one contract but one contract and
+        `vela.status.v4`: not two versions of one contract but one contract and
         one literal that never moved when the contract did, so a caller keying
         on `schema` saw a version it had no reader for and could not tell a
         cold Frontier from a stale release. The phase is a value, not a schema:
@@ -210,13 +210,13 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         command that clears it. `phase` and `next_action` said the same two
         things in a shape only this branch had, and are gone with them.
 
-        The two branches are now one type, `StatusV3`, which is what makes a
+        The two branches are now one type, `StatusV4`, which is what makes a
         per-branch `schema` literal unwritable rather than merely wrong. The
         nulls below stay explicit `None`s of always-present fields: see the
         type's header on why absence is a different document. */
-        let payload = StatusV3::new(
+        let payload = StatusV4::new(
             StatusRepository {
-                id: profile.frontier_id.clone(),
+                id: profile.repository_id.clone(),
                 name: profile.name.clone(),
                 profile_root: profile
                     .profile_root()
@@ -267,7 +267,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         if json_out {
             crate::cli::print_json(&payload);
         } else {
-            println!("vela status · {}", payload.frontier.name);
+            println!("vela status · {}", payload.repository.name);
             println!("  replay    not initialized");
             println!("  strict    blocked · repository authority uninitialized");
             println!("  next      {}", payload.actions.work.command());
@@ -305,7 +305,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         .count();
     let target_assessment = vela_edge::target_index::assess_current_target_index(
         &frontier,
-        &repository.frontier_id,
+        &repository.repository_id,
         &repository.origin_id,
         &repository_root,
     )
@@ -334,9 +334,9 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
             note: "No Target Index is configured. Submit bounded evidence directly or use a Frontier-owned adapter to generate targets.json.".into(),
         }
     };
-    let payload = StatusV3::new(
+    let payload = StatusV4::new(
         StatusRepository {
-            id: repository.frontier_id.clone(),
+            id: repository.repository_id.clone(),
             name: profile.name,
             profile_root: repository.profile_root.clone(),
         },
@@ -348,7 +348,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         StatusIntegrity {
             /* The prose below no longer says "verified", which TERMINOLOGY.md
             forbids unqualified. This value keeps the word because it is a wire
-            token of vela.status.v3: vela-web pins it as z.literal("verified")
+            token of vela.status.v4: vela-web pins it as z.literal("verified")
             and its projection builder asserts on it, so retiring it is a
             coordinated schema change, not a wording change. */
             replay: ReplayState::Verified,
@@ -386,8 +386,8 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
     if json_out {
         crate::cli::print_json(&payload);
     } else {
-        println!("vela status · {}", payload.frontier.name);
-        println!("  frontier  {}", payload.frontier.id);
+        println!("vela status · {}", payload.repository.name);
+        println!("  repository {}", payload.repository.id);
         println!(
             "  commit    {}",
             payload.git.commit.as_deref().unwrap_or("unavailable")
@@ -470,7 +470,7 @@ pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let assessment = vela_edge::target_index::assess_current_target_index(
         &frontier,
-        &repository.frontier_id,
+        &repository.repository_id,
         &repository.origin_id,
         &repository_root,
     )
@@ -480,7 +480,7 @@ pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
             "schema": "vela.offer.v1",
             "ok": true,
             "command": "next",
-            "frontier_id": repository.frontier_id,
+            "repository_id": repository.repository_id,
             "repository_root": repository_root,
             "availability": {
                 "configured": 0,
@@ -539,7 +539,7 @@ pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
         "schema": "vela.offer.v1",
         "ok": true,
         "command": "next",
-        "frontier_id": repository.frontier_id,
+        "repository_id": repository.repository_id,
         "origin_id": repository.origin_id,
         "repository_root": repository_root,
         "target_index_root": assessment.index.index_root,
@@ -1012,7 +1012,7 @@ pub(crate) fn cmd_current_review_list(
         "schema": "vela.review.v1",
         "ok": true,
         "command": "review.list",
-        "frontier_id": repository.frontier_id,
+        "repository_id": repository.repository_id,
         "repository_root": repository.canonical_root().unwrap_or_else(|error| crate::cli::fail_return(&error)),
         "status": status,
         "order": "created_at_desc_then_proposal_id",
@@ -1134,7 +1134,7 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
         "schema": "vela.review.v1",
         "ok": true,
         "command": "review.show",
-        "frontier_id": repository.frontier_id,
+        "repository_id": repository.repository_id,
         "repository_root": repository.canonical_root().unwrap_or_else(|error| crate::cli::fail_return(&error)),
         "proposal_id": proposal.proposal_id,
         "proposal_root": reference.root,
@@ -1370,8 +1370,8 @@ pub(crate) fn load_current_repository_at(
     let repository_bytes = fs::read(root.join(".vela/repository.json"))
         .map_err(|error| format!("read current repository manifest: {error}"))?;
     let repository = CurrentRepositoryV4::parse(&repository_bytes)?;
-    if repository.frontier_id != profile.frontier_id
-        || repository.frontier_id != origin.frontier_id
+    if repository.repository_id != profile.repository_id
+        || repository.repository_id != origin.repository_id
         || repository.profile_root != profile_root
         || repository.profile_root != origin.profile_root
         || repository.origin_id != origin.origin_id
@@ -1416,7 +1416,7 @@ pub(crate) fn verify_current_repository_at(
             .map_err(|error| format!("parse current Target Index: {error}"))?;
         index.validate()?;
         if index.canonical_bytes()?.as_slice() != bytes.as_slice()
-            || index.frontier_id != repository.frontier_id
+            || index.repository_id != repository.repository_id
             || index.repository.origin_id != repository.origin_id
             || index.repository.repository_root != repository_root
         {
@@ -1427,7 +1427,7 @@ pub(crate) fn verify_current_repository_at(
         if require_authority_record {
             let assessment = vela_edge::target_index::assess_current_target_index(
                 root,
-                &repository.frontier_id,
+                &repository.repository_id,
                 &repository.origin_id,
                 &repository_root,
             )?
@@ -1770,7 +1770,7 @@ pub(crate) fn initial_repository(
     }
     let repository_bytes = read_blob(".vela/repository.json")?;
     let repository = CurrentRepositoryV4::parse(&repository_bytes)?;
-    if repository.frontier_id != origin.frontier_id
+    if repository.repository_id != origin.repository_id
         || repository.profile_root != origin.profile_root
         || repository.origin_id != origin.origin_id
         || repository.origin_root != origin.canonical_root()?
@@ -1863,7 +1863,7 @@ fn verify_current_repository_authority(
         serde_json::from_value(event.content.payload.clone())
             .map_err(|error| format!("parse current initialization payload: {error}"))?;
     initialization.validate()?;
-    if initialization.frontier_id != repository.frontier_id
+    if initialization.repository_id != repository.repository_id
         || initialization.initial_event_log_root != initial_event_log_root
         || initialization.initial_actor_registry_root != initial_actor_registry_root
         || initialization.new_authority_keyset_root != repository.authority_keyset_root
@@ -2311,7 +2311,7 @@ pub(crate) fn verify_routine_evidence_overlay(
     authority_checkpoint.verify()?;
     current.verify()?;
 
-    if authority_checkpoint.frontier_id != current.frontier_id
+    if authority_checkpoint.repository_id != current.repository_id
         || authority_checkpoint.profile_root != current.profile_root
         || authority_checkpoint.origin_id != current.origin_id
         || authority_checkpoint.origin_root != current.origin_root
@@ -2479,8 +2479,8 @@ fn root_bytes(bytes: &[u8]) -> String {
     format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
 }
 
-fn git_text(frontier: &Path, args: &[&str]) -> Result<String, String> {
-    vela_edge::git::text(frontier, args)
+fn git_text(repository: &Path, args: &[&str]) -> Result<String, String> {
+    vela_edge::git::text(repository, args)
 }
 
 /// The set of paths a current repository must no longer carry.
@@ -2998,7 +2998,7 @@ mod tests {
     fn repository_fixture() -> CurrentRepositoryV4 {
         CurrentRepositoryV4 {
             schema: vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V4.into(),
-            frontier_id: "vfr_0123456789abcdef".into(),
+            repository_id: "vrepo_0123456789abcdef".into(),
             profile_root: root('1'),
             origin_id: "vro_0123456789abcdef".into(),
             origin_root: root('2'),

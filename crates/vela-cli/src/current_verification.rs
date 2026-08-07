@@ -513,7 +513,7 @@ fn import_inner(
         "sha256:{}",
         vela_protocol::canonical::sha256_canonical(&json!({
             "schema": "vela.current-verification-import-request.v1",
-            "frontier_id": repository.frontier_id,
+            "repository_id": repository.repository_id,
             "origin_id": repository.origin_id,
             "repository_before": repository_root,
             "verification_record_root": record_root,
@@ -573,7 +573,7 @@ fn import_inner(
     let mut prepared = crate::routine_evidence_transaction::prepare_routine_evidence_transaction(
         barrier,
         frontier,
-        &held_repository.frontier_id,
+        &held_repository.repository_id,
         crate::repository_txn::OperationKind::Verification,
         operation_id.clone(),
         &request_root,
@@ -858,7 +858,7 @@ mod tests {
         .unwrap();
         let repository = CurrentRepositoryV4 {
             schema: CURRENT_REPOSITORY_SCHEMA_V4.into(),
-            frontier_id: "vfr_0123456789abcdef".into(),
+            repository_id: "vrepo_0123456789abcdef".into(),
             profile_root: root('1'),
             origin_id: "vro_0123456789abcdef".into(),
             origin_root: root('2'),

@@ -222,7 +222,7 @@ pub(crate) fn cmd_claims(
         "schema": "vela.claims.v1",
         "ok": true,
         "command": "claims",
-        "frontier_id": repository.frontier_id,
+        "repository_id": repository.repository_id,
         "repository_root": repository_root,
         "origin_id": repository.origin_id,
         "generation": origin.generation,
@@ -261,7 +261,7 @@ fn render(payload: &Value, status: &str) {
     let unreadable = payload["unreadable_returned"].as_u64().unwrap_or_default();
     println!(
         "claims · {total} {status} · {}",
-        payload["frontier_id"].as_str().unwrap_or("")
+        payload["repository_id"].as_str().unwrap_or("")
     );
     println!("  {returned} shown, ordered by Claim id");
     println!(
