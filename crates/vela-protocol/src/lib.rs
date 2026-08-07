@@ -21,3 +21,11 @@ pub use objects::{
 };
 mod read_surface;
 pub use read_surface::status_v3;
+
+/// Read-only, frozen reader for repositories written before ADR 0039.
+///
+/// Kept apart from the current objects rather than aliased into them: their
+/// `deny_unknown_fields` plus canonical-bytes round trip makes an alias
+/// impossible, and a separate schema family is what lets the current path carry
+/// no compatibility branch at all.
+pub mod epoch1;
