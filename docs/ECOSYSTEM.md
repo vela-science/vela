@@ -30,7 +30,7 @@ authority, never because there is a new topic.**
 **Repository.** `crates/vela-protocol/src/objects/current_repository.rs`
 (`CurrentRepositoryV4`), the authority history in `crates/vela-authority/`,
 replay in `crates/vela-verify/`. The rename landed in v0.967.0: `vfr_` and
-`frontier_id` are at zero in `crates/`, against 76 `vrepo_` and 391
+`frontier_id` are at zero in `crates/`, against 76 `vrepo_` and 392
 `repository_id`. The type parses `vela.toml`, mints `vrepo_<16 hex>`, and
 answers `vela.status.v4`.
 
@@ -175,11 +175,15 @@ would have to become true before the question could be reopened. Levels 3
 | `vela-science/vela` | Protocol, CLI, conformance readers and fixtures, releases, architecture | exists |
 | `vela-science/vela-web` | Editorial site and read-only Observatory | exists |
 | `vela-science/.github` | Organization profile, reusable workflows, security policy | exists |
-| `vela-science/math` | The one live mathematics authority, fresh genesis | not yet created |
+| `vela-science/math` | The one live mathematics authority, fresh genesis | exists |
 
-`vela-science/math` is future. Its gate is ADR 0039 itself, which is Accepted;
-what blocks it is the epoch rename (§7), because a fresh genesis written by the
-epoch-1 binary would mint `vfr_` and write `vela.toml`.
+`vela-science/math` exists and holds a signed genesis. The epoch rename this
+paragraph named as its blocker is done, so the genesis was written by a binary
+that mints `vrepo_` and writes `vela.toml`, which is what the repository
+carries. What its authority record still holds from before the rename is the
+Cedar entity `Frontier`, the `frontier_administrator` role and the StateTarget
+type `frontier`, all inside a valid signature; retiring those spellings is a
+policy-bundle rotation on a live authority rather than a wording change.
 
 ### Frozen
 
@@ -261,7 +265,7 @@ surface: `DecisionInboxNextObligation` in
 `crates/vela-cli/src/decision_inbox.rs`, mirrored at
 `packages/frontier-data/src/index.ts:325` and rendered by
 `apps/observatory/src/components/vela/decision-boundary.tsx:46`. What it lacks
-is a JSON Schema in `schemas/` (which holds four), a projection table, and a
+is a JSON Schema in `schemas/` (which holds eight), a projection table, and a
 route. Unlike Problem, Obligation does not lack a decision — ADR 0039 §4 and §6
 name it twice. It lacks an implementation of a decision that exists.
 
@@ -301,25 +305,34 @@ different facts.
 
 ### Protocol and tooling gaps
 
-- **The epoch rename is half-executed.** Done: five Event kinds are already
-  `claim.*` and `target.claimed` (`crates/vela-protocol/src/kernel/events.rs`),
-  and five vocabulary terms are documented as retired
-  (`docs/TERMINOLOGY.md`). Not done: `frontier_id` → `repository_id` (307
-  sites), `vfr_` → `vrepo_` (78 sites), `vela.toml` → `vela.toml` (26
-  sites), `--repo` → `--repo`, `vela.status.v3` → `v4`,
-  `crates/vela-protocol/src/epoch1/` (absent), and the read-only
-  `vela history <path>` (absent). The tree is in the inconsistent middle state
-  the ADR said to avoid.
+- **The epoch rename is done except for two absent additions.** Five Event
+  kinds are `claim.*` and `target.claimed`
+  (`crates/vela-protocol/src/kernel/events.rs`) and five vocabulary terms are
+  documented as retired (`docs/TERMINOLOGY.md`). `frontier_id` → `repository_id`,
+  `vfr_` → `vrepo_`, `frontier.toml` → `vela.toml`, `--frontier` → `--repo` and
+  `vela.status.v3` → `v4` all landed: each is at zero across `crates/`,
+  `schemas/`, `packages/` and the top level of `docs/`, and the occurrences that
+  remain are deliberate references to the retired spelling — the retired-path
+  predicate, `docs/ROOTS.md` stating that a prefix is never reused, and the
+  tests that hold the new wording in place. This list previously called all five
+  "not done" while §1 of this same document said the rename landed in v0.967.0,
+  and it stated two of them as `vela.toml` → `vela.toml` and `--repo` → `--repo`
+  after a sweep rewrote both sides of the arrow.
+
+  Still absent: `crates/vela-protocol/src/epoch1/` and the read-only
+  `vela history <path>`. Both are additions the ADR asked for, not leftovers of
+  a half-executed rename.
 - **DSSE is not the common waist.** Authority records use DSSE; Submission,
   Verification Record and Proposal Withdrawal still sign a bespoke zeroed-field
   preimage (`crates/vela-protocol/src/objects/submission_v1.rs`). ADR 0035
   remains Proposed. This blocks any external producer and any 1.0 freeze. The
-  fresh `vela-science/math` genesis is the cheapest moment to cut v2 payloads,
-  because there is no legacy history to migrate.
+  `vela-science/math` genesis was the cheapest moment to cut v2 payloads and it
+  has been written, so that window is closed: math now has one signed authority
+  record and a producer history to migrate rather than none.
 - **Cedar is not removed.** The closed evaluator exists
   (`evaluate_authorization_v1` in `crates/vela-authority/src/lib.rs`) and the
   parity corpus exists
-  (`conformance/fixtures/authorization-profile-parity-v1.json`), but the
+  (`conformance/fixtures/epoch1/authorization-profile-parity-v1.json`), but the
   evaluator is called only from tests and `cedar-policy = "=4.11.2"` is still a
   workspace dependency of the active writer.
 - **`serde_yaml_ng` is a `serde_yaml` fork.** `Cargo.toml:43`. The standards
@@ -328,13 +341,16 @@ different facts.
   bounds the exposure but does not resolve the decision.
 - **License fields are not SPDX.** `current_repository.rs:105-119` validates
   the three license fields as bounded NFC text only. The documented example in
-  `docs/FRONTIER_REPOSITORY_PROFILE.md:52` is `data = "varies"`, which is not an
+  `docs/REPOSITORY_PROFILE.md:52` is `data = "varies"`, which is not an
   SPDX expression.
-- **Five published schemas are missing.** `schemas/` holds four. Claim Record,
-  the authority request and decision payloads, the repository profile
-  projection, and a `vela.error.v1` CLI error envelope are unpublished. The
-  generator already exists (`crates/vela-protocol/src/wire_schema.rs` with a
-  blessing test), so this is scope, not mechanism.
+- **Four published schemas are missing.** `schemas/` holds eight: Submission,
+  Verification Record, Proposal Withdrawal, Claim Record, Proposal, repository
+  origin, the DSSE authority envelope and `vela.status.v4`. Claim Record was on
+  this list as unpublished after it had been published. Still unpublished: the
+  authority request and decision payloads, the repository profile, and a
+  `vela.error.v1` CLI error envelope. The generator already exists
+  (`crates/vela-protocol/src/wire_schema.rs` with a blessing test), so this is
+  scope, not mechanism.
 - **Canonicalization vectors run in two languages, not three.**
   `conformance/canonical-hashing.json` declares exactly two conforming
   implementations (Rust and Python); `conformance/readers/` contains only
@@ -358,13 +374,13 @@ different facts.
   `:269` and `:289` say "All four". `:239` still derives `superseded` from a
   `finding.superseded` Event, 120 lines after the same file retires
   `finding.*`. `:139` calls Atlas current and `:407` calls it future.
-- Two taglines ship at once. "version control for living science"
-  (`README.md:8`, `docs/ARCHITECTURE.md:3`, `docs/TERMINOLOGY.md:8`) and
-  "scientific state" (`docs/ROADMAP.md:3`, `docs/QUICKSTART.md:3`,
-  `docs/PROTOCOL.md:5`, and the binary's own help surface). Pick one.
-- `docs/ROADMAP.md:7` says `create -> submit -> verify -> decide -> replay`;
-  `docs/TERMINOLOGY.md:13` says `init -> …`. There is one CLI verb and it is
-  `init`.
+- ~~Two taglines ship at once.~~ Resolved: everything now says "version
+  control for scientific state", which is what the binary prints, and
+  `the_documented_tagline_is_the_one_the_binary_prints` in
+  `crates/vela-protocol/tests/cli_release_contract.rs` holds the six documents
+  to the binary rather than to each other.
+- ~~`docs/ROADMAP.md:7` says `create -> submit -> verify -> decide -> replay`.~~
+  Resolved: it says `init -> …`, which is the verb the CLI has.
 - ADR 0017 is "Deferred — research only" and forbids implementing a Frontier
   calculus. Its two layer names, Frontier Algebra and Discovery Calculus, are
   live rows in `docs/TERMINOLOGY.md:396-397` and `frontier_algebra` is a

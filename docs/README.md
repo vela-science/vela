@@ -16,7 +16,7 @@
 - [Authority and attribution](SIGNING.md)
 - [Verification](VERIFICATION.md)
 - [Roots](ROOTS.md)
-- [Frontier repository profile](FRONTIER_REPOSITORY_PROFILE.md)
+- [Repository profile](REPOSITORY_PROFILE.md)
 - [Target Index](TARGET_INDEX.md)
 - [ADR 0034: Direct Target Index generation](adr/0034-direct-target-index-generation.md)
 - [Threat model](THREAT_MODEL.md)

@@ -5,7 +5,7 @@ Historical object names remain valid when describing their exact source era.
 
 ## Product contract
 
-> **Vela is version control for living science.**
+> **Vela is version control for scientific state.**
 
 > **Map the territory. Advance one boundary. Leave the next researcher ahead.**
 

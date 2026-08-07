@@ -4,7 +4,7 @@ Vela is version control for scientific state. The product is the complete,
 local, Git-native loop:
 
 ```text
-create -> submit -> verify -> decide -> replay
+init -> submit -> verify -> decide -> replay
 ```
 
 ## Now

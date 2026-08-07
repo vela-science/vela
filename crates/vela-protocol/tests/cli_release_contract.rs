@@ -102,7 +102,7 @@ fn readme_install_block_advertises_the_released_version() {
 ///
 /// `docs/README.md` and the roster `vela-web` publishes from were two lists of
 /// one set, and they disagreed: the site published AGENT_QUICKSTART,
-/// ARCHITECTURE and FRONTIER_REPOSITORY_PROFILE while this index named none of
+/// ARCHITECTURE and REPOSITORY_PROFILE while this index named none of
 /// them. Neither list is the set — `docs/` is — so each is now held to it: the
 /// web script reads the tree at its pinned commit, and this reads the working
 /// tree. `docs/adr/` and `docs/history/` keep their own indexes and are linked
@@ -193,7 +193,7 @@ fn the_workspace_msrv_is_the_pinned_toolchain() {
 }
 
 #[test]
-fn replay_missing_frontier_reports_error_without_panic() {
+fn replay_missing_repository_reports_error_without_panic() {
     let tmp = TempDir::new().unwrap();
     let missing = tmp.path().join("missing-repository.json");
 
@@ -292,4 +292,71 @@ fn verification_help_exposes_ordinary_authoring_without_key_flags() {
     // The Proposal stays required, and the usage line is what states so.
     assert!(help.contains("<PROPOSAL>"));
     assert!(!help.contains("--key"));
+}
+
+/// The profile contract's example TOML must parse as a profile.
+///
+/// `docs/REPOSITORY_PROFILE.md` documented `frontier_id = "vfr_…"` against
+/// `CurrentRepositoryProfileV1`, whose field is `repository_id` under
+/// `#[serde(deny_unknown_fields)]`. A reader who copied the documented block
+/// got a hard parse rejection from the schema the same document describes, and
+/// nothing read the block, so it could say anything.
+#[test]
+fn the_profile_contract_documents_a_profile_that_parses() {
+    let document = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../docs/REPOSITORY_PROFILE.md"),
+    )
+    .expect("read docs/REPOSITORY_PROFILE.md");
+    let block = document
+        .split_once("```toml\n")
+        .expect("the profile contract must show one example profile")
+        .1
+        .split_once("```")
+        .expect("the example profile block is unclosed")
+        .0;
+    let profile =
+        vela_protocol::current_repository::CurrentRepositoryProfileV1::from_toml_str(block)
+            .expect("the documented profile must parse");
+    profile
+        .validate()
+        .expect("the documented profile must validate");
+}
+
+/// One tagline, held to the one the binary prints.
+///
+/// "version control for living science" and "version control for scientific
+/// state" shipped at once across README.md and four documents, and the binary
+/// printed the second. A reader's first sentence about the product depended on
+/// which file they opened.
+#[test]
+fn the_documented_tagline_is_the_one_the_binary_prints() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let printed = run_text(&["help"]);
+    let tagline = printed
+        .lines()
+        .nth(1)
+        .expect("`vela help` prints a tagline under the version");
+    assert_eq!(tagline, "Version control for scientific state.");
+
+    let phrase = tagline.trim_end_matches('.').to_ascii_lowercase();
+    for name in [
+        "README.md",
+        "docs/ARCHITECTURE.md",
+        "docs/TERMINOLOGY.md",
+        "docs/ROADMAP.md",
+        "docs/PROTOCOL.md",
+        "docs/QUICKSTART.md",
+    ] {
+        let document = std::fs::read_to_string(root.join(name))
+            .unwrap_or_else(|error| panic!("read {name}: {error}"));
+        let lowered = document.to_ascii_lowercase();
+        assert!(
+            lowered.contains(&phrase),
+            "{name} does not carry the tagline the binary prints"
+        );
+        assert!(
+            !lowered.contains("version control for living science"),
+            "{name} carries the retired tagline"
+        );
+    }
 }

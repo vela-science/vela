@@ -98,8 +98,8 @@ KEPT_DOT_DIRECTORIES = frozenset({".github", ".vela"})
 # Anchors the retired-path list in the profile contract. A missing marker is a
 # hard error rather than an empty rule: a check that silently stops checking is
 # the failure mode this whole file exists to avoid.
-RETIRED_PATHS_MARKER = "<!-- frontier-lint:retired-paths -->"
-PROFILE_CONTRACT = "docs/FRONTIER_REPOSITORY_PROFILE.md"
+RETIRED_PATHS_MARKER = "<!-- repository-lint:retired-paths -->"
+PROFILE_CONTRACT = "docs/REPOSITORY_PROFILE.md"
 
 # A line that resolves something from git, in any of the three spellings a
 # Frontier uses: the `uvx --from git+…` invocation a declaration carries, the

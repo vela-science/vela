@@ -162,7 +162,7 @@ commands.
 - Producers and agents: [AGENT_QUICKSTART.md](AGENT_QUICKSTART.md) and
   [PRODUCER_QUICKSTART.md](PRODUCER_QUICKSTART.md)
 - Commands: [CLI.md](CLI.md)
-- Repository layout: [FRONTIER_REPOSITORY_PROFILE.md](FRONTIER_REPOSITORY_PROFILE.md)
+- Repository layout: [REPOSITORY_PROFILE.md](REPOSITORY_PROFILE.md)
 - Authority and attribution: [SIGNING.md](SIGNING.md)
 - Byte and root meanings: [ROOTS.md](ROOTS.md)
 - Protocol semantics: [PROTOCOL.md](PROTOCOL.md)

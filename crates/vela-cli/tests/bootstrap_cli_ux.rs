@@ -491,7 +491,7 @@ fn two_repositories_on_the_same_question_receive_different_identities() {
 /// the record family with `text eol=lf` meant every repository had to
 /// hand-correct its own `.gitattributes` before it could verify. All four did,
 /// independently.
-/// `FRONTIER_REPOSITORY_PROFILE.md` states the rule; nothing held the scaffold
+/// `REPOSITORY_PROFILE.md` states the rule; nothing held the scaffold
 /// to it.
 #[test]
 fn the_scaffold_never_normalizes_a_content_addressed_path() {

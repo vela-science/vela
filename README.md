@@ -5,7 +5,7 @@
 <h1 align="center">Vela</h1>
 
 <p align="center">
-  <strong>Version control for living science.</strong>
+  <strong>Version control for scientific state.</strong>
 </p>
 
 <p align="center">

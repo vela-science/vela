@@ -293,7 +293,7 @@ fn write_scaffold(path: &Path, name: &str, scope: &str) -> Result<(), String> {
         // to `* text=auto`. Live repositories carry the dead line too.
         "* text=auto eol=lf\n.vela/** -filter -ident -working-tree-encoding -merge -text\nrecords/** -filter -ident -working-tree-encoding -merge -text\nartifacts/** -filter -ident -working-tree-encoding -merge -text\nvela.toml -filter -ident -working-tree-encoding -merge diff text eol=lf\ntargets.json -filter -ident -working-tree-encoding -merge diff text eol=lf\n",
     )?;
-    /* AGENTS.md, not VELA.md. FRONTIER_REPOSITORY_PROFILE.md names README.md
+    /* AGENTS.md, not VELA.md. REPOSITORY_PROFILE.md names README.md
     and AGENTS.md as the guidance set, and all four published repositories carry
     AGENTS.md; none has ever had a VELA.md. A scaffold that writes a filename no
     repository uses guarantees the first act after `vela init` is renaming it. */

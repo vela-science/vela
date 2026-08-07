@@ -1,6 +1,6 @@
 # Vela architecture
 
-Vela is version control for living science.
+Vela is version control for scientific state.
 
 Its technical category is a Git-native protocol and CLI for governed,
 replayable scientific-state transitions: the portable boundary that records

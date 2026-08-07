@@ -348,7 +348,7 @@ independent channel and store:
 
 ```text
 vela.authority-trust-anchor.v1
-  frontier_id
+  repository_id
   first_authority_record_root
 ```
 

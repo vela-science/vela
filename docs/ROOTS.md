@@ -48,7 +48,7 @@ inputs. These profiles are not interchangeable.
 
 | Commitment | Meaning | Not a substitute for |
 | --- | --- | --- |
-| Frontier ID `vfr_…` | Stable bounded repository identity | Git commit, repository root, or Standing |
+| Repository ID `vrepo_…` | Stable bounded repository identity | Git commit, repository root, or Standing |
 | Git commit | Exact commit object and ancestry | Tree, valid Vela state, or acceptance |
 | Git tree | Exact tracked paths and bytes | Commit ancestry or authority |
 | Origin ID/root | Immutable repository origin and optional predecessor provenance | Repository root or authority head |

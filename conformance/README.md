@@ -61,7 +61,7 @@ none of them can go stale on its own:
 | `shared-package-copy` | the real file list, `__all__`, and module symbols of every package under `packages/` |
 | `non-production-dependency` | each `vela.package-consumer-reference.v1` in the Frontier, and `subdirectory =` in its `pyproject.toml` |
 | `generator-pin` | every `git+` reference to a package under `packages/`, checked for a 40-character commit and for agreement between a Frontier's own restatements of it |
-| `retired-path` | the fenced list under `<!-- frontier-lint:retired-paths -->` in `docs/FRONTIER_REPOSITORY_PROFILE.md` |
+| `retired-path` | the fenced list under `<!-- repository-lint:retired-paths -->` in `docs/REPOSITORY_PROFILE.md` |
 | `generated-file` | the lock and declaration filenames and the console-script name published by the package that generates the lock |
 
 `generator-pin` deliberately does not check *which* commit a Frontier names.

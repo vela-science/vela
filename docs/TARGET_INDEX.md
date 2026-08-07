@@ -12,7 +12,7 @@ apply, inspect, or repair lifecycle for this derived file.
 
 The index binds:
 
-- the exact Frontier and current repository root (`frontier_id`, and
+- the exact Frontier and current repository root (`repository_id`, and
   `repository` as `origin_id` plus `repository_root`);
 - one exact Git source commit and tree;
 - the sorted tracked input paths and their byte roots;

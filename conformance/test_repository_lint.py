@@ -463,7 +463,7 @@ class OneRepositoryOnly(unittest.TestCase):
         frontier.write("README.md", "# a frontier\n")
         decoy = frontier.root.parent / "vela"
         (decoy / "docs").mkdir(parents=True)
-        (decoy / "docs" / "FRONTIER_REPOSITORY_PROFILE.md").write_text(
+        (decoy / "docs" / "REPOSITORY_PROFILE.md").write_text(
             f"{lint.RETIRED_PATHS_MARKER}\n```text\nREADME.md\n```\n", encoding="utf-8"
         )
         (decoy / "packages" / "decoy" / "src" / "decoy").mkdir(parents=True)
