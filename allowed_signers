@@ -1,0 +1,13 @@
+# Verifiers for signatures this project publishes.
+#
+# One identity, and it is not the repository authority. Publishing a binary is
+# not a scientific Decision, so a release manifest and a Decision must never be
+# checkable against the same key: see docs/SIGNING.md.
+#
+# `namespaces=` scopes the key to release manifests. Without it this line would
+# accept a signature this identity made over anything at all, which is a wider
+# claim than the one it exists to support.
+#
+#   ssh-keygen -Y verify -f allowed_signers -I release@vela.space \
+#     -n vela-release -s release-manifest.json.sig < release-manifest.json
+release@vela.space namespaces="vela-release" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDZ+fwqljQBzprznZmeAY3KwHVrKOaW+/z5GflVwilG5 Vela release distribution

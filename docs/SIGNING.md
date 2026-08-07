@@ -178,11 +178,16 @@ The signing path takes the **public** key and routes through `ssh-agent`
 (`ssh-keygen -Y sign -U`), so neither the script nor any workflow reads private
 key material.
 
-The current distribution identity:
+The current distribution identity is published in `allowed_signers` at the
+repository root, so a verifier needs a clone and nothing else:
 
 ```text
 release@vela.space  SHA256:MX3Eo1o9S5pLnx2kiNyAy2aME7PAWDtvqtUBljJst1M
 ```
+
+That entry carries `namespaces="vela-release"`, which scopes the key to release
+manifests. Without it the line would accept a signature this identity made over
+anything at all, which is a wider claim than the one it exists to support.
 
 Verify a published manifest against it:
 
