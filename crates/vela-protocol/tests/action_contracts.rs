@@ -131,7 +131,7 @@ fn root_action_is_read_only_and_nonfinalizing() {
             .expect("action inputs must be an object")
             .len(),
         1,
-        "the public action accepts only the frontier path"
+        "the public action accepts only the repository path"
     );
 
     let install = step_named(&action["runs"], "Install Vela");
@@ -152,10 +152,10 @@ fn root_action_is_read_only_and_nonfinalizing() {
     );
     assert!(
         strict.contains("\"$FRONTIER\" --json"),
-        "the step must verify the consumer's frontier as JSON"
+        "the step must verify the consumer's repository as JSON"
     );
 
-    /* The two shape checks every Frontier owes and none of them owns. They are
+    /* The two shape checks every repository owes and none of them owns. They are
     named here because four repositories consume this file instead of carrying
     four copies: deleting a step from it silently ungates all four at once. */
     assert!(
@@ -166,7 +166,7 @@ fn root_action_is_read_only_and_nonfinalizing() {
         .contains("vela-source-lock --check")
     );
     assert!(
-        script_named(&action["runs"], "Frontier repository shape")
+        script_named(&action["runs"], "Repository shape")
             .contains("conformance/repository_lint.py")
     );
 

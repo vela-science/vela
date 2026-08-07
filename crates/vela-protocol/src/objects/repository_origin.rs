@@ -284,7 +284,7 @@ mod tests {
 
     fn predecessor() -> RepositoryOriginPredecessorV1 {
         RepositoryOriginPredecessorV1 {
-            remote: "https://github.com/vela-science/fixture-frontier.git".into(),
+            remote: "https://github.com/vela-science/fixture-repository.git".into(),
             tag: "pre-compaction/2026-07-29".into(),
             commit: "a".repeat(40),
             tree: "b".repeat(40),

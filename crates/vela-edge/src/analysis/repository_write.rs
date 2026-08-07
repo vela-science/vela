@@ -24,7 +24,7 @@ pub const AUTHORITY_TRUST_ANCHOR_SCHEMA_V1: &str = "vela.authority-trust-anchor.
 
 /// An out-of-band pin for the first repository-authority record.
 ///
-/// The sequence-1 authority-record root binds the Frontier, initial keyset,
+/// The sequence-1 authority-record root binds the repository, initial keyset,
 /// policy authorization, principal, events, and execution claim. The local pin
 /// selects the intended chain; it grants no authority and is never read from
 /// repository-controlled bytes.
@@ -894,7 +894,10 @@ impl PreparedRepositoryFileReplacement {
 
 /// Deterministic path for the independently distributed sequence-1 authority
 /// root. Repository bytes and environment variables cannot redirect it.
-pub fn authority_trust_anchor_path(user_home: &Path, repository_id: &str) -> Result<PathBuf, String> {
+pub fn authority_trust_anchor_path(
+    user_home: &Path,
+    repository_id: &str,
+) -> Result<PathBuf, String> {
     validate_repository_id(repository_id)?;
     Ok(user_home
         .join(".vela")
@@ -920,7 +923,7 @@ pub fn load_authority_trust_anchor_from_home(
     anchor.validate()?;
     if anchor.repository_id != repository_id {
         return Err(format!(
-            "authority trust anchor frontier {} does not match requested {repository_id}",
+            "authority trust anchor repository {} does not match requested {repository_id}",
             anchor.repository_id
         ));
     }
@@ -966,7 +969,7 @@ pub fn rebind_authority_trust_anchor_from_home(
     expected.validate()?;
     replacement.validate()?;
     if expected.repository_id != replacement.repository_id {
-        return Err("authority trust-anchor rebind cannot change Frontier identity".to_string());
+        return Err("authority trust-anchor rebind cannot change repository identity".to_string());
     }
     let loaded = load_authority_trust_anchor_from_home(user_home, &expected.repository_id)?
         .ok_or_else(|| {

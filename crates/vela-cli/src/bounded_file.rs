@@ -175,7 +175,7 @@ pub(crate) fn read_bounded_frontier_file(
         return Err(BoundedFileError::new(
             "path_invalid",
             format!(
-                "{label} path must be normalized and frontier-relative: {}",
+                "{label} path must be normalized and repository-relative: {}",
                 relative.display()
             ),
             false,
@@ -183,8 +183,8 @@ pub(crate) fn read_bounded_frontier_file(
     }
     let root = frontier.canonicalize().map_err(|error| {
         BoundedFileError::new(
-            "frontier_unresolvable",
-            format!("canonicalize frontier for {label}: {error}"),
+            "repository_unresolvable",
+            format!("canonicalize repository for {label}: {error}"),
             false,
         )
     })?;
@@ -283,7 +283,7 @@ pub(crate) fn read_bounded_frontier_file(
         BoundedFileError::new(
             "path_invalid",
             format!(
-                "{label} path must name a frontier-relative file: {}",
+                "{label} path must name a repository-relative file: {}",
                 relative.display()
             ),
             true,
@@ -359,7 +359,7 @@ fn verify_open_path_identity(
         return Err(BoundedFileError::new(
             "path_escape",
             format!(
-                "{label} resolved outside the frontier: {}",
+                "{label} resolved outside the repository: {}",
                 canonical.display()
             ),
             descriptor_opened,

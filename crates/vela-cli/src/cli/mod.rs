@@ -18,13 +18,13 @@ use crate::command_handlers::{cmd_reproduce, cmd_verify_evidence};
 use crate::command_spec::*;
 
 mod authority;
-pub(crate) mod repo_arg;
 pub(crate) mod help_text;
 mod lifecycle;
 mod output;
 pub(crate) mod page;
 pub(crate) mod progress;
 pub(crate) mod records;
+pub(crate) mod repo_arg;
 pub(crate) mod review_decision;
 pub(crate) mod safe_text;
 mod surface;
@@ -60,10 +60,7 @@ pub fn run_command() {
             and a `--json` caller is owed the same `{ok, command, error}`
             envelope for a usage error as for a domain one. */
             crate::ui::set_mode("status", json);
-            cmd_status_compact(
-                &repo_arg::bind_repo("status", repository, repo_flag),
-                json,
-            );
+            cmd_status_compact(&repo_arg::bind_repo("status", repository, repo_flag), json);
         }
         Commands::Claims {
             repository,
@@ -93,12 +90,8 @@ pub fn run_command() {
             json,
         } => {
             crate::ui::set_mode("log", json);
-            let (repository, object_id) = repo_arg::bind_repo_and_optional_object(
-                "log",
-                repository,
-                object_id,
-                repo_flag,
-            );
+            let (repository, object_id) =
+                repo_arg::bind_repo_and_optional_object("log", repository, object_id, repo_flag);
             crate::ui::require_initialized_repo(&repository);
             cmd_log(
                 &repository,
@@ -142,11 +135,7 @@ pub fn run_command() {
                 } => {
                     crate::ui::set_mode("authority trust pin", json);
                     cmd_authority_trust_pin(
-                        &repo_arg::bind_repo(
-                            "authority trust pin",
-                            repository,
-                            repo_flag,
-                        ),
+                        &repo_arg::bind_repo("authority trust pin", repository, repo_flag),
                         &record_root,
                         previous_record_root.as_deref(),
                         json,
@@ -633,7 +622,13 @@ fn cmd_review(action: ReviewAction) {
                 second,
                 repo_flag,
             );
-            crate::current_withdrawal::cmd_withdraw(&repository, &proposal_id, &actor, &reason, json);
+            crate::current_withdrawal::cmd_withdraw(
+                &repository,
+                &proposal_id,
+                &actor,
+                &reason,
+                json,
+            );
         }
     }
 }
@@ -654,7 +649,7 @@ mod tests {
     use super::Cli;
     use clap::CommandFactory;
 
-    /// The Frontier convention `command_spec.rs` states, asserted against the
+    /// The repository convention `command_spec.rs` states, asserted against the
     /// parsed surface rather than against prose, so the module doc cannot go
     /// back to describing a convention the surface does not have. A verb added
     /// later must either accept both spellings or be named here as one of the
@@ -704,7 +699,7 @@ mod tests {
                     !command
                         .get_arguments()
                         .any(|arg| arg.get_long() == Some("repo")),
-                    "`{path}` is documented as taking no Frontier argument"
+                    "`{path}` is documented as taking no repository argument"
                 );
             }
             for child in command.get_subcommands() {

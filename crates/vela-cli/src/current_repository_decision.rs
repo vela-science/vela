@@ -33,11 +33,11 @@ use crate::authority_transaction::{
 use crate::config::git_publish::{
     PublicationState, PublishOptions, exact_publication_preflight, publish_exact_delta,
 };
-use crate::repository_txn::{
-    ContentDigest, RepositoryRecoveryBarrier, RepositoryTxn, InputBinding, WriteClass,
-};
 use crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner;
 use crate::repository_ops::publication_delta;
+use crate::repository_txn::{
+    ContentDigest, InputBinding, RepositoryRecoveryBarrier, RepositoryTxn, WriteClass,
+};
 
 const PLAN_SCHEMA: &str = "vela.current-review-decision.v1";
 const PLAN_DOMAIN: &[u8] = b"vela.current-review-decision.v1\0";
@@ -404,7 +404,7 @@ pub(crate) fn prepare(
     }
     let profile = vela_protocol::current_repository::CurrentRepositoryProfileV1::from_toml_str(
         &fs::read_to_string(frontier.join("vela.toml"))
-            .map_err(|error| format!("read current Frontier Profile: {error}"))?,
+            .map_err(|error| format!("read current repository profile: {error}"))?,
     )?;
     let local = crate::cli::local_session(observed_at)?;
     let mut plan = CurrentReviewDecisionPlan {
@@ -773,6 +773,10 @@ pub(crate) fn execute_prepared(
             principal: PrincipalSnapshotV1 {
                 principal_id: expected.principal_id.clone(),
                 principal_class: PrincipalClass::Human,
+                /* Signed-preimage wording, not product wording: this and the
+                `frontier_reviewer` role below are inside the authority record's
+                DSSE payload. They move with the Cedar migration in
+                `cli/authority.rs`, not with a prose sweep. */
                 display_name: Some("Frontier reviewer".into()),
                 affiliation: None,
                 account_links: vec![expected.principal_id.clone()],
@@ -1089,7 +1093,7 @@ mod tests {
         let mut plan = CurrentReviewDecisionPlan {
             schema: PLAN_SCHEMA.into(),
             repository_id: "vrepo_0123456789abcdef".into(),
-            frontier_name: "Fixture frontier".into(),
+            frontier_name: "Fixture repository".into(),
             repository_root: root('1'),
             proposal_id: "vpr_fixture".into(),
             proposal_root: root('2'),

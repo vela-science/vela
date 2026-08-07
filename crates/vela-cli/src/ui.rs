@@ -244,7 +244,7 @@ pub fn resolve_repo(explicit: Option<std::path::PathBuf>) -> std::path::PathBuf 
             fail_with(
                 ErrorKind::NotFound,
                 &format!(
-                    "no frontier found from {} up to the filesystem root",
+                    "no repository found from {} up to the filesystem root",
                     started.display()
                 ),
                 Some("run `vela init` to create one here, or pass a path: `vela status <dir>`"),
@@ -253,7 +253,7 @@ pub fn resolve_repo(explicit: Option<std::path::PathBuf>) -> std::path::PathBuf 
     }
 }
 
-/// Canonicalize a Frontier path the user typed, keeping the kind the failure
+/// Canonicalize a repository path the user typed, keeping the kind the failure
 /// actually has. A path that is not there is a not-found, which the exit-code
 /// contract distinguishes from a domain failure; without this the same missing
 /// directory exits 3 through [`require_initialized_repo`] and 1 through the
@@ -268,7 +268,7 @@ pub fn canonicalize_repo(frontier: &std::path::Path) -> std::path::PathBuf {
         };
         fail_with(
             kind,
-            &format!("resolve current Frontier {}: {error}", frontier.display()),
+            &format!("resolve current repository {}: {error}", frontier.display()),
             None,
         )
     })
@@ -287,8 +287,11 @@ pub fn require_initialized_repo(frontier: &std::path::Path) {
     if !frontier.is_dir() {
         fail_with(
             ErrorKind::NotFound,
-            &format!("Frontier directory does not exist: {}", frontier.display()),
-            Some("pass an existing Frontier path, or run `vela init <dir>`"),
+            &format!(
+                "repository directory does not exist: {}",
+                frontier.display()
+            ),
+            Some("pass an existing repository path, or run `vela init <dir>`"),
         );
     }
     if store.is_dir()

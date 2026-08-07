@@ -295,7 +295,7 @@ fn origin_standing_history(
         if manifest.get("repository_id").and_then(Value::as_str)
             != Some(context.repository.repository_id.as_str())
         {
-            return Err("repository origin predecessor belongs to the wrong Frontier".into());
+            return Err("repository origin predecessor belongs to a different repository".into());
         }
 
         let mut related_proposal_ids = BTreeSet::new();
@@ -840,7 +840,7 @@ pub(crate) fn show_payload(frontier: &Path, object_id: &str) -> Result<Value, St
     both as the same `String`. */
     crate::cli::fail_kind(
         crate::ui::ErrorKind::NotFound,
-        &format!("no exact current object '{object_id}' in this frontier"),
+        &format!("no exact current object '{object_id}' in this repository"),
     )
 }
 
@@ -849,7 +849,7 @@ pub(crate) fn why_payload(frontier: &Path, claim_id: &str) -> Result<Value, Stri
     let Some((claim, claim_root, standing)) = load_claim(frontier, &context, claim_id)? else {
         crate::cli::fail_kind(
             crate::ui::ErrorKind::NotFound,
-            &format!("no current or retained superseded Claim '{claim_id}' in this frontier"),
+            &format!("no current or retained superseded Claim '{claim_id}' in this repository"),
         )
     };
     let mut proposals = proposal_views(&context, claim_id);
@@ -860,7 +860,7 @@ pub(crate) fn why_payload(frontier: &Path, claim_id: &str) -> Result<Value, Stri
     Claim decided in the live chain from one carried through compaction, and
     it is per-Claim: `origin_history.status` describes the repository, so
     deriving the basis from it alone labelled every accepted Claim on a
-    compacted Frontier `compacted_origin`, including ones decided yesterday. */
+    compacted repository `compacted_origin`, including ones decided yesterday. */
     let current_chain_events = authority_events.len();
     let current_supersession = supersession_view(&context, claim_id)?;
     let origin_history = if standing.standing == claim_standing::ACCEPTED {
@@ -1231,7 +1231,7 @@ mod tests {
         let tag = "pre-compaction/fixture";
         git(temp.path(), &["tag", tag, &commit]);
         let predecessor = RepositoryOriginPredecessorV1 {
-            remote: "https://github.com/vela-science/fixture-frontier.git".into(),
+            remote: "https://github.com/vela-science/fixture-repository.git".into(),
             tag: tag.into(),
             commit,
             tree,

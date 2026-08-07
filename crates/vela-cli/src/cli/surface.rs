@@ -53,9 +53,9 @@ Usage:
   vela <COMMAND>
 
 Daily product:
-  init          Create a signed, replayable Git-native Frontier
+  init          Create a signed, replayable Git-native repository
   status        Compact repository identity, roots, counts, and next action
-  claims        What the Frontier holds: id, assertion, Standing, origin era
+  claims        What this repository holds: id, assertion, Standing, origin era
   next          Ranked Target Offers
   start         Inspect one exact Target and its bounded completion contract
   submit        Retain authenticated producer input for review

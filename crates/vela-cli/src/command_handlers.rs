@@ -61,7 +61,7 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                         | "Verification method manifest differs from the retained current Git bytes"
                 ) {
                     let hint = format!(
-                        "Commit the exact method manifest {} at the current Frontier HEAD, then rerun the same vela verification record command",
+                        "Commit the exact method manifest {} at the current repository HEAD, then rerun the same vela verification record command",
                         method.display()
                     );
                     crate::ui::fail_with(crate::ui::ErrorKind::Domain, &error, Some(&hint));
@@ -669,9 +669,13 @@ mod gate_tests {
             "records/witness.json"
         );
 
-        let traversal =
-            verified_frontier_file(repository.path(), "fixture witness", "../secret.json", &root)
-                .unwrap_err();
+        let traversal = verified_frontier_file(
+            repository.path(),
+            "fixture witness",
+            "../secret.json",
+            &root,
+        )
+        .unwrap_err();
         assert!(traversal.contains("repository-relative"));
 
         let tampered = verified_frontier_file(

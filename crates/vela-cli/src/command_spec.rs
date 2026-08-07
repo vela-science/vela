@@ -4,25 +4,25 @@
 //! ## Flag-naming conventions (one name per concept, no aliases)
 //! - **Acting identity** → `--as` for producer or verifier evidence.
 //!   It may default from `$VELA_ACTOR_ID`; a human Decision never does.
-//! - **Frontier** → `--repo <path>`, accepted by every verb that acts on an
-//!   existing Frontier. All of those verbs but two also take it as the leading
+//! - **Repository** → `--repo <path>`, accepted by every verb that acts on an
+//!   existing repository. All of those verbs but two also take it as the leading
 //!   positional; `start` and `submit` do not, because their leading positional
 //!   is already the Target and the Submission file. Omitted entirely, the
-//!   Frontier is discovered upward from the current directory, exactly as
+//!   repository is discovered upward from the current directory, exactly as
 //!   `vela status` does — one resolution behaviour, everywhere. Where a verb
-//!   takes both a Frontier and an object the object binds last, so
+//!   takes both a repository and an object the object binds last, so
 //!   `vela why <claim>` and `vela why <repo> <claim>` are the same request.
 //!   `crate::cli::repo_arg` is the single implementation, and it documents
 //!   the one tie-break (`log`, whose object is optional too). The test
 //!   `every_repository_verb_accepts_both_spellings` holds this paragraph to the
 //!   parsed surface.
 //!
-//!   Two positionals are deliberately NOT Frontier arguments, take neither
+//!   Two positionals are deliberately NOT repository arguments, take neither
 //!   `--repo` nor discovery, and keep `default_value = "."`:
 //!   `init <path>` names a directory to create, which discovery must not
-//!   redirect to an enclosing Frontier; and `reproduce <path>` names a
+//!   redirect to an enclosing repository; and `reproduce <path>` names a
 //!   reproduction scope — a witness file, a directory of witnesses, or a
-//!   Frontier — so a bare `vela reproduce` means "reproduce what is here",
+//!   repository — so a bare `vela reproduce` means "reproduce what is here",
 //!   not "walk up until something replays".
 
 use clap::{ArgGroup, Subcommand};
@@ -37,14 +37,14 @@ pub(crate) const HELP_REQUIRED_AS: &str =
     "Exact acting identity for this write (agent:<name>, ci:<name>, or verifier:<name>)";
 pub(crate) const HELP_AS_OF: &str = "Answer as of this RFC3339 instant, e.g. 2026-07-02T16:00:00Z";
 pub(crate) const HELP_JSON: &str = "Output stable JSON for programmatic callers";
-/// The one Frontier help string. Every verb that acts on an existing Frontier
+/// The one repository help string. Every verb that acts on an existing repository
 /// carries it on both spellings, so `--help` states the same contract wherever
 /// the reader lands.
 pub(crate) const HELP_REPO: &str =
     "Vela repository. Optional: discovered upward from the current directory";
 /// The positional repository on a verb that also takes an object. Stated
-/// explicitly because the slot is only the Frontier when both are supplied.
-pub(crate) const HELP_FRONTIER_BEFORE_OBJECT: &str = "Frontier repository, when both arguments are given. With one argument that argument is the object and the Frontier is discovered upward";
+/// explicitly because the slot is only the repository when both are supplied.
+pub(crate) const HELP_REPO_BEFORE_OBJECT: &str = "Vela repository, when both arguments are given. With one argument that argument is the object and the repository is discovered upward";
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
@@ -60,7 +60,7 @@ pub(crate) enum Commands {
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },
-    /// Show the Frontier's current Standing, review queue, and integrity state.
+    /// Show the repository's current Standing, review queue, and integrity state.
     #[command(after_long_help = crate::cli::help_text::STATUS)]
     Status {
         #[arg(value_name = "REPO", help = HELP_REPO)]
@@ -71,7 +71,7 @@ pub(crate) enum Commands {
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },
-    /// List the Claims this Frontier holds: id, one-line assertion, Standing,
+    /// List the Claims this repository holds: id, one-line assertion, Standing,
     /// and origin era. The one verb that produces the full `vcl_` ids `show`
     /// and `why` require.
     #[command(after_long_help = crate::cli::help_text::CLAIMS)]
@@ -99,7 +99,7 @@ pub(crate) enum Commands {
         #[arg(value_name = "REPO", help = HELP_REPO)]
         repository: Option<String>,
         /// A full current object id: restrict the log to its covered history.
-        /// Given alone, the Frontier is discovered.
+        /// Given alone, the repository is discovered.
         object_id: Option<String>,
         #[arg(long = "repo", value_name = "PATH", help = HELP_REPO)]
         repo_flag: Option<PathBuf>,
@@ -145,10 +145,10 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         action: AuthorityAction,
     },
-    /// Create a signed, replayable Frontier ready for scientific work.
+    /// Create a signed, replayable repository ready for scientific work.
     #[command(after_long_help = crate::cli::help_text::INIT)]
     Init {
-        /// Directory to create as a native Frontier.
+        /// Directory to create as a native repository.
         #[arg(default_value = ".")]
         path: PathBuf,
         /// Human-readable repository name. Required in --json mode.
@@ -178,7 +178,7 @@ pub(crate) enum Commands {
     #[command(after_long_help = crate::cli::help_text::SHOW)]
     #[command(override_usage = "vela show [OPTIONS] [REPO] <OBJECT_ID>")]
     Show {
-        #[arg(value_name = "REPO", help = HELP_FRONTIER_BEFORE_OBJECT)]
+        #[arg(value_name = "REPO", help = HELP_REPO_BEFORE_OBJECT)]
         first: Option<String>,
         /// A Claim, Submission, Verification Record, Proposal, Artifact, or
         /// covered authority Event id.
@@ -195,7 +195,7 @@ pub(crate) enum Commands {
     #[command(after_long_help = crate::cli::help_text::WHY)]
     #[command(override_usage = "vela why [OPTIONS] [REPO] <CLAIM_ID>")]
     Why {
-        #[arg(value_name = "REPO", help = HELP_FRONTIER_BEFORE_OBJECT)]
+        #[arg(value_name = "REPO", help = HELP_REPO_BEFORE_OBJECT)]
         first: Option<String>,
         /// Current Claim id (`vcl_...`).
         #[arg(value_name = "CLAIM_ID")]
@@ -242,7 +242,7 @@ pub(crate) enum Commands {
     #[command(after_long_help = crate::cli::help_text::SUBMIT)]
     Submit {
         /// Path to a signed Submission v1. Or author a new Claim directly.
-        /// This slot is the Submission, never the Frontier: use --repo.
+        /// This slot is the Submission, never the repository: use --repo.
         submission: Option<PathBuf>,
         #[arg(long = "repo", value_name = "PATH", help = HELP_REPO)]
         repository: Option<PathBuf>,
@@ -311,7 +311,7 @@ pub(crate) enum VerifyAction {
     /// pending Proposal.
     #[command(override_usage = "vela verification record [OPTIONS] [REPO] <PROPOSAL>")]
     Record {
-        #[arg(value_name = "REPO", help = HELP_FRONTIER_BEFORE_OBJECT)]
+        #[arg(value_name = "REPO", help = HELP_REPO_BEFORE_OBJECT)]
         first: Option<String>,
         /// Exact current pending Proposal (`vpr_...`).
         #[arg(value_name = "PROPOSAL")]
@@ -321,7 +321,7 @@ pub(crate) enum VerifyAction {
         /// Named verifier profile used for this observation.
         #[arg(long)]
         profile: String,
-        /// Frontier-relative method manifest whose exact bytes bind the
+        /// Repository-relative method manifest whose exact bytes bind the
         /// Verification environment. It must be tracked, clean, and retained
         /// in the current Git commit.
         #[arg(long)]
@@ -355,7 +355,7 @@ pub(crate) enum VerifyAction {
     /// Import one signed, content-addressed Verification Record.
     #[command(override_usage = "vela verification import [OPTIONS] [REPO] <RECORD>")]
     Import {
-        #[arg(value_name = "REPO", help = HELP_FRONTIER_BEFORE_OBJECT)]
+        #[arg(value_name = "REPO", help = HELP_REPO_BEFORE_OBJECT)]
         first: Option<String>,
         /// Signed Verification Record JSON to validate and retain.
         #[arg(value_name = "RECORD")]
@@ -429,7 +429,7 @@ pub(crate) enum ReviewAction {
     /// Show one pending Review Packet, Decision, or producer Withdrawal.
     #[command(override_usage = "vela review show [OPTIONS] [REPO] <PROPOSAL_ID>")]
     Show {
-        #[arg(value_name = "REPO", help = HELP_FRONTIER_BEFORE_OBJECT)]
+        #[arg(value_name = "REPO", help = HELP_REPO_BEFORE_OBJECT)]
         first: Option<String>,
         /// Exact Proposal ID (`vpr_...`).
         #[arg(value_name = "PROPOSAL_ID")]
@@ -444,7 +444,7 @@ pub(crate) enum ReviewAction {
         override_usage = "vela review accept [OPTIONS] [REPO] <PROPOSAL_ID> --reason <REASON>"
     )]
     Accept {
-        #[arg(value_name = "REPO", help = HELP_FRONTIER_BEFORE_OBJECT)]
+        #[arg(value_name = "REPO", help = HELP_REPO_BEFORE_OBJECT)]
         first: Option<String>,
         /// Exact pending Proposal ID (`vpr_...`).
         #[arg(value_name = "PROPOSAL_ID")]
@@ -465,7 +465,7 @@ pub(crate) enum ReviewAction {
         override_usage = "vela review reject [OPTIONS] [REPO] <PROPOSAL_ID> --reason <REASON>"
     )]
     Reject {
-        #[arg(value_name = "REPO", help = HELP_FRONTIER_BEFORE_OBJECT)]
+        #[arg(value_name = "REPO", help = HELP_REPO_BEFORE_OBJECT)]
         first: Option<String>,
         /// Exact pending Proposal ID (`vpr_...`).
         #[arg(value_name = "PROPOSAL_ID")]
@@ -486,7 +486,7 @@ pub(crate) enum ReviewAction {
         override_usage = "vela review withdraw [OPTIONS] [REPO] <PROPOSAL_ID> --as <ACTOR> --reason <REASON>"
     )]
     Withdraw {
-        #[arg(value_name = "REPO", help = HELP_FRONTIER_BEFORE_OBJECT)]
+        #[arg(value_name = "REPO", help = HELP_REPO_BEFORE_OBJECT)]
         first: Option<String>,
         /// Exact still-pending Proposal ID (`vpr_...`).
         #[arg(value_name = "PROPOSAL_ID")]

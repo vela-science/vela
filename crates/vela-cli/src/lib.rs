@@ -24,8 +24,8 @@ pub(crate) mod style;
 pub(crate) use config::cli_identity;
 // Current repository verification and object projections.
 pub(crate) mod current_repository;
-pub(crate) mod repository_txn;
 mod operation_journal;
+pub(crate) mod repository_txn;
 pub(crate) mod ui;
 
 pub mod cli;

@@ -1,7 +1,7 @@
 //! Repository-authority replay and exceptional human-decision support.
 //!
 //! Predecessor writers are absent from the current product. Current decisions
-//! use the verified repository authority already retained by the Frontier.
+//! use the repository authority already retained on disk.
 
 use std::path::Path;
 use std::process::Command;
@@ -39,13 +39,24 @@ use crate::authority_transaction::{
     AuthorityTransactionRequest, authority_policy_material_paths, execute_authority_transaction,
     execution_binary_sha256,
 };
-use crate::repository_txn::{ContentDigest, RepositoryTxn, WriteClass};
 use crate::repository_authority_provider::{
     SshAgentRepositoryAuthoritySigner, select_repository_authority_identity,
 };
+use crate::repository_txn::{ContentDigest, RepositoryTxn, WriteClass};
 
 use super::{fail_return, print_json};
 
+/// The Cedar entity is still `Frontier` after ADR 0039, and deliberately so.
+///
+/// `authority_transaction.rs` hashes this exact text and refuses the write when
+/// the runtime root differs from `policy_bundle.cedar_schema_root` retained in
+/// history. `vela-science/math` retains a bundle whose `cedar_schema_root` was
+/// computed over these bytes and is bound by a valid DSSE signature, so editing
+/// one character here makes every subsequent authority write on that repository
+/// fail with "runtime Cedar schema, policies, or entities differ from the
+/// retained policy bundle". Renaming the entity is a policy-bundle rotation on
+/// every live repository, not a wording change. The same holds for the entities
+/// JSON and the `Frontier::` resource UID below, which the schema binds.
 const HUMAN_AUTHORITY_SCHEMA: &str = r#"
 entity Frontier;
 entity Human;
@@ -207,7 +218,10 @@ pub(crate) fn fresh_authority_policy_for_frontier(
         principal: format!("Human::{}", serde_json::to_string(principal_id).unwrap()),
         principal_class: PrincipalClass::Human,
         action: AUTHORITY_INITIALIZE_ACTION.into(),
-        resource: format!("Frontier::{}", serde_json::to_string(repository_id).unwrap()),
+        resource: format!(
+            "Frontier::{}",
+            serde_json::to_string(repository_id).unwrap()
+        ),
         context: json!({"exact": true}),
     };
     let evaluation = vela_authority::evaluate(&CedarEvaluationInput {
@@ -328,8 +342,8 @@ fn pin_repository_authority(
         repository_id: repository.repository_id.clone(),
         first_authority_record_root: observed_root.clone(),
     };
-    let user_home =
-        crate::repository_txn::operating_system_account_home().map_err(|error| error.to_string())?;
+    let user_home = crate::repository_txn::operating_system_account_home()
+        .map_err(|error| error.to_string())?;
     let existing = load_authority_trust_anchor_from_home(&user_home, &repository.repository_id)?;
     let (installed, operation, writes) = match existing {
         Some(existing) if existing.anchor == anchor => (existing, "unchanged", Vec::new()),
@@ -382,7 +396,7 @@ fn pin_repository_authority(
         "authority_trust_anchor_path": installed.path.display().to_string(),
         "operation": operation,
         "writes": writes,
-        "frontier_writes": [],
+        "repository_writes": [],
         "authority_granted": false
     }))
 }
@@ -397,7 +411,7 @@ pub(crate) enum RepositoryAuthorityInitError {
     /// Identity selection, signing, or repository genesis failed.
     Signing(String),
     /// The authority record was established, but the local trust pin for this
-    /// Frontier already selects a different sequence-one root. The Frontier
+    /// repository already selects a different sequence-one root. The repository
     /// still cannot take an authority write until the pin is reconciled.
     TrustPinCollision {
         repository_id: String,
@@ -557,6 +571,14 @@ fn initialize_current_repository_authority(
                 transaction_at: recorded_at.clone(),
             },
             authorization_input,
+            /* `role` and the StateTarget type below are pre-ADR-0039 wire
+            spellings inside a DSSE-signed preimage. `vela-science/math` holds
+            both under a valid signature at genesis. Renaming them changes the
+            bytes of future authority records only — replay of existing ones
+            reads their own retained bytes and `validate_semantic_approvals`
+            checks `role` for non-emptiness rather than against a vocabulary —
+            but it is still a wire change, so it moves with the Cedar migration
+            above rather than ahead of it. */
             semantic_approvals: vec![SemanticApprovalV1 {
                 principal_id: principal.principal_id.clone(),
                 role: "frontier_administrator".into(),
@@ -674,8 +696,8 @@ fn initialize_current_repository_authority(
         repository_id: profile.repository_id.clone(),
         first_authority_record_root: result.authority_record_root.clone(),
     };
-    let user_home =
-        crate::repository_txn::operating_system_account_home().map_err(|error| error.to_string())?;
+    let user_home = crate::repository_txn::operating_system_account_home()
+        .map_err(|error| error.to_string())?;
     let installed_anchor = install_authority_trust_anchor_from_home(&user_home, &local_anchor)
         .map_err(|error| match load_authority_trust_anchor_from_home(
             &user_home,

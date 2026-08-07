@@ -1,7 +1,7 @@
 //! Experimental, non-authoritative correction-impact projection.
 //!
 //! This reader deliberately consumes a closed, root-bound causal slice rather
-//! than interpreting a whole Frontier. It cannot write Standing, infer a
+//! than interpreting a whole repository. It cannot write Standing, infer a
 //! Decision, or turn a foreign transition into local authority.
 
 use std::collections::{BTreeMap, BTreeSet};

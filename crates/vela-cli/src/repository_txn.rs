@@ -127,7 +127,7 @@ impl RepoPath {
             if segment.eq_ignore_ascii_case(".git") {
                 return Err(RepositoryTxnError::InvalidPath {
                     path: value,
-                    reason: ".git is outside the frontier write boundary".to_string(),
+                    reason: ".git is outside the repository write boundary".to_string(),
                 });
             }
             if segment
@@ -449,7 +449,7 @@ impl RepositoryBinding {
         let repository_id = repository_id.into();
         if repository_id.trim().is_empty() {
             return Err(RepositoryTxnError::CorruptPlan(
-                "frontier binding has an empty frontier id".to_string(),
+                "repository binding has an empty repository id".to_string(),
             ));
         }
         Ok(Self {
@@ -462,7 +462,7 @@ impl RepositoryBinding {
     fn verify_root(&self, frontier_root: &Path) -> Result<PathBuf, RepositoryTxnError> {
         let root = canonical_frontier_root(frontier_root)?;
         if root.as_os_str() != self.canonical_root.as_str() {
-            return Err(RepositoryTxnError::FrontierBindingMismatch {
+            return Err(RepositoryTxnError::RepositoryBindingMismatch {
                 expected: self.canonical_root.clone(),
                 actual: root.display().to_string(),
             });
@@ -493,22 +493,22 @@ const REPOSITORY_DIRECTORY_INPUT_PREFIX: &str = "frontier_directory:";
 const REPOSITORY_DIRECTORY_INPUT_SCHEMA: &str = "vela.repository-directory-input.internal.v1";
 
 #[derive(Serialize)]
-struct FrontierFileInputCommitment<'a> {
+struct RepositoryFileInputCommitment<'a> {
     schema: &'a str,
     path: &'a RepoPath,
     state: &'a FileState,
 }
 
 #[derive(Serialize)]
-struct FrontierDirectoryInputCommitment<'a> {
+struct RepositoryDirectoryInputCommitment<'a> {
     schema: &'a str,
     path: &'a RepoPath,
-    state: &'a FrontierDirectoryState,
+    state: &'a RepositoryDirectoryState,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-enum FrontierDirectoryState {
+enum RepositoryDirectoryState {
     Absent,
     Directory { entries: Vec<DirectoryEntryState> },
 }
@@ -561,7 +561,7 @@ impl InputBinding {
         let state = inspect_file_state(&root, &path)?;
         if matches!(state, FileState::Absent) {
             return Err(RepositoryTxnError::CorruptPlan(format!(
-                "cannot bind missing frontier input {} as an existing file",
+                "cannot bind missing repository input {} as an existing file",
                 path.as_str()
             )));
         }
@@ -579,7 +579,7 @@ impl InputBinding {
         let state = inspect_file_state(&root, &path)?;
         if !matches!(state, FileState::Absent) {
             return Err(RepositoryTxnError::CorruptPlan(format!(
-                "cannot bind present frontier input {} as absent",
+                "cannot bind present repository input {} as absent",
                 path.as_str()
             )));
         }
@@ -608,7 +608,7 @@ impl InputBinding {
     /// Bind a regular file to exact caller-supplied bytes and regular mode.
     ///
     /// This closes the gap between a parsed, caller-supplied history object
-    /// and the canonical bytes actually present in the held Frontier.
+    /// and the canonical bytes actually present in the held repository.
     pub(crate) fn exact_file(
         frontier_root: &Path,
         path: RepoPath,
@@ -625,8 +625,8 @@ impl InputBinding {
             return Err(RepositoryTxnError::StaleInput {
                 name: format!("{REPOSITORY_FILE_INPUT_PREFIX}{}", path.as_str()),
                 path: path.clone(),
-                expected: frontier_file_input_digest(&path, &expected)?,
-                actual: frontier_file_input_digest(&path, &actual)?,
+                expected: repository_file_input_digest(&path, &expected)?,
+                actual: repository_file_input_digest(&path, &actual)?,
             });
         }
         Self::from_frontier_state(path, expected)
@@ -658,8 +658,8 @@ impl InputBinding {
             )));
         }
         let actual = match &state {
-            FrontierDirectoryState::Absent => Vec::new(),
-            FrontierDirectoryState::Directory { entries } => {
+            RepositoryDirectoryState::Absent => Vec::new(),
+            RepositoryDirectoryState::Directory { entries } => {
                 entries.iter().map(|entry| entry.path.clone()).collect()
             }
         };
@@ -675,17 +675,17 @@ impl InputBinding {
     fn from_frontier_state(path: RepoPath, state: FileState) -> Result<Self, RepositoryTxnError> {
         Ok(Self {
             name: format!("{REPOSITORY_FILE_INPUT_PREFIX}{}", path.as_str()),
-            digest: frontier_file_input_digest(&path, &state)?,
+            digest: repository_file_input_digest(&path, &state)?,
         })
     }
 
     fn from_directory_state(
         path: RepoPath,
-        state: FrontierDirectoryState,
+        state: RepositoryDirectoryState,
     ) -> Result<Self, RepositoryTxnError> {
         Ok(Self {
             name: format!("{REPOSITORY_DIRECTORY_INPUT_PREFIX}{}", path.as_str()),
-            digest: frontier_directory_input_digest(&path, &state)?,
+            digest: repository_directory_input_digest(&path, &state)?,
         })
     }
 
@@ -706,7 +706,7 @@ impl InputBinding {
     fn verify_shape(&self) -> Result<(), RepositoryTxnError> {
         if self.name.trim().is_empty() {
             return Err(RepositoryTxnError::CorruptPlan(
-                "frontier transaction input has an empty name".to_string(),
+                "repository transaction input has an empty name".to_string(),
             ));
         }
         ContentDigest::parse(self.digest.as_str().to_string())?;
@@ -718,7 +718,7 @@ impl InputBinding {
     fn verify_current(&self, root: &Path) -> Result<(), RepositoryTxnError> {
         if let Some(path) = self.frontier_directory_path()? {
             let state = inspect_directory_state(root, &path)?;
-            let actual = frontier_directory_input_digest(&path, &state)?;
+            let actual = repository_directory_input_digest(&path, &state)?;
             if actual != self.digest {
                 return Err(RepositoryTxnError::StaleSnapshot {
                     name: self.name.clone(),
@@ -732,7 +732,7 @@ impl InputBinding {
             return Ok(());
         };
         let state = inspect_file_state(root, &path)?;
-        let actual = frontier_file_input_digest(&path, &state)?;
+        let actual = repository_file_input_digest(&path, &state)?;
         if actual != self.digest {
             return Err(RepositoryTxnError::StaleInput {
                 name: self.name.clone(),
@@ -745,11 +745,11 @@ impl InputBinding {
     }
 }
 
-fn frontier_file_input_digest(
+fn repository_file_input_digest(
     path: &RepoPath,
     state: &FileState,
 ) -> Result<ContentDigest, RepositoryTxnError> {
-    let bytes = vela_protocol::canonical::to_canonical_bytes(&FrontierFileInputCommitment {
+    let bytes = vela_protocol::canonical::to_canonical_bytes(&RepositoryFileInputCommitment {
         schema: REPOSITORY_FILE_INPUT_SCHEMA,
         path,
         state,
@@ -758,11 +758,11 @@ fn frontier_file_input_digest(
     Ok(ContentDigest::hash(bytes))
 }
 
-fn frontier_directory_input_digest(
+fn repository_directory_input_digest(
     path: &RepoPath,
-    state: &FrontierDirectoryState,
+    state: &RepositoryDirectoryState,
 ) -> Result<ContentDigest, RepositoryTxnError> {
-    let bytes = vela_protocol::canonical::to_canonical_bytes(&FrontierDirectoryInputCommitment {
+    let bytes = vela_protocol::canonical::to_canonical_bytes(&RepositoryDirectoryInputCommitment {
         schema: REPOSITORY_DIRECTORY_INPUT_SCHEMA,
         path,
         state,
@@ -852,7 +852,7 @@ impl RepositoryTxnPlan {
     fn verify(&self) -> Result<(), RepositoryTxnError> {
         if self.schema != REPOSITORY_TXN_SCHEMA {
             return Err(RepositoryTxnError::CorruptPlan(format!(
-                "unexpected frontier transaction schema {}",
+                "unexpected repository transaction schema {}",
                 self.schema
             )));
         }
@@ -863,7 +863,7 @@ impl RepositoryTxnPlan {
         self.canonical_delta.verify()?;
         if self.compute_root()? != self.root {
             return Err(RepositoryTxnError::CorruptPlan(
-                "frontier transaction plan root does not match its body".to_string(),
+                "repository transaction plan root does not match its body".to_string(),
             ));
         }
         Ok(())
@@ -935,7 +935,7 @@ impl RepositoryTxnJournal {
     fn verify(&self) -> Result<(), RepositoryTxnError> {
         if self.schema != REPOSITORY_TXN_SCHEMA {
             return Err(RepositoryTxnError::CorruptPlan(format!(
-                "unexpected frontier transaction journal schema {}",
+                "unexpected repository transaction journal schema {}",
                 self.schema
             )));
         }
@@ -1003,32 +1003,32 @@ impl RepositoryWriteLock {
             .join(format!("{}.lock", lock_id.file_stem()));
         let parent = path.parent().ok_or_else(|| {
             RepositoryTxnError::Io(format!(
-                "frontier lock path has no parent: {}",
+                "repository lock path has no parent: {}",
                 path.display()
             ))
         })?;
         fs::create_dir_all(parent).map_err(|error| {
             RepositoryTxnError::Io(format!(
-                "create frontier lock directory {}: {error}",
+                "create repository lock directory {}: {error}",
                 parent.display()
             ))
         })?;
         let parent_metadata = fs::symlink_metadata(parent).map_err(|error| {
             RepositoryTxnError::Io(format!(
-                "inspect frontier lock directory {}: {error}",
+                "inspect repository lock directory {}: {error}",
                 parent.display()
             ))
         })?;
         if parent_metadata.file_type().is_symlink() || !parent_metadata.is_dir() {
             return Err(RepositoryTxnError::Io(format!(
-                "frontier lock directory is not a regular non-symlink directory: {}",
+                "repository lock directory is not a regular non-symlink directory: {}",
                 parent.display()
             )));
         }
         match fs::symlink_metadata(&path) {
             Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
                 return Err(RepositoryTxnError::Io(format!(
-                    "frontier lock is not a regular non-symlink file: {}",
+                    "repository lock is not a regular non-symlink file: {}",
                     path.display()
                 )));
             }
@@ -1036,7 +1036,7 @@ impl RepositoryWriteLock {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
             Err(error) => {
                 return Err(RepositoryTxnError::Io(format!(
-                    "inspect frontier lock {}: {error}",
+                    "inspect repository lock {}: {error}",
                     path.display()
                 )));
             }
@@ -1048,13 +1048,13 @@ impl RepositoryWriteLock {
             .truncate(false)
             .open(&path)
             .map_err(|error| {
-                RepositoryTxnError::Io(format!("open frontier lock {}: {error}", path.display()))
+                RepositoryTxnError::Io(format!("open repository lock {}: {error}", path.display()))
             })?;
         match file.try_lock() {
             Ok(()) => Ok(Self { _file: file }),
             Err(std::fs::TryLockError::WouldBlock) => Err(RepositoryTxnError::Busy),
             Err(std::fs::TryLockError::Error(error)) => Err(RepositoryTxnError::Io(format!(
-                "lock frontier {}: {error}",
+                "lock repository {}: {error}",
                 path.display()
             ))),
         }
@@ -1131,13 +1131,12 @@ fn verify_fresh_repository_authorization(
                 reason,
             }
         })?;
-    let profile_root =
-        profile
-            .profile_root()
-            .map_err(|reason| RepositoryTxnError::RepositoryWriteIntentDenied {
-                intent: "repository_authority_initialization",
-                reason,
-            })?;
+    let profile_root = profile.profile_root().map_err(|reason| {
+        RepositoryTxnError::RepositoryWriteIntentDenied {
+            intent: "repository_authority_initialization",
+            reason,
+        }
+    })?;
     let context_root =
         fresh_repository_context_root(&profile.repository_id, &profile_root, &trusted_user_home)?;
     Ok(FreshRepositoryAuthorization {
@@ -1713,14 +1712,14 @@ fn frontier_journals(
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
         Err(error) => {
             return Err(RepositoryTxnError::Journal(format!(
-                "inspect frontier journal directory {}: {error}",
+                "inspect repository journal directory {}: {error}",
                 frontier_dir.display()
             )));
         }
     };
     if metadata.file_type().is_symlink() || !metadata.is_dir() {
         return Err(RepositoryTxnError::Journal(format!(
-            "frontier journal directory is not a regular non-symlink directory: {}",
+            "repository journal directory is not a regular non-symlink directory: {}",
             frontier_dir.display()
         )));
     }
@@ -1728,14 +1727,14 @@ fn frontier_journals(
     let mut entries = fs::read_dir(&frontier_dir)
         .map_err(|error| {
             RepositoryTxnError::Journal(format!(
-                "read frontier journal directory {}: {error}",
+                "read repository journal directory {}: {error}",
                 frontier_dir.display()
             ))
         })?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|error| {
             RepositoryTxnError::Journal(format!(
-                "enumerate frontier journal directory {}: {error}",
+                "enumerate repository journal directory {}: {error}",
                 frontier_dir.display()
             ))
         })?;
@@ -1746,13 +1745,13 @@ fn frontier_journals(
         let path = entry.path();
         let metadata = fs::symlink_metadata(&path).map_err(|error| {
             RepositoryTxnError::Journal(format!(
-                "inspect frontier journal entry {}: {error}",
+                "inspect repository journal entry {}: {error}",
                 path.display()
             ))
         })?;
         if metadata.file_type().is_symlink() {
             return Err(RepositoryTxnError::Journal(format!(
-                "frontier journal entry is a symbolic link: {}",
+                "repository journal entry is a symbolic link: {}",
                 path.display()
             )));
         }
@@ -1762,13 +1761,13 @@ fn frontier_journals(
                 continue;
             }
             return Err(RepositoryTxnError::Journal(format!(
-                "unexpected directory in frontier journal: {}",
+                "unexpected directory in repository journal: {}",
                 path.display()
             )));
         }
         if !metadata.is_file() || path.extension().is_none_or(|extension| extension != "json") {
             return Err(RepositoryTxnError::Journal(format!(
-                "unexpected non-journal entry in frontier journal: {}",
+                "unexpected non-journal entry in repository journal: {}",
                 path.display()
             )));
         }
@@ -1779,7 +1778,7 @@ fn frontier_journals(
         let paths = RepositoryTxnPaths::new(journal_dir, &journal.plan.operation_id);
         if path != paths.plan {
             return Err(RepositoryTxnError::CorruptPlan(format!(
-                "frontier transaction {} is stored under the wrong journal name",
+                "repository transaction {} is stored under the wrong journal name",
                 journal.plan.operation_id.as_str()
             )));
         }
@@ -1820,7 +1819,7 @@ fn read_commit_marker(
 ) -> Result<CommitMarker, RepositoryTxnError> {
     let marker_dir = paths.marker.parent().ok_or_else(|| {
         RepositoryTxnError::Journal(format!(
-            "frontier commit marker has no parent: {}",
+            "repository commit marker has no parent: {}",
             paths.marker.display()
         ))
     })?;
@@ -1830,11 +1829,11 @@ fn read_commit_marker(
         }
         Err(error) => {
             return Err(RepositoryTxnError::Journal(format!(
-                "inspect frontier commit-marker directory {}: {error}",
+                "inspect repository commit-marker directory {}: {error}",
                 marker_dir.display()
             )));
         }
-        Ok(_) => require_journal_directory(marker_dir, "frontier commit-marker directory")?,
+        Ok(_) => require_journal_directory(marker_dir, "repository commit-marker directory")?,
     }
     let metadata = match fs::symlink_metadata(&paths.marker) {
         Ok(metadata) => metadata,
@@ -1843,14 +1842,14 @@ fn read_commit_marker(
         }
         Err(error) => {
             return Err(RepositoryTxnError::Journal(format!(
-                "inspect frontier commit marker {}: {error}",
+                "inspect repository commit marker {}: {error}",
                 paths.marker.display()
             )));
         }
     };
     if metadata.file_type().is_symlink() || !metadata.is_file() {
         return Err(RepositoryTxnError::Journal(format!(
-            "frontier commit marker is not a regular non-symlink file: {}",
+            "repository commit marker is not a regular non-symlink file: {}",
             paths.marker.display()
         )));
     }
@@ -1876,11 +1875,13 @@ fn read_blob_at(
         }
         Err(error) => {
             return Err(RepositoryTxnError::Journal(format!(
-                "inspect frontier transaction blob directory {}: {error}",
+                "inspect repository transaction blob directory {}: {error}",
                 paths.blob_dir.display()
             )));
         }
-        Ok(_) => require_journal_directory(&paths.blob_dir, "frontier transaction blob directory")?,
+        Ok(_) => {
+            require_journal_directory(&paths.blob_dir, "repository transaction blob directory")?
+        }
     }
     let metadata = match fs::symlink_metadata(&path) {
         Ok(metadata) => metadata,
@@ -1889,7 +1890,7 @@ fn read_blob_at(
         }
         Err(error) => {
             return Err(RepositoryTxnError::Journal(format!(
-                "inspect frontier transaction blob {}: {error}",
+                "inspect repository transaction blob {}: {error}",
                 path.display()
             )));
         }
@@ -2293,9 +2294,9 @@ trait RepositoryTxnFailpoints {
     fn check(&mut self, step: RepositoryTxnStep) -> Result<(), RepositoryTxnError>;
 }
 
-struct NoFrontierTxnFailpoints;
+struct NoRepositoryTxnFailpoints;
 
-impl RepositoryTxnFailpoints for NoFrontierTxnFailpoints {
+impl RepositoryTxnFailpoints for NoRepositoryTxnFailpoints {
     #[inline]
     fn check(&mut self, _step: RepositoryTxnStep) -> Result<(), RepositoryTxnError> {
         Ok(())
@@ -2303,12 +2304,12 @@ impl RepositoryTxnFailpoints for NoFrontierTxnFailpoints {
 }
 
 #[cfg(test)]
-struct FailAtFrontierTxnStep {
+struct FailAtRepositoryTxnStep {
     target: RepositoryTxnStep,
 }
 
 #[cfg(test)]
-impl RepositoryTxnFailpoints for FailAtFrontierTxnStep {
+impl RepositoryTxnFailpoints for FailAtRepositoryTxnStep {
     fn check(&mut self, step: RepositoryTxnStep) -> Result<(), RepositoryTxnError> {
         if step == self.target {
             return Err(RepositoryTxnError::InjectedFailure { step });
@@ -2389,7 +2390,7 @@ impl RepositoryTxn {
             RepositoryTxnAuthorization::TestHarness,
             plan,
             draft,
-            &mut NoFrontierTxnFailpoints,
+            &mut NoRepositoryTxnFailpoints,
         )
     }
 
@@ -2407,7 +2408,7 @@ impl RepositoryTxn {
             authorization,
             plan,
             draft,
-            &mut NoFrontierTxnFailpoints,
+            &mut NoRepositoryTxnFailpoints,
         )
     }
 
@@ -2433,7 +2434,7 @@ impl RepositoryTxn {
         if let Some(authorized) = authorization.verified_repository_id()
             && plan.frontier.repository_id != authorized
         {
-            return Err(RepositoryTxnError::WriteAuthorizationFrontierMismatch {
+            return Err(RepositoryTxnError::WriteAuthorizationRepositoryMismatch {
                 authorized: authorized.to_string(),
                 planned: plan.frontier.repository_id.clone(),
             });
@@ -2450,7 +2451,7 @@ impl RepositoryTxn {
             lock,
         } = barrier;
         if root != barrier_root {
-            return Err(RepositoryTxnError::FrontierBindingMismatch {
+            return Err(RepositoryTxnError::RepositoryBindingMismatch {
                 expected: barrier_root.display().to_string(),
                 actual: root.display().to_string(),
             });
@@ -2460,13 +2461,13 @@ impl RepositoryTxn {
         match fs::symlink_metadata(&paths.plan) {
             Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
                 return Err(RepositoryTxnError::Journal(format!(
-                    "frontier transaction journal is not a regular non-symlink file: {}",
+                    "repository transaction journal is not a regular non-symlink file: {}",
                     paths.plan.display()
                 )));
             }
             Ok(_) => {
-                let journal: RepositoryTxnJournal =
-                    operation_journal::read_json(&paths.plan).map_err(RepositoryTxnError::Journal)?;
+                let journal: RepositoryTxnJournal = operation_journal::read_json(&paths.plan)
+                    .map_err(RepositoryTxnError::Journal)?;
                 journal.verify()?;
                 if matches!(journal.recovery, RecoveryState::Aborted) {
                     verify_aborted_without_marker(&paths, &journal)?;
@@ -2498,7 +2499,7 @@ impl RepositoryTxn {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
             Err(error) => {
                 return Err(RepositoryTxnError::Journal(format!(
-                    "inspect frontier transaction {}: {error}",
+                    "inspect repository transaction {}: {error}",
                     paths.plan.display()
                 )));
             }
@@ -2523,7 +2524,8 @@ impl RepositoryTxn {
             blob_retention: BlobRetention::Retained,
         };
         failpoints.check(RepositoryTxnStep::BeforePreparedJournalWrite)?;
-        operation_journal::write_json(&paths.plan, &journal).map_err(RepositoryTxnError::Journal)?;
+        operation_journal::write_json(&paths.plan, &journal)
+            .map_err(RepositoryTxnError::Journal)?;
         failpoints.check(RepositoryTxnStep::AfterPreparedJournalWrite)?;
         let txn = Self {
             root,
@@ -2550,7 +2552,7 @@ impl RepositoryTxn {
             RepositoryTxnAuthorization::TestHarness,
             plan,
             draft,
-            &mut FailAtFrontierTxnStep { target: step },
+            &mut FailAtRepositoryTxnStep { target: step },
         )
     }
 
@@ -2562,7 +2564,7 @@ impl RepositoryTxn {
     ) -> Result<Self, RepositoryTxnError> {
         Self::open_if_present(frontier_root, journal_dir, operation_id)?.ok_or_else(|| {
             RepositoryTxnError::Journal(format!(
-                "frontier transaction {} was not found",
+                "repository transaction {} was not found",
                 operation_id.as_str()
             ))
         })
@@ -2579,7 +2581,7 @@ impl RepositoryTxn {
         let paths = RepositoryTxnPaths::new(journal_dir, operation_id);
         let frontier_journal_dir = paths.plan.parent().ok_or_else(|| {
             RepositoryTxnError::Journal(format!(
-                "frontier transaction has no journal directory: {}",
+                "repository transaction has no journal directory: {}",
                 paths.plan.display()
             ))
         })?;
@@ -2587,23 +2589,25 @@ impl RepositoryTxn {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(error) => {
                 return Err(RepositoryTxnError::Journal(format!(
-                    "inspect frontier journal directory {}: {error}",
+                    "inspect repository journal directory {}: {error}",
                     frontier_journal_dir.display()
                 )));
             }
-            Ok(_) => require_journal_directory(frontier_journal_dir, "frontier journal directory")?,
+            Ok(_) => {
+                require_journal_directory(frontier_journal_dir, "repository journal directory")?
+            }
         }
         match fs::symlink_metadata(&paths.plan) {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(error) => {
                 return Err(RepositoryTxnError::Journal(format!(
-                    "inspect frontier transaction {}: {error}",
+                    "inspect repository transaction {}: {error}",
                     paths.plan.display()
                 )));
             }
             Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
                 return Err(RepositoryTxnError::Journal(format!(
-                    "frontier transaction journal is not a regular non-symlink file: {}",
+                    "repository transaction journal is not a regular non-symlink file: {}",
                     paths.plan.display()
                 )));
             }
@@ -2644,7 +2648,7 @@ impl RepositoryTxn {
     }
 
     pub(crate) fn mark_committed(&mut self) -> Result<(), RepositoryTxnError> {
-        self.mark_committed_with_failpoints(&mut NoFrontierTxnFailpoints)
+        self.mark_committed_with_failpoints(&mut NoRepositoryTxnFailpoints)
     }
 
     #[cfg(test)]
@@ -2723,7 +2727,7 @@ impl RepositoryTxn {
                             .and_then(Path::parent)
                             .ok_or_else(|| {
                                 RepositoryTxnError::Journal(format!(
-                                    "frontier transaction path has no journal root: {}",
+                                    "repository transaction path has no journal root: {}",
                                     self.paths.plan.display()
                                 ))
                             })?,
@@ -2766,14 +2770,14 @@ impl RepositoryTxn {
         &mut self,
         step: RepositoryTxnStep,
     ) -> Result<(), RepositoryTxnError> {
-        self.mark_committed_with_failpoints(&mut FailAtFrontierTxnStep { target: step })
+        self.mark_committed_with_failpoints(&mut FailAtRepositoryTxnStep { target: step })
     }
 
     /// Permanently discard a marker-free plan. Since no commit marker exists,
     /// this state transition has no frontier delta and a later plan may safely
     /// reuse the operation id.
     pub(crate) fn abort_prepared(&mut self) -> Result<(), RepositoryTxnError> {
-        self.abort_prepared_with_failpoints(&mut NoFrontierTxnFailpoints)
+        self.abort_prepared_with_failpoints(&mut NoRepositoryTxnFailpoints)
     }
 
     fn abort_prepared_with_failpoints(
@@ -2808,11 +2812,11 @@ impl RepositoryTxn {
         &mut self,
         step: RepositoryTxnStep,
     ) -> Result<(), RepositoryTxnError> {
-        self.abort_prepared_with_failpoints(&mut FailAtFrontierTxnStep { target: step })
+        self.abort_prepared_with_failpoints(&mut FailAtRepositoryTxnStep { target: step })
     }
 
     pub(crate) fn install(&mut self) -> Result<(), RepositoryTxnError> {
-        self.install_with_failpoints(&mut NoFrontierTxnFailpoints)
+        self.install_with_failpoints(&mut NoRepositoryTxnFailpoints)
     }
 
     fn install_with_failpoints(
@@ -2866,11 +2870,11 @@ impl RepositoryTxn {
         &mut self,
         step: RepositoryTxnStep,
     ) -> Result<(), RepositoryTxnError> {
-        self.install_with_failpoints(&mut FailAtFrontierTxnStep { target: step })
+        self.install_with_failpoints(&mut FailAtRepositoryTxnStep { target: step })
     }
 
     pub(crate) fn complete(&mut self) -> Result<(), RepositoryTxnError> {
-        self.complete_with_failpoints(&mut NoFrontierTxnFailpoints)
+        self.complete_with_failpoints(&mut NoRepositoryTxnFailpoints)
     }
 
     /// Retire private recovery copies after exact Git publication and strict
@@ -2908,7 +2912,7 @@ impl RepositoryTxn {
             .and_then(Path::parent)
             .ok_or_else(|| {
                 RepositoryTxnError::Journal(format!(
-                    "frontier transaction path has no journal root: {}",
+                    "repository transaction path has no journal root: {}",
                     self.paths.plan.display()
                 ))
             })?;
@@ -2958,7 +2962,7 @@ impl RepositoryTxn {
 
     #[cfg(test)]
     fn complete_at_failpoint(&mut self, step: RepositoryTxnStep) -> Result<(), RepositoryTxnError> {
-        self.complete_with_failpoints(&mut FailAtFrontierTxnStep { target: step })
+        self.complete_with_failpoints(&mut FailAtRepositoryTxnStep { target: step })
     }
 
     #[cfg(test)]
@@ -3120,7 +3124,7 @@ impl RepositoryTxn {
             .and_then(Path::parent)
             .ok_or_else(|| {
                 RepositoryTxnError::Journal(format!(
-                    "frontier transaction path has no journal root: {}",
+                    "repository transaction path has no journal root: {}",
                     self.paths.plan.display()
                 ))
             })?;
@@ -3150,7 +3154,7 @@ pub(crate) enum RepositoryTxnError {
         first: String,
         second: String,
     },
-    FrontierBindingMismatch {
+    RepositoryBindingMismatch {
         expected: String,
         actual: String,
     },
@@ -3184,7 +3188,7 @@ pub(crate) enum RepositoryTxnError {
     WriteAuthorizationNotApplicable {
         state: RecoveryState,
     },
-    WriteAuthorizationFrontierMismatch {
+    WriteAuthorizationRepositoryMismatch {
         authorized: String,
         planned: String,
     },
@@ -3243,9 +3247,9 @@ impl fmt::Display for RepositoryTxnError {
                 formatter,
                 "staged paths {first:?} and {second:?} collide under portable Unicode/case normalization"
             ),
-            Self::FrontierBindingMismatch { expected, actual } => write!(
+            Self::RepositoryBindingMismatch { expected, actual } => write!(
                 formatter,
-                "frontier binding mismatch: expected {expected}, found {actual}"
+                "repository binding mismatch: expected {expected}, found {actual}"
             ),
             Self::OperationConflict { operation_id } => write!(
                 formatter,
@@ -3256,7 +3260,7 @@ impl fmt::Display for RepositoryTxnError {
                 state,
             } => write!(
                 formatter,
-                "frontier transaction {operation_id} requires recovery from {state:?} before another operation can plan or commit"
+                "repository transaction {operation_id} requires recovery from {state:?} before another operation can plan or commit"
             ),
             Self::StalePreimage { path, .. } => {
                 write!(
@@ -3267,27 +3271,30 @@ impl fmt::Display for RepositoryTxnError {
             }
             Self::StaleInput { name, path, .. } => write!(
                 formatter,
-                "frontier input {name} changed before commit at {}",
+                "repository input {name} changed before commit at {}",
                 path.as_str()
             ),
             Self::StaleSnapshot { name, .. } => {
-                write!(formatter, "frontier snapshot {name} changed before commit")
+                write!(
+                    formatter,
+                    "repository snapshot {name} changed before commit"
+                )
             }
             Self::WriteAuthorizationRequired { operation_id } => write!(
                 formatter,
-                "frontier transaction {operation_id} is Prepared without an in-memory canonical write authorization; explicitly reauthorize before commit"
+                "repository transaction {operation_id} is Prepared without an in-memory canonical write authorization; explicitly reauthorize before commit"
             ),
             #[cfg(test)]
             Self::WriteAuthorizationNotApplicable { state } => write!(
                 formatter,
                 "canonical write reauthorization applies only to a marker-free Prepared transaction, found {state:?}"
             ),
-            Self::WriteAuthorizationFrontierMismatch {
+            Self::WriteAuthorizationRepositoryMismatch {
                 authorized,
                 planned,
             } => write!(
                 formatter,
-                "repository write authorization for frontier {authorized} cannot authorize transaction plan for {planned}"
+                "repository write authorization for repository {authorized} cannot authorize transaction plan for {planned}"
             ),
             Self::WriteAuthorizationDeltaMismatch {
                 authorized,
@@ -3317,7 +3324,7 @@ impl fmt::Display for RepositoryTxnError {
                 operation_id, path, ..
             } => write!(
                 formatter,
-                "completed frontier transaction {operation_id} has a missing or corrupt postimage at {}",
+                "completed repository transaction {operation_id} has a missing or corrupt postimage at {}",
                 path.as_str()
             ),
             Self::MissingBlob(digest) => {
@@ -3326,16 +3333,16 @@ impl fmt::Display for RepositoryTxnError {
             Self::CorruptBlob(digest) => {
                 write!(formatter, "corrupt transaction blob {}", digest.as_str())
             }
-            Self::NotCommitted => write!(formatter, "frontier transaction has no commit marker"),
+            Self::NotCommitted => write!(formatter, "repository transaction has no commit marker"),
             Self::Busy => write!(
                 formatter,
-                "another frontier transaction holds the write lock"
+                "another repository transaction holds the write lock"
             ),
             #[cfg(test)]
             Self::InjectedFailure { step } => {
                 write!(
                     formatter,
-                    "injected frontier transaction failure at {step:?}"
+                    "injected repository transaction failure at {step:?}"
                 )
             }
             Self::Canonicalize(error) => write!(formatter, "canonicalize transaction: {error}"),
@@ -3343,8 +3350,8 @@ impl fmt::Display for RepositoryTxnError {
                 write!(formatter, "repository_trust_anchor_invalid: {error}")
             }
             Self::CorruptPlan(error) => write!(formatter, "corrupt transaction plan: {error}"),
-            Self::Journal(error) => write!(formatter, "frontier transaction journal: {error}"),
-            Self::Io(error) => write!(formatter, "frontier transaction I/O: {error}"),
+            Self::Journal(error) => write!(formatter, "repository transaction journal: {error}"),
+            Self::Io(error) => write!(formatter, "repository transaction I/O: {error}"),
         }
     }
 }
@@ -3353,17 +3360,17 @@ impl std::error::Error for RepositoryTxnError {}
 
 fn canonical_frontier_root(path: &Path) -> Result<PathBuf, RepositoryTxnError> {
     let metadata = fs::metadata(path).map_err(|error| {
-        RepositoryTxnError::Io(format!("read frontier root {}: {error}", path.display()))
+        RepositoryTxnError::Io(format!("read repository root {}: {error}", path.display()))
     })?;
     if !metadata.is_dir() {
         return Err(RepositoryTxnError::Io(format!(
-            "frontier root is not a directory: {}",
+            "repository root is not a directory: {}",
             path.display()
         )));
     }
     fs::canonicalize(path).map_err(|error| {
         RepositoryTxnError::Io(format!(
-            "canonicalize frontier root {}: {error}",
+            "canonicalize repository root {}: {error}",
             path.display()
         ))
     })
@@ -3456,7 +3463,7 @@ fn inspect_file_state(root: &Path, path: &RepoPath) -> Result<FileState, Reposit
 fn inspect_directory_state(
     root: &Path,
     path: &RepoPath,
-) -> Result<FrontierDirectoryState, RepositoryTxnError> {
+) -> Result<RepositoryDirectoryState, RepositoryTxnError> {
     let mut current = root.to_path_buf();
     for segment in path.as_str().split('/') {
         current.push(segment);
@@ -3473,7 +3480,7 @@ fn inspect_directory_state(
                 }
             }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                return Ok(FrontierDirectoryState::Absent);
+                return Ok(RepositoryDirectoryState::Absent);
             }
             Err(error) => {
                 return Err(RepositoryTxnError::Io(format!(
@@ -3511,7 +3518,7 @@ fn inspect_directory_state(
         });
     }
     entries.sort_by(|left, right| left.path.cmp(&right.path));
-    Ok(FrontierDirectoryState::Directory { entries })
+    Ok(RepositoryDirectoryState::Directory { entries })
 }
 
 fn file_mode(metadata: &fs::Metadata) -> FileMode {
@@ -3530,7 +3537,7 @@ fn file_mode(metadata: &fs::Metadata) -> FileMode {
 fn ensure_parent_dirs(root: &Path, parent: &Path) -> Result<(), RepositoryTxnError> {
     let relative = parent.strip_prefix(root).map_err(|_| {
         RepositoryTxnError::Io(format!(
-            "transaction parent {} escaped frontier {}",
+            "transaction parent {} escaped repository {}",
             parent.display(),
             root.display()
         ))
@@ -3553,7 +3560,7 @@ fn ensure_parent_dirs(root: &Path, parent: &Path) -> Result<(), RepositoryTxnErr
             }
             Ok(_) => {}
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                let previous = current.parent().expect("frontier child has a parent");
+                let previous = current.parent().expect("repository child has a parent");
                 fs::create_dir(&current).map_err(|error| {
                     RepositoryTxnError::Io(format!(
                         "create transaction directory {}: {error}",
@@ -3641,8 +3648,9 @@ fn set_mode(file: &File, mode: FileMode) -> Result<(), RepositoryTxnError> {
             FileMode::Regular => 0o644,
             FileMode::Executable => 0o755,
         });
-        file.set_permissions(permissions)
-            .map_err(|error| RepositoryTxnError::Io(format!("set transaction file mode: {error}")))?;
+        file.set_permissions(permissions).map_err(|error| {
+            RepositoryTxnError::Io(format!("set transaction file mode: {error}"))
+        })?;
     }
     #[cfg(not(unix))]
     let _ = (file, mode);
@@ -3884,7 +3892,7 @@ mod tests {
             PlannedWrite::write(
                 RepoPath::parse("frontier.json").unwrap(),
                 WriteClass::Derived,
-                b"materialized frontier".to_vec(),
+                b"materialized repository".to_vec(),
             ),
             PlannedWrite::delete(
                 RepoPath::parse("obsolete.json").unwrap(),
@@ -3936,7 +3944,7 @@ mod tests {
             (".vela/work/session.json".to_string(), b"closed".to_vec()),
             (
                 "frontier.json".to_string(),
-                b"materialized frontier".to_vec(),
+                b"materialized repository".to_vec(),
             ),
             ("keep.txt".to_string(), b"unchanged".to_vec()),
             ("records/authority.json".to_string(), b"authority".to_vec()),
@@ -4177,7 +4185,7 @@ mod tests {
                 .unwrap()
                 .verify(),
             Err(RepositoryTxnError::CorruptPlan(message))
-                if message.contains("unexpected frontier transaction schema")
+                if message.contains("unexpected repository transaction schema")
         ));
 
         let marker = CommitMarker::from_plan(&plan);
@@ -4219,7 +4227,7 @@ mod tests {
             assert_eq!(
                 snapshot_files(&root),
                 before,
-                "pre-marker failpoint {step:?} changed the frontier"
+                "pre-marker failpoint {step:?} changed the repository"
             );
             assert!(
                 !paths.marker.exists(),
@@ -4275,7 +4283,7 @@ mod tests {
             assert_eq!(
                 snapshot_files(&root),
                 before,
-                "pre-marker abort failpoint {step:?} changed the frontier"
+                "pre-marker abort failpoint {step:?} changed the repository"
             );
             assert!(
                 !paths.marker.exists(),
@@ -4723,7 +4731,8 @@ mod tests {
         let second_plan = fixture_plan(&root, &second_draft, b"second shared blob journal");
         let second_operation = second_plan.operation_id.clone();
         let second_paths = RepositoryTxnPaths::new(&journals, &second_operation);
-        let mut second = RepositoryTxn::prepare(&root, &journals, second_plan, second_draft).unwrap();
+        let mut second =
+            RepositoryTxn::prepare(&root, &journals, second_plan, second_draft).unwrap();
         second.mark_committed().unwrap();
         second.install().unwrap();
         second.complete().unwrap();
@@ -4758,7 +4767,7 @@ mod tests {
                 PlannedWrite::write(
                     RepoPath::parse("frontier.json").unwrap(),
                     WriteClass::Derived,
-                    b"first frontier".to_vec(),
+                    b"first repository".to_vec(),
                 ),
             ],
         )
@@ -5108,7 +5117,8 @@ mod tests {
         )
         .unwrap();
         let second_plan = fixture_plan(&root, &second_draft, b"second neutral operation");
-        let mut second = RepositoryTxn::prepare(&root, &journals, second_plan, second_draft).unwrap();
+        let mut second =
+            RepositoryTxn::prepare(&root, &journals, second_plan, second_draft).unwrap();
         second.mark_committed().unwrap();
         second.install().unwrap();
         second.complete().unwrap();
@@ -5201,7 +5211,10 @@ mod tests {
 
         let error = txn.install().unwrap_err();
 
-        assert!(matches!(error, RepositoryTxnError::CommittedConflict { .. }));
+        assert!(matches!(
+            error,
+            RepositoryTxnError::CommittedConflict { .. }
+        ));
         assert_eq!(
             fs::read(root.join("state.json")).unwrap(),
             b"third party drift"

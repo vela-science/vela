@@ -18,7 +18,9 @@ fn briefing(frontier: &Path, target_id: &str) -> Result<Value, String> {
     let repository_root = repository.canonical_root()?;
     let profile = crate::current_repository::verify_current_profile_at(frontier)?;
     if profile.profile_root()? != repository.profile_root {
-        return Err("current Frontier Profile does not match the repository profile root".into());
+        return Err(
+            "retained repository profile does not match the repository profile root".into(),
+        );
     }
     let assessment = vela_edge::target_index::assess_current_target_index(
         frontier,

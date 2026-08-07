@@ -467,7 +467,7 @@ fn index_authority_keysets<'a>(
     for keyset in keysets {
         keyset.validate()?;
         if keyset.repository_id != repository_id {
-            return Err("retained authority keyset names a different Frontier".into());
+            return Err("retained authority keyset names a different repository".into());
         }
         let root = keyset.root()?;
         if indexed.insert(root, keyset).is_some() {
@@ -485,7 +485,7 @@ fn index_policy_bundles<'a>(
     for bundle in bundles {
         bundle.validate()?;
         if bundle.repository_id != repository_id {
-            return Err("retained policy bundle names a different Frontier".into());
+            return Err("retained policy bundle names a different repository".into());
         }
         let root = bundle.root()?;
         if indexed.insert(root, bundle).is_some() {

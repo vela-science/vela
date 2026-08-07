@@ -4,7 +4,7 @@
 //! kept calling `check`, and nothing caught it: the contract test in
 //! vela-protocol asserted the literal string `"$vela_bin" check "$FRONTIER"
 //! --json`, so it pinned the stale verb rather than checking it existed. Every
-//! consumer Frontier pins an older Action tag, so all of them stayed green and
+//! consumer repository pins an older Action tag, so all of them stayed green and
 //! all of them would have broken together on the first pin bump.
 //!
 //! This test closes that gap the only way it can be closed — by asking the

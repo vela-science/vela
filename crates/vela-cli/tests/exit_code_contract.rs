@@ -5,7 +5,7 @@
 //! id that is not in the repository exited 1, exactly like a broken replay, and
 //! the whole point of the scheme — an agent that knows WHY a call failed can
 //! self-correct — was unreachable. These assertions pin the three codes an
-//! agent has to be able to tell apart, on a real initialized Frontier.
+//! agent has to be able to tell apart, on a real initialized repository.
 
 #![cfg(unix)]
 
@@ -79,7 +79,7 @@ fn missing_objects_exit_3_and_malformed_flags_exit_2() {
             "init",
             &frontier_text,
             "--name",
-            // The Frontier id derives from the name, and the trust anchor is
+            // The repository id derives from the name, and the trust anchor is
             // keyed by that id in a directory shared with every other run, so a
             // fixed name makes the second run collide with the first.
             &format!(
@@ -128,13 +128,13 @@ fn missing_objects_exit_3_and_malformed_flags_exit_2() {
         assert_failure(&output, 3, "not_found", what);
     }
 
-    // A Frontier path that is not there is the same not-found, whether the verb
+    // A repository path that is not there is the same not-found, whether the verb
     // canonicalizes first or resolves the store first.
     let output = run(
         temporary.path(),
         &home,
         None,
-        &["status", "no-such-frontier", "--json"],
+        &["status", "no-such-repository", "--json"],
     );
     assert_failure(&output, 3, "not_found", "status on a missing directory");
 
@@ -155,7 +155,7 @@ fn missing_objects_exit_3_and_malformed_flags_exit_2() {
 
     // The reclassification must not have swept up the domain failures. A
     // request that is well formed and names a real directory, refused by the
-    // repository contract, still exits 1 — including `start` on a Frontier
+    // repository contract, still exits 1 — including `start` on a repository
     // with no Target Index, which is a broken repository and not a bad
     // argument. (`start` on an absent Target needs a live Target Index to
     // reach; current_genesis.rs pins that one.)

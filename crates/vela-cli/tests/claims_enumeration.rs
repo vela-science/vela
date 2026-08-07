@@ -2,7 +2,7 @@
 //!
 //! Every other Claim read — `show`, `why` — takes a full 64-hex `vcl_` and
 //! nothing produced one. `review list` reaches only the Claims a retained
-//! Proposal carries, which on a compacted Frontier is a handful out of
+//! Proposal carries, which on a compacted repository is a handful out of
 //! thousands. These tests assert the properties that closed that gap and would
 //! silently reopen: an id that the other read verbs actually accept, a page
 //! boundary that resumes rather than restarts, a Standing filter spelled the
@@ -70,7 +70,7 @@ fn ids(payload: &Value) -> Vec<String> {
         .collect()
 }
 
-/* One test, not six: each needs an initialized Frontier with retained Claims,
+/* One test, not six: each needs an initialized repository with retained Claims,
 and two ephemeral signing agents starting concurrently in the same process
 race each other. */
 #[test]
@@ -83,7 +83,7 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
     let frontier_text = frontier.to_string_lossy().into_owned();
     let socket = agent.socket();
 
-    /* The Frontier id derives from name, scope, and key, and the trust anchor
+    /* The repository id derives from name, scope, and key, and the trust anchor
     init installs is keyed by it in the OS account home, which no environment
     variable redirects. A fixed name would collide with the last run's. */
     let name = format!(
@@ -230,7 +230,7 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
         );
     }
 
-    /* A genesis Frontier's origin commit bound no Claim, so everything here
+    /* A genesis repository's origin commit bound no Claim, so everything here
     arrived after it. The era column is only worth printing if it can tell the
     two apart. */
     assert_eq!(pending["origin_claims"], 0);

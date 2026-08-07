@@ -96,7 +96,7 @@ fn initialized_frontier(temporary: &Path, agent: &EphemeralAgent) -> (String, Re
     (text, RemoveOnDrop(anchor))
 }
 
-/* One test, not two: each needs an initialized Frontier, and two ephemeral
+/* One test, not two: each needs an initialized repository, and two ephemeral
 signing agents starting concurrently in the same process race each other. */
 #[test]
 fn json_changes_what_a_read_verb_prints() {

@@ -16,7 +16,17 @@
 //! `proposal.withdraw` when it succeeded and `proposal withdraw` when it
 //! failed, so a caller keying on the field saw two names for one invocation and
 //! neither was a verb the CLI accepts.
+//!
+//! The retired-vocabulary half is here because it drifted invisibly. ADR 0039
+//! made the Repository the authority boundary and left the Frontier derived and
+//! identifier-free, and v0.967.0 took `vfr_` and `frontier_id` to zero — but
+//! nothing was reading the help output, so `vela help advanced`, thirteen
+//! `--help` bodies and about thirty runtime error strings went on naming a
+//! Frontier where they meant a Repository. This walks the whole help tree the
+//! binary actually prints and both sides of the error surface, rather than a
+//! list of the places that were wrong once.
 
+use std::collections::BTreeSet;
 use std::path::Path;
 use std::process::{Command, Output};
 
@@ -26,6 +36,24 @@ use support::EphemeralAgent;
 /// TERMINOLOGY.md, "Product wording": these are banned unqualified, so the test
 /// looks for them as whole words and lets a qualified compound through.
 const BANNED_UNQUALIFIED: [&str; 4] = ["verified", "valid", "approved", "complete"];
+
+/// The word ADR 0039 retired from the product surface.
+///
+/// The CLI only ever addresses a Repository: every verb takes `--repo <path>`,
+/// and a Frontier is a query with no identifier and no directory, so there is
+/// nothing on this surface a Frontier could name. Compounds count — the drift
+/// arrived as `Frontier-relative`, `frontier-owned` and `no frontier found`,
+/// not as the bare noun — so this is a substring test, not a word test.
+const RETIRED_ON_THE_PRODUCT_SURFACE: &str = "frontier";
+
+fn assert_vocabulary_retired(surface: &str, rendered: &str) {
+    assert!(
+        !rendered
+            .to_ascii_lowercase()
+            .contains(RETIRED_ON_THE_PRODUCT_SURFACE),
+        "{surface} still says Frontier where ADR 0039 means Repository:\n{rendered}"
+    );
+}
 
 fn run(cwd: &Path, home: &Path, socket: &Path, args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_vela"))
@@ -79,7 +107,7 @@ fn configure_git_identity(frontier: &Path) {
     }
 }
 
-/* One test, not four: each needs an initialized Frontier, and two ephemeral
+/* One test, not four: each needs an initialized repository, and two ephemeral
 signing agents starting concurrently in the same process race each other. */
 #[test]
 fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
@@ -91,7 +119,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
     let frontier_text = frontier.to_string_lossy().into_owned();
     let socket = agent.socket();
 
-    /* The Frontier id is derived from name, scope, and key, and the authority
+    /* The repository id is derived from name, scope, and key, and the authority
     trust anchor it installs is keyed by that id in the operating-system account
     home, which no environment variable can redirect. A fixed name would make a
     second run collide with the anchor the first one left. */
@@ -224,4 +252,158 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
         withdrawn["command"], "review.withdraw",
         "`command` must name the verb the CLI accepts"
     );
+}
+
+/// Run the binary with no repository, agent, or home in play.
+///
+/// Help is write-free and the error paths under test fail before they reach
+/// anything, so neither needs the fixture the wording test above builds.
+fn plain(cwd: &Path, args: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_vela"))
+        .current_dir(cwd)
+        .args(args)
+        .env("NO_COLOR", "1")
+        .env("VELA_ADVICE", "0")
+        .output()
+        .expect("run vela")
+}
+
+fn help_body(cwd: &Path, path: &[&str]) -> String {
+    let mut args = path.to_vec();
+    args.push("--help");
+    let output = plain(cwd, &args);
+    assert!(
+        output.status.success(),
+        "`vela {} --help` exited {:?}",
+        path.join(" "),
+        output.status.code()
+    );
+    String::from_utf8(output.stdout).expect("help must be UTF-8")
+}
+
+/// The entries of a clap `Commands:` block, which is how a verb declares its
+/// subverbs. `help` is clap's own and describes nothing.
+fn subcommands(rendered: &str) -> Vec<String> {
+    let Some((_, after)) = rendered.split_once("Commands:\n") else {
+        return Vec::new();
+    };
+    after
+        .lines()
+        .take_while(|line| !line.trim().is_empty())
+        .filter_map(|line| {
+            let (name, rest) = line.strip_prefix("  ")?.split_once(' ')?;
+            (!name.is_empty() && rest.starts_with(' ')).then(|| name.to_string())
+        })
+        .filter(|name| name != "help")
+        .collect()
+}
+
+/// The verbs the binary publishes, read out of `vela help advanced`.
+///
+/// Naming them here would rot the moment a verb is added, which is exactly how
+/// the last drift survived: nothing read the help at all. The advanced grid is
+/// already held equal to `Cli::command()` by `cli/surface.rs`, so reading it is
+/// reading the parser through one chain rather than keeping a second list.
+fn published_verbs(cwd: &Path) -> BTreeSet<String> {
+    let advanced = String::from_utf8(plain(cwd, &["help", "advanced"]).stdout)
+        .expect("advanced help must be UTF-8");
+    let verbs: BTreeSet<String> = advanced
+        .lines()
+        .filter_map(|line| {
+            let (name, rest) = line.strip_prefix("  ")?.split_once(' ')?;
+            (!name.is_empty() && rest.starts_with(' ')).then(|| name.to_string())
+        })
+        .collect();
+    assert!(
+        verbs.contains("init") && verbs.contains("review") && verbs.len() > 10,
+        "`vela help advanced` no longer parses as a verb grid; this test would \
+         silently cover nothing:\n{advanced}"
+    );
+    verbs
+}
+
+/// Every help body the binary prints, from both hand-set grids down through
+/// each verb and subverb, may not name a Frontier.
+///
+/// The bodies checked here are `vela help`, `vela help advanced`, `vela --help`
+/// and one `--help` per node of the parser tree — the `after_long_help` blocks
+/// in `cli/help_text.rs`, the `about` and `///` strings clap renders from
+/// `command_spec.rs`, and every flag's help. None of it was read by any test
+/// before, which is why `--frontier` survived in the quick start and
+/// `HELP_FRONTIER_BEFORE_OBJECT` survived on four verbs.
+#[test]
+fn no_help_body_names_a_frontier() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let cwd = temporary.path();
+
+    for grid in [vec!["help"], vec!["help", "advanced"]] {
+        let rendered = String::from_utf8(plain(cwd, &grid).stdout).expect("grid must be UTF-8");
+        assert_vocabulary_retired(&format!("`vela {}`", grid.join(" ")), &rendered);
+    }
+
+    let mut pending: Vec<Vec<String>> = vec![Vec::new()];
+    let mut seen = 0usize;
+    while let Some(path) = pending.pop() {
+        let borrowed: Vec<&str> = path.iter().map(String::as_str).collect();
+        let rendered = help_body(cwd, &borrowed);
+        assert_vocabulary_retired(&format!("`vela {} --help`", path.join(" ")), &rendered);
+        seen += 1;
+
+        let children = if path.is_empty() {
+            /* The root help is the hand-set product grid, not a clap
+            `Commands:` block, so the verb list comes from the advanced
+            reference the parser is already held to. */
+            published_verbs(cwd).into_iter().collect()
+        } else {
+            subcommands(&rendered)
+        };
+        for child in children {
+            let mut next = path.clone();
+            next.push(child);
+            pending.push(next);
+        }
+    }
+    assert!(
+        seen > 20,
+        "the help walk reached only {seen} bodies; the parser tree has more"
+    );
+}
+
+/// The failure surface, on both streams.
+///
+/// `vela show <id>` outside any repository printed "no frontier found from …"
+/// long after the identifier was gone, because the only wording assertions ran
+/// against successful `status` and `replay` output. A user meets these lines
+/// more often than the help.
+#[test]
+fn no_failure_message_names_a_frontier() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let cwd = temporary.path();
+    let missing = cwd.join("absent-repository");
+    let missing = missing.to_string_lossy().into_owned();
+    let claim = format!("vcl_{}", "0".repeat(16));
+
+    for args in [
+        vec!["status", missing.as_str()],
+        vec!["replay", missing.as_str()],
+        vec!["claims", missing.as_str()],
+        vec!["status"],
+        vec!["show", claim.as_str()],
+        vec!["why", claim.as_str()],
+        vec!["review", "inbox"],
+        vec!["log"],
+    ] {
+        let output = plain(cwd, &args);
+        assert!(
+            !output.status.success(),
+            "`vela {}` was expected to fail outside a repository",
+            args.join(" ")
+        );
+        let rendered = format!(
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_vocabulary_retired(&format!("`vela {}`", args.join(" ")), &rendered);
+    }
 }

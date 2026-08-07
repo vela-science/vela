@@ -18,9 +18,9 @@ use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::proposal_withdrawal_v1::ProposalWithdrawalV1;
 use vela_protocol::repository_origin::RepositoryOriginV1;
 use vela_protocol::status_v4::{
-    REPOSITORY_HEAD_ROLE, ReplayState, StatusActions, StatusCounts, StatusDecisionInbox,
-    StatusRepository, StatusGit, StatusIntegrity, StatusReviewAction, StatusRoots, StatusV4,
-    StatusWork, StatusWorkAction, StrictState,
+    REPOSITORY_HEAD_ROLE, ReplayState, StatusActions, StatusCounts, StatusDecisionInbox, StatusGit,
+    StatusIntegrity, StatusRepository, StatusReviewAction, StatusRoots, StatusV4, StatusWork,
+    StatusWorkAction, StrictState,
 };
 use vela_protocol::submission_v1::SubmissionV1;
 use vela_protocol::verification_record::VerificationRecordV1;
@@ -187,10 +187,9 @@ fn decision_inbox_status_summary(
 pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
     crate::ui::set_mode("status", json_out);
     let frontier = crate::ui::canonicalize_repo(frontier);
-    let profile_source =
-        fs::read_to_string(frontier.join("vela.toml")).unwrap_or_else(|error| {
-            crate::cli::fail_return(&format!("read current Frontier Profile: {error}"))
-        });
+    let profile_source = fs::read_to_string(frontier.join("vela.toml")).unwrap_or_else(|error| {
+        crate::cli::fail_return(&format!("read current repository profile: {error}"))
+    });
     let profile = CurrentRepositoryProfileV1::from_toml_str(&profile_source)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     if !frontier.join(".vela/origin.json").exists()
@@ -205,7 +204,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         `vela.status.v4`: not two versions of one contract but one contract and
         one literal that never moved when the contract did, so a caller keying
         on `schema` saw a version it had no reader for and could not tell a
-        cold Frontier from a stale release. The phase is a value, not a schema:
+        cold repository from a stale release. The phase is a value, not a schema:
         it is `integrity`, and it is `actions.work.mode`, which names the one
         command that clears it. `phase` and `next_action` said the same two
         things in a shape only this branch had, and are gone with them.
@@ -260,7 +259,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
                 work: StatusWorkAction::AuthorityUninitialized {
                     ready_target_count: 0,
                     command: format!("vela init {} --json", frontier.display()),
-                    note: "The retained Frontier Profile has no repository authority yet. Resume `vela init`; nothing else can produce, verify, or decide until it completes.".into(),
+                    note: "The retained repository profile has no repository authority yet. Resume `vela init`; nothing else can produce, verify, or decide until it completes.".into(),
                 },
             },
         );
@@ -331,7 +330,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         StatusWorkAction::DirectSubmission {
             ready_target_count: 0,
             command: format!("vela submit --repo {} --help", frontier.display()),
-            note: "No Target Index is configured. Submit bounded evidence directly or use a Frontier-owned adapter to generate targets.json.".into(),
+            note: "No Target Index is configured. Submit bounded evidence directly or use a repository-owned adapter to generate targets.json.".into(),
         }
     };
     let payload = StatusV4::new(
@@ -434,7 +433,9 @@ pub(crate) fn verify_current_profile_at(root: &Path) -> Result<CurrentRepository
     CurrentRepositoryProfileV1::from_toml_str(&profile_source)
 }
 
-pub(crate) fn verify_current_bootstrap_at(root: &Path) -> Result<CurrentRepositoryProfileV1, String> {
+pub(crate) fn verify_current_bootstrap_at(
+    root: &Path,
+) -> Result<CurrentRepositoryProfileV1, String> {
     let profile = verify_current_profile_at(root)?;
     if root.join(".vela/epoch.json").exists() {
         return Err("repository retains the retired .vela/epoch.json path".into());
@@ -490,7 +491,7 @@ pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
             },
             "targets": [],
             "next_action": format!("vela submit --repo {} --help", frontier.display()),
-            "note": "No Target Index is configured. Submit bounded evidence directly or use a Frontier-owned adapter to generate targets.json.",
+            "note": "No Target Index is configured. Submit bounded evidence directly or use a repository-owned adapter to generate targets.json.",
         });
         if json_out {
             crate::cli::print_json(&payload);
@@ -500,7 +501,7 @@ pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
                 "  direct    vela submit --repo {} --help",
                 frontier.display()
             );
-            println!("  adapter   generate tracked targets.json for ranked Frontier-owned work");
+            println!("  adapter   generate tracked targets.json for ranked repository-owned work");
         }
         return;
     };
@@ -1742,7 +1743,7 @@ pub(crate) fn verify_current_repository_allow_derived_drift_at(
     Ok(repository)
 }
 
-/// The repository manifest exactly as the Frontier's origin commit retains it.
+/// The repository manifest exactly as the repository's origin commit retains it.
 ///
 /// This is the boundary `vela claims` reads a Claim's origin era from: a Claim
 /// the origin manifest already bound came through the last compaction, and
@@ -2492,12 +2493,12 @@ pub(crate) fn is_retired_current_path(path: &str) -> bool {
     path == ".vela/actors.json"
         || path == "frontier.yaml"
         || path == "frontier.json"
-        // `vela.lock` and `proof/` were a pre-v2 Frontier's dependency lock and
+        // `vela.lock` and `proof/` were a pre-v2 repository's dependency lock and
         // its loose proof directory. Both were documented as retired long
-        // before they were refused: two Frontiers still carried dead
+        // before they were refused: two repositories still carried dead
         // `.gitattributes` rules naming them, and refusing a path while a rule
         // for it was in the tree would have made a failure ambiguous. Those
-        // rules are gone and no published Frontier names either path, so the
+        // rules are gone and no published repository names either path, so the
         // refusal is now the same one every other retired path gets.
         || path == "vela.lock"
         || path.starts_with("proof/")
@@ -2558,7 +2559,7 @@ mod tests {
         assert!(!is_retired_current_path("vela.toml"));
         assert!(is_retired_current_path("vela.lock"));
         assert!(is_retired_current_path("proof/erdos-203.lean"));
-        // The prefix is the directory, not the word: a Frontier is free to
+        // The prefix is the directory, not the word: a repository is free to
         // keep proofs anywhere it does not claim this exact retired layout.
         assert!(!is_retired_current_path(
             "artifacts/proof-scripts/sidon.lean"

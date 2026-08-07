@@ -274,7 +274,7 @@ pub fn evaluate(input: &CedarEvaluationInput) -> CedarEvaluation {
 /// Evaluate one exact request under Vela's closed repository-authorization
 /// profile.
 ///
-/// This pure evaluator is a shadow implementation until current Frontier
+/// This pure evaluator is a shadow implementation until current repository
 /// parity and an explicit repository-epoch cut are complete. It acquires no
 /// authentication, signer, filesystem, clock, or network capability. Valid
 /// but unauthorized requests return a content-addressed Deny; malformed model

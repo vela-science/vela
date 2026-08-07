@@ -63,7 +63,7 @@ pub const CORRECTION_RELATION_KINDS: &[&str] = &["corrects", "supersedes"];
 
 /// Relations retained as description. Acceptance never reads them.
 ///
-/// Enumerated from what the four maintained Frontiers actually retain, not from
+/// Enumerated from what the four maintained repositories actually retain, not from
 /// intent. A derived reader may give one of these a meaning of its own, such as
 /// a graph edge or a support route, but no reading of them changes Standing,
 /// and a kind absent from this list is not thereby invalid.
@@ -349,7 +349,7 @@ fn require_scientific_text(field: &str, value: &str) -> Result<(), String> {
 ///
 /// The check is shape only: lowercase ASCII words joined by single underscores,
 /// bounded. It deliberately does not close the set. Closing it would reject the
-/// next Frontier import for describing its corpus in a word this release has
+/// next repository import for describing its corpus in a word this release has
 /// not seen, and the descriptive half of the vocabulary carries no authority
 /// worth defending that way. What the shape does buy is that `Supersedes`,
 /// `supersedes `, and `supersedes-v2` cannot sit next to `supersedes` looking

@@ -1,11 +1,11 @@
-//! The Frontier argument has one shape and one resolution behaviour.
+//! The repository argument has one shape and one resolution behaviour.
 //!
 //! It used to have four of each: a required leading positional on `show`,
 //! `why`, `review *` and `verification *`; an optional one on `status`, `next`
 //! and `log`; `default_value = "."` on `authority trust pin`; and a
 //! `--repo` flag on `start` and `submit`. A reader who learned `vela
 //! status` and then typed `vela show vcl_…` had the object id bound to the
-//! Frontier slot and was told the *object id* was missing.
+//! repository slot and was told the *object id* was missing.
 //!
 //! These tests assert the convention itself rather than any message: every
 //! documented spelling still binds the same way, the short spelling produces
@@ -48,7 +48,7 @@ fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).into_owned()
 }
 
-/// One fixture Frontier holding one pending Proposal, so `show`, `why`,
+/// One fixture repository holding one pending Proposal, so `show`, `why`,
 /// `review show` and `log` all have a real object to name. Two ephemeral
 /// signing agents in one process race each other, so this crate keeps one
 /// test per file rather than one per assertion.
@@ -69,7 +69,7 @@ impl Fixture {
         let root = temporary.path().to_path_buf();
         let home = root.join("home");
         std::fs::create_dir_all(&home).expect("isolated home");
-        let agent = EphemeralAgent::start(&root, "vela frontier argument test");
+        let agent = EphemeralAgent::start(&root, "vela repository argument test");
         let frontier = root.join("frontier");
         let frontier_text = frontier.to_string_lossy().into_owned();
 
@@ -82,13 +82,13 @@ impl Fixture {
                 &frontier_text,
                 "--name",
                 &format!(
-                    "Frontier argument fixture {}",
+                    "Repository argument fixture {}",
                     root.file_name()
                         .and_then(|value| value.to_str())
                         .unwrap_or("unique")
                 ),
                 "--scope",
-                "Exercise one Frontier-argument convention across the surface.",
+                "Exercise one repository-argument convention across the surface.",
                 "--json",
             ],
         );
@@ -124,7 +124,7 @@ impl Fixture {
                 "--caveat",
                 "Fixture only.",
                 "--as",
-                "agent:frontier-argument-fixture",
+                "agent:repository-argument-fixture",
                 "--json",
             ],
         );
@@ -155,12 +155,12 @@ impl Fixture {
         }
     }
 
-    /// Run inside the Frontier, where discovery has something to find.
+    /// Run inside the repository, where discovery has something to find.
     fn inside(&self, args: &[&str]) -> Output {
         run(&self.frontier, &self.home, None, args)
     }
 
-    /// Run outside any Frontier, where discovery must fail rather than
+    /// Run outside any repository, where discovery must fail rather than
     /// silently pick up the developer's own tree.
     fn outside(&self, args: &[&str]) -> Output {
         run(&self.root, &self.home, None, args)
@@ -227,7 +227,7 @@ fn one_frontier_convention_across_the_surface() {
         let brief = fixture.inside(&short);
         assert!(
             brief.status.success(),
-            "`vela {}` must resolve the Frontier by discovery: {}",
+            "`vela {}` must resolve the repository by discovery: {}",
             short.join(" "),
             stderr(&brief)
         );
@@ -241,21 +241,21 @@ fn one_frontier_convention_across_the_surface() {
 
         /* The third spelling. `--repo` was previously accepted on
         `start` and `submit` only, which is why a user could not carry the
-        habit; it now works on every verb that acts on a Frontier, and it
+        habit; it now works on every verb that acts on a repository, and it
         works from outside the tree, where discovery has nothing to find. */
         let mut flagged = short.clone();
         flagged.extend_from_slice(&["--repo", frontier]);
         let flagged = fixture.outside(&flagged);
         assert!(
             flagged.status.success(),
-            "`vela {} --repo <path>` must work from outside the Frontier: {}",
+            "`vela {} --repo <path>` must work from outside the repository: {}",
             short.join(" "),
             stderr(&flagged)
         );
         assert_eq!(
             json(&long),
             json(&flagged),
-            "`--repo` must name the same Frontier the positional does"
+            "`--repo` must name the same repository the positional does"
         );
     }
 
@@ -298,7 +298,7 @@ fn one_frontier_convention_across_the_surface() {
             reached["error"]["message"]
                 .as_str()
                 .is_some_and(|message| message.contains("not-a-record.json")),
-            "`vela {}` must resolve the Frontier and then read the record: {reached}",
+            "`vela {}` must resolve the repository and then read the record: {reached}",
             args.join(" ")
         );
     }
@@ -313,7 +313,7 @@ fn a_missing_argument_error_names_the_missing_argument(fixture: &Fixture) {
     let claim = fixture.claim_id.clone();
 
     /* The whole point of the finding: `vela show <claim>` used to consume the
-    object id as the Frontier and then report the OBJECT as missing. */
+    object id as the repository and then report the OBJECT as missing. */
     for (args, wanted) in [
         (vec!["show", "--json"], "needs an object id"),
         (vec!["show", ".", "--json"], "needs an object id"),
@@ -351,7 +351,7 @@ fn a_missing_argument_error_names_the_missing_argument(fixture: &Fixture) {
     }
 
     /* `status` has no object slot, so an object id there is a real mistake.
-    It used to fall through to "Frontier directory does not exist" with a
+    It used to fall through to "repository directory does not exist" with a
     hint pointing at `vela init` — a writing verb offered to repair an
     argument-order error. */
     let misplaced = fixture.inside(&["status", &claim, "--json"]);

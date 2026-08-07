@@ -784,7 +784,7 @@ pub(crate) fn cmd_decision_inbox(frontier: &Path, json_output: bool) {
             "s"
         }
     );
-    println!("  Frontier: {}", projection.repository_id);
+    println!("  repository: {}", projection.repository_id);
     println!("  Repository: {}", projection.repository_root);
     println!("  Projection: {}", projection.projection_root);
     if projection.entries.is_empty() {

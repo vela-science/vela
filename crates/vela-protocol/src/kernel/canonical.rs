@@ -203,7 +203,6 @@ pub fn sha256_canonical<T: Serialize + ?Sized>(value: &T) -> Result<String, Stri
     Ok(hex::encode(Sha256::digest(&bytes)))
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,11 +1,11 @@
 //! `vela.status.v4`: the one document `vela status` answers with.
 //!
 //! This was two `serde_json::json!` literals in `vela-cli`, one per branch —
-//! a Frontier whose repository authority has not finished initializing, and a
+//! a repository whose repository authority has not finished initializing, and a
 //! replaying one. They were meant to be the same document and they were not:
 //! the first spelled its own `schema` field `vela.status.v1` for the whole
 //! life of v2 and v3, so a caller keying on `schema` met a version it had no
-//! reader for and could not tell a cold Frontier from a stale release. One
+//! reader for and could not tell a cold repository from a stale release. One
 //! type is what makes that unwritable rather than merely wrong.
 //!
 //! The second reader is out of this tree. `vela-web` parses this document into
@@ -21,7 +21,7 @@
 //! ## Null is not absence here
 //!
 //! Every optional-looking field on this document is *present and null* on the
-//! branch that cannot fill it — a bootstrapping Frontier has a Git pointer
+//! branch that cannot fill it — a bootstrapping repository has a Git pointer
 //! with the role `repository_head` and no commit behind it yet, not an absent
 //! pointer. The `json!` literals spelled that as an explicit `Value::Null`.
 //!
@@ -49,7 +49,7 @@ pub const STATUS_V3_SCHEMA: &str = "vela.status.v4";
 /// The `command` tag this document carries, matching the verb that emits it.
 pub const STATUS_V3_COMMAND: &str = "status";
 
-/// The one role a Frontier's tracked Git pointer plays.
+/// The one role a repository's tracked Git pointer plays.
 ///
 /// It is what the pointer *means*, not whether it has reached a commit, which
 /// is why it is stated even on the branch where `commit` and `tree` are null.
@@ -75,7 +75,7 @@ pub enum StrictState {
     Blocked,
 }
 
-/// The Frontier this document is about.
+/// The repository this document is about.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct StatusRepository {
@@ -87,7 +87,7 @@ pub struct StatusRepository {
     pub profile_root: String,
 }
 
-/// The Git pointer the Frontier's bytes are published under.
+/// The Git pointer the repository's bytes are published under.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct StatusGit {
@@ -106,12 +106,12 @@ pub struct StatusIntegrity {
     pub replay: ReplayState,
     pub strict: StrictState,
     pub blocker_count: u64,
-    /// Blocker codes to their occurrence counts. Empty on a passing Frontier;
+    /// Blocker codes to their occurrence counts. Empty on a passing repository;
     /// the map, not a separate list, is what a consumer sums.
     pub blockers_by_code: BTreeMap<String, u64>,
 }
 
-/// The four roots that identify the Frontier's current state.
+/// The four roots that identify the repository's current state.
 ///
 /// All four are null together, on the branch where repository authority has
 /// not finished initializing and there is no repository to root.
@@ -226,7 +226,7 @@ impl StatusWorkAction {
 }
 
 /// The two independent lanes: what a reviewer may do, and what a producer may
-/// do. They were one scalar `next_action` through v2, which forced a Frontier
+/// do. They were one scalar `next_action` through v2, which forced a repository
 /// with both to name only one.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -349,7 +349,7 @@ mod tests {
     /// `#[serde(skip_serializing_if = "Option::is_none")]`, which is the house
     /// style for the signed objects next door and would be a reasonable-looking
     /// edit here. That one attribute would silently drop `git.commit` from a
-    /// bootstrapping Frontier's status while the schema went on requiring it,
+    /// bootstrapping repository's status while the schema went on requiring it,
     /// and the consumer would read a dropped field as an absent one.
     ///
     /// The subject is the emptiest document the type can hold, because that is

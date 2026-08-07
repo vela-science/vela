@@ -24,11 +24,11 @@ use crate::config::git_publish::{
     PublicationOutcome, PublicationState, PublishOptions, exact_publication_preflight,
     publish_exact_delta,
 };
-use crate::repository_txn::{ContentDigest, InputBinding, WriteClass};
 use crate::repository_ops::{
     PreparedSubmissionArtifacts, SubmitOutcome, prepare_submission_artifacts, publication_delta,
     submission_publication_inputs,
 };
+use crate::repository_txn::{ContentDigest, InputBinding, WriteClass};
 
 pub(crate) fn rooted_path(directory: &str, root: &str) -> Result<String, String> {
     let digest = root
@@ -332,7 +332,8 @@ fn existing_outcome(
     };
     let (_, proposal) = proposal_reference;
     let request_root = submit_request_root(repository, submission_root)?;
-    let operation_id = crate::repository_txn::OperationId::derive("submit", request_root.as_bytes());
+    let operation_id =
+        crate::repository_txn::OperationId::derive("submit", request_root.as_bytes());
     Ok(Some(SubmitOutcome {
         schema: "vela.submit-result.v1",
         operation_id: operation_id.as_str().into(),
@@ -517,7 +518,8 @@ fn submit_inner(
         )?;
     }
     let request_root = submit_request_root(&held_repository, &submission_root)?;
-    let operation_id = crate::repository_txn::OperationId::derive("submit", request_root.as_bytes());
+    let operation_id =
+        crate::repository_txn::OperationId::derive("submit", request_root.as_bytes());
     next_repository.verify()?;
     let derived_drafts = rebind_target_index(frontier, &next_repository)?;
     object_drafts.extend([

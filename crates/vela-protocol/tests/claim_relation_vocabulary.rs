@@ -1,7 +1,7 @@
 //! The two Claim relation vocabularies, bound to the language-neutral fixture.
 //!
 //! Four competing relation sets were in circulation with no test behind any of
-//! them: the seven names PROTOCOL.md declared, the six the Frontiers retain,
+//! them: the seven names PROTOCOL.md declared, the six the repositories retain,
 //! the three the correction-impact experiment recognises, and the two the
 //! acceptance path actually reads. This test makes the reconciled pair the one
 //! a build can fail on.
@@ -186,7 +186,7 @@ fn every_retained_relation_kind_in_the_census_is_declared() {
         assert_ne!(
             claim_relation_class(kind),
             ClaimRelationClass::Unrecognized,
-            "`{kind}` is retained in a Frontier and declared nowhere"
+            "`{kind}` is retained in a repository and declared nowhere"
         );
         claim_with_relation_kind(kind).unwrap_or_else(|error| {
             panic!("retained kind `{kind}` no longer parses: {error}");

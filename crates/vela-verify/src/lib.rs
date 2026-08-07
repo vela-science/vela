@@ -1674,7 +1674,6 @@ fn claim_witness_faithful_from_verification(
     }
 }
 
-
 /// Fold a `claimed_size` cross-check into a verifier result: the witness
 /// must pass AND have exactly the claimed number of elements.
 fn with_size(mut r: VerifyResult, actual: usize, claimed: Option<usize>) -> VerifyResult {
@@ -2905,7 +2904,7 @@ pub fn verify_linear_code(generator: &[Vec<i64>], q: u64, claimed_d: usize) -> V
 }
 
 /// Reconstruct the exact `[[10,1,4]]` stabilizer certificate retained by the
-/// quantum-codes Frontier. The verifier derives the complete binary
+/// quantum-codes repository. The verifier derives the complete binary
 /// symplectic centralizer and exhaustively computes the minimum logical Pauli
 /// weight. It deliberately supports only this bounded v1 schema.
 pub fn verify_quantum_stabilizer_witness_v1(witness: &QuantumStabilizerWitnessV1) -> VerifyResult {
@@ -3516,7 +3515,6 @@ mod tests {
             bare2.reasons
         );
     }
-
 
     // Golomb has no sound witness->lower-bound binding defined: route to review.
     #[test]

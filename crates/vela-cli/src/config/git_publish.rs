@@ -1,4 +1,4 @@
-//! Exact local Git commits for installed Frontier transactions.
+//! Exact local Git commits for installed repository transactions.
 //!
 //! Vela owns the scientific transaction. Git owns repository history and
 //! network publication. This module therefore does one small job: turn the
@@ -127,14 +127,14 @@ pub(crate) fn publication_repo_relative_path(
         .map_err(|error| format!("canonicalize Git root: {error}"))?;
     let frontier = frontier
         .canonicalize()
-        .map_err(|error| format!("canonicalize Frontier: {error}"))?;
+        .map_err(|error| format!("canonicalize repository: {error}"))?;
     let prefix = frontier
         .strip_prefix(&root)
-        .map_err(|_| "Frontier is outside the resolved Git worktree".to_string())?;
+        .map_err(|_| "repository is outside the resolved Git worktree".to_string())?;
     let path = prefix.join(frontier_relative);
     path.to_str()
         .map(str::to_string)
-        .ok_or_else(|| "non-UTF-8 Frontier paths are not publishable".to_string())
+        .ok_or_else(|| "non-UTF-8 repository paths are not publishable".to_string())
 }
 
 pub(crate) fn exact_publication_preflight(
@@ -579,8 +579,8 @@ mod tests {
         git(root, &["init", "-b", "main"]);
         git(root, &["config", "user.name", "Vela Test"]);
         git(root, &["config", "user.email", "vela@example.invalid"]);
-        std::fs::create_dir(root.join("frontier")).unwrap();
-        std::fs::write(root.join("frontier/a.txt"), b"before").unwrap();
+        std::fs::create_dir(root.join("repository")).unwrap();
+        std::fs::write(root.join("repository/a.txt"), b"before").unwrap();
         std::fs::write(root.join("unrelated.txt"), b"clean").unwrap();
         git(root, &["add", "."]);
         git(root, &["commit", "-m", "initial"]);
@@ -591,7 +591,7 @@ mod tests {
         let delta = PublicationDelta {
             root: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
             entries: vec![PublicationDeltaEntry {
-                path: "frontier/a.txt".into(),
+                path: "repository/a.txt".into(),
                 preimage_sha256: Some(sha256_bytes(b"before")),
                 postimage: Some(b"after".to_vec()),
                 executable: false,
@@ -599,11 +599,11 @@ mod tests {
         };
         let options = PublishOptions::local();
         let preflight =
-            exact_publication_preflight(&root.join("frontier"), &delta, &options).unwrap();
-        std::fs::write(root.join("frontier/a.txt"), b"after").unwrap();
+            exact_publication_preflight(&root.join("repository"), &delta, &options).unwrap();
+        std::fs::write(root.join("repository/a.txt"), b"after").unwrap();
         std::fs::write(root.join("unrelated.txt"), b"dirty-after-stage").unwrap();
         let outcome = publish_exact_delta(
-            &root.join("frontier"),
+            &root.join("repository"),
             "retain Submission",
             &["vsb_test".into()],
             &delta,
@@ -615,7 +615,7 @@ mod tests {
             PublicationState::CommittedLocal { .. }
         ));
         assert_eq!(
-            git_text(root, &["show", "HEAD:frontier/a.txt"]).unwrap(),
+            git_text(root, &["show", "HEAD:repository/a.txt"]).unwrap(),
             "after"
         );
         assert_eq!(

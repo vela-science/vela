@@ -59,6 +59,11 @@ impl AuthorityActionV1 {
     }
 }
 
+/// The authority boundary is the Repository (ADR 0039), but this variant
+/// serializes as the wire token `"repository"` and cannot be renamed in place.
+/// It is hashed into `AuthorizationRequestV1::root()`, which is bound by the
+/// signed authority record, and `vela-science/math` has a live genesis holding
+/// it. Renaming it is a re-signing migration, not a prose sweep.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorityResourceTypeV1 {
@@ -74,7 +79,7 @@ pub struct AuthorityMemberV1 {
     pub role: AuthorityRoleV1,
 }
 
-/// Exact, content-addressed membership model for one Frontier.
+/// Exact, content-addressed membership model for one repository.
 ///
 /// The model has no policy language, inheritance, network lookup, quorum
 /// engine, or executable extension surface. One principal may hold both roles
@@ -95,7 +100,11 @@ impl AuthorizationModelV1 {
         {
             return Err("authorization model schema or profile is invalid".into());
         }
-        require_identifier("authorization model repository_id", &self.repository_id, "vrepo_")?;
+        require_identifier(
+            "authorization model repository_id",
+            &self.repository_id,
+            "vrepo_",
+        )?;
         if self.members.is_empty() {
             return Err("authorization model must contain at least one member".into());
         }
@@ -218,6 +227,10 @@ pub enum AuthorizationDecisionV1 {
     Deny,
 }
 
+/// `FrontierMismatch` and `ResourceFrontierMismatch` serialize as
+/// `"repository_mismatch"` and `"resource_repository_mismatch"` into
+/// `AuthorityEvaluationV1`, which is hashed into the authority record. Same
+/// migration as `AuthorityResourceTypeV1::Frontier` above.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorizationReasonV1 {

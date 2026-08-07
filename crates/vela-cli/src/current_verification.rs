@@ -24,8 +24,8 @@ use crate::config::git_publish::{
     PublicationOutcome, PublicationState, PublishOptions, exact_publication_preflight,
     publish_exact_delta,
 };
-use crate::repository_txn::{ContentDigest, InputBinding, WriteClass};
 use crate::repository_ops::{VerificationImportOutcome, publication_delta};
+use crate::repository_txn::{ContentDigest, InputBinding, WriteClass};
 
 const METHOD_MANIFEST_MAX_BYTES: u64 = 1024 * 1024;
 
@@ -175,9 +175,9 @@ fn method_manifest_binding(
                 .to_str()
                 .map(ToString::to_string)
                 .ok_or_else(|| "Verification method path must be UTF-8".to_string()),
-            _ => {
-                Err("Verification method path must be normalized and frontier-relative".to_string())
-            }
+            _ => Err(
+                "Verification method path must be normalized and repository-relative".to_string(),
+            ),
         })
         .collect::<Result<Vec<_>, _>>()?
         .join("/");
@@ -1120,7 +1120,7 @@ mod tests {
             method_manifest_binding(directory.path(), Path::new("verification/../outside.json"))
                 .unwrap_err();
         assert!(
-            error.contains("normalized and frontier-relative"),
+            error.contains("normalized and repository-relative"),
             "{error}"
         );
     }

@@ -3,9 +3,9 @@
 //! Every other read verb on the Claim surface takes a full 64-hex `vcl_` and
 //! answers about that one Claim: `show` renders it, `why` explains its
 //! Standing. Nothing produced the id. `review list` reaches only the Claims
-//! carried by a retained Proposal, which on a compacted Frontier is a handful
-//! out of thousands — on the Erdős Frontier, eleven of 2,782. A reader who
-//! wanted the first thing anyone asks a Frontier ("what does it hold?") had to
+//! carried by a retained Proposal, which on a compacted repository is a handful
+//! out of thousands — on the Erdős repository, eleven of 2,782. A reader who
+//! wanted the first thing anyone asks a repository ("what does it hold?") had to
 //! read `.vela/repository.json` by hand.
 //!
 //! This verb reads exactly the claim index in the verified repository manifest
@@ -21,12 +21,12 @@
 //! Standing and it is not repository state. Those are reached through
 //! `vela review list --status all` and `vela review show`, which is where a
 //! Proposal's own Claim belongs. This verb does not scan the directory, so it
-//! never presents an undecided Claim as something the Frontier holds.
+//! never presents an undecided Claim as something the repository holds.
 //!
 //! It does not reach the Proposal axis either, and so does not report it. The
 //! manifest token a row is built from is a Proposal-axis word, but it is the
 //! token of the list the row is in, not the status of any Proposal: on a
-//! compacted Frontier the Proposal that once admitted the Claim is gone, and
+//! compacted repository the Proposal that once admitted the Claim is gone, and
 //! restating list membership under a Proposal's name would assert a Decision
 //! that is not there. `vela why` and `vela show` read retained Proposals and
 //! answer both axes; this verb reads the index and answers the one the index
@@ -38,11 +38,11 @@
 //! failing the page or being quietly dropped from it. That is not defensive
 //! decoration: the manifest load does not read Claim record bytes, so a
 //! manifest can bind a path whose bytes are gone or altered and still load.
-//! Corrupting one Claim on a copy of the quantum-codes Frontier returns four
+//! Corrupting one Claim on a copy of the quantum-codes repository returns four
 //! readable rows, one marked row, `unreadable_returned: 1`, and a `total` that
 //! still says 5.
 //!
-//! Across the four live Frontiers today, all 2,844 accepted Claims page out
+//! Across the four live repositories today, all 2,844 accepted Claims page out
 //! individually readable at their declared roots and none is unreachable; the
 //! last compaction retained every one.
 
@@ -68,18 +68,18 @@ use vela_protocol::repository_origin::RepositoryOriginV1;
 const STATUS_VALUES: [&str; 3] = ["accepted", "unassessed", "all"];
 
 /// How much of one assertion a list row shows. Long enough for the retained
-/// assertions on the live Frontiers to arrive whole, short enough that fifty
+/// assertions on the live repositories to arrive whole, short enough that fifty
 /// rows stay a list. The full text is one `vela show <claim>` away, and
 /// `--json` never truncates.
 const ASSERTION_SCALARS: usize = 132;
 
-/// The Claim ids the Frontier's origin commit already bound.
+/// The Claim ids the repository's origin commit already bound.
 ///
 /// This fails the verb rather than degrading to an unknown era, because there
 /// is no state in which only this read fails: the manifest load performed
-/// first resolves and verifies the same origin commit, so a Frontier that
+/// first resolves and verifies the same origin commit, so a repository that
 /// cannot answer here never reached this line. Verified on a copy of the
-/// quantum-codes Frontier given two commits carrying identical origin bytes —
+/// quantum-codes repository given two commits carrying identical origin bytes —
 /// `status`, `review list`, and `claims` all refuse it identically, at the
 /// load.
 fn origin_claim_ids(frontier: &Path, origin: &RepositoryOriginV1) -> BTreeSet<String> {
@@ -94,7 +94,7 @@ fn origin_claim_ids(frontier: &Path, origin: &RepositoryOriginV1) -> BTreeSet<St
 }
 
 /// Which side of the origin a Claim entered on. A Claim the origin manifest
-/// already bound came through the Frontier's last compaction; everything else
+/// already bound came through the repository's last compaction; everything else
 /// was admitted by repository authority since.
 fn era_label(origin_ids: &BTreeSet<String>, claim_id: &str) -> &'static str {
     if origin_ids.contains(claim_id) {
@@ -238,7 +238,7 @@ pub(crate) fn cmd_claims(
             "unassessed": repository.pending_claims.len(),
         },
         /* Stated as its own count, never as a share of `total`. The two do not
-        subtract: a Frontier can have retired an origin Claim, which is how
+        subtract: a repository can have retired an origin Claim, which is how
         quantum-codes holds 5 accepted Claims over an origin that bound 6. */
         "origin_claims": origin_ids.len(),
         "total": page.total,
@@ -265,7 +265,7 @@ fn render(payload: &Value, status: &str) {
     );
     println!("  {returned} shown, ordered by Claim id");
     println!(
-        "  origin era · the Frontier origin bound {} Claim(s); each row says which side of it that Claim entered on",
+        "  origin era · the repository origin bound {} Claim(s); each row says which side of it that Claim entered on",
         payload["origin_claims"].as_u64().unwrap_or_default()
     );
     if unreadable > 0 {
@@ -344,7 +344,7 @@ mod tests {
         assert_eq!(era_label(&origin, "vcl_new"), "post_origin");
     }
 
-    /// A genesis Frontier's origin bound nothing, so everything it holds
+    /// A genesis repository's origin bound nothing, so everything it holds
     /// arrived after it. An empty origin set is not a missing one.
     #[test]
     fn an_empty_origin_set_labels_everything_as_later() {

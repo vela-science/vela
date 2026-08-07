@@ -3,7 +3,7 @@
 //! Submissions and Verification Records authenticate their own producers.
 //! Retaining those objects must not mint a repository-authority record or
 //! touch the repository-authority SSH key. This module deliberately reuses
-//! the existing Frontier transaction journal and publication delta while
+//! the existing repository transaction journal and publication delta while
 //! leaving scientific Events and authority history unchanged.
 
 use std::collections::BTreeMap;
@@ -13,9 +13,9 @@ use serde::Serialize;
 
 use crate::authority_transaction::{AuthorityDerivedDraft, AuthorityObjectDraft};
 use crate::repository_txn::{
-    CanonicalWriteBarrier, ContentDigest, DeltaDraft, RepositoryBinding, RepositoryTxn,
-    RepositoryTxnError, RepositoryTxnPlan, RepositoryTxnPlanSpec, InputBinding, OperationId,
-    OperationKind, PlannedWrite, RepoPath, WriteClass,
+    CanonicalWriteBarrier, ContentDigest, DeltaDraft, InputBinding, OperationId, OperationKind,
+    PlannedWrite, RepoPath, RepositoryBinding, RepositoryTxn, RepositoryTxnError,
+    RepositoryTxnPlan, RepositoryTxnPlanSpec, WriteClass,
 };
 
 const LAYOUT_SCHEMA: &str = "vela.routine-evidence-layout.internal.v1";

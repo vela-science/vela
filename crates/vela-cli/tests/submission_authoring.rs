@@ -21,7 +21,7 @@ fn run(home: &Path, frontier: &Path, args: &[&str]) -> Output {
             "--as",
             "agent:fixture",
             "--repo",
-            frontier.to_str().expect("utf-8 frontier"),
+            frontier.to_str().expect("utf-8 repository"),
             "--json",
         ])
         .env("HOME", home)

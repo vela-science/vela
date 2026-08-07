@@ -1,7 +1,7 @@
 //! Current repository-authority transaction writer.
 //!
 //! The writer composes authority records, runtime authentication, retained
-//! Cedar material, and the existing recoverable Frontier transaction without
+//! Cedar material, and the existing recoverable repository transaction without
 //! introducing a second journal. Routine work leases and the narrow governed
 //! work-policy rotation use this same core.
 
@@ -43,9 +43,9 @@ use vela_protocol::events::{EventKind, StateActor, StateTarget};
 use vela_protocol::principal::HUMAN_ONLY_AUTHORITY_ACTIONS_V1;
 
 use crate::repository_txn::{
-    CanonicalWriteBarrier, ContentDigest, DeltaDraft, RepositoryBinding, RepositoryTxn,
-    RepositoryTxnError, RepositoryTxnPlan, RepositoryTxnPlanSpec, InputBinding, OperationId,
-    OperationKind, PlannedWrite, RepoPath, WriteClass,
+    CanonicalWriteBarrier, ContentDigest, DeltaDraft, InputBinding, OperationId, OperationKind,
+    PlannedWrite, RepoPath, RepositoryBinding, RepositoryTxn, RepositoryTxnError,
+    RepositoryTxnPlan, RepositoryTxnPlanSpec, WriteClass,
 };
 
 const TRANSACTION_ID_SCHEMA: &str = "vela.authority-transaction-id.internal.v1";
@@ -91,7 +91,7 @@ pub(crate) struct AuthorityEventDraft {
 /// Canonical non-event postimage covered by the same authority transaction.
 ///
 /// `None` deletes an existing object. The writer derives before/after roots
-/// from the held Frontier and refuses no-ops, duplicate paths, derived views,
+/// from the held repository and refuses no-ops, duplicate paths, derived views,
 /// private coordination, retired protocol paths, or covering-record paths.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub(crate) struct AuthorityObjectDraft {
@@ -846,7 +846,7 @@ fn validate_fresh_initialization_request(
         (draft.target.r#type == "frontier", "target_type"),
         (
             draft.target.id == request.history.repository_id,
-            "target_frontier",
+            "target_repository",
         ),
         (draft.actor.r#type == "human", "actor_type"),
         (
@@ -863,7 +863,7 @@ fn validate_fresh_initialization_request(
         ),
         (
             payload.repository_id == request.history.repository_id,
-            "payload_frontier",
+            "payload_repository",
         ),
         (
             payload.new_principal_id == request.principal.principal_id,
@@ -1618,7 +1618,7 @@ fn validate_request_shape(
         || request.history.repository_id != request.history.policy_bundle.repository_id
     {
         return Err(AuthorityTransactionError::Invalid(
-            "history, keyset, and policy bundle name different frontiers".into(),
+            "history, keyset, and policy bundle name different repositories".into(),
         ));
     }
     let authorization_schema_root =
@@ -1999,9 +1999,9 @@ mod tests {
     use vela_protocol::principal::PrincipalClass;
 
     use super::*;
-    use crate::repository_txn::{RepositoryTxnStep, RecoveryOutcome};
+    use crate::repository_txn::{RecoveryOutcome, RepositoryTxnStep};
 
-    const FRONTIER_ID: &str = "vrepo_0123456789abcdef";
+    const REPOSITORY_ID: &str = "vrepo_0123456789abcdef";
     const REPOSITORY_PRINCIPAL: &str = "local:device-1|uid:501";
     const RECORDED_AT: &str = "2026-07-24T12:05:00Z";
 
@@ -2153,7 +2153,7 @@ mod tests {
                     "parents": []
                 },
                 {
-                    "uid": {"type": "Frontier", "id": FRONTIER_ID},
+                    "uid": {"type": "Frontier", "id": REPOSITORY_ID},
                     "attrs": {},
                     "parents": []
                 }
@@ -2214,8 +2214,11 @@ mod tests {
         }
 
         fn barrier(&self) -> CanonicalWriteBarrier {
-            RepositoryTxn::acquire_write_barrier_for_test(self.temporary.path(), &self.journal_dir())
-                .unwrap()
+            RepositoryTxn::acquire_write_barrier_for_test(
+                self.temporary.path(),
+                &self.journal_dir(),
+            )
+            .unwrap()
         }
 
         fn adapter(&self) -> LocalOsSession {
@@ -2251,7 +2254,7 @@ mod tests {
         let authorization_input = fixture_authorization_input();
         let keyset = AuthorityKeysetV1 {
             schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
-            repository_id: FRONTIER_ID.into(),
+            repository_id: REPOSITORY_ID.into(),
             generation: 1,
             threshold: 1,
             keys: vec![AuthorityKeyV1 {
@@ -2268,7 +2271,7 @@ mod tests {
         };
         let policy_bundle = PolicyBundleV1 {
             schema: POLICY_BUNDLE_SCHEMA_V1.into(),
-            repository_id: FRONTIER_ID.into(),
+            repository_id: REPOSITORY_ID.into(),
             cedar_schema_root: ContentDigest::hash(authorization_input.schema.as_bytes())
                 .as_str()
                 .into(),
@@ -2294,7 +2297,7 @@ mod tests {
         let policy_bundle_root = policy_bundle.root().unwrap();
         let initialization = AuthorityInitializationV1 {
             schema: AUTHORITY_INITIALIZATION_SCHEMA_V1.into(),
-            repository_id: FRONTIER_ID.into(),
+            repository_id: REPOSITORY_ID.into(),
             initial_event_log_root: initial_event_log_root.clone(),
             initial_actor_registry_root: initial_actor_registry_root.clone(),
             new_authority_keyset_root: keyset.root().unwrap(),
@@ -2310,7 +2313,7 @@ mod tests {
             kind: EventKind::Other(AUTHORITY_INITIALIZED_EVENT_KIND.into()),
             target: StateTarget {
                 r#type: "frontier".into(),
-                id: FRONTIER_ID.into(),
+                id: REPOSITORY_ID.into(),
             },
             actor: StateActor {
                 r#type: "human".into(),
@@ -2330,7 +2333,7 @@ mod tests {
             authority_event_log_root(&initial_event_log_root, &[&initialization_event]).unwrap();
 
         let first_record = AuthorityRecordV1::new(AuthorityRecordContentV1 {
-            repository_id: FRONTIER_ID.into(),
+            repository_id: REPOSITORY_ID.into(),
             sequence: 1,
             previous_authority_record_root: None,
             operation_id: "vop_initialization".into(),
@@ -2477,7 +2480,7 @@ mod tests {
         .unwrap();
         let request = AuthorityTransactionRequest {
             history: AuthorityHistorySnapshot {
-                repository_id: FRONTIER_ID.into(),
+                repository_id: REPOSITORY_ID.into(),
                 initial_event_log_root,
                 initial_actor_registry_root,
                 initial_snapshots_preexisting: false,
@@ -2555,7 +2558,7 @@ mod tests {
         let mut authority_events = fixture.request.history.authority_events.clone();
         authority_events.extend_from_slice(events);
         let result = verify_authority_history(AuthorityHistoryInput {
-            repository_id: FRONTIER_ID,
+            repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
             initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
@@ -2571,7 +2574,7 @@ mod tests {
 
     fn verified_fixture_history(fixture: &Fixture) -> AuthorityHistoryVerification {
         verify_authority_history(AuthorityHistoryInput {
-            repository_id: FRONTIER_ID,
+            repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
             initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
@@ -2623,8 +2626,10 @@ mod tests {
         fixture.request.history.authority_events.clear();
         fixture.request.history.authority_envelopes.clear();
         fixture.request.authorization_input.action = AUTHORITY_INITIALIZE_ACTION.into();
-        fixture.request.authorization_input.resource =
-            format!("Frontier::{}", serde_json::to_string(FRONTIER_ID).unwrap());
+        fixture.request.authorization_input.resource = format!(
+            "Frontier::{}",
+            serde_json::to_string(REPOSITORY_ID).unwrap()
+        );
         fixture.request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
             role: "frontier_administrator".into(),
@@ -2635,7 +2640,7 @@ mod tests {
         }];
         let initialization = AuthorityInitializationV1 {
             schema: AUTHORITY_INITIALIZATION_SCHEMA_V1.into(),
-            repository_id: FRONTIER_ID.into(),
+            repository_id: REPOSITORY_ID.into(),
             initial_event_log_root: archived_event_root.clone(),
             initial_actor_registry_root: archived_actor_root,
             new_authority_keyset_root: keyset_root,
@@ -2648,7 +2653,7 @@ mod tests {
             kind: EventKind::Other(AUTHORITY_INITIALIZED_EVENT_KIND.into()),
             target: StateTarget {
                 r#type: "frontier".into(),
-                id: FRONTIER_ID.into(),
+                id: REPOSITORY_ID.into(),
             },
             actor: StateActor {
                 r#type: "human".into(),
@@ -3082,7 +3087,9 @@ mod tests {
                 assert!(
                     matches!(
                         error,
-                        AuthorityTransactionError::Transaction(RepositoryTxnError::StaleInput { .. })
+                        AuthorityTransactionError::Transaction(
+                            RepositoryTxnError::StaleInput { .. }
+                        )
                     ),
                     "{error:?}"
                 );
@@ -3098,7 +3105,7 @@ mod tests {
         let next_key = SigningKey::from_bytes(&[13; 32]);
         let next_keyset = AuthorityKeysetV1 {
             schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
-            repository_id: FRONTIER_ID.into(),
+            repository_id: REPOSITORY_ID.into(),
             generation: 2,
             threshold: 1,
             keys: vec![AuthorityKeyV1 {
@@ -3118,7 +3125,7 @@ mod tests {
         let mut request = fixture.request.clone();
         request.intent_digest = intent.clone();
         request.authorization_input.action = AUTHORITY_ROTATE_ACTION.into();
-        request.authorization_input.resource = format!(r#"Frontier::"{FRONTIER_ID}""#);
+        request.authorization_input.resource = format!(r#"Frontier::"{REPOSITORY_ID}""#);
         request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
             role: "frontier_administrator".into(),
@@ -3131,7 +3138,7 @@ mod tests {
             kind: EventKind::Other("authority.rotated".into()),
             target: StateTarget {
                 r#type: "frontier".into(),
-                id: FRONTIER_ID.into(),
+                id: REPOSITORY_ID.into(),
             },
             actor: StateActor {
                 r#type: "human".into(),
@@ -3210,7 +3217,7 @@ mod tests {
         let mut envelopes = fixture.request.history.authority_envelopes.clone();
         envelopes.push(envelope);
         let replay = verify_authority_history(AuthorityHistoryInput {
-            repository_id: FRONTIER_ID,
+            repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
             initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
@@ -3309,7 +3316,7 @@ mod tests {
         let mut final_envelopes = envelopes;
         final_envelopes.push(followup_envelope);
         let final_replay = verify_authority_history(AuthorityHistoryInput {
-            repository_id: FRONTIER_ID,
+            repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
             initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
@@ -3341,7 +3348,7 @@ mod tests {
         let mut request = fixture.request.clone();
         request.intent_digest = intent.clone();
         request.authorization_input.action = POLICY_ROTATE_ACTION.into();
-        request.authorization_input.resource = format!(r#"Frontier::"{FRONTIER_ID}""#);
+        request.authorization_input.resource = format!(r#"Frontier::"{REPOSITORY_ID}""#);
         request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
             role: "frontier_administrator".into(),
@@ -3354,7 +3361,7 @@ mod tests {
             kind: EventKind::Other("policy.rotated".into()),
             target: StateTarget {
                 r#type: "frontier".into(),
-                id: FRONTIER_ID.into(),
+                id: REPOSITORY_ID.into(),
             },
             actor: StateActor {
                 r#type: "human".into(),
@@ -3377,7 +3384,7 @@ mod tests {
         let next_key = SigningKey::from_bytes(&[14; 32]);
         both.next_authority_keyset = Some(AuthorityKeysetV1 {
             schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
-            repository_id: FRONTIER_ID.into(),
+            repository_id: REPOSITORY_ID.into(),
             generation: 2,
             threshold: 1,
             keys: vec![AuthorityKeyV1 {
@@ -3453,7 +3460,7 @@ mod tests {
         let mut envelopes = fixture.request.history.authority_envelopes.clone();
         envelopes.push(envelope);
         let replay = verify_authority_history(AuthorityHistoryInput {
-            repository_id: FRONTIER_ID,
+            repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
             initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
@@ -3482,7 +3489,7 @@ mod tests {
         let current_policy_root = fixture.request.history.policy_bundle.root().unwrap();
         let closed_keyset = AuthorityKeysetV1 {
             schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
-            repository_id: FRONTIER_ID.into(),
+            repository_id: REPOSITORY_ID.into(),
             generation: 2,
             threshold: 0,
             keys: Vec::new(),
@@ -3493,7 +3500,7 @@ mod tests {
         let reason = "Close future authority after the disposable compromise drill.";
         let payload = AuthorityCloseV1 {
             schema: vela_protocol::authority_history::AUTHORITY_CLOSE_SCHEMA_V1.into(),
-            repository_id: FRONTIER_ID.into(),
+            repository_id: REPOSITORY_ID.into(),
             last_trusted_sequence: 1,
             last_trusted_authority_record_root: current_record_root,
             previous_authority_keyset_root: current_keyset_root,
@@ -3506,7 +3513,7 @@ mod tests {
         let mut request = fixture.request.clone();
         request.intent_digest = intent.clone();
         request.authorization_input.action = AUTHORITY_CLOSE_ACTION.into();
-        request.authorization_input.resource = format!(r#"Frontier::"{FRONTIER_ID}""#);
+        request.authorization_input.resource = format!(r#"Frontier::"{REPOSITORY_ID}""#);
         request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
             role: "frontier_administrator".into(),
@@ -3519,7 +3526,7 @@ mod tests {
             kind: EventKind::Other(AUTHORITY_CLOSED_EVENT_KIND.into()),
             target: StateTarget {
                 r#type: "frontier".into(),
-                id: FRONTIER_ID.into(),
+                id: REPOSITORY_ID.into(),
             },
             actor: StateActor {
                 r#type: "human".into(),
@@ -3590,7 +3597,7 @@ mod tests {
         let mut envelopes = fixture.request.history.authority_envelopes.clone();
         envelopes.push(envelope.clone());
         let replay = verify_authority_history(AuthorityHistoryInput {
-            repository_id: FRONTIER_ID,
+            repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
             initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
@@ -3613,7 +3620,7 @@ mod tests {
 
         envelopes.push(envelope);
         let error = verify_authority_history(AuthorityHistoryInput {
-            repository_id: FRONTIER_ID,
+            repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
             initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
@@ -4396,7 +4403,7 @@ mod tests {
         .unwrap();
         envelopes.push(envelope);
         let verification = verify_authority_history(AuthorityHistoryInput {
-            repository_id: FRONTIER_ID,
+            repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
             initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,

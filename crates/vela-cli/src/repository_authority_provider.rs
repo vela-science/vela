@@ -243,7 +243,7 @@ impl SshAgentRepositoryAuthoritySigner {
     /// It deliberately defers endpoint resolution, identity enumeration, and
     /// agent access until `sign`, after transaction authentication and Cedar
     /// authorization have passed. The endpoint itself is process-local
-    /// configuration and never enters a Frontier, an authority record, a
+    /// configuration and never enters a repository, an authority record, a
     /// journal, or a diagnostic payload.
     pub(crate) fn from_environment(
         key_id: impl Into<String>,

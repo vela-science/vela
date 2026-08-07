@@ -105,7 +105,7 @@ impl PolicyBundleV1 {
             require_sha256("previous_bundle_root", root)?;
         }
         if self.repository_id.trim().is_empty() || self.authority_summary.trim().is_empty() {
-            return Err("policy bundle frontier and authority summary must be non-empty".into());
+            return Err("policy bundle repository and authority summary must be non-empty".into());
         }
         Ok(())
     }
@@ -256,7 +256,7 @@ impl AuthorityKeysetV1 {
             ));
         }
         if self.repository_id.trim().is_empty() || self.generation == 0 {
-            return Err("authority keyset frontier and generation must be set".into());
+            return Err("authority keyset repository and generation must be set".into());
         }
         if self.closed {
             if !self.keys.is_empty()
@@ -516,7 +516,7 @@ impl AuthorityRecordV1 {
             || (content.event_ids.is_empty() && content.object_delta.is_empty())
         {
             return Err(
-                "authority record frontier, operation, transaction, and a changed event or object are required"
+                "authority record repository, operation, transaction, and a changed event or object are required"
                     .into(),
             );
         }
@@ -725,7 +725,7 @@ pub fn verify_authority_envelope(
         || record.content.sequence != expected_sequence
         || record.content.previous_authority_record_root.as_deref() != expected_previous_root
     {
-        return Err("authority record frontier or chain position is invalid".into());
+        return Err("authority record repository or chain position is invalid".into());
     }
     if record.content.authority_keyset_root != keyset.root()? {
         return Err("authority record does not bind the supplied keyset".into());

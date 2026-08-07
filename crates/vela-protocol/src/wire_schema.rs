@@ -350,7 +350,7 @@ pub fn status_command_tag(_: &mut SchemaGenerator) -> Schema {
     tag(STATUS_V3_COMMAND)
 }
 
-/// The one role a Frontier's tracked Git pointer plays.
+/// The one role a repository's tracked Git pointer plays.
 pub fn repository_head_role_tag(_: &mut SchemaGenerator) -> Schema {
     tag(REPOSITORY_HEAD_ROLE)
 }
@@ -528,10 +528,10 @@ pub fn published() -> Vec<(&'static str, Value)> {
             document::<crate::status_v4::StatusV4>("status-v4.schema.json", "Vela Status v4"),
         ),
         /* The three objects that carry the science. Until these were derived,
-           the schema for a Claim Record could not be generated at all, which
-           left the interoperability story resting on the four objects around
-           it. A reader checking a Claim without this implementation needs the
-           Claim's own contract most of all. */
+        the schema for a Claim Record could not be generated at all, which
+        left the interoperability story resting on the four objects around
+        it. A reader checking a Claim without this implementation needs the
+        Claim's own contract most of all. */
         (
             "claim-record-v1.schema.json",
             document::<crate::claim_record::ClaimRecordV1>(
@@ -541,7 +541,10 @@ pub fn published() -> Vec<(&'static str, Value)> {
         ),
         (
             "proposal-v1.schema.json",
-            document::<crate::proposal_v1::ProposalV1>("proposal-v1.schema.json", "Vela Proposal v1"),
+            document::<crate::proposal_v1::ProposalV1>(
+                "proposal-v1.schema.json",
+                "Vela Proposal v1",
+            ),
         ),
         (
             "repository-origin-v1.schema.json",

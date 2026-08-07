@@ -114,7 +114,7 @@ pub(crate) fn author_submission(
                 .all(|component| matches!(component, std::path::Component::Normal(_)))
         {
             return Err(format!(
-                "artifact {index} must be a normalized frontier-relative file"
+                "artifact {index} must be a normalized repository-relative file"
             ));
         }
         let read_limit = public_artifact_read_limit(total_artifact_bytes, index)?;
@@ -231,7 +231,7 @@ pub(crate) fn prepare_submission_artifacts(
                 .all(|component| matches!(component, std::path::Component::Normal(_)))
         {
             return Err(format!(
-                "Submission artifact {index} must be a normalized frontier-relative file"
+                "Submission artifact {index} must be a normalized repository-relative file"
             ));
         }
         let limit = public_artifact_read_limit(total, index)?;
@@ -391,30 +391,30 @@ pub(crate) fn import_verification(
 pub(crate) fn frontier_transaction_journal_dir(frontier: &Path) -> Result<PathBuf, String> {
     let root = frontier
         .canonicalize()
-        .map_err(|error| format!("resolve frontier transaction root: {error}"))?;
+        .map_err(|error| format!("resolve repository transaction root: {error}"))?;
     let vela = root.join(".vela");
     let metadata = std::fs::symlink_metadata(&vela).map_err(|error| {
         format!(
-            "inspect frontier private directory {}: {error}",
+            "inspect repository private directory {}: {error}",
             vela.display()
         )
     })?;
     if metadata.file_type().is_symlink() || !metadata.is_dir() {
         return Err(format!(
-            "frontier private directory must be a real directory: {}",
+            "repository private directory must be a real directory: {}",
             vela.display()
         ));
     }
     let journal = vela.join("operation-journals");
     match std::fs::symlink_metadata(&journal) {
         Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => Err(format!(
-            "frontier transaction journal must be a real directory: {}",
+            "repository transaction journal must be a real directory: {}",
             journal.display()
         )),
         Ok(_) => Ok(journal),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(journal),
         Err(error) => Err(format!(
-            "inspect frontier transaction journal {}: {error}",
+            "inspect repository transaction journal {}: {error}",
             journal.display()
         )),
     }
@@ -577,8 +577,11 @@ mod tests {
 
     #[test]
     fn submission_preflight_input_is_absolute_and_frontier_bound() {
-        let temporary = tempfile::tempdir().expect("temporary frontier");
-        let frontier = temporary.path().canonicalize().expect("canonical frontier");
+        let temporary = tempfile::tempdir().expect("temporary repository");
+        let frontier = temporary
+            .path()
+            .canonicalize()
+            .expect("canonical repository");
         let artifact = frontier.join("artifacts").join("evidence.json");
         std::fs::create_dir_all(artifact.parent().expect("artifact parent"))
             .expect("create artifact parent");

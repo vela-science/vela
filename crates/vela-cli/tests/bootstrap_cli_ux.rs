@@ -1,4 +1,4 @@
-//! Cold-start CLI contract for a native Frontier before repository authority.
+//! Cold-start CLI contract for a native repository before repository authority.
 
 use std::path::Path;
 use std::process::{Command, Output};
@@ -132,7 +132,7 @@ fn bootstrap_discovery_and_blocked_commands_name_the_one_valid_next_action() {
     let status = run(&nested, None, &["status", "--json"]);
     assert!(status.status.success());
     let status = json(&status);
-    /* One command, one document: a cold Frontier and a replaying one both
+    /* One command, one document: a cold repository and a replaying one both
     answer `vela.status.v4`, and the phase is a value inside it. */
     assert_eq!(status["schema"], "vela.status.v4");
     assert_eq!(status["actions"]["work"]["mode"], "authority_uninitialized");
@@ -223,7 +223,7 @@ fn init_creates_a_signed_ready_frontier_in_one_command() {
     let agent = EphemeralAgent::start(temporary.path(), "vela one-step init test");
     let frontier = temporary.path().join("frontier");
     let frontier_text = frontier.to_string_lossy().into_owned();
-    let name = unique_name("Ready Frontier", &temporary);
+    let name = unique_name("Ready repository", &temporary);
     let initialized = run(
         temporary.path(),
         Some(agent.socket()),
@@ -253,7 +253,7 @@ fn init_creates_a_signed_ready_frontier_in_one_command() {
     );
     assert!(initialized["repository"]["git_commit"].as_str().is_some());
 
-    let readme = std::fs::read_to_string(frontier.join("README.md")).expect("frontier README");
+    let readme = std::fs::read_to_string(frontier.join("README.md")).expect("repository README");
     assert!(readme.contains("## Operator loop"));
     assert!(readme.contains("git add -- verification/method.json"));
     assert!(readme.contains("vela verification record"));
@@ -261,7 +261,7 @@ fn init_creates_a_signed_ready_frontier_in_one_command() {
     assert!(readme.contains("vela review accept"));
     assert!(readme.contains("--if-entry-root"));
     let agent_charter =
-        std::fs::read_to_string(frontier.join("AGENTS.md")).expect("frontier agent charter");
+        std::fs::read_to_string(frontier.join("AGENTS.md")).expect("repository agent charter");
     assert!(agent_charter.contains("tracked, clean, and retained"));
     assert!(agent_charter.contains("vela verification record"));
     assert!(agent_charter.contains("vela review inbox"));
@@ -353,7 +353,7 @@ fn a_colliding_trust_pin_is_not_reported_as_a_signing_failure() {
     let first_root = temporary.path().join("first");
     std::fs::create_dir_all(&first_root).expect("first agent root");
     let first_agent = EphemeralAgent::start(&first_root, "vela pin collision first");
-    let first_frontier = temporary.path().join("first/frontier");
+    let first_frontier = temporary.path().join("first/repository");
     let first_frontier_text = first_frontier.to_string_lossy().into_owned();
     let established = run(
         temporary.path(),
@@ -381,7 +381,7 @@ fn a_colliding_trust_pin_is_not_reported_as_a_signing_failure() {
     let second_root = temporary.path().join("second");
     std::fs::create_dir_all(&second_root).expect("second agent root");
     let second_agent = EphemeralAgent::start(&second_root, "vela pin collision second");
-    let second_frontier = temporary.path().join("second/frontier");
+    let second_frontier = temporary.path().join("second/repository");
     let second_frontier_text = second_frontier.to_string_lossy().into_owned();
     // Copy the first repository's retained bootstrap, which carries its exact
     // repository_id, and resume `vela init` there against the second key.
@@ -431,8 +431,8 @@ fn a_colliding_trust_pin_is_not_reported_as_a_signing_failure() {
 
 #[test]
 fn two_repositories_on_the_same_question_receive_different_identities() {
-    // A Frontier is one independently clonable repository, so identity must
-    // distinguish repositories rather than questions. Two groups may open
+    // A Vela repository is one independently clonable Git repository, so identity
+    // must distinguish repositories rather than questions. Two groups may open
     // repositories on the same bounded question with the same wording; neither
     // may take the other's identity or its user-local trust anchor.
     let temporary = tempfile::tempdir().expect("temporary directory");
@@ -488,7 +488,7 @@ fn two_repositories_on_the_same_question_receive_different_identities() {
 /// A record's root is sha256 over the exact bytes Git holds. `text` or `eol=`
 /// on such a path rewrites them on checkout, and replay then reads a file whose
 /// digest is not the one the manifest binds — so the scaffold shipping
-/// the record family with `text eol=lf` meant every Frontier had to
+/// the record family with `text eol=lf` meant every repository had to
 /// hand-correct its own `.gitattributes` before it could verify. All four did,
 /// independently.
 /// `FRONTIER_REPOSITORY_PROFILE.md` states the rule; nothing held the scaffold
@@ -514,7 +514,7 @@ fn the_scaffold_never_normalizes_a_content_addressed_path() {
     );
     assert!(
         initialized.status.success(),
-        "the fixture frontier must initialize"
+        "the fixture repository must initialize"
     );
     let _anchor = RemoveOnDrop(std::path::PathBuf::from(
         json(&initialized)["authority"]["local_trust"]["anchor_path"]
@@ -538,4 +538,22 @@ fn the_scaffold_never_normalizes_a_content_addressed_path() {
             "{family} must not be end-of-line normalized: {line}"
         );
     }
+
+    /* The other half of the same failure. The profile line said
+    `frontier.toml` while `vela init` wrote `vela.toml`, so the one file here a
+    human is expected to edit was declared under a name that never existed and
+    the rule matched nothing. `targets.json` is deliberately not held to this:
+    an adapter writes it later, so the scaffold declares it ahead of time. */
+    let profile = attributes
+        .lines()
+        .find(|line| line.starts_with("vela.toml "))
+        .expect("the scaffold must declare the profile it writes");
+    assert!(
+        profile.contains("text eol=lf"),
+        "the profile is human-edited configuration and keeps eol normalization: {profile}"
+    );
+    assert!(
+        !attributes.contains("frontier.toml"),
+        "the scaffold declares a profile filename `vela init` does not write:\n{attributes}"
+    );
 }

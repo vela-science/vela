@@ -57,7 +57,7 @@ SEE ALSO
 
 pub const STATUS: &str = "\
 EXAMPLES
-  vela status          what awaits, what is live (Frontier discovered upward)
+  vela status          what awaits, what is live (repository discovered upward)
   vela status . --json the machine view";
 
 pub const REVIEW: &str = "\
@@ -71,7 +71,7 @@ EXAMPLES
     --reason \"superseded by corrected work\" --json
                                         close your own pending Proposal without authority
 
-The Frontier is optional on every one of these and discovered upward from the
+The repository is optional on every one of these and discovered upward from the
 current directory; name it first (`vela review show . vpr_8b49…`) to act on
 another.
 
@@ -84,7 +84,7 @@ KNOWN PROPOSAL
 
 pub const CLAIMS: &str = "\
 EXAMPLES
-  vela claims                          what this Frontier holds, first page
+  vela claims                          what this repository holds, first page
   vela claims --limit 5                a short look
   vela claims --status all --json      accepted and unassessed together, machine view
   vela claims --cursor vcl_002c…       resume after the last row of the last page
@@ -94,10 +94,10 @@ so a cursor names the same boundary on every call. Each row carries the full
 vcl_ id `vela show` and `vela why` ask for.
 
 ORIGIN ERA
-  `origin` marks a Claim the Frontier's origin commit already bound — on a
-  compacted Frontier, one that came through the compaction. `post_origin`
+  `origin` marks a Claim the repository's origin commit already bound — on a
+  compacted repository, one that came through the compaction. `post_origin`
   marks one admitted by repository authority since. The reported origin count
-  is its own number, not a share of the total: a Frontier can have retired an
+  is its own number, not a share of the total: a repository can have retired an
   origin Claim, so the two do not subtract.
 
 SCOPE
@@ -114,16 +114,16 @@ pub const LOG: &str = "\
 EXAMPLES
   vela log               the accepted-event history, newest first
   vela log vpr_8b49…     restrict it to one object's covered history
-  vela log . vpr_8b49…   the same, with the Frontier named";
+  vela log . vpr_8b49…   the same, with the repository named";
 
 pub const REPLAY: &str = "\
 EXAMPLES
-  vela replay             replay-verify the discovered frontier
+  vela replay             replay-verify the discovered repository
   vela replay . --json    verify every repository invariant";
 
 pub const REPRODUCE: &str = "\
 EXAMPLES
-  vela reproduce .                         re-verify this Frontier from scratch
+  vela reproduce .                         re-verify this repository from scratch
   vela reproduce . --proposal vpr_8b49…    replay a native witness or locate the rooted domain replay
 
 Native witnesses run in process. A rooted source-local replay is returned as
@@ -152,7 +152,7 @@ The record binds the exact Submission, Proposal, Claim, artifacts, method,
 manifest bytes, environment, scope, outcome, and verifier identity. It never
 accepts the Proposal or changes Standing.
 
-The Frontier is optional and discovered upward; name it first
+The repository is optional and discovered upward; name it first
 (`vela verification record . vpr_8b49… …`) to act on another.
 
 SEE ALSO
@@ -161,10 +161,10 @@ SEE ALSO
 
 pub const INIT: &str = "\
 EXAMPLES
-  vela init ./my-frontier --name \"Bounded question\" --scope \"Does X hold?\"
-                                   create a signed, replayable Frontier
+  vela init ./my-repository --name \"Bounded question\" --scope \"Does X hold?\"
+                                   create a signed, replayable repository
 
-JSON mode requires both --name and --scope. Init binds the new Frontier to one
+JSON mode requires both --name and --scope. Init binds the new repository to one
 OpenSSH-agent Ed25519 identity and creates its signed repository origin in the
 same command. It creates no Claim, Verification, Decision, or scientific
 Standing. If signing is unavailable, the valid Profile is retained and the
@@ -179,16 +179,16 @@ the private key.";
 
 pub const SHOW: &str = "\
 EXAMPLES
-  vela show vcl_0123456789abcdef --json    the Frontier is discovered upward
+  vela show vcl_0123456789abcdef --json    the repository is discovered upward
   vela show vsb_0123456789abcdef --json
   vela show . vpr_0123456789abcdef --json  name it first to read another
 
 Show verifies and renders one exact object. It reports the object's content
-root, source context, and authority effect without changing the frontier.";
+root, source context, and authority effect without changing the repository.";
 
 pub const WHY: &str = "\
 EXAMPLES
-  vela why vcl_0123456789abcdef --json    the Frontier is discovered upward
+  vela why vcl_0123456789abcdef --json    the repository is discovered upward
   vela why . vcl_0123456789abcdef --json  name it first to read another
 
 Why derives current or retained superseded Claim standing from covered

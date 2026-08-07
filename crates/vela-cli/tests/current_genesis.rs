@@ -150,11 +150,13 @@ fn install_current_target_index(frontier: &Path, _socket: &Path) {
     let source = git_text(frontier, &["rev-parse", "HEAD^{commit}"]);
     let source_tree = git_text(frontier, &["rev-parse", "HEAD^{tree}"]);
     let profile_source =
-        std::fs::read_to_string(frontier.join("vela.toml")).expect("frontier profile");
+        std::fs::read_to_string(frontier.join("vela.toml")).expect("repository profile");
     let repository_id =
-        vela_protocol::current_repository::CurrentRepositoryProfileV1::from_toml_str(&profile_source)
-            .expect("current profile")
-            .repository_id;
+        vela_protocol::current_repository::CurrentRepositoryProfileV1::from_toml_str(
+            &profile_source,
+        )
+        .expect("current profile")
+        .repository_id;
     let repository_bytes =
         std::fs::read(frontier.join(".vela/repository.json")).expect("repository manifest");
     let repository =
@@ -674,7 +676,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     );
     assert!(
         untracked_method["error"]["hint"].as_str().is_some_and(
-            |hint| hint.contains(method_path) && hint.contains("current Frontier HEAD")
+            |hint| hint.contains(method_path) && hint.contains("current repository HEAD")
         )
     );
     assert!(

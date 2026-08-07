@@ -195,13 +195,13 @@ fn the_workspace_msrv_is_the_pinned_toolchain() {
 #[test]
 fn replay_missing_frontier_reports_error_without_panic() {
     let tmp = TempDir::new().unwrap();
-    let missing = tmp.path().join("missing-frontier.json");
+    let missing = tmp.path().join("missing-repository.json");
 
     // `replay` distinguishes a missing path from both a native bootstrap and a
     // retired repository. It must not fall through to a legacy loader.
     let error = run_expect_failure(&["replay", missing.to_str().unwrap()]);
 
-    assert!(error.contains("Frontier directory does not exist"));
+    assert!(error.contains("repository directory does not exist"));
     assert!(error.contains("vela init <dir>"));
     assert!(!error.contains("panicked at"));
 }

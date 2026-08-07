@@ -1,4 +1,4 @@
-//! Frontier lifecycle initialization.
+//! Repository lifecycle initialization.
 
 use super::*;
 use serde_json::json;
@@ -18,8 +18,8 @@ pub(crate) fn cmd_init(
     if initialized {
         crate::ui::fail_with(
             crate::ui::ErrorKind::Exists,
-            &format!("Frontier is already initialized at {}", path.display()),
-            Some("run `vela status` to see the frontier that already lives here"),
+            &format!("repository is already initialized at {}", path.display()),
+            Some("run `vela status` to see the repository that already lives here"),
         );
     }
     let resolve = |label: &str, supplied: Option<&str>| -> String {
@@ -30,7 +30,7 @@ pub(crate) fn cmd_init(
             crate::ui::fail_with(
                 crate::ui::ErrorKind::Usage,
                 &format!("init --json requires --{label}"),
-                Some("provide an explicit bounded frontier name and scope"),
+                Some("provide an explicit bounded repository name and scope"),
             );
         }
         print!("{label}: ");
@@ -58,7 +58,7 @@ pub(crate) fn cmd_init(
         {
             crate::ui::fail_with(
                 crate::ui::ErrorKind::Usage,
-                "--name does not match the retained Frontier profile",
+                "--name does not match the retained repository profile",
                 Some("omit --name when resuming `vela init`, or pass the exact retained value"),
             );
         }
@@ -67,7 +67,7 @@ pub(crate) fn cmd_init(
         {
             crate::ui::fail_with(
                 crate::ui::ErrorKind::Usage,
-                "--scope does not match the retained Frontier profile",
+                "--scope does not match the retained repository profile",
                 Some("omit --scope when resuming `vela init`, or pass the exact retained value"),
             );
         }
@@ -109,7 +109,7 @@ pub(crate) fn cmd_init(
                 crate::ui::fail_with(
                     crate::ui::ErrorKind::Domain,
                     &format!(
-                        "Frontier profile retained at {}, but signing could not complete: {error}",
+                        "repository profile retained at {}, but signing could not complete: {error}",
                         path.display()
                     ),
                     Some(&recovery),
@@ -162,7 +162,7 @@ pub(crate) fn cmd_init(
         print_json(&payload);
     } else {
         println!(
-            "{} initialized signed Frontier in {}",
+            "{} initialized signed repository in {}",
             style::ok("ok"),
             path.display()
         );
@@ -232,7 +232,7 @@ fn trust_pin_collision_hint(
         rebind.push_str(" --json");
     }
     format!(
-        "the pin is a write gate, so this Frontier cannot take an authority write until it is reconciled; read {pin_path} first. If it pins a different repository, rerun `vela init` with a --name or --scope that does not derive {repository_id}. If it is a stale pin for this Frontier and you have independently verified the new root, advance it with: {rebind}"
+        "the pin is a write gate, so this repository cannot take an authority write until it is reconciled; read {pin_path} first. If it pins a different repository, rerun `vela init` with a --name or --scope that does not derive {repository_id}. If it is a stale pin for this repository and you have independently verified the new root, advance it with: {rebind}"
     )
 }
 

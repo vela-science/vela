@@ -59,7 +59,10 @@ macro_rules! event_kinds {
 // retained strings round-trip through `Other` without reintroducing historical
 // writers, reducers, or product concepts.
 event_kinds! {
-    FrontierCreated => "frontier.created",
+    // `frontier.created` is retained history, not current vocabulary: ADR 0016
+    // keeps historical payloads valid replay input, so the wire string stays
+    // whatever the writer that minted it wrote.
+    FrontierCreated => "repository.created",
     ClaimAsserted => "claim.asserted",
     ClaimNoted => "claim.noted",
     ClaimRetracted => "claim.retracted",

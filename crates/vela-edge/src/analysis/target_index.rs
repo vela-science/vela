@@ -31,7 +31,7 @@ const SOURCE_VIEW_BLOB_MAX_BYTES: u64 = 64 * 1024 * 1024;
 const SOURCE_VIEW_TOTAL_MAX_BYTES: u64 = 1024 * 1024 * 1024;
 
 pub const CODE_SCHEMA_INVALID: &str = "target_index_schema_invalid";
-pub const CODE_REPOSITORY_MISMATCH: &str = "target_index_frontier_mismatch";
+pub const CODE_REPOSITORY_MISMATCH: &str = "target_index_repository_mismatch";
 pub const CODE_SOURCE_UNAVAILABLE: &str = "target_index_source_unavailable";
 pub const CODE_SOURCE_NOT_ANCESTOR: &str = "target_index_source_not_ancestor";
 pub const CODE_SOURCE_TREE_MISMATCH: &str = "target_index_source_tree_mismatch";
@@ -234,7 +234,7 @@ fn validate_repository_path(path: &str, field: &str, max: usize) -> Result<(), S
             .any(|component| component.is_empty() || matches!(component, "." | ".."))
     {
         return Err(format!(
-            "{field} must be a normalized frontier-relative path"
+            "{field} must be a normalized repository-relative path"
         ));
     }
     Ok(())
@@ -442,7 +442,7 @@ impl TargetPacketRefV2 {
         validate_repository_path(&self.path, "packet.path", 1_024)?;
         if is_protected_repository_path(&self.path) {
             return Err(format!(
-                "packet path {:?} overlaps protected Frontier state",
+                "packet path {:?} overlaps protected repository state",
                 self.path
             ));
         }
@@ -802,7 +802,7 @@ fn batch_blobs(repo: &Path, entries: &[&GitTreeEntry]) -> Result<Vec<Vec<u8>>, S
                 .ok_or_else(|| "source Git blob bytes overflowed u64".to_string())?;
             if total > SOURCE_VIEW_TOTAL_MAX_BYTES {
                 return Err(format!(
-                    "source Frontier view exceeds {SOURCE_VIEW_TOTAL_MAX_BYTES} bytes"
+                    "source repository view exceeds {SOURCE_VIEW_TOTAL_MAX_BYTES} bytes"
                 ));
             }
             let length = usize::try_from(size)
@@ -1080,11 +1080,11 @@ fn safe_worktree_file(repo_path: &Path, relative: &str, max_bytes: u64) -> Resul
         }
     }
     let root = std::fs::canonicalize(repo_path)
-        .map_err(|error| format!("resolve Frontier {}: {error}", repo_path.display()))?;
+        .map_err(|error| format!("resolve repository {}: {error}", repo_path.display()))?;
     let resolved = std::fs::canonicalize(repo_path.join(relative))
         .map_err(|error| format!("resolve packet {relative:?}: {error}"))?;
     if !resolved.starts_with(root) {
-        return Err(format!("packet path {relative:?} escapes the Frontier"));
+        return Err(format!("packet path {relative:?} escapes the repository"));
     }
     read_regular_file(&repo_path.join(relative), max_bytes, "target packet")
 }
@@ -1323,7 +1323,7 @@ pub fn assess_current_target_index(
     if index.repository_id != repository_id {
         global_issues.push(issue(
             CODE_REPOSITORY_MISMATCH,
-            "index Frontier differs from the current repository",
+            "index repository differs from the current repository",
         ));
     }
     if index.repository.origin_id != origin_id

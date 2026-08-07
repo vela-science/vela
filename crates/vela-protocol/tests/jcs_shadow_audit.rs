@@ -171,7 +171,7 @@ fn raw_json_rejects_duplicate_properties_and_invalid_inputs() {
 }
 
 #[test]
-#[ignore = "requires the exact four local Frontier checkouts"]
+#[ignore = "requires the exact four local repository checkouts"]
 fn retained_frontier_json_is_audited_against_rfc_8785() {
     let fixture = read_fixture();
     assert_eq!(fixture.schema, "vela.jcs-shadow-audit-fixture.v1");
@@ -179,14 +179,14 @@ fn retained_frontier_json_is_audited_against_rfc_8785() {
     assert_eq!(fixture.result.totals.repositories, 4);
     assert_eq!(root(&fixture.result), fixture.result_root);
 
-    let roots = env::var_os("VELA_JCS_AUDIT_FRONTIERS")
+    let roots = env::var_os("VELA_JCS_AUDIT_REPOSITORIES")
         .map(|value| env::split_paths(&value).collect::<Vec<_>>())
         .filter(|paths| !paths.is_empty())
-        .expect("VELA_JCS_AUDIT_FRONTIERS must contain the four Frontier paths");
+        .expect("VELA_JCS_AUDIT_REPOSITORIES must contain the four repository paths");
     assert_eq!(
         roots.len(),
         4,
-        "the frozen audit requires exactly four Frontiers"
+        "the frozen audit requires exactly four repositories"
     );
 
     let mut remaining = roots;

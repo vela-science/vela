@@ -1,21 +1,21 @@
-//! The one binding rule for the Frontier argument.
+//! The one binding rule for the repository argument.
 //!
 //! The surface used to carry four shapes and four resolution behaviours for
 //! the same concept: a required leading positional on `show`, `why`, `review`,
 //! and `verification`; an optional one on `status`, `next`, and `log`; a
 //! `default_value = "."` one on `authority trust pin`; and a `--repo` flag
 //! on `start` and `submit`. A reader who learned `vela status` and then typed
-//! `vela show vcl_…` had the object id silently bound to the Frontier slot and
+//! `vela show vcl_…` had the object id silently bound to the repository slot and
 //! was told the *object id* was missing.
 //!
-//! One rule now covers every verb that acts on an existing Frontier:
+//! One rule now covers every verb that acts on an existing repository:
 //!
 //!   1. `--repo <path>` is accepted everywhere.
-//!   2. The Frontier may also be the leading positional.
+//!   2. The repository may also be the leading positional.
 //!   3. Omitted entirely, it is discovered upward from the current directory.
 //!
 //! Positional binding is by count, not by guessing: the verb's object
-//! arguments bind last, so the Frontier is whatever leading positional is left
+//! arguments bind last, so the repository is whatever leading positional is left
 //! over. `vela show vcl_…` and `vela show . vcl_…` therefore mean the same
 //! thing. `log` is the single verb whose object is *also* optional, so count
 //! cannot separate the two; there — and only there — a lone positional that is
@@ -44,13 +44,13 @@ pub(crate) fn looks_like_object_id(token: &str) -> bool {
 fn given_twice(verb: &str) -> ! {
     ui::fail_with(
         ErrorKind::Usage,
-        "the Frontier was given twice: once positionally and once with --repo",
+        "the repository was given twice: once positionally and once with --repo",
         Some(&format!("drop one, e.g. `vela {verb} --repo <path>`")),
     );
 }
 
-/// Refuse a leading positional that is an object id where a Frontier belongs,
-/// instead of letting it fall through to "Frontier directory does not exist"
+/// Refuse a leading positional that is an object id where a repository belongs,
+/// instead of letting it fall through to "repository directory does not exist"
 /// with a hint pointing at `vela init` — a *writing* verb offered to repair an
 /// argument-order mistake.
 fn reject_object_id_as_repo(verb: &str, candidate: &Path) {
@@ -62,21 +62,17 @@ fn reject_object_id_as_repo(verb: &str, candidate: &Path) {
     }
     ui::fail_with(
         ErrorKind::Usage,
-        &format!("`vela {verb}` reads a Frontier path here, and {token} is an object id"),
+        &format!("`vela {verb}` reads a repository path here, and {token} is an object id"),
         Some(&format!(
-            "the Frontier is optional and discovered upward: try `vela show {token}`"
+            "the repository is optional and discovered upward: try `vela show {token}`"
         )),
     );
 }
 
-/// Verbs whose only Frontier-shaped argument is the Frontier itself:
+/// Verbs whose only repository-shaped argument is the repository itself:
 /// `status`, `next`, `replay`, `review inbox`, `review list`,
 /// `authority trust pin`.
-pub(crate) fn bind_repo(
-    verb: &str,
-    positional: Option<PathBuf>,
-    flag: Option<PathBuf>,
-) -> PathBuf {
+pub(crate) fn bind_repo(verb: &str, positional: Option<PathBuf>, flag: Option<PathBuf>) -> PathBuf {
     match (positional, flag) {
         (Some(_), Some(_)) => given_twice(verb),
         (Some(path), None) => {
@@ -87,13 +83,13 @@ pub(crate) fn bind_repo(
     }
 }
 
-/// Verbs that take the Frontier plus exactly one required object:
+/// Verbs that take the repository plus exactly one required object:
 /// `show`, `why`, `review show|accept|reject|withdraw`,
 /// `verification record|import`.
 ///
 /// `object` names the missing argument in the usage error — `"a Claim id
 /// (vcl_...)"` — and `value_name` is its slot in the usage line, so an omitted
-/// object is reported as an omitted object rather than as a missing Frontier.
+/// object is reported as an omitted object rather than as a missing repository.
 pub(crate) fn bind_repo_and_object(
     verb: &str,
     object: &str,
@@ -107,7 +103,7 @@ pub(crate) fn bind_repo_and_object(
             ErrorKind::Usage,
             &format!("`vela {verb}` needs {object}"),
             Some(&format!(
-                "`vela {verb} <{value_name}>`, or name the Frontier first: `vela {verb} <FRONTIER> <{value_name}>`"
+                "`vela {verb} <{value_name}>`, or name the repository first: `vela {verb} <REPO> <{value_name}>`"
             )),
         )
     };
@@ -181,7 +177,7 @@ mod tests {
 
     /// Artifact ids carry no `v??_` prefix — they are the bare sha256 of the
     /// content, exactly as `.vela/repository.json` records them. A prefix-only
-    /// test would have missed every Artifact on every live Frontier.
+    /// test would have missed every Artifact on every live repository.
     #[test]
     fn bare_sha256_artifact_ids_are_recognised() {
         assert!(looks_like_object_id(
@@ -194,8 +190,8 @@ mod tests {
         for path in [
             ".",
             "..",
-            "/Users/x/erdos-frontier",
-            "erdos-frontier",
+            "/Users/x/erdos-repository",
+            "erdos-repository",
             "vcl_",
             "vcl_notatallhex",
             "vro_0123456789abcdef",

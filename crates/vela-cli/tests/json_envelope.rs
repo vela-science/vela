@@ -74,7 +74,7 @@ fn every_json_read_carries_the_envelope() {
             "--json",
         ],
     );
-    assert!(initialized, "the fixture frontier must initialize");
+    assert!(initialized, "the fixture repository must initialize");
     let _anchor = RemoveOnDrop(
         serde_json::from_str::<serde_json::Value>(init_out.trim())
             .ok()
@@ -86,8 +86,8 @@ fn every_json_read_carries_the_envelope() {
             .expect("init must report the trust anchor it installed"),
     );
 
-    /* Only verbs a fresh Frontier can answer. `show` and `why` need a retained
-    object, and a Frontier with no Claims has none; asserting them here would
+    /* Only verbs a fresh repository can answer. `show` and `why` need a retained
+    object, and a repository with no Claims has none; asserting them here would
     test the error envelope instead, which is a different contract. */
     for args in [
         vec!["status", frontier_text.as_str()],
@@ -108,7 +108,7 @@ fn every_json_read_carries_the_envelope() {
             .unwrap_or_else(|error| panic!("`vela {verb} --json` must emit JSON: {error}\n{out}"));
 
         /* The contract covers EVERY outcome, not only success — `reproduce` on
-        a Frontier with no witnesses legitimately fails, and that failure
+        a repository with no witnesses legitimately fails, and that failure
         must still be one object an agent can read. `schema` names the
         payload's shape and so belongs to a payload; a failure carries the
         error instead. */

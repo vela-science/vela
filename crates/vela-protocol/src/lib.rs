@@ -3,7 +3,7 @@
 //! The protocol crate performs no filesystem writes, Git publication, runtime
 //! authentication, or scientific Decision. Those capabilities live at explicit
 //! edge crates. Pre-epoch implementations remain available through Git history
-//! and pinned Frontier predecessor archives, not through the current runtime.
+//! and pinned repository predecessor archives, not through the current runtime.
 
 mod shape;
 pub mod wire_schema;
