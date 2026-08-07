@@ -75,6 +75,16 @@ jobs:
       # stopped being able to fail reports coverage it does not have.
       - name: Repository lint rules
         run: uv run --project conformance --locked python conformance/test_repository_lint.py
+      # `install.sh` reads a digest out of the release manifest, and the two
+      # sides had never been run against each other: the generator emits
+      # `sha256:<hex>` and the installer's parse required bare hex, so every
+      # real install would have been refused by a check written to protect it.
+      # This runs the real installer over a release the real generator wrote,
+      # signed with a throwaway identity through `VELA_ALLOWED_SIGNERS`. No
+      # network, no `gh`, no secret — which is the same claim the installer
+      # makes about itself.
+      - name: Provider-independent install path
+        run: uv run --project conformance --locked python conformance/test_release_install.py
       # The resolver four Repositories lock their sources with. It has its own
       # project and its own lock, so it runs as its own step rather than being
       # folded into the conformance environment, which would give one of them

@@ -131,16 +131,13 @@ release@vela.space namespaces="vela-release" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAA
 SIGNERS
 
 VERIFIED_BY=""
-if curl -fsSL "${BASE_URL}/${MANIFEST_NAME}" -o "$TMP/$MANIFEST_NAME" 2>/dev/null; then
-  # A manifest that is present makes its signature mandatory. Treating a missing
-  # `.sig` as "fall back to the other path" would let anyone serving these bytes
-  # choose the weaker check by deleting one file — the stronger guarantee has to
-  # be un-droppable by whoever is being verified.
-  curl -fsSL "${BASE_URL}/${MANIFEST_NAME}.sig" -o "$TMP/$MANIFEST_NAME.sig" 2>/dev/null || {
-    echo "ERROR: ${TAG} publishes ${MANIFEST_NAME} but no signature beside it." >&2
-    echo "       An unsigned manifest is a document, not provenance. Refusing." >&2
-    exit 1
-  }
+SIGNED_MANIFEST=""
+if curl -fsSL "${BASE_URL}/${MANIFEST_NAME}" -o "$TMP/$MANIFEST_NAME" 2>/dev/null \
+  && curl -fsSL "${BASE_URL}/${MANIFEST_NAME}.sig" -o "$TMP/$MANIFEST_NAME.sig" 2>/dev/null; then
+  SIGNED_MANIFEST="yes"
+fi
+
+if [ -n "$SIGNED_MANIFEST" ]; then
   command -v ssh-keygen >/dev/null 2>&1 || {
     echo "ERROR: ssh-keygen is required to verify the signed release manifest." >&2
     exit 1
@@ -151,6 +148,9 @@ if curl -fsSL "${BASE_URL}/${MANIFEST_NAME}" -o "$TMP/$MANIFEST_NAME" 2>/dev/nul
     SIGNERS_FILE="$TMP/allowed_signers"
     printf '%s\n' "$EMBEDDED_ALLOWED_SIGNERS" > "$SIGNERS_FILE"
   fi
+  # A signature that is present and wrong is tampering, and there is no falling
+  # back from it. Only a wholly absent signature is a state the pipeline itself
+  # produces, and that case is handled below.
   ssh-keygen -Y verify -f "$SIGNERS_FILE" -I release@vela.space \
     -n vela-release -s "$TMP/$MANIFEST_NAME.sig" < "$TMP/$MANIFEST_NAME" >/dev/null || {
     echo "ERROR: the release manifest signature did not verify against the distribution identity." >&2
@@ -159,13 +159,25 @@ if curl -fsSL "${BASE_URL}/${MANIFEST_NAME}" -o "$TMP/$MANIFEST_NAME" 2>/dev/nul
   # A verified manifest is only as good as the tie from it back to these bytes.
   # Without this the signature would attest to a document that merely mentions
   # an asset by name.
+  #
   # `sort_keys=True` puts "sha256" directly after "name" inside each asset
   # object, and the closing quote keeps `<asset>` from matching
   # `<asset>.spdx.json`. Fixed-string, so the dots in the filename stay dots.
+  # `release_manifest.py` emits `sha256:<hex>`, so the prefix is optional here
+  # and the result is checked below rather than trusted: a `sed` that does not
+  # match passes the whole line through, which would fail as a digest mismatch
+  # and send someone hunting for tampering that never happened.
   MANIFEST_SHA256=$(grep -F -A3 "\"name\": \"${ASSET}\"" "$TMP/$MANIFEST_NAME" \
-    | grep '"sha256"' | head -1 | sed -E 's/.*"sha256": "([0-9a-f]{64})".*/\1/')
-  if [ -z "$MANIFEST_SHA256" ]; then
-    echo "ERROR: the signed manifest names no sha256 for ${ASSET}." >&2
+    | grep '"sha256"' | head -1 | sed -E 's/.*"sha256": "(sha256:)?([0-9a-f]{64})".*/\2/')
+  case "$MANIFEST_SHA256" in
+    *[!0-9a-f]* | "")
+      echo "ERROR: could not read a SHA-256 for ${ASSET} out of ${MANIFEST_NAME}." >&2
+      echo "       The manifest verified, so this is a format change rather than tampering." >&2
+      exit 1
+      ;;
+  esac
+  if [ "${#MANIFEST_SHA256}" -ne 64 ]; then
+    echo "ERROR: the digest for ${ASSET} in ${MANIFEST_NAME} is not 64 hex characters." >&2
     exit 1
   fi
   if [ "$(digest_of "$TMP/$ASSET")" != "$MANIFEST_SHA256" ]; then
@@ -173,18 +185,36 @@ if curl -fsSL "${BASE_URL}/${MANIFEST_NAME}" -o "$TMP/$MANIFEST_NAME" 2>/dev/nul
     exit 1
   fi
   VERIFIED_BY="signed release manifest (provider-independent)"
+elif [ -n "${VELA_REQUIRE_SIGNED_MANIFEST:-}" ]; then
+  echo "ERROR: VELA_REQUIRE_SIGNED_MANIFEST is set and ${TAG} has no signed manifest." >&2
+  exit 1
 elif command -v gh >/dev/null 2>&1; then
-  # No manifest: a release published before `scripts/release.sh` existed.
+  # Falling back is not a downgrade to nothing: `gh attestation verify` is a
+  # real check against GitHub's provenance, so stripping the `.sig` buys an
+  # attacker a different verification rather than none.
+  #
+  # This branch has to exist because the pipeline produces the state it handles.
+  # `release.yml` requires the manifest before publishing and deliberately does
+  # not sign it — putting the distribution key in Actions would re-couple the
+  # artifact to the provider — so a manifest is published, then signed out of
+  # band by an operator. Making a manifest without a signature fatal would have
+  # broken every install on the next tag, on every platform, which is strictly
+  # worse than the coupling it was trying to remove.
+  if [ -f "$TMP/$MANIFEST_NAME" ]; then
+    echo "Note: ${TAG} publishes a release manifest with no signature beside it, so it"
+    echo "      proves nothing on its own and was ignored. Verifying through GitHub instead."
+  fi
   gh attestation verify "$TMP/$ASSET" \
     --repo "$REPO" \
     --signer-workflow "$REPO/.github/workflows/release.yml" \
     --source-ref "refs/tags/$TAG" >/dev/null
-  VERIFIED_BY="GitHub attestation (requires GitHub; this release predates the signed manifest)"
+  VERIFIED_BY="GitHub attestation (requires GitHub; no signed manifest for this release)"
 else
   echo "ERROR: ${TAG} publishes no signed release manifest, and GitHub CLI is not installed," >&2
   echo "       so this build's provenance cannot be checked. Install a release that carries" >&2
-  echo "       ${MANIFEST_NAME}, or install gh (https://cli.github.com/)." >&2
-  echo "       A checksum served beside the archive is not provenance; refusing." >&2
+  echo "       ${MANIFEST_NAME} and ${MANIFEST_NAME}.sig, or install gh" >&2
+  echo "       (https://cli.github.com/). A checksum served beside the archive is not" >&2
+  echo "       provenance; refusing." >&2
   exit 1
 fi
 

@@ -472,11 +472,31 @@ fn the_installer_can_verify_without_the_provider() {
         "`gh` must not be a hard requirement of installation"
     );
 
-    // The strong path has to be un-droppable by whoever serves the bytes. If a
-    // missing `.sig` fell through to the weaker check, deleting one file would
-    // choose the weaker check.
+    // An unsigned manifest must never be reported as having verified anything.
+    //
+    // The first draft made a manifest-without-signature fatal, which reads well
+    // and would have broken every install on the next tag: `release.yml`
+    // requires the manifest before publishing and deliberately declines to sign
+    // it in CI, so the pipeline produces exactly that state. Falling back is not
+    // a downgrade to nothing — `gh attestation verify` is a real check — but the
+    // unsigned document must be ignored rather than counted, and anyone who
+    // wants the strong path must be able to demand it.
     assert!(
-        INSTALLER.contains("but no signature beside it"),
-        "a manifest without its signature must be refused, not downgraded"
+        INSTALLER.contains("VELA_REQUIRE_SIGNED_MANIFEST"),
+        "there must be a way to require the provider-independent path"
+    );
+    assert!(
+        INSTALLER.contains("proves nothing on its own and was ignored"),
+        "an unsigned manifest must be ignored out loud, not silently trusted"
+    );
+
+    // The digest the installer reads is written by `scripts/release_manifest.py`
+    // as `sha256:<hex>`. Requiring bare hex matched nothing, so every real
+    // install was refused by the check meant to protect it.
+    // `conformance/test_release_install.py` runs the two against each other;
+    // this only holds the format open so the pair cannot silently re-diverge.
+    assert!(
+        INSTALLER.contains("(sha256:)?([0-9a-f]{64})"),
+        "the installer must accept the digest form release_manifest.py emits"
     );
 }
