@@ -100,15 +100,18 @@ def verify_exact_witness_floor() -> int:
     return 0
 
 
-def run_check(script_name: str) -> int:
-    script = CONFORMANCE / script_name
+def run_script(script: Path, *arguments: str) -> int:
     result = subprocess.run(
-        [sys.executable, str(script)],
+        [sys.executable, str(script), *arguments],
         cwd=ROOT,
         text=True,
-        timeout=120,
+        timeout=180,
     )
     return result.returncode
+
+
+def run_check(script_name: str) -> int:
+    return run_script(CONFORMANCE / script_name)
 
 
 def main() -> int:
@@ -127,6 +130,14 @@ def main() -> int:
     print("\n== exact_witness_floor ==")
     if verify_exact_witness_floor() != 0:
         print("vela conformance: FAIL (exact-witness-floor)", file=sys.stderr)
+        return 1
+    # Not a vector check: it holds `ecosystem-status.json` to the checkout it
+    # claims to describe. Four repositories were documented as archived while
+    # the host still reported `archived=false`, and nothing was in a position
+    # to notice. This is the thing that would have been.
+    print("\n== ecosystem_status ==")
+    if run_script(ROOT / "scripts" / "ecosystem-status.py", "--check") != 0:
+        print("vela conformance: FAIL (ecosystem-status)", file=sys.stderr)
         return 1
     print("\nvela conformance: ok")
     return 0
