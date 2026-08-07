@@ -315,7 +315,7 @@ pins `vela-science/vela` by commit SHA and passes `frontier: .`; the action
 installs the pinned release and runs `vela replay <frontier> --json`. `vela
 init` does not scaffold that workflow — each Frontier wrote its own copy, so
 four separate edits are what keeps the pins together. They are together now,
-all four on `c4023f11` (`v0.966.4`), and nothing but those four edits holds
+all four on `c4023f11` (`v0.967.0`), and nothing but those four edits holds
 them there. They were together on `b591f8ec` (`v0.966.3`) when that was the
 release, which is the point: the number in this sentence goes stale on its own
 and the four repositories are what to read.

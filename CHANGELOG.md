@@ -2,6 +2,46 @@
 
 ## Unreleased
 
+- **Epoch change.** `Frontier` was doing three incompatible jobs — authority
+  boundary, topic boundary, product slice — and ADR 0039 separates them.
+  `Repository` is the authority boundary, `Source` the provenance boundary,
+  `Problem` a bounded question, and `Frontier` the derived boundary of
+  unresolved state, which owns nothing and has no identifier. A repository
+  exists because there is a new authority, never because there is a new topic.
+
+  Breaking, with no aliases and no compatibility layer:
+
+  ```text
+  frontier_id                -> repository_id
+  vfr_<16 hex>               -> vrepo_<16 hex>
+  vela.frontier-profile.v2   -> vela.repository-profile.v1
+  vela.status.v3             -> vela.status.v4
+  status.frontier            -> status.repository
+  git.role frontier_head     -> repository_head
+  vela.frontier-init.v3      -> vela.repository-init.v1
+  frontier.toml              -> vela.toml
+  --frontier <path>          -> --repo <path>
+  finding.asserted           -> claim.asserted   (and .noted/.retracted/.superseded)
+  attempt.claimed            -> target.claimed
+  ```
+
+  An Event id is derived from its content, so the kind renames change the id of
+  every Event that carried an old one. The four pre-0039 repositories are
+  archived rather than rewritten: they keep their history exactly as signed, and
+  `0.966.4` is the last release that reads them.
+
+- Five terms leave the controlled vocabulary: Finding, Frontier Commit, Review
+  Packet, Frontier map, Attempt. Each named something that already had a name,
+  something derived from an existing object, or something Vela does not govern.
+
+- Schemas published for Claim Record, Proposal and Repository Origin. Those
+  three had no `JsonSchema` derive, so the schema for the object carrying the
+  science could not be generated at all. Eight schemas now.
+
+- `TERMINOLOGY.md` no longer claims Claim and Evidence have no established
+  equivalent. Nanopublications reached the same decomposition in 2010, and
+  `paper/vela.md` already said so.
+
 - `vela.status.v3` is a type, and a published schema. It was two `json!`
   literals, one per branch, which is how the uninitialized branch came to spell
   its own `schema` field `vela.status.v1` through the whole life of v2 and v3.
