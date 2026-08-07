@@ -309,22 +309,24 @@ Verification checks:
 - the enforced retired paths listed above are absent; the rest are not replay's
   to check and are left to `conformance/repository_lint.py`.
 
-All four published repositories gate this in
-`.github/workflows/vela-frontier.yml` on every push and pull request. Each one
-pins `vela-science/vela` by commit SHA and passes `frontier: .`; the action
-installs the pinned release and runs `vela replay <path> --json`. `vela
-init` does not scaffold that workflow — each repository wrote its own copy, so
-four separate edits are what keeps the pins together. They are together now,
-all four on `c4023f11` (`v0.967.0`), and nothing but those four edits holds
-them there. They were together on `b591f8ec` (`v0.966.3`) when that was the
-release, which is the point: the number in this sentence goes stale on its own
-and the four repositories are what to read.
+No published repository gates this in CI today. The four that did,
+`erdos-frontier`, `sidon-frontier`, `quantum-codes-frontier` and
+`formal-conjectures-frontier`, were archived on 2026-08-07. They stay public and
+clonable and each still carries `.github/workflows/vela-frontier.yml`, pinning
+`vela-science/vela` at `c4023f11` (`v0.966.4`) and passing `frontier: .` so the
+action installs the pinned release and runs `vela replay <path> --json`. An
+archived repository takes no push and no pull request, so none of that runs
+again.
 
-The input those four pass is now named `repository`. `frontier` remains as a
-deprecated alias, because that is what the four pinned workflows spell and a
-pin cannot be edited from here: the action coalesces the two, warns when the
-old key arrives, and fails when both arrive naming different paths rather than
-picking one silently. The four move to `repository` when their pins move.
+The one live repository, `vela-science/math` (`vrepo_56d3fdfcd34ff5c3`), carries
+no `.github/` at all. `vela init` scaffolds no workflow, and each of the four
+wrote its own copy, so a repository gets this gate only by writing one, and
+`math` has not.
+
+That is also why the action still accepts `frontier` as a deprecated alias for
+`repository`: four archived pins spell it, and an archived pin cannot move. The
+action coalesces the two, warns when the old key arrives, and fails when both
+arrive naming different paths rather than picking one silently.
 
 `vela replay` fails until native authority initialization completes.
 Git publication transports bytes; it does not create scientific acceptance.
