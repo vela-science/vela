@@ -43,7 +43,7 @@ init status claims next start submit show why review replay reproduce log
 
 | Command | Contract |
 | --- | --- |
-| `init` | Create a minimal Git-native Frontier from a name and bounded scope. |
+| `init` | Create a signed, replayable repository ready for scientific work. |
 | `status` | Report identity, replay, Decision Inbox readiness, and one safe next action. |
 | `claims` | Page the repository claim index: Claim ID, one-line assertion, Standing, origin era. |
 | `next` | Return canonically ranked producer Targets. |
@@ -79,23 +79,23 @@ Advanced setup:
 - `authority` manages independently distributed repository-authority trust
   roots through its single subcommand, `authority trust pin`. A consumer runs
   it at install time after obtaining the sequence-one authority-record root
-  through a separate channel; it grants no authority and changes no Frontier
+  through a separate channel; it grants no authority and changes no repository
   byte. See [Repository setup](#repository-setup). Writer initialization is
   `vela init`, not `authority`.
 
-Frontier-owned domain adapters generate the optional tracked `targets.json`
+Repository-owned domain adapters generate the optional tracked `targets.json`
 catalogue. `replay`, `next`, and `start` validate it; Vela has no separate
 Target Index maintenance command.
 
 `vela help advanced` is the executable source for this grouping.
 
-## Reading what a Frontier holds
+## Reading what a repository holds
 
 `vela claims` pages the claim index in the verified repository manifest. It is
 the only verb that produces Claim IDs; `show` and `why` consume them. Without
-it the Claim surface is reachable only by ID, and on a compacted Frontier the
+it the Claim surface is reachable only by ID, and on a compacted repository the
 rest of the read surface produces few: `review list` reaches the Claim of each
-retained Proposal, which on the Erdős Frontier is eleven of 2,782 accepted.
+retained Proposal, which in `erdos-frontier` is eleven of 2,782 accepted.
 
 ```bash
 vela claims                        # accepted Claims, first page
@@ -108,9 +108,9 @@ vela claims --cursor <full_vcl_id> # resume after the last row of the last page
 pending is `unassessed`: no ruling stands over it.
 
 Rows answer the standing axis only. The Proposal axis is read from retained
-Proposals, which this verb does not open — on a compacted Frontier the Proposal
-that admitted a Claim is usually gone, so a row has nothing to report there.
-`vela why` and `vela show` read both and return `standing` beside
+Proposals, which this verb does not open — on a compacted repository the
+Proposal that admitted a Claim is usually gone, so a row has nothing to report
+there. `vela why` and `vela show` read both and return `standing` beside
 `proposal_status`; `vela review list --status` filters the Proposal axis and
 keeps the Proposal vocabulary. Every `review` view names that axis `status`,
 including `review show`, which called it `standing` through `0.966.3`.
@@ -124,14 +124,14 @@ Rows come out in Claim ID order, which is the manifest's own order, so a cursor
 names the same boundary on every call. Each row carries the Claim ID, its
 one-line assertion and kind, its Standing, and its origin era:
 
-- `origin` — the Frontier's origin commit already bound this Claim. On a
-  compacted Frontier that means it came through the compaction.
+- `origin` — the repository's origin commit already bound this Claim. On a
+  compacted repository that means it came through the compaction.
 - `post_origin` — repository authority admitted it after the origin.
 
 `--json` returns `vela.claims.v1`. `total` is the number of indexed Claims
 matching `--status`; `origin_claims` is the size of the origin set. The two do
-not subtract: a Frontier can have retired an origin Claim, which is why the
-quantum-codes Frontier reports 5 accepted Claims over an origin that bound 6.
+not subtract: a repository can have retired an origin Claim, which is why
+`quantum-codes-frontier` reports 5 accepted Claims over an origin that bound 6.
 
 Retained bytes are read only for the rows a page returns, so `total` is an
 index count and never a claim about bytes that were not read. A row whose
@@ -160,7 +160,7 @@ producer queue.
 - the Target Index root;
 - the source Git identity, explicitly labeled `target_index_source` so it is
   not confused with the current `repository_head` reported by `status`;
-- the Frontier scope and declared verifier profile; and
+- the repository scope and declared verifier profile; and
 - the explicit boundary that evidence may enter review but only a human
   Decision changes Standing.
 
@@ -193,7 +193,7 @@ The command requires the exact key that signed the retained Submission. It
 appends a lifecycle record, creates no scientific Event, and cannot change
 accepted Standing.
 
-`vela status` is the compact Frontier summary. Its `decision_inbox` projection
+`vela status` is the compact repository summary. Its `decision_inbox` projection
 reports pending, ready, and blocked consequence counts plus rooted projection
 identities. The suggested next action may inspect the Inbox or select and
 brief the next Target; it never accepts or rejects Standing.
@@ -249,7 +249,7 @@ method-manifest bytes, environment, scope, outcome, and verifier identity. The
 command resolves the exact current Proposal package, signs the scoped record,
 and retains it atomically. It changes no Standing.
 
-The method manifest must be Frontier-relative, tracked, clean, and retained in
+The method manifest must be repository-relative, tracked, clean, and retained in
 the current Git commit before this command runs. If it is new or changed,
 commit its exact bytes first, then rerun the same command.
 
@@ -335,10 +335,10 @@ remote, untrusted, or proposal-supplied code.
 
 ## Repository setup
 
-Create a signed, replayable Frontier:
+Create a signed, replayable repository:
 
 ```bash
-vela init ./my-frontier \
+vela init ./my-repository \
   --name "Bounded question" \
   --scope "Does X hold?"
 ```
@@ -357,7 +357,7 @@ vela authority trust pin . --record-root sha256:... --json
 ```
 
 The pin is local public trust configuration. It reads no key, grants no
-authority, and changes no Frontier byte.
+authority, and changes no repository byte.
 
 Pinning the already installed root is idempotent. After independently
 verifying a repository-origin transition, advance an existing pin only by
@@ -376,7 +376,7 @@ against the current sequence-one authority record.
 ## Repository verification
 
 ```bash
-vela replay <frontier> --json
+vela replay <repo> --json
 ```
 
 The command verifies the current manifest, native-genesis or signed-predecessor
@@ -425,7 +425,7 @@ without parsing prose:
 | 0 | — | the command did what it says |
 | 1 | `domain` | the domain said no: replay broken, a gate red, a verification failed |
 | 2 | `usage` | the invocation was wrong: a missing or malformed argument |
-| 3 | `not_found` | the object named does not exist in this Frontier |
+| 3 | `not_found` | the object named does not exist in this repository |
 | 4 | `custody_refused` | the custody engine or a permission profile refused |
 | 5 | `already_exists` | an idempotent no-op; the thing was already there |
 

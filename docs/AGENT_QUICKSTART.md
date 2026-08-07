@@ -16,7 +16,7 @@ For a new repository, initialization is one recoverable operation. Load a
 dedicated Ed25519 identity into the standard OpenSSH agent, then run:
 
 ```bash
-vela init ./frontier --name "<name>" --scope "<bounded question>" --json
+vela init ./my-repository --name "<name>" --scope "<bounded question>" --json
 ```
 
 `vela init` creates the Profile, repository origin, initial keyset and Cedar

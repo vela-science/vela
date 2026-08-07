@@ -4,11 +4,11 @@ Vela is version control for scientific state. Git publishes exact bytes;
 agents submit authenticated evidence; Verification Records report scoped
 checks; only an authorized human Decision changes Standing.
 
-## Read an existing Frontier
+## Read an existing repository
 
 ```bash
-git clone <frontier-url>
-cd <frontier>
+git clone <repository-url>
+cd <repository>
 vela replay . --json
 vela status . --json
 vela reproduce .
@@ -23,7 +23,7 @@ authority-record root through an independent channel and install it with:
 vela authority trust pin . --record-root sha256:... --json
 ```
 
-This local public pin grants no authority and changes no Frontier byte.
+This local public pin grants no authority and changes no repository byte.
 
 ## Produce one bounded result
 
@@ -68,7 +68,7 @@ vela verification record . <vpr_id> \
   --json
 ```
 
-The method path must be Frontier-relative, tracked, clean, and present in the
+The method path must be repository-relative, tracked, clean, and present in the
 current Git commit. This makes the observed method bytes reproducible; a
 passing Verification still does not accept the Claim.
 
@@ -99,7 +99,7 @@ vela show . <vsb_or_vpr_id> --json
 vela why . <claim_id> --json
 ```
 
-## Create a new Frontier
+## Create a new repository
 
 ### First-time authority key setup
 
@@ -131,10 +131,10 @@ contains multiple Ed25519 keys, pass the intended full fingerprint to
 Vela performs its own exact policy, current-root, read-set, and local signature
 checks for every Decision.
 
-### Initialize the Frontier
+### Initialize the repository
 
 ```bash
-vela init ./frontier \
+vela init ./my-repository \
   --name "Bounded question" \
   --scope "Does the selected finite claim hold?" \
   --json
@@ -146,9 +146,9 @@ creates the Profile, root-bound sequence-1 authority record, local trust anchor,
 and initial Git commit in one command. It creates no Claim, Decision, or
 scientific Standing. When the agent exposes more than one Ed25519 identity,
 add `--key SHA256:<full-fingerprint>`. If signing is unavailable, load the key
-and rerun the same `vela init ./frontier --json`; the retained Profile makes
-that retry safe. Vela reads no private-key file. Do not forward the authority
-agent socket to remote or untrusted code.
+and rerun the same `vela init ./my-repository --json`; the retained Profile
+makes that retry safe. Vela reads no private-key file. Do not forward the
+authority agent socket to remote or untrusted code.
 
 ## Predecessor repositories
 

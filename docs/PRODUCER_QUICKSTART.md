@@ -3,11 +3,11 @@
 A producer creates evidence. Vela retains an authenticated Submission and
 opens a Proposal. Neither act verifies or accepts the Claim.
 
-## Inspect the Frontier
+## Inspect the repository
 
 ```bash
-git clone <frontier-url>
-cd <frontier>
+git clone <repository-url>
+cd <repository>
 vela status . --json
 vela replay . --json
 vela next . --limit 1 --json
@@ -23,11 +23,11 @@ vela start <target> --repo . --json
 ```
 
 This optional command revalidates the Target and packet, then prints their
-exact identities, Frontier scope, verifier profile, and authority ceiling.
+exact identities, repository scope, verifier profile, and authority ceiling.
 Run the bounded work in the native agent, workbench, proof assistant, notebook,
 or laboratory system.
-Retain exact frontier-relative Artifacts. A failed or negative result is useful
-only when its scope, search space, algorithm, and limits are explicit.
+Retain exact repository-relative Artifacts. A failed or negative result is
+useful only when its scope, search space, algorithm, and limits are explicit.
 
 ## Submit the result
 
