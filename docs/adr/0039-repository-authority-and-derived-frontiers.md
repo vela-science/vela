@@ -8,7 +8,9 @@
   surviving term stated against its established equivalent
 - Authority effect: one mathematics repository replaces four; the human
   Decision ceiling is unchanged
-- Supersedes: 0025 §2 (naming), 0028 and 0038 (the four-Frontier topology)
+- Supersedes: 0025 §2 (naming), 0028 and 0038 (the four-Frontier topology), and
+  the `vela-math` prohibition in 0038 §119, `ROADMAP.md` and `CAMPAIGN.md`, but
+  only in the narrow sense stated below
 
 ## Context
 
@@ -152,6 +154,20 @@ repository's own Decision. The migration and the experiment are one activity.
 **10. The epoch-1 projection stays readable.** The Observatory tags the existing
 release as epoch 1 and projects `vela-science/math` as epoch 2. Published record
 URLs keep resolving. The history is most of what the Observatory is for.
+
+**11. A mathematics authority is not the `vela-math` that was rejected.** ADR
+0038 §119, `ROADMAP.md` and `CAMPAIGN.md` each list "a `vela-math` repository"
+under what will not be built, in every case beside "competing theorem library",
+"universal ontology" and "separate canonical `problems.science` database". What
+those documents reject is a Vela-owned rival to Mathlib and a second canonical
+database of mathematics. That rejection stands and is not weakened here.
+
+`vela-science/math` is neither. It is one repository under one authority,
+holding the Claims that authority has admitted, exactly as
+`vela-science/erdos-frontier` did — one instance of Repository rather than four.
+It adds no library, no ontology and no second database. The prohibition is
+therefore restated rather than lifted: no mathematics library, no universal
+ontology, no rival database; one authority, one repository.
 
 ## Consequences
 
