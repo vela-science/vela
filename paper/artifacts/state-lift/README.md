@@ -33,8 +33,11 @@ systems without improving reproducibility or any scientific-state invariant.
 ## Current evaluation path
 
 Prospective execution evaluation uses
-[`benchmarks/product-compression`](../../../benchmarks/product-compression/README.md)
-and native Harbor. Harbor owns task execution, isolated trials, retries,
-trajectories, timing, cost, and raw results. Vela contributes only the bounded
-fixture and exact scorer. Harbor output is evidence; it cannot change
-scientific Standing or perform a human Decision.
+[`benchmarks/product-compression`](https://github.com/vela-science/vela/blob/e68590415a0cc40ee489801f1f281dc8c5996337/benchmarks/product-compression/README.md)
+and native Harbor. That directory was retired from the active tree in the same
+way this pilot's harness was, and remains recoverable from Git at
+`e68590415a0cc40ee489801f1f281dc8c5996337`, which is where the link reads it.
+Harbor owns task execution, isolated trials, retries, trajectories, timing,
+cost, and raw results. Vela contributes only the bounded fixture and exact
+scorer. Harbor output is evidence; it cannot change scientific Standing or
+perform a human Decision.

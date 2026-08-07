@@ -66,7 +66,9 @@
   the white paper cites, so retiring the generators invalidates no published
   number. Git history keeps the sources; `paper/README.md`,
   `paper/vela.md` and `paper/artifacts/state-lift/README.md` link into that
-  history rather than into the tree.
+  history rather than into the tree — at `e6859041`, the last commit that
+  carried the directory, so the citations resolve permanently instead of
+  resolving to whatever `benchmarks/` next means.
 
 - The published Action takes `repository`. `frontier` remains, declared and
   documented as a deprecated alias, because four pinned consumer workflows pass

@@ -803,9 +803,11 @@ The active tree retains the frozen protocol and amendment chain, terminal task
 and answer key, completed structured answers and scores, and the dependency-free
 exact-field scorer. It no longer carries the raw Codex event streams or the
 custom runner, materializer, schema validator, and report generator as active
-infrastructure. Prospective evaluation uses Harbor directly through
-`benchmarks/product-compression`; Harbor owns trial execution and raw results,
-while Vela supplies only the bounded fixture and exact scoring boundary.
+infrastructure. Prospective evaluation uses Harbor directly through the
+`benchmarks/product-compression` task definition, itself since retired from the
+tree and recoverable from Git at `e6859041`; Harbor owns trial execution and raw
+results, while Vela supplies only the bounded fixture and exact scoring
+boundary.
 
 ### 6.8 Formal vertical slice
 
