@@ -784,7 +784,7 @@ def main(argv: list[str] | None = None) -> int:
         print(
             json.dumps(
                 {
-                    "schema": "vela.frontier-lint.v1",
+                    "schema": "vela.repository-lint.v1",
                     "frontier": str(root.resolve()),
                     "rules": list(RULES),
                     "ok": not findings,

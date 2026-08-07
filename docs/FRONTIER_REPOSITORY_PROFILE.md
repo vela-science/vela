@@ -1,6 +1,6 @@
 # Frontier repository profile
 
-This document defines the current `vela.frontier-profile.v2` repository
+This document defines the current `vela.repository-profile.v1` repository
 contract. The profile describes one bounded scientific Frontier. It grants no
 authority and contains no accepted state.
 
@@ -36,7 +36,7 @@ state. Repositories and readers must not depend on it for replay.
 `vela.toml` is closed, human-readable metadata:
 
 ```toml
-schema = "vela.frontier-profile.v2"
+schema = "vela.repository-profile.v1"
 frontier_id = "vfr_0123456789abcdef"
 name = "Bounded human-readable name"
 summary = "One concise description"
@@ -67,10 +67,10 @@ authority from the profile.
 ## Frontier identity
 
 `vela init` draws the `frontier_id` once, at genesis, from canonical
-`vela.frontier-genesis-identity.v2` bytes:
+`vela.repository-genesis-identity.v1` bytes:
 
 ```text
-schema           vela.frontier-genesis-identity.v2
+schema           vela.repository-genesis-identity.v1
 name             exact trimmed profile name
 scope            exact trimmed bounded question
 genesis_entropy  fresh 256-bit draw from the OS CSPRNG

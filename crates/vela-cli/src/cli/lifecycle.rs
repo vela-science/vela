@@ -72,7 +72,7 @@ pub(crate) fn cmd_init(
             );
         }
         json!({
-            "schema": "vela.frontier-init.v2",
+            "schema": "vela.repository-init-draft.v1",
             "ok": true,
             "layout": "vela.repository-bootstrap.v1",
             "path": path.display().to_string(),
@@ -135,7 +135,7 @@ pub(crate) fn cmd_init(
                 )),
             ),
         });
-    payload["schema"] = json!("vela.frontier-init.v3");
+    payload["schema"] = json!("vela.repository-init.v1");
     payload["authority"] = json!({
         "state": "initialized",
         "principal_id": authority["principal_id"],

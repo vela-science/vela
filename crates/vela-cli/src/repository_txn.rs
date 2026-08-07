@@ -20,9 +20,9 @@ use vela_edge::repository_write::load_authority_trust_anchor_from_home;
 
 use crate::operation_journal;
 
-pub(crate) const REPOSITORY_TXN_SCHEMA: &str = "vela.frontier-txn.internal.v2";
-const REPOSITORY_TXN_BLOB_SCHEMA: &str = "vela.frontier-txn-blob.internal.v1";
-const REPOSITORY_TXN_MARKER_SCHEMA: &str = "vela.frontier-txn-marker.internal.v2";
+pub(crate) const REPOSITORY_TXN_SCHEMA: &str = "vela.repository-txn.internal.v2";
+const REPOSITORY_TXN_BLOB_SCHEMA: &str = "vela.repository-txn-blob.internal.v1";
+const REPOSITORY_TXN_MARKER_SCHEMA: &str = "vela.repository-txn-marker.internal.v1";
 const CANONICAL_DELTA_SCHEMA: &str = "vela.canonical-delta.internal.v1";
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -488,9 +488,9 @@ pub(crate) struct InputBinding {
 }
 
 const REPOSITORY_FILE_INPUT_PREFIX: &str = "frontier_file:";
-const REPOSITORY_FILE_INPUT_SCHEMA: &str = "vela.frontier-file-input.internal.v1";
+const REPOSITORY_FILE_INPUT_SCHEMA: &str = "vela.repository-file-input.internal.v1";
 const REPOSITORY_DIRECTORY_INPUT_PREFIX: &str = "frontier_directory:";
-const REPOSITORY_DIRECTORY_INPUT_SCHEMA: &str = "vela.frontier-directory-input.internal.v1";
+const REPOSITORY_DIRECTORY_INPUT_SCHEMA: &str = "vela.repository-directory-input.internal.v1";
 
 #[derive(Serialize)]
 struct FrontierFileInputCommitment<'a> {
@@ -4171,7 +4171,7 @@ mod tests {
         assert!(serde_json::from_value::<RepositoryTxnPlan>(retired).is_err());
 
         let mut v1 = serde_json::to_value(&plan).unwrap();
-        v1["schema"] = json!("vela.frontier-txn.internal.v1");
+        v1["schema"] = json!("vela.repository-txn.internal.v1");
         assert!(matches!(
             serde_json::from_value::<RepositoryTxnPlan>(v1)
                 .unwrap()

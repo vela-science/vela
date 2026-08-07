@@ -167,7 +167,7 @@ fn initialize_in_place(path: &Path, options: &CurrentInitOptions<'_>) -> Result<
     let scope = options.scope.trim();
     let genesis_entropy = draw_genesis_entropy()?;
     let identity_bytes = vela_protocol::canonical::to_canonical_bytes(&FrontierGenesisIdentity {
-        schema: "vela.frontier-genesis-identity.v2",
+        schema: "vela.repository-genesis-identity.v1",
         name,
         scope,
         genesis_entropy: &genesis_entropy,
@@ -204,7 +204,7 @@ fn initialize_in_place(path: &Path, options: &CurrentInitOptions<'_>) -> Result<
     initialize_git(path, options.initialize_git)?;
 
     Ok(json!({
-        "schema": "vela.frontier-init.v2",
+        "schema": "vela.repository-init-draft.v1",
         "ok": true,
         "layout": "vela.repository-bootstrap.v1",
         "path": path.display().to_string(),

@@ -181,7 +181,7 @@ fn bootstrap_discovery_and_blocked_commands_name_the_one_valid_next_action() {
     );
     assert!(resumed.status.success());
     let resumed = json(&resumed);
-    assert_eq!(resumed["schema"], "vela.frontier-init.v3");
+    assert_eq!(resumed["schema"], "vela.repository-init.v1");
     assert_eq!(resumed["resumed"], true);
     assert_eq!(resumed["authority"]["state"], "initialized");
     let _anchor = RemoveOnDrop(std::path::PathBuf::from(
@@ -239,7 +239,7 @@ fn init_creates_a_signed_ready_frontier_in_one_command() {
     );
     assert!(initialized.status.success());
     let initialized = json(&initialized);
-    assert_eq!(initialized["schema"], "vela.frontier-init.v3");
+    assert_eq!(initialized["schema"], "vela.repository-init.v1");
     assert_eq!(initialized["authority"]["state"], "initialized");
     let _anchor = RemoveOnDrop(std::path::PathBuf::from(
         initialized["authority"]["local_trust"]["anchor_path"]

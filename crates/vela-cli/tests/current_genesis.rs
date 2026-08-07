@@ -264,7 +264,7 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
             "--json",
         ],
     ));
-    assert_eq!(initialized["schema"], "vela.frontier-init.v3");
+    assert_eq!(initialized["schema"], "vela.repository-init.v1");
     assert_eq!(initialized["authority"]["state"], "initialized");
     for retired in [
         ".vela/events",
