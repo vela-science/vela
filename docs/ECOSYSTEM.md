@@ -39,12 +39,13 @@ answers `vela.status.v4`.
 `packages/vela-source-manifest/` (a Python package with `pyproject.toml` and
 `uv.lock`). Projected by `vela-web` into `observatory.source_declarations`,
 `observatory.source_observations`, `observatory.native_records` and
-`observatory.release_sources` (`packages/frontier-data/schema.sql`). Twelve
+`observatory.release_sources` (`packages/frontier-data/schema.sql`). Thirteen
 sources are declared in
-`packages/frontier-data/config/math-sources.v1.ts`, which is the same twelve §2
-says `math` declares. Adapters live in
-`packages/frontier-data/src/source-adapters/` (fourteen files, including
-`formal-conjectures.ts`, `oeis.ts`, `physlib.ts`, `openai-ten-proofs.ts`).
+`packages/frontier-data/config/math-sources.v1.ts`, which is the same thirteen
+§2 says `math` declares. Adapters live in
+`packages/frontier-data/src/source-adapters/` (fifteen files, including
+`formal-conjectures.ts`, `oeis.ts`, `physlib.ts`, `openai-ten-proofs.ts` and
+`vibemathed.ts`).
 
 The containment property is enforced in SQL, not prose.
 `observatory.frontier_source_bindings` carries
@@ -91,7 +92,7 @@ and not a second Mathlib. Nothing in it is a hub for anything outside it.
 
 It exists as of 2026-08-07: `vrepo_56d3fdfcd34ff5c3`, origin
 `vro_2e75a5b77102842f`, genesis generation 1, signed, and it replays from a
-clean clone. It declares twelve Sources and holds zero Claims, which is the
+clean clone. It declares thirteen Sources and holds zero Claims, which is the
 intended starting state — the corpus returns as observations, and a Claim
 enters only through a Decision.
 
@@ -107,16 +108,16 @@ justification. If a second mathematics authority ever appears, with a different
 maintainer set and a different decision model, that is what earns a second
 repository.
 
-This closes a documented conflict rather than dodging it.
-`docs/ROADMAP.md:51`, `docs/CAMPAIGN.md:44` and `docs/adr/0038:119` each list
-"a `vela-math` repository" under what will not be built. ADR 0039's supersession
-clause names only 0038's topology, not its prohibition, so the conflict is
-ADR-to-ADR and is currently unresolved in writing. The resolution is the
-distinction above: those documents were rejecting a Vela-owned mathematics
-*library*, which is still rejected. A single mathematics *authority* is a
-different object. ADR 0039 should carry a supersession clause saying so;
-until it does, `docs/ROADMAP.md`, `docs/CAMPAIGN.md` and ADR 0038 read as
-prohibiting what ADR 0039 creates.
+This closed a documented conflict rather than dodging it. ADR 0038 §119 lists
+"a `vela-math` repository" under rejected alternatives, and `docs/ROADMAP.md`
+and `docs/CAMPAIGN.md` once carried the same line. ADR 0039's supersession
+clause names that prohibition in all three places and supersedes it "only in
+the narrow sense stated below". Its §11 states the sense: what those documents
+reject is a Vela-owned mathematics *library* and a second canonical database,
+and that rejection stands. A single mathematics *authority* is a different
+object, so the prohibition is restated rather than lifted. ROADMAP and CAMPAIGN
+now say so in their own words, ROADMAP pointing at ADR 0039 §11 where the old
+line was. ADR 0038 keeps its wording, which is what a superseded ADR is for.
 
 ## 3. Is there a registry?
 
@@ -125,7 +126,7 @@ destination.
 
 ### The Math Source Registry: exists
 
-It is the projection of Source declarations. Twelve sources in
+It is the projection of Source declarations. Thirteen sources in
 `packages/frontier-data/config/math-sources.v1.ts`, adapters in
 `packages/frontier-data/src/source-adapters/`, tables
 `observatory.source_declarations` / `source_observations` / `native_records` /
@@ -449,26 +450,35 @@ different facts.
 
 ### Documentation contradictions to resolve
 
-- `docs/ARCHITECTURE.md:183` says "The existing Observatory is the first-party
-  Math Atlas"; `:300-301` says it is the Observatory "over the four declared
-  Frontiers". The second binds the Atlas to repositories the reset freezes.
-- `docs/TERMINOLOGY.md:140` says "three maintained mathematical Frontiers";
-  `:269` and `:289` say "All four". `:239` still derives `superseded` from a
-  `finding.superseded` Event, 120 lines after the same file retires
-  `finding.*`. `:139` calls Atlas current and `:407` calls it future.
+Line numbers are not cited below: they drifted off their subjects once already
+while the contradictions themselves stood. Each item quotes the wording to
+search for instead.
+
+- `docs/ARCHITECTURE.md` says "The existing Observatory is the first-party Math
+  Atlas" in one place, and in another that the Atlas is "the existing
+  Observatory over the four declared" Frontiers. The second binds the Atlas to
+  the repositories the reset archived.
+- `docs/TERMINOLOGY.md` scopes the Math Atlas to "three maintained mathematical
+  Frontiers" and later reports that "All four Frontiers hold every indexed
+  Claim". The same file calls it "The current **Math Atlas**" in one section and
+  "A future removable cross-Frontier navigation concept" in another.
+- ~~`docs/TERMINOLOGY.md` derives `superseded` from a `finding.superseded`
+  Event, after the same file retires `finding.*`.~~ Resolved: it reads
+  "`superseded` follows a `claim.superseded` Event".
 - ~~Two taglines ship at once.~~ Resolved: everything now says "version
   control for scientific state", which is what the binary prints, and
   `the_documented_tagline_is_the_one_the_binary_prints` in
   `crates/vela-protocol/tests/cli_release_contract.rs` holds the six documents
   to the binary rather than to each other.
-- ~~`docs/ROADMAP.md:7` says `create -> submit -> verify -> decide -> replay`.~~
+- ~~`docs/ROADMAP.md` says `create -> submit -> verify -> decide -> replay`.~~
   Resolved: it says `init -> …`, which is the verb the CLI has.
 - ADR 0017 is "Deferred — research only" and forbids implementing a Frontier
   calculus. Its two layer names, Frontier Algebra and Discovery Calculus, are
-  live rows in `docs/TERMINOLOGY.md:396-397` and `frontier_algebra` is a
-  permanently-null field in a `vela-web` projection fixture. Supersede 0017 or
-  rename its layers; a reserved field that is never filled is worse than an
-  absent one.
+  live rows in the analysis table of `docs/TERMINOLOGY.md`, and
+  `frontier_algebra_atom` is a permanently-null field in a `vela-web` projection
+  fixture (`packages/frontier-data/tests/support/semantic-correction.ts`).
+  Supersede 0017 or rename its layers; a reserved field that is never filled is
+  worse than an absent one.
 
 ### One open governance question
 
