@@ -39,10 +39,11 @@ answers `vela.status.v4`.
 `packages/vela-source-manifest/` (a Python package with `pyproject.toml` and
 `uv.lock`). Projected by `vela-web` into `observatory.source_declarations`,
 `observatory.source_observations`, `observatory.native_records` and
-`observatory.release_sources` (`packages/frontier-data/schema.sql`). Thirteen
+`observatory.release_sources` (`packages/frontier-data/schema.sql`). Twelve
 sources are declared in
-`packages/frontier-data/config/math-sources.v1.ts`. Adapters live in
-`packages/frontier-data/src/source-adapters/` (twelve files, including
+`packages/frontier-data/config/math-sources.v1.ts`, which is the same twelve §2
+says `math` declares. Adapters live in
+`packages/frontier-data/src/source-adapters/` (fourteen files, including
 `formal-conjectures.ts`, `oeis.ts`, `physlib.ts`, `openai-ten-proofs.ts`).
 
 The containment property is enforced in SQL, not prose.
@@ -51,27 +52,34 @@ The containment property is enforced in SQL, not prose.
 reference or snapshot of an external source cannot carry Standing.
 
 **Problem.** No protocol object. No projection table. The surface at
-`apps/observatory/src/app/frontiers/[slug]/problems/` is synthesized by joining
-`observatory.graph_nodes` to `observatory.claims` on
-`f.claim_id = n.content ->> 'claim_id'`, with prize and tags regex-extracted
-from the Claim's own assertion string
-(`packages/frontier-data/src/index.ts:1860-1897`). This is the defect ADR 0039
-is correcting, and it is load-bearing: see §6.
+`apps/observatory/src/app/frontiers/[slug]/problems/` is derived, in
+`packages/frontier-data/src/index.ts`, from `observatory.native_records` scoped
+through `release_sources`, with the Claim a `LEFT JOIN LATERAL` and the declared
+status, formalization, prize and subject tags read from the Source record's
+metadata. It used to be an inner join from `observatory.graph_nodes` to
+`observatory.claims` with prize and tags regex-extracted from the Claim's
+assertion string, which is the defect ADR 0039 named; §6 records the repair.
+This paragraph described the defect in the present tense for as long as §6
+described its replacement, and this paragraph is the one a reader reaches first.
 
-**Frontier.** Derived, and no longer minted in the protocol. It survives as a
-minted identity only in `vela-web`, whose `registry.ts` still pins four slugs
-and four `vfr_` ids and whose eleven projection tables are still keyed
-`(release_root, frontier_slug, …)`. That is the remaining epoch work, and it is
-a root migration rather than a rename: `rooted()` hashes `canonicalJson(row)`
-including keys, so every renamed column moves a `row_root`.
+**Frontier.** Derived, and no longer minted in the protocol. In `vela-web`,
+`registry.ts` now pins one slug, `math`, against `repository_id`
+`vrepo_56d3fdfcd34ff5c3` and validates it as `^vrepo_[0-9a-f]{16}$`; no `vfr_`
+identity survives there. What remains is the keying: thirteen projection tables
+still carry `frontier_slug` in their primary key. That is the remaining epoch
+work, and it is a root migration rather than a rename: `rooted()` hashes
+`canonicalJson(row)` including keys, so every renamed column moves a `row_root`.
 
 **Atlas.** The Observatory, `apps/observatory/` in `vela-web`. There is no
 separate Atlas application, no Atlas compiler, no per-view ontology. Every
-projection row is root-bound; 21 tables in `packages/frontier-data/schema.sql`
-carry `row_root`, and all but three also carry `release_root`. The three
-exceptions are `source_declarations`, `source_observations` and
+projection row is root-bound. `packages/frontier-data/schema.sql` declares 21
+tables, of which 18 carry `row_root`; the other three — `releases`,
+`schema_migrations` and `current_release` — are the projection's own bookkeeping
+and hold no projected row. Of the 18, all but three also carry `release_root`,
+and those three are `source_declarations`, `source_observations` and
 `native_records`, which are content-addressed and reach a release through
-`release_sources`.
+`release_sources`. The count of tables and the count of root-bound rows were
+stated as one number here, which made the bookkeeping tables look like state.
 
 ## 2. Is there a math hub?
 
@@ -117,7 +125,7 @@ destination.
 
 ### The Math Source Registry: exists
 
-It is the projection of Source declarations. Thirteen sources in
+It is the projection of Source declarations. Twelve sources in
 `packages/frontier-data/config/math-sources.v1.ts`, adapters in
 `packages/frontier-data/src/source-adapters/`, tables
 `observatory.source_declarations` / `source_observations` / `native_records` /
@@ -275,18 +283,65 @@ metadata, where upstream publishes them. The live projection carries 1,217
 Problems against zero Claims, which is a shape the previous derivation could
 not express at all.
 
-**Obligation.** Further along than it looks, and still not a first-class object.
-It has a rooted wire identity:
+**Obligation.** Less far along than this section used to say, and the error was
+worth more than the gap. The rooted wire identity is real:
 `crates/vela-edge/src/analysis/correction_impact.rs:107` declares
 `RepairObligation`, and the root is computed over an `ObligationPreimage`
-carrying `schema: "vela.correction-repair-obligation.v1"`. It has a shipped UI
-surface: `DecisionInboxNextObligation` in
-`crates/vela-cli/src/decision_inbox.rs`, mirrored at
-`packages/frontier-data/src/index.ts:325` and rendered by
-`apps/observatory/src/components/vela/decision-boundary.tsx:46`. What it lacks
-is a JSON Schema in `schemas/` (which holds eight), a projection table, and a
-route. Unlike Problem, Obligation does not lack a decision — ADR 0039 §4 and §6
-name it twice. It lacks an implementation of a decision that exists.
+carrying `schema: "vela.correction-repair-obligation.v1"`. Nothing consumes it.
+
+This section previously claimed a shipped UI surface and named
+`DecisionInboxNextObligation` as the consumer. That is a different object
+sharing a word. `DecisionInboxNextObligation`
+(`crates/vela-cli/src/decision_inbox.rs:150`) is three prose strings, `now`,
+`if_accept` and `if_reject`, that the decision inbox writes for a reader; it
+reaches `vela-web` as `next_obligation` inside `decision_packet` and is rendered
+by `decision-boundary.tsx`, which documents that it renders on nothing today
+because every Proposal in the current release is terminal. None of its three
+fields appears in `RepairObligation`, and nothing about it is rooted. §7 of this
+document had the truth all along: correction impact has never run against a real
+repository and no CLI verb reaches it. The rooted Obligation's only readers are
+`crates/vela-edge/tests/correction_impact.rs` and
+`conformance/verify_correction_impact.py`, both over synthetic fixtures.
+
+**What it lacks is not a schema.** Publishing
+`vela.correction-repair-obligation.v1` into `schemas/` would not be the neutral
+act of documenting bytes that already exist. `schemas/` is defined
+mechanically as the kernel's generated wire surface: every file is produced by
+`wire_schema::published()` in `vela-protocol`, and
+`crates/vela-protocol/tests/wire_schemas.rs` asserts the directory holds that
+set exactly. `vela-protocol` cannot see `vela-edge` — §8's dependencies point
+one way — so a file in `schemas/` first requires moving the type into the
+kernel, and the kernel is where a canonical protocol object is defined. That is
+the promotion the standing rule withholds, arrived at through a directory
+rather than through a decision.
+
+Two further reasons. The preimage never travels: it exists to be hashed, and
+the document that does travel is `vela.correction-impact-projection.v1`, which
+carries `RepairObligation` inline. No other object publishes a schema for its
+preimage. And the shape is already held by something stronger than a schema —
+`conformance/fixtures/correction/` pins the literal `obligation_root` that the
+Rust and the Python must each reproduce, which catches field names, order,
+values and canonicalization where a schema would catch names and types. A third
+statement of one shape, held by nothing, is the defect this document names
+elsewhere, not a fix for it.
+
+**The gap is a caller.** Correction impact is the highest-value mechanism
+already built and still unreachable (§7). It needs a verb that feeds it a real
+repository, not a schema, a projection table and a route for output no run has
+ever produced.
+
+**Obligation cannot say "unattributable".** `discharge_condition` is a required
+`String` taken from the affected Claim's `repair_condition`, and
+`correction_impact.rs:345` fails the entire projection with
+`repair_condition_missing_for_affected_claim` when it is absent. A Claim that is
+genuinely affected but for which no one can state what would repair it is
+therefore not recorded as unattributable; it stops the projection being produced
+at all. A protocol that cannot name an unattributable failure will overclaim
+attribution for every failure it does report. Adding the state is a root change
+— the preimage is hashed including keys, so a new field moves every
+`obligation_root`, including the one frozen in
+`conformance/fixtures/correction/diamond-expected.v1.json` — and it belongs with
+the caller, in one deliberate change, rather than ahead of it.
 
 ### 1,217 open Problems were stored as accepted Claims
 
@@ -513,7 +568,8 @@ Packet, Frontier map, Attempt (ADR 0039 §5), and Registration Record (ADR
   analysis      crates/vela-edge
                   ↑ correction impact, target index; read-only, never required
                     for replay
-  projection    vela-web/packages/frontier-data  (21 tables, all root-bound)
+  projection    vela-web/packages/frontier-data  (21 tables; the 18 that hold
+                    projected rows are root-bound)
   surfaces      vela-web/apps/observatory, vela-web/apps/www
 ```
 
@@ -547,7 +603,8 @@ Dependencies point up the list only. Concretely:
   violated.
 
 One surface currently violates this. The Frontier Directory at
-`apps/observatory/src/app/frontiers/` routes by topic slug and keys eleven
-projection tables on `frontier_slug`. Under ADR 0039 a Frontier is derived and
+`apps/observatory/src/app/frontiers/` routes by topic slug, and thirteen
+projection tables carry `frontier_slug` in their primary key. Under ADR 0039 a
+Frontier is derived and
 has no identifier, and topic is the one thing a Repository must never encode.
 That surface needs re-deriving against Problem, not renaming.

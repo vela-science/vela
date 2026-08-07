@@ -12,6 +12,21 @@ use sha2::{Digest, Sha256};
 pub const CORRECTION_IMPACT_INPUT_SCHEMA_V1: &str = "vela.correction-impact-input.v1";
 pub const CORRECTION_IMPACT_PROJECTION_SCHEMA_V1: &str = "vela.correction-impact-projection.v1";
 
+/// The domain separator the repair-obligation root is computed under.
+///
+/// This is a hashing preimage tag, not a wire document. Nothing ever sends
+/// these bytes: the object that travels is the projection above, which carries
+/// each `RepairObligation` inline. It is stated here beside its two siblings
+/// because it was the only one of the three written as a literal inside a
+/// function body, which is why nothing outside that function could name it.
+///
+/// It is deliberately absent from `schemas/`. That directory is generated from
+/// `vela-protocol` and asserted to hold exactly what `wire_schema::published()`
+/// produces, so publishing this would mean moving the type into the kernel —
+/// promoting a non-authoritative analysis to a canonical object by way of a
+/// directory. `docs/ECOSYSTEM.md` §6 states the argument in full.
+pub const CORRECTION_REPAIR_OBLIGATION_SCHEMA_V1: &str = "vela.correction-repair-obligation.v1";
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ClaimRef {
@@ -358,7 +373,7 @@ pub fn derive_correction_impact(
             discharge_condition: &'a str,
         }
         let obligation_root = canonical_root(&ObligationPreimage {
-            schema: "vela.correction-repair-obligation.v1",
+            schema: CORRECTION_REPAIR_OBLIGATION_SCHEMA_V1,
             claim_id: &claim.claim_id,
             claim_root: &claim.claim_root,
             causal_relation_ids: &causal_relation_ids,
