@@ -7,6 +7,17 @@ producer, verifier, and authority-envelope structure:
 - `vela.verification-record.v1`; and
 - `vela.proposal-withdrawal.v1`.
 
+And the three objects that carry the science:
+
+- `vela.claim-record.v1`;
+- `vela.proposal.v1`; and
+- `vela.repository-origin.v1`.
+
+Those three were unpublished until they were derived, which meant the schema
+for a Claim Record could not be generated at all — the contract a reader most
+needs to check a Claim without this implementation was the one contract the
+repository did not state.
+
 `authority-envelope-v1.schema.json` describes the current DSSE authority
 envelope. In accordance with DSSE, the envelope and signature entries permit
 unknown fields; the decoded Vela authority payload remains closed.

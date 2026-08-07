@@ -1,18 +1,19 @@
 //! Single current repository origin used after the pre-release compaction.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 pub const REPOSITORY_ORIGIN_V1_SCHEMA: &str = "vela.repository-origin.v1";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum RepositoryOriginKind {
     Genesis,
     Compaction,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RepositoryOriginPredecessorV1 {
     pub remote: String,
@@ -28,7 +29,7 @@ pub struct RepositoryOriginPredecessorV1 {
     pub equivalence_report_root: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RepositoryOriginV1 {
     pub schema: String,

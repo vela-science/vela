@@ -1,11 +1,12 @@
 //! Current candidate transition: `vela.proposal.v1`.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 pub const PROPOSAL_V1_SCHEMA: &str = "vela.proposal.v1";
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ProposalSubject {
     pub kind: String,
@@ -13,7 +14,7 @@ pub struct ProposalSubject {
     pub root: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ProposalProducerPackage {
     pub kind: String,
@@ -22,7 +23,7 @@ pub struct ProposalProducerPackage {
     pub path: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ProposalV1 {
     pub schema: String,

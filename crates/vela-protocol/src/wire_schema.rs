@@ -527,6 +527,29 @@ pub fn published() -> Vec<(&'static str, Value)> {
             "status-v4.schema.json",
             document::<crate::status_v4::StatusV4>("status-v4.schema.json", "Vela Status v4"),
         ),
+        /* The three objects that carry the science. Until these were derived,
+           the schema for a Claim Record could not be generated at all, which
+           left the interoperability story resting on the four objects around
+           it. A reader checking a Claim without this implementation needs the
+           Claim's own contract most of all. */
+        (
+            "claim-record-v1.schema.json",
+            document::<crate::claim_record::ClaimRecordV1>(
+                "claim-record-v1.schema.json",
+                "Vela Claim Record v1",
+            ),
+        ),
+        (
+            "proposal-v1.schema.json",
+            document::<crate::proposal_v1::ProposalV1>("proposal-v1.schema.json", "Vela Proposal v1"),
+        ),
+        (
+            "repository-origin-v1.schema.json",
+            document::<crate::repository_origin::RepositoryOriginV1>(
+                "repository-origin-v1.schema.json",
+                "Vela Repository Origin v1",
+            ),
+        ),
     ]
 }
 
