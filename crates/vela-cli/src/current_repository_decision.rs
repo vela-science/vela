@@ -773,11 +773,26 @@ pub(crate) fn execute_prepared(
             principal: PrincipalSnapshotV1 {
                 principal_id: expected.principal_id.clone(),
                 principal_class: PrincipalClass::Human,
-                /* Signed-preimage wording, not product wording: this and the
-                `frontier_reviewer` role below are inside the authority record's
-                DSSE payload. They move with the Cedar migration in
-                `cli/authority.rs`, not with a prose sweep. */
-                display_name: Some("Frontier reviewer".into()),
+                /* Signed-preimage wording, and it moved while moving it was
+                still free.
+
+                These two said `Frontier` on the ground that they are inside the
+                authority record's DSSE payload and therefore had to wait for
+                the Cedar migration in `cli/authority.rs`. That was wrong about
+                the coupling. Measured against `vela-science/math`, the one live
+                authority: its sealed Cedar schema declares `entity Frontier`
+                and its sealed genesis record carries `frontier_administrator`,
+                so those two really are a re-signing migration. Neither the
+                schema nor the policy mentions a reviewer role at all — the
+                policy permits by principal and action — so this string is bound
+                by nothing that has been signed.
+
+                And math holds zero Decisions, so it has never been written. The
+                first `review accept` seals it into a DSSE payload forever, at
+                which point renaming it becomes a migration on a live authority
+                like the other two. It is renamed here because today it is free
+                and tomorrow it is not. */
+                display_name: Some("Repository reviewer".into()),
                 affiliation: None,
                 account_links: vec![expected.principal_id.clone()],
             },
@@ -789,7 +804,7 @@ pub(crate) fn execute_prepared(
             authorization_input: authorization,
             semantic_approvals: vec![SemanticApprovalV1 {
                 principal_id: expected.principal_id.clone(),
-                role: "frontier_reviewer".into(),
+                role: "repository_reviewer".into(),
                 action: expected.action.clone(),
                 reason: expected.reason.clone(),
                 approved_at: recorded_at.clone(),
