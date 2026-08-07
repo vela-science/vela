@@ -165,6 +165,42 @@ same `vela init` command.
 Distribute the returned full sequence-one authority-record root independently
 of the Frontier checkout.
 
+## Release distribution identity
+
+Publishing a binary is not a scientific Decision, so it is not signed by the
+repository authority. `scripts/release.sh` emits one
+`vela.release-bundle-manifest.v1` per bundle and signs it under a separate
+distribution identity; `scripts/release.sh` refuses any key whose path names the
+repository-authority identity, because a release signed by that key would be
+indistinguishable from a Decision to anyone checking signatures.
+
+The signing path takes the **public** key and routes through `ssh-agent`
+(`ssh-keygen -Y sign -U`), so neither the script nor any workflow reads private
+key material.
+
+The current distribution identity:
+
+```text
+release@vela.space  SHA256:MX3Eo1o9S5pLnx2kiNyAy2aME7PAWDtvqtUBljJst1M
+```
+
+Verify a published manifest against it:
+
+```bash
+ssh-keygen -Y verify -f allowed_signers -I release@vela.space \
+  -n vela-release -s release-manifest.json.sig < release-manifest.json
+```
+
+A good signature reports the fingerprint above. Any edit to the manifest — one
+byte is enough — reports `Signature verification failed`.
+
+The manifest is unsigned when CI builds it, deliberately. Putting the private
+half into Actions would re-couple the artifact to the provider the manifest
+exists to be independent of, so a signed manifest is produced by a human running
+the same script on a machine holding the identity. Per-asset build provenance
+(`actions/attest-build-provenance`) is OIDC-bound to GitHub and stays
+provider-bound; it attests who built an asset, not who published the release.
+
 ## Consumer trust
 
 Install the independently obtained public root:
