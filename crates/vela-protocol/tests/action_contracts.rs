@@ -4,6 +4,10 @@ const ROOT_ACTION: &str = include_str!("../../../action.yml");
 const INSTALLER: &str = include_str!("../../../install.sh");
 const RELEASE_WORKFLOW: &str = include_str!("../../../.github/workflows/release.yml");
 const CONFORMANCE_WORKFLOW: &str = include_str!("../../../.github/workflows/conformance.yml");
+/* The release semantics moved out of the workflow and into an entry point a
+clean checkout can run with no CI provider. This test moved with them: what it
+protects is the order and the pins, not which file happens to hold them. */
+const RELEASE_SCRIPT: &str = include_str!("../../../scripts/release.sh");
 
 fn parse_yaml(source: &str) -> Value {
     serde_yaml_ng::from_str(source).expect("source must be valid YAML")
@@ -80,6 +84,20 @@ fn assert_no_finalizing_commands(action: &Value) {
             );
         }
     }
+}
+
+/// Read one `NAME="value"` assignment out of a shell script.
+///
+/// The entry point declares its pins as constants at the top rather than
+/// burying them in the command that uses them, so this reads the declaration.
+fn shell_constant<'a>(source: &'a str, name: &str) -> &'a str {
+    let needle = format!("\n{name}=\"");
+    let (_, rest) = source
+        .split_once(&needle)
+        .unwrap_or_else(|| panic!("scripts/release.sh declares no {name}"));
+    rest.split_once('"')
+        .unwrap_or_else(|| panic!("{name} is not a closed string"))
+        .0
 }
 
 fn is_stable_semver(version: &str) -> bool {
@@ -209,50 +227,65 @@ fn reviewed_tags_publish_provenance_labeled_supported_bundles() {
     assert_eq!(build["permissions"]["attestations"].as_str(), Some("write"));
     assert_eq!(publish["permissions"]["contents"].as_str(), Some("write"));
 
-    let build_script = script_named(build, "Build auditable release binary");
-    /* This used to name the cargo-auditable version, which is a second copy of
-    a number the workflow already carries: a correct bump reddened the test for
-    a reason that had nothing to do with the release contract. What the release
-    depends on is the shape the Syft pin below is held to — one exact stable
-    version, installed from the locked index. */
-    let auditable_pin = build_script
-        .split_once("cargo install cargo-auditable --version ")
-        .map(|(_, rest)| rest)
-        .expect("the build must install cargo-auditable at one pinned version");
-    let (auditable_version, install_flags) = auditable_pin
-        .split_once(char::is_whitespace)
-        .expect("the cargo-auditable pin must be followed by its install flags");
+    /* The build job runs one entry point. Both jobs call it: the version the
+    release is identified by and the version it is built from are read by the
+    same code, which is the property that used to depend on two `Cargo.toml`
+    readers agreeing. */
+    assert!(
+        script_named(build, "Build the release bundle").contains("scripts/release.sh"),
+        "the build must call the provider-neutral entry point"
+    );
+    let metadata_script =
+        script_named(workflow_job(&workflow, "metadata"), "Bind release identity");
+    assert!(metadata_script.contains("scripts/release.sh --print-version"));
+    assert!(metadata_script.contains("test \"v$version\" = \"$GITHUB_REF_NAME\""));
+
+    /* What the release depends on, now asserted where it lives. `--locked` on
+    both the toolchain install and the build; one exact stable version for
+    cargo-auditable and for Syft; the SBOM content check, the checksums and the
+    bundle smoke test all reached from the same script. */
+    let auditable_version = shell_constant(RELEASE_SCRIPT, "CARGO_AUDITABLE_VERSION");
     assert!(
         is_stable_semver(auditable_version),
         "cargo-auditable must pin a stable exact version, got {auditable_version}"
     );
     assert!(
-        install_flags.starts_with("--locked"),
-        "cargo-auditable must install from the locked index"
+        RELEASE_SCRIPT.contains(
+            "cargo install cargo-auditable --version \"$CARGO_AUDITABLE_VERSION\" --locked"
+        )
     );
     assert!(
-        build_script.contains("cargo auditable build --locked --release -p vela-cli --bin vela")
+        RELEASE_SCRIPT.contains("cargo auditable build --locked --release -p vela-cli --bin vela")
     );
-    assert!(
-        script_named(workflow_job(&workflow, "metadata"), "Bind release identity")
-            .contains("test \"v$version\" = \"$GITHUB_REF_NAME\"")
-    );
+    assert!(RELEASE_SCRIPT.contains(".github/release/check-sbom.py"));
+    assert!(RELEASE_SCRIPT.contains("shasum -a 256"));
+    assert!(RELEASE_SCRIPT.contains(".github/release/smoke-bundle.sh"));
 
-    let sbom = step_named(build, "Generate SPDX SBOM");
-    assert_eq!(sbom["with"]["format"].as_str(), Some("spdx-json"));
-    assert_eq!(sbom["with"]["upload-artifact"].as_bool(), Some(false));
-    assert_eq!(sbom["with"]["upload-release-assets"].as_bool(), Some(false));
-    let syft_version = sbom["with"]["syft-version"]
-        .as_str()
-        .and_then(|version| version.strip_prefix('v'))
-        .expect("SBOM generation must pin one exact Syft version");
+    /* Syft's version is written twice by necessity — the workflow decides which
+    binary is downloaded and the script decides which one it will accept — so
+    the two copies are held equal here rather than trusted to be bumped
+    together. The marketplace action no longer decides the scan path, the
+    format or the output file; those are release semantics and live in the
+    entry point. */
+    let syft_version = shell_constant(RELEASE_SCRIPT, "SYFT_VERSION");
     assert!(
         is_stable_semver(syft_version),
         "Syft must use a stable exact version, got {syft_version}"
     );
-    assert!(
-        script_named(build, "Verify SBOM includes Vela").contains(".github/release/check-sbom.py")
+    let downloaded_syft = steps(build)
+        .iter()
+        .find(|step| {
+            step["uses"]
+                .as_str()
+                .is_some_and(|clause| clause.starts_with("anchore/sbom-action/download-syft@"))
+        })
+        .expect("the build must install the pinned Syft");
+    assert_eq!(
+        downloaded_syft["with"]["syft-version"].as_str(),
+        Some(format!("v{syft_version}").as_str()),
+        "the workflow downloads a Syft the entry point will refuse"
     );
+    assert!(RELEASE_SCRIPT.contains("spdx-json="));
 
     let expected_assets = ["vela-linux-x86_64.tar.gz", "vela-macos-aarch64.zip"];
     assert_eq!(matrix_assets(build), expected_assets);
@@ -261,7 +294,6 @@ fn reviewed_tags_publish_provenance_labeled_supported_bundles() {
             .as_str()
             .is_some_and(|value| value.starts_with("actions/attest-build-provenance@"))
     }));
-    assert!(script_named(build, "Write checksums").contains("shasum -a 256"));
 
     let publish_script = script_named(publish, "Publish immutable GitHub release");
     for asset in expected_assets {
@@ -273,8 +305,42 @@ fn reviewed_tags_publish_provenance_labeled_supported_bundles() {
     assert!(publish_script.contains("$asset.sha256"));
     assert!(publish_script.contains("$asset.spdx.json"));
     assert!(publish_script.contains("$asset.spdx.json.sha256"));
+    assert!(publish_script.contains("$asset.release-manifest.json"));
     assert!(publish_script.contains("gh release create"));
     assert!(publish_script.contains("--verify-tag"));
+}
+
+/// The release manifest is not the scientific authority record.
+///
+/// `docs/SIGNING.md` scopes the repository-authority key to attesting that a
+/// principal, authorization, semantic action, read-set recheck and canonical
+/// write matched. Publishing a binary is none of those. The entry point can
+/// sign a manifest, and this holds it to a separate identity and to a schema id
+/// that does not collide with `vela.observatory-release-manifest`, which is an
+/// unrelated `vela-web` read projection.
+#[test]
+fn the_release_manifest_is_distribution_evidence_not_repository_authority() {
+    let schema = shell_constant(RELEASE_SCRIPT, "MANIFEST_SCHEMA");
+    assert!(
+        schema.starts_with("vela.") && schema.ends_with(".v1"),
+        "the manifest must carry one versioned Vela schema id, got {schema}"
+    );
+    assert!(
+        !schema.contains("observatory-release-manifest"),
+        "the release manifest must not claim the Observatory projection's schema id"
+    );
+
+    assert_eq!(
+        shell_constant(RELEASE_SCRIPT, "SIGNATURE_NAMESPACE"),
+        "vela-release"
+    );
+    /* `-U` signs through ssh-agent from a public key, so the entry point never
+    reads private key material. Same custody rule the CLI uses. */
+    assert!(RELEASE_SCRIPT.contains("ssh-keygen -Y sign -f \"$SIGN_KEY\" -U -n"));
+    assert!(
+        RELEASE_SCRIPT.contains("*repository_authority*|*repository-authority*"),
+        "the entry point must refuse to sign a release with the repository-authority key"
+    );
 }
 
 #[test]

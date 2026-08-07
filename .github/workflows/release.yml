@@ -1,3 +1,17 @@
+# Release semantics live in `scripts/release.sh`, not here.
+#
+# This file used to be the only place the release existed, which meant a
+# release could not be built, read, or reproduced anywhere but inside GitHub
+# Actions. What is left here is the part that is genuinely provider-bound:
+# checkout, toolchain installation, the syft download, artifact transport,
+# `actions/attest-build-provenance` (OIDC-bound to a GitHub identity, with no
+# provider-neutral equivalent), and `gh release create`.
+#
+# Everything that decides what a release *is* — version and tag agreement, the
+# toolchain channel, the auditable build, staging, the SPDX SBOM, the SBOM
+# content check, archiving, checksums, the bundle smoke test, and the signed
+# release manifest — is in the entry point, and runs the same way on a laptop
+# with no network beyond the crate registry.
 name: release
 
 on:
@@ -18,16 +32,14 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+      # Asks the entry point rather than reading `Cargo.toml` a second way. Two
+      # readers of one version is how a release gets identified one way here
+      # and another way in the build.
       - id: version
         name: Bind release identity
         shell: bash
         run: |
-          version="$(python3 - <<'PY'
-          import tomllib
-          with open("Cargo.toml", "rb") as source:
-              print(tomllib.load(source)["workspace"]["package"]["version"])
-          PY
-          )"
+          version="$(scripts/release.sh --print-version)"
           if [ "$GITHUB_EVENT_NAME" = push ]; then
             test "v$version" = "$GITHUB_REF_NAME"
           else
@@ -58,7 +70,9 @@ jobs:
       # Read from `rust-toolchain.toml`, not restated: the published binary and
       # the conformance run must be built by the same compiler, and the only
       # way to guarantee that is for neither workflow to hold its own copy of
-      # the number.
+      # the number. `scripts/release.sh` reads the same file and refuses to
+      # build when the installed rustc is not that channel, so the pin is
+      # enforced rather than merely requested.
       - id: toolchain
         shell: bash
         run: |
@@ -68,46 +82,40 @@ jobs:
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable 2026-07-19
         with:
           toolchain: ${{ steps.toolchain.outputs.channel }}
-      - name: Build auditable release binary
-        shell: bash
-        run: |
-          cargo install cargo-auditable --version 0.7.5 --locked
-          cargo auditable build --locked --release -p vela-cli --bin vela
-      - name: Stage binary
-        run: mkdir -p dist stage && cp target/release/vela stage/
-      - name: Generate SPDX SBOM
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+      # Downloads the pinned syft and nothing else. The full `anchore/sbom-action`
+      # decided the scan path, the format and the output file, and those are
+      # release semantics: they now live in the entry point, which invokes syft
+      # directly and refuses a version other than the one it names. Same commit
+      # pin the full action carried.
+      - uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
         with:
-          path: stage
-          format: spdx-json
-          output-file: dist/${{ matrix.asset }}.spdx.json
           syft-version: v1.50.0
-          upload-artifact: false
-          upload-release-assets: false
-      - name: Verify SBOM includes Vela
+      # One entry point, in this order: version/tag agreement, toolchain
+      # channel, `cargo auditable build --locked`, staging, the SPDX SBOM,
+      # `check-sbom.py`, archive, checksums, `smoke-bundle.sh`, manifest.
+      #
+      # The manifest is unsigned here. Signing it needs the distribution
+      # identity's private key, and putting that in Actions would make the
+      # provider-neutral artifact depend on the provider again. It is signed
+      # out of band with `scripts/release.sh --sign-key`, or by an operator
+      # running the same entry point locally.
+      - name: Build the release bundle
         shell: bash
+        env:
+          ASSET: ${{ matrix.asset }}
         run: |
-          python_bin=python3
-          command -v "$python_bin" >/dev/null 2>&1 || python_bin=python
-          "$python_bin" .github/release/check-sbom.py "dist/${{ matrix.asset }}.spdx.json"
-      - name: Archive Linux bundle
-        if: runner.os == 'Linux'
-        run: tar -C stage -czf "dist/${{ matrix.asset }}" .
-      - name: Archive macOS bundle
-        if: runner.os == 'macOS'
-        run: ditto -c -k --norsrc stage/ "dist/${{ matrix.asset }}"
-      - name: Write checksums
-        shell: bash
-        run: |
-          cd dist
-          shasum -a 256 "${{ matrix.asset }}" > "${{ matrix.asset }}.sha256"
-          shasum -a 256 "${{ matrix.asset }}.spdx.json" > "${{ matrix.asset }}.spdx.json.sha256"
-      - name: Attest archive and SBOM
+          arguments=(--manifest-name "$ASSET.release-manifest.json")
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            arguments+=(--tag "$GITHUB_REF_NAME")
+          fi
+          scripts/release.sh "${arguments[@]}"
+      - name: Attest archive, SBOM, and manifest
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
           subject-path: |
             dist/${{ matrix.asset }}
             dist/${{ matrix.asset }}.spdx.json
+            dist/${{ matrix.asset }}.release-manifest.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ matrix.asset }}
@@ -161,6 +169,11 @@ jobs:
             test -f "dist/$asset.sha256"
             test -f "dist/$asset.spdx.json"
             test -f "dist/$asset.spdx.json.sha256"
+            # One manifest per built bundle, named after it. A single
+            # cross-target manifest would have to be assembled in a job holding
+            # both, and signed by whatever key that job could reach — which is
+            # the provider coupling the manifest exists to remove.
+            test -f "dist/$asset.release-manifest.json"
           done
           release_flags=()
           if [[ "$GITHUB_REF_NAME" == *-* ]]; then
