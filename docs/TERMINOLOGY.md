@@ -278,7 +278,7 @@ unassessed accepted accepted_with_conditions retracted superseded corrected
 
 The CLI emits four of those six and nothing else. `accepted` follows an
 accepted Decision on a `claim.add` or `claim.revise`, `retracted` follows one on
-a `claim.withdraw`, `superseded` follows a `finding.superseded` Event, and
+a `claim.withdraw`, `superseded` follows a `claim.superseded` Event, and
 `unassessed` covers every Claim over which no ruling stands.
 
 Through `0.966.3` it emitted `pending_review`, `rejected`, and `withdrawn` as

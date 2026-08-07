@@ -102,8 +102,17 @@ Run a named integration test while iterating when it covers the change:
 cargo test --locked -p vela-cli --test bootstrap_cli_ux
 cargo test --locked -p vela-cli --test current_genesis
 cargo test --locked -p vela-protocol --test canonical_hashing_conformance
-cargo test --locked -p vela-authority --test authorization_profile_parity
+cargo test --locked -p vela-protocol --test engine_pin
+cargo test --locked -p vela-authority
 ```
+
+The last line used to name `--test authorization_profile_parity`, which has
+never existed: `crates/vela-authority/` has no `tests/` directory, so the
+command failed for everyone who copied it. The corpus that name implies,
+`conformance/fixtures/epoch1/authorization-profile-parity-v1.json`, is read by
+nothing in `crates/`, `conformance/`, `scripts/` or `.github/`. `docs/ECOSYSTEM.md`
+§6 records the evaluator half of that gap; the corpus half is the same gap seen
+from the fixture's side.
 
 If a shared type or behavior changed, test its direct consumer crates as well.
 If canonical bytes, roots, schemas, or the current interoperability waist

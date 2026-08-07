@@ -159,7 +159,7 @@ producer queue.
 - the repository origin and root;
 - the Target Index root;
 - the source Git identity, explicitly labeled `target_index_source` so it is
-  not confused with the current `frontier_head` reported by `status`;
+  not confused with the current `repository_head` reported by `status`;
 - the Frontier scope and declared verifier profile; and
 - the explicit boundary that evidence may enter review but only a human
   Decision changes Standing.

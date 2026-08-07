@@ -223,12 +223,20 @@ test rather than a policy.
 release through `api.github.com`, and pins
 `--signer-workflow vela-science/vela/.github/workflows/release.yml`, so
 provenance verification is bound to one provider's OIDC. A neutral build path
-with no neutral install path only moves the coupling. The signed release
-manifest (`scripts/release.sh`, `vela.release-bundle-manifest.v1`) is the
+with no neutral install path only moves the coupling. The release manifest
+(`scripts/release.sh`, `vela.release-bundle-manifest.v1`) is the
 provider-neutral half of the fix: it binds commit, tree, version, toolchain,
 target, asset digests, and SBOM digests under a distribution signing identity
 that is not the repository-authority key, and it is verifiable with
 `ssh-keygen -Y verify` and `shasum -c` alone.
+
+It is signable, and CI does not sign it. `.github/workflows/release.yml:97`
+passes no `--sign-key`, and `scripts/release.sh:273` removes any `.sig` on an
+unsigned run rather than leave a stale one beside fresh bytes, so what a release
+actually ships is an unsigned manifest plus the provider's attestation. This
+paragraph called it "the signed release manifest" after the peers were
+corrected (`docs/SIGNING.md:202`, `docs/ECOSYSTEM.md:233`); the half of the fix
+that is provider-neutral is the format, not the current release.
 
 Step 5 requires an independent retention path that exists on a schedule rather
 than on demand. A mirror that is only refreshed when someone remembers is not a

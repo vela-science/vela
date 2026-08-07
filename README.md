@@ -203,7 +203,7 @@ their own exact records; neither reads repository-authority credentials.
 The ordinary CLI is intentionally small:
 
 ```text
-init status next start submit show why review replay reproduce log
+init status claims next start submit show why review replay reproduce log
 ```
 
 Current advanced surfaces:
@@ -242,8 +242,10 @@ runtime boundaries:
 
 ```text
 crates/             Vela protocol, replay, repository authority, and CLI
-conformance/        Independent Python and JavaScript protocol readers,
+conformance/        An independent Python reader, a JavaScript emitter,
                     fixtures, and repository-wide checks
+packages/           The shared source-manifest tooling
+scripts/            Release, release manifest, and ecosystem status
 .github/release/    Binary artifact publication and smoke tooling
 ```
 
@@ -254,9 +256,11 @@ packet and register ordinary Submissions or Verification Records. Vela Web and
 canonical Frontier repositories remain separate because they have independent
 deployment and scientific-history lifecycles.
 
-Package-local tooling stays with its package. The repository has no catch-all
-top-level `scripts/` directory. The root `install.sh` is the public product
-installer, not a tooling bucket.
+Package-local tooling stays with its package. The top-level `scripts/` holds
+three files and is not a bucket for a fourth kind of thing: `release.sh` is the
+release, `release_manifest.py` is what it emits, and `ecosystem-status.py` is
+what checks this documentation against the tree. The root `install.sh` is the
+public product installer.
 
 The Rust crates are internal implementation boundaries, tested together and
 released as one `vela` binary. Cross-language conformance uses small standalone

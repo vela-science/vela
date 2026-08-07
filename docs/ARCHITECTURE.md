@@ -245,8 +245,13 @@ and supported interface versions; unchanged components do not churn merely to
 match the source tag.
 
 - Vela releases the protocol implementation and CLI.
-- Independent Python and JavaScript readers check the portable object waist
-  without creating a second package or release surface.
+- An independent Python reader checks the portable object waist without
+  creating a second package or release surface. The JavaScript half is an
+  emitter, `conformance/emitters/javascript.mjs`, which signs and writes
+  Submission and Verification objects and never reads the vector corpus;
+  `conformance/readers/` holds `python` alone, and
+  `scripts/ecosystem-status.py` declares `conformance/readers/javascript`
+  absent and fails if it appears.
 - Immutable Canopus `0.8.0` remains frozen for historical Runs that bind its
   exact bytes. Current Vela contains no executor or separate runner release.
 - Each Frontier verifies and reproduces its own exact state.

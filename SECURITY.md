@@ -24,7 +24,11 @@ deferred rather than defended.
 - No AI or agent identity sits in any trust path; the engine refuses
   `agent:`/`ci:` actors on every decision verb. A bypass of that
   refusal is a vulnerability — report it.
-- Private keys never belong in a repo. `keys/` and `*.key` are
-  gitignored by scaffolding (THREAT_MODEL.md, "Key compromise"); a
-  reference frontier carrying a private key is a vulnerability even
-  if the key looks disposable.
+- Private keys never belong in a repo. `vela init` scaffolds a
+  `.gitignore` that covers `/.vela/keys/` and nothing else
+  (`crates/vela-cli/src/current_init.rs`), so a key kept anywhere but
+  that directory is yours to ignore. This line used to promise `keys/`
+  and `*.key` as well; neither rule has ever been written by the
+  scaffold, and a reader who trusted it would have committed the key
+  (THREAT_MODEL.md, "Key compromise"). A reference repository carrying
+  a private key is a vulnerability even if the key looks disposable.

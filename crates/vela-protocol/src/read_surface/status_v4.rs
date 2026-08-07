@@ -14,9 +14,14 @@
 //! arriving, and `actions.work.mode` moving from one value to a two-member
 //! union. Each landed as a fail-closed break of the projection refresh, found
 //! by running it rather than by anything holding the two shapes together.
-//! `wire_schema::published()` now renders this type to
-//! `schemas/status-v4.schema.json`, which is what the other repository gates
-//! its parser against.
+//! `wire_schema::published()` renders this type to
+//! `schemas/status-v4.schema.json`, and `tests/wire_schemas.rs` holds the file
+//! to the type byte for byte. That seals one link and not the next one.
+//! `vela-web` contains no reference to `status-v4.schema.json` anywhere in its
+//! tree, so its parser is still held to this type by nothing but running the
+//! refresh and watching it fail. The published schema is what that consumer
+//! could gate on. This comment used to say it was what the consumer does gate
+//! on, which was the same error, one level up, as the three breakages above.
 //!
 //! ## Null is not absence here
 //!

@@ -63,7 +63,7 @@ one-based order among currently open, fresh Targets. `rank` is the stable
 configured priority, so the first remaining Target can legitimately have rank
 two after all rank-one work closes. The `start` briefing labels the bound Git
 identity `target_index_source`; it can be an ancestor of the current
-`frontier_head` because the derived index is rebound without changing its
+`repository_head` because the derived index is rebound without changing its
 scientific source inputs.
 
 ## Failure behavior
