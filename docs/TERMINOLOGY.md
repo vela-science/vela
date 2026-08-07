@@ -87,19 +87,47 @@ is what lets the small genuinely new part be seen.
 | Standing | the state an event-sourced reducer derives |
 | Observatory | a read model |
 
-Four things have no established equivalent, and they are the reason the rest is
-here:
+**Claim and Evidence are not new, and this document used to say they were.**
+A nanopublication is four named graphs — head, assertion, provenance, pubinfo —
+where the assertion graph holds one atomic attributed statement, the whole is
+content-addressed by a Trusty URI, and the whole is signed. A Claim Record
+reaches the same decomposition: the assertion, its evidence and sources as
+provenance, the producer identity and DSSE envelope as pubinfo, and a SHA-256
+over canonical bytes as the artifact code. Groth et al. published the anatomy in
+2010 and Kuhn et al. the signed decentralised model in 2016. The correction
+algebra converged too: `CORRECTION_RELATION_KINDS` is exactly
+`["corrects", "supersedes"]`, and nanopublications landed on `npx:supersedes`
+and `npx:retracts`. That is external validation, not arrival, and
+`paper/vela.md` already says so.
 
-- **Claim** — the unit of scientific state. A repository's content is a set of
-  exact assertions under explicit scope and conditions, not a set of files.
-- **Evidence** — a *typed role* an Artifact plays relative to a Claim, rather
-  than an attachment. What a byte string is for is part of the record.
+The decomposition is the same. The serialisation is not — a nanopublication
+assertion is RDF quads with dereferenceable IRIs queryable over SPARQL, where
+`ClaimAssertion` is prose plus a kind label.
+
+Two things do survive that comparison:
+
 - **Obligation** — what is still missing before a Claim can be assessed or
-  advanced, retained as state rather than left in a review thread.
+  advanced, retained as state rather than left in a review thread. Nothing in
+  the nanopublication literature holds it.
 - **The four independent axes** — Claim standing, Verification outcome,
   Proposal status, and repository integrity are separately derived and never
   collapsed. A passing check is not an acceptance; an acceptance is not a
   reproduction; a merge is not a scientific Decision.
+
+And one difference in the admission rule, which is the actual contribution and
+is narrower than it is tempting to claim. In the nanopublication network the
+rule is fixed in the protocol and keyed to the producer: a retraction is valid
+only when signed with the key that signed the original, and the default view
+hides validly retracted nanopublications. Vela makes the admission rule a named
+**repository authority** whose Decisions are the Events that Standing replays,
+so a third party can correct someone else's Claim and move its Standing, and the
+correction's validity is settled by a declared trust root rather than by key
+equality.
+
+That is the whole of it, and it is enough. The novelty is integration around
+authority-scoped append, replay, and root-bound next work. It is not the
+invention of identifiers, provenance, research packaging, correction metadata,
+or structured claims.
 
 ## Retired names
 
