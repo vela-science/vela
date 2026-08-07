@@ -18,7 +18,7 @@ map       -> product
 verified frontier movement -> outcome
 ```
 
-The protocol earns its complexity by making a living Frontier map exact,
+The protocol earns its complexity by making the current state of a Frontier exact,
 current, and actionable. The map must show what is accepted, checked,
 recorded, disputed, missing, and next. A transition compounds only when it
 changes that map and improves a later valid action.
@@ -215,7 +215,6 @@ The target public topology is intentionally small:
 | `vela-science/vela` | Product monorepo: Rust implementation, independent conformance readers and fixtures, releases, architecture |
 | `vela-science/vela-web` | Editorial site and read-only Observatory |
 | `vela-science/erdos-frontier` | Canonical Erdős Frontier |
-| `vela-science/formal-conjectures-frontier` | Canonical formal-conjectures Frontier |
 | `vela-science/sidon-frontier` | Canonical Sidon Frontier |
 | `vela-science/quantum-codes-frontier` | Canonical quantum-codes Frontier |
 | `vela-science/.github` | Organization profile, reusable workflows, security policy, repository templates |

@@ -58,7 +58,7 @@ vela review reject . <vpr_id> \
   --json
 ```
 
-or, when the Review Packet says acceptance is eligible:
+or, when the Proposal says acceptance is eligible:
 
 ```bash
 vela review accept . <vpr_id> \
@@ -91,7 +91,7 @@ run an agent daemon, cache a private key, or invent a second signing session.
 
 Vela:
 
-1. derives the exact Review Packet and transaction plan;
+1. derives the exact Proposal and transaction plan;
 2. binds the Proposal, action, reason, principal, policy, authority head,
    binary identity, read set, and canonical delta;
 3. authenticates the local operating-system principal;

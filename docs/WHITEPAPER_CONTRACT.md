@@ -70,7 +70,7 @@ the original producer session are removed?
 
 ### RQ6: Product legibility
 
-Can a cold user reconstruct the exact current Frontier map, distinguish
+Can a cold user reconstruct the exact current state of a Frontier, distinguish
 accepted, checked, recorded, disputed, rejected, and open state, and select one
 valid next action without private maintainer context? Does the map update
 correctly after a Decision without becoming canonical authority?
