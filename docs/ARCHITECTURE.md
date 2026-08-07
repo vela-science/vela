@@ -214,10 +214,17 @@ The target public topology is intentionally small:
 | --- | --- |
 | `vela-science/vela` | Product monorepo: Rust implementation, independent conformance readers and fixtures, releases, architecture |
 | `vela-science/vela-web` | Editorial site and read-only Observatory |
-| `vela-science/erdos-frontier` | Canonical Erdős Frontier |
-| `vela-science/sidon-frontier` | Canonical Sidon Frontier |
-| `vela-science/quantum-codes-frontier` | Canonical quantum-codes Frontier |
+| `vela-science/math` | The mathematics authority: one repository, one trust root |
 | `vela-science/.github` | Organization profile, reusable workflows, security policy, repository templates |
+
+Archived, preserved exactly as signed and no longer developed:
+`vela-science/erdos-frontier`, `vela-science/sidon-frontier`,
+`vela-science/formal-conjectures-frontier` and
+`vela-science/quantum-codes-frontier`. They existed because there were four
+topics, not four authorities — one maintainer and one decision model between
+them. ADR 0039 states the rule they broke: a repository exists because there is
+a new authority, never because there is a new topic. Tooling from `0.967`
+onward does not read them.
 
 The former `vela-science/vela-research-harness` repository and immutable
 Canopus release remain archived historical evidence. Current source does not
