@@ -44,10 +44,15 @@ init -> submit -> verify -> decide -> replay
 
 ## Canonical current vocabulary
 
+Four boundaries, and they are not the same boundary. `Frontier` used to be all
+of them at once, which is why the repositories drifted. A **Repository** exists
+because there is a new authority, never because there is a new topic.
+
 | Term | Meaning | Authority effect |
 | --- | --- | ---: |
-| Frontier | One independently clonable Git repository with bounded scope, stable identity, canonical history, authority, and correction policy | Boundary only |
-| Problem | A bounded scientific question organizing Claims, Obligations, Targets, and native runs | None |
+| Repository | One independently clonable Git repository with stable identity, trust root, canonical history, named authority, and correction policy | Authority boundary |
+| Source | A declared external system whose native records are observed exactly, never governed | None |
+| Problem | A bounded scientific question organizing Claims, Obligations and Targets | None |
 | Obligation | One unresolved requirement needed to assess or advance a Claim | None |
 | Target | One machine-addressable, bounded unit of work | None |
 | Offer | A derived recommendation that a Target is available | None |
@@ -56,13 +61,21 @@ init -> submit -> verify -> decide -> replay
 | Claim Record | Canonical record of a Claim revision, conditions, evidence, provenance, and typed relations | None by itself |
 | Artifact | Retained bytes or an immutable locator with exact identity and provenance | None |
 | Evidence | A typed role played by an Artifact or Observation relative to a Claim | None |
-| Submission | The portable producer package offered to a Frontier | None |
-| Proposal | An exact candidate transition in Frontier standing | None |
+| Submission | The portable producer package, bound to no Repository | None |
+| Proposal | An exact candidate transition in Standing, against one Repository | None |
 | Verification Record | A verifier's scoped observation over exact inputs under a named method | None |
 | Decision | An authorized judgment over one exact Proposal | Defines transition intent |
 | Event | The append-only canonical transition record | Replays authorized effect |
 | Standing | The deterministic current status derived from valid Events | Resulting state |
-| Observatory | A removable read-only projection | None |
+| Frontier | The derived boundary of unresolved scientific state around one or more Problems | None, owns nothing |
+| Atlas | A projection across Repositories, Sources, Problems and Frontiers | None |
+| Observatory | The first Atlas: a removable read-only projection | None |
+
+**A Frontier has no identifier.** It is a query, not an object: the Problems
+with open Obligations, or the Claims lacking Verification, or everything drawn
+from one Source. Two Frontiers may overlap completely and neither is wrong,
+because neither holds Standing. Wanting to mint a stable id for one is the
+signal it has stopped being derived.
 
 ## What each term already is elsewhere
 
@@ -73,19 +86,20 @@ is what lets the small genuinely new part be seen.
 
 | Term | If you already know |
 | --- | --- |
-| Frontier | a Git repository, with declared scope and a named signing authority |
+| Repository | a Git repository, with a trust root and a named signing authority |
+| Source | an upstream you vendor from, pinned to a revision |
 | Problem | a milestone, or a Benchling project |
 | Target | an issue |
 | Offer | an issue surfacing as ready to pick up |
 | Run | a workflow run |
 | Artifact | a build artifact, or a deposited file |
 | Submission | a pushed branch and its package; a submission in peer review |
-| Proposal | a pull request, opened against one Frontier |
+| Proposal | a pull request, opened against one Repository |
 | Verification Record | a check run, with its scope and its nonclaims written down |
 | Decision | the merge ruling; a decision in peer review |
 | Event | a commit to an append-only authority log |
 | Standing | the state an event-sourced reducer derives |
-| Observatory | a read model |
+| Atlas | a read model |
 
 **Claim and Evidence are not new, and this document used to say they were.**
 A nanopublication is four named graphs — head, assertion, provenance, pubinfo —
@@ -147,7 +161,7 @@ The Event kinds moved with the words. `finding.asserted`, `finding.noted`,
 `finding.superseded`, `finding.retracted` and `attempt.claimed` are now
 `claim.asserted`, `claim.noted`, `claim.superseded`, `claim.retracted` and
 `target.claimed`. Because an Event id is derived from its content, this changes
-the id of every Event that carried an old kind — which is why the Frontiers are
+the id of every Event that carried an old kind — which is why the repositories are
 re-issued from a fresh genesis rather than patched. `EventKind::Other`
 round-trips any unrecognized string, so a repository from an older era still
 parses; it simply is not a current Frontier.
