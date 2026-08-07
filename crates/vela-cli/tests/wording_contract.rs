@@ -490,8 +490,14 @@ fn a_coded_failure_names_itself_from_the_published_list() {
     let missing = missing.to_string_lossy().into_owned();
 
     for (args, expected) in [
-        (vec!["replay", missing.as_str(), "--json"], "repository_missing"),
-        (vec!["claims", missing.as_str(), "--json"], "repository_missing"),
+        (
+            vec!["replay", missing.as_str(), "--json"],
+            "repository_missing",
+        ),
+        (
+            vec!["claims", missing.as_str(), "--json"],
+            "repository_missing",
+        ),
     ] {
         let output = plain(cwd, &args);
         assert!(
@@ -501,16 +507,17 @@ fn a_coded_failure_names_itself_from_the_published_list() {
         );
         let rendered = json(&output);
         assert_eq!(
-            rendered["error"]["code"], expected,
+            rendered["error"]["code"],
+            expected,
             "`vela {}` must name which refusal this is:\n{rendered}",
             args.join(" ")
         );
     }
 
     /* Every emitted code is one the binary published. A code invented at a call
-       site is worse than no code: a caller branches on it and the next release
-       spells it differently, which is the failure mode `message` already has
-       and the whole reason this field exists. */
+    site is worse than no code: a caller branches on it and the next release
+    spells it differently, which is the failure mode `message` already has
+    and the whole reason this field exists. */
     let declared: BTreeSet<&str> = vela_cli::ERROR_CODES.iter().copied().collect();
     assert!(
         declared.contains("repository_missing"),
@@ -518,9 +525,12 @@ fn a_coded_failure_names_itself_from_the_published_list() {
     );
 
     /* A null code is the honest answer where the kind is the whole story, and
-       it must stay a present key so a caller reads one shape either way. */
+    it must stay a present key so a caller reads one shape either way. */
     let usage = plain(cwd, &["submit", "--json"]);
-    assert!(!usage.status.success(), "`vela submit` with no input must fail");
+    assert!(
+        !usage.status.success(),
+        "`vela submit` with no input must fail"
+    );
     let rendered = json(&usage);
     assert!(
         rendered["error"].get("code").is_some(),
