@@ -446,6 +446,18 @@ different facts.
   records that `epoch1/` "was built, verified against all four checkouts, and
   then deleted". Both are correctly absent and must stay absent, which is what
   `scripts/ecosystem-status.py` declares.
+- **One relation alias is inert and cannot be removed here.**
+  `RELATION_KIND_ALIASES` in `crates/vela-protocol/src/objects/claim_record.rs`
+  maps `opposes` → `contradicts`. The fixture that pins it,
+  `conformance/fixtures/claim-relation-vocabulary-v1.json`, records
+  `"retained_uses": 0` and says `opposes` "was declared in PROTOCOL.md and
+  written into no record" — a compatibility branch for data that has never
+  existed. It stays because that fixture is retained and
+  `crates/vela-protocol/tests/claim_relation_vocabulary.rs` reads it through
+  `include_str!`, so removing the alias means editing frozen history. The
+  sibling alias `depends_on` → `depends` reads the same way in the fixture but
+  is not inert: `correction_impact.rs` uses `depends_on` as the derived-graph
+  rendering, which is the role ADR 0004 gave it.
 - **One retired term is still wire.** ADR 0039 §5 retired `Attempt`, and
   `provenance.source_attempt` with the `vat_` prefix was added afterwards and is
   published in `schemas/submission-v1.schema.json`. The product surface says
