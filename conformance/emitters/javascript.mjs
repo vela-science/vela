@@ -115,6 +115,23 @@ function buildBinding(actorId, createdAt, keys) {
   return binding;
 }
 
+/* A draft may not supply anything signing produces.
+
+   The spread below puts draft keys after `schema` and the blanked id, so a
+   draft carrying `submission_id` from a previous emission is hashed with that
+   id inside the preimage. This emitter exits 0; the Rust verifier then rejects
+   the object, because it recomputes with the id and signature cleared. Same
+   shape lets a draft set `schema` and be signed under a type nobody asked for.
+   `python.py` refuses identically. */
+function refuseSignedFields(draft, idField) {
+  const supplied = ["schema", idField, "authentication"].filter((field) => field in draft);
+  if (supplied.length) {
+    throw new Error(
+      `draft supplies ${supplied.join(", ")}, which signing produces. Pass a draft, not a signed object.`,
+    );
+  }
+}
+
 function buildSubmission(draft, keys) {
   const producer = draft?.provenance?.producer;
   const emittedAt = draft?.provenance?.emitted_at;
@@ -124,6 +141,7 @@ function buildSubmission(draft, keys) {
   if (typeof emittedAt !== "string" || emittedAt.length === 0) {
     throw new Error("submission provenance.emitted_at is required");
   }
+  refuseSignedFields(draft, "submission_id");
   const binding = buildBinding(producer, emittedAt, keys);
   let object = {
     schema: "vela.submission.v1",
@@ -156,6 +174,7 @@ function buildVerification(draft, keys) {
   if (typeof createdAt !== "string" || createdAt.length === 0) {
     throw new Error("verification started_at is required");
   }
+  refuseSignedFields(draft, "verification_record_id");
   const binding = buildBinding(verifier, createdAt, keys);
   let object = {
     schema: "vela.verification-record.v1",

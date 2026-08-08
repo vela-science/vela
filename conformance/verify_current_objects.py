@@ -2,10 +2,9 @@
 """Regenerate current signed objects with every independent client.
 
 One independent emitter shows the specification is followable. Two show it is
-followable the same way — and the two here differ where it matters:
-`javascript.mjs` hand-rolls canonicalization and sorts keys by UTF-16 code
-unit, while `python.py` calls `rfc8785`, which sorts by code point as JCS
-specifies. Both must reproduce the fixture byte for byte.
+followable the same way: independent Ed25519 stacks, independent argument
+parsing, independent JSON handling, and both must reproduce the fixture byte
+for byte.
 """
 
 from __future__ import annotations

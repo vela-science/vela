@@ -543,8 +543,8 @@ The three mechanisms that are built and are the defensible part:
    `crates/vela-edge/src/analysis/correction_impact.rs` partitions
    `lost_support_routes` from `surviving_support_routes` and emits repair
    obligations. Fixtures at `conformance/fixtures/correction/` run on every CI
-   run through `conformance/verify.py`. `vela correction impact` reaches it as
-   of v0.969.0, over the accepted claim index of a real repository.
+   run through `conformance/verify.py`. `vela correction impact` reaches it on
+   `main`, unreleased, over the accepted claim index of a real repository.
 
    Driving one correction end to end to get there found two things worth
    stating plainly. First, a defect: accepting a Claim that corrects an

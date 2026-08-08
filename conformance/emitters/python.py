@@ -7,18 +7,18 @@ is followable *the same way*. Both are held to the same fixtures by
 `verify_current_objects.py`, so a divergence between them is a defect in the
 specification rather than a preference.
 
-The two differ in exactly one interesting place, and it is the one worth having
-a second implementation for. `javascript.mjs` hand-rolls canonicalization and
-sorts object keys with `Object.keys().sort()`, which orders by UTF-16 code
-unit. This file calls `rfc8785`, which orders by code point, as JCS specifies.
-Every key in every current object is ASCII, where the two orders coincide — so
-the fixtures agree today, and would not agree on a key outside the Basic
-Multilingual Plane. `jcs-shadow-audit.v1.json` records that seam. Two emitters
-that made the same shortcut would have hidden it.
+The two differ where a shared assumption would hide: independent Ed25519
+stacks, independent argument parsing, independent JSON handling. No specific
+canonicalization seam is claimed here — RFC 8785 section 3.2.3 mandates UTF-16
+code-unit ordering, which is what `rfc8785` implements and what
+`Object.keys().sort()` already does, so the two agree on ordering by
+construction rather than by luck. A seam worth checking would need a fixture
+with a non-BMP key; there is none, and asserting one exists would be worse than
+saying so.
 
-Ed25519 comes from the standard library's `hashlib` and a small pure-Python
-implementation would be the wrong trade here; `cryptography` is used instead
-and declared alongside the other conformance dependencies.
+Ed25519 comes from `cryptography`, declared alongside the other conformance
+dependencies. The JavaScript emitter uses Node's `crypto`, so neither borrows
+the other's signing stack.
 
 Usage:
   python conformance/emitters/python.py submission --draft <json> --seed-file <path> --output <json>
@@ -67,8 +67,8 @@ def read_seed(path: Path) -> Ed25519PrivateKey:
     implementer will carry to a real one.
     """
     info = path.lstat()
-    if not stat.S_ISREG(info.st_mode):
-        raise SystemExit("seed file must be a regular file")
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+        raise SystemExit("seed file must be a regular file, not a symlink")
     if info.st_mode & 0o077:
         raise SystemExit("seed file permissions must be 0600 or stricter")
     encoded = path.read_text(encoding="utf-8").strip()
@@ -119,6 +119,24 @@ def sign_object(
     created_at: str,
     key: Ed25519PrivateKey,
 ) -> dict:
+    """Sign a draft. The draft may not supply anything signing produces.
+
+    `{**draft}` is spread after `schema` and the blanked id, so a draft key
+    wins — which quietly breaks the invariant the identity binding above states:
+    that both are outputs of the hash and cannot be inputs to it. A draft still
+    carrying `submission_id` from a previous emission is hashed with that id
+    inside the preimage; the emitter exits 0 and prints a result, and the Rust
+    verifier rejects the object for a mismatched id and an invalid signature,
+    because it recomputes with both fields cleared. The same shape would let a
+    draft set `schema` and be signed under a type its caller never asked for.
+
+    A draft that supplies them is a mistake, not an override.
+    """
+    supplied = [field for field in ("schema", id_field, "authentication") if field in draft]
+    if supplied:
+        raise SystemExit(
+            f"draft supplies {', '.join(supplied)}, which signing produces. Pass a draft, not a signed object."
+        )
     binding = identity_binding(actor_id, created_at, key)
     unsigned = {
         "schema": schema,
@@ -186,7 +204,11 @@ def main() -> int:
     parser.add_argument("--output", required=True, type=Path)
     options = parser.parse_args()
 
-    key = read_seed(options.seed_file.resolve())
+    # Not `.resolve()`: resolving follows a symlink and then lstat sees the
+    # target, so the symlink check below would never fire. The JavaScript
+    # emitter resolves and then lstats too — and rejects symlinks — so this
+    # keeps the two saying the same thing.
+    key = read_seed(options.seed_file)
     draft = read_draft(options.draft)
     builder = build_submission if options.kind == "submission" else build_verification
     obj = builder(draft, key)

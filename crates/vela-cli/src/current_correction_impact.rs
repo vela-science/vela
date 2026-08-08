@@ -459,10 +459,36 @@ fn resolve_claim<'a>(
 /// bytes are hashed and held to that name before being parsed, so a renamed or
 /// altered file is a failure rather than a silent substitution — the same
 /// guarantee `read_rooted_object` gives for a Claim the manifest still binds.
+///
+/// ## A Claim id does not name one file
+///
+/// `derive_id` hashes a strict subset of the record — schema, revision,
+/// assertion, conditions, evidence, provenance — and leaves out `relations`,
+/// `created_at` and `extensions`. Two retained records can therefore carry the
+/// same `vcl_` id and different roots, which is not exotic: submit a Claim, have
+/// it rejected, resubmit the identical assertion and artifact, and the two
+/// differ only in `created_at`. Both are retained, because a rejected Claim's
+/// bytes stay on disk.
+///
+/// Returning whichever one `read_dir` yielded first would put an arbitrary root
+/// into `transition.predecessor`, which is inside the projection preimage — so
+/// the same repository would answer differently on two machines, and the
+/// projection root would silently stop matching the one this verb returned
+/// before the Decision. Every candidate is collected and an ambiguous id is
+/// refused instead.
+///
+/// The complete fix resolves by root rather than by id: the accepted Decision's
+/// applied `ClaimSuperseded` event binds the predecessor's exact root in
+/// `before_hash` (`current_repository.rs` checks it), and the Submission
+/// carried the same value as `--target-root`. Reaching either means loading the
+/// authority event log here, which this read verb does not otherwise need.
+/// Refusing an ambiguous id is the floor: it cannot return a wrong answer, only
+/// no answer.
 fn read_retained_claim(frontier: &Path, claim_id: &str) -> Result<HeldClaim, String> {
     let directory = frontier.join("records/claims/sha256");
     let entries = std::fs::read_dir(&directory)
         .map_err(|error| format!("read retained Claims at {}: {error}", directory.display()))?;
+    let mut matches = Vec::new();
     for entry in entries.flatten() {
         let path = entry.path();
         if path.extension().is_none_or(|extension| extension != "json") {
@@ -482,20 +508,32 @@ fn read_retained_claim(frontier: &Path, claim_id: &str) -> Result<HeldClaim, Str
         if record.claim_id != claim_id {
             continue;
         }
-        let relative = format!("records/claims/sha256/{stem}.json");
-        return Ok(HeldClaim {
+        matches.push(HeldClaim {
             reference: ClaimStandingRefV1 {
                 claim_id: record.claim_id.clone(),
                 claim_root: format!("sha256:{stem}"),
                 standing: "retired".to_string(),
-                path: relative,
+                path: format!("records/claims/sha256/{stem}.json"),
             },
             record,
         });
     }
-    Err(format!(
-        "this repository holds no accepted Claim {claim_id}, and no retained Claim Record carries that id. There is no Standing to move."
-    ))
+    matches.sort_by(|left, right| left.reference.claim_root.cmp(&right.reference.claim_root));
+    match matches.len() {
+        1 => Ok(matches.remove(0)),
+        0 => Err(format!(
+            "this repository holds no accepted Claim {claim_id}, and no retained Claim Record carries that id. There is no Standing to move."
+        )),
+        _ => Err(format!(
+            "{claim_id} is carried by {} retained Claim Records at different roots ({}), so which one the correction retired cannot be determined from the id alone. `vela why {claim_id}` reads the Decision that names the exact root.",
+            matches.len(),
+            matches
+                .iter()
+                .map(|held| held.reference.claim_root.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )),
+    }
 }
 
 fn read_claim(frontier: &Path, reference: &ClaimStandingRefV1) -> Result<ClaimRecordV1, String> {

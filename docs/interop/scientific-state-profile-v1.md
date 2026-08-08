@@ -26,9 +26,9 @@ complete. Answering it as a table of contract → schema → check does not.
 | 1 | Producer | `vela.submission.v1` | PROTOCOL.md §3.3 | `conformance/current-objects/submission-draft.json`, `verify_current_objects.py` |
 | 2 | Artifact | Content address only — `sha256:<64 hex>` under `records/artifacts/sha256/` | PROTOCOL.md §3.6, ROOTS.md | `verify_canonical_hashing.py` |
 | 3 | Verification | `vela.verification-record.v1` | PROTOCOL.md §3.4 | `conformance/current-objects/verification-draft.json`, `verify_current_objects.py` |
-| 4 | Authority | `vela.authority-record.v1`, `vela.policy-bundle.v1` | THREAT_MODEL.md, SIGNING.md | `conformance/fixtures/epoch1/authorization-profile-parity-v1.json` |
+| 4 | Authority | `vela.authority-record.v1`, `vela.policy-bundle.v1` | THREAT_MODEL.md, SIGNING.md | `crates/vela-cli/tests/review_acceptance.rs` — **no language-independent vector** |
 | 5 | Correction | `vela.correction-impact-input.v1` → `vela.correction-impact-projection.v1` | ADR 0004, CLI.md § Corrections | `conformance/fixtures/correction/`, `verify_correction_impact.py` |
-| 6 | Projection | Root-bound derived rows | INTEROPERABILITY.md § Public read contracts | `conformance/readers/python/canonical.py` |
+| 6 | Projection | Root-bound derived rows | INTEROPERABILITY.md § Public read contracts | `conformance/readers/python/repository_root.py` |
 | 7 | Canonical bytes | RFC 8785 JCS, SHA-256 | ROOTS.md | `verify_canonical_hashing.py`, `conformance/emitters/` |
 
 Contract 7 is not one of the six object contracts; it is the one every other
@@ -93,6 +93,16 @@ Producing and verifying are unprivileged; deciding is not. That asymmetry is
 the point of the boundary, and a profile that let a producer sign its own
 acceptance would be describing a different system.
 
+**This contract has no language-independent conformance vector, and that is a
+gap rather than an omission.** `crates/vela-cli/tests/review_acceptance.rs`
+executes a real authorized acceptance over a contiguous record chain, but it is
+Rust and it exercises this implementation. Contracts 1, 3 and 7 each have
+fixtures a foreign implementation can be held to; this one does not, so an
+implementation claiming to verify authority is currently taking its own word
+for it. `conformance/fixtures/epoch1/authorization-profile-parity-v1.json` pins
+the epoch-1 repositories' commits and is a record, not a check — no code reads
+it.
+
 ### 5. Correction
 
 `corrects` and `supersedes` are the two relation kinds acceptance acts on
@@ -128,10 +138,11 @@ repository the waist serves — is not settled here, and v1 does not pre-empt it
 ### 6. Projection
 
 Any derived read surface must bind every row to the root it was derived from,
-and must not present a derived value as a retained one. `PROTOCOL.md` Rule B
-governs; `conformance/readers/python/canonical.py` is a reader that reproduces
-repository state from a clean clone with no network, and is the check an
-implementation should reproduce rather than reimplement.
+and must not present a derived value as a retained one. `INTEROPERABILITY.md`
+Rule B governs. `conformance/readers/python/repository_root.py` recomputes a
+repository's root from a clean clone with no network and no Vela code; it reads
+one file and says so on its own output. Reproducing the full retained object
+set is `vela replay`, and there is no second implementation of that.
 
 A projection that cannot say which root a row came from is not a projection of
 this protocol.

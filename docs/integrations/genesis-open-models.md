@@ -1,7 +1,11 @@
 # Genesis: open models and the scientific-state control point
 
-An application dossier, kept in Git so that every number in it can be checked
-against the repository it describes rather than taken on the author's word.
+An application dossier, kept in Git so that its numbers can be checked against
+the repositories they come from rather than taken on the author's word. The
+repository facts and both transitions are in `vela-science/math`; the
+faithfulness corpus counts are in `williamjblair/lean-proofs` at the commit
+named below, and the formal statements in `google-deepmind/formal-conjectures`
+at the pages commit named below. Three clones, each pinned.
 
 - **Protocol:** Vela `v0.968.1` released; the correction work below is on `main` and unreleased at the time of writing
 - **Live authority:** `vela-science/math`, repository `vrepo_56d3fdfcd34ff5c3`
@@ -68,7 +72,8 @@ the two halves of the same argument.
 | `lean_kernel_acceptance` | **pass** | `verifier:lean-kernel-attestation-reader` |
 | `statement_fidelity` | **fail** | `verifier:formal-statement-fidelity-review` |
 
-Decision: **reject**, `vev_a5919cff136413e3`.
+Decision: **reject**, applied as `vev_a5919cff136413e3`, authority record
+`var_ff733ab6a08f6a9f`.
 
 The protocol blocked acceptance on its own before any human ruled:
 
@@ -89,7 +94,8 @@ takes no position on the mathematics of Erdős 522.
 | `definition_correspondence` | **pass** | requirement-satisfying |
 | `statement_fidelity` | **inconclusive** | complementary |
 
-Decision: **accept**, authority record `var_29aa9a814eb87ab2`.
+Decision: **accept**, event `vev_43eca817a4a044af`, applied as
+`vev_61a6ddd9d1f8d59f`, authority record `var_29aa9a814eb87ab2`.
 
 Inconclusive, not passing, and the reason is exact: Formal Conjectures'
 `erdos_321` states `R N = answer(sorry)`, and its `isTheta`, `isBigO` and
@@ -115,11 +121,12 @@ question a proof-generating model cannot answer about itself.
 ### A — statement-fidelity audit
 
 Star Fleet's `faithfulness.json` separates the machine gate from a human read
-across 18 projects, with `definitions_compared` lists per entry: five
-`match-with-note`, three `no-fc-statement`, and the 522 `blocked`. The 321
-transition is the first instance worked through the protocol. The rest are
-material for a graded set where the correct answer is frequently *neither pass
-nor fail*.
+across 18 projects: 10 `match`, 4 `match-with-note`, 3 `no-fc-statement`, and
+the 522 `blocked`. Fourteen carry a `definitions_compared` list; four (320, 336,
+522, 662) carry an empty one, which is itself a result — it records that the
+comparison could not be made rather than that it passed. The 321 transition is
+the first instance worked through the protocol. The rest are material for a
+graded set where the correct answer is frequently *neither pass nor fail*.
 
 ### E — correction cascade
 
@@ -148,8 +155,8 @@ the predecessor, so it leaves the accepted index while its own Proposal stays
 retained saying `accepted`. The loader read those two facts as a contradiction:
 `status`, `claims`, `replay`, `why` and `review list` all failed on a
 repository that had done nothing but accept a correction. A protocol whose
-central move is correction could not be read after making one. Fixed in
-`v0.969.0`; held shut by
+central move is correction could not be read after making one. Fixed on
+`main`, unreleased; held shut by
 `crates/vela-cli/tests/correction_impact.rs`.
 
 **The assurance vector had no queryable home.** `scope.property` and
@@ -171,8 +178,9 @@ schemas that already exist.
 Two independent clean-room emitters — `conformance/emitters/javascript.mjs` and
 `conformance/emitters/python.py` — produce byte-identical signed Submissions
 and Verification Records without importing any Vela implementation, and CI holds
-both to the same fixtures. `conformance/readers/python/canonical.py` reproduces
-repository state from a clean clone with no network.
+both to the same fixtures. `conformance/readers/python/repository_root.py`
+recomputes a repository's root from a clean clone with no network and no Vela
+code.
 
 An open-model lab can therefore emit into this protocol from Python or
 JavaScript today, with no dependency on Rust, on this repository, or on any
@@ -194,8 +202,9 @@ Everything above is checkable without contacting us.
 
 ```bash
 git clone https://github.com/vela-science/math
-vela replay math --json          # integrity.replay: verified, strict: pass
-vela claims math --json          # 1 accepted
+vela replay math --json          # ok: true, repository_root: sha256:b35b335a…
+vela status math --json          # integrity.replay: verified, strict: pass
+vela claims math --json          # indexed.accepted: 1
 vela review list math --status all --json
 ```
 
@@ -207,6 +216,11 @@ and `hashlib`:
 python conformance/readers/python/repository_root.py math \
   --expect sha256:b35b335aa76cfeaa871bb6e90c2c70e93a466e4ceac1ed2393c6edbd1c12505c
 ```
+
+That root is the repository at commit `ba11109`. Every Decision after it moves
+the root, correctly — a mismatch means the repository has advanced, not that
+something is wrong. Clone at that commit, or take the current value from `vela
+replay` at the commit you cloned.
 
 That checks one thing — that the manifest bytes hash to the root they are named
 by — and says so on its own output. It is the anchor the rest hangs from, and
