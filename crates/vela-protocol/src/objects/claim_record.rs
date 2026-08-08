@@ -1,4 +1,4 @@
-//! Current scientific assertion object: `vela.claim-record.v1`.
+//! Scientific assertion object: `vela.claim-record.v1`.
 //!
 //! Claim Records contain the assertion and its exact support identity. Standing
 //! is derived from the current repository and its covered Decisions; it is
@@ -79,11 +79,15 @@ pub const DESCRIPTIVE_RELATION_KINDS: &[&str] = &[
 ///
 /// Retained records cannot be rewritten, so both halves of a near-miss have to
 /// resolve to one meaning. `depends` is canonical by ADR 0004, which named it
-/// the stored wire value and `depends_on` the derived-graph rendering.
-/// `contradicts` is canonical because it is the spelling the repositories
-/// actually hold; `opposes` was declared and never written.
-const RELATION_KIND_ALIASES: &[(&str, &str)] =
-    &[("depends_on", "depends"), ("opposes", "contradicts")];
+/// the stored wire value and `depends_on` the derived-graph rendering, and that
+/// rendering is live: `correction_impact.rs` classifies edges by it.
+///
+/// `opposes` was here too, resolving to `contradicts`. It aliased nothing — it
+/// was declared in `PROTOCOL.md` and written into no record, which the fixture
+/// recorded as `retained_uses: 0`. A near-miss table is for spellings a
+/// retained record actually holds, so it is withdrawn rather than aliased, the
+/// same disposition `revises` and `retracts` already have.
+const RELATION_KIND_ALIASES: &[(&str, &str)] = &[("depends_on", "depends")];
 
 /// What a relation kind does to Standing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -217,10 +221,7 @@ impl ClaimRecordV1 {
     }
 
     pub fn canonical_root(&self) -> Result<String, String> {
-        Ok(format!(
-            "sha256:{}",
-            hex::encode(Sha256::digest(self.canonical_bytes()?))
-        ))
+        Ok(crate::canonical::sha256_root(&self.canonical_bytes()?))
     }
 
     fn derive_id(&self) -> Result<String, String> {
@@ -383,15 +384,13 @@ fn require_full_claim_id(field: &str, value: &str) -> Result<(), String> {
 }
 
 fn require_sha256(field: &str, value: &str) -> Result<(), String> {
-    let digest = value
-        .strip_prefix("sha256:")
-        .ok_or_else(|| format!("Claim Record {field} must be a full sha256: digest"))?;
-    if !crate::shape::is_lower_hex_64(digest) {
-        return Err(format!(
+    if crate::shape::is_full_sha256_root(value) {
+        Ok(())
+    } else {
+        Err(format!(
             "Claim Record {field} must be a full sha256: digest"
-        ));
+        ))
     }
-    Ok(())
 }
 
 fn require_relative_path(field: &str, value: &str) -> Result<(), String> {

@@ -115,8 +115,8 @@ Install the signed release:
 Vela supports Linux x86-64 and macOS Apple-silicon release bundles.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.969.0/install.sh | \
-  VELA_VERSION=v0.969.0 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.970.0/install.sh | \
+  VELA_VERSION=v0.970.0 bash
 vela --version
 ```
 
@@ -242,7 +242,7 @@ runtime boundaries:
 
 ```text
 crates/             Vela protocol, replay, repository authority, and CLI
-conformance/        An independent Python reader, a JavaScript emitter,
+conformance/        An independent Python reader, two clean-room emitters,
                     fixtures, and repository-wide checks
 packages/           The shared source-manifest tooling
 scripts/            Release, release manifest, and ecosystem status

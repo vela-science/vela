@@ -1,4 +1,4 @@
-//! Current candidate transition: `vela.proposal.v1`.
+//! Candidate transition: `vela.proposal.v1`.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -92,10 +92,7 @@ impl ProposalV1 {
     }
 
     pub fn canonical_root(&self) -> Result<String, String> {
-        Ok(format!(
-            "sha256:{}",
-            hex::encode(Sha256::digest(self.canonical_bytes()?))
-        ))
+        Ok(crate::canonical::sha256_root(&self.canonical_bytes()?))
     }
 
     fn derive_id(&self) -> Result<String, String> {
@@ -150,13 +147,11 @@ fn require_prefixed(field: &str, value: &str, prefix: &str) -> Result<(), String
 }
 
 fn require_sha256(field: &str, value: &str) -> Result<(), String> {
-    let digest = value
-        .strip_prefix("sha256:")
-        .ok_or_else(|| format!("Proposal {field} must be a full sha256: digest"))?;
-    if !crate::shape::is_lower_hex_64(digest) {
-        return Err(format!("Proposal {field} must be a full sha256: digest"));
+    if crate::shape::is_full_sha256_root(value) {
+        Ok(())
+    } else {
+        Err(format!("Proposal {field} must be a full sha256: digest"))
     }
-    Ok(())
 }
 
 fn require_relative_path(field: &str, value: &str) -> Result<(), String> {

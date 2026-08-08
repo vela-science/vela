@@ -1,7 +1,7 @@
 //! Small, private, fsync-backed operation journals.
 //!
 //! These records are recovery plumbing. Git publication stores them below the
-//! Git directory; frontier transactions store them below the ignored private
+//! Git directory; repository transactions store them below the ignored private
 //! `.vela/operation-journals` directory. Neither location is scientific state
 //! or part of the publication path set.
 
@@ -198,7 +198,7 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let nested = temporary
             .path()
-            .join("frontier")
+            .join("repository_path")
             .join("committed")
             .join("blobs");
         let journal = nested.join("vop_test.json");

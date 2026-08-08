@@ -1,4 +1,4 @@
-//! Bounded, symlink-safe reads for files retained inside a frontier.
+//! Bounded, symlink-safe reads for files retained inside a repository.
 //!
 //! The read happens through one already-open descriptor. Path identity is
 //! checked before and after the bounded read, so a concurrent rename or
@@ -61,7 +61,7 @@ impl std::fmt::Display for BoundedFileError {
 
 /// Read one explicitly supplied file without allowing its path to swap to a
 /// symlink or different inode while Vela is reading it. Unlike
-/// [`read_bounded_frontier_file`], this accepts a path outside the frontier so
+/// [`read_bounded_frontier_file`], this accepts a path outside the repository so
 /// portable Submission and Verification files can be retained directly.
 pub(crate) fn read_bounded_file(
     path: &Path,
@@ -184,7 +184,7 @@ pub(crate) fn read_bounded_file(
 }
 
 pub(crate) fn read_bounded_frontier_file(
-    frontier: &Path,
+    repository_path: &Path,
     relative: &Path,
     max_bytes: u64,
     label: &str,
@@ -203,7 +203,7 @@ pub(crate) fn read_bounded_frontier_file(
             false,
         ));
     }
-    let root = frontier.canonicalize().map_err(|error| {
+    let root = repository_path.canonicalize().map_err(|error| {
         BoundedFileError::new(
             "repository_unresolvable",
             format!("canonicalize repository for {label}: {error}"),
@@ -448,14 +448,14 @@ mod tests {
 
     #[test]
     fn reads_a_valid_normalized_frontier_relative_file() {
-        let frontier = tempfile::tempdir().unwrap();
+        let repository_path = tempfile::tempdir().unwrap();
         let relative = Path::new("records/receipts/receipt.json");
-        let absolute = frontier.path().join(relative);
+        let absolute = repository_path.path().join(relative);
         fs::create_dir_all(absolute.parent().unwrap()).unwrap();
         fs::write(&absolute, b"bounded receipt bytes").unwrap();
 
         let bytes = read_bounded_frontier_file(
-            frontier.path(),
+            repository_path.path(),
             relative,
             b"bounded receipt bytes".len() as u64,
             "receipt",
@@ -515,14 +515,14 @@ mod tests {
 
     #[test]
     fn rejects_oversized_input_before_opening_a_descriptor() {
-        let frontier = tempfile::tempdir().unwrap();
+        let repository_path = tempfile::tempdir().unwrap();
         let relative = Path::new("records/receipt.json");
-        let absolute = frontier.path().join(relative);
+        let absolute = repository_path.path().join(relative);
         fs::create_dir_all(absolute.parent().unwrap()).unwrap();
         fs::write(&absolute, b"12345").unwrap();
 
         let error =
-            read_bounded_frontier_file(frontier.path(), relative, 4, "receipt").unwrap_err();
+            read_bounded_frontier_file(repository_path.path(), relative, 4, "receipt").unwrap_err();
 
         assert_eq!(error.code, "oversized");
         assert!(!error.opened, "size metadata must reject before File::open");
@@ -533,13 +533,17 @@ mod tests {
     fn rejects_a_symlink_leaf_before_opening_a_descriptor() {
         use std::os::unix::fs::symlink;
 
-        let frontier = tempfile::tempdir().unwrap();
-        fs::write(frontier.path().join("real.json"), b"real bytes").unwrap();
-        symlink("real.json", frontier.path().join("receipt.json")).unwrap();
+        let repository_path = tempfile::tempdir().unwrap();
+        fs::write(repository_path.path().join("real.json"), b"real bytes").unwrap();
+        symlink("real.json", repository_path.path().join("receipt.json")).unwrap();
 
-        let error =
-            read_bounded_frontier_file(frontier.path(), Path::new("receipt.json"), 128, "receipt")
-                .unwrap_err();
+        let error = read_bounded_frontier_file(
+            repository_path.path(),
+            Path::new("receipt.json"),
+            128,
+            "receipt",
+        )
+        .unwrap_err();
 
         assert_eq!(error.code, "symlink");
         assert!(!error.opened);
@@ -550,14 +554,14 @@ mod tests {
     fn rejects_a_symlink_ancestor_before_opening_a_descriptor() {
         use std::os::unix::fs::symlink;
 
-        let frontier = tempfile::tempdir().unwrap();
-        let real_directory = frontier.path().join("real-records");
+        let repository_path = tempfile::tempdir().unwrap();
+        let real_directory = repository_path.path().join("real-records");
         fs::create_dir(&real_directory).unwrap();
         fs::write(real_directory.join("receipt.json"), b"real bytes").unwrap();
-        symlink("real-records", frontier.path().join("records")).unwrap();
+        symlink("real-records", repository_path.path().join("records")).unwrap();
 
         let error = read_bounded_frontier_file(
-            frontier.path(),
+            repository_path.path(),
             Path::new("records/receipt.json"),
             128,
             "receipt",
@@ -570,8 +574,8 @@ mod tests {
 
     #[test]
     fn accepts_only_normalized_frontier_relative_paths() {
-        let frontier = tempfile::tempdir().unwrap();
-        let absolute = frontier.path().join("receipt.json");
+        let repository_path = tempfile::tempdir().unwrap();
+        let absolute = repository_path.path().join("receipt.json");
         fs::write(&absolute, b"receipt").unwrap();
         let invalid = [
             PathBuf::from("./receipt.json"),
@@ -580,8 +584,8 @@ mod tests {
         ];
 
         for path in invalid {
-            let error =
-                read_bounded_frontier_file(frontier.path(), &path, 128, "receipt").unwrap_err();
+            let error = read_bounded_frontier_file(repository_path.path(), &path, 128, "receipt")
+                .unwrap_err();
             assert_eq!(error.code, "path_invalid", "path: {}", path.display());
             assert!(!error.opened, "path: {}", path.display());
         }

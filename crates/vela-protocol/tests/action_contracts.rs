@@ -143,11 +143,9 @@ fn root_action_is_read_only_and_nonfinalizing() {
     assert_eq!(action["runs"]["using"].as_str(), Some("composite"));
     assert!(action["inputs"].get("strict").is_none());
     assert!(action["inputs"].get("vela-version").is_none());
-    /* Two keys, one path. A composite action has no alias mechanism, so
-    `repository` and its deprecated predecessor `frontier` are declared
-    separately and coalesced in the `Resolve the repository path` step. What
-    this assertion is really about is that the action still takes nothing but
-    a path: a third key would be a second thing it can be told to do. */
+    /* One key, one path. What this assertion is really about is that the
+    action takes nothing but a path: a second key would be a second thing it
+    can be told to do. */
     let mut declared: Vec<&str> = action["inputs"]
         .as_object()
         .expect("action inputs must be an object")
@@ -157,8 +155,8 @@ fn root_action_is_read_only_and_nonfinalizing() {
     declared.sort_unstable();
     assert_eq!(
         declared,
-        ["frontier", "repository"],
-        "the public action accepts only the repository path, under its current name and the deprecated alias a pinned consumer passes"
+        ["repository"],
+        "the public action accepts only the repository path"
     );
 
     let install = step_named(&action["runs"], "Install Vela");
@@ -182,19 +180,18 @@ fn root_action_is_read_only_and_nonfinalizing() {
         "the step must verify the consumer's repository as JSON"
     );
 
-    /* The coalesce, asserted where the rest of the action's shape is. Both
-    keys must reach it and neither may reach anything else: a step that read
-    `inputs.frontier` for itself would take the alias without the check that
-    the two agree, and that is how one action ends up verifying two paths. */
+    /* The resolve, asserted where the rest of the action's shape is. One step
+    turns the input into the path every other step reads, so a step that named
+    the input for itself would be a second place the default lives. */
     let resolve = script_named(&action["runs"], "Resolve the repository path");
     assert!(
-        resolve.contains("REPOSITORY:-") && resolve.contains("FRONTIER:-"),
-        "the resolve step must coalesce both keys, preferring the current one"
+        resolve.contains("REPOSITORY:-"),
+        "the resolve step must apply the default in one place"
     );
     assert_eq!(
-        ROOT_ACTION.matches("inputs.frontier").count(),
+        ROOT_ACTION.matches("inputs.repository").count(),
         1,
-        "the deprecated alias must be read once, by the step that coalesces it"
+        "the input must be read once, by the step that resolves it"
     );
 
     /* The two shape checks every repository owes and none of them owns. They are
@@ -454,6 +451,25 @@ fn installers_verify_release_bytes_and_do_not_ship_a_signer() {
     assert!(!INSTALLER.contains("vela-signer"));
     assert!(!INSTALLER.contains("science.vela.signer.policy"));
     assert!(INSTALLER.contains("VELA_EXPECTED_SHA256"));
+}
+
+/// The distribution surface speaks the current vocabulary too.
+///
+/// `wording_contract.rs` walks the binary's whole help tree and both sides of
+/// its error surface, and `ecosystem-status.py` scans `crates/`, `schemas/` and
+/// `packages/` for the retired identifier spellings. Between them sits the one
+/// script every consumer runs before the binary exists, which neither reads: it
+/// told anyone who uninstalled Vela that "Frontier data was preserved" for as
+/// long as there had been no Frontier to hold data. `action.yml` is here for
+/// the same reason — it is the other file a consumer meets first.
+#[test]
+fn the_distribution_surface_does_not_name_a_frontier() {
+    for (name, source) in [("install.sh", INSTALLER), ("action.yml", ROOT_ACTION)] {
+        assert!(
+            !source.to_ascii_lowercase().contains("frontier"),
+            "{name} still says Frontier where ADR 0039 means Repository"
+        );
+    }
 }
 
 /// `docs/CONTINUITY.md` requires installing and verifying without the provider.

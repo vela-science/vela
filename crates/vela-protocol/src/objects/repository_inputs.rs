@@ -5,8 +5,6 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 use unicode_normalization::UnicodeNormalization;
 
-pub const RETAINED_OBJECT_MANIFEST_SCHEMA: &str = "vela.retained-object-manifest.v1";
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum GitObjectFormat {

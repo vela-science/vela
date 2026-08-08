@@ -68,8 +68,8 @@ fn missing_objects_exit_3_and_malformed_flags_exit_2() {
     let home = temporary.path().join("home");
     std::fs::create_dir_all(&home).expect("isolated home");
     let agent = EphemeralAgent::start(temporary.path(), "vela exit-code contract test");
-    let frontier = temporary.path().join("frontier");
-    let frontier_text = frontier.to_string_lossy().into_owned();
+    let repository_path = temporary.path().join("repository_path");
+    let repository_path_text = repository_path.to_string_lossy().into_owned();
 
     let initialized = run(
         temporary.path(),
@@ -77,7 +77,7 @@ fn missing_objects_exit_3_and_malformed_flags_exit_2() {
         Some(agent.socket()),
         &[
             "init",
-            &frontier_text,
+            &repository_path_text,
             "--name",
             // The repository id derives from the name, and the trust anchor is
             // keyed by that id in a directory shared with every other run, so a
@@ -124,7 +124,7 @@ fn missing_objects_exit_3_and_malformed_flags_exit_2() {
         ),
     ];
     for (args, what) in not_found {
-        let output = run(&frontier, &home, None, &args);
+        let output = run(&repository_path, &home, None, &args);
         assert_failure(&output, 3, "not_found", what);
     }
 
@@ -149,7 +149,7 @@ fn missing_objects_exit_3_and_malformed_flags_exit_2() {
         ),
     ];
     for (args, what) in usage {
-        let output = run(&frontier, &home, None, &args);
+        let output = run(&repository_path, &home, None, &args);
         assert_failure(&output, 2, "usage", what);
     }
 
@@ -158,7 +158,7 @@ fn missing_objects_exit_3_and_malformed_flags_exit_2() {
     // repository contract, still exits 1 — including `start` on a repository
     // with no Target Index, which is a broken repository and not a bad
     // argument. (`start` on an absent Target needs a live Target Index to
-    // reach; current_genesis.rs pins that one.)
+    // reach; genesis.rs pins that one.)
     let bare = temporary.path().join("bare");
     std::fs::create_dir_all(&bare).expect("bare directory");
     let output = run(temporary.path(), &home, None, &["replay", "bare", "--json"]);
@@ -169,7 +169,7 @@ fn missing_objects_exit_3_and_malformed_flags_exit_2() {
         "replay on a directory with no Vela store",
     );
     let output = run(
-        &frontier,
+        &repository_path,
         &home,
         None,
         &["start", "no-such-target", "--repo", ".", "--json"],

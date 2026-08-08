@@ -77,7 +77,7 @@ impl PreparedRoutineEvidenceTransaction {
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn prepare_routine_evidence_transaction(
     barrier: CanonicalWriteBarrier,
-    frontier: &Path,
+    repository: &Path,
     repository_id: &str,
     kind: OperationKind,
     operation_id: OperationId,
@@ -116,7 +116,7 @@ pub(crate) fn prepare_routine_evidence_transaction(
             .map(routine_derived_write)
             .collect::<Result<Vec<_>, _>>()?,
     );
-    let draft = DeltaDraft::prepare(frontier, writes).map_err(|error| error.to_string())?;
+    let draft = DeltaDraft::prepare(repository, writes).map_err(|error| error.to_string())?;
     if draft.delta.writes().is_empty() {
         return Err("routine evidence transaction changes no bytes".into());
     }
@@ -138,7 +138,7 @@ pub(crate) fn prepare_routine_evidence_transaction(
             operation_id: operation_id.clone(),
             request_root: ContentDigest::parse(request_root.to_string())
                 .map_err(|error| error.to_string())?,
-            frontier: RepositoryBinding::new(frontier, repository_id, &layout)
+            repository: RepositoryBinding::new(repository, repository_id, &layout)
                 .map_err(|error| error.to_string())?,
             fixed_time,
             read_set,
@@ -223,10 +223,7 @@ fn rooted_sha256_path(path: &str, prefix: &str, suffix: &str) -> bool {
     else {
         return false;
     };
-    stem.len() == 64
-        && stem
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    vela_protocol::is_lower_hex_64(stem)
 }
 
 #[cfg(test)]
@@ -307,7 +304,7 @@ mod tests {
         assert!(routine_derived_write(&deletion).is_err());
 
         let unrelated = AuthorityDerivedDraft {
-            path: "frontier.json".into(),
+            path: "repository.json".into(),
             postimage: Some(Vec::new()),
         };
         assert!(routine_derived_write(&unrelated).is_err());

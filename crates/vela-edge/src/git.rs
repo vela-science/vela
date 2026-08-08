@@ -15,7 +15,7 @@ const NULL_DEVICE: &str = "/dev/null";
 
 /// Construct a read-only Git command isolated from ambient Git configuration
 /// and repository-redirection variables.
-pub fn command(repo: &Path) -> Result<Command, String> {
+pub(crate) fn command(repo: &Path) -> Result<Command, String> {
     let repo = std::fs::canonicalize(repo)
         .map_err(|error| format!("resolve Git repository {}: {error}", repo.display()))?;
     let worktree = repo
@@ -80,7 +80,7 @@ pub fn output(repo: &Path, args: &[&str]) -> Result<Output, String> {
 }
 
 /// Return stdout for a successful read-only Git operation.
-pub fn bytes(repo: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
+pub(crate) fn bytes(repo: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
     let output = output(repo, args)?;
     if output.status.success() {
         return Ok(output.stdout);

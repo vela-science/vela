@@ -47,13 +47,13 @@ fn json(output: &Output) -> Value {
 /// `vela submit` commits what it retains, so the fixture needs a Git identity
 /// the commit can carry. Without it the first Submission leaves its Artifact
 /// installed but untracked and the second refuses the occupied path.
-fn configure_git_identity(frontier: &Path) {
+fn configure_git_identity(repository_path: &Path) {
     for (key, value) in [
         ("user.name", "Vela Test"),
         ("user.email", "vela@example.invalid"),
     ] {
         let configured = Command::new("git")
-            .current_dir(frontier)
+            .current_dir(repository_path)
             .args(["config", key, value])
             .status()
             .expect("configure test Git identity");
@@ -79,8 +79,8 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
     let agent = EphemeralAgent::start(temporary.path(), "vela claims test");
     let home = temporary.path().join("home");
     std::fs::create_dir_all(&home).expect("isolated home");
-    let frontier = temporary.path().join("frontier");
-    let frontier_text = frontier.to_string_lossy().into_owned();
+    let repository_path = temporary.path().join("repository_path");
+    let repository_path_text = repository_path.to_string_lossy().into_owned();
     let socket = agent.socket();
 
     /* The repository id derives from name, scope, and key, and the trust anchor
@@ -100,7 +100,7 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
         socket,
         &[
             "init",
-            &frontier_text,
+            &repository_path_text,
             "--name",
             &name,
             "--scope",
@@ -111,10 +111,10 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
     let _anchor =
         support::RemoveAnchorOnDrop::from_init_json(&String::from_utf8_lossy(&initialized.stdout));
 
-    configure_git_identity(&frontier);
-    std::fs::create_dir_all(frontier.join("artifacts")).expect("artifacts directory");
+    configure_git_identity(&repository_path);
+    std::fs::create_dir_all(repository_path.join("artifacts")).expect("artifacts directory");
     std::fs::write(
-        frontier.join("artifacts/note.json"),
+        repository_path.join("artifacts/note.json"),
         b"{\"note\":\"claims fixture\"}\n",
     )
     .expect("fixture artifact");
@@ -130,7 +130,7 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
             &[
                 "submit",
                 "--repo",
-                &frontier_text,
+                &repository_path_text,
                 "--claim",
                 assertion,
                 "--type",
@@ -155,7 +155,7 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
         temporary.path(),
         &home,
         socket,
-        &["claims", &frontier_text, "--json"],
+        &["claims", &repository_path_text, "--json"],
     ));
     assert_eq!(accepted["ok"], true);
     assert_eq!(accepted["command"], "claims");
@@ -175,7 +175,13 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
             temporary.path(),
             &home,
             socket,
-            &["claims", &frontier_text, "--status", near_miss, "--json"],
+            &[
+                "claims",
+                &repository_path_text,
+                "--status",
+                near_miss,
+                "--json",
+            ],
         );
         assert_eq!(
             refused.status.code(),
@@ -189,7 +195,13 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
         temporary.path(),
         &home,
         socket,
-        &["claims", &frontier_text, "--status", "unassessed", "--json"],
+        &[
+            "claims",
+            &repository_path_text,
+            "--status",
+            "unassessed",
+            "--json",
+        ],
     ));
     let all_ids = ids(&pending);
     assert_eq!(
@@ -245,14 +257,14 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
         temporary.path(),
         &home,
         socket,
-        &["show", &frontier_text, &claim_id, "--json"],
+        &["show", &repository_path_text, &claim_id, "--json"],
     ));
     assert_eq!(shown["ok"], true, "claims produced an id `show` refuses");
     let why = json(&run(
         temporary.path(),
         &home,
         socket,
-        &["why", &frontier_text, &claim_id, "--json"],
+        &["why", &repository_path_text, &claim_id, "--json"],
     ));
     assert_eq!(why["ok"], true, "claims produced an id `why` refuses");
     assert_eq!(why["claim_id"], claim_id.as_str());
@@ -266,7 +278,7 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
         socket,
         &[
             "claims",
-            &frontier_text,
+            &repository_path_text,
             "--status",
             "unassessed",
             "--limit",
@@ -287,7 +299,7 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
         socket,
         &[
             "claims",
-            &frontier_text,
+            &repository_path_text,
             "--status",
             "unassessed",
             "--limit",
@@ -312,7 +324,7 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
         socket,
         &[
             "claims",
-            &frontier_text,
+            &repository_path_text,
             "--cursor",
             &format!("vcl_{}", "0".repeat(64)),
             "--json",
@@ -330,7 +342,7 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
         temporary.path(),
         &home,
         socket,
-        &["claims", &frontier_text, "--status", "unassessed"],
+        &["claims", &repository_path_text, "--status", "unassessed"],
     ));
     assert!(
         serde_json::from_str::<Value>(rendered.trim()).is_err(),

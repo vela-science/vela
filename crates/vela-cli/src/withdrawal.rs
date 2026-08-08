@@ -12,9 +12,9 @@ use chrono::{SecondsFormat, Utc};
 use serde::Serialize;
 use serde_json::json;
 use sha2::Digest;
-use vela_protocol::current_repository::{CurrentRepositoryV4, RepositoryObjectRefV1};
 use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::proposal_withdrawal_v1::ProposalWithdrawalV1;
+use vela_protocol::repository::{RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::submission_v1::SubmissionV1;
 
 use crate::authority_transaction::AuthorityObjectDraft;
@@ -48,9 +48,12 @@ pub(crate) struct ProposalWithdrawalOutcome {
     publication: PublicationOutcome,
 }
 
-fn read_exact(frontier: &Path, reference: &RepositoryObjectRefV1) -> Result<Vec<u8>, String> {
-    let bytes = fs::read(frontier.join(&reference.path))
-        .map_err(|error| format!("read current object {}: {error}", reference.path))?;
+fn read_exact(
+    repository_path: &Path,
+    reference: &RepositoryObjectRefV1,
+) -> Result<Vec<u8>, String> {
+    let bytes = fs::read(repository_path.join(&reference.path))
+        .map_err(|error| format!("read object {}: {error}", reference.path))?;
     let root = format!("sha256:{}", hex::encode(sha2::Sha256::digest(&bytes)));
     if root != reference.root {
         return Err(format!(
@@ -62,8 +65,8 @@ fn read_exact(frontier: &Path, reference: &RepositoryObjectRefV1) -> Result<Vec<
 }
 
 fn proposal_package(
-    frontier: &Path,
-    repository: &CurrentRepositoryV4,
+    repository_path: &Path,
+    repository: &RepositoryV4,
     proposal_id: &str,
 ) -> Result<(ProposalV1, String, SubmissionV1), String> {
     let proposal_reference = repository
@@ -71,7 +74,7 @@ fn proposal_package(
         .iter()
         .find(|reference| reference.id == proposal_id)
         .ok_or_else(|| format!("current repository has no exact Proposal {proposal_id}"))?;
-    let proposal = ProposalV1::parse(&read_exact(frontier, proposal_reference)?)?;
+    let proposal = ProposalV1::parse(&read_exact(repository_path, proposal_reference)?)?;
     if proposal.proposal_id != proposal_reference.id
         || proposal.canonical_root()? != proposal_reference.root
     {
@@ -86,7 +89,7 @@ fn proposal_package(
                 && reference.path == proposal.producer_package.path
         })
         .ok_or_else(|| "Proposal does not bind one exact retained Submission".to_string())?;
-    let submission = SubmissionV1::parse(&read_exact(frontier, submission_reference)?)?;
+    let submission = SubmissionV1::parse(&read_exact(repository_path, submission_reference)?)?;
     if submission.submission_id != submission_reference.id
         || submission.canonical_root()? != submission_reference.root
     {
@@ -96,7 +99,7 @@ fn proposal_package(
 }
 
 fn request_root(
-    repository: &CurrentRepositoryV4,
+    repository: &RepositoryV4,
     proposal_root: &str,
     submission_root: &str,
     actor: &str,
@@ -105,7 +108,7 @@ fn request_root(
     Ok(format!(
         "sha256:{}",
         vela_protocol::canonical::sha256_canonical(&json!({
-            "schema": "vela.current-proposal-withdrawal-request.v1",
+            "schema": "vela.proposal-withdrawal-request.v1",
             "repository_id": repository.repository_id,
             "origin_id": repository.origin_id,
             "repository_before": repository.canonical_root()?,
@@ -118,14 +121,14 @@ fn request_root(
 }
 
 fn existing_outcome(
-    frontier: &Path,
-    repository: &CurrentRepositoryV4,
+    repository_path: &Path,
+    repository: &RepositoryV4,
     proposal_id: &str,
     actor: &str,
     reason: &str,
 ) -> Result<Option<ProposalWithdrawalOutcome>, String> {
     let withdrawals =
-        crate::current_repository::load_current_proposal_withdrawals(frontier, repository)?;
+        crate::repository::load_current_proposal_withdrawals(repository_path, repository)?;
     let Some(withdrawal) = withdrawals.get(proposal_id) else {
         return Ok(None);
     };
@@ -160,7 +163,7 @@ fn existing_outcome(
 }
 
 pub(crate) fn withdraw(
-    frontier: &Path,
+    repository_path: &Path,
     proposal_id: &str,
     actor: &str,
     reason: &str,
@@ -173,12 +176,14 @@ pub(crate) fn withdraw(
     if reason.is_empty() {
         return Err("proposal withdrawal reason cannot be empty".into());
     }
-    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
-    if let Some(outcome) = existing_outcome(frontier, &repository, proposal_id, actor, reason)? {
+    let repository = crate::repository::verify_repository_at(repository_path, true)?;
+    if let Some(outcome) =
+        existing_outcome(repository_path, &repository, proposal_id, actor, reason)?
+    {
         return Ok(outcome);
     }
     if let Some(standing) =
-        crate::current_repository::load_current_proposal_standings(frontier, &repository)?
+        crate::repository::load_current_proposal_standings(repository_path, &repository)?
             .get(proposal_id)
     {
         return Err(format!(
@@ -188,7 +193,7 @@ pub(crate) fn withdraw(
     }
     let repository_root = repository.canonical_root()?;
     let (proposal, proposal_root, submission) =
-        proposal_package(frontier, &repository, proposal_id)?;
+        proposal_package(repository_path, &repository, proposal_id)?;
     if actor != proposal.actor
         || actor != submission.provenance.producer
         || actor != submission.authentication.identity_binding.actor_id
@@ -196,13 +201,13 @@ pub(crate) fn withdraw(
         return Err("proposal withdrawal actor must own the exact retained Submission".into());
     }
 
-    let journal_dir = crate::repository_ops::frontier_transaction_journal_dir(frontier)?;
+    let journal_dir = crate::repository_ops::repository_transaction_journal_dir(repository_path)?;
     let barrier = crate::repository_txn::RepositoryTxn::acquire_routine_evidence_write_barrier(
-        frontier,
+        repository_path,
         &journal_dir,
     )
     .map_err(|error| error.to_string())?;
-    let held = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let held = crate::repository::verify_repository_at(repository_path, true)?;
     if held.canonical_root()? != repository_root {
         return Err("current repository changed while acquiring the withdrawal barrier".into());
     }
@@ -219,10 +224,8 @@ pub(crate) fn withdraw(
         &key,
     )?;
     let withdrawal_root = withdrawal.canonical_root()?;
-    let withdrawal_path = crate::current_submission::rooted_path(
-        "records/proposal-withdrawals/sha256",
-        &withdrawal_root,
-    )?;
+    let withdrawal_path =
+        crate::submission::rooted_path("records/proposal-withdrawals/sha256", &withdrawal_root)?;
 
     let mut next = held.clone();
     if proposal.action == "claim.add" || proposal.action == "claim.revise" {
@@ -234,7 +237,7 @@ pub(crate) fn withdraw(
             return Err("pending Proposal does not bind exactly one pending Claim".into());
         }
     }
-    crate::current_submission::add_object_ref(
+    crate::submission::add_object_ref(
         &mut next.proposal_withdrawals,
         RepositoryObjectRefV1 {
             schema: withdrawal.schema.clone(),
@@ -244,7 +247,7 @@ pub(crate) fn withdraw(
         },
     )?;
     next.verify()?;
-    let derived = crate::current_submission::rebind_target_index(frontier, &next)?;
+    let derived = crate::submission::rebind_target_index(repository_path, &next)?;
     let request_root = request_root(
         &held,
         &proposal_root,
@@ -284,7 +287,7 @@ pub(crate) fn withdraw(
     ];
     let mut prepared = crate::routine_evidence_transaction::prepare_routine_evidence_transaction(
         barrier,
-        frontier,
+        repository_path,
         &held.repository_id,
         OperationKind::ProposalWithdrawal,
         operation_id.clone(),
@@ -299,11 +302,11 @@ pub(crate) fn withdraw(
             .resolved_public_writes()
             .map_err(|error| error.to_string())?;
         let delta_root = prepared.canonical_delta_root().to_string();
-        let delta = publication_delta(frontier, &delta_root, public)?
+        let delta = publication_delta(repository_path, &delta_root, public)?
             .ok_or_else(|| "Proposal Withdrawal transaction had no public Git delta".to_string())?;
         let publish_options = PublishOptions::local();
-        let preflight = exact_publication_preflight(frontier, &delta, &publish_options)
-            .map_err(publication_error)?;
+        let preflight = exact_publication_preflight(repository_path, &delta, &publish_options)
+            .map_err(crate::repository_ops::publication_error)?;
         Ok::<_, String>((delta, preflight))
     })();
     let (delta, preflight) = match precommit {
@@ -320,9 +323,9 @@ pub(crate) fn withdraw(
         .map_err(|error| error.to_string())?;
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
-    crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)?;
+    crate::repository::verify_repository_allow_derived_drift_at(repository_path)?;
     let publication = publish_exact_delta(
-        frontier,
+        repository_path,
         "proposal withdraw",
         std::slice::from_ref(&withdrawal.withdrawal_id),
         &delta,
@@ -333,7 +336,7 @@ pub(crate) fn withdraw(
         publication.state,
         PublicationState::Unchanged { .. } | PublicationState::CommittedLocal { .. }
     ) {
-        crate::current_repository::verify_current_repository_at(frontier, true).map_err(|error| {
+        crate::repository::verify_repository_at(repository_path, true).map_err(|error| {
             format!(
                 "Proposal Withdrawal was published but strict verification failed: {error}; do not retry"
             )
@@ -362,26 +365,17 @@ pub(crate) fn withdraw(
     })
 }
 
-fn publication_error(outcome: PublicationOutcome) -> String {
-    match outcome.state {
-        PublicationState::Uncommitted { reason, .. } => reason,
-        PublicationState::Unchanged { .. } | PublicationState::CommittedLocal { .. } => {
-            "unexpected completed publication during preflight".into()
-        }
-    }
-}
-
 pub(crate) fn cmd_withdraw(
-    frontier: &Path,
+    repository_path: &Path,
     proposal_id: &str,
     actor: &str,
     reason: &str,
     json_out: bool,
 ) {
     crate::ui::set_mode(COMMAND, json_out);
-    crate::ui::require_initialized_repo(frontier);
-    let frontier = crate::ui::canonicalize_repo(frontier);
-    let outcome = withdraw(&frontier, proposal_id, actor, reason)
+    crate::ui::require_initialized_repo(repository_path);
+    let repository_path = crate::ui::canonicalize_repo(repository_path);
+    let outcome = withdraw(&repository_path, proposal_id, actor, reason)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     if json_out {
         crate::cli::print_json(&outcome);

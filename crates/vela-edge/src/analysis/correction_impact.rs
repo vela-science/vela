@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 pub const CORRECTION_IMPACT_INPUT_SCHEMA_V1: &str = "vela.correction-impact-input.v1";
-pub const CORRECTION_IMPACT_PROJECTION_SCHEMA_V1: &str = "vela.correction-impact-projection.v1";
+pub(crate) const CORRECTION_IMPACT_PROJECTION_SCHEMA_V1: &str =
+    "vela.correction-impact-projection.v1";
 
 /// The domain separator the repair-obligation root is computed under.
 ///
@@ -25,7 +26,8 @@ pub const CORRECTION_IMPACT_PROJECTION_SCHEMA_V1: &str = "vela.correction-impact
 /// produces, so publishing this would mean moving the type into the kernel —
 /// promoting a non-authoritative analysis to a canonical object by way of a
 /// directory. `docs/ECOSYSTEM.md` §6 states the argument in full.
-pub const CORRECTION_REPAIR_OBLIGATION_SCHEMA_V1: &str = "vela.correction-repair-obligation.v1";
+pub(crate) const CORRECTION_REPAIR_OBLIGATION_SCHEMA_V1: &str =
+    "vela.correction-repair-obligation.v1";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -408,7 +410,7 @@ fn validate_input(input: &CorrectionImpactInputV1) -> Result<(), String> {
     if input.schema != CORRECTION_IMPACT_INPUT_SCHEMA_V1 {
         return Err("correction_impact_schema_invalid".to_string());
     }
-    require_text("fixture_id", &input.fixture_id)?;
+    require_text(&input.fixture_id)?;
     if !matches!(
         input.transition.kind.as_str(),
         "correct_claim" | "supersede_claim" | "retract_claim"
@@ -440,7 +442,7 @@ fn validate_input(input: &CorrectionImpactInputV1) -> Result<(), String> {
             return Err("correction_claim_root_duplicate".to_string());
         }
         if let Some(condition) = &claim.repair_condition {
-            require_text("repair_condition", condition)?;
+            require_text(condition)?;
         }
     }
     for required in [&input.transition.predecessor, &input.transition.successor] {
@@ -472,8 +474,8 @@ fn validate_input(input: &CorrectionImpactInputV1) -> Result<(), String> {
     let mut relation_ids = BTreeSet::new();
     let mut relation_roots = BTreeSet::new();
     for relation in &input.relations {
-        require_text("relation_id", &relation.relation_id)?;
-        require_sha256("relation_root", &relation.relation_root)?;
+        require_text(&relation.relation_id)?;
+        require_sha256(&relation.relation_root)?;
         if !relation_ids.insert(relation.relation_id.as_str()) {
             return Err("correction_relation_id_duplicate".to_string());
         }
@@ -496,30 +498,27 @@ fn validate_input(input: &CorrectionImpactInputV1) -> Result<(), String> {
 }
 
 fn validate_claim_ref(reference: &ClaimRef) -> Result<(), String> {
-    if !is_prefixed_hex(&reference.claim_id, "vcl_", 64) {
+    if !vela_protocol::is_prefixed_lower_hex(&reference.claim_id, "vcl_", 64) {
         return Err("correction_claim_id_invalid".to_string());
     }
-    require_sha256("claim_root", &reference.claim_root)
+    require_sha256(&reference.claim_root)
 }
 
-fn require_sha256(_field: &str, value: &str) -> Result<(), String> {
-    if is_prefixed_hex(value, "sha256:", 64) {
+/* Both of these took a field name and discarded it, at five call sites. They
+cannot use one: the error is a fixed wire token that
+`conformance/fixtures/correction/diamond-adversarial.v1.json` pins and
+`verify_correction_impact.py` checks, so it is the same string whichever field
+failed. A parameter every caller supplies and no body reads is a claim that the
+error is specific when it is not. */
+fn require_sha256(value: &str) -> Result<(), String> {
+    if vela_protocol::is_full_sha256_root(value) {
         Ok(())
     } else {
         Err("correction_sha256_invalid".to_string())
     }
 }
 
-fn is_prefixed_hex(value: &str, prefix: &str, length: usize) -> bool {
-    value.strip_prefix(prefix).is_some_and(|suffix| {
-        suffix.len() == length
-            && suffix
-                .bytes()
-                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
-    })
-}
-
-fn require_text(_field: &str, value: &str) -> Result<(), String> {
+fn require_text(value: &str) -> Result<(), String> {
     if value.is_empty() || value.trim() != value || value.chars().any(char::is_control) {
         Err("correction_text_invalid".to_string())
     } else {

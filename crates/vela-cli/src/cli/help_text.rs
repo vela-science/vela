@@ -64,7 +64,7 @@ pub const REVIEW: &str = "\
 EXAMPLES
   vela review inbox --json            exact consequence-only Decision Inbox
   vela review list --json             compact pending queue
-  vela review show vpr_8b49… --json   one pending Review Packet or terminal Decision
+  vela review show vpr_8b49… --json   one pending Proposal or terminal Decision
   vela review reject vpr_8b49… --reason \"insufficient evidence\" --json
                                         execute one exact attributed rejection
   vela review withdraw vpr_8b49… --as agent:producer \
@@ -77,7 +77,7 @@ another.
 
 KNOWN PROPOSAL
   When a full vpr_ ID is supplied, start with `vela review show`. It returns
-  either the pending Review Packet, signed terminal Decision, or exact
+  either the pending Proposal, signed terminal Decision, or exact
   producer Withdrawal.
   A rejected proposal's candidate Claim is intentionally absent from
   accepted `show` and `log` views; that is not deletion.";

@@ -150,11 +150,12 @@ DECLARED_SURFACES: dict[str, bool] = {
     "action.yml": True,
     "conformance/canonical-hashing.json": True,
     "conformance/emitters/javascript.mjs": True,
+    "conformance/emitters/python.py": True,
     "conformance/fixtures/correction": True,
     "conformance/readers/python": True,
     "conformance/verify.py": True,
     "crates/vela-edge/src/analysis/correction_impact.rs": True,
-    "crates/vela-protocol/src/objects/current_repository.rs": True,
+    "crates/vela-protocol/src/objects/repository.rs": True,
     "crates/vela-protocol/src/wire_schema.rs": True,
     # The four documents `docs/CONTINUITY.md` cites. A citation whose target
     # moved is the same failure as a surface that moved, one indirection out.
@@ -170,9 +171,14 @@ DECLARED_SURFACES: dict[str, bool] = {
     "scripts/sign-published-release.sh": True,
     ".github/workflows/ecosystem-status.yml": True,
     "scripts/release_manifest.py": True,
-    # Named in docs/ECOSYSTEM.md as asked for by ADR 0039 and still absent. A
-    # declared-absent surface is worth as much as a declared-present one: it is
-    # how "still not built" stops being a claim nobody rechecks.
+    # Declared absent. A declared-absent surface is worth as much as a
+    # declared-present one: it is how "not built" stops being a claim nobody
+    # rechecks. The two are absent for different reasons, and the reason is the
+    # part worth writing down. No JavaScript reader has been built. `epoch1/`
+    # was built, verified against all four checkouts, and then deleted when ADR
+    # 0039's same-day amendment withdrew §8 — so this row guards a decision
+    # rather than tracking a gap, and a directory reappearing here is the
+    # epoch-1 branch coming back.
     "conformance/readers/javascript": False,
     "crates/vela-protocol/src/epoch1": False,
 }
@@ -238,13 +244,13 @@ def identifier_prefix() -> str:
     epoch that changes the prefix and forgets this file produces a diff, not a
     quiet agreement between two copies of the same number.
     """
-    text = (ROOT / "crates/vela-protocol/src/objects/current_repository.rs").read_text(
+    text = (ROOT / "crates/vela-protocol/src/objects/repository.rs").read_text(
         encoding="utf-8"
     )
     matches = set(re.findall(r'require_prefixed\("repository_id", &self\.\w+, "(\w+_)"\)', text))
     if len(matches) != 1:
         raise Failure(
-            "current_repository.rs does not pin exactly one repository-id prefix: "
+            "repository.rs does not pin exactly one repository-id prefix: "
             f"{sorted(matches) or 'none found'}"
         )
     return matches.pop()

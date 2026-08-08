@@ -1,4 +1,4 @@
-//! Current Target Index values and read-only repository assessment.
+//! Target Index values and read-only repository assessment.
 //!
 //! Target catalogues are derived briefing projections. This module proves
 //! their exact Git inputs and current repository context before they can
@@ -21,11 +21,11 @@ use vela_protocol::repository_inputs::{
 pub const TARGET_INDEX_SCHEMA_V5: &str = "vela.target-index.v5";
 pub const TARGET_INDEX_INPUT_MANIFEST_SCHEMA_V1: &str = "vela.target-index-input-manifest.v1";
 
-pub const TARGET_INDEX_JSON_MAX_BYTES: u64 = 4 * 1024 * 1024;
-pub const TARGET_PACKET_MAX_BYTES: u64 = 1024 * 1024;
-pub const TARGET_INDEX_MAX_TARGETS: usize = 16_384;
-pub const TARGET_INDEX_MAX_LABELS: usize = 64;
-pub const EXTERNAL_TARGET_ID_MAX_BYTES: usize = 256;
+pub(crate) const TARGET_INDEX_JSON_MAX_BYTES: u64 = 4 * 1024 * 1024;
+pub(crate) const TARGET_PACKET_MAX_BYTES: u64 = 1024 * 1024;
+pub(crate) const TARGET_INDEX_MAX_TARGETS: usize = 16_384;
+pub(crate) const TARGET_INDEX_MAX_LABELS: usize = 64;
+pub(crate) const EXTERNAL_TARGET_ID_MAX_BYTES: usize = 256;
 const JSON_SAFE_INTEGER_MAX: u64 = 9_007_199_254_740_991;
 const SOURCE_VIEW_BLOB_MAX_BYTES: u64 = 64 * 1024 * 1024;
 const SOURCE_VIEW_TOTAL_MAX_BYTES: u64 = 1024 * 1024 * 1024;
@@ -117,7 +117,7 @@ pub struct TargetIndexV5 {
 }
 
 #[derive(Debug, Clone)]
-pub struct CurrentTargetIndexAssessment {
+pub struct TargetIndexAssessment {
     pub index: TargetIndexV5,
     pub global_issues: Vec<TargetIndexIssue>,
     pub target_issues: BTreeMap<String, Vec<TargetIndexIssue>>,
@@ -142,7 +142,7 @@ fn canonical_root<T: Serialize + ?Sized>(value: &T) -> Result<String, String> {
 }
 
 fn require_sha256_root(field: &str, value: &str) -> Result<(), String> {
-    if vela_protocol::execution_binding::is_full_sha256_root(value) {
+    if vela_protocol::is_full_sha256_root(value) {
         Ok(())
     } else {
         Err(format!(
@@ -152,14 +152,7 @@ fn require_sha256_root(field: &str, value: &str) -> Result<(), String> {
 }
 
 fn require_repository_id(value: &str) -> Result<(), String> {
-    let Some(suffix) = value.strip_prefix("vrepo_") else {
-        return Err("repository_id must use the vrepo_<16 lowercase hex> form".to_string());
-    };
-    if suffix.len() == 16
-        && suffix
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
+    if vela_protocol::is_prefixed_lower_hex(value, "vrepo_", 16) {
         Ok(())
     } else {
         Err("repository_id must use the vrepo_<16 lowercase hex> form".to_string())
@@ -167,14 +160,7 @@ fn require_repository_id(value: &str) -> Result<(), String> {
 }
 
 fn require_origin_id(field: &str, value: &str) -> Result<(), String> {
-    let Some(suffix) = value.strip_prefix("vro_") else {
-        return Err(format!("{field} must use the vro_<16 lowercase hex> form"));
-    };
-    if suffix.len() == 16
-        && suffix
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
+    if vela_protocol::is_prefixed_lower_hex(value, "vro_", 16) {
         Ok(())
     } else {
         Err(format!("{field} must use the vro_<16 lowercase hex> form"))
@@ -190,11 +176,7 @@ fn git_digest_len(format: GitObjectFormat) -> usize {
 
 fn require_git_object(field: &str, value: &str, format: GitObjectFormat) -> Result<(), String> {
     let expected = git_digest_len(format);
-    if value.len() == expected
-        && value
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
+    if value.len() == expected && value.bytes().all(vela_protocol::is_lower_hex) {
         Ok(())
     } else {
         Err(format!(
@@ -277,7 +259,7 @@ fn scientific_target_punctuation_is_balanced(target: &str) -> bool {
 
 /// The one external target-ID grammar shared by indexes, campaigns, and
 /// coordination leases.
-pub fn validate_target_id(target: &str) -> Result<(), String> {
+pub(crate) fn validate_target_id(target: &str) -> Result<(), String> {
     if target.is_empty() || target.len() > EXTERNAL_TARGET_ID_MAX_BYTES {
         return Err(format!(
             "external target id must be 1..={EXTERNAL_TARGET_ID_MAX_BYTES} bytes"
@@ -718,8 +700,8 @@ fn blob(repo: &Path, entry: &GitTreeEntry) -> Result<Vec<u8>, String> {
 /// Read an ordered set of exact Git blobs through one hardened `cat-file`
 /// process.
 ///
-/// Source-frontier materialization previously spawned one Git process per
-/// `.vela` file. A real 2,189-event frontier therefore took minutes merely to
+/// Source-repository materialization previously spawned one Git process per
+/// `.vela` file. A real 2,189-event repository therefore took minutes merely to
 /// reconstruct one anchored view. `--batch` preserves the same exact object-ID
 /// boundary while keeping process count constant.
 fn batch_blobs(repo: &Path, entries: &[&GitTreeEntry]) -> Result<Vec<Vec<u8>>, String> {
@@ -729,10 +711,7 @@ fn batch_blobs(repo: &Path, entries: &[&GitTreeEntry]) -> Result<Vec<Vec<u8>>, S
     for entry in entries {
         if entry.kind != "blob"
             || !matches!(entry.object.len(), 40 | 64)
-            || !entry
-                .object
-                .bytes()
-                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            || !entry.object.bytes().all(vela_protocol::is_lower_hex)
         {
             return Err(format!(
                 "tracked path {} does not name an exact regular Git blob",
@@ -943,51 +922,6 @@ fn exact_tracked_head_bytes(repo: &Path, path: &str, max_bytes: u64) -> Result<V
         return Err(format!("{path:?} working bytes do not match HEAD"));
     }
     Ok(worktree)
-}
-
-/// Read one bounded regular blob from an exact retained Git commit.
-///
-/// Agent execution uses this instead of mutable worktree bytes so a live
-/// Attempt continues to mean the source tree it authorized. The caller still
-/// revalidates the complete Target binding before using the returned bytes.
-pub fn exact_git_blob_at(
-    repo: &Path,
-    commit: &str,
-    path: &str,
-    max_bytes: u64,
-) -> Result<Vec<u8>, String> {
-    validate_repository_path(path, "Git blob path", 4_096)?;
-    let format = repository_object_format(repo)?;
-    require_git_object("Git blob commit", commit, format)?;
-    let resolved = git_text(
-        repo,
-        &["rev-parse", "--verify", &format!("{commit}^{{commit}}")],
-    )?;
-    if resolved != commit {
-        return Err("Git blob commit did not resolve exactly".to_string());
-    }
-    let entry = tree_entry(repo, commit, path)?
-        .ok_or_else(|| format!("Git blob path {path:?} is absent from {commit}"))?;
-    if !matches!(entry.mode.as_str(), "100644" | "100755") || entry.kind != "blob" {
-        return Err(format!(
-            "Git blob path {path:?} must be a regular 100644 or 100755 blob"
-        ));
-    }
-    let size = git_text(repo, &["cat-file", "-s", &entry.object])?
-        .parse::<u64>()
-        .map_err(|error| format!("parse Git blob size for {path:?}: {error}"))?;
-    if size > max_bytes {
-        return Err(format!(
-            "Git blob path {path:?} is {size} bytes; limit is {max_bytes}"
-        ));
-    }
-    let bytes = blob(repo, &entry)?;
-    if bytes.len() as u64 != size {
-        return Err(format!(
-            "Git blob path {path:?} changed size while it was read"
-        ));
-    }
-    Ok(bytes)
 }
 
 /// Verify many tracked packet paths with one tree read, one index read, and one
@@ -1276,12 +1210,12 @@ fn validate_input_git_bytes_for(
 /// Scientific standing is bound only through the exact current repository
 /// root. Git source/input checks and packet checks retain the same fail-closed
 /// work-advice guarantees as Target Index v2 without consulting Era-0 state.
-pub fn assess_current_target_index(
+pub fn assess_target_index(
     repo_path: &Path,
     repository_id: &str,
     origin_id: &str,
     repository_root: &str,
-) -> Result<Option<CurrentTargetIndexAssessment>, String> {
+) -> Result<Option<TargetIndexAssessment>, String> {
     require_repository_id(repository_id)?;
     require_origin_id("origin_id", origin_id)?;
     require_sha256_root("repository_root", repository_root)?;
@@ -1430,7 +1364,7 @@ pub fn assess_current_target_index(
     for issues in target_issues.values_mut() {
         sort_issues(issues);
     }
-    Ok(Some(CurrentTargetIndexAssessment {
+    Ok(Some(TargetIndexAssessment {
         index,
         global_issues,
         target_issues,
@@ -1438,7 +1372,7 @@ pub fn assess_current_target_index(
     }))
 }
 
-impl CurrentTargetIndexAssessment {
+impl TargetIndexAssessment {
     pub fn configured_open(&self) -> usize {
         self.index
             .targets
@@ -1463,71 +1397,5 @@ impl CurrentTargetIndexAssessment {
 
     pub fn packet_value(&self, target_id: &str) -> Option<&Value> {
         self.packet_values.get(target_id)
-    }
-}
-
-#[cfg(test)]
-mod exact_blob_tests {
-    use super::*;
-    use std::process::Command;
-
-    fn run_git(repo: &Path, args: &[&str]) -> String {
-        let output = Command::new("git")
-            .arg("-C")
-            .arg(repo)
-            .args(args)
-            .output()
-            .unwrap();
-        assert!(
-            output.status.success(),
-            "git {} failed: {}",
-            args.join(" "),
-            String::from_utf8_lossy(&output.stderr)
-        );
-        String::from_utf8(output.stdout).unwrap().trim().to_string()
-    }
-
-    #[test]
-    fn exact_git_blob_reads_only_the_named_bounded_regular_blob() {
-        let directory = tempfile::tempdir().unwrap();
-        run_git(directory.path(), &["init", "-q"]);
-        run_git(directory.path(), &["config", "user.name", "Vela Test"]);
-        run_git(
-            directory.path(),
-            &["config", "user.email", "vela@example.invalid"],
-        );
-        std::fs::create_dir_all(directory.path().join("execution")).unwrap();
-        std::fs::write(
-            directory.path().join("execution/bundle.json"),
-            b"exact bytes\n",
-        )
-        .unwrap();
-        run_git(directory.path(), &["add", "execution/bundle.json"]);
-        run_git(directory.path(), &["commit", "-qm", "fixture"]);
-        let commit = run_git(directory.path(), &["rev-parse", "HEAD"]);
-
-        assert_eq!(
-            exact_git_blob_at(directory.path(), &commit, "execution/bundle.json", 64).unwrap(),
-            b"exact bytes\n"
-        );
-        assert!(
-            exact_git_blob_at(directory.path(), &commit, "execution/bundle.json", 4)
-                .unwrap_err()
-                .contains("limit is 4")
-        );
-        assert!(
-            exact_git_blob_at(directory.path(), &commit, "execution/missing.json", 64)
-                .unwrap_err()
-                .contains("is absent")
-        );
-        assert!(
-            exact_git_blob_at(
-                directory.path(),
-                &"f".repeat(40),
-                "execution/bundle.json",
-                64
-            )
-            .is_err()
-        );
     }
 }

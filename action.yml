@@ -34,16 +34,7 @@ inputs:
   repository:
     description: Path to the Vela repository directory within the consumer repo.
     required: false
-    default: ""
-  frontier:
-    description: >-
-      DEPRECATED alias for `repository`. ADR 0039 made the Repository the
-      authority boundary and left the Frontier derived, so this key names
-      something the action never took. It stays because pinned consumer
-      workflows pass it and cannot be edited from here; new callers pass
-      `repository`. Setting both to different paths fails.
-    required: false
-    default: ""
+    default: "."
 runs:
   using: composite
   steps:
@@ -55,29 +46,14 @@ runs:
           *) echo "::error::vela-repository-verify supports Linux and macOS runners"; exit 2 ;;
         esac
 
-    # A composite action has no alias mechanism: two keys are two inputs, and
-    # the only place they can be made one is a step. Both default to empty
-    # rather than to "." so that unset stays distinguishable from set — with a
-    # "." default on `repository`, a pinned consumer passing `frontier: subdir`
-    # would arrive here as two different non-empty paths and trip the
-    # disagreement check that exists to protect it. The "." this action has
-    # always meant is restored below, once, after the coalesce.
     - name: Resolve the repository path
       id: resolve
       shell: bash
       env:
         REPOSITORY: ${{ inputs.repository }}
-        FRONTIER: ${{ inputs.frontier }}
       run: |
         set -euo pipefail
-        if [ -n "$FRONTIER" ]; then
-          echo "::warning::the 'frontier' input is deprecated; rename it to 'repository'"
-        fi
-        if [ -n "$REPOSITORY" ] && [ -n "$FRONTIER" ] && [ "$REPOSITORY" != "$FRONTIER" ]; then
-          echo "::error::repository ($REPOSITORY) and its deprecated alias frontier ($FRONTIER) name different paths; pass one"
-          exit 2
-        fi
-        resolved="${REPOSITORY:-${FRONTIER:-.}}"
+        resolved="${REPOSITORY:-.}"
         # A step output is a line in a file, so a value carrying a newline
         # writes a second key rather than a path. No repository directory is
         # spelled that way; a value that is has been constructed.

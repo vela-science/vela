@@ -1,4 +1,4 @@
-//! Current object, standing, and authority-history readers.
+//! Object, standing, and authority-history readers.
 //!
 //! These projections use only the verified repository manifest, its
 //! content-addressed records, and covered repository-authority history.
@@ -12,23 +12,21 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use vela_protocol::authority::AuthorityEventV1;
 use vela_protocol::claim_record::ClaimRecordV1;
-use vela_protocol::current_repository::{
-    ClaimStandingRefV1, CurrentRepositoryV4, RepositoryObjectRefV1,
-};
 use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::proposal_withdrawal_v1::ProposalWithdrawalV1;
+use vela_protocol::repository::{ClaimStandingRefV1, RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::repository_origin::{RepositoryOriginPredecessorV1, RepositoryOriginV1};
 
 use crate::claim_standing::{self, ClaimStanding};
 use crate::cli::{fail_return, print_json};
-use crate::current_repository::CurrentProposalDecision;
+use crate::repository::ProposalDecision;
 
-struct CurrentReadContext {
-    repository: CurrentRepositoryV4,
+struct ReadContext {
+    repository: RepositoryV4,
     repository_root: String,
     origin: RepositoryOriginV1,
     proposals: Vec<(RepositoryObjectRefV1, ProposalV1)>,
-    decisions: BTreeMap<String, CurrentProposalDecision>,
+    decisions: BTreeMap<String, ProposalDecision>,
     withdrawals: BTreeMap<String, ProposalWithdrawalV1>,
     authority_events: Vec<AuthorityEventV1>,
 }
@@ -41,15 +39,14 @@ fn canonical_root<T: Serialize + ?Sized>(value: &T) -> Result<String, String> {
     vela_protocol::canonical::sha256_canonical(value).map(|digest| format!("sha256:{digest}"))
 }
 
-fn read_exact(frontier: &Path, path: &str, expected_root: &str) -> Result<Vec<u8>, String> {
-    let candidate = frontier.join(path);
+fn read_exact(repository_path: &Path, path: &str, expected_root: &str) -> Result<Vec<u8>, String> {
+    let candidate = repository_path.join(path);
     let metadata = fs::symlink_metadata(&candidate)
         .map_err(|error| format!("inspect current object {path}: {error}"))?;
     if metadata.file_type().is_symlink() || !metadata.is_file() {
-        return Err(format!("current object {path} must be a regular file"));
+        return Err(format!("object {path} must be a regular file"));
     }
-    let bytes =
-        fs::read(&candidate).map_err(|error| format!("read current object {path}: {error}"))?;
+    let bytes = fs::read(&candidate).map_err(|error| format!("read object {path}: {error}"))?;
     if root_bytes(&bytes) != expected_root {
         return Err(format!(
             "current object {path} does not match {expected_root}"
@@ -58,28 +55,28 @@ fn read_exact(frontier: &Path, path: &str, expected_root: &str) -> Result<Vec<u8
     Ok(bytes)
 }
 
-fn read_value(frontier: &Path, reference: &RepositoryObjectRefV1) -> Result<Value, String> {
-    let bytes = read_exact(frontier, &reference.path, &reference.root)?;
+fn read_value(repository_path: &Path, reference: &RepositoryObjectRefV1) -> Result<Value, String> {
+    let bytes = read_exact(repository_path, &reference.path, &reference.root)?;
     serde_json::from_slice(&bytes)
         .map_err(|error| format!("parse current object {}: {error}", reference.path))
 }
 
-fn load_context(frontier: &Path) -> Result<CurrentReadContext, String> {
-    let repository = crate::current_repository::load_current_repository_at(frontier, true)?;
+fn load_context(repository_path: &Path) -> Result<ReadContext, String> {
+    let repository = crate::repository::load_repository_at(repository_path, true)?;
     let repository_root = repository.canonical_root()?;
-    let origin_bytes = fs::read(frontier.join(".vela/origin.json"))
+    let origin_bytes = fs::read(repository_path.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;
     let origin = RepositoryOriginV1::parse(&origin_bytes)?;
-    let authority = crate::cli::load_current_repository_authority(frontier, &repository, &origin)?;
+    let authority = crate::cli::load_repository_authority(repository_path, &repository, &origin)?;
     let decisions =
-        crate::current_repository::load_current_proposal_decisions(frontier, &repository)?;
+        crate::repository::load_current_proposal_decisions(repository_path, &repository)?;
     let withdrawals =
-        crate::current_repository::load_current_proposal_withdrawals(frontier, &repository)?;
+        crate::repository::load_current_proposal_withdrawals(repository_path, &repository)?;
     let proposals = repository
         .proposals
         .iter()
         .map(|reference| {
-            let bytes = read_exact(frontier, &reference.path, &reference.root)?;
+            let bytes = read_exact(repository_path, &reference.path, &reference.root)?;
             let proposal = ProposalV1::parse(&bytes)?;
             if proposal.proposal_id != reference.id {
                 return Err(format!(
@@ -90,7 +87,7 @@ fn load_context(frontier: &Path) -> Result<CurrentReadContext, String> {
             Ok((reference.clone(), proposal))
         })
         .collect::<Result<Vec<_>, String>>()?;
-    Ok(CurrentReadContext {
+    Ok(ReadContext {
         repository,
         repository_root,
         origin,
@@ -110,9 +107,9 @@ struct OriginStandingHistory {
     authority_events: Vec<Value>,
 }
 
-fn git_blob(frontier: &Path, commit: &str, path: &str) -> Result<Option<Vec<u8>>, String> {
+fn git_blob(repository_path: &Path, commit: &str, path: &str) -> Result<Option<Vec<u8>>, String> {
     let spec = format!("{commit}:{path}");
-    let output = vela_edge::git::output(frontier, &["show", &spec])?;
+    let output = vela_edge::git::output(repository_path, &["show", &spec])?;
     if output.status.success() {
         return Ok(Some(output.stdout));
     }
@@ -120,11 +117,11 @@ fn git_blob(frontier: &Path, commit: &str, path: &str) -> Result<Option<Vec<u8>>
 }
 
 fn verified_predecessor_manifest(
-    frontier: &Path,
+    repository_path: &Path,
     predecessor: &RepositoryOriginPredecessorV1,
 ) -> Result<Option<Vec<u8>>, String> {
     let commit_spec = format!("{}^{{commit}}", predecessor.commit);
-    let commit = match vela_edge::git::text(frontier, &["rev-parse", &commit_spec]) {
+    let commit = match vela_edge::git::text(repository_path, &["rev-parse", &commit_spec]) {
         Ok(commit) => commit,
         Err(_) => return Ok(None),
     };
@@ -132,14 +129,14 @@ fn verified_predecessor_manifest(
         return Err("repository origin predecessor resolves to the wrong local commit".into());
     }
     let tree_spec = format!("{}^{{tree}}", predecessor.commit);
-    if vela_edge::git::text(frontier, &["rev-parse", &tree_spec])? != predecessor.tree {
+    if vela_edge::git::text(repository_path, &["rev-parse", &tree_spec])? != predecessor.tree {
         return Err(format!(
             "repository origin predecessor {} has the wrong local tree",
             predecessor.commit
         ));
     }
     let tag_ref = format!("refs/tags/{}^{{commit}}", predecessor.tag);
-    match vela_edge::git::text(frontier, &["rev-parse", "--verify", &tag_ref]) {
+    match vela_edge::git::text(repository_path, &["rev-parse", "--verify", &tag_ref]) {
         Ok(tag_commit) if tag_commit == predecessor.commit => {}
         Ok(_) => {
             return Err(format!(
@@ -151,7 +148,11 @@ fn verified_predecessor_manifest(
             return Ok(None);
         }
     }
-    let Some(repository_bytes) = git_blob(frontier, &predecessor.commit, ".vela/repository.json")?
+    let Some(repository_bytes) = git_blob(
+        repository_path,
+        &predecessor.commit,
+        ".vela/repository.json",
+    )?
     else {
         return Err(format!(
             "repository origin predecessor {} has no repository manifest",
@@ -168,11 +169,11 @@ fn verified_predecessor_manifest(
 }
 
 fn historical_object(
-    frontier: &Path,
+    repository_path: &Path,
     commit: &str,
     reference: &RepositoryObjectRefV1,
 ) -> Result<Value, String> {
-    let bytes = git_blob(frontier, commit, &reference.path)?.ok_or_else(|| {
+    let bytes = git_blob(repository_path, commit, &reference.path)?.ok_or_else(|| {
         format!(
             "repository origin predecessor {commit} is missing {}",
             reference.path
@@ -213,11 +214,11 @@ fn manifest_references(
 }
 
 fn predecessor_authority_events(
-    frontier: &Path,
+    repository_path: &Path,
     commit: &str,
 ) -> Result<Vec<AuthorityEventV1>, String> {
     let output = vela_edge::git::output(
-        frontier,
+        repository_path,
         &[
             "ls-tree",
             "-r",
@@ -239,7 +240,7 @@ fn predecessor_authority_events(
         .lines()
         .filter(|path| path.ends_with(".json"))
         .map(|path| {
-            let bytes = git_blob(frontier, commit, path)?.ok_or_else(|| {
+            let bytes = git_blob(repository_path, commit, path)?.ok_or_else(|| {
                 format!("repository origin predecessor {commit} is missing {path}")
             })?;
             let event: AuthorityEventV1 = serde_json::from_slice(&bytes)
@@ -256,8 +257,8 @@ fn predecessor_authority_events(
 }
 
 fn origin_standing_history(
-    frontier: &Path,
-    context: &CurrentReadContext,
+    repository_path: &Path,
+    context: &ReadContext,
     claim_id: &str,
 ) -> Result<OriginStandingHistory, String> {
     let Some(mut predecessor) = context.origin.predecessor.clone() else {
@@ -276,7 +277,8 @@ fn origin_standing_history(
         if !visited.insert(predecessor.commit.clone()) {
             return Err("repository origin predecessor chain contains a cycle".into());
         }
-        let Some(repository_bytes) = verified_predecessor_manifest(frontier, &predecessor)? else {
+        let Some(repository_bytes) = verified_predecessor_manifest(repository_path, &predecessor)?
+        else {
             history.status = "predecessor_unavailable";
             history.hops.push(json!({
                 "status": "predecessor_unavailable",
@@ -300,7 +302,7 @@ fn origin_standing_history(
 
         let mut related_proposal_ids = BTreeSet::new();
         for reference in manifest_references(&manifest, "proposals")? {
-            let value = historical_object(frontier, &predecessor.commit, &reference)?;
+            let value = historical_object(repository_path, &predecessor.commit, &reference)?;
             if value.pointer("/subject/id").and_then(Value::as_str) == Some(claim_id) {
                 if let Some(proposal_id) = value.get("proposal_id").and_then(Value::as_str) {
                     related_proposal_ids.insert(proposal_id.to_string());
@@ -314,7 +316,7 @@ fn origin_standing_history(
             }
         }
         for reference in manifest_references(&manifest, "verifications")? {
-            let value = historical_object(frontier, &predecessor.commit, &reference)?;
+            let value = historical_object(repository_path, &predecessor.commit, &reference)?;
             if value.pointer("/subject/claim_id").and_then(Value::as_str) == Some(claim_id) {
                 history.verifications.push(json!({
                     "verification_record": value,
@@ -324,7 +326,7 @@ fn origin_standing_history(
                 }));
             }
         }
-        for event in predecessor_authority_events(frontier, &predecessor.commit)? {
+        for event in predecessor_authority_events(repository_path, &predecessor.commit)? {
             let related = event.content.target.id == claim_id
                 || event
                     .content
@@ -361,7 +363,8 @@ fn origin_standing_history(
             "archive_verification": "bound_by_origin_not_re_read",
         }));
 
-        let Some(origin_bytes) = git_blob(frontier, &predecessor.commit, ".vela/origin.json")?
+        let Some(origin_bytes) =
+            git_blob(repository_path, &predecessor.commit, ".vela/origin.json")?
         else {
             break;
         };
@@ -412,10 +415,7 @@ fn origin_standing_history(
 /// The reference carries the manifest's own standing token. Reading that token
 /// onto the standing axis is [`crate::claim_standing`]'s job, not this lookup's,
 /// which is why the two lists are no longer labelled here.
-fn claim_reference<'a>(
-    context: &'a CurrentReadContext,
-    claim_id: &str,
-) -> Option<&'a ClaimStandingRefV1> {
+fn claim_reference<'a>(context: &'a ReadContext, claim_id: &str) -> Option<&'a ClaimStandingRefV1> {
     context
         .repository
         .accepted_claims
@@ -426,7 +426,7 @@ fn claim_reference<'a>(
 
 /// The newest retained Proposal about this Claim.
 fn latest_proposal<'a>(
-    context: &'a CurrentReadContext,
+    context: &'a ReadContext,
     claim_id: &str,
 ) -> Option<&'a (RepositoryObjectRefV1, ProposalV1)> {
     context
@@ -436,22 +436,21 @@ fn latest_proposal<'a>(
         .max_by(|left, right| left.1.created_at.cmp(&right.1.created_at))
 }
 
-fn claim_proposal_status(context: &CurrentReadContext, claim_id: &str) -> Option<String> {
+fn claim_proposal_status(context: &ReadContext, claim_id: &str) -> Option<String> {
     latest_proposal(context, claim_id)
         .map(|(_, proposal)| proposal_status(context, &proposal.proposal_id))
 }
 
 fn proposal_claim(
-    frontier: &Path,
-    context: &CurrentReadContext,
+    repository_path: &Path,
+    context: &ReadContext,
     claim_id: &str,
 ) -> Result<Option<ClaimRecordV1>, String> {
     let Some((_, proposal)) = latest_proposal(context, claim_id) else {
         return Ok(None);
     };
-    let path =
-        crate::current_submission::rooted_path("records/claims/sha256", &proposal.subject.root)?;
-    let claim = ClaimRecordV1::parse(&read_exact(frontier, &path, &proposal.subject.root)?)?;
+    let path = crate::submission::rooted_path("records/claims/sha256", &proposal.subject.root)?;
+    let claim = ClaimRecordV1::parse(&read_exact(repository_path, &path, &proposal.subject.root)?)?;
     if claim.claim_id != proposal.subject.id {
         return Err(format!(
             "current Proposal {} resolves to the wrong Claim",
@@ -464,7 +463,7 @@ fn proposal_claim(
 /// A Proposal's own status, on the Proposal axis. This was `proposal_standing`
 /// while its one caller handed the result straight back as a Claim's standing;
 /// the name agreed with the collapse instead of exposing it.
-fn proposal_status(context: &CurrentReadContext, proposal_id: &str) -> String {
+fn proposal_status(context: &ReadContext, proposal_id: &str) -> String {
     context.decisions.get(proposal_id).map_or_else(
         || {
             if context.withdrawals.contains_key(proposal_id) {
@@ -489,8 +488,8 @@ fn supersession_event<'a>(
 }
 
 fn superseded_claim(
-    frontier: &Path,
-    context: &CurrentReadContext,
+    repository_path: &Path,
+    context: &ReadContext,
     claim_id: &str,
 ) -> Result<Option<(ClaimRecordV1, String)>, String> {
     let Some(event) = supersession_event(&context.authority_events, claim_id) else {
@@ -503,8 +502,8 @@ fn superseded_claim(
             event.id
         ));
     }
-    let path = crate::current_submission::rooted_path("records/claims/sha256", &root)?;
-    let claim = ClaimRecordV1::parse(&read_exact(frontier, &path, &root)?)?;
+    let path = crate::submission::rooted_path("records/claims/sha256", &root)?;
+    let claim = ClaimRecordV1::parse(&read_exact(repository_path, &path, &root)?)?;
     if claim.claim_id != claim_id {
         return Err(format!(
             "supersession event {} resolves to the wrong predecessor Claim",
@@ -515,14 +514,14 @@ fn superseded_claim(
 }
 
 fn load_claim(
-    frontier: &Path,
-    context: &CurrentReadContext,
+    repository_path: &Path,
+    context: &ReadContext,
     claim_id: &str,
 ) -> Result<Option<(ClaimRecordV1, String, ClaimStanding)>, String> {
     let proposal_status = claim_proposal_status(context, claim_id);
     if let Some(reference) = claim_reference(context, claim_id) {
         let claim = ClaimRecordV1::parse(&read_exact(
-            frontier,
+            repository_path,
             &reference.path,
             &reference.claim_root,
         )?)?;
@@ -532,7 +531,7 @@ fn load_claim(
         };
         return Ok(Some((claim, reference.claim_root.clone(), standing)));
     }
-    if let Some(claim) = proposal_claim(frontier, context, claim_id)? {
+    if let Some(claim) = proposal_claim(repository_path, context, claim_id)? {
         let root = canonical_root(&claim)?;
         let standing = ClaimStanding {
             /* Reached only through a retained Proposal, so this Claim has one
@@ -554,7 +553,7 @@ fn load_claim(
         };
         return Ok(Some((claim, root, standing)));
     }
-    if let Some((claim, root)) = superseded_claim(frontier, context, claim_id)? {
+    if let Some((claim, root)) = superseded_claim(repository_path, context, claim_id)? {
         let standing = ClaimStanding {
             standing: claim_standing::SUPERSEDED,
             proposal_status,
@@ -567,10 +566,7 @@ fn load_claim(
     Ok(None)
 }
 
-fn supersession_view(
-    context: &CurrentReadContext,
-    claim_id: &str,
-) -> Result<Option<Value>, String> {
+fn supersession_view(context: &ReadContext, claim_id: &str) -> Result<Option<Value>, String> {
     let Some(event) = supersession_event(&context.authority_events, claim_id) else {
         return Ok(None);
     };
@@ -599,7 +595,7 @@ fn supersession_view(
     })))
 }
 
-fn proposal_views(context: &CurrentReadContext, claim_id: &str) -> Vec<Value> {
+fn proposal_views(context: &ReadContext, claim_id: &str) -> Vec<Value> {
     context
         .proposals
         .iter()
@@ -616,15 +612,15 @@ fn proposal_views(context: &CurrentReadContext, claim_id: &str) -> Vec<Value> {
 }
 
 fn verification_views(
-    frontier: &Path,
-    context: &CurrentReadContext,
+    repository_path: &Path,
+    context: &ReadContext,
     claim_id: &str,
 ) -> Result<Vec<Value>, String> {
     context
         .repository
         .verifications
         .iter()
-        .map(|reference| read_value(frontier, reference))
+        .map(|reference| read_value(repository_path, reference))
         .filter_map(|result| match result {
             Ok(value)
                 if value.pointer("/subject/claim_id").and_then(Value::as_str) == Some(claim_id) =>
@@ -637,10 +633,7 @@ fn verification_views(
         .collect()
 }
 
-fn related_authority_events(
-    context: &CurrentReadContext,
-    claim_id: &str,
-) -> Result<Vec<Value>, String> {
+fn related_authority_events(context: &ReadContext, claim_id: &str) -> Result<Vec<Value>, String> {
     let proposal_ids = context
         .proposals
         .iter()
@@ -677,7 +670,7 @@ fn related_authority_events(
 }
 
 fn object_projection(
-    context: &CurrentReadContext,
+    context: &ReadContext,
     object_id: &str,
     object_kind: &str,
     object_schema: &str,
@@ -724,8 +717,8 @@ fn claim_effect(standing: &ClaimStanding) -> String {
     }
 }
 
-pub(crate) fn show_payload(frontier: &Path, object_id: &str) -> Result<Value, String> {
-    let context = load_context(frontier)?;
+pub(crate) fn show_payload(repository_path: &Path, object_id: &str) -> Result<Value, String> {
+    let context = load_context(repository_path)?;
     if let Some(reference) = claim_reference(&context, object_id) {
         let standing = ClaimStanding {
             standing: claim_standing::from_proposal_status(&reference.standing),
@@ -739,7 +732,7 @@ pub(crate) fn show_payload(frontier: &Path, object_id: &str) -> Result<Value, St
             &claim_effect(&standing),
             reference.claim_root.clone(),
             serde_json::from_slice(&read_exact(
-                frontier,
+                repository_path,
                 &reference.path,
                 &reference.claim_root,
             )?)
@@ -747,7 +740,7 @@ pub(crate) fn show_payload(frontier: &Path, object_id: &str) -> Result<Value, St
         ));
     }
     if object_id.starts_with("vcl_")
-        && let Ok(Some((claim, root, standing))) = load_claim(frontier, &context, object_id)
+        && let Ok(Some((claim, root, standing))) = load_claim(repository_path, &context, object_id)
     {
         return Ok(object_projection(
             &context,
@@ -811,7 +804,7 @@ pub(crate) fn show_payload(frontier: &Path, object_id: &str) -> Result<Value, St
                 &reference.schema,
                 effect,
                 reference.root.clone(),
-                read_value(frontier, reference)?,
+                read_value(repository_path, reference)?,
             ));
         }
     }
@@ -844,16 +837,17 @@ pub(crate) fn show_payload(frontier: &Path, object_id: &str) -> Result<Value, St
     )
 }
 
-pub(crate) fn why_payload(frontier: &Path, claim_id: &str) -> Result<Value, String> {
-    let context = load_context(frontier)?;
-    let Some((claim, claim_root, standing)) = load_claim(frontier, &context, claim_id)? else {
+pub(crate) fn why_payload(repository_path: &Path, claim_id: &str) -> Result<Value, String> {
+    let context = load_context(repository_path)?;
+    let Some((claim, claim_root, standing)) = load_claim(repository_path, &context, claim_id)?
+    else {
         crate::cli::fail_kind(
             crate::ui::ErrorKind::NotFound,
             &format!("no current or retained superseded Claim '{claim_id}' in this repository"),
         )
     };
     let mut proposals = proposal_views(&context, claim_id);
-    let mut verification_records = verification_views(frontier, &context, claim_id)?;
+    let mut verification_records = verification_views(repository_path, &context, claim_id)?;
     let mut authority_events = related_authority_events(&context, claim_id)?;
     /* Events from the CURRENT authority chain that name this Claim, counted
     before the origin history is appended below. This is what distinguishes a
@@ -864,7 +858,7 @@ pub(crate) fn why_payload(frontier: &Path, claim_id: &str) -> Result<Value, Stri
     let current_chain_events = authority_events.len();
     let current_supersession = supersession_view(&context, claim_id)?;
     let origin_history = if standing.standing == claim_standing::ACCEPTED {
-        origin_standing_history(frontier, &context, claim_id)?
+        origin_standing_history(repository_path, &context, claim_id)?
     } else {
         OriginStandingHistory {
             status: "current_authority",
@@ -941,13 +935,13 @@ pub(crate) fn why_payload(frontier: &Path, claim_id: &str) -> Result<Value, Stri
 }
 
 pub(crate) fn log_payload(
-    frontier: &Path,
+    repository_path: &Path,
     object_id: Option<&str>,
     limit: usize,
     kind_filter: Option<&str>,
     as_of: Option<&str>,
 ) -> Result<Value, String> {
-    let context = load_context(frontier)?;
+    let context = load_context(repository_path)?;
     let as_of = as_of.map(|value| {
         chrono::DateTime::parse_from_rfc3339(value).unwrap_or_else(|error| {
             crate::cli::fail_kind_return(
@@ -1038,10 +1032,11 @@ pub(crate) fn log_payload(
     }))
 }
 
-pub(crate) fn cmd_show(frontier: &Path, object_id: &str, json_out: bool) {
+pub(crate) fn cmd_show(repository_path: &Path, object_id: &str, json_out: bool) {
     crate::ui::set_mode("show", json_out);
-    crate::ui::require_initialized_repo(frontier);
-    let projection = show_payload(frontier, object_id).unwrap_or_else(|error| fail_return(&error));
+    crate::ui::require_initialized_repo(repository_path);
+    let projection =
+        show_payload(repository_path, object_id).unwrap_or_else(|error| fail_return(&error));
     if json_out {
         print_json(&projection);
     } else {
@@ -1076,9 +1071,9 @@ fn render_show(projection: &Value) {
     println!("  effect    {}", text(&projection["authority_effect"]));
 }
 
-pub(crate) fn cmd_why(frontier: &Path, claim_id: &str, json_out: bool) {
+pub(crate) fn cmd_why(repository_path: &Path, claim_id: &str, json_out: bool) {
     crate::ui::set_mode("why", json_out);
-    crate::ui::require_initialized_repo(frontier);
+    crate::ui::require_initialized_repo(repository_path);
     if !claim_id.starts_with("vcl_") {
         crate::ui::fail_with(
             crate::ui::ErrorKind::Usage,
@@ -1086,7 +1081,8 @@ pub(crate) fn cmd_why(frontier: &Path, claim_id: &str, json_out: bool) {
             Some("use `vela why vcl_... --json`; `vela show` reads every other object kind"),
         );
     }
-    let projection = why_payload(frontier, claim_id).unwrap_or_else(|error| fail_return(&error));
+    let projection =
+        why_payload(repository_path, claim_id).unwrap_or_else(|error| fail_return(&error));
     if json_out {
         print_json(&projection);
     } else {

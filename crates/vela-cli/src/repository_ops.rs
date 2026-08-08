@@ -1,4 +1,4 @@
-//! Current evidence authoring, publication, and repository-operation helpers.
+//! Evidence authoring, publication, and repository-operation helpers.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -80,7 +80,7 @@ pub(crate) fn active_repository_signing_key(
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn author_submission(
-    frontier: &Path,
+    repository_path: &Path,
     actor: &str,
     assertion: String,
     claim_type: String,
@@ -106,11 +106,7 @@ pub(crate) fn author_submission(
     was wrong. */
     if let Some(attempt) = source_attempt.as_deref() {
         let body = attempt.strip_prefix("vat_").unwrap_or_default();
-        if body.len() != 64
-            || !body
-                .bytes()
-                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
-        {
+        if !vela_protocol::is_lower_hex_64(body) {
             return Err(format!(
                 "--source-attempt takes an Attempt id, `vat_` and 64 lowercase hex digits; got {attempt:?}"
             ));
@@ -120,7 +116,7 @@ pub(crate) fn author_submission(
     let mut artifacts = Vec::new();
     let mut total_artifact_bytes = 0_u64;
     for (index, flag) in artifact_flags.iter().enumerate() {
-        let (path, kind) = if frontier.join(flag).is_file() {
+        let (path, kind) = if repository_path.join(flag).is_file() {
             (flag.as_str(), "other")
         } else {
             flag.rsplit_once(':').unwrap_or((flag.as_str(), "other"))
@@ -137,7 +133,7 @@ pub(crate) fn author_submission(
         }
         let read_limit = public_artifact_read_limit(total_artifact_bytes, index)?;
         let bytes = crate::bounded_file::read_bounded_frontier_file(
-            frontier,
+            repository_path,
             relative,
             read_limit,
             &format!("artifact {index}"),
@@ -232,7 +228,7 @@ pub(crate) struct PreparedSubmissionArtifacts {
 }
 
 pub(crate) fn prepare_submission_artifacts(
-    frontier: &Path,
+    repository_path: &Path,
     submission: &SubmissionV1,
     bundle_root: Option<&Path>,
 ) -> Result<PreparedSubmissionArtifacts, String> {
@@ -259,17 +255,17 @@ pub(crate) fn prepare_submission_artifacts(
             .ok_or_else(|| format!("Submission artifact {index} digest is not sha256"))?;
         let canonical_path = format!("records/artifacts/sha256/{declared_hex}");
         let canonical_relative = Path::new(&canonical_path);
-        let canonical_target = frontier.join(canonical_relative);
+        let canonical_target = repository_path.join(canonical_relative);
         let bytes = if canonical_target.exists() {
             let bytes = crate::bounded_file::read_bounded_frontier_file(
-                frontier,
+                repository_path,
                 canonical_relative,
                 limit,
                 &format!("Submission artifact {index}"),
             )
             .map_err(|error| public_artifact_read_error(error, limit, index))?;
             let tracked = vela_edge::git::output(
-                frontier,
+                repository_path,
                 &["ls-files", "--error-unmatch", "--", &canonical_path],
             )?
             .status
@@ -315,7 +311,7 @@ pub(crate) fn prepare_submission_artifacts(
             .map_err(|error| public_artifact_read_error(error, limit, index))?
         } else {
             crate::bounded_file::read_bounded_frontier_file(
-                frontier,
+                repository_path,
                 relative,
                 limit,
                 &format!("Submission artifact {index}"),
@@ -353,10 +349,10 @@ pub(crate) fn prepare_submission_artifacts(
 }
 
 pub(crate) fn submission_publication_inputs(
-    frontier: &Path,
+    repository_path: &Path,
     submission: &SubmissionV1,
 ) -> Result<Vec<PathBuf>, String> {
-    let canonical_frontier = frontier
+    let canonical_frontier = repository_path
         .canonicalize()
         .map_err(|error| format!("canonicalize repository: {error}"))?;
     let mut inputs = submission
@@ -370,7 +366,7 @@ pub(crate) fn submission_publication_inputs(
     Ok(inputs)
 }
 
-fn canonical_submission_input(frontier: &Path, relative: &Path) -> Option<PathBuf> {
+fn canonical_submission_input(repository_path: &Path, relative: &Path) -> Option<PathBuf> {
     if relative.is_absolute()
         || !relative
             .components()
@@ -378,7 +374,7 @@ fn canonical_submission_input(frontier: &Path, relative: &Path) -> Option<PathBu
     {
         return None;
     }
-    let lexical = frontier.join(relative);
+    let lexical = repository_path.join(relative);
     let regular = std::fs::symlink_metadata(&lexical)
         .ok()
         .is_some_and(|metadata| metadata.file_type().is_file());
@@ -390,24 +386,26 @@ fn canonical_submission_input(frontier: &Path, relative: &Path) -> Option<PathBu
 }
 
 pub(crate) fn submit(
-    frontier: &Path,
+    repository_path: &Path,
     submission: &SubmissionV1,
     executor: &str,
     bundle_root: Option<&Path>,
 ) -> Result<SubmitOutcome, String> {
-    crate::current_submission::submit(frontier, submission, executor, bundle_root)
+    crate::submission::submit(repository_path, submission, executor, bundle_root)
 }
 
 pub(crate) fn import_verification(
-    frontier: &Path,
+    repository_path: &Path,
     record: &vela_protocol::verification_record::VerificationRecordV1,
     executor: &str,
 ) -> Result<VerificationImportOutcome, String> {
-    crate::current_verification::import(frontier, record, executor)
+    crate::verification::import(repository_path, record, executor)
 }
 
-pub(crate) fn frontier_transaction_journal_dir(frontier: &Path) -> Result<PathBuf, String> {
-    let root = frontier
+pub(crate) fn repository_transaction_journal_dir(
+    repository_path: &Path,
+) -> Result<PathBuf, String> {
+    let root = repository_path
         .canonicalize()
         .map_err(|error| format!("resolve repository transaction root: {error}"))?;
     let vela = root.join(".vela");
@@ -484,7 +482,7 @@ fn public_artifact_read_error(
 }
 
 pub(crate) fn publication_delta(
-    frontier: &Path,
+    repository_path: &Path,
     root: &str,
     writes: Vec<crate::repository_txn::ResolvedWrite>,
 ) -> Result<Option<crate::config::git_publish::PublicationDelta>, String> {
@@ -497,7 +495,7 @@ pub(crate) fn publication_delta(
         .into_iter()
         .map(|write| {
             let path = crate::config::git_publish::publication_repo_relative_path(
-                frontier,
+                repository_path,
                 write.staged.path.as_str(),
             )?;
             let preimage_sha256 = match &write.staged.preimage {
@@ -524,6 +522,21 @@ pub(crate) fn publication_delta(
         root: root.to_string(),
         entries,
     }))
+}
+
+/// Why a publication did not complete, for a caller still in preflight.
+///
+/// The two completed states are unreachable here by construction — preflight
+/// runs before anything is committed — so they collapse to one sentence rather
+/// than three copies of it.
+pub(crate) fn publication_error(outcome: crate::config::git_publish::PublicationOutcome) -> String {
+    match outcome.state {
+        crate::config::git_publish::PublicationState::Uncommitted { reason, .. } => reason,
+        crate::config::git_publish::PublicationState::Unchanged { .. }
+        | crate::config::git_publish::PublicationState::CommittedLocal { .. } => {
+            "unexpected completed publication during preflight".to_string()
+        }
+    }
 }
 
 #[cfg(test)]
@@ -596,17 +609,18 @@ mod tests {
     #[test]
     fn submission_preflight_input_is_absolute_and_frontier_bound() {
         let temporary = tempfile::tempdir().expect("temporary repository");
-        let frontier = temporary
+        let repository_path = temporary
             .path()
             .canonicalize()
             .expect("canonical repository");
-        let artifact = frontier.join("artifacts").join("evidence.json");
+        let artifact = repository_path.join("artifacts").join("evidence.json");
         std::fs::create_dir_all(artifact.parent().expect("artifact parent"))
             .expect("create artifact parent");
         std::fs::write(&artifact, b"{}\n").expect("write artifact");
 
-        let input = canonical_submission_input(&frontier, Path::new("artifacts/evidence.json"))
-            .expect("tracked source input");
+        let input =
+            canonical_submission_input(&repository_path, Path::new("artifacts/evidence.json"))
+                .expect("tracked source input");
 
         assert!(input.is_absolute());
         assert_eq!(input, artifact);

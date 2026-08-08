@@ -323,10 +323,14 @@ no `.github/` at all. `vela init` scaffolds no workflow, and each of the four
 wrote its own copy, so a repository gets this gate only by writing one, and
 `math` has not.
 
-That is also why the action still accepts `frontier` as a deprecated alias for
-`repository`: four archived pins spell it, and an archived pin cannot move. The
-action coalesces the two, warns when the old key arrives, and fails when both
-arrive naming different paths rather than picking one silently.
+The action took `frontier` as a deprecated alias for `repository` until this
+was reread. The reason given was that four archived pins spell it and an
+archived pin cannot move, and that is the argument backwards: because the pin
+cannot move, it also cannot reach the alias. Those pins resolve to `c4023f11`,
+which predates the alias — at that commit `frontier` is the action's only input
+— so a pinned consumer fetches an action where the old key is native and no
+alias is involved. The alias on the current action was reachable by nobody, and
+it is gone. `repository` is the only input.
 
 `vela replay` fails until native authority initialization completes.
 Git publication transports bytes; it does not create scientific acceptance.

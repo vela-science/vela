@@ -29,9 +29,9 @@ use vela_protocol::authority_history::{
     AuthorityHistoryVerification, AuthorityInitializationV1, verify_authority_history,
 };
 use vela_protocol::canonical::to_canonical_bytes;
-use vela_protocol::current_repository::{CURRENT_REPOSITORY_SCHEMA_V4, CurrentRepositoryV4};
 use vela_protocol::events::{EventKind, NULL_HASH, StateActor, StateTarget};
 use vela_protocol::principal::PrincipalClass;
+use vela_protocol::repository::{REPOSITORY_SCHEMA_V4, RepositoryV4};
 use vela_protocol::repository_origin::RepositoryOriginV1;
 
 use crate::authority_transaction::{
@@ -46,24 +46,25 @@ use crate::repository_txn::{ContentDigest, RepositoryTxn, WriteClass};
 
 use super::{fail_return, print_json};
 
-/// The Cedar entity is still `Frontier` after ADR 0039, and deliberately so.
+/// The Cedar entity is `Repository`, which is what it has always bounded.
 ///
 /// `authority_transaction.rs` hashes this exact text and refuses the write when
 /// the runtime root differs from `policy_bundle.cedar_schema_root` retained in
-/// history. `vela-science/math` retains a bundle whose `cedar_schema_root` was
-/// computed over these bytes and is bound by a valid DSSE signature, so editing
-/// one character here makes every subsequent authority write on that repository
-/// fail with "runtime Cedar schema, policies, or entities differ from the
-/// retained policy bundle". Renaming the entity is a policy-bundle rotation on
-/// every live repository, not a wording change. The same holds for the entities
-/// JSON and the `Frontier::` resource UID below, which the schema binds.
+/// history, so changing one character here makes every subsequent authority
+/// write fail on any repository holding a bundle computed over the old bytes.
+/// It said `Frontier` until 0.970.0 for exactly that reason: ADR 0039 had
+/// retired the noun, and the one live repository could not be rewritten to
+/// match. `vela-science/math` was re-genesised in that release, so there is no
+/// retained bundle carrying the old spelling and the entity now names the
+/// boundary it is actually the resource of. The entities JSON and the
+/// `Repository::` resource UID below are bound by the same schema.
 const HUMAN_AUTHORITY_SCHEMA: &str = r#"
-entity Frontier;
+entity Repository;
 entity Human;
 entity Proposal;
 action "authority_rotate" appliesTo {
     principal: Human,
-    resource: Frontier,
+    resource: Repository,
     context: {
         exact: Bool,
         authentication: {
@@ -80,7 +81,7 @@ action "authority_rotate" appliesTo {
 };
 action "authority_close" appliesTo {
     principal: Human,
-    resource: Frontier,
+    resource: Repository,
     context: {
         exact: Bool,
         authentication: {
@@ -97,7 +98,7 @@ action "authority_close" appliesTo {
 };
 action "policy_rotate" appliesTo {
     principal: Human,
-    resource: Frontier,
+    resource: Repository,
     context: {
         exact: Bool,
         authentication: {
@@ -151,7 +152,7 @@ action "review_reject" appliesTo {
 const FRESH_AUTHORITY_INITIALIZE_SCHEMA: &str = r#"
 action "authority_initialize" appliesTo {
     principal: Human,
-    resource: Frontier,
+    resource: Repository,
     context: {
         exact: Bool,
         authentication: {
@@ -174,16 +175,16 @@ const AUTHORITY_POLICY_TESTS_ROOT: &str =
     "sha256:33deb37ad783ce995a3d3463eea05a4d3c3f762e9a5dd46aa9ce079d41a5e56e";
 
 pub(crate) fn fresh_authority_policy_for_frontier(
-    frontier: &Path,
+    repository_path: &Path,
     repository_id: &str,
     principal_id: &str,
     observed_at: &str,
 ) -> Result<(PolicyBundleV1, CedarEvaluationInput), String> {
-    let _ = frontier;
+    let _ = repository_path;
     let _ = observed_at;
     let entities = json!([
         {
-            "uid": {"type": "Frontier", "id": repository_id},
+            "uid": {"type": "Repository", "id": repository_id},
             "attrs": {},
             "parents": []
         },
@@ -219,7 +220,7 @@ pub(crate) fn fresh_authority_policy_for_frontier(
         principal_class: PrincipalClass::Human,
         action: AUTHORITY_INITIALIZE_ACTION.into(),
         resource: format!(
-            "Frontier::{}",
+            "Repository::{}",
             serde_json::to_string(repository_id).unwrap()
         ),
         context: json!({"exact": true}),
@@ -283,13 +284,13 @@ pub(crate) struct LoadedRepositoryAuthority {
 }
 
 pub(crate) fn cmd_authority_trust_pin(
-    frontier: &Path,
+    repository_path: &Path,
     record_root: &str,
     previous_record_root: Option<&str>,
     json_out: bool,
 ) {
     crate::ui::set_mode("authority trust pin", json_out);
-    let result = pin_repository_authority(frontier, record_root, previous_record_root)
+    let result = pin_repository_authority(repository_path, record_root, previous_record_root)
         .unwrap_or_else(|error| fail_return(&error));
     if json_out {
         print_json(&result);
@@ -307,16 +308,16 @@ pub(crate) fn cmd_authority_trust_pin(
 }
 
 fn pin_repository_authority(
-    frontier: &Path,
+    repository_path: &Path,
     record_root: &str,
     previous_record_root: Option<&str>,
 ) -> Result<Value, String> {
-    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let repository = crate::repository::verify_repository_at(repository_path, true)?;
     let origin = vela_protocol::repository_origin::RepositoryOriginV1::parse(
-        &std::fs::read(frontier.join(".vela/origin.json"))
+        &std::fs::read(repository_path.join(".vela/origin.json"))
             .map_err(|error| format!("read current repository origin: {error}"))?,
     )?;
-    let authority = load_current_repository_authority(frontier, &repository, &origin)?;
+    let authority = load_repository_authority(repository_path, &repository, &origin)?;
     let first_envelope = authority
         .history
         .authority_envelopes
@@ -385,7 +386,7 @@ fn pin_repository_authority(
         "schema": "vela.authority-trust-pin-result.v2",
         "ok": true,
         "command": "authority.trust.pin",
-        "repository_path": frontier.display().to_string(),
+        "repository_path": repository_path.display().to_string(),
         "repository_id": repository.repository_id,
         "first_authority_record_id": first_record.record_id,
         "first_authority_record_root": observed_root,
@@ -434,15 +435,7 @@ impl From<&str> for RepositoryAuthorityInitError {
 }
 
 pub(crate) fn initialize_repository_authority(
-    frontier: &Path,
-    key_selector: Option<&str>,
-    reason: &str,
-) -> Result<Value, RepositoryAuthorityInitError> {
-    initialize_current_repository_authority(frontier, key_selector, reason)
-}
-
-fn initialize_current_repository_authority(
-    frontier: &Path,
+    repository_path: &Path,
     key_selector: Option<&str>,
     reason: &str,
 ) -> Result<Value, RepositoryAuthorityInitError> {
@@ -450,7 +443,7 @@ fn initialize_current_repository_authority(
     if reason.is_empty() {
         return Err("init requires a non-empty authority reason".into());
     }
-    let profile = crate::current_repository::verify_current_bootstrap_at(frontier)?;
+    let profile = crate::repository::verify_bootstrap_at(repository_path)?;
     let profile_root = profile.profile_root()?;
     let identity = select_repository_authority_identity(key_selector)?;
     let recorded_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
@@ -481,7 +474,7 @@ fn initialize_current_repository_authority(
     };
     authority_keyset.validate()?;
     let (policy_bundle, authorization_input) = fresh_authority_policy_for_frontier(
-        frontier,
+        repository_path,
         &profile.repository_id,
         &local.principal_id,
         &recorded_at,
@@ -494,8 +487,8 @@ fn initialize_current_repository_authority(
         reason.to_string(),
     )?;
     let origin_root = origin.canonical_root()?;
-    let repository = CurrentRepositoryV4 {
-        schema: CURRENT_REPOSITORY_SCHEMA_V4.into(),
+    let repository = RepositoryV4 {
+        schema: REPOSITORY_SCHEMA_V4.into(),
         repository_id: profile.repository_id.clone(),
         profile_root: profile_root.clone(),
         origin_id: origin.origin_id.clone(),
@@ -538,10 +531,12 @@ fn initialize_current_repository_authority(
     let executable =
         std::env::current_exe().map_err(|error| format!("resolve current Vela binary: {error}"))?;
     let binary_sha256 = execution_binary_sha256(&executable)?;
-    let journal_dir = crate::repository_ops::frontier_transaction_journal_dir(frontier)?;
-    let barrier =
-        RepositoryTxn::acquire_repository_authority_initialization_barrier(frontier, &journal_dir)
-            .map_err(|error| error.to_string())?;
+    let journal_dir = crate::repository_ops::repository_transaction_journal_dir(repository_path)?;
+    let barrier = RepositoryTxn::acquire_repository_authority_initialization_barrier(
+        repository_path,
+        &journal_dir,
+    )
+    .map_err(|error| error.to_string())?;
     let mut authentication = local;
     let mut signer = SshAgentRepositoryAuthoritySigner::from_environment(
         identity.key_id.clone(),
@@ -549,7 +544,7 @@ fn initialize_current_repository_authority(
     )?;
     let result = execute_authority_transaction(
         barrier,
-        frontier,
+        repository_path,
         AuthorityTransactionRequest {
             history: AuthorityHistorySnapshot {
                 repository_id: profile.repository_id.clone(),
@@ -581,7 +576,7 @@ fn initialize_current_repository_authority(
             above rather than ahead of it. */
             semantic_approvals: vec![SemanticApprovalV1 {
                 principal_id: principal.principal_id.clone(),
-                role: "frontier_administrator".into(),
+                role: "repository_administrator".into(),
                 action: AUTHORITY_INITIALIZE_ACTION.into(),
                 reason: reason.into(),
                 approved_at: recorded_at.clone(),
@@ -590,7 +585,7 @@ fn initialize_current_repository_authority(
             event_drafts: vec![AuthorityEventDraft {
                 kind: EventKind::Other(AUTHORITY_INITIALIZED_EVENT_KIND.into()),
                 target: StateTarget {
-                    r#type: "frontier".into(),
+                    r#type: "repository".into(),
                     id: profile.repository_id.clone(),
                 },
                 actor: StateActor {
@@ -635,12 +630,12 @@ fn initialize_current_repository_authority(
         &mut signer,
     )
     .map_err(|error| error.to_string())?;
-    let verified = crate::current_repository::load_current_repository_at(frontier, true)?;
+    let verified = crate::repository::load_repository_at(repository_path, true)?;
     if verified.canonical_root()? != repository_root {
         return Err("native repository genesis replay produced a different manifest".into());
     }
     let add = Command::new("git")
-        .current_dir(frontier)
+        .current_dir(repository_path)
         .args([
             "add",
             "--",
@@ -664,7 +659,7 @@ fn initialize_current_repository_authority(
         .into());
     }
     let commit = Command::new("git")
-        .current_dir(frontier)
+        .current_dir(repository_path)
         .args([
             "-c",
             "commit.gpgsign=false",
@@ -685,12 +680,12 @@ fn initialize_current_repository_authority(
         )
         .into());
     }
-    let verified = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let verified = crate::repository::verify_repository_at(repository_path, true)?;
     if verified.canonical_root()? != repository_root {
         return Err("native repository genesis replay produced a different manifest".into());
     }
-    let git_commit = vela_edge::git::text(frontier, &["rev-parse", "HEAD^{commit}"])?;
-    let git_tree = vela_edge::git::text(frontier, &["rev-parse", "HEAD^{tree}"])?;
+    let git_commit = vela_edge::git::text(repository_path, &["rev-parse", "HEAD^{commit}"])?;
+    let git_tree = vela_edge::git::text(repository_path, &["rev-parse", "HEAD^{tree}"])?;
     let local_anchor = AuthorityTrustAnchorV1 {
         schema: AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.to_string(),
         repository_id: profile.repository_id.clone(),
@@ -719,7 +714,7 @@ fn initialize_current_repository_authority(
     Ok(json!({
         "schema": "vela.authority-initialization-result.v3",
         "ok": true,
-        "repository_path": frontier.display().to_string(),
+        "repository_path": repository_path.display().to_string(),
         "repository_id": profile.repository_id,
         "principal_id": principal.principal_id,
         "repository_key_id": identity.key_id,
@@ -751,9 +746,9 @@ fn initialize_current_repository_authority(
 ///
 /// A current origin starts a sequence-1 authority history over either its
 /// archived predecessor roots or the protocol null roots.
-pub(crate) fn load_current_repository_authority(
-    frontier: &Path,
-    repository: &vela_protocol::current_repository::CurrentRepositoryV4,
+pub(crate) fn load_repository_authority(
+    repository_path: &Path,
+    repository: &vela_protocol::repository::RepositoryV4,
     origin: &vela_protocol::repository_origin::RepositoryOriginV1,
 ) -> Result<LoadedRepositoryAuthority, String> {
     if repository.repository_id != origin.repository_id
@@ -779,7 +774,7 @@ pub(crate) fn load_current_repository_authority(
         .map_or(genesis_actor_registry_root.as_str(), |predecessor| {
             predecessor.archived_actor_registry_root.as_str()
         });
-    let authority_root = frontier.join(".vela/authority");
+    let authority_root = repository_path.join(".vela/authority");
     let retained_authority_keysets =
         read_authority_json_directory::<AuthorityKeysetV1>(&authority_root.join("keysets"))?;
     let retained_policy_bundles =
@@ -830,7 +825,7 @@ pub(crate) fn load_current_repository_authority(
         .find(|bundle| bundle.root().is_ok_and(|root| root == active_policy_root))
         .cloned()
         .ok_or_else(|| "active repository policy is missing".to_string())?;
-    let policy_material = load_retained_policy_material(frontier, &policy_bundle)?;
+    let policy_material = load_retained_policy_material(repository_path, &policy_bundle)?;
     Ok(LoadedRepositoryAuthority {
         history: AuthorityHistorySnapshot {
             repository_id: repository.repository_id.clone(),
@@ -877,22 +872,25 @@ pub(crate) fn authority_record_from_envelope(
 }
 
 fn load_retained_policy_material(
-    frontier: &Path,
+    repository_path: &Path,
     bundle: &PolicyBundleV1,
 ) -> Result<CedarPolicyMaterial, String> {
     let paths = authority_policy_material_paths(bundle).map_err(|error| error.to_string())?;
-    if !paths.iter().all(|path| frontier.join(path).is_file()) {
+    if !paths
+        .iter()
+        .all(|path| repository_path.join(path).is_file())
+    {
         return Err(
             "fresh repository authority is missing its retained Cedar policy material".into(),
         );
     }
     let material = CedarPolicyMaterial {
-        schema: std::fs::read_to_string(frontier.join(&paths[0]))
+        schema: std::fs::read_to_string(repository_path.join(&paths[0]))
             .map_err(|error| format!("read retained Cedar schema: {error}"))?,
-        policies: std::fs::read_to_string(frontier.join(&paths[1]))
+        policies: std::fs::read_to_string(repository_path.join(&paths[1]))
             .map_err(|error| format!("read retained Cedar policies: {error}"))?,
         entities: serde_json::from_slice(
-            &std::fs::read(frontier.join(&paths[2]))
+            &std::fs::read(repository_path.join(&paths[2]))
                 .map_err(|error| format!("read retained Cedar entities: {error}"))?,
         )
         .map_err(|error| format!("decode retained Cedar entities: {error}"))?,

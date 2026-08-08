@@ -1,4 +1,4 @@
-//! Current repository verification, reads, work offers, and review views.
+//! Repository verification, reads, work offers, and review views.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -10,12 +10,12 @@ use sha2::{Digest, Sha256};
 use vela_protocol::authority::AuthorityEventV1;
 use vela_protocol::authority_history::AuthorityInitializationV1;
 use vela_protocol::claim_record::ClaimRecordV1;
-use vela_protocol::current_repository::{
-    ClaimStandingRefV1, CurrentRepositoryProfileV1, CurrentRepositoryV4, RepositoryObjectRefV1,
-};
 use vela_protocol::events::{EventKind, NULL_HASH};
 use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::proposal_withdrawal_v1::ProposalWithdrawalV1;
+use vela_protocol::repository::{
+    ClaimStandingRefV1, RepositoryObjectRefV1, RepositoryProfileV1, RepositoryV4,
+};
 use vela_protocol::repository_origin::RepositoryOriginV1;
 use vela_protocol::status_v4::{
     REPOSITORY_HEAD_ROLE, ReplayState, StatusActions, StatusCounts, StatusDecisionInbox, StatusGit,
@@ -26,7 +26,7 @@ use vela_protocol::submission_v1::SubmissionV1;
 use vela_protocol::verification_record::VerificationRecordV1;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub(crate) struct CurrentProposalDecision {
+pub(crate) struct ProposalDecision {
     pub(crate) standing: String,
     pub(crate) event_id: String,
     pub(crate) event_root: String,
@@ -36,16 +36,16 @@ pub(crate) struct CurrentProposalDecision {
     pub(crate) applied_event_id: Option<String>,
 }
 
-pub(crate) fn cmd_replay_repository(frontier: &Path, json_out: bool) {
+pub(crate) fn cmd_replay_repository(repository_path: &Path, json_out: bool) {
     crate::ui::set_mode("replay", json_out);
-    let frontier = crate::ui::canonicalize_repo(frontier);
-    let sensitive = sensitive_paths(&frontier);
+    let repository_path = crate::ui::canonicalize_repo(repository_path);
+    let sensitive = sensitive_paths(&repository_path);
     if !sensitive.is_empty() {
         let listed = sensitive
             .iter()
             .take(10)
             .map(|path| {
-                path.strip_prefix(&frontier)
+                path.strip_prefix(&repository_path)
                     .unwrap_or(path)
                     .display()
                     .to_string()
@@ -56,17 +56,17 @@ pub(crate) fn cmd_replay_repository(frontier: &Path, json_out: bool) {
             "current repository contains sensitive-looking files: {listed}"
         ));
     }
-    let repository = verify_current_repository_at(&frontier, true)
+    let repository = verify_repository_at(&repository_path, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let origin = RepositoryOriginV1::parse(
-        &fs::read(frontier.join(".vela/origin.json")).unwrap_or_else(|error| {
+        &fs::read(repository_path.join(".vela/origin.json")).unwrap_or_else(|error| {
             crate::cli::fail_return(&format!("read current repository origin: {error}"))
         }),
     )
     .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let commit = git_text(&frontier, &["rev-parse", "HEAD^{commit}"])
+    let commit = git_text(&repository_path, &["rev-parse", "HEAD^{commit}"])
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let tree = git_text(&frontier, &["rev-parse", "HEAD^{tree}"])
+    let tree = git_text(&repository_path, &["rev-parse", "HEAD^{tree}"])
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let payload = json!({
         "schema": "vela.repository-verification.v3",
@@ -77,7 +77,7 @@ pub(crate) fn cmd_replay_repository(frontier: &Path, json_out: bool) {
         directory it read, so v3 names it beside the other `repository_*`
         facts it is one of. The key moved with a version rather than in place
         because a caller reads it. */
-        "repository_path": frontier.display().to_string(),
+        "repository_path": repository_path.display().to_string(),
         "repository_id": repository.repository_id,
         "git_commit": commit,
         "git_tree": tree,
@@ -189,21 +189,22 @@ fn decision_inbox_status_summary(
     )
 }
 
-pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
+pub(crate) fn cmd_status(repository_path: &Path, json_out: bool) {
     crate::ui::set_mode("status", json_out);
-    let frontier = crate::ui::canonicalize_repo(frontier);
-    let profile_source = fs::read_to_string(frontier.join("vela.toml")).unwrap_or_else(|error| {
-        crate::cli::fail_return(&format!("read current repository profile: {error}"))
-    });
-    let profile = CurrentRepositoryProfileV1::from_toml_str(&profile_source)
+    let repository_path = crate::ui::canonicalize_repo(repository_path);
+    let profile_source =
+        fs::read_to_string(repository_path.join("vela.toml")).unwrap_or_else(|error| {
+            crate::cli::fail_return(&format!("read repository profile: {error}"))
+        });
+    let profile = RepositoryProfileV1::from_toml_str(&profile_source)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    if !frontier.join(".vela/origin.json").exists()
-        && !frontier.join(".vela/repository.json").exists()
+    if !repository_path.join(".vela/origin.json").exists()
+        && !repository_path.join(".vela/repository.json").exists()
     {
-        verify_current_bootstrap_at(&frontier)
+        verify_bootstrap_at(&repository_path)
             .unwrap_or_else(|error| crate::cli::fail_return(&error));
-        let commit = git_text(&frontier, &["rev-parse", "HEAD^{commit}"]).ok();
-        let tree = git_text(&frontier, &["rev-parse", "HEAD^{tree}"]).ok();
+        let commit = git_text(&repository_path, &["rev-parse", "HEAD^{commit}"]).ok();
+        let tree = git_text(&repository_path, &["rev-parse", "HEAD^{tree}"]).ok();
         /* One command reports one document. This branch answered `status` with
         `vela.status.v1` while the initialized branch below answered with
         `vela.status.v4`: not two versions of one contract but one contract and
@@ -263,7 +264,7 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
                 review: None,
                 work: StatusWorkAction::AuthorityUninitialized {
                     ready_target_count: 0,
-                    command: format!("vela init {} --json", frontier.display()),
+                    command: format!("vela init {} --json", repository_path.display()),
                     note: "The retained repository profile has no repository authority yet. Resume `vela init`; nothing else can produce, verify, or decide until it completes.".into(),
                 },
             },
@@ -278,16 +279,16 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         }
         return;
     }
-    let repository = load_current_repository_at(&frontier, true)
+    let repository = load_repository_at(&repository_path, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let repository_root = repository
         .canonical_root()
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let commit = git_text(&frontier, &["rev-parse", "HEAD^{commit}"])
+    let commit = git_text(&repository_path, &["rev-parse", "HEAD^{commit}"])
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let tree = git_text(&frontier, &["rev-parse", "HEAD^{tree}"])
+    let tree = git_text(&repository_path, &["rev-parse", "HEAD^{tree}"])
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let standings = load_current_proposal_standings(&frontier, &repository)
+    let standings = load_current_proposal_standings(&repository_path, &repository)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let pending_proposals = repository
         .proposals
@@ -307,8 +308,8 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         .values()
         .filter(|standing| standing.as_str() == "withdrawn")
         .count();
-    let target_assessment = vela_edge::target_index::assess_current_target_index(
-        &frontier,
+    let target_assessment = vela_edge::target_index::assess_target_index(
+        &repository_path,
         &repository.repository_id,
         &repository.origin_id,
         &repository_root,
@@ -319,22 +320,22 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
         .as_ref()
         .map(|assessment| assessment.fresh_open_targets().len())
         .unwrap_or(0);
-    let inbox_projection = crate::decision_inbox::project(&frontier)
+    let inbox_projection = crate::decision_inbox::project(&repository_path)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let (decision_inbox, pending_decision_count) = decision_inbox_status_summary(&inbox_projection);
     let review_action = (pending_decision_count > 0).then(|| StatusReviewAction {
         pending_count: pending_decision_count as u64,
-        command: format!("vela review inbox {} --json", frontier.display()),
+        command: format!("vela review inbox {} --json", repository_path.display()),
     });
     let work_action = if target_index_configured {
         StatusWorkAction::Target {
             ready_target_count: ready_target_count as u64,
-            command: format!("vela next {} --limit 1 --json", frontier.display()),
+            command: format!("vela next {} --limit 1 --json", repository_path.display()),
         }
     } else {
         StatusWorkAction::DirectSubmission {
             ready_target_count: 0,
-            command: format!("vela submit --repo {} --help", frontier.display()),
+            command: format!("vela submit --repo {} --help", repository_path.display()),
             note: "No Target Index is configured. Submit bounded evidence directly or use a repository-owned adapter to generate targets.json.".into(),
         }
     };
@@ -432,16 +433,14 @@ pub(crate) fn cmd_current_status(frontier: &Path, json_out: bool) {
     }
 }
 
-pub(crate) fn verify_current_profile_at(root: &Path) -> Result<CurrentRepositoryProfileV1, String> {
+pub(crate) fn verify_profile_at(root: &Path) -> Result<RepositoryProfileV1, String> {
     let profile_source = fs::read_to_string(root.join("vela.toml"))
-        .map_err(|error| format!("read current vela.toml: {error}"))?;
-    CurrentRepositoryProfileV1::from_toml_str(&profile_source)
+        .map_err(|error| format!("read vela.toml: {error}"))?;
+    RepositoryProfileV1::from_toml_str(&profile_source)
 }
 
-pub(crate) fn verify_current_bootstrap_at(
-    root: &Path,
-) -> Result<CurrentRepositoryProfileV1, String> {
-    let profile = verify_current_profile_at(root)?;
+pub(crate) fn verify_bootstrap_at(root: &Path) -> Result<RepositoryProfileV1, String> {
+    let profile = verify_profile_at(root)?;
     if root.join(".vela/epoch.json").exists() {
         return Err("repository retains the retired .vela/epoch.json path".into());
     }
@@ -466,16 +465,16 @@ pub(crate) fn verify_current_bootstrap_at(
     Ok(profile)
 }
 
-pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
+pub(crate) fn cmd_next(repository_path: &Path, limit: usize, json_out: bool) {
     crate::ui::set_mode("next", json_out);
-    let frontier = crate::ui::canonicalize_repo(frontier);
-    let repository = load_current_repository_at(&frontier, true)
+    let repository_path = crate::ui::canonicalize_repo(repository_path);
+    let repository = load_repository_at(&repository_path, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let repository_root = repository
         .canonical_root()
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let assessment = vela_edge::target_index::assess_current_target_index(
-        &frontier,
+    let assessment = vela_edge::target_index::assess_target_index(
+        &repository_path,
         &repository.repository_id,
         &repository.origin_id,
         &repository_root,
@@ -495,7 +494,7 @@ pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
                 "returned": 0
             },
             "targets": [],
-            "next_action": format!("vela submit --repo {} --help", frontier.display()),
+            "next_action": format!("vela submit --repo {} --help", repository_path.display()),
             "note": "No Target Index is configured. Submit bounded evidence directly or use a repository-owned adapter to generate targets.json.",
         });
         if json_out {
@@ -504,7 +503,7 @@ pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
             println!("next · no configured Target Offers");
             println!(
                 "  direct    vela submit --repo {} --help",
-                frontier.display()
+                repository_path.display()
             );
             println!("  adapter   generate tracked targets.json for ranked repository-owned work");
         }
@@ -536,7 +535,7 @@ pub(crate) fn cmd_current_next(frontier: &Path, limit: usize, json_out: bool) {
                 "next_command": format!(
                     "vela start {} --repo {} --json",
                     target.id,
-                    frontier.display()
+                    repository_path.display()
                 )
             })
         })
@@ -594,7 +593,7 @@ fn authority_event_by_semantic_id<'a>(
 
 fn current_proposal_decisions(
     events: &[AuthorityEventV1],
-) -> Result<BTreeMap<String, CurrentProposalDecision>, String> {
+) -> Result<BTreeMap<String, ProposalDecision>, String> {
     let mut decisions = BTreeMap::new();
     for event in events {
         let standing = match event.content.kind {
@@ -682,7 +681,7 @@ fn current_proposal_decisions(
         } else {
             None
         };
-        let decision = CurrentProposalDecision {
+        let decision = ProposalDecision {
             standing: standing.into(),
             event_id: event.id.clone(),
             event_root: event.root()?,
@@ -701,26 +700,26 @@ fn current_proposal_decisions(
 }
 
 pub(crate) fn load_current_proposal_decisions(
-    frontier: &Path,
-    repository: &CurrentRepositoryV4,
-) -> Result<BTreeMap<String, CurrentProposalDecision>, String> {
-    let origin_bytes = fs::read(frontier.join(".vela/origin.json"))
+    repository_path: &Path,
+    repository: &RepositoryV4,
+) -> Result<BTreeMap<String, ProposalDecision>, String> {
+    let origin_bytes = fs::read(repository_path.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;
     let origin = RepositoryOriginV1::parse(&origin_bytes)?;
-    let authority = crate::cli::load_current_repository_authority(frontier, repository, &origin)?;
+    let authority = crate::cli::load_repository_authority(repository_path, repository, &origin)?;
     current_proposal_decisions(&authority.history.authority_events)
 }
 
 pub(crate) fn load_current_proposal_standings(
-    frontier: &Path,
-    repository: &CurrentRepositoryV4,
+    repository_path: &Path,
+    repository: &RepositoryV4,
 ) -> Result<BTreeMap<String, String>, String> {
-    let decisions = load_current_proposal_decisions(frontier, repository)?;
+    let decisions = load_current_proposal_decisions(repository_path, repository)?;
     let mut standings = decisions
         .into_iter()
         .map(|(proposal_id, decision)| (proposal_id, decision.standing))
         .collect::<BTreeMap<_, _>>();
-    for proposal_id in load_current_proposal_withdrawals(frontier, repository)?.into_keys() {
+    for proposal_id in load_current_proposal_withdrawals(repository_path, repository)?.into_keys() {
         if standings
             .insert(proposal_id.clone(), "withdrawn".into())
             .is_some()
@@ -734,12 +733,12 @@ pub(crate) fn load_current_proposal_standings(
 }
 
 pub(crate) fn load_current_proposal_withdrawals(
-    frontier: &Path,
-    repository: &CurrentRepositoryV4,
+    repository_path: &Path,
+    repository: &RepositoryV4,
 ) -> Result<BTreeMap<String, ProposalWithdrawalV1>, String> {
     let mut withdrawals = BTreeMap::new();
     for reference in &repository.proposal_withdrawals {
-        let bytes = read_rooted_object(frontier, &reference.path, &reference.root)?;
+        let bytes = read_rooted_object(repository_path, &reference.path, &reference.root)?;
         let withdrawal = ProposalWithdrawalV1::parse(&bytes)?;
         if withdrawal.withdrawal_id != reference.id
             || withdrawal.canonical_root()? != reference.root
@@ -762,7 +761,7 @@ pub(crate) fn load_current_proposal_withdrawals(
                 )
             })?;
         let proposal = ProposalV1::parse(&read_rooted_object(
-            frontier,
+            repository_path,
             &proposal_reference.path,
             &proposal_reference.root,
         )?)?;
@@ -780,7 +779,7 @@ pub(crate) fn load_current_proposal_withdrawals(
                 )
             })?;
         let submission = SubmissionV1::parse(&read_rooted_object(
-            frontier,
+            repository_path,
             &submission_reference.path,
             &submission_reference.root,
         )?)?;
@@ -800,7 +799,7 @@ pub(crate) fn load_current_proposal_withdrawals(
 
 fn validate_current_proposal_standing(
     root: &Path,
-    repository: &CurrentRepositoryV4,
+    repository: &RepositoryV4,
     events: &[AuthorityEventV1],
 ) -> Result<(), String> {
     let withdrawals = load_current_proposal_withdrawals(root, repository)?;
@@ -975,15 +974,15 @@ fn validate_current_proposal_standing(
     Ok(())
 }
 
-pub(crate) fn cmd_current_review_list(
-    frontier: &Path,
+pub(crate) fn cmd_review_list(
+    repository_path: &Path,
     status: Option<&str>,
     limit: usize,
     cursor: Option<&str>,
     json_out: bool,
 ) {
     crate::ui::set_mode("review list", json_out);
-    crate::ui::require_initialized_repo(frontier);
+    crate::ui::require_initialized_repo(repository_path);
     let status = status.unwrap_or("pending_review");
     if !["pending_review", "accepted", "rejected", "withdrawn", "all"].contains(&status) {
         crate::cli::fail_kind(
@@ -991,18 +990,18 @@ pub(crate) fn cmd_current_review_list(
             "current review status must be pending_review, accepted, rejected, withdrawn, or all",
         );
     }
-    let frontier = crate::ui::canonicalize_repo(frontier);
-    let repository = load_current_repository_at(&frontier, true)
+    let repository_path = crate::ui::canonicalize_repo(repository_path);
+    let repository = load_repository_at(&repository_path, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let decisions = load_current_proposal_decisions(&frontier, &repository)
+    let decisions = load_current_proposal_decisions(&repository_path, &repository)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let withdrawals = load_current_proposal_withdrawals(&frontier, &repository)
+    let withdrawals = load_current_proposal_withdrawals(&repository_path, &repository)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let mut items = repository
         .proposals
         .iter()
         .filter_map(|reference| {
-            let bytes = read_rooted_object(&frontier, &reference.path, &reference.root)
+            let bytes = read_rooted_object(&repository_path, &reference.path, &reference.root)
                 .unwrap_or_else(|error| crate::cli::fail_return(&error));
             let proposal =
                 ProposalV1::parse(&bytes).unwrap_or_else(|error| crate::cli::fail_return(&error));
@@ -1090,15 +1089,15 @@ pub(crate) fn cmd_current_review_list(
     }
 }
 
-pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_out: bool) {
+pub(crate) fn cmd_review_show(repository_path: &Path, proposal_id: &str, json_out: bool) {
     crate::ui::set_mode("review show", json_out);
-    crate::ui::require_initialized_repo(frontier);
-    let frontier = crate::ui::canonicalize_repo(frontier);
-    let repository = load_current_repository_at(&frontier, true)
+    crate::ui::require_initialized_repo(repository_path);
+    let repository_path = crate::ui::canonicalize_repo(repository_path);
+    let repository = load_repository_at(&repository_path, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let decisions = load_current_proposal_decisions(&frontier, &repository)
+    let decisions = load_current_proposal_decisions(&repository_path, &repository)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let withdrawals = load_current_proposal_withdrawals(&frontier, &repository)
+    let withdrawals = load_current_proposal_withdrawals(&repository_path, &repository)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let reference = repository
         .proposals
@@ -1110,7 +1109,7 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
                 "current repository has no exact Proposal with that ID",
             )
         });
-    let proposal_bytes = read_rooted_object(&frontier, &reference.path, &reference.root)
+    let proposal_bytes = read_rooted_object(&repository_path, &reference.path, &reference.root)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let proposal =
         ProposalV1::parse(&proposal_bytes).unwrap_or_else(|error| crate::cli::fail_return(&error));
@@ -1130,9 +1129,9 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
         |decision| decision.standing.as_str(),
     );
     let claim_path =
-        crate::current_submission::rooted_path("records/claims/sha256", &proposal.subject.root)
+        crate::submission::rooted_path("records/claims/sha256", &proposal.subject.root)
             .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let claim_bytes = read_rooted_object(&frontier, &claim_path, &proposal.subject.root)
+    let claim_bytes = read_rooted_object(&repository_path, &claim_path, &proposal.subject.root)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let claim =
         ClaimRecordV1::parse(&claim_bytes).unwrap_or_else(|error| crate::cli::fail_return(&error));
@@ -1150,7 +1149,7 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
             crate::cli::fail_return("current Proposal has no exact retained Submission")
         });
     let submission_bytes = read_rooted_object(
-        &frontier,
+        &repository_path,
         &submission_reference.path,
         &submission_reference.root,
     )
@@ -1161,8 +1160,9 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
         .verifications
         .iter()
         .filter_map(|verification| {
-            let bytes = read_rooted_object(&frontier, &verification.path, &verification.root)
-                .unwrap_or_else(|error| crate::cli::fail_return(&error));
+            let bytes =
+                read_rooted_object(&repository_path, &verification.path, &verification.root)
+                    .unwrap_or_else(|error| crate::cli::fail_return(&error));
             let record = VerificationRecordV1::parse(&bytes)
                 .unwrap_or_else(|error| crate::cli::fail_return(&error));
             verification_targets_proposal(&proposal, &claim, &record).then_some(json!({
@@ -1173,7 +1173,7 @@ pub(crate) fn cmd_current_review_show(frontier: &Path, proposal_id: &str, json_o
         .collect::<Vec<_>>();
     let decision = decisions.get(proposal_id);
     let withdrawal = withdrawals.get(proposal_id);
-    let decision_inbox = crate::decision_inbox::review_context(&frontier, proposal_id)
+    let decision_inbox = crate::decision_inbox::review_context(&repository_path, proposal_id)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let payload = json!({
         "schema": "vela.review.v1",
@@ -1260,7 +1260,7 @@ pub(crate) fn verification_targets_proposal(
 
 fn rooted_claim_for_proposal(root: &Path, proposal: &ProposalV1) -> Result<ClaimRecordV1, String> {
     let claim_path =
-        crate::current_submission::rooted_path("records/claims/sha256", &proposal.subject.root)?;
+        crate::submission::rooted_path("records/claims/sha256", &proposal.subject.root)?;
     let claim_bytes = read_rooted_object(root, &claim_path, &proposal.subject.root)?;
     let claim = ClaimRecordV1::parse(&claim_bytes)?;
     if claim.canonical_bytes()? != claim_bytes || claim.claim_id != proposal.subject.id {
@@ -1397,13 +1397,13 @@ fn proposal_matches_signed_submission(
 }
 
 /// Load and validate the current repository identity and authority chain.
-pub(crate) fn load_current_repository_at(
+pub(crate) fn load_repository_at(
     root: &Path,
     require_authority_record: bool,
-) -> Result<CurrentRepositoryV4, String> {
+) -> Result<RepositoryV4, String> {
     let profile_source = fs::read_to_string(root.join("vela.toml"))
-        .map_err(|error| format!("read current vela.toml: {error}"))?;
-    let profile = CurrentRepositoryProfileV1::from_toml_str(&profile_source)?;
+        .map_err(|error| format!("read vela.toml: {error}"))?;
+    let profile = RepositoryProfileV1::from_toml_str(&profile_source)?;
     let profile_root = profile.profile_root()?;
     if root.join(".vela/epoch.json").exists() {
         return Err("current repository cannot retain an epoch boundary".into());
@@ -1414,7 +1414,7 @@ pub(crate) fn load_current_repository_at(
     let origin_root = origin.canonical_root()?;
     let repository_bytes = fs::read(root.join(".vela/repository.json"))
         .map_err(|error| format!("read current repository manifest: {error}"))?;
-    let repository = CurrentRepositoryV4::parse(&repository_bytes)?;
+    let repository = RepositoryV4::parse(&repository_bytes)?;
     if repository.repository_id != profile.repository_id
         || repository.repository_id != origin.repository_id
         || repository.profile_root != profile_root
@@ -1427,7 +1427,7 @@ pub(crate) fn load_current_repository_at(
         );
     }
     if require_authority_record {
-        let loaded = crate::cli::load_current_repository_authority(root, &repository, &origin)?;
+        let loaded = crate::cli::load_repository_authority(root, &repository, &origin)?;
         validate_current_proposal_standing(root, &repository, &loaded.history.authority_events)?;
         let mut records = Vec::with_capacity(loaded.history.authority_envelopes.len());
         for envelope in &loaded.history.authority_envelopes {
@@ -1445,11 +1445,11 @@ pub(crate) fn load_current_repository_at(
     Ok(repository)
 }
 
-pub(crate) fn verify_current_repository_at(
+pub(crate) fn verify_repository_at(
     root: &Path,
     require_authority_record: bool,
-) -> Result<CurrentRepositoryV4, String> {
-    let repository = load_current_repository_at(root, false)?;
+) -> Result<RepositoryV4, String> {
+    let repository = load_repository_at(root, false)?;
     let origin_bytes = fs::read(root.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;
     let origin = RepositoryOriginV1::parse(&origin_bytes)?;
@@ -1470,7 +1470,7 @@ pub(crate) fn verify_current_repository_at(
             );
         }
         if require_authority_record {
-            let assessment = vela_edge::target_index::assess_current_target_index(
+            let assessment = vela_edge::target_index::assess_target_index(
                 root,
                 &repository.repository_id,
                 &repository.origin_id,
@@ -1500,7 +1500,7 @@ pub(crate) fn verify_current_repository_at(
         }
     }
 
-    let object_bytes = read_current_object_set(root, &repository)?;
+    let object_bytes = read_object_set(root, &repository)?;
     for reference in repository
         .accepted_claims
         .iter()
@@ -1694,21 +1694,21 @@ pub(crate) fn verify_current_repository_at(
             .strip_prefix(root)
             .map_err(|_| "current repository path escaped its root".to_string())?
             .to_string_lossy();
-        if is_retired_current_path(&relative) {
+        if is_retired_path(&relative) {
             return Err(format!(
                 "current repository retains retired protocol path {relative}"
             ));
         }
     }
     if require_authority_record {
-        verify_current_repository_authority(root, &repository, &origin)?;
+        verify_repository_authority(root, &repository, &origin)?;
     }
     Ok(repository)
 }
 
-fn read_current_object_set(
+fn read_object_set(
     root: &Path,
-    repository: &CurrentRepositoryV4,
+    repository: &RepositoryV4,
 ) -> Result<BTreeMap<String, Vec<u8>>, String> {
     let mut references = repository
         .accepted_claims
@@ -1776,14 +1776,14 @@ fn read_current_object_set(
 /// Target-index inspect, repair, and reseal must remain available precisely
 /// when tracked source or packet bytes drift. Canonical repository and
 /// authority objects still fail closed.
-pub(crate) fn verify_current_repository_allow_derived_drift_at(
+pub(crate) fn verify_repository_allow_derived_drift_at(
     root: &Path,
-) -> Result<CurrentRepositoryV4, String> {
-    let repository = verify_current_repository_at(root, false)?;
+) -> Result<RepositoryV4, String> {
+    let repository = verify_repository_at(root, false)?;
     let origin_bytes = fs::read(root.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;
     let origin = RepositoryOriginV1::parse(&origin_bytes)?;
-    verify_current_repository_authority(root, &repository, &origin)?;
+    verify_repository_authority(root, &repository, &origin)?;
     Ok(repository)
 }
 
@@ -1795,7 +1795,7 @@ pub(crate) fn verify_current_repository_allow_derived_drift_at(
 pub(crate) fn initial_repository(
     root: &Path,
     origin: &RepositoryOriginV1,
-) -> Result<CurrentRepositoryV4, String> {
+) -> Result<RepositoryV4, String> {
     let commit = current_origin_commit(root, origin)?;
     let read_blob = |path: &str| -> Result<Vec<u8>, String> {
         let spec = format!("{commit}:{path}");
@@ -1814,7 +1814,7 @@ pub(crate) fn initial_repository(
         return Err("current origin differs from its exact boundary commit".into());
     }
     let repository_bytes = read_blob(".vela/repository.json")?;
-    let repository = CurrentRepositoryV4::parse(&repository_bytes)?;
+    let repository = RepositoryV4::parse(&repository_bytes)?;
     if repository.repository_id != origin.repository_id
         || repository.profile_root != origin.profile_root
         || repository.origin_id != origin.origin_id
@@ -1849,17 +1849,36 @@ fn current_origin_commit(root: &Path, origin: &RepositoryOriginV1) -> Result<Str
     Ok(commit.clone())
 }
 
+/// Read one Claim's retained bytes and hold them to the reference that named
+/// them.
+///
+/// `read_rooted_object` proves the bytes match the declared root. This proves
+/// the record inside them is the Claim the manifest said it was, which the root
+/// alone does not: a manifest entry can bind a correct root under the wrong id.
+pub(crate) fn read_claim(
+    repository_path: &Path,
+    reference: &ClaimStandingRefV1,
+) -> Result<ClaimRecordV1, String> {
+    let bytes = read_rooted_object(repository_path, &reference.path, &reference.claim_root)?;
+    let claim = ClaimRecordV1::parse(&bytes)?;
+    if claim.claim_id != reference.claim_id {
+        return Err(format!(
+            "retained bytes at {} carry Claim id {}, not the one the manifest binds",
+            reference.path, claim.claim_id
+        ));
+    }
+    Ok(claim)
+}
+
 pub(crate) fn read_rooted_object(
     root: &Path,
     path: &str,
     expected_root: &str,
 ) -> Result<Vec<u8>, String> {
-    let bytes = fs::read(root.join(path))
-        .map_err(|error| format!("read current object {path}: {error}"))?;
+    let bytes =
+        fs::read(root.join(path)).map_err(|error| format!("read object {path}: {error}"))?;
     if root_bytes(&bytes) != expected_root {
-        return Err(format!(
-            "current object {path} does not match its declared root"
-        ));
+        return Err(format!("object {path} does not match its declared root"));
     }
     let expected_name = expected_root.trim_start_matches("sha256:");
     if Path::new(path).file_stem().and_then(|value| value.to_str()) != Some(expected_name) {
@@ -1870,9 +1889,9 @@ pub(crate) fn read_rooted_object(
     Ok(bytes)
 }
 
-fn verify_current_repository_authority(
+fn verify_repository_authority(
     root: &Path,
-    repository: &CurrentRepositoryV4,
+    repository: &RepositoryV4,
     origin: &RepositoryOriginV1,
 ) -> Result<(), String> {
     let genesis_event_log_root = format!("sha256:{}", vela_protocol::events::event_log_hash(&[]));
@@ -1889,7 +1908,7 @@ fn verify_current_repository_authority(
         .map_or(genesis_actor_registry_root.as_str(), |predecessor| {
             predecessor.archived_actor_registry_root.as_str()
         });
-    let loaded = crate::cli::load_current_repository_authority(root, repository, origin)?;
+    let loaded = crate::cli::load_repository_authority(root, repository, origin)?;
     validate_current_proposal_standing(root, repository, &loaded.history.authority_events)?;
     let initialization_event_id = loaded
         .verification
@@ -2086,10 +2105,7 @@ fn verify_current_repository_authority(
     for reference in &repository.proposals {
         let proposal_bytes = read_rooted_object(root, &reference.path, &reference.root)?;
         let proposal = ProposalV1::parse(&proposal_bytes)?;
-        let path = crate::current_submission::rooted_path(
-            "records/claims/sha256",
-            &proposal.subject.root,
-        )?;
+        let path = crate::submission::rooted_path("records/claims/sha256", &proposal.subject.root)?;
         if let Some(previous) =
             current_record_paths.insert(path.clone(), proposal.subject.root.clone())
             && previous != proposal.subject.root
@@ -2099,7 +2115,7 @@ fn verify_current_repository_authority(
             ));
         }
     }
-    verify_current_record_coverage(
+    verify_record_coverage(
         &covered_record_paths,
         &current_record_paths,
         &observed_record_paths,
@@ -2189,7 +2205,7 @@ fn verify_repository_manifest_delta_chain<'a>(
     Ok(transitions)
 }
 
-fn repository_manifest_at_commit(root: &Path, commit: &str) -> Result<CurrentRepositoryV4, String> {
+fn repository_manifest_at_commit(root: &Path, commit: &str) -> Result<RepositoryV4, String> {
     let spec = format!("{commit}:.vela/repository.json");
     let output = vela_edge::git::output(root, &["show", &spec])?;
     if !output.status.success() {
@@ -2198,7 +2214,7 @@ fn repository_manifest_at_commit(root: &Path, commit: &str) -> Result<CurrentRep
             String::from_utf8_lossy(&output.stderr).trim()
         ));
     }
-    CurrentRepositoryV4::parse(&output.stdout)
+    RepositoryV4::parse(&output.stdout)
 }
 
 /// Replay unsigned evidence-manifest commits from the last exact signed
@@ -2207,7 +2223,7 @@ fn repository_manifest_at_commit(root: &Path, commit: &str) -> Result<CurrentRep
 fn verify_routine_evidence_ancestry(
     root: &Path,
     signed_transitions: &[SignedRepositoryManifestTransition],
-    current: &CurrentRepositoryV4,
+    current: &RepositoryV4,
 ) -> Result<(), String> {
     let Some(first) = signed_transitions.first() else {
         return Err("authority history has no signed repository checkpoint".into());
@@ -2350,8 +2366,8 @@ fn verify_routine_evidence_ancestry(
 /// identity, authority configuration, accepted Standing, or any retained
 /// reference from the authority checkpoint.
 pub(crate) fn verify_routine_evidence_overlay(
-    authority_checkpoint: &CurrentRepositoryV4,
-    current: &CurrentRepositoryV4,
+    authority_checkpoint: &RepositoryV4,
+    current: &RepositoryV4,
 ) -> Result<(), String> {
     authority_checkpoint.verify()?;
     current.verify()?;
@@ -2470,7 +2486,7 @@ fn require_retained_object_refs(
 /// Claim references held by Proposals. Paths and roots are supplied only after
 /// their canonical object parsers have succeeded. This is intentionally a
 /// coverage check, not a second record format or transaction log.
-pub(crate) fn verify_current_record_coverage(
+pub(crate) fn verify_record_coverage(
     authority_covered: &BTreeMap<String, String>,
     evidence_references: &BTreeMap<String, String>,
     observed: &BTreeMap<String, String>,
@@ -2533,7 +2549,7 @@ fn git_text(repository: &Path, args: &[&str]) -> Result<String, String> {
 /// This is the verifier's own answer, and it is the only one. The authority
 /// writer asks it before admitting an object draft, so a repository that
 /// replay would refuse cannot be written in the first place.
-pub(crate) fn is_retired_current_path(path: &str) -> bool {
+pub(crate) fn is_retired_path(path: &str) -> bool {
     path == ".vela/actors.json"
         || path == "frontier.yaml"
         || path == "frontier.json"
@@ -2626,16 +2642,14 @@ mod tests {
 
     #[test]
     fn current_repository_rejects_retired_profile_paths() {
-        assert!(is_retired_current_path("frontier.yaml"));
-        assert!(is_retired_current_path("frontier.json"));
-        assert!(!is_retired_current_path("vela.toml"));
-        assert!(is_retired_current_path("vela.lock"));
-        assert!(is_retired_current_path("proof/erdos-203.lean"));
+        assert!(is_retired_path("frontier.yaml"));
+        assert!(is_retired_path("frontier.json"));
+        assert!(!is_retired_path("vela.toml"));
+        assert!(is_retired_path("vela.lock"));
+        assert!(is_retired_path("proof/erdos-203.lean"));
         // The prefix is the directory, not the word: a repository is free to
         // keep proofs anywhere it does not claim this exact retired layout.
-        assert!(!is_retired_current_path(
-            "artifacts/proof-scripts/sidon.lean"
-        ));
+        assert!(!is_retired_path("artifacts/proof-scripts/sidon.lean"));
     }
 
     fn root(byte: char) -> String {
@@ -3068,9 +3082,9 @@ mod tests {
         );
     }
 
-    fn repository_fixture() -> CurrentRepositoryV4 {
-        CurrentRepositoryV4 {
-            schema: vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V4.into(),
+    fn repository_fixture() -> RepositoryV4 {
+        RepositoryV4 {
+            schema: vela_protocol::repository::REPOSITORY_SCHEMA_V4.into(),
             repository_id: "vrepo_0123456789abcdef".into(),
             profile_root: root('1'),
             origin_id: "vro_0123456789abcdef".into(),
@@ -3169,25 +3183,25 @@ mod tests {
             ("records/claims/sha256/a.json".into(), root('a')),
             ("records/submissions/sha256/b.json".into(), root('b')),
         ]);
-        verify_current_record_coverage(&authority, &evidence, &observed).unwrap();
+        verify_record_coverage(&authority, &evidence, &observed).unwrap();
 
         let mut unexplained = observed.clone();
         unexplained.insert("records/artifacts/sha256/c".into(), root('c'));
         assert_eq!(
-            verify_current_record_coverage(&authority, &evidence, &unexplained).unwrap_err(),
+            verify_record_coverage(&authority, &evidence, &unexplained).unwrap_err(),
             "current repository contains unexplained record records/artifacts/sha256/c"
         );
 
         let mut missing = observed.clone();
         missing.remove("records/claims/sha256/a.json");
         assert_eq!(
-            verify_current_record_coverage(&authority, &evidence, &missing).unwrap_err(),
+            verify_record_coverage(&authority, &evidence, &missing).unwrap_err(),
             "current repository is missing retained record records/claims/sha256/a.json"
         );
 
         let conflicting = BTreeMap::from([("records/claims/sha256/a.json".into(), root('d'))]);
         assert_eq!(
-            verify_current_record_coverage(&authority, &conflicting, &observed).unwrap_err(),
+            verify_record_coverage(&authority, &conflicting, &observed).unwrap_err(),
             "current evidence reference disagrees with retained authority bytes at records/claims/sha256/a.json"
         );
     }
@@ -3245,7 +3259,7 @@ mod tests {
         let (proposal, claim, verification) = current_review_lineage();
         let claim_root = claim.canonical_root().unwrap();
         let claim_path =
-            crate::current_submission::rooted_path("records/claims/sha256", &claim_root).unwrap();
+            crate::submission::rooted_path("records/claims/sha256", &claim_root).unwrap();
         let absolute = temporary.path().join(claim_path);
         fs::create_dir_all(absolute.parent().unwrap()).unwrap();
         fs::write(&absolute, claim.canonical_bytes().unwrap()).unwrap();

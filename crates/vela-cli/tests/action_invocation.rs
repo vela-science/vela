@@ -11,12 +11,10 @@
 //! binary. It parses the verb out of the Action's own script and runs it, so a
 //! future rename fails here rather than in four downstream repositories.
 //!
-//! The input names are held here for the same reason. The Action takes a
-//! `repository` path and keeps `frontier` as a deprecated alias for it; a
-//! composite action has no alias mechanism, so the two are separate declared
-//! inputs coalesced in one step. That arrangement is invisible to the four
-//! pinned consumers until a pin moves, which is exactly when it is too late to
-//! find out that a sweep over the retired word deleted the key they pass.
+//! The input name is held here for the same reason. The Action takes one
+//! `repository` path and nothing else, and every step that needs it reads the
+//! resolved output rather than the input, so there is one place a rename has to
+//! reach.
 
 use std::path::Path;
 use std::process::Command;
@@ -102,66 +100,28 @@ fn declared_inputs() -> String {
 }
 
 #[test]
-fn the_action_takes_a_repository_and_keeps_frontier_as_a_deprecated_alias() {
+fn the_action_takes_one_repository_path_and_reads_it_once() {
     let inputs = declared_inputs();
-
-    for key in ["  repository:", "  frontier:"] {
-        assert!(
-            inputs.lines().any(|line| line == key),
-            "action.yml must declare `{}`; both keys reach one path and dropping \
-             either breaks a caller:\n{inputs}",
-            key.trim().trim_end_matches(':')
-        );
-    }
-
-    /* Both defaults are empty on purpose. A `"."` default on `repository`
-    would make a pinned consumer that passes `frontier: subdir` arrive as two
-    non-empty, disagreeing paths, and the disagreement check exists to protect
-    that caller rather than to trip on it. The `"."` the Action has always
-    meant is restored once, in the coalesce. */
-    for line in inputs.lines().filter(|line| line.contains("default:")) {
-        assert_eq!(
-            line.trim(),
-            "default: \"\"",
-            "an input default other than empty makes `unset` indistinguishable \
-             from `set`, which is what the alias coalesce reads:\n{inputs}"
-        );
-    }
-
-    /* The alias's own body: every line under its key that is indented past
-    it, which is where its `description` lives. */
-    let deprecated: String = inputs
+    let declared: Vec<&str> = inputs
         .lines()
-        .skip_while(|line| *line != "  frontier:")
-        .skip(1)
-        .take_while(|line| line.starts_with("   "))
-        .collect::<Vec<_>>()
-        .join("\n");
-    assert!(
-        deprecated.to_ascii_lowercase().contains("deprecated"),
-        "the `frontier` input must say it is deprecated, or nothing tells a \
-         caller to move:\n{deprecated}"
-    );
-}
-
-#[test]
-fn the_deprecated_alias_is_read_once_and_never_reaches_a_step_directly() {
-    let action = action_source();
-
-    /* One reader, one place to change. Before the coalesce every consuming
-    step named `inputs.frontier` itself, so the alias was four couplings rather
-    than one, and a fifth step would have been a fifth. */
+        .filter(|line| line.starts_with("  ") && !line.starts_with("   ") && line.ends_with(':'))
+        .collect();
     assert_eq!(
-        action.matches("inputs.frontier").count(),
-        1,
-        "`inputs.frontier` must be read exactly once, by the step that \
-         coalesces it; a step that reads it directly bypasses the check that \
-         the two keys agree"
+        declared,
+        ["  repository:"],
+        "the Action accepts a path and nothing else; a second key is a second \
+         thing it can be told to do:\n{inputs}"
     );
+
+    let action = action_source();
+    /* One reader, one place to change. Every consuming step used to name the
+    input itself, which made the key four couplings rather than one, and a
+    fifth step would have been a fifth. */
     assert_eq!(
         action.matches("inputs.repository").count(),
         1,
-        "`inputs.repository` must be read exactly once, by the same step"
+        "`inputs.repository` must be read exactly once, by the step that \
+         resolves it; every other step reads the resolved output"
     );
 
     let resolved = "steps.resolve.outputs.path";

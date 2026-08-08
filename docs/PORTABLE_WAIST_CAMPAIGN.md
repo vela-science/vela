@@ -1,5 +1,12 @@
 # Portable-waist and interoperability campaign
 
+Status: **Cut A largely landed; Cut B and Cut C have not begun.** Cut B waits on
+ADR 0035, which is still Proposed. Cut C waits on recomputing historical
+authorization against the closed profile, and the evaluator is still called only
+from tests while `cedar-policy` remains a dependency of the active writer. The
+two blocked cuts are the reason this document is still open; neither is stalled
+on anything written here.
+
 ## Objective
 
 Replace commodity edge machinery with exact maintained standards while keeping
@@ -10,8 +17,10 @@ custom and Frontier-local.
 
 - RFC 8785 JCS and SHA-256 are current.
 - Authority records use a DSSE 1.0.2-compatible envelope.
-- Four JSON Schema 2020-12 documents cover the authority envelope, Submission,
-  Verification Record, and Proposal Withdrawal structures.
+- Eight JSON Schema 2020-12 documents cover the authority envelope, Submission,
+  Verification Record, Proposal Withdrawal, Claim Record, Proposal, repository
+  origin, and `vela.status.v4`. This line said four for as long as `schemas/`
+  has held eight.
 - Current v1 fixture bytes and roots are frozen.
 - The closed Vela Authorization Profile exists in shadow mode.
 - Submission, Verification, and Withdrawal still use bespoke v1 signature
@@ -24,8 +33,22 @@ This cut may proceed without a core release:
 - keep schemas checked against positive and negative fixtures;
 - inventory every external JSON read/write surface;
 - document loss, versioning, format assertion, and authority effect;
-- freeze independent JavaScript and Python readers; and
+- freeze independent readers and emitters; and
 - reject misleading support claims for MCP, A2A, packages, or hosted writes.
+
+What landed: `docs/interop/scientific-state-profile-v1.md` states the seven
+contracts an outside implementation must satisfy and pairs each with its check.
+`conformance/readers/python` and the two emitters,
+`conformance/emitters/javascript.mjs` and `conformance/emitters/python.py`, are
+frozen and run on every CI run. The reader half is still one language: the
+canonicalization vectors run in Rust and Python, and the emitters do not read
+the vector corpus at all. Contract 4, authority, still has no
+language-independent vector, which the profile states about itself.
+
+The fourth item read "freeze independent JavaScript and Python readers". What
+exists in JavaScript is an emitter; `scripts/ecosystem-status.py` declares
+`conformance/readers/javascript` absent, so the old wording asked for a surface
+whose absence is checked.
 
 ## Cut B — DSSE v2 protocol migration
 
@@ -44,6 +67,13 @@ accepted with:
 No v1 object is silently reinterpreted as v2.
 
 ## Cut C — authorization history
+
+This list is about evidence, and all of it could pass while Cedar stayed
+unremovable. The blocker is a signature: `vela-science/math` retains a policy
+bundle naming the pinned evaluator, and the reader refuses any bundle that
+disagrees with the compiled-in constants. Retiring Cedar therefore needs a
+policy-bundle rotation on the live authority first, and no rotation writer
+exists. ADR 0042 states the sequence.
 
 Before deleting Cedar or changing the writer:
 

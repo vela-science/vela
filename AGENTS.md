@@ -100,7 +100,7 @@ Run a named integration test while iterating when it covers the change:
 
 ```bash
 cargo test --locked -p vela-cli --test bootstrap_cli_ux
-cargo test --locked -p vela-cli --test current_genesis
+cargo test --locked -p vela-cli --test genesis
 cargo test --locked -p vela-protocol --test canonical_hashing_conformance
 cargo test --locked -p vela-protocol --test engine_pin
 cargo test --locked -p vela-authority

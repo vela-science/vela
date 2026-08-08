@@ -61,9 +61,9 @@ fn success_json(output: &Output) -> Value {
     serde_json::from_slice(&output.stdout).expect("decode Vela JSON")
 }
 
-fn git(frontier: &Path, args: &[&str]) {
+fn git(repository_path: &Path, args: &[&str]) {
     let output = Command::new("git")
-        .current_dir(frontier)
+        .current_dir(repository_path)
         .args(["-c", "user.name=Vela Test"])
         .args(["-c", "user.email=vela@example.invalid"])
         .args(args)
@@ -84,8 +84,8 @@ fn an_accepted_correction_leaves_the_repository_readable_and_projectable() {
     let agent = EphemeralAgent::start(temporary.path(), "vela correction impact test");
     let home = temporary.path().join("agent-home");
     std::fs::create_dir_all(&home).expect("isolated agent home");
-    let frontier = temporary.path().join("frontier");
-    let frontier_text = frontier.to_string_lossy().into_owned();
+    let repository_path = temporary.path().join("repository_path");
+    let repository_path_text = repository_path.to_string_lossy().into_owned();
 
     let init = run(
         temporary.path(),
@@ -93,7 +93,7 @@ fn an_accepted_correction_leaves_the_repository_readable_and_projectable() {
         &home,
         &[
             "init",
-            &frontier_text,
+            &repository_path_text,
             "--name",
             &format!("Correction impact fixture {unique}"),
             "--scope",
@@ -104,12 +104,16 @@ fn an_accepted_correction_leaves_the_repository_readable_and_projectable() {
     let _anchor = RemoveAnchorOnDrop::from_init_json(&String::from_utf8_lossy(&init.stdout))
         .expect("init reports the local trust anchor it installed");
     success_json(&init);
-    git(&frontier, &["config", "user.name", "Vela Test"]);
-    git(&frontier, &["config", "user.email", "vela@example.invalid"]);
+    git(&repository_path, &["config", "user.name", "Vela Test"]);
+    git(
+        &repository_path,
+        &["config", "user.email", "vela@example.invalid"],
+    );
 
-    std::fs::write(frontier.join("base.json"), b"{\"revision\":1}\n").expect("write base artifact");
+    std::fs::write(repository_path.join("base.json"), b"{\"revision\":1}\n")
+        .expect("write base artifact");
     let submitted = success_json(&run(
-        &frontier,
+        &repository_path,
         None,
         &home,
         &[
@@ -138,7 +142,7 @@ fn an_accepted_correction_leaves_the_repository_readable_and_projectable() {
     let base_claim = submitted["claim_id"].as_str().expect("Claim").to_string();
 
     success_json(&run(
-        &frontier,
+        &repository_path,
         Some(agent.socket()),
         &home,
         &[
@@ -151,16 +155,24 @@ fn an_accepted_correction_leaves_the_repository_readable_and_projectable() {
         ],
     ));
 
-    let listed = success_json(&run(&frontier, None, &home, &["claims", ".", "--json"]));
+    let listed = success_json(&run(
+        &repository_path,
+        None,
+        &home,
+        &["claims", ".", "--json"],
+    ));
     let base_root = listed["items"][0]["claim_root"]
         .as_str()
         .expect("accepted Claim root")
         .to_string();
 
-    std::fs::write(frontier.join("corrected.json"), b"{\"revision\":2}\n")
-        .expect("write corrected artifact");
+    std::fs::write(
+        repository_path.join("corrected.json"),
+        b"{\"revision\":2}\n",
+    )
+    .expect("write corrected artifact");
     let correction = success_json(&run(
-        &frontier,
+        &repository_path,
         None,
         &home,
         &[
@@ -196,7 +208,7 @@ fn an_accepted_correction_leaves_the_repository_readable_and_projectable() {
     // question: the successor is still unassessed and the predecessor still
     // stands.
     let before = success_json(&run(
-        &frontier,
+        &repository_path,
         None,
         &home,
         &["correction", "impact", ".", &correction_claim, "--json"],
@@ -214,7 +226,7 @@ fn an_accepted_correction_leaves_the_repository_readable_and_projectable() {
         .to_string();
 
     success_json(&run(
-        &frontier,
+        &repository_path,
         Some(agent.socket()),
         &home,
         &[
@@ -235,7 +247,7 @@ fn an_accepted_correction_leaves_the_repository_readable_and_projectable() {
         vec!["replay", ".", "--json"],
         vec!["review", "list", ".", "--json"],
     ] {
-        let output = run(&frontier, None, &home, &verb);
+        let output = run(&repository_path, None, &home, &verb);
         assert!(
             output.status.success(),
             "`vela {}` failed after an accepted correction: {}",
@@ -244,14 +256,19 @@ fn an_accepted_correction_leaves_the_repository_readable_and_projectable() {
         );
     }
 
-    let listed = success_json(&run(&frontier, None, &home, &["claims", ".", "--json"]));
+    let listed = success_json(&run(
+        &repository_path,
+        None,
+        &home,
+        &["claims", ".", "--json"],
+    ));
     assert_eq!(listed["indexed"]["accepted"], 1);
     assert_eq!(listed["items"][0]["claim_id"], correction_claim.as_str());
 
     // Asked after the ruling. The predecessor now has to come from the
     // content-addressed store, and the answer has to be the same one.
     let after = success_json(&run(
-        &frontier,
+        &repository_path,
         None,
         &home,
         &["correction", "impact", ".", &correction_claim, "--json"],

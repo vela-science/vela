@@ -51,15 +51,15 @@ fn every_json_read_carries_the_envelope() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     std::fs::create_dir_all(temporary.path().join("home")).expect("isolated home");
     let agent = EphemeralAgent::start(temporary.path(), "vela json envelope test");
-    let frontier = temporary.path().join("frontier");
-    let frontier_text = frontier.to_string_lossy().into_owned();
+    let repository_path = temporary.path().join("repository_path");
+    let repository_path_text = repository_path.to_string_lossy().into_owned();
 
     let (initialized, init_out) = run(
         temporary.path(),
         agent.socket(),
         &[
             "init",
-            &frontier_text,
+            &repository_path_text,
             "--name",
             &format!(
                 "Envelope fixture {}",
@@ -90,14 +90,14 @@ fn every_json_read_carries_the_envelope() {
     object, and a repository with no Claims has none; asserting them here would
     test the error envelope instead, which is a different contract. */
     for args in [
-        vec!["status", frontier_text.as_str()],
-        vec!["next", frontier_text.as_str()],
-        vec!["log", frontier_text.as_str(), "--limit", "5"],
-        vec!["replay", frontier_text.as_str()],
-        vec!["reproduce", frontier_text.as_str()],
-        vec!["review", "inbox", frontier_text.as_str()],
-        vec!["review", "list", frontier_text.as_str()],
-        vec!["claims", frontier_text.as_str()],
+        vec!["status", repository_path_text.as_str()],
+        vec!["next", repository_path_text.as_str()],
+        vec!["log", repository_path_text.as_str(), "--limit", "5"],
+        vec!["replay", repository_path_text.as_str()],
+        vec!["reproduce", repository_path_text.as_str()],
+        vec!["review", "inbox", repository_path_text.as_str()],
+        vec!["review", "list", repository_path_text.as_str()],
+        vec!["claims", repository_path_text.as_str()],
     ] {
         let mut asked = args.clone();
         asked.push("--json");

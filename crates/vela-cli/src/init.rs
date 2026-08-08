@@ -10,13 +10,13 @@ use std::process::Command;
 use serde::Serialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use vela_protocol::current_repository::{
-    CURRENT_REPOSITORY_PROFILE_SCHEMA_V1, CurrentRepositoryProfileV1, RepositoryProfileLicenseV1,
-    RepositoryProfileScopeV1,
+use vela_protocol::repository::{
+    REPOSITORY_PROFILE_SCHEMA_V1, RepositoryProfileLicenseV1, RepositoryProfileScopeV1,
+    RepositoryProfileV1,
 };
 
 #[derive(Debug, Clone)]
-pub(crate) struct CurrentInitOptions<'a> {
+pub(crate) struct InitOptions<'a> {
     pub(crate) name: &'a str,
     pub(crate) scope: &'a str,
     pub(crate) initialize_git: bool,
@@ -51,10 +51,7 @@ fn draw_genesis_entropy() -> Result<String, String> {
     Ok(hex::encode(bytes))
 }
 
-pub(crate) fn initialize_current_minimal(
-    path: &Path,
-    options: CurrentInitOptions<'_>,
-) -> Result<Value, String> {
+pub(crate) fn initialize_minimal(path: &Path, options: InitOptions<'_>) -> Result<Value, String> {
     let name = options.name.trim();
     let scope = options.scope.trim();
     if name.is_empty() {
@@ -162,7 +159,7 @@ fn rollback_install(installed: &[(std::path::PathBuf, std::path::PathBuf)]) {
     }
 }
 
-fn initialize_in_place(path: &Path, options: &CurrentInitOptions<'_>) -> Result<Value, String> {
+fn initialize_in_place(path: &Path, options: &InitOptions<'_>) -> Result<Value, String> {
     let name = options.name.trim();
     let scope = options.scope.trim();
     let genesis_entropy = draw_genesis_entropy()?;
@@ -177,8 +174,8 @@ fn initialize_in_place(path: &Path, options: &CurrentInitOptions<'_>) -> Result<
         "vrepo_{}",
         &hex::encode(Sha256::digest(identity_bytes))[..16]
     );
-    let profile = CurrentRepositoryProfileV1 {
-        schema: CURRENT_REPOSITORY_PROFILE_SCHEMA_V1.into(),
+    let profile = RepositoryProfileV1 {
+        schema: REPOSITORY_PROFILE_SCHEMA_V1.into(),
         repository_id: repository_id.clone(),
         name: name.into(),
         summary: scope.into(),
@@ -336,9 +333,9 @@ mod tests {
     use super::*;
 
     fn initialize(root: &Path, name: &str, scope: &str) -> Value {
-        initialize_current_minimal(
+        initialize_minimal(
             root,
-            CurrentInitOptions {
+            InitOptions {
                 name,
                 scope,
                 initialize_git: false,
@@ -380,7 +377,7 @@ mod tests {
     fn genesis_identity_keeps_the_declared_repository_id_shape() {
         let parent = tempfile::tempdir().expect("staging parent");
         let payload = initialize(
-            &parent.path().join("frontier"),
+            &parent.path().join("repository_path"),
             "Bounded name",
             "Does X hold?",
         );
@@ -388,14 +385,10 @@ mod tests {
 
         let suffix = id.strip_prefix("vrepo_").expect("vrepo_ prefix");
         assert_eq!(suffix.len(), 16);
-        assert!(
-            suffix
-                .bytes()
-                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
-        );
+        assert!(suffix.bytes().all(vela_protocol::is_lower_hex));
 
-        let profile = vela_protocol::current_repository::CurrentRepositoryProfileV1::from_toml_str(
-            &fs::read_to_string(parent.path().join("frontier").join("vela.toml"))
+        let profile = vela_protocol::repository::RepositoryProfileV1::from_toml_str(
+            &fs::read_to_string(parent.path().join("repository_path").join("vela.toml"))
                 .expect("read retained vela.toml"),
         )
         .expect("retained profile validates");

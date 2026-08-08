@@ -15,7 +15,7 @@ library. Its whole dependency set is `rfc8785` and `hashlib`.
 **What it establishes.** Two things, and only when `--expect` is supplied.
 First, that the manifest file's bytes are already canonical — re-encoding them
 under RFC 8785 reproduces them exactly, which is the same refusal
-`CurrentRepositoryV4::parse` makes. Second, that their SHA-256 equals the root
+`RepositoryV4::parse` makes. Second, that their SHA-256 equals the root
 the caller supplied out of band.
 
 Nothing in the clone names the root. `.vela/repository.json` has no
@@ -57,7 +57,7 @@ def repository_root(repository: Path) -> tuple[str, dict]:
     canonical = canonical_bytes(manifest)
     # Hashing the re-encoded value while claiming to hash the file would pass a
     # reindented manifest that `vela` itself refuses
-    # (current_repository.rs: "current repository bytes are not canonical
+    # (repository.rs: "current repository bytes are not canonical
     # JSON"). Holding the file to its own canonical form first is what makes
     # the digest a statement about the bytes on disk.
     if raw != canonical:

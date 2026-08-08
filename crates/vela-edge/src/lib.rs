@@ -1,4 +1,4 @@
-//! Current operational edge for Vela producer work.
+//! Operational edge for Vela producer work.
 //!
 //! The protocol crate owns canonical objects and authority. This crate retains
 //! only the replaceable filesystem/Git adapters needed by the current product:

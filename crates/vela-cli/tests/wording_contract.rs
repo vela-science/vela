@@ -46,13 +46,31 @@ const BANNED_UNQUALIFIED: [&str; 4] = ["verified", "valid", "approved", "complet
 /// not as the bare noun — so this is a substring test, not a word test.
 const RETIRED_ON_THE_PRODUCT_SURFACE: &str = "frontier";
 
+/// The other retired names, from `docs/TERMINOLOGY.md`'s "Retired names" table.
+///
+/// Only the multi-word ones are here, and the omissions are the point. `Finding`
+/// and `Attempt` are ordinary English words that this surface uses in their
+/// ordinary sense — `--source-attempt` carries `provenance.source_attempt`,
+/// which is exactly the "workbench's own run identity, as provenance" the table
+/// says to use instead — so a substring test on them would be a test against
+/// English. `Frontier Commit` and `Frontier map` are already caught above.
+/// `Review Packet` is the one the Frontier check cannot see, and the binary was
+/// printing it in three places while `docs/ECOSYSTEM.md` listed it as retired
+/// and not to be reintroduced.
+const RETIRED_OBJECT_NAMES: [&str; 1] = ["review packet"];
+
 fn assert_vocabulary_retired(surface: &str, rendered: &str) {
+    let lowered = rendered.to_ascii_lowercase();
     assert!(
-        !rendered
-            .to_ascii_lowercase()
-            .contains(RETIRED_ON_THE_PRODUCT_SURFACE),
+        !lowered.contains(RETIRED_ON_THE_PRODUCT_SURFACE),
         "{surface} still says Frontier where ADR 0039 means Repository:\n{rendered}"
     );
+    for retired in RETIRED_OBJECT_NAMES {
+        assert!(
+            !lowered.contains(retired),
+            "{surface} names {retired:?}, which docs/TERMINOLOGY.md retired:\n{rendered}"
+        );
+    }
 }
 
 /// The retired word as a JSON *key*, anywhere in a document at any depth.
@@ -65,7 +83,7 @@ fn assert_vocabulary_retired(surface: &str, rendered: &str) {
 ///
 /// This exists because three payloads kept the key after `replay` gave it up.
 /// `vela.review-decision`, `vela.authority-trust-pin-result` and
-/// `vela.authority-initialization-result` each carried `"frontier"` holding a
+/// `vela.authority-initialization-result` each carried `"repository"` holding a
 /// filesystem path, beside a `repository_id` naming the thing at that path —
 /// one document with two vocabularies, in the only place where the word had a
 /// consumer. Each was renamed to `repository_path` and bumped a version,
@@ -129,13 +147,13 @@ fn assert_no_banned_word(verb: &str, rendered: &str) {
     }
 }
 
-fn configure_git_identity(frontier: &Path) {
+fn configure_git_identity(repository_path: &Path) {
     for (key, value) in [
         ("user.name", "Vela Test"),
         ("user.email", "vela@example.invalid"),
     ] {
         let configured = Command::new("git")
-            .current_dir(frontier)
+            .current_dir(repository_path)
             .args(["config", key, value])
             .status()
             .expect("configure test Git identity");
@@ -151,8 +169,8 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
     let agent = EphemeralAgent::start(temporary.path(), "vela wording contract test");
     let home = temporary.path().join("home");
     std::fs::create_dir_all(&home).expect("isolated home");
-    let frontier = temporary.path().join("frontier");
-    let frontier_text = frontier.to_string_lossy().into_owned();
+    let repository_path = temporary.path().join("repository_path");
+    let repository_path_text = repository_path.to_string_lossy().into_owned();
     let socket = agent.socket();
 
     /* The repository id is derived from name, scope, and key, and the authority
@@ -173,7 +191,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
         socket,
         &[
             "init",
-            &frontier_text,
+            &repository_path_text,
             "--name",
             &name,
             "--scope",
@@ -183,14 +201,14 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
     );
     let _anchor =
         support::RemoveAnchorOnDrop::from_init_json(&String::from_utf8_lossy(&initialized.stdout));
-    configure_git_identity(&frontier);
+    configure_git_identity(&repository_path);
 
     for verb in ["status", "replay"] {
         let rendered = stdout(&run(
             temporary.path(),
             &home,
             socket,
-            &[verb, &frontier_text],
+            &[verb, &repository_path_text],
         ));
         assert_no_banned_word(verb, &rendered);
     }
@@ -199,7 +217,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
         temporary.path(),
         &home,
         socket,
-        &["status", &frontier_text, "--json"],
+        &["status", &repository_path_text, "--json"],
     ));
     assert_eq!(
         status["integrity"]["replay"], "verified",
@@ -208,7 +226,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
 
     /* Two JSON tokens spelled the retired word until they were bumped, and
     each moved with a version rather than in a sweep for the same reason
-    `integrity.replay` has not moved at all: a caller keys on them. `frontier`
+    `integrity.replay` has not moved at all: a caller keys on them. `repository_path`
     was a key of `vela.repository-verification.v2` and is `repository_path` in
     `.v3`; `accepted_frontier` was a scope value of
     `vela.reproduction-summary.v1` and is `accepted_repository` in `.v2`, which
@@ -219,7 +237,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
         temporary.path(),
         &home,
         socket,
-        &["replay", &frontier_text, "--json"],
+        &["replay", &repository_path_text, "--json"],
     ));
     assert_eq!(replayed["schema"], "vela.repository-verification.v3");
     assert!(
@@ -228,14 +246,14 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
     );
     assert!(
         replayed.get("frontier").is_none(),
-        "v3 retired the `frontier` key; a document carrying both names one path twice:\n{replayed}"
+        "v3 retired the `repository_path` key; a document carrying both names one path twice:\n{replayed}"
     );
 
     /* The reproduction scope, on both surfaces. One witness from the
     checked-in corpus gives `reproduce` something to re-run; without it the
     command fails before it reaches the token, which is how the human half of
     this contract went unasserted while a comment claimed it. */
-    let witnesses = frontier.join("witnesses");
+    let witnesses = repository_path.join("witnesses");
     std::fs::create_dir_all(&witnesses).expect("witness directory");
     std::fs::copy(
         Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -247,7 +265,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
         temporary.path(),
         &home,
         socket,
-        &["reproduce", &frontier_text, "--json"],
+        &["reproduce", &repository_path_text, "--json"],
     ));
     assert_eq!(reproduced["schema"], "vela.reproduction-summary.v2");
     assert_eq!(
@@ -258,10 +276,10 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
         temporary.path(),
         &home,
         socket,
-        &["reproduce", &frontier_text],
+        &["reproduce", &repository_path_text],
     ));
     /* Not `assert_vocabulary_retired`: this fixture's directory is literally
-    named `frontier`, and `reproduce` echoes the path it was given. The token
+    named `repository_path`, and `reproduce` echoes the path it was given. The token
     is what is under test, so the token is what is asserted. */
     assert!(
         reproduced_text.contains("scope: accepted_repository"),
@@ -272,16 +290,16 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
         "the retired scope token is back on the human surface:\n{reproduced_text}"
     );
 
-    std::fs::create_dir_all(frontier.join("artifacts")).expect("artifacts directory");
+    std::fs::create_dir_all(repository_path.join("artifacts")).expect("artifacts directory");
     std::fs::write(
-        frontier.join("artifacts/note.json"),
+        repository_path.join("artifacts/note.json"),
         b"{\"note\":\"wording fixture\"}\n",
     )
     .expect("fixture artifact");
     let submit = [
         "submit",
         "--repo",
-        &frontier_text,
+        &repository_path_text,
         "--claim",
         "Exact bounded fixture claim.",
         "--type",
@@ -319,7 +337,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
         &[
             "review",
             "withdraw",
-            &frontier_text,
+            &repository_path_text,
             proposal,
             "--as",
             "agent:fixture",
@@ -336,7 +354,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
         &[
             "review",
             "withdraw",
-            &frontier_text,
+            &repository_path_text,
             &format!("vpr_{}", "0".repeat(16)),
             "--as",
             "agent:fixture",
@@ -356,7 +374,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
     );
 
     /* Every document this test produced, swept for the retired noun as a key.
-    Asserting `frontier` absent from `replay` alone was a fix for one payload
+    Asserting `repository_path` absent from `replay` alone was a fix for one payload
     where the rule wanted all of them, and three others kept the key for a
     release after that assertion was written.
 
@@ -446,6 +464,54 @@ fn published_verbs(cwd: &Path) -> BTreeSet<String> {
     verbs
 }
 
+/// The verbs `docs/ECOSYSTEM.md` §8 names, and the count it states beside them.
+///
+/// The layering diagram is the fourth place the verb list is written down and
+/// the only one nothing read. `cli/surface.rs` holds both printed grids to
+/// `Cli::command()` and `docs/CLI.md` to the grids; this document sat outside
+/// that chain and said "15 verbs" for as long as there had been sixteen, having
+/// missed `correction` entirely.
+fn layering_block_verbs() -> (usize, BTreeSet<String>) {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/ECOSYSTEM.md");
+    let document =
+        std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("read ECOSYSTEM.md: {error}"));
+    let (before, after) = document
+        .split_once(" verbs: ")
+        .expect("docs/ECOSYSTEM.md §8 no longer states a verb count");
+    let stated: usize = before
+        .split_whitespace()
+        .next_back()
+        .expect("the verb count has no number before it")
+        .parse()
+        .expect("the verb count is not a number");
+    let listed = after
+        .split_once("\n  readers")
+        .expect("docs/ECOSYSTEM.md §8 no longer closes the operator row with the readers row")
+        .0;
+    (
+        stated,
+        listed.split_whitespace().map(str::to_string).collect(),
+    )
+}
+
+/// §8's operator row is the surface the binary actually has.
+#[test]
+fn the_layering_diagram_names_the_verbs_the_binary_publishes() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let (stated, listed) = layering_block_verbs();
+    assert_eq!(
+        listed,
+        published_verbs(temporary.path()),
+        "docs/ECOSYSTEM.md §8 and `vela help advanced` disagree about which verbs exist"
+    );
+    assert_eq!(
+        stated,
+        listed.len(),
+        "docs/ECOSYSTEM.md §8 states {stated} verbs and lists {}",
+        listed.len()
+    );
+}
+
 /// Every help body the binary prints, from both hand-set grids down through
 /// each verb and subverb, may not name a Frontier.
 ///
@@ -453,7 +519,7 @@ fn published_verbs(cwd: &Path) -> BTreeSet<String> {
 /// and one `--help` per node of the parser tree — the `after_long_help` blocks
 /// in `cli/help_text.rs`, the `about` and `///` strings clap renders from
 /// `command_spec.rs`, and every flag's help. None of it was read by any test
-/// before, which is why `--frontier` survived in the quick start and
+/// before, which is why `--repository` survived in the quick start and
 /// `HELP_FRONTIER_BEFORE_OBJECT` survived on four verbs.
 #[test]
 fn no_help_body_names_a_frontier() {
@@ -495,7 +561,7 @@ fn no_help_body_names_a_frontier() {
 
 /// The failure surface, on both streams.
 ///
-/// `vela show <id>` outside any repository printed "no frontier found from …"
+/// `vela show <id>` outside any repository printed "no repository found from …"
 /// long after the identifier was gone, because the only wording assertions ran
 /// against successful `status` and `replay` output. A user meets these lines
 /// more often than the help.

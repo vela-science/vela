@@ -58,9 +58,9 @@ fn success_json(output: &Output) -> Value {
     serde_json::from_slice(&output.stdout).expect("decode Vela JSON")
 }
 
-fn git(frontier: &Path, args: &[&str]) -> String {
+fn git(repository_path: &Path, args: &[&str]) -> String {
     let output = Command::new("git")
-        .current_dir(frontier)
+        .current_dir(repository_path)
         .args(["-c", "user.name=Vela Test"])
         .args(["-c", "user.email=vela@example.invalid"])
         .args(args)
@@ -82,8 +82,8 @@ fn git(frontier: &Path, args: &[&str]) -> String {
 /// Compared across a routine write this proves no authority file was added,
 /// removed, or rewritten. Compared across the Decision it names precisely which
 /// files the Decision appended.
-fn authority_bytes(frontier: &Path, directory: &str) -> BTreeMap<String, Vec<u8>> {
-    std::fs::read_dir(frontier.join(".vela/authority").join(directory))
+fn authority_bytes(repository_path: &Path, directory: &str) -> BTreeMap<String, Vec<u8>> {
+    std::fs::read_dir(repository_path.join(".vela/authority").join(directory))
         .expect("read authority directory")
         .map(|entry| {
             let path = entry.expect("authority directory entry").path();
@@ -103,8 +103,8 @@ fn authority_bytes(frontier: &Path, directory: &str) -> BTreeMap<String, Vec<u8>
 /// 1..=n with no gap, each record's `before_event_log_root` is the previous
 /// record's `after_event_log_root`, and each record names the exact content
 /// root of its predecessor.
-fn contiguous_authority_chain(frontier: &Path) -> Vec<AuthorityRecordV1> {
-    let mut records = std::fs::read_dir(frontier.join(".vela/authority/records"))
+fn contiguous_authority_chain(repository_path: &Path) -> Vec<AuthorityRecordV1> {
+    let mut records = std::fs::read_dir(repository_path.join(".vela/authority/records"))
         .expect("read authority records")
         .map(|entry| {
             let bytes = std::fs::read(entry.expect("record entry").path()).expect("record bytes");
@@ -146,11 +146,11 @@ fn contiguous_authority_chain(frontier: &Path) -> Vec<AuthorityRecordV1> {
     records
 }
 
-fn authority_events(frontier: &Path, ids: &[&str]) -> Vec<Value> {
+fn authority_events(repository_path: &Path, ids: &[&str]) -> Vec<Value> {
     ids.iter()
         .map(|id| {
             let bytes = std::fs::read(
-                frontier
+                repository_path
                     .join(".vela/authority/events")
                     .join(format!("{id}.json")),
             )
@@ -183,8 +183,8 @@ fn review_accept_admits_the_event_that_moves_standing() {
     for home in [&producer_home, &verifier_home] {
         std::fs::create_dir_all(home).expect("isolated agent home");
     }
-    let frontier = temporary.path().join("frontier");
-    let frontier_text = frontier.to_string_lossy().into_owned();
+    let repository_path = temporary.path().join("repository_path");
+    let repository_path_text = repository_path.to_string_lossy().into_owned();
 
     let init = run(
         temporary.path(),
@@ -192,7 +192,7 @@ fn review_accept_admits_the_event_that_moves_standing() {
         &producer_home,
         &[
             "init",
-            &frontier_text,
+            &repository_path_text,
             "--name",
             &format!("Review acceptance fixture {unique}"),
             "--scope",
@@ -213,14 +213,17 @@ fn review_accept_admits_the_event_that_moves_standing() {
     // this sandboxed HOME cannot supply globally. Without this the writes below
     // report `publication.state = "uncommitted"` and the Decision never gets a
     // committed preimage to plan against.
-    git(&frontier, &["config", "user.name", "Vela Test"]);
-    git(&frontier, &["config", "user.email", "vela@example.invalid"]);
+    git(&repository_path, &["config", "user.name", "Vela Test"]);
+    git(
+        &repository_path,
+        &["config", "user.email", "vela@example.invalid"],
+    );
 
     // The Decision needs an independently supplied sequence-one pin. Init has
     // already installed one, so pinning the root the operator carries out of
     // band must agree with it rather than write a second anchor.
     let pinned = success_json(&run(
-        &frontier,
+        &repository_path,
         None,
         &producer_home,
         &[
@@ -242,12 +245,15 @@ fn review_accept_admits_the_event_that_moves_standing() {
     );
 
     // One bounded Submission, routed to review and changing nothing.
-    std::fs::write(frontier.join("evidence.json"), b"{\"bounded\":true}\n")
-        .expect("write fixture artifact");
+    std::fs::write(
+        repository_path.join("evidence.json"),
+        b"{\"bounded\":true}\n",
+    )
+    .expect("write fixture artifact");
     let producer = "agent:review-accept-regression";
     let requirement = "Replay the retained artifact bytes.";
     let submitted = success_json(&run(
-        &frontier,
+        &repository_path,
         None,
         &producer_home,
         &[
@@ -287,22 +293,25 @@ fn review_accept_admits_the_event_that_moves_standing() {
         .to_string();
 
     let method_path = "verification/exact-replay-v1.json";
-    std::fs::create_dir_all(frontier.join("verification")).expect("method directory");
+    std::fs::create_dir_all(repository_path.join("verification")).expect("method directory");
     std::fs::write(
-        frontier.join(method_path),
+        repository_path.join(method_path),
         br#"{"command":"sha256sum evidence.json","schema":"vela.test-method.v1"}"#,
     )
     .expect("write verification method manifest");
-    git(&frontier, &["add", "--", method_path]);
-    git(&frontier, &["commit", "-qm", "Retain verification method"]);
+    git(&repository_path, &["add", "--", method_path]);
+    git(
+        &repository_path,
+        &["commit", "-qm", "Retain verification method"],
+    );
 
-    let events_before_evidence = authority_bytes(&frontier, "events");
-    let records_before_evidence = authority_bytes(&frontier, "records");
-    let chain_before_evidence = contiguous_authority_chain(&frontier);
+    let events_before_evidence = authority_bytes(&repository_path, "events");
+    let records_before_evidence = authority_bytes(&repository_path, "records");
+    let chain_before_evidence = contiguous_authority_chain(&repository_path);
 
     let verifier = format!("verifier:review-accept-{unique}");
     let verified = success_json(&run(
-        &frontier,
+        &repository_path,
         None,
         &verifier_home,
         &[
@@ -339,7 +348,7 @@ fn review_accept_admits_the_event_that_moves_standing() {
     // requirement, and that alone changes nothing: no Standing transition, no
     // authority Event, no movement of the authority chain.
     let evidenced = success_json(&run(
-        &frontier,
+        &repository_path,
         None,
         &producer_home,
         &["replay", ".", "--json"],
@@ -348,22 +357,22 @@ fn review_accept_admits_the_event_that_moves_standing() {
     assert_eq!(evidenced["counts"]["accepted_claims"], 0);
     assert_eq!(evidenced["counts"]["pending_claims"], 1);
     assert_eq!(
-        authority_bytes(&frontier, "events"),
+        authority_bytes(&repository_path, "events"),
         events_before_evidence,
         "a passing Verification Record must not admit an authority Event"
     );
     assert_eq!(
-        authority_bytes(&frontier, "records"),
+        authority_bytes(&repository_path, "records"),
         records_before_evidence,
         "a passing Verification Record must not append an Authority Record"
     );
     assert_eq!(
-        contiguous_authority_chain(&frontier),
+        contiguous_authority_chain(&repository_path),
         chain_before_evidence,
         "a passing Verification Record must not move the authority chain"
     );
     let why_before = success_json(&run(
-        &frontier,
+        &repository_path,
         None,
         &producer_home,
         &["why", ".", &claim_id, "--json"],
@@ -393,7 +402,7 @@ fn review_accept_admits_the_event_that_moves_standing() {
 
     // Review the exact rooted entry, then decide it.
     let inbox = success_json(&run(
-        &frontier,
+        &repository_path,
         None,
         &producer_home,
         &["review", "inbox", ".", "--json"],
@@ -403,12 +412,12 @@ fn review_accept_admits_the_event_that_moves_standing() {
         .as_str()
         .expect("Decision Inbox entry root")
         .to_string();
-    let head_before = git(&frontier, &["rev-parse", "HEAD^{commit}"]);
-    let chain_before_decision = contiguous_authority_chain(&frontier);
+    let head_before = git(&repository_path, &["rev-parse", "HEAD^{commit}"]);
+    let chain_before_decision = contiguous_authority_chain(&repository_path);
 
     let reason = "Accept the exact bounded fixture Claim on its independent passing Verification.";
     let accepted = success_json(&run(
-        &frontier,
+        &repository_path,
         Some(agent.socket()),
         &producer_home,
         &[
@@ -424,7 +433,7 @@ fn review_accept_admits_the_event_that_moves_standing() {
         ],
     ));
     assert_eq!(accepted["schema"], "vela.review-decision.v4");
-    /* `.v3` carried the reviewed path under `"frontier"`, beside a
+    /* `.v3` carried the reviewed path under `"repository"`, beside a
     `repository_id` naming the thing at that path — one document with two
     vocabularies, in the only place where the retired noun had a consumer.
     `.v4` publishes it as `repository_path`, the key `replay` already uses.
@@ -435,7 +444,7 @@ fn review_accept_admits_the_event_that_moves_standing() {
     );
     assert!(
         accepted.get("frontier").is_none(),
-        "`.v4` retired the `frontier` key:\n{accepted}"
+        "`.v4` retired the `repository_path` key:\n{accepted}"
     );
     assert_eq!(accepted["command"], "review.accept");
     assert_eq!(accepted["action"], "accept");
@@ -451,7 +460,7 @@ fn review_accept_admits_the_event_that_moves_standing() {
 
     // Standing changed.
     let decided = success_json(&run(
-        &frontier,
+        &repository_path,
         None,
         &producer_home,
         &["replay", ".", "--json"],
@@ -463,7 +472,10 @@ fn review_accept_admits_the_event_that_moves_standing() {
         decided["counts"]["verifications"], 1,
         "acceptance must not manufacture further evidence"
     );
-    assert_ne!(git(&frontier, &["rev-parse", "HEAD^{commit}"]), head_before);
+    assert_ne!(
+        git(&repository_path, &["rev-parse", "HEAD^{commit}"]),
+        head_before
+    );
 
     // Events were admitted: exactly the two the Decision reports, appended and
     // nothing rewritten.
@@ -478,7 +490,7 @@ fn review_accept_admits_the_event_that_moves_standing() {
         2,
         "an accept admits a domain and a review Event"
     );
-    let events_after = authority_bytes(&frontier, "events");
+    let events_after = authority_bytes(&repository_path, "events");
     for (name, bytes) in &events_before_evidence {
         assert_eq!(
             events_after.get(name),
@@ -492,7 +504,7 @@ fn review_accept_admits_the_event_that_moves_standing() {
         "the Decision must admit exactly the Events it reports"
     );
     let admitted = authority_events(
-        &frontier,
+        &repository_path,
         &event_ids.iter().map(String::as_str).collect::<Vec<_>>(),
     );
     let asserted = admitted
@@ -522,7 +534,7 @@ fn review_accept_admits_the_event_that_moves_standing() {
     );
 
     // The authority chain stayed contiguous across the Decision.
-    let chain_after = contiguous_authority_chain(&frontier);
+    let chain_after = contiguous_authority_chain(&repository_path);
     assert_eq!(chain_after.len(), chain_before_decision.len() + 1);
     assert_eq!(
         &chain_after[..chain_before_decision.len()],
@@ -561,7 +573,7 @@ fn review_accept_admits_the_event_that_moves_standing() {
     let clone = temporary.path().join("decided-clone");
     let cloned = Command::new("git")
         .args(["clone", "-q"])
-        .arg(&frontier)
+        .arg(&repository_path)
         .arg(&clone)
         .output()
         .expect("clone the decided repository");
@@ -582,7 +594,7 @@ fn review_accept_admits_the_event_that_moves_standing() {
 
     // `vela why` reports the new Standing and the Decision's reason.
     let why_after = success_json(&run(
-        &frontier,
+        &repository_path,
         None,
         &producer_home,
         &["why", ".", &claim_id, "--json"],
@@ -616,7 +628,12 @@ fn review_accept_admits_the_event_that_moves_standing() {
     );
     assert_eq!(why_after["interpretation"]["standing_is_derived"], true);
 
-    let human_why = run(&frontier, None, &producer_home, &["why", ".", &claim_id]);
+    let human_why = run(
+        &repository_path,
+        None,
+        &producer_home,
+        &["why", ".", &claim_id],
+    );
     assert!(human_why.status.success());
     let human_why = String::from_utf8(human_why.stdout).expect("why text");
     assert!(human_why.contains("accepted"));

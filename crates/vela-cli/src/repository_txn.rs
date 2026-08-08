@@ -1,4 +1,4 @@
-//! Recoverable, path-bound frontier filesystem transactions.
+//! Recoverable, path-bound repository filesystem transactions.
 //!
 //! This is private durability plumbing, not a protocol object. A caller first
 //! builds a pure [`CanonicalDelta`], then persists its plan and postimage blobs,
@@ -42,11 +42,7 @@ impl ContentDigest {
         let Some(hex) = value.strip_prefix("sha256:") else {
             return Err(RepositoryTxnError::InvalidDigest(value));
         };
-        if hex.len() != 64
-            || !hex
-                .bytes()
-                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-        {
+        if !vela_protocol::is_lower_hex_64(hex) {
             return Err(RepositoryTxnError::InvalidDigest(value));
         }
         Ok(Self(value))
@@ -77,11 +73,7 @@ impl OperationId {
         let Some(hex) = value.strip_prefix("vop_") else {
             return Err(RepositoryTxnError::InvalidOperationId(value));
         };
-        if hex.len() != 64
-            || !hex
-                .bytes()
-                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-        {
+        if !vela_protocol::is_lower_hex_64(hex) {
             return Err(RepositoryTxnError::InvalidOperationId(value));
         }
         Ok(Self(value))
@@ -377,10 +369,10 @@ pub(crate) struct DeltaDraft {
 
 impl DeltaDraft {
     pub(crate) fn prepare(
-        frontier_root: &Path,
+        repository_root: &Path,
         writes: Vec<PlannedWrite>,
     ) -> Result<Self, RepositoryTxnError> {
-        let root = canonical_frontier_root(frontier_root)?;
+        let root = canonical_repository_root(repository_root)?;
         let mut seen = BTreeSet::new();
         let mut staged = Vec::new();
         let mut blobs = BTreeMap::new();
@@ -441,11 +433,11 @@ pub(crate) struct RepositoryBinding {
 
 impl RepositoryBinding {
     pub(crate) fn new(
-        frontier_root: &Path,
+        repository_root: &Path,
         repository_id: impl Into<String>,
         layout_identity: &[u8],
     ) -> Result<Self, RepositoryTxnError> {
-        let root = canonical_frontier_root(frontier_root)?;
+        let root = canonical_repository_root(repository_root)?;
         let repository_id = repository_id.into();
         if repository_id.trim().is_empty() {
             return Err(RepositoryTxnError::CorruptPlan(
@@ -459,8 +451,8 @@ impl RepositoryBinding {
         })
     }
 
-    fn verify_root(&self, frontier_root: &Path) -> Result<PathBuf, RepositoryTxnError> {
-        let root = canonical_frontier_root(frontier_root)?;
+    fn verify_root(&self, repository_root: &Path) -> Result<PathBuf, RepositoryTxnError> {
+        let root = canonical_repository_root(repository_root)?;
         if root.as_os_str() != self.canonical_root.as_str() {
             return Err(RepositoryTxnError::RepositoryBindingMismatch {
                 expected: self.canonical_root.clone(),
@@ -487,9 +479,9 @@ pub(crate) struct InputBinding {
     pub(crate) digest: ContentDigest,
 }
 
-const REPOSITORY_FILE_INPUT_PREFIX: &str = "frontier_file:";
+const REPOSITORY_FILE_INPUT_PREFIX: &str = "repository_file:";
 const REPOSITORY_FILE_INPUT_SCHEMA: &str = "vela.repository-file-input.internal.v1";
-const REPOSITORY_DIRECTORY_INPUT_PREFIX: &str = "frontier_directory:";
+const REPOSITORY_DIRECTORY_INPUT_PREFIX: &str = "repository_directory:";
 const REPOSITORY_DIRECTORY_INPUT_SCHEMA: &str = "vela.repository-directory-input.internal.v1";
 
 #[derive(Serialize)]
@@ -527,10 +519,10 @@ impl InputBinding {
     /// historical members are discovered from the held repository rather
     /// than supplied as a parsed object list.
     pub(crate) fn current_directory(
-        frontier_root: &Path,
+        repository_root: &Path,
         path: RepoPath,
     ) -> Result<Self, RepositoryTxnError> {
-        let root = canonical_frontier_root(frontier_root)?;
+        let root = canonical_repository_root(repository_root)?;
         let state = inspect_directory_state(&root, &path)?;
         Self::from_directory_state(path, state)
     }
@@ -541,23 +533,23 @@ impl InputBinding {
     /// assume that a decision-critical receipt or policy path exists, and the
     /// marker check rejects creation, deletion, byte drift, or mode drift.
     pub(crate) fn current_file(
-        frontier_root: &Path,
+        repository_root: &Path,
         path: RepoPath,
     ) -> Result<Self, RepositoryTxnError> {
-        let root = canonical_frontier_root(frontier_root)?;
+        let root = canonical_repository_root(repository_root)?;
         let state = inspect_file_state(&root, &path)?;
-        Self::from_frontier_state(path, state)
+        Self::from_repository_state(path, state)
     }
 
-    /// Bind a regular frontier file as a mutable planning input. The path tag
+    /// Bind a regular repository file as a mutable planning input. The path tag
     /// is encoded in the existing `name` field so old digest-only journal
     /// records remain wire-compatible and continue to deserialize unchanged.
     #[cfg(test)]
     pub(crate) fn existing_file(
-        frontier_root: &Path,
+        repository_root: &Path,
         path: RepoPath,
     ) -> Result<Self, RepositoryTxnError> {
-        let root = canonical_frontier_root(frontier_root)?;
+        let root = canonical_repository_root(repository_root)?;
         let state = inspect_file_state(&root, &path)?;
         if matches!(state, FileState::Absent) {
             return Err(RepositoryTxnError::CorruptPlan(format!(
@@ -565,17 +557,17 @@ impl InputBinding {
                 path.as_str()
             )));
         }
-        Self::from_frontier_state(path, state)
+        Self::from_repository_state(path, state)
     }
 
-    /// Bind the absence of a relative frontier file. Creation of that file
+    /// Bind the absence of a relative repository file. Creation of that file
     /// before the commit marker is therefore stale input, not a policy result
     /// that can be committed under changed authority bytes.
     pub(crate) fn absent_file(
-        frontier_root: &Path,
+        repository_root: &Path,
         path: RepoPath,
     ) -> Result<Self, RepositoryTxnError> {
-        let root = canonical_frontier_root(frontier_root)?;
+        let root = canonical_repository_root(repository_root)?;
         let state = inspect_file_state(&root, &path)?;
         if !matches!(state, FileState::Absent) {
             return Err(RepositoryTxnError::CorruptPlan(format!(
@@ -583,7 +575,7 @@ impl InputBinding {
                 path.as_str()
             )));
         }
-        Self::from_frontier_state(path, state)
+        Self::from_repository_state(path, state)
     }
 
     /// Bind the exact bytes already loaded by a caller without reading the
@@ -602,7 +594,7 @@ impl InputBinding {
             },
             None => FileState::Absent,
         };
-        Self::from_frontier_state(path, state)
+        Self::from_repository_state(path, state)
     }
 
     /// Bind a regular file to exact caller-supplied bytes and regular mode.
@@ -610,11 +602,11 @@ impl InputBinding {
     /// This closes the gap between a parsed, caller-supplied history object
     /// and the canonical bytes actually present in the held repository.
     pub(crate) fn exact_file(
-        frontier_root: &Path,
+        repository_root: &Path,
         path: RepoPath,
         bytes: &[u8],
     ) -> Result<Self, RepositoryTxnError> {
-        let root = canonical_frontier_root(frontier_root)?;
+        let root = canonical_repository_root(repository_root)?;
         let expected = FileState::File {
             digest: ContentDigest::hash(bytes),
             size: bytes.len() as u64,
@@ -629,17 +621,17 @@ impl InputBinding {
                 actual: repository_file_input_digest(&path, &actual)?,
             });
         }
-        Self::from_frontier_state(path, expected)
+        Self::from_repository_state(path, expected)
     }
 
     /// Bind a directory only if its direct membership equals the supplied
     /// canonical path set.
     pub(crate) fn exact_directory(
-        frontier_root: &Path,
+        repository_root: &Path,
         path: RepoPath,
         expected_paths: &[RepoPath],
     ) -> Result<Self, RepositoryTxnError> {
-        let root = canonical_frontier_root(frontier_root)?;
+        let root = canonical_repository_root(repository_root)?;
         let state = inspect_directory_state(&root, &path)?;
         let mut expected = expected_paths.to_vec();
         expected.sort();
@@ -672,7 +664,7 @@ impl InputBinding {
         Self::from_directory_state(path, state)
     }
 
-    fn from_frontier_state(path: RepoPath, state: FileState) -> Result<Self, RepositoryTxnError> {
+    fn from_repository_state(path: RepoPath, state: FileState) -> Result<Self, RepositoryTxnError> {
         Ok(Self {
             name: format!("{REPOSITORY_FILE_INPUT_PREFIX}{}", path.as_str()),
             digest: repository_file_input_digest(&path, &state)?,
@@ -689,14 +681,14 @@ impl InputBinding {
         })
     }
 
-    fn frontier_path(&self) -> Result<Option<RepoPath>, RepositoryTxnError> {
+    fn repository_path(&self) -> Result<Option<RepoPath>, RepositoryTxnError> {
         let Some(path) = self.name.strip_prefix(REPOSITORY_FILE_INPUT_PREFIX) else {
             return Ok(None);
         };
         RepoPath::parse(path.to_string()).map(Some)
     }
 
-    fn frontier_directory_path(&self) -> Result<Option<RepoPath>, RepositoryTxnError> {
+    fn repository_directory_path(&self) -> Result<Option<RepoPath>, RepositoryTxnError> {
         let Some(path) = self.name.strip_prefix(REPOSITORY_DIRECTORY_INPUT_PREFIX) else {
             return Ok(None);
         };
@@ -710,13 +702,13 @@ impl InputBinding {
             ));
         }
         ContentDigest::parse(self.digest.as_str().to_string())?;
-        self.frontier_path()?;
-        self.frontier_directory_path()?;
+        self.repository_path()?;
+        self.repository_directory_path()?;
         Ok(())
     }
 
     fn verify_current(&self, root: &Path) -> Result<(), RepositoryTxnError> {
-        if let Some(path) = self.frontier_directory_path()? {
+        if let Some(path) = self.repository_directory_path()? {
             let state = inspect_directory_state(root, &path)?;
             let actual = repository_directory_input_digest(&path, &state)?;
             if actual != self.digest {
@@ -728,7 +720,7 @@ impl InputBinding {
             }
             return Ok(());
         }
-        let Some(path) = self.frontier_path()? else {
+        let Some(path) = self.repository_path()? else {
             return Ok(());
         };
         let state = inspect_file_state(root, &path)?;
@@ -776,7 +768,7 @@ pub(crate) struct RepositoryTxnPlanSpec {
     pub(crate) kind: OperationKind,
     pub(crate) operation_id: OperationId,
     pub(crate) request_root: ContentDigest,
-    pub(crate) frontier: RepositoryBinding,
+    pub(crate) repository: RepositoryBinding,
     pub(crate) fixed_time: String,
     pub(crate) read_set: Vec<InputBinding>,
     pub(crate) result: serde_json::Value,
@@ -790,7 +782,7 @@ pub(crate) struct RepositoryTxnPlan {
     pub(crate) kind: OperationKind,
     pub(crate) operation_id: OperationId,
     pub(crate) request_root: ContentDigest,
-    pub(crate) frontier: RepositoryBinding,
+    pub(crate) repository: RepositoryBinding,
     pub(crate) fixed_time: String,
     pub(crate) read_set: Vec<InputBinding>,
     pub(crate) canonical_delta: CanonicalDelta,
@@ -803,7 +795,7 @@ struct PlanCommitment<'a> {
     kind: &'a OperationKind,
     operation_id: &'a OperationId,
     request_root: &'a ContentDigest,
-    frontier: &'a RepositoryBinding,
+    repository: &'a RepositoryBinding,
     fixed_time: &'a str,
     read_set: &'a [InputBinding],
     canonical_delta: &'a CanonicalDelta,
@@ -823,7 +815,7 @@ impl RepositoryTxnPlan {
             kind: spec.kind,
             operation_id: spec.operation_id,
             request_root: spec.request_root,
-            frontier: spec.frontier,
+            repository: spec.repository,
             fixed_time: spec.fixed_time,
             read_set: spec.read_set,
             canonical_delta,
@@ -839,7 +831,7 @@ impl RepositoryTxnPlan {
             kind: &self.kind,
             operation_id: &self.operation_id,
             request_root: &self.request_root,
-            frontier: &self.frontier,
+            repository: &self.repository,
             fixed_time: &self.fixed_time,
             read_set: &self.read_set,
             canonical_delta: &self.canonical_delta,
@@ -968,11 +960,14 @@ struct RepositoryTxnPaths {
 
 impl RepositoryTxnPaths {
     fn new(journal_dir: &Path, operation_id: &OperationId) -> Self {
-        let frontier_dir = journal_dir.join("frontier");
+        let repository_dir = journal_dir.join("repository");
         Self {
-            plan: operation_journal::path(&frontier_dir, operation_id.as_str()),
-            marker: operation_journal::path(&frontier_dir.join("committed"), operation_id.as_str()),
-            blob_dir: frontier_dir.join("blobs"),
+            plan: operation_journal::path(&repository_dir, operation_id.as_str()),
+            marker: operation_journal::path(
+                &repository_dir.join("committed"),
+                operation_id.as_str(),
+            ),
+            blob_dir: repository_dir.join("blobs"),
         }
     }
 
@@ -999,7 +994,7 @@ impl RepositoryWriteLock {
     fn acquire(journal_dir: &Path, root: &Path) -> Result<Self, RepositoryTxnError> {
         let lock_id = ContentDigest::hash(root.to_string_lossy().as_bytes());
         let path = journal_dir
-            .join("frontier-locks")
+            .join("repository-locks")
             .join(format!("{}.lock", lock_id.file_stem()));
         let parent = path.parent().ok_or_else(|| {
             RepositoryTxnError::Io(format!(
@@ -1061,7 +1056,7 @@ impl RepositoryWriteLock {
     }
 }
 
-/// An exclusive frontier lock whose recovery barrier was checked before new
+/// An exclusive repository lock whose recovery barrier was checked before new
 /// semantic planning began. Keeping this value alive prevents another writer
 /// from crossing the same barrier until it is consumed by
 /// [`RepositoryTxn::prepare_with_barrier`] or dropped.
@@ -1124,13 +1119,12 @@ fn verify_fresh_repository_authorization(
                 .into(),
         });
     }
-    let profile =
-        crate::current_repository::verify_current_bootstrap_at(root).map_err(|reason| {
-            RepositoryTxnError::RepositoryWriteIntentDenied {
-                intent: "repository_authority_initialization",
-                reason,
-            }
-        })?;
+    let profile = crate::repository::verify_bootstrap_at(root).map_err(|reason| {
+        RepositoryTxnError::RepositoryWriteIntentDenied {
+            intent: "repository_authority_initialization",
+            reason,
+        }
+    })?;
     let profile_root = profile.profile_root().map_err(|reason| {
         RepositoryTxnError::RepositoryWriteIntentDenied {
             intent: "repository_authority_initialization",
@@ -1163,34 +1157,29 @@ fn fresh_repository_context_root(
     ))
 }
 
-fn verify_repository_authority_write_era(
-    root: &Path,
-) -> Result<RepositoryAuthorityWriteAuthorization, RepositoryTxnError> {
-    verify_current_repository_authority_write_era(root)
-}
-
 fn verify_routine_evidence_write_era(
     root: &Path,
 ) -> Result<RoutineEvidenceWriteAuthorization, RepositoryTxnError> {
     let intent = "routine_evidence";
-    let repository =
-        crate::current_repository::verify_current_repository_at(root, true).map_err(|error| {
-            RepositoryTxnError::RepositoryWriteIntentDenied {
-                intent,
-                reason: format!("current repository origin is invalid: {error}"),
-            }
-        })?;
+    let repository = crate::repository::verify_repository_at(root, true).map_err(|error| {
+        RepositoryTxnError::RepositoryWriteIntentDenied {
+            intent,
+            reason: format!("repository origin is invalid: {error}"),
+        }
+    })?;
     let origin_bytes = fs::read(root.join(".vela/origin.json"))
         .map_err(|error| RepositoryTxnError::Io(format!("read repository origin: {error}")))?;
     let origin = vela_protocol::repository_origin::RepositoryOriginV1::parse(&origin_bytes)
         .map_err(|error| RepositoryTxnError::RepositoryWriteIntentDenied {
             intent,
-            reason: format!("current repository origin is invalid: {error}"),
+            reason: format!("repository origin is invalid: {error}"),
         })?;
-    let authority = crate::cli::load_current_repository_authority(root, &repository, &origin)
-        .map_err(|error| RepositoryTxnError::RepositoryWriteIntentDenied {
-            intent,
-            reason: format!("current repository-authority history is invalid: {error}"),
+    let authority =
+        crate::cli::load_repository_authority(root, &repository, &origin).map_err(|error| {
+            RepositoryTxnError::RepositoryWriteIntentDenied {
+                intent,
+                reason: format!("current repository-authority history is invalid: {error}"),
+            }
         })?;
     if authority.verification.closed {
         return Err(RepositoryTxnError::RepositoryWriteIntentDenied {
@@ -1223,33 +1212,34 @@ fn verify_routine_evidence_write_era(
     })
 }
 
-fn verify_current_repository_authority_write_era(
+fn verify_repository_authority_write_era(
     root: &Path,
 ) -> Result<RepositoryAuthorityWriteAuthorization, RepositoryTxnError> {
-    let repository =
-        crate::current_repository::verify_current_repository_at(root, true).map_err(|error| {
-            RepositoryTxnError::RepositoryWriteIntentDenied {
-                intent: "repository_authority",
-                reason: format!("current repository origin is invalid: {error}"),
-            }
-        })?;
+    let repository = crate::repository::verify_repository_at(root, true).map_err(|error| {
+        RepositoryTxnError::RepositoryWriteIntentDenied {
+            intent: "repository_authority",
+            reason: format!("repository origin is invalid: {error}"),
+        }
+    })?;
     let origin_bytes = fs::read(root.join(".vela/origin.json"))
         .map_err(|error| RepositoryTxnError::Io(format!("read repository origin: {error}")))?;
     let origin = vela_protocol::repository_origin::RepositoryOriginV1::parse(&origin_bytes)
         .map_err(|error| RepositoryTxnError::RepositoryWriteIntentDenied {
             intent: "repository_authority",
-            reason: format!("current repository origin is invalid: {error}"),
+            reason: format!("repository origin is invalid: {error}"),
         })?;
-    let authority = crate::cli::load_current_repository_authority(root, &repository, &origin)
-        .map_err(|error| RepositoryTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority",
-            reason: format!("current repository-authority history is invalid: {error}"),
+    let authority =
+        crate::cli::load_repository_authority(root, &repository, &origin).map_err(|error| {
+            RepositoryTxnError::RepositoryWriteIntentDenied {
+                intent: "repository_authority",
+                reason: format!("current repository-authority history is invalid: {error}"),
+            }
         })?;
     verified_repository_authority_write_authorization(&repository, &authority)
 }
 
 fn verified_repository_authority_write_authorization(
-    repository: &vela_protocol::current_repository::CurrentRepositoryV4,
+    repository: &vela_protocol::repository::RepositoryV4,
     authority: &crate::cli::LoadedRepositoryAuthority,
 ) -> Result<RepositoryAuthorityWriteAuthorization, RepositoryTxnError> {
     if authority.verification.closed {
@@ -1436,7 +1426,7 @@ fn verify_fresh_repository_delta(
                 RepositoryTxnError::CorruptPlan("repository manifest has no postimage blob".into())
             })?;
             let bytes = read_blob(blob)?;
-            let repository = vela_protocol::current_repository::CurrentRepositoryV4::parse(&bytes)
+            let repository = vela_protocol::repository::RepositoryV4::parse(&bytes)
                 .map_err(RepositoryTxnError::CorruptPlan)?;
             repository_v3_manifests.push(repository);
         } else if !path.starts_with(".vela/authority/")
@@ -1576,7 +1566,7 @@ pub(crate) fn operating_system_account_home() -> Result<PathBuf, RepositoryTxnEr
 
 impl RepositoryRecoveryBarrier {
     /// Return the already-verified completed plan for one operation while this
-    /// barrier owns the frontier lock. This closes the race where another
+    /// barrier owns the repository lock. This closes the race where another
     /// process completes the same operation between an unlocked exact-retry
     /// lookup and barrier acquisition; callers can return the durable result
     /// without rederiving stale applied proposals or touching a private key.
@@ -1585,7 +1575,7 @@ impl RepositoryRecoveryBarrier {
         &self,
         operation_id: &OperationId,
     ) -> Result<Option<RepositoryTxnPlan>, RepositoryTxnError> {
-        let journals = frontier_journals(&self.root, &self.journal_dir)?;
+        let journals = repository_journals(&self.root, &self.journal_dir)?;
         for (paths, journal) in journals {
             if journal.plan.operation_id != *operation_id {
                 continue;
@@ -1599,7 +1589,7 @@ impl RepositoryRecoveryBarrier {
     }
 
     /// Authorize a repository-authority write from state that was completely
-    /// verified after this recovery barrier acquired the frontier lock.
+    /// verified after this recovery barrier acquired the repository lock.
     ///
     /// This avoids repeating the same repository and authority replay inside
     /// one Decision while preserving the independent trust-anchor check and
@@ -1607,7 +1597,7 @@ impl RepositoryRecoveryBarrier {
     /// prepared.
     pub(crate) fn authorize_verified_repository_authority(
         self,
-        repository: &vela_protocol::current_repository::CurrentRepositoryV4,
+        repository: &vela_protocol::repository::RepositoryV4,
         authority: &crate::cli::LoadedRepositoryAuthority,
     ) -> Result<CanonicalWriteBarrier, RepositoryTxnError> {
         let authorization =
@@ -1702,40 +1692,40 @@ fn reverify_transaction_authorization(
     }
 }
 
-fn frontier_journals(
+fn repository_journals(
     root: &Path,
     journal_dir: &Path,
 ) -> Result<Vec<(RepositoryTxnPaths, RepositoryTxnJournal)>, RepositoryTxnError> {
-    let frontier_dir = journal_dir.join("frontier");
-    let metadata = match fs::symlink_metadata(&frontier_dir) {
+    let repository_dir = journal_dir.join("repository");
+    let metadata = match fs::symlink_metadata(&repository_dir) {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
         Err(error) => {
             return Err(RepositoryTxnError::Journal(format!(
                 "inspect repository journal directory {}: {error}",
-                frontier_dir.display()
+                repository_dir.display()
             )));
         }
     };
     if metadata.file_type().is_symlink() || !metadata.is_dir() {
         return Err(RepositoryTxnError::Journal(format!(
             "repository journal directory is not a regular non-symlink directory: {}",
-            frontier_dir.display()
+            repository_dir.display()
         )));
     }
 
-    let mut entries = fs::read_dir(&frontier_dir)
+    let mut entries = fs::read_dir(&repository_dir)
         .map_err(|error| {
             RepositoryTxnError::Journal(format!(
                 "read repository journal directory {}: {error}",
-                frontier_dir.display()
+                repository_dir.display()
             ))
         })?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|error| {
             RepositoryTxnError::Journal(format!(
                 "enumerate repository journal directory {}: {error}",
-                frontier_dir.display()
+                repository_dir.display()
             ))
         })?;
     entries.sort_by_key(|entry| entry.file_name());
@@ -1782,8 +1772,8 @@ fn frontier_journals(
                 journal.plan.operation_id.as_str()
             )));
         }
-        if Path::new(&journal.plan.frontier.canonical_root) == root {
-            journal.plan.frontier.verify_root(root)?;
+        if Path::new(&journal.plan.repository.canonical_root) == root {
+            journal.plan.repository.verify_root(root)?;
             journals.push((paths, journal));
         }
     }
@@ -2022,7 +2012,7 @@ fn current_compaction_predecessor_repository_root(
     let origin =
         vela_protocol::repository_origin::RepositoryOriginV1::parse(&bytes).map_err(|error| {
             RepositoryTxnError::CorruptPlan(format!(
-                "current repository origin is invalid while checking completed history: {error}"
+                "repository origin is invalid while checking completed history: {error}"
             ))
         })?;
     origin
@@ -2147,7 +2137,7 @@ fn ensure_recovery_barrier_locked(
     journal_dir: &Path,
     allowed_operation_id: Option<&OperationId>,
 ) -> Result<(), RepositoryTxnError> {
-    let journals = frontier_journals(root, journal_dir)?;
+    let journals = repository_journals(root, journal_dir)?;
     let mut completed = Vec::new();
     for (paths, journal) in journals {
         if allowed_operation_id == Some(&journal.plan.operation_id) {
@@ -2321,22 +2311,22 @@ impl RepositoryTxnFailpoints for FailAtRepositoryTxnStep {
 impl RepositoryTxn {
     #[cfg(test)]
     pub(crate) fn verify_recovery_barrier_read_only(
-        frontier_root: &Path,
+        repository_root: &Path,
         journal_dir: &Path,
     ) -> Result<(), RepositoryTxnError> {
-        let root = canonical_frontier_root(frontier_root)?;
+        let root = canonical_repository_root(repository_root)?;
         ensure_recovery_barrier_locked(&root, journal_dir, None)
     }
 
-    /// Acquire the frontier-wide recovery barrier before loading mutable
-    /// frontier inputs for a new operation. The returned guard deliberately
+    /// Acquire the repository-wide recovery barrier before loading mutable
+    /// repository inputs for a new operation. The returned guard deliberately
     /// holds the write lock through planning and must be consumed by
     /// [`Self::prepare_with_barrier`].
     pub(crate) fn acquire_recovery_barrier(
-        frontier_root: &Path,
+        repository_root: &Path,
         journal_dir: &Path,
     ) -> Result<RepositoryRecoveryBarrier, RepositoryTxnError> {
-        let root = canonical_frontier_root(frontier_root)?;
+        let root = canonical_repository_root(repository_root)?;
         let lock = RepositoryWriteLock::acquire(journal_dir, &root)?;
         ensure_recovery_barrier_locked(&root, journal_dir, None)?;
         Ok(RepositoryRecoveryBarrier {
@@ -2347,10 +2337,10 @@ impl RepositoryTxn {
     }
 
     pub(crate) fn acquire_routine_evidence_write_barrier(
-        frontier_root: &Path,
+        repository_root: &Path,
         journal_dir: &Path,
     ) -> Result<CanonicalWriteBarrier, RepositoryTxnError> {
-        let root = canonical_frontier_root(frontier_root)?;
+        let root = canonical_repository_root(repository_root)?;
         // Reject invalid, closed, or pre-current repositories before creating
         // even the ignored lock. Routine evidence binds the repository and
         // authority heads but deliberately does not require a caller-local
@@ -2360,10 +2350,10 @@ impl RepositoryTxn {
     }
 
     pub(crate) fn acquire_repository_authority_initialization_barrier(
-        frontier_root: &Path,
+        repository_root: &Path,
         journal_dir: &Path,
     ) -> Result<CanonicalWriteBarrier, RepositoryTxnError> {
-        let root = canonical_frontier_root(frontier_root)?;
+        let root = canonical_repository_root(repository_root)?;
         let trusted_user_home = operating_system_account_home()?;
         verify_fresh_repository_authorization(&root, &trusted_user_home)?;
         Self::acquire_recovery_barrier(&root, journal_dir)?.authorize_for_fresh_repository()
@@ -2371,20 +2361,20 @@ impl RepositoryTxn {
 
     #[cfg(test)]
     pub(crate) fn acquire_write_barrier_for_test(
-        frontier_root: &Path,
+        repository_root: &Path,
         journal_dir: &Path,
     ) -> Result<CanonicalWriteBarrier, RepositoryTxnError> {
-        Ok(Self::acquire_recovery_barrier(frontier_root, journal_dir)?.authorize_for_test())
+        Ok(Self::acquire_recovery_barrier(repository_root, journal_dir)?.authorize_for_test())
     }
 
     #[cfg(test)]
     pub(crate) fn prepare(
-        frontier_root: &Path,
+        repository_root: &Path,
         journal_dir: &Path,
         plan: RepositoryTxnPlan,
         draft: DeltaDraft,
     ) -> Result<Self, RepositoryTxnError> {
-        let barrier = Self::acquire_recovery_barrier(frontier_root, journal_dir)?;
+        let barrier = Self::acquire_recovery_barrier(repository_root, journal_dir)?;
         Self::prepare_with_recovery_barrier_and_authorization(
             barrier,
             RepositoryTxnAuthorization::TestHarness,
@@ -2432,11 +2422,11 @@ impl RepositoryTxn {
             })?;
         }
         if let Some(authorized) = authorization.verified_repository_id()
-            && plan.frontier.repository_id != authorized
+            && plan.repository.repository_id != authorized
         {
             return Err(RepositoryTxnError::WriteAuthorizationRepositoryMismatch {
                 authorized: authorized.to_string(),
-                planned: plan.frontier.repository_id.clone(),
+                planned: plan.repository.repository_id.clone(),
             });
         }
         if plan.canonical_delta != draft.delta {
@@ -2444,7 +2434,7 @@ impl RepositoryTxn {
                 "plan delta differs from prepared postimage blobs".to_string(),
             ));
         }
-        let root = plan.frontier.verify_root(&barrier.root)?;
+        let root = plan.repository.verify_root(&barrier.root)?;
         let RepositoryRecoveryBarrier {
             root: barrier_root,
             journal_dir,
@@ -2540,13 +2530,13 @@ impl RepositoryTxn {
 
     #[cfg(test)]
     fn prepare_at_failpoint(
-        frontier_root: &Path,
+        repository_root: &Path,
         journal_dir: &Path,
         plan: RepositoryTxnPlan,
         draft: DeltaDraft,
         step: RepositoryTxnStep,
     ) -> Result<Self, RepositoryTxnError> {
-        let barrier = Self::acquire_recovery_barrier(frontier_root, journal_dir)?;
+        let barrier = Self::acquire_recovery_barrier(repository_root, journal_dir)?;
         Self::prepare_with_recovery_barrier_and_authorization(
             barrier,
             RepositoryTxnAuthorization::TestHarness,
@@ -2558,11 +2548,11 @@ impl RepositoryTxn {
 
     #[cfg(test)]
     pub(crate) fn open(
-        frontier_root: &Path,
+        repository_root: &Path,
         journal_dir: &Path,
         operation_id: &OperationId,
     ) -> Result<Self, RepositoryTxnError> {
-        Self::open_if_present(frontier_root, journal_dir, operation_id)?.ok_or_else(|| {
+        Self::open_if_present(repository_root, journal_dir, operation_id)?.ok_or_else(|| {
             RepositoryTxnError::Journal(format!(
                 "repository transaction {} was not found",
                 operation_id.as_str()
@@ -2572,29 +2562,29 @@ impl RepositoryTxn {
 
     #[cfg(test)]
     pub(crate) fn open_if_present(
-        frontier_root: &Path,
+        repository_root: &Path,
         journal_dir: &Path,
         operation_id: &OperationId,
     ) -> Result<Option<Self>, RepositoryTxnError> {
-        let root = canonical_frontier_root(frontier_root)?;
+        let root = canonical_repository_root(repository_root)?;
         let lock = RepositoryWriteLock::acquire(journal_dir, &root)?;
         let paths = RepositoryTxnPaths::new(journal_dir, operation_id);
-        let frontier_journal_dir = paths.plan.parent().ok_or_else(|| {
+        let repository_journal_dir = paths.plan.parent().ok_or_else(|| {
             RepositoryTxnError::Journal(format!(
                 "repository transaction has no journal directory: {}",
                 paths.plan.display()
             ))
         })?;
-        match fs::symlink_metadata(frontier_journal_dir) {
+        match fs::symlink_metadata(repository_journal_dir) {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(error) => {
                 return Err(RepositoryTxnError::Journal(format!(
                     "inspect repository journal directory {}: {error}",
-                    frontier_journal_dir.display()
+                    repository_journal_dir.display()
                 )));
             }
             Ok(_) => {
-                require_journal_directory(frontier_journal_dir, "repository journal directory")?
+                require_journal_directory(repository_journal_dir, "repository journal directory")?
             }
         }
         match fs::symlink_metadata(&paths.plan) {
@@ -2616,7 +2606,7 @@ impl RepositoryTxn {
         let journal: RepositoryTxnJournal =
             operation_journal::read_json(&paths.plan).map_err(RepositoryTxnError::Journal)?;
         journal.verify()?;
-        journal.plan.frontier.verify_root(&root)?;
+        journal.plan.repository.verify_root(&root)?;
         let txn = Self {
             root,
             paths,
@@ -2774,7 +2764,7 @@ impl RepositoryTxn {
     }
 
     /// Permanently discard a marker-free plan. Since no commit marker exists,
-    /// this state transition has no frontier delta and a later plan may safely
+    /// this state transition has no repository delta and a later plan may safely
     /// reuse the operation id.
     pub(crate) fn abort_prepared(&mut self) -> Result<(), RepositoryTxnError> {
         self.abort_prepared_with_failpoints(&mut NoRepositoryTxnFailpoints)
@@ -2916,7 +2906,7 @@ impl RepositoryTxn {
                     self.paths.plan.display()
                 ))
             })?;
-        let journals = frontier_journals(&self.root, journal_dir)?;
+        let journals = repository_journals(&self.root, journal_dir)?;
         let retained = journals
             .iter()
             .filter(|(_, journal)| {
@@ -2967,11 +2957,11 @@ impl RepositoryTxn {
 
     #[cfg(test)]
     pub(crate) fn recover(
-        frontier_root: &Path,
+        repository_root: &Path,
         journal_dir: &Path,
         operation_id: &OperationId,
     ) -> Result<RecoveryOutcome, RepositoryTxnError> {
-        let mut txn = Self::open(frontier_root, journal_dir, operation_id)?;
+        let mut txn = Self::open(repository_root, journal_dir, operation_id)?;
         if matches!(txn.journal.recovery, RecoveryState::Aborted) {
             return Ok(RecoveryOutcome::Aborted);
         }
@@ -3358,7 +3348,7 @@ impl fmt::Display for RepositoryTxnError {
 
 impl std::error::Error for RepositoryTxnError {}
 
-fn canonical_frontier_root(path: &Path) -> Result<PathBuf, RepositoryTxnError> {
+fn canonical_repository_root(path: &Path) -> Result<PathBuf, RepositoryTxnError> {
     let metadata = fs::metadata(path).map_err(|error| {
         RepositoryTxnError::Io(format!("read repository root {}: {error}", path.display()))
     })?;
@@ -3380,14 +3370,14 @@ fn canonical_frontier_root(path: &Path) -> Result<PathBuf, RepositoryTxnError> {
 /// while resolving a transaction target.
 ///
 /// This is a fail-closed check for a stable filesystem plus Vela's cooperative
-/// frontier lock; it is not a sandbox against a hostile process that can
-/// mutate the frontier with the same operating-system permissions. Rust's
+/// repository lock; it is not a sandbox against a hostile process that can
+/// mutate the repository with the same operating-system permissions. Rust's
 /// portable `std::fs` path APIs do not provide a complete dirfd-relative,
 /// no-follow rename/unlink walk, and this crate denies unsafe code. A hostile
 /// local process can therefore race an ancestor rename between this check and
 /// a later path-based read, rename, or unlink. Every preflight and install
 /// rechecks the path and refuses observed drift, but deployments that require
-/// protection from such a process must protect the frontier directory with OS
+/// protection from such a process must protect the repository directory with OS
 /// ownership/permissions. Do not describe this function as eliminating that
 /// TOCTOU boundary.
 fn validate_target(root: &Path, path: &RepoPath) -> Result<PathBuf, RepositoryTxnError> {
@@ -3687,7 +3677,7 @@ mod tests {
                     vela_protocol::authority_history::AUTHORITY_INITIALIZED_EVENT_KIND.into(),
                 ),
                 target: vela_protocol::events::StateTarget {
-                    r#type: "frontier".into(),
+                    r#type: "repository".into(),
                     id: repository_id.into(),
                 },
                 actor: vela_protocol::events::StateActor {
@@ -3720,9 +3710,9 @@ mod tests {
 
     fn fixture_repository(
         origin: &vela_protocol::repository_origin::RepositoryOriginV1,
-    ) -> vela_protocol::current_repository::CurrentRepositoryV4 {
-        vela_protocol::current_repository::CurrentRepositoryV4 {
-            schema: vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V4.into(),
+    ) -> vela_protocol::repository::RepositoryV4 {
+        vela_protocol::repository::RepositoryV4 {
+            schema: vela_protocol::repository::REPOSITORY_SCHEMA_V4.into(),
             repository_id: origin.repository_id.clone(),
             profile_root: origin.profile_root.clone(),
             origin_id: origin.origin_id.clone(),
@@ -3813,7 +3803,7 @@ mod tests {
     fn fixture_plan(root: &Path, draft: &DeltaDraft, identity: &[u8]) -> RepositoryTxnPlan {
         let operation_id = OperationId::derive("submission", identity);
         let request_root = ContentDigest::hash(identity);
-        let repository_id = crate::current_repository::verify_current_repository_at(root, false)
+        let repository_id = crate::repository::verify_repository_at(root, false)
             .map(|repository| repository.repository_id)
             .unwrap_or_else(|_| "vrepo_test".to_string());
         RepositoryTxnPlan::new(
@@ -3821,7 +3811,8 @@ mod tests {
                 kind: OperationKind::Submission,
                 operation_id,
                 request_root,
-                frontier: RepositoryBinding::new(root, repository_id, b"split-layout-v1").unwrap(),
+                repository: RepositoryBinding::new(root, repository_id, b"split-layout-v1")
+                    .unwrap(),
                 fixed_time: "2026-07-13T00:00:00Z".to_string(),
                 read_set: vec![InputBinding {
                     name: "receipt".to_string(),
@@ -3890,7 +3881,7 @@ mod tests {
                 b"authority".to_vec(),
             ),
             PlannedWrite::write(
-                RepoPath::parse("frontier.json").unwrap(),
+                RepoPath::parse("repository.json").unwrap(),
                 WriteClass::Derived,
                 b"materialized repository".to_vec(),
             ),
@@ -3943,7 +3934,7 @@ mod tests {
         BTreeMap::from([
             (".vela/work/session.json".to_string(), b"closed".to_vec()),
             (
-                "frontier.json".to_string(),
+                "repository.json".to_string(),
                 b"materialized repository".to_vec(),
             ),
             ("keep.txt".to_string(), b"unchanged".to_vec()),
@@ -4013,7 +4004,7 @@ mod tests {
         {
             use std::os::unix::fs::symlink;
             let temp = tempfile::tempdir().unwrap();
-            let root = temp.path().join("frontier");
+            let root = temp.path().join("repository");
             let outside = temp.path().join("outside");
             fs::create_dir_all(&root).unwrap();
             fs::create_dir_all(&outside).unwrap();
@@ -4034,7 +4025,7 @@ mod tests {
     #[test]
     fn open_if_present_returns_none_only_for_an_absent_journal() {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
         fs::create_dir_all(&root).unwrap();
         let operation_id = OperationId::derive("submission", b"absent request");
@@ -4049,7 +4040,7 @@ mod tests {
     #[test]
     fn open_if_present_exposes_request_identity_and_resumes_marker_window() {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
         fs::create_dir_all(&root).unwrap();
         let draft = DeltaDraft::prepare(
@@ -4088,7 +4079,7 @@ mod tests {
     #[test]
     fn canonical_delta_is_sorted_unique_and_root_bound() {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         fs::create_dir_all(&root).unwrap();
         fs::write(root.join("existing.json"), b"before").unwrap();
         let writes = || {
@@ -4169,7 +4160,7 @@ mod tests {
     #[test]
     fn journal_v2_rejects_v1_and_retired_event_fields() {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         fs::create_dir_all(&root).unwrap();
         let draft = DeltaDraft::prepare(&root, vec![]).unwrap();
         let plan = fixture_plan(&root, &draft, b"journal v2 schema");
@@ -4209,7 +4200,7 @@ mod tests {
 
         for step in prepare_failpoints {
             let temp = tempfile::tempdir().unwrap();
-            let root = temp.path().join("frontier");
+            let root = temp.path().join("repository");
             let journals = temp.path().join("journals");
             initialize_failpoint_frontier(&root);
             let before = snapshot_files(&root);
@@ -4262,13 +4253,13 @@ mod tests {
 
         // Aborting a marker-free plan is itself a durable journal transition.
         // A failure on either side of that atomic replacement must still leave
-        // zero frontier delta, no marker, and a retryable operation identity.
+        // zero repository delta, no marker, and a retryable operation identity.
         for step in [
             RepositoryTxnStep::BeforeAbortedJournalWrite,
             RepositoryTxnStep::AfterAbortedJournalWrite,
         ] {
             let temp = tempfile::tempdir().unwrap();
-            let root = temp.path().join("frontier");
+            let root = temp.path().join("repository");
             let journals = temp.path().join("journals");
             initialize_failpoint_frontier(&root);
             let before = snapshot_files(&root);
@@ -4317,9 +4308,9 @@ mod tests {
 
         // A safely injected marker-write error occurs before the atomic,
         // fsync-backed journal replacement. The old state is therefore a
-        // complete Prepared journal with no marker and no frontier delta.
+        // complete Prepared journal with no marker and no repository delta.
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
         initialize_failpoint_frontier(&root);
         let before = snapshot_files(&root);
@@ -4343,7 +4334,7 @@ mod tests {
     fn reused_operation_id_with_changed_request_is_rejected_after_abort_and_completion() {
         for terminal_state in [RecoveryState::Aborted, RecoveryState::Completed] {
             let temp = tempfile::tempdir().unwrap();
-            let root = temp.path().join("frontier");
+            let root = temp.path().join("repository");
             let journals = temp.path().join("journals");
             fs::create_dir_all(&root).unwrap();
             let identity = format!("operation collision {terminal_state:?}");
@@ -4422,7 +4413,7 @@ mod tests {
 
         for step in failpoints {
             let temp = tempfile::tempdir().unwrap();
-            let root = temp.path().join("frontier");
+            let root = temp.path().join("repository");
             let journals = temp.path().join("journals");
             initialize_failpoint_frontier(&root);
             let draft = DeltaDraft::prepare(&root, failpoint_writes()).unwrap();
@@ -4482,7 +4473,7 @@ mod tests {
                 RepositoryTxnStep::AfterCommittedConflictJournalWrite { index },
             ] {
                 let temp = tempfile::tempdir().unwrap();
-                let root = temp.path().join("frontier");
+                let root = temp.path().join("repository");
                 let journals = temp.path().join("journals");
                 initialize_failpoint_frontier(&root);
                 let draft = DeltaDraft::prepare(&root, failpoint_writes()).unwrap();
@@ -4524,7 +4515,7 @@ mod tests {
     #[test]
     fn committed_install_is_idempotent_and_recovers_after_failpoint() {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
         fs::create_dir_all(&root).unwrap();
         let draft = DeltaDraft::prepare(
@@ -4536,9 +4527,9 @@ mod tests {
                     b"receipt".to_vec(),
                 ),
                 PlannedWrite::write(
-                    RepoPath::parse("frontier.json").unwrap(),
+                    RepoPath::parse("repository.json").unwrap(),
                     WriteClass::Derived,
-                    b"frontier".to_vec(),
+                    b"repository".to_vec(),
                 ),
             ],
         )
@@ -4566,7 +4557,10 @@ mod tests {
             fs::read(root.join("records/receipt.json")).unwrap(),
             b"receipt"
         );
-        assert_eq!(fs::read(root.join("frontier.json")).unwrap(), b"frontier");
+        assert_eq!(
+            fs::read(root.join("repository.json")).unwrap(),
+            b"repository"
+        );
         assert_eq!(
             RepositoryTxn::recover(&root, &journals, &operation_id).unwrap(),
             RecoveryOutcome::AlreadyCompleted,
@@ -4577,7 +4571,7 @@ mod tests {
     #[test]
     fn completed_recovery_blob_retirement_preserves_plan_marker_and_replay() {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
         fs::create_dir_all(&root).unwrap();
         let draft = DeltaDraft::prepare(
@@ -4633,7 +4627,7 @@ mod tests {
     #[test]
     fn recovery_blobs_survive_a_crash_until_explicit_completed_retirement() {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
         fs::create_dir_all(&root).unwrap();
         let draft = DeltaDraft::prepare(
@@ -4683,7 +4677,7 @@ mod tests {
     #[test]
     fn shared_blob_is_removed_only_after_every_referencing_journal_is_pruned() {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
         fs::create_dir_all(&root).unwrap();
 
@@ -4753,7 +4747,7 @@ mod tests {
     #[test]
     fn incomplete_journal_is_a_frontier_wide_recovery_barrier() {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
         fs::create_dir_all(&root).unwrap();
         let first_draft = DeltaDraft::prepare(
@@ -4765,7 +4759,7 @@ mod tests {
                     b"first".to_vec(),
                 ),
                 PlannedWrite::write(
-                    RepoPath::parse("frontier.json").unwrap(),
+                    RepoPath::parse("repository.json").unwrap(),
                     WriteClass::Derived,
                     b"first repository".to_vec(),
                 ),
@@ -4828,7 +4822,7 @@ mod tests {
     #[test]
     fn completed_journal_fails_closed_when_a_postimage_is_missing() {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
         fs::create_dir_all(&root).unwrap();
         let draft = DeltaDraft::prepare(
@@ -4865,7 +4859,7 @@ mod tests {
     #[test]
     fn completed_journal_allows_a_later_repository_head_but_not_evidence_drift() {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
         fs::create_dir_all(root.join(".vela")).unwrap();
 
@@ -4916,7 +4910,7 @@ mod tests {
     #[test]
     fn completed_predecessor_journal_is_archived_only_by_the_exact_compaction_root() {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
         fs::create_dir_all(root.join(".vela")).unwrap();
 
@@ -4956,7 +4950,7 @@ mod tests {
 
         let mut final_predecessor_repository = predecessor_repository.clone();
         final_predecessor_repository.verifications.push(
-            vela_protocol::current_repository::RepositoryObjectRefV1 {
+            vela_protocol::repository::RepositoryObjectRefV1 {
                 id: "vvr_finalpredecessor".into(),
                 root: fixture_root('c'),
                 path: "records/verifications/sha256/final-predecessor.json".into(),
@@ -5086,14 +5080,14 @@ mod tests {
     #[test]
     fn completed_history_proves_superseded_postimages() {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
         fs::create_dir_all(&root).unwrap();
 
         let first_draft = DeltaDraft::prepare(
             &root,
             vec![PlannedWrite::write(
-                RepoPath::parse("frontier.json").unwrap(),
+                RepoPath::parse("repository.json").unwrap(),
                 WriteClass::Derived,
                 b"first head".to_vec(),
             )],
@@ -5110,7 +5104,7 @@ mod tests {
         let second_draft = DeltaDraft::prepare(
             &root,
             vec![PlannedWrite::write(
-                RepoPath::parse("frontier.json").unwrap(),
+                RepoPath::parse("repository.json").unwrap(),
                 WriteClass::Derived,
                 b"second head".to_vec(),
             )],
@@ -5133,7 +5127,7 @@ mod tests {
     #[test]
     fn completed_history_rejects_corrupt_marker_and_blob() {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
         fs::create_dir_all(&root).unwrap();
         let draft = DeltaDraft::prepare(
@@ -5191,7 +5185,7 @@ mod tests {
     #[test]
     fn committed_install_never_overwrites_post_marker_drift() {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
         fs::create_dir_all(&root).unwrap();
         fs::write(root.join("state.json"), b"before").unwrap();
@@ -5227,7 +5221,7 @@ mod tests {
         use std::os::unix::fs::symlink;
 
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
         let outside = temp.path().join("outside");
         fs::create_dir_all(&root).unwrap();
@@ -5275,7 +5269,7 @@ mod tests {
     #[test]
     fn recovery_before_marker_has_zero_frontier_delta() {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
         fs::create_dir_all(&root).unwrap();
         let draft = DeltaDraft::prepare(
@@ -5302,7 +5296,7 @@ mod tests {
     #[test]
     fn path_bound_file_snapshot_commits_supplied_bytes_without_rereading() {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         fs::create_dir_all(root.join(".vela/policies")).unwrap();
         let policy_path = RepoPath::parse(".vela/policies/active.json").unwrap();
 
@@ -5330,7 +5324,7 @@ mod tests {
     #[test]
     fn path_bound_existing_input_drift_refuses_the_commit_marker() {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
         fs::create_dir_all(root.join(".vela/policies")).unwrap();
         let policy_path = RepoPath::parse(".vela/policies/active.json").unwrap();
@@ -5421,7 +5415,7 @@ mod tests {
     #[test]
     fn path_bound_absent_input_creation_refuses_the_commit_marker() {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
         fs::create_dir_all(root.join(".vela/policies")).unwrap();
         let signature_path = RepoPath::parse(".vela/policies/active.sig.json").unwrap();
@@ -5457,7 +5451,7 @@ mod tests {
         use std::os::unix::fs::symlink;
 
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("frontier");
+        let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
         fs::create_dir_all(root.join(".vela/policies")).unwrap();
         let outside = temp.path().join("outside-policy.json");

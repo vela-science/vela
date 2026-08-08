@@ -42,24 +42,33 @@
 //! readable rows, one marked row, `unreadable_returned: 1`, and a `total` that
 //! still says 5.
 //!
-//! Across the four live repositories today, all 2,844 accepted Claims page out
-//! individually readable at their declared roots and none is unreachable; the
-//! last compaction retained every one.
+//! That paging was measured across the four epoch-1 repositories while they
+//! were still live: every accepted Claim came out individually readable at its
+//! declared root, none was unreachable, and the last compaction retained every
+//! one. It is a historical observation now and cannot be repeated with this
+//! binary — all four are archived and this release refuses their layout
+//! outright (`docs/ECOSYSTEM.md` §4). The paragraph above also carried a total,
+//! 2,844, which no artifact in this repository reproduces and which disagrees
+//! with both figures that are sourced: ADR 0039 records 2,782 accepted as the
+//! Observatory reported them, and the four `counts.accepted_claims` in
+//! `paper/artifacts/action-complete-repository-2026-08-03/baseline.v1.json`
+//! sum to 2,834. The count is dropped rather than picked between.
+//!
+//! What still checks this verb is `crates/vela-cli/tests/claims_enumeration.rs`,
+//! against a repository the test builds.
 
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
 use serde_json::{Value, json};
-use vela_protocol::claim_record::ClaimRecordV1;
-use vela_protocol::current_repository::ClaimStandingRefV1;
 use vela_protocol::repository_origin::RepositoryOriginV1;
 
 /// The standings this index can bind, plus the escape hatch. `accepted` is the
 /// default because "what stands?" is the question.
 ///
 /// These are the standing axis's own words, not the manifest's. The manifest
-/// binds each list a Proposal-axis token — `CurrentRepositoryV4::verify` holds
+/// binds each list a Proposal-axis token — `RepositoryV4::verify` holds
 /// the pending list to `pending_review` — and this verb reads those tokens onto
 /// the standing axis through `crate::claim_standing`, so the filter spells what
 /// the rows now report. A Claim in the pending list is `unassessed`: no ruling
@@ -82,8 +91,8 @@ const ASSERTION_SCALARS: usize = 132;
 /// quantum-codes repository given two commits carrying identical origin bytes —
 /// `status`, `review list`, and `claims` all refuse it identically, at the
 /// load.
-fn origin_claim_ids(frontier: &Path, origin: &RepositoryOriginV1) -> BTreeSet<String> {
-    let initial = crate::current_repository::initial_repository(frontier, origin)
+fn origin_claim_ids(repository_path: &Path, origin: &RepositoryOriginV1) -> BTreeSet<String> {
+    let initial = crate::repository::initial_repository(repository_path, origin)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     initial
         .accepted_claims
@@ -104,22 +113,6 @@ fn era_label(origin_ids: &BTreeSet<String>, claim_id: &str) -> &'static str {
     }
 }
 
-fn read_claim(frontier: &Path, reference: &ClaimStandingRefV1) -> Result<ClaimRecordV1, String> {
-    let bytes = crate::current_repository::read_rooted_object(
-        frontier,
-        &reference.path,
-        &reference.claim_root,
-    )?;
-    let claim = ClaimRecordV1::parse(&bytes)?;
-    if claim.claim_id != reference.claim_id {
-        return Err(format!(
-            "retained bytes at {} carry Claim id {}, not the one the manifest binds",
-            reference.path, claim.claim_id
-        ));
-    }
-    Ok(claim)
-}
-
 /// One assertion as a single terminal line: control characters made visible by
 /// the shared presentation boundary, then cut to a list-sized budget.
 fn one_line(text: &str, budget: usize) -> String {
@@ -131,14 +124,14 @@ fn one_line(text: &str, budget: usize) -> String {
 }
 
 pub(crate) fn cmd_claims(
-    frontier: &Path,
+    repository_path: &Path,
     status: Option<&str>,
     limit: usize,
     cursor: Option<&str>,
     json_out: bool,
 ) {
     crate::ui::set_mode("claims", json_out);
-    crate::ui::require_initialized_repo(frontier);
+    crate::ui::require_initialized_repo(repository_path);
     let status = status.unwrap_or("accepted");
     if !STATUS_VALUES.contains(&status) {
         crate::cli::fail_kind(
@@ -146,19 +139,19 @@ pub(crate) fn cmd_claims(
             "claims status must be accepted, unassessed, or all",
         );
     }
-    let frontier = crate::ui::canonicalize_repo(frontier);
+    let repository_path = crate::ui::canonicalize_repo(repository_path);
     /* The same load `review list` uses: the manifest is only worth listing if
     repository authority covers it. */
-    let repository = crate::current_repository::load_current_repository_at(&frontier, true)
+    let repository = crate::repository::load_repository_at(&repository_path, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let repository_root = repository
         .canonical_root()
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let origin_bytes = fs::read(frontier.join(".vela/origin.json"))
+    let origin_bytes = fs::read(repository_path.join(".vela/origin.json"))
         .unwrap_or_else(|error| crate::cli::fail_return(&format!("read current origin: {error}")));
     let origin = RepositoryOriginV1::parse(&origin_bytes)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let origin_ids = origin_claim_ids(&frontier, &origin);
+    let origin_ids = origin_claim_ids(&repository_path, &origin);
 
     /* Both manifest lists are already strictly sorted by Claim id and the
     protocol holds them that way, so this is the repository's own order, not
@@ -185,7 +178,7 @@ pub(crate) fn cmd_claims(
         .map(|reference| {
             let era = era_label(&origin_ids, &reference.claim_id);
             let standing = crate::claim_standing::from_proposal_status(&reference.standing);
-            match read_claim(&frontier, reference) {
+            match crate::repository::read_claim(&repository_path, reference) {
                 Ok(claim) => json!({
                     "claim_id": reference.claim_id,
                     "claim_root": reference.claim_root,
@@ -315,7 +308,7 @@ mod tests {
     /// `unassessed`, so that is what `--status` takes.
     #[test]
     fn the_status_filter_spells_the_standings_the_rows_report() {
-        let manifest = vela_protocol::current_repository::ClaimStandingRefV1 {
+        let manifest = vela_protocol::repository::ClaimStandingRefV1 {
             claim_id: format!("vcl_{}", "a".repeat(64)),
             claim_root: format!("sha256:{}", "b".repeat(64)),
             standing: "pending_review".into(),

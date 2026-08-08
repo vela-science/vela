@@ -39,9 +39,9 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                 repo_flag,
             );
             crate::ui::require_initialized_repo(&repository);
-            let record = crate::current_verification::author_record(
+            let record = crate::verification::author_record(
                 &repository,
-                crate::current_verification::VerificationRecordRequest {
+                crate::verification::VerificationRecordRequest {
                     proposal_id: proposal,
                     profile,
                     method_path: method.clone(),
@@ -144,7 +144,7 @@ fn verified_frontier_file(
     {
         return Err(format!("{label} path must remain repository-relative"));
     }
-    let frontier_root = std::fs::canonicalize(repository)
+    let repository_root = std::fs::canonicalize(repository)
         .map_err(|error| format!("resolve repository root: {error}"))?;
     let file = repository.join(relative);
     let metadata =
@@ -154,7 +154,7 @@ fn verified_frontier_file(
     }
     let resolved =
         std::fs::canonicalize(&file).map_err(|error| format!("resolve {label}: {error}"))?;
-    if !resolved.starts_with(&frontier_root) {
+    if !resolved.starts_with(&repository_root) {
         return Err(format!("{label} resolves outside the repository"));
     }
     use sha2::{Digest, Sha256};
@@ -324,7 +324,7 @@ pub(crate) fn proposal_reproduction_files(
     path: &Path,
     proposal_id: &str,
 ) -> Result<Vec<PathBuf>, String> {
-    let repository = crate::current_repository::load_current_repository_at(path, true)?;
+    let repository = crate::repository::load_repository_at(path, true)?;
     let proposal_reference = repository
         .proposals
         .iter()
@@ -354,7 +354,7 @@ pub(crate) fn proposal_reproduction_files(
             proposal_reference.id
         ));
     }
-    let standings = crate::current_repository::load_current_proposal_standings(path, &repository)?;
+    let standings = crate::repository::load_current_proposal_standings(path, &repository)?;
     let standing = standings
         .get(proposal_id)
         .map(String::as_str)
@@ -463,7 +463,7 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
     };
     if files.is_empty() {
         if let Some(proposal_id) = proposal_id {
-            let repository = crate::current_repository::load_current_repository_at(path, true)
+            let repository = crate::repository::load_repository_at(path, true)
                 .unwrap_or_else(|error| fail_return(&error));
             let proposal = repository
                 .proposals

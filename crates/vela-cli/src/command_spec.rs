@@ -146,7 +146,6 @@ pub(crate) enum Commands {
         action: CorrectionAction,
     },
     /// Manage independently distributed repository-authority trust roots.
-    #[command(hide = true)]
     Authority {
         #[command(subcommand)]
         action: AuthorityAction,
@@ -296,13 +295,18 @@ pub(crate) enum Commands {
         /// Full root of the exact positive result contract checked by the capsule.
         #[arg(long, conflicts_with = "submission", requires_all = ["packet_root", "profile_root", "verifier_capsule_root"])]
         result_contract_root: Option<String>,
-        // The duplicate-execution guard compares two Submissions by the Attempt
+        // The duplicate-execution guard compares two Submissions by the run
         // that produced them and gives up when either is absent
-        // (`current_repository_decision.rs`). Authoring left it absent every
+        // (`repository_decision.rs`). Authoring left it absent every
         // time, so the guard could not fire on anything the CLI wrote. A flag
         // rather than something inferred here: the producer is the only party
         // that knows which exploration a result came out of.
-        /// Attempt this result came out of, as `vat_<64 hex>`.
+        //
+        // The field and its prefix keep the retired spelling because they are
+        // wire: `provenance.source_attempt` and `vat_` are published in
+        // `schemas/submission-v1.schema.json`, so moving them is a schema
+        // change and not a wording one. `docs/ECOSYSTEM.md` §6 records it.
+        /// Workbench run this result came out of, as `vat_<64 hex>`.
         #[arg(long, conflicts_with = "submission")]
         source_attempt: Option<String>,
         #[arg(long, help = HELP_AS)]
@@ -463,7 +467,7 @@ pub(crate) enum ReviewAction {
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },
-    /// Show one pending Review Packet, Decision, or producer Withdrawal.
+    /// Show one pending Proposal, Decision, or producer Withdrawal.
     #[command(override_usage = "vela review show [OPTIONS] [REPO] <PROPOSAL_ID>")]
     Show {
         #[arg(value_name = "REPO", help = HELP_REPO_BEFORE_OBJECT)]

@@ -53,21 +53,26 @@ impl AuthorityActionV1 {
             Self::AuthorityInitialize
             | Self::AuthorityRotate
             | Self::AuthorityClose
-            | Self::AuthorityModelUpdate => AuthorityResourceTypeV1::Frontier,
+            | Self::AuthorityModelUpdate => AuthorityResourceTypeV1::Repository,
             Self::ReviewAccept | Self::ReviewReject => AuthorityResourceTypeV1::Proposal,
         }
     }
 }
 
-/// The authority boundary is the Repository (ADR 0039), but this variant
-/// serializes as the wire token `"repository"` and cannot be renamed in place.
-/// It is hashed into `AuthorizationRequestV1::root()`, which is bound by the
-/// signed authority record, and `vela-science/math` has a live genesis holding
-/// it. Renaming it is a re-signing migration, not a prose sweep.
+/// The authority boundary is the Repository (ADR 0039), and this variant now
+/// says so on the wire.
+///
+/// `rename_all = "snake_case"` means the variant name *is* the token. While
+/// this variant was spelled with the retired noun it emitted the retired token,
+/// and the comment here asserted it already emitted `"repository"` — a statement
+/// about the code that the code contradicted. It could not be renamed in place
+/// while a live genesis held the old token inside
+/// `AuthorizationRequestV1::root()`. The 0.970.0 re-genesis of
+/// `vela-science/math` removed that constraint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorityResourceTypeV1 {
-    Frontier,
+    Repository,
     Proposal,
 }
 
@@ -131,7 +136,7 @@ impl AuthorizationModelV1 {
             return Err("authorization model members must be strictly sorted".into());
         }
         if let Some(root) = &self.previous_model_root {
-            require_sha256("previous_model_root", root)?;
+            crate::shape::require_sha256_root("previous_model_root", root)?;
         }
         Ok(())
     }
@@ -158,7 +163,7 @@ impl AuthorizationResourceV1 {
             "vrepo_",
         )?;
         let prefix = match self.resource_type {
-            AuthorityResourceTypeV1::Frontier => "vrepo_",
+            AuthorityResourceTypeV1::Repository => "vrepo_",
             AuthorityResourceTypeV1::Proposal => "vpr_",
         };
         require_identifier("authorization resource_id", &self.resource_id, prefix)
@@ -190,7 +195,7 @@ impl AuthorizationRequestV1 {
         {
             return Err("authorization request schema or profile is invalid".into());
         }
-        require_sha256("authorization request model_root", &self.model_root)?;
+        crate::shape::require_sha256_root("authorization request model_root", &self.model_root)?;
         require_identifier(
             "authorization request repository_id",
             &self.repository_id,
@@ -202,15 +207,18 @@ impl AuthorizationRequestV1 {
             2048,
         )?;
         self.resource.validate()?;
-        require_sha256(
+        crate::shape::require_sha256_root(
             "authorization request authentication_root",
             &self.authentication_root,
         )?;
-        require_sha256(
+        crate::shape::require_sha256_root(
             "authorization request transaction_read_set_root",
             &self.transaction_read_set_root,
         )?;
-        require_sha256("authorization request intent_digest", &self.intent_digest)?;
+        crate::shape::require_sha256_root(
+            "authorization request intent_digest",
+            &self.intent_digest,
+        )?;
         Ok(())
     }
 
@@ -227,17 +235,17 @@ pub enum AuthorizationDecisionV1 {
     Deny,
 }
 
-/// `FrontierMismatch` and `ResourceFrontierMismatch` serialize as
+/// `RepositoryMismatch` and `ResourceRepositoryMismatch` serialize as
 /// `"repository_mismatch"` and `"resource_repository_mismatch"` into
 /// `AuthorityEvaluationV1`, which is hashed into the authority record. Same
-/// migration as `AuthorityResourceTypeV1::Frontier` above.
+/// migration as `AuthorityResourceTypeV1::Repository` above.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorizationReasonV1 {
     MemberRoleAuthorized,
     ModelRootMismatch,
-    FrontierMismatch,
-    ResourceFrontierMismatch,
+    RepositoryMismatch,
+    ResourceRepositoryMismatch,
     PrincipalClassMismatch,
     UnknownMember,
     RoleActionMismatch,
@@ -264,8 +272,11 @@ impl AuthorizationEvaluationV1 {
         {
             return Err("authorization evaluation schema or profile is invalid".into());
         }
-        require_sha256("authorization evaluation model_root", &self.model_root)?;
-        require_sha256("authorization evaluation request_root", &self.request_root)?;
+        crate::shape::require_sha256_root("authorization evaluation model_root", &self.model_root)?;
+        crate::shape::require_sha256_root(
+            "authorization evaluation request_root",
+            &self.request_root,
+        )?;
         match (self.decision, self.reason, self.matched_role) {
             (
                 AuthorizationDecisionV1::Allow,
@@ -291,18 +302,6 @@ fn require_identifier(name: &str, value: &str, prefix: &str) -> Result<(), Strin
     crate::shape::require_bounded_text(name, value, 2048)?;
     if value.len() <= prefix.len() || !value.starts_with(prefix) {
         return Err(format!("{name} must start with {prefix}"));
-    }
-    Ok(())
-}
-
-fn require_sha256(name: &str, value: &str) -> Result<(), String> {
-    let Some(hex) = value.strip_prefix("sha256:") else {
-        return Err(format!("{name} must use a full sha256: digest"));
-    };
-    if !crate::shape::is_lower_hex_64(hex) {
-        return Err(format!(
-            "{name} must contain 64 lowercase hexadecimal characters"
-        ));
     }
     Ok(())
 }
@@ -401,7 +400,7 @@ mod tests {
             assert_eq!(action.required_role(), AuthorityRoleV1::Administrator);
             assert_eq!(
                 action.required_resource_type(),
-                AuthorityResourceTypeV1::Frontier
+                AuthorityResourceTypeV1::Repository
             );
         }
         for action in [

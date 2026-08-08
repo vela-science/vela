@@ -12,14 +12,14 @@ use std::path::Path;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use vela_protocol::claim_record::ClaimRecordV1;
-use vela_protocol::current_repository::{CurrentRepositoryV4, RepositoryObjectRefV1};
 use vela_protocol::proposal_v1::ProposalV1;
+use vela_protocol::repository::{RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::repository_origin::RepositoryOriginV1;
 use vela_protocol::submission_v1::SubmissionV1;
 use vela_protocol::verification_record::VerificationRecordV1;
 
-use crate::current_repository_decision::{
-    DecisionAction, PreparedCurrentReviewDecision, claim_for_proposal, exact_verifications,
+use crate::repository_decision::{
+    DecisionAction, PreparedReviewDecision, claim_for_proposal, exact_verifications,
     next_repository, submission_for_proposal, verification_satisfies_requirement,
     verification_set_root,
 };
@@ -199,7 +199,7 @@ pub(crate) struct DecisionInboxRootComparison {
 }
 
 struct EntryInputs<'a> {
-    repository: &'a CurrentRepositoryV4,
+    repository: &'a RepositoryV4,
     repository_root: &'a str,
     proposal_reference: &'a RepositoryObjectRefV1,
     proposal: &'a ProposalV1,
@@ -292,7 +292,7 @@ fn classify_verification(
 }
 
 fn accepted_subset(
-    repository: &CurrentRepositoryV4,
+    repository: &RepositoryV4,
     affected_claim_ids: &BTreeSet<String>,
 ) -> Vec<AcceptedStanding> {
     let mut values = repository
@@ -309,7 +309,7 @@ fn accepted_subset(
 }
 
 fn accepted_outside_scope(
-    repository: &CurrentRepositoryV4,
+    repository: &RepositoryV4,
     affected_claim_ids: &BTreeSet<String>,
 ) -> Vec<AcceptedStanding> {
     let mut values = repository
@@ -573,16 +573,16 @@ fn sort_entries(entries: &mut [DecisionInboxEntry]) {
 
 /// Rebuild the complete pending scientific Decision Inbox from exact current
 /// repository state. This function performs no writes and has no side effects.
-pub(crate) fn project(frontier: &Path) -> Result<DecisionInboxProjection, String> {
-    let repository = crate::current_repository::load_current_repository_at(frontier, true)?;
+pub(crate) fn project(repository_path: &Path) -> Result<DecisionInboxProjection, String> {
+    let repository = crate::repository::load_repository_at(repository_path, true)?;
     let repository_root = repository.canonical_root()?;
     let origin = RepositoryOriginV1::parse(
-        &fs::read(frontier.join(".vela/origin.json"))
+        &fs::read(repository_path.join(".vela/origin.json"))
             .map_err(|error| format!("read current repository origin: {error}"))?,
     )?;
-    let authority = crate::cli::load_current_repository_authority(frontier, &repository, &origin)?;
+    let authority = crate::cli::load_repository_authority(repository_path, &repository, &origin)?;
     let standings =
-        crate::current_repository::load_current_proposal_standings(frontier, &repository)?;
+        crate::repository::load_current_proposal_standings(repository_path, &repository)?;
     let authority_heads = DecisionInboxAuthorityHeads {
         policy_bundle_root: repository.authority_policy_root.clone(),
         authority_keyset_root: repository.authority_keyset_root.clone(),
@@ -599,8 +599,8 @@ pub(crate) fn project(frontier: &Path) -> Result<DecisionInboxProjection, String
         if standings.contains_key(&proposal_reference.id) {
             continue;
         }
-        let proposal = crate::current_repository_decision::read_exact(
-            frontier,
+        let proposal = crate::repository_decision::read_exact(
+            repository_path,
             &proposal_reference.path,
             &proposal_reference.root,
             ProposalV1::parse,
@@ -612,12 +612,12 @@ pub(crate) fn project(frontier: &Path) -> Result<DecisionInboxProjection, String
                 proposal_reference.id
             ));
         }
-        let claim = claim_for_proposal(frontier, &repository, &proposal)?;
-        let submission = submission_for_proposal(frontier, &repository, &proposal)?;
+        let claim = claim_for_proposal(repository_path, &repository, &proposal)?;
+        let submission = submission_for_proposal(repository_path, &repository, &proposal)?;
         let verifications =
-            exact_verifications(frontier, &repository, &proposal, &claim, &submission)?;
-        let pending_conflicts = crate::current_repository_decision::pending_submission_conflicts(
-            frontier,
+            exact_verifications(repository_path, &repository, &proposal, &claim, &submission)?;
+        let pending_conflicts = crate::repository_decision::pending_submission_conflicts(
+            repository_path,
             &repository,
             &proposal,
             &submission,
@@ -679,7 +679,7 @@ fn validate_requested_entry_root(requested_entry_root: &str) -> Result<(), Strin
 /// Derive the reviewed Inbox packet from the exact repository, authority, and
 /// scientific objects already verified under the Decision write barrier.
 pub(crate) fn entry_for_prepared(
-    prepared: &PreparedCurrentReviewDecision,
+    prepared: &PreparedReviewDecision,
 ) -> Result<DecisionInboxEntry, String> {
     let authority_heads = DecisionInboxAuthorityHeads {
         policy_bundle_root: prepared.repository.authority_policy_root.clone(),
@@ -708,7 +708,7 @@ pub(crate) fn entry_for_prepared(
 /// Refuse a Decision before authority signing when the reviewed Inbox packet
 /// differs from the exact packet prepared under the write barrier.
 pub(crate) fn require_prepared_entry_root(
-    prepared: &PreparedCurrentReviewDecision,
+    prepared: &PreparedReviewDecision,
     requested_entry_root: &str,
 ) -> Result<(), String> {
     validate_requested_entry_root(requested_entry_root)?;
@@ -743,17 +743,17 @@ fn review_context_from_projection(
 /// Terminal Proposals are intentionally absent from the pending Inbox and
 /// therefore return a null entry under the still-current projection root.
 pub(crate) fn review_context(
-    frontier: &Path,
+    repository_path: &Path,
     proposal_id: &str,
 ) -> Result<serde_json::Value, String> {
-    let projection = project(frontier)?;
+    let projection = project(repository_path)?;
     Ok(review_context_from_projection(&projection, proposal_id))
 }
 
-pub(crate) fn cmd_decision_inbox(frontier: &Path, json_output: bool) {
+pub(crate) fn cmd_decision_inbox(repository_path: &Path, json_output: bool) {
     crate::ui::set_mode("review.inbox", json_output);
-    crate::ui::require_initialized_repo(frontier);
-    let projection = project(frontier).unwrap_or_else(|error| crate::cli::fail(&error));
+    crate::ui::require_initialized_repo(repository_path);
+    let projection = project(repository_path).unwrap_or_else(|error| crate::cli::fail(&error));
     if json_output {
         /* The envelope wraps the projection rather than joining it. Adding
         `ok` and `command` as struct fields would change `projection_root`,
@@ -854,11 +854,11 @@ mod tests {
 
     use ed25519_dalek::SigningKey;
     use vela_protocol::claim_record::{ClaimAssertion, ClaimRelation, ClaimSource};
-    use vela_protocol::current_repository::{
-        CURRENT_REPOSITORY_SCHEMA_V4, ClaimStandingRefV1, RepositoryObjectRefV1,
-    };
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject};
+    use vela_protocol::repository::{
+        ClaimStandingRefV1, REPOSITORY_SCHEMA_V4, RepositoryObjectRefV1,
+    };
     use vela_protocol::submission_v1::{
         RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
     };
@@ -1056,12 +1056,12 @@ mod tests {
         proposal: &ProposalV1,
         submission: &SubmissionV1,
         verification: &VerificationRecordV1,
-    ) -> CurrentRepositoryV4 {
+    ) -> RepositoryV4 {
         let proposal_root = proposal.canonical_root().unwrap();
         let submission_root = submission.canonical_root().unwrap();
         let verification_root = verification.canonical_root().unwrap();
-        CurrentRepositoryV4 {
-            schema: CURRENT_REPOSITORY_SCHEMA_V4.into(),
+        RepositoryV4 {
+            schema: REPOSITORY_SCHEMA_V4.into(),
             repository_id: "vrepo_0123456789abcdef".into(),
             profile_root: root('1'),
             origin_id: "vro_0123456789abcdef".into(),
@@ -1106,7 +1106,7 @@ mod tests {
     }
 
     fn derive_fixture(
-        repository: &CurrentRepositoryV4,
+        repository: &RepositoryV4,
         proposal: &ProposalV1,
         claim: &ClaimRecordV1,
         submission: &SubmissionV1,
@@ -1159,7 +1159,7 @@ mod tests {
         assert!(entry.readiness.rejection_available);
         assert!(entry.readiness.blockers.is_empty());
         assert!(
-            crate::current_repository_decision::require_acceptance_evidence(
+            crate::repository_decision::require_acceptance_evidence(
                 &submission,
                 &[(verification.canonical_root().unwrap(), verification.clone())],
             )
@@ -1364,7 +1364,7 @@ mod tests {
         assert!(entry.readiness.human_decision_required);
         assert!(entry.readiness.rejection_available);
         assert!(
-            crate::current_repository_decision::require_acceptance_evidence(
+            crate::repository_decision::require_acceptance_evidence(
                 &submission,
                 &[(verification.canonical_root().unwrap(), verification.clone())],
             )

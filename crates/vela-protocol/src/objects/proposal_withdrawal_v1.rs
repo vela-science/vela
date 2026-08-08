@@ -172,10 +172,7 @@ impl ProposalWithdrawalV1 {
     }
 
     pub fn canonical_root(&self) -> Result<String, String> {
-        Ok(format!(
-            "sha256:{}",
-            hex::encode(Sha256::digest(self.canonical_bytes()?))
-        ))
+        Ok(crate::canonical::sha256_root(&self.canonical_bytes()?))
     }
 
     fn signed_preimage(&self) -> Result<Vec<u8>, String> {
@@ -265,15 +262,13 @@ fn require_prefixed(
 }
 
 fn require_sha256(field: &str, value: &str) -> Result<(), String> {
-    let digest = value
-        .strip_prefix("sha256:")
-        .ok_or_else(|| format!("Proposal Withdrawal {field} must be a full sha256: digest"))?;
-    if !crate::shape::is_lower_hex_64(digest) {
-        return Err(format!(
+    if crate::shape::is_full_sha256_root(value) {
+        Ok(())
+    } else {
+        Err(format!(
             "Proposal Withdrawal {field} must be a full sha256: digest"
-        ));
+        ))
     }
-    Ok(())
 }
 
 #[cfg(test)]

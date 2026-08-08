@@ -117,36 +117,36 @@ pub(crate) struct ExactPublicationPreflight {
 }
 
 pub(crate) fn publication_repo_relative_path(
-    frontier: &Path,
-    frontier_relative: &str,
+    repository_path: &Path,
+    repository_relative: &str,
 ) -> Result<String, String> {
-    validate_relative_path(frontier_relative)?;
-    let root = git_text(frontier, &["rev-parse", "--show-toplevel"])?;
+    validate_relative_path(repository_relative)?;
+    let root = git_text(repository_path, &["rev-parse", "--show-toplevel"])?;
     let root = PathBuf::from(root)
         .canonicalize()
         .map_err(|error| format!("canonicalize Git root: {error}"))?;
-    let frontier = frontier
+    let repository_path = repository_path
         .canonicalize()
         .map_err(|error| format!("canonicalize repository: {error}"))?;
-    let prefix = frontier
+    let prefix = repository_path
         .strip_prefix(&root)
         .map_err(|_| "repository is outside the resolved Git worktree".to_string())?;
-    let path = prefix.join(frontier_relative);
+    let path = prefix.join(repository_relative);
     path.to_str()
         .map(str::to_string)
         .ok_or_else(|| "non-UTF-8 repository paths are not publishable".to_string())
 }
 
 pub(crate) fn exact_publication_preflight(
-    frontier: &Path,
+    repository_path: &Path,
     delta: &PublicationDelta,
     options: &PublishOptions,
 ) -> Result<ExactPublicationPreflight, PublicationOutcome> {
-    preflight(frontier, delta, options).map_err(PublicationOutcome::uncommitted)
+    preflight(repository_path, delta, options).map_err(PublicationOutcome::uncommitted)
 }
 
 pub(crate) fn publish_exact_delta(
-    frontier: &Path,
+    repository_path: &Path,
     summary: &str,
     object_ids: &[String],
     delta: &PublicationDelta,
@@ -159,17 +159,22 @@ pub(crate) fn publish_exact_delta(
             actual_sha256,
         });
     }
-    Ok(publish(frontier, summary, object_ids, delta, &preflight)
-        .unwrap_or_else(PublicationOutcome::uncommitted))
+    Ok(
+        publish(repository_path, summary, object_ids, delta, &preflight)
+            .unwrap_or_else(PublicationOutcome::uncommitted),
+    )
 }
 
 fn preflight(
-    frontier: &Path,
+    repository_path: &Path,
     delta: &PublicationDelta,
     options: &PublishOptions,
 ) -> Result<ExactPublicationPreflight, String> {
     validate_delta(delta)?;
-    let repository_root = PathBuf::from(git_text(frontier, &["rev-parse", "--show-toplevel"])?);
+    let repository_root = PathBuf::from(git_text(
+        repository_path,
+        &["rev-parse", "--show-toplevel"],
+    )?);
     let repository_root = repository_root
         .canonicalize()
         .map_err(|error| format!("canonicalize Git root: {error}"))?;
@@ -222,13 +227,16 @@ fn preflight(
 }
 
 fn publish(
-    frontier: &Path,
+    repository_path: &Path,
     summary: &str,
     object_ids: &[String],
     delta: &PublicationDelta,
     preflight: &ExactPublicationPreflight,
 ) -> Result<PublicationOutcome, String> {
-    let root = PathBuf::from(git_text(frontier, &["rev-parse", "--show-toplevel"])?);
+    let root = PathBuf::from(git_text(
+        repository_path,
+        &["rev-parse", "--show-toplevel"],
+    )?);
     let root = root
         .canonicalize()
         .map_err(|error| format!("canonicalize Git root: {error}"))?;

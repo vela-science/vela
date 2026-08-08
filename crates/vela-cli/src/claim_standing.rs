@@ -95,7 +95,7 @@ mod tests {
     /// word, and the same map covers it.
     #[test]
     fn the_manifest_pending_token_reads_as_unassessed() {
-        let reference = vela_protocol::current_repository::ClaimStandingRefV1 {
+        let reference = vela_protocol::repository::ClaimStandingRefV1 {
             claim_id: format!("vcl_{}", "a".repeat(64)),
             claim_root: format!("sha256:{}", "b".repeat(64)),
             standing: "pending_review".into(),

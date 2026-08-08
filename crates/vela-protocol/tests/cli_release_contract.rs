@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use tempfile::TempDir;
@@ -146,22 +146,55 @@ fn every_subtree_index_lists_its_own_directory() {
     }
 }
 
+/// Every current document, as a path relative to `docs/`.
+///
+/// `docs/adr/` and `docs/history/` keep their own indexes and are excluded; no
+/// other subdirectory is. Scoping this to the top level was the same mistake
+/// one indirection down: `docs/interop/scientific-state-profile-v1.md` and
+/// `docs/integrations/genesis-open-models.md` were both published in 0.969.0
+/// into directories the index could not see, and no page in the repository
+/// linked either one.
+fn current_documents(docs: &Path) -> Vec<String> {
+    fn walk(root: &Path, directory: &Path, found: &mut Vec<String>) {
+        let entries = std::fs::read_dir(directory)
+            .unwrap_or_else(|error| panic!("read {}: {error}", directory.display()));
+        for entry in entries {
+            let path = entry.expect("directory entry").path();
+            let relative = path
+                .strip_prefix(root)
+                .expect("under docs/")
+                .to_string_lossy()
+                .into_owned();
+            if path.is_dir() {
+                if relative != "adr" && relative != "history" {
+                    walk(root, &path, found);
+                }
+            } else if relative.ends_with(".md") && relative != "README.md" {
+                found.push(relative);
+            }
+        }
+    }
+
+    let mut found = Vec::new();
+    walk(docs, docs, &mut found);
+    found.sort();
+    found
+}
+
 #[test]
 fn the_documentation_index_lists_every_current_document() {
     let docs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../docs");
     let index = std::fs::read_to_string(docs.join("README.md")).expect("read docs/README.md");
 
-    let mut present: Vec<String> = std::fs::read_dir(&docs)
-        .expect("read docs/")
-        .map(|entry| entry.expect("docs/ entry").file_name())
-        .filter_map(|name| name.to_str().map(str::to_string))
-        .filter(|name| name.ends_with(".md") && name != "README.md")
-        .collect();
-    present.sort();
+    let present = current_documents(&docs);
     assert!(
         present.len() > 10,
         "docs/ holds {} markdown files; the test is reading the wrong directory",
         present.len()
+    );
+    assert!(
+        present.iter().any(|name| name.contains('/')),
+        "the walk found no document below the top level; it is not recursing"
     );
 
     let unlinked: Vec<&String> = present
@@ -173,11 +206,14 @@ fn the_documentation_index_lists_every_current_document() {
         "docs/README.md does not link {unlinked:?}"
     );
 
+    /* Every link is checked, subtree links included: a dangling
+    `adr/0034-….md` is the same defect as a dangling `PROTOCOL.md` and was
+    outside the old filter. */
     let linked: Vec<String> = index
         .match_indices("](")
         .map(|(at, prefix)| &index[at + prefix.len()..])
         .filter_map(|rest| rest.split(')').next())
-        .filter(|target| target.ends_with(".md") && !target.contains('/'))
+        .filter(|target| target.ends_with(".md"))
         .map(str::to_string)
         .collect();
     let dangling: Vec<&String> = linked
@@ -187,6 +223,50 @@ fn the_documentation_index_lists_every_current_document() {
     assert!(
         dangling.is_empty(),
         "docs/README.md links documents docs/ does not hold: {dangling:?}"
+    );
+}
+
+/// §8's readers row names every independent implementation there is.
+///
+/// The row named `conformance/emitters/javascript.mjs` alone for as long as
+/// there had been two emitters, and three other documents copied it. The count
+/// is the whole point of that layer — one clean-room implementation shows the
+/// specification is followable, two show it is followable the same way — so a
+/// second emitter that the layering diagram never mentions understates the
+/// evidence the repository actually has.
+#[test]
+fn the_layering_diagram_names_every_independent_implementation() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let ecosystem =
+        std::fs::read_to_string(root.join("docs/ECOSYSTEM.md")).expect("read docs/ECOSYSTEM.md");
+    let row = ecosystem
+        .split_once("\n  readers ")
+        .expect("docs/ECOSYSTEM.md §8 no longer has a readers row")
+        .1
+        .split_once("↑")
+        .expect("the readers row no longer closes with its gloss")
+        .0;
+
+    let mut present: Vec<String> = Vec::new();
+    for directory in ["conformance/emitters", "conformance/readers"] {
+        for entry in std::fs::read_dir(root.join(directory)).expect("read conformance/") {
+            let name = entry.expect("conformance/ entry").file_name();
+            present.push(format!(
+                "{directory}/{}",
+                name.to_str().expect("a UTF-8 filename")
+            ));
+        }
+    }
+    assert!(
+        present.len() > 2,
+        "found {} independent implementations; the test is reading the wrong directories",
+        present.len()
+    );
+
+    let unnamed: Vec<&String> = present.iter().filter(|path| !row.contains(*path)).collect();
+    assert!(
+        unnamed.is_empty(),
+        "docs/ECOSYSTEM.md §8 does not name {unnamed:?}"
     );
 }
 
@@ -336,7 +416,7 @@ fn verification_help_exposes_ordinary_authoring_without_key_flags() {
 /// The profile contract's example TOML must parse as a profile.
 ///
 /// `docs/REPOSITORY_PROFILE.md` documented `frontier_id = "vfr_…"` against
-/// `CurrentRepositoryProfileV1`, whose field is `repository_id` under
+/// `RepositoryProfileV1`, whose field is `repository_id` under
 /// `#[serde(deny_unknown_fields)]`. A reader who copied the documented block
 /// got a hard parse rejection from the schema the same document describes, and
 /// nothing read the block, so it could say anything.
@@ -353,9 +433,8 @@ fn the_profile_contract_documents_a_profile_that_parses() {
         .split_once("```")
         .expect("the example profile block is unclosed")
         .0;
-    let profile =
-        vela_protocol::current_repository::CurrentRepositoryProfileV1::from_toml_str(block)
-            .expect("the documented profile must parse");
+    let profile = vela_protocol::repository::RepositoryProfileV1::from_toml_str(block)
+        .expect("the documented profile must parse");
     profile
         .validate()
         .expect("the documented profile must validate");

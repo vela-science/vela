@@ -1,4 +1,4 @@
-//! Current repository and producer-work adapters.
+//! Repository and producer-work adapters.
 
 pub mod correction_impact;
 pub mod repository_write;

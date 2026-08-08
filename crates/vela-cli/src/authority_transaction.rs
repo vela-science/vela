@@ -1,4 +1,4 @@
-//! Current repository-authority transaction writer.
+//! Repository-authority transaction writer.
 //!
 //! The writer composes authority records, runtime authentication, retained
 //! Cedar material, and the existing recoverable repository transaction without
@@ -252,7 +252,7 @@ impl std::error::Error for AuthorityTransactionError {}
 /// canonical postimage.
 pub(crate) fn prepare_authority_transaction<A, S>(
     barrier: CanonicalWriteBarrier,
-    frontier_root: &Path,
+    repository_root: &Path,
     mut request: AuthorityTransactionRequest,
     authentication_adapter: &mut A,
     signer: &mut S,
@@ -281,9 +281,9 @@ where
             "authority close cannot include additional object drafts".into(),
         ));
     }
-    normalize_authority_snapshots(frontier_root, &mut request)?;
-    normalize_object_drafts(frontier_root, &mut request)?;
-    normalize_derived_drafts(frontier_root, &mut request)?;
+    normalize_authority_snapshots(repository_root, &mut request)?;
+    normalize_object_drafts(repository_root, &mut request)?;
+    normalize_derived_drafts(repository_root, &mut request)?;
     validate_request_shape(&request)?;
     let history = verify_authority_history(AuthorityHistoryInput {
         repository_id: &request.history.repository_id,
@@ -296,7 +296,7 @@ where
         authority_envelopes: &request.history.authority_envelopes,
     })
     .map_err(AuthorityTransactionError::History)?;
-    bind_repository_authority_history(frontier_root, &mut request)?;
+    bind_repository_authority_history(repository_root, &mut request)?;
     let fresh_initialization = history.era == AuthorityHistoryEra::Uninitialized;
     if fresh_initialization {
         validate_fresh_initialization_request(&request)?;
@@ -429,7 +429,7 @@ where
             .map(authority_object_planned_write)
             .collect::<Result<Vec<_>, _>>()?,
     );
-    let unsigned_draft = DeltaDraft::prepare(frontier_root, content_writes.clone())
+    let unsigned_draft = DeltaDraft::prepare(repository_root, content_writes.clone())
         .map_err(AuthorityTransactionError::Transaction)?;
     let full_object_delta =
         authority_object_delta(&unsigned_draft, &events, &request.object_drafts)?;
@@ -570,7 +570,7 @@ where
             .map(authority_derived_planned_write)
             .collect::<Result<Vec<_>, _>>()?,
     );
-    let draft = DeltaDraft::prepare(frontier_root, writes)
+    let draft = DeltaDraft::prepare(repository_root, writes)
         .map_err(AuthorityTransactionError::Transaction)?;
     let record_path = authority_record_path(&record.record_id);
     let record_writes = draft
@@ -637,8 +637,8 @@ where
             operation_id,
             request_root: ContentDigest::parse(request.intent_digest.clone())
                 .map_err(AuthorityTransactionError::Transaction)?,
-            frontier: RepositoryBinding::new(
-                frontier_root,
+            repository: RepositoryBinding::new(
+                repository_root,
                 &request.history.repository_id,
                 &layout_identity,
             )
@@ -668,7 +668,7 @@ where
 
 pub(crate) fn execute_authority_transaction<A, S>(
     barrier: CanonicalWriteBarrier,
-    frontier_root: &Path,
+    repository_root: &Path,
     request: AuthorityTransactionRequest,
     authentication_adapter: &mut A,
     signer: &mut S,
@@ -679,7 +679,7 @@ where
 {
     let mut prepared = prepare_authority_transaction(
         barrier,
-        frontier_root,
+        repository_root,
         request,
         authentication_adapter,
         signer,
@@ -843,7 +843,6 @@ fn validate_fresh_initialization_request(
             draft.kind.as_str() == AUTHORITY_INITIALIZED_EVENT_KIND,
             "event_kind",
         ),
-        (draft.target.r#type == "frontier", "target_type"),
         (
             draft.target.id == request.history.repository_id,
             "target_repository",
@@ -1010,7 +1009,6 @@ fn validate_requested_close(
     }
     let draft = &request.event_drafts[0];
     if draft.kind.as_str() != AUTHORITY_CLOSED_EVENT_KIND
-        || draft.target.r#type != "frontier"
         || draft.target.id != request.history.repository_id
         || draft.actor.r#type != "human"
         || draft.before_hash != draft.after_hash
@@ -1057,7 +1055,7 @@ fn validate_requested_close(
 }
 
 fn normalize_authority_snapshots(
-    frontier_root: &Path,
+    repository_root: &Path,
     request: &mut AuthorityTransactionRequest,
 ) -> Result<(), AuthorityTransactionError> {
     if request.object_drafts.iter().any(|draft| {
@@ -1148,7 +1146,7 @@ fn normalize_authority_snapshots(
         ".vela/authority/policy-material/entities",
     ] {
         let binding = InputBinding::current_directory(
-            frontier_root,
+            repository_root,
             RepoPath::parse(directory.to_string())
                 .map_err(AuthorityTransactionError::Transaction)?,
         )
@@ -1159,10 +1157,10 @@ fn normalize_authority_snapshots(
     for (path_text, (object_kind, bytes)) in snapshots {
         let path =
             RepoPath::parse(path_text.clone()).map_err(AuthorityTransactionError::Transaction)?;
-        let absolute = frontier_root.join(path.as_str());
+        let absolute = repository_root.join(path.as_str());
         match fs::symlink_metadata(&absolute) {
             Ok(_) => {
-                let binding = InputBinding::exact_file(frontier_root, path, &bytes)
+                let binding = InputBinding::exact_file(repository_root, path, &bytes)
                     .map_err(AuthorityTransactionError::Transaction)?;
                 merge_input_binding(&mut request.read_set, binding)?;
             }
@@ -1172,7 +1170,7 @@ fn normalize_authority_snapshots(
                         "retained authority policy material {path_text} is missing"
                     )));
                 }
-                let binding = InputBinding::absent_file(frontier_root, path)
+                let binding = InputBinding::absent_file(repository_root, path)
                     .map_err(AuthorityTransactionError::Transaction)?;
                 merge_input_binding(&mut request.read_set, binding)?;
                 request.object_drafts.push(AuthorityObjectDraft {
@@ -1242,7 +1240,7 @@ fn insert_authority_snapshot(
 }
 
 fn normalize_object_drafts(
-    frontier_root: &Path,
+    repository_root: &Path,
     request: &mut AuthorityTransactionRequest,
 ) -> Result<(), AuthorityTransactionError> {
     request
@@ -1286,7 +1284,7 @@ fn normalize_object_drafts(
             }
         }
         object_inputs.push(
-            InputBinding::current_file(frontier_root, path)
+            InputBinding::current_file(repository_root, path)
                 .map_err(AuthorityTransactionError::Transaction)?,
         );
     }
@@ -1297,7 +1295,7 @@ fn normalize_object_drafts(
 }
 
 fn normalize_derived_drafts(
-    frontier_root: &Path,
+    repository_root: &Path,
     request: &mut AuthorityTransactionRequest,
 ) -> Result<(), AuthorityTransactionError> {
     request
@@ -1327,7 +1325,7 @@ fn normalize_derived_drafts(
             RepoPath::parse(draft.path.clone()).map_err(AuthorityTransactionError::Transaction)?;
         validate_authority_derived_path(&path)?;
         derived_inputs.push(
-            InputBinding::current_file(frontier_root, path)
+            InputBinding::current_file(repository_root, path)
                 .map_err(AuthorityTransactionError::Transaction)?,
         );
     }
@@ -1338,7 +1336,7 @@ fn normalize_derived_drafts(
 }
 
 fn bind_repository_authority_history(
-    frontier_root: &Path,
+    repository_root: &Path,
     request: &mut AuthorityTransactionRequest,
 ) -> Result<(), AuthorityTransactionError> {
     let mut bindings = Vec::new();
@@ -1346,7 +1344,7 @@ fn bind_repository_authority_history(
     for event in &request.history.authority_events {
         let path = RepoPath::parse(authority_event_path(&event.id))
             .map_err(AuthorityTransactionError::Transaction)?;
-        bindings.push(exact_verified_json_input(frontier_root, &path, event)?);
+        bindings.push(exact_verified_json_input(repository_root, &path, event)?);
         authority_event_paths.push(path);
     }
     let mut authority_record_paths = Vec::new();
@@ -1363,12 +1361,12 @@ fn bind_repository_authority_history(
         })?;
         let path = RepoPath::parse(authority_record_path(&record.record_id))
             .map_err(AuthorityTransactionError::Transaction)?;
-        bindings.push(exact_verified_json_input(frontier_root, &path, envelope)?);
+        bindings.push(exact_verified_json_input(repository_root, &path, envelope)?);
         authority_record_paths.push(path);
     }
     bindings.push(
         InputBinding::absent_file(
-            frontier_root,
+            repository_root,
             RepoPath::parse(".vela/actors.json".to_string())
                 .map_err(AuthorityTransactionError::Transaction)?,
         )
@@ -1381,7 +1379,7 @@ fn bind_repository_authority_history(
     ] {
         bindings.push(
             InputBinding::exact_directory(
-                frontier_root,
+                repository_root,
                 RepoPath::parse(directory.to_string())
                     .map_err(AuthorityTransactionError::Transaction)?,
                 &paths,
@@ -1396,7 +1394,7 @@ fn bind_repository_authority_history(
 }
 
 fn exact_verified_json_input<T>(
-    frontier_root: &Path,
+    repository_root: &Path,
     path: &RepoPath,
     expected: &T,
 ) -> Result<InputBinding, AuthorityTransactionError>
@@ -1405,7 +1403,7 @@ where
 {
     const MAX_AUTHORITY_MEMBER_BYTES: u64 = 16 * 1024 * 1024;
     let bytes = crate::bounded_file::read_bounded_frontier_file(
-        frontier_root,
+        repository_root,
         Path::new(path.as_str()),
         MAX_AUTHORITY_MEMBER_BYTES,
         path.as_str(),
@@ -1432,7 +1430,7 @@ where
             path.as_str()
         )));
     }
-    InputBinding::exact_file(frontier_root, path.clone(), &bytes)
+    InputBinding::exact_file(repository_root, path.clone(), &bytes)
         .map_err(AuthorityTransactionError::Transaction)
 }
 
@@ -1469,7 +1467,7 @@ fn validate_authority_object_path(
     // `.vela/findings/`, `.vela/artifacts/`, `.vela/policies/` and
     // `.vela/actors.json` stayed writable, which is a repository the writer
     // accepts and replay then rejects.
-    if crate::current_repository::is_retired_current_path(value) {
+    if crate::repository::is_retired_path(value) {
         return Err(AuthorityTransactionError::Invalid(format!(
             "authority object drafts cannot write retired protocol path {value}"
         )));
@@ -2015,11 +2013,11 @@ mod tests {
             .to_string()
     }
 
-    /// Where a review object actually lives, matching what `current_submission`
+    /// Where a review object actually lives, matching what `submission`
     /// writes. `.vela/proposals/` is retired, so fixtures that used it were
     /// exercising a path the verifier refuses.
     fn proposal_object_path(postimage: &[u8]) -> String {
-        crate::current_submission::rooted_path(
+        crate::submission::rooted_path(
             "records/proposals/sha256",
             ContentDigest::hash(postimage).as_str(),
         )
@@ -2031,7 +2029,7 @@ mod tests {
             schema: r#"
                 entity Human;
                 entity Proposal;
-                entity Frontier;
+                entity Repository;
                 action "review_reject" appliesTo {
                     principal: Human,
                     resource: Proposal,
@@ -2068,7 +2066,7 @@ mod tests {
                 };
                 action "authority_initialize" appliesTo {
                     principal: Human,
-                    resource: Frontier,
+                    resource: Repository,
                     context: {
                         exact: Bool,
                         authentication: {
@@ -2085,7 +2083,7 @@ mod tests {
                 };
                 action "authority_rotate" appliesTo {
                     principal: Human,
-                    resource: Frontier,
+                    resource: Repository,
                     context: {
                         exact: Bool,
                         authentication: {
@@ -2102,7 +2100,7 @@ mod tests {
                 };
                 action "authority_close" appliesTo {
                     principal: Human,
-                    resource: Frontier,
+                    resource: Repository,
                     context: {
                         exact: Bool,
                         authentication: {
@@ -2119,7 +2117,7 @@ mod tests {
                 };
                 action "policy_rotate" appliesTo {
                     principal: Human,
-                    resource: Frontier,
+                    resource: Repository,
                     context: {
                         exact: Bool,
                         authentication: {
@@ -2153,7 +2151,7 @@ mod tests {
                     "parents": []
                 },
                 {
-                    "uid": {"type": "Frontier", "id": REPOSITORY_ID},
+                    "uid": {"type": "Repository", "id": REPOSITORY_ID},
                     "attrs": {},
                     "parents": []
                 }
@@ -2312,7 +2310,7 @@ mod tests {
             authority_mode: AUTHORITY_MODE.into(),
             kind: EventKind::Other(AUTHORITY_INITIALIZED_EVENT_KIND.into()),
             target: StateTarget {
-                r#type: "frontier".into(),
+                r#type: "repository".into(),
                 id: REPOSITORY_ID.into(),
             },
             actor: StateActor {
@@ -2404,7 +2402,7 @@ mod tests {
             },
             semantic_approvals: vec![SemanticApprovalV1 {
                 principal_id: REPOSITORY_PRINCIPAL.into(),
-                role: "frontier_administrator".into(),
+                role: "repository_administrator".into(),
                 action: AUTHORITY_INITIALIZE_ACTION.into(),
                 reason: initialization.reason,
                 approved_at: "2026-07-24T12:00:00Z".into(),
@@ -2507,7 +2505,7 @@ mod tests {
             authorization_input,
             semantic_approvals: vec![SemanticApprovalV1 {
                 principal_id: REPOSITORY_PRINCIPAL.into(),
-                role: "frontier_administrator".into(),
+                role: "repository_administrator".into(),
                 action: "review_reject".into(),
                 reason: "Reject the disposable fixture proposal.".into(),
                 approved_at: RECORDED_AT.into(),
@@ -2627,12 +2625,12 @@ mod tests {
         fixture.request.history.authority_envelopes.clear();
         fixture.request.authorization_input.action = AUTHORITY_INITIALIZE_ACTION.into();
         fixture.request.authorization_input.resource = format!(
-            "Frontier::{}",
+            "Repository::{}",
             serde_json::to_string(REPOSITORY_ID).unwrap()
         );
         fixture.request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
-            role: "frontier_administrator".into(),
+            role: "repository_administrator".into(),
             action: AUTHORITY_INITIALIZE_ACTION.into(),
             reason: reason.into(),
             approved_at: RECORDED_AT.into(),
@@ -2652,7 +2650,7 @@ mod tests {
         fixture.request.event_drafts = vec![AuthorityEventDraft {
             kind: EventKind::Other(AUTHORITY_INITIALIZED_EVENT_KIND.into()),
             target: StateTarget {
-                r#type: "frontier".into(),
+                r#type: "repository".into(),
                 id: REPOSITORY_ID.into(),
             },
             actor: StateActor {
@@ -2706,7 +2704,7 @@ mod tests {
     }
 
     fn prepared_journal_absent(fixture: &Fixture) -> bool {
-        !fixture.journal_dir().join("frontier").exists()
+        !fixture.journal_dir().join("repository_path").exists()
     }
 
     #[test]
@@ -3125,10 +3123,10 @@ mod tests {
         let mut request = fixture.request.clone();
         request.intent_digest = intent.clone();
         request.authorization_input.action = AUTHORITY_ROTATE_ACTION.into();
-        request.authorization_input.resource = format!(r#"Frontier::"{REPOSITORY_ID}""#);
+        request.authorization_input.resource = format!(r#"Repository::"{REPOSITORY_ID}""#);
         request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
-            role: "frontier_administrator".into(),
+            role: "repository_administrator".into(),
             action: AUTHORITY_ROTATE_ACTION.into(),
             reason: reason.into(),
             approved_at: RECORDED_AT.into(),
@@ -3137,7 +3135,7 @@ mod tests {
         request.event_drafts = vec![AuthorityEventDraft {
             kind: EventKind::Other("authority.rotated".into()),
             target: StateTarget {
-                r#type: "frontier".into(),
+                r#type: "repository".into(),
                 id: REPOSITORY_ID.into(),
             },
             actor: StateActor {
@@ -3248,7 +3246,7 @@ mod tests {
         followup_request.authorization_input = fixture_authorization_input();
         followup_request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
-            role: "frontier_administrator".into(),
+            role: "repository_administrator".into(),
             action: "review_reject".into(),
             reason: "Reject a later proposal under the rotated repository key.".into(),
             approved_at: "2026-07-24T12:06:00Z".into(),
@@ -3348,10 +3346,10 @@ mod tests {
         let mut request = fixture.request.clone();
         request.intent_digest = intent.clone();
         request.authorization_input.action = POLICY_ROTATE_ACTION.into();
-        request.authorization_input.resource = format!(r#"Frontier::"{REPOSITORY_ID}""#);
+        request.authorization_input.resource = format!(r#"Repository::"{REPOSITORY_ID}""#);
         request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
-            role: "frontier_administrator".into(),
+            role: "repository_administrator".into(),
             action: POLICY_ROTATE_ACTION.into(),
             reason: reason.into(),
             approved_at: RECORDED_AT.into(),
@@ -3360,7 +3358,7 @@ mod tests {
         request.event_drafts = vec![AuthorityEventDraft {
             kind: EventKind::Other("policy.rotated".into()),
             target: StateTarget {
-                r#type: "frontier".into(),
+                r#type: "repository".into(),
                 id: REPOSITORY_ID.into(),
             },
             actor: StateActor {
@@ -3513,10 +3511,10 @@ mod tests {
         let mut request = fixture.request.clone();
         request.intent_digest = intent.clone();
         request.authorization_input.action = AUTHORITY_CLOSE_ACTION.into();
-        request.authorization_input.resource = format!(r#"Frontier::"{REPOSITORY_ID}""#);
+        request.authorization_input.resource = format!(r#"Repository::"{REPOSITORY_ID}""#);
         request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
-            role: "frontier_administrator".into(),
+            role: "repository_administrator".into(),
             action: AUTHORITY_CLOSE_ACTION.into(),
             reason: reason.into(),
             approved_at: RECORDED_AT.into(),
@@ -3525,7 +3523,7 @@ mod tests {
         request.event_drafts = vec![AuthorityEventDraft {
             kind: EventKind::Other(AUTHORITY_CLOSED_EVENT_KIND.into()),
             target: StateTarget {
-                r#type: "frontier".into(),
+                r#type: "repository".into(),
                 id: REPOSITORY_ID.into(),
             },
             actor: StateActor {
@@ -3925,7 +3923,7 @@ mod tests {
         // admits a repository replay rejects.
         for retired in ["frontier.json", "vela.lock", "proof/latest.json"] {
             assert!(
-                crate::current_repository::is_retired_current_path(retired),
+                crate::repository::is_retired_path(retired),
                 "{retired} is no longer retired; this test is stale"
             );
             assert!(!authority_derived_path(retired));
@@ -4021,7 +4019,7 @@ mod tests {
             "records/vrc_fixture.json",
         ] {
             assert!(
-                crate::current_repository::is_retired_current_path(path),
+                crate::repository::is_retired_path(path),
                 "{path} is no longer retired; this test is stale"
             );
             let parsed = RepoPath::parse(path.to_string()).unwrap();
