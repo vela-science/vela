@@ -158,7 +158,7 @@ pub(crate) fn cmd_correction_impact(repository_path: &Path, claim_arg: &str, jso
 
     let mut held: BTreeMap<String, HeldClaim> = BTreeMap::new();
     for reference in &repository.accepted_claims {
-        let record = read_claim(&repository_path, reference)
+        let record = crate::repository::read_claim(&repository_path, reference)
             .unwrap_or_else(|error| crate::cli::fail_return(&error));
         held.insert(
             reference.claim_id.clone(),
@@ -169,7 +169,7 @@ pub(crate) fn cmd_correction_impact(repository_path: &Path, claim_arg: &str, jso
         );
     }
     if !held.contains_key(&successor_reference.claim_id) {
-        let record = read_claim(&repository_path, &successor_reference)
+        let record = crate::repository::read_claim(&repository_path, &successor_reference)
             .unwrap_or_else(|error| crate::cli::fail_return(&error));
         held.insert(
             successor_reference.claim_id.clone(),
@@ -535,25 +535,6 @@ fn read_retained_claim(repository_path: &Path, claim_id: &str) -> Result<HeldCla
                 .join(", ")
         )),
     }
-}
-
-fn read_claim(
-    repository_path: &Path,
-    reference: &ClaimStandingRefV1,
-) -> Result<ClaimRecordV1, String> {
-    let bytes = crate::repository::read_rooted_object(
-        repository_path,
-        &reference.path,
-        &reference.claim_root,
-    )?;
-    let claim = ClaimRecordV1::parse(&bytes)?;
-    if claim.claim_id != reference.claim_id {
-        return Err(format!(
-            "retained bytes at {} carry Claim id {}, not the one the manifest binds",
-            reference.path, claim.claim_id
-        ));
-    }
-    Ok(claim)
 }
 
 fn render(

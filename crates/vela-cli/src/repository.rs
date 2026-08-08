@@ -1849,6 +1849,27 @@ fn current_origin_commit(root: &Path, origin: &RepositoryOriginV1) -> Result<Str
     Ok(commit.clone())
 }
 
+/// Read one Claim's retained bytes and hold them to the reference that named
+/// them.
+///
+/// `read_rooted_object` proves the bytes match the declared root. This proves
+/// the record inside them is the Claim the manifest said it was, which the root
+/// alone does not: a manifest entry can bind a correct root under the wrong id.
+pub(crate) fn read_claim(
+    repository_path: &Path,
+    reference: &ClaimStandingRefV1,
+) -> Result<ClaimRecordV1, String> {
+    let bytes = read_rooted_object(repository_path, &reference.path, &reference.claim_root)?;
+    let claim = ClaimRecordV1::parse(&bytes)?;
+    if claim.claim_id != reference.claim_id {
+        return Err(format!(
+            "retained bytes at {} carry Claim id {}, not the one the manifest binds",
+            reference.path, claim.claim_id
+        ));
+    }
+    Ok(claim)
+}
+
 pub(crate) fn read_rooted_object(
     root: &Path,
     path: &str,

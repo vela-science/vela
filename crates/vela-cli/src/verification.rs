@@ -631,7 +631,7 @@ fn import_inner(
         let delta = publication_delta(repository_path, &delta_root, public)?
             .ok_or_else(|| "Verification import had no public Git delta".to_string())?;
         let preflight = exact_publication_preflight(repository_path, &delta, &publish_options)
-            .map_err(publication_error)?;
+            .map_err(crate::repository_ops::publication_error)?;
         Ok::<_, String>((delta, preflight))
     })();
     let (delta, preflight) = match precommit {
@@ -686,15 +686,6 @@ fn import_inner(
         accepted_event_delta: 0,
         publication,
     })
-}
-
-fn publication_error(outcome: PublicationOutcome) -> String {
-    match outcome.state {
-        PublicationState::Uncommitted { reason, .. } => reason,
-        PublicationState::Unchanged { .. } | PublicationState::CommittedLocal { .. } => {
-            "unexpected completed publication during preflight".to_string()
-        }
-    }
 }
 
 #[cfg(test)]

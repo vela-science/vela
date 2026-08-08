@@ -62,8 +62,6 @@ use std::fs;
 use std::path::Path;
 
 use serde_json::{Value, json};
-use vela_protocol::claim_record::ClaimRecordV1;
-use vela_protocol::repository::ClaimStandingRefV1;
 use vela_protocol::repository_origin::RepositoryOriginV1;
 
 /// The standings this index can bind, plus the escape hatch. `accepted` is the
@@ -113,25 +111,6 @@ fn era_label(origin_ids: &BTreeSet<String>, claim_id: &str) -> &'static str {
     } else {
         "post_origin"
     }
-}
-
-fn read_claim(
-    repository_path: &Path,
-    reference: &ClaimStandingRefV1,
-) -> Result<ClaimRecordV1, String> {
-    let bytes = crate::repository::read_rooted_object(
-        repository_path,
-        &reference.path,
-        &reference.claim_root,
-    )?;
-    let claim = ClaimRecordV1::parse(&bytes)?;
-    if claim.claim_id != reference.claim_id {
-        return Err(format!(
-            "retained bytes at {} carry Claim id {}, not the one the manifest binds",
-            reference.path, claim.claim_id
-        ));
-    }
-    Ok(claim)
 }
 
 /// One assertion as a single terminal line: control characters made visible by
@@ -199,7 +178,7 @@ pub(crate) fn cmd_claims(
         .map(|reference| {
             let era = era_label(&origin_ids, &reference.claim_id);
             let standing = crate::claim_standing::from_proposal_status(&reference.standing);
-            match read_claim(&repository_path, reference) {
+            match crate::repository::read_claim(&repository_path, reference) {
                 Ok(claim) => json!({
                     "claim_id": reference.claim_id,
                     "claim_root": reference.claim_root,

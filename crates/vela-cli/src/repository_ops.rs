@@ -524,6 +524,21 @@ pub(crate) fn publication_delta(
     }))
 }
 
+/// Why a publication did not complete, for a caller still in preflight.
+///
+/// The two completed states are unreachable here by construction — preflight
+/// runs before anything is committed — so they collapse to one sentence rather
+/// than three copies of it.
+pub(crate) fn publication_error(outcome: crate::config::git_publish::PublicationOutcome) -> String {
+    match outcome.state {
+        crate::config::git_publish::PublicationState::Uncommitted { reason, .. } => reason,
+        crate::config::git_publish::PublicationState::Unchanged { .. }
+        | crate::config::git_publish::PublicationState::CommittedLocal { .. } => {
+            "unexpected completed publication during preflight".to_string()
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{canonical_submission_input, submission_requested_change};

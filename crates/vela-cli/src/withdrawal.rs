@@ -306,7 +306,7 @@ pub(crate) fn withdraw(
             .ok_or_else(|| "Proposal Withdrawal transaction had no public Git delta".to_string())?;
         let publish_options = PublishOptions::local();
         let preflight = exact_publication_preflight(repository_path, &delta, &publish_options)
-            .map_err(publication_error)?;
+            .map_err(crate::repository_ops::publication_error)?;
         Ok::<_, String>((delta, preflight))
     })();
     let (delta, preflight) = match precommit {
@@ -363,15 +363,6 @@ pub(crate) fn withdraw(
         authority_used: false,
         publication,
     })
-}
-
-fn publication_error(outcome: PublicationOutcome) -> String {
-    match outcome.state {
-        PublicationState::Uncommitted { reason, .. } => reason,
-        PublicationState::Unchanged { .. } | PublicationState::CommittedLocal { .. } => {
-            "unexpected completed publication during preflight".into()
-        }
-    }
 }
 
 pub(crate) fn cmd_withdraw(
