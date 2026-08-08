@@ -49,8 +49,11 @@ A conforming producer never emits `frontier` or `target`. The schema is closed
 and rejects them. The receiving repository makes the association.
 
 **Not required:** importing Vela's Event, authority or repository
-implementation. `conformance/emitters/javascript.mjs` is a clean-room emitter
-that produces byte-identical Submissions without any of it.
+implementation. `conformance/emitters/javascript.mjs` and
+`conformance/emitters/python.py` are clean-room emitters that produce
+byte-identical Submissions without any of it, and they agree with each other:
+one independent implementation shows the specification is followable, two show
+it is followable the same way.
 
 ### 2. Artifact
 

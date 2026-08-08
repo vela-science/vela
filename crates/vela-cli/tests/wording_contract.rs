@@ -446,6 +446,54 @@ fn published_verbs(cwd: &Path) -> BTreeSet<String> {
     verbs
 }
 
+/// The verbs `docs/ECOSYSTEM.md` §8 names, and the count it states beside them.
+///
+/// The layering diagram is the fourth place the verb list is written down and
+/// the only one nothing read. `cli/surface.rs` holds both printed grids to
+/// `Cli::command()` and `docs/CLI.md` to the grids; this document sat outside
+/// that chain and said "15 verbs" for as long as there had been sixteen, having
+/// missed `correction` entirely.
+fn layering_block_verbs() -> (usize, BTreeSet<String>) {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/ECOSYSTEM.md");
+    let document =
+        std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("read ECOSYSTEM.md: {error}"));
+    let (before, after) = document
+        .split_once(" verbs: ")
+        .expect("docs/ECOSYSTEM.md §8 no longer states a verb count");
+    let stated: usize = before
+        .split_whitespace()
+        .next_back()
+        .expect("the verb count has no number before it")
+        .parse()
+        .expect("the verb count is not a number");
+    let listed = after
+        .split_once("\n  readers")
+        .expect("docs/ECOSYSTEM.md §8 no longer closes the operator row with the readers row")
+        .0;
+    (
+        stated,
+        listed.split_whitespace().map(str::to_string).collect(),
+    )
+}
+
+/// §8's operator row is the surface the binary actually has.
+#[test]
+fn the_layering_diagram_names_the_verbs_the_binary_publishes() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let (stated, listed) = layering_block_verbs();
+    assert_eq!(
+        listed,
+        published_verbs(temporary.path()),
+        "docs/ECOSYSTEM.md §8 and `vela help advanced` disagree about which verbs exist"
+    );
+    assert_eq!(
+        stated,
+        listed.len(),
+        "docs/ECOSYSTEM.md §8 states {stated} verbs and lists {}",
+        listed.len()
+    );
+}
+
 /// Every help body the binary prints, from both hand-set grids down through
 /// each verb and subverb, may not name a Frontier.
 ///

@@ -190,6 +190,50 @@ fn the_documentation_index_lists_every_current_document() {
     );
 }
 
+/// §8's readers row names every independent implementation there is.
+///
+/// The row named `conformance/emitters/javascript.mjs` alone for as long as
+/// there had been two emitters, and three other documents copied it. The count
+/// is the whole point of that layer — one clean-room implementation shows the
+/// specification is followable, two show it is followable the same way — so a
+/// second emitter that the layering diagram never mentions understates the
+/// evidence the repository actually has.
+#[test]
+fn the_layering_diagram_names_every_independent_implementation() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let ecosystem =
+        std::fs::read_to_string(root.join("docs/ECOSYSTEM.md")).expect("read docs/ECOSYSTEM.md");
+    let row = ecosystem
+        .split_once("\n  readers ")
+        .expect("docs/ECOSYSTEM.md §8 no longer has a readers row")
+        .1
+        .split_once("↑")
+        .expect("the readers row no longer closes with its gloss")
+        .0;
+
+    let mut present: Vec<String> = Vec::new();
+    for directory in ["conformance/emitters", "conformance/readers"] {
+        for entry in std::fs::read_dir(root.join(directory)).expect("read conformance/") {
+            let name = entry.expect("conformance/ entry").file_name();
+            present.push(format!(
+                "{directory}/{}",
+                name.to_str().expect("a UTF-8 filename")
+            ));
+        }
+    }
+    assert!(
+        present.len() > 2,
+        "found {} independent implementations; the test is reading the wrong directories",
+        present.len()
+    );
+
+    let unnamed: Vec<&String> = present.iter().filter(|path| !row.contains(*path)).collect();
+    assert!(
+        unnamed.is_empty(),
+        "docs/ECOSYSTEM.md §8 does not name {unnamed:?}"
+    );
+}
+
 /// The Rust version is `rust-toolchain.toml`'s to declare, and Cargo's to agree
 /// with.
 ///

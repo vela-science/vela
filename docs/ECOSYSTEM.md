@@ -206,11 +206,38 @@ fixes. `formal-conjectures-frontier` is
 additionally dissolved: all 18 of its Claims are Erdős problems and both its
 declared sources are already declared by `erdos-frontier`.
 
-The frozen repositories are not dead weight. They are genuinely distinct trust
-roots with real signed history, so re-admitting state from them into
-`vela-science/math` through Submission → Verification → Decision *is* the
-cross-repository transfer experiment. The migration and the experiment are one
-activity.
+**The current binary cannot read any of them, and says so.** Their profiles are
+`vela.frontier-profile.v1` in `frontier.toml` declaring `frontier_id`, so they
+carry neither the `vela.toml` nor the `.vela/origin.json` and
+`.vela/repository.json` pair every read path requires. `require_initialized_repo`
+(`crates/vela-cli/src/ui.rs:360`) refuses them by name —
+`repository_predecessor_layout`, "this Vela release verifies only current
+repository origins" — and points at the pinned historical release instead.
+`v0.966.4` is that release. Held shut by
+`current_replay_refuses_retired_repositories_before_parsing_them` in
+`crates/vela-cli/tests/current_genesis.rs`.
+
+Even reached directly, the profile would not parse:
+`CurrentRepositoryProfileV1` carries `#[serde(deny_unknown_fields)]` and a
+required `repository_id`
+(`crates/vela-protocol/src/objects/current_repository.rs:45-69`). ADR 0039 §8
+explains why no alias was available: `CurrentRepositoryV4::parse` re-serializes
+and compares bytes, so a `#[serde(alias)]` would still fail the canonical-bytes
+check.
+
+That is a deliberate cost, not an oversight, and it is a real one — the
+accepted Claims those four hold (ADR 0039 records 2,782 as the Observatory
+reported them) are retained and unreadable by the tool that wrote them.
+Re-admitting valuable state through ordinary Submission → Verification →
+Decision remains the sanctioned path, with the old roots kept as provenance.
+
+This section previously went further and called that re-admission "the
+cross-repository transfer experiment", with the frozen repositories standing in
+as the second authority. That is ADR 0039 §9, which the same ADR's same-day
+amendment withdrew. Authority containment — RQ3, evidence level 2, and gate B8
+of `WHITEPAPER_CONTRACT.md` — needs two live authorities and there is one. It is
+future work pending a second, and the amendment accepts that as a loss rather
+than mitigating it.
 
 ### The rule for adding a repository
 
@@ -288,7 +315,7 @@ not express at all.
 
 **Obligation.** Less far along than this section used to say, and the error was
 worth more than the gap. The rooted wire identity is real:
-`crates/vela-edge/src/analysis/correction_impact.rs:107` declares
+`crates/vela-edge/src/analysis/correction_impact.rs:122` declares
 `RepairObligation`, and the root is computed over an `ObligationPreimage`
 carrying `schema: "vela.correction-repair-obligation.v1"`. Nothing consumes it.
 
@@ -300,11 +327,17 @@ sharing a word. `DecisionInboxNextObligation`
 reaches `vela-web` as `next_obligation` inside `decision_packet` and is rendered
 by `decision-boundary.tsx`, which documents that it renders on nothing today
 because every Proposal in the current release is terminal. None of its three
-fields appears in `RepairObligation`, and nothing about it is rooted. §7 of this
-document had the truth all along: correction impact has never run against a real
-repository and no CLI verb reaches it. The rooted Obligation's only readers are
-`crates/vela-edge/tests/correction_impact.rs` and
-`conformance/verify_correction_impact.py`, both over synthetic fixtures.
+fields appears in `RepairObligation`, and nothing about it is rooted.
+
+What has since changed is the reach, not the consumer. `vela correction impact`
+shipped in 0.969.0 and runs the derivation over the accepted claim index of a
+real repository, so the sentence this section used to carry — that no CLI verb
+reaches it — is no longer true; §7 states the current position. The rooted
+Obligation still has no consumer. Its readers are
+`crates/vela-edge/tests/correction_impact.rs`,
+`crates/vela-cli/tests/correction_impact.rs` and
+`conformance/verify_correction_impact.py`, and the first and last of those run
+over synthetic fixtures.
 
 **What it lacks is not a schema.** Publishing
 `vela.correction-repair-obligation.v1` into `schemas/` would not be the neutral
@@ -390,10 +423,12 @@ different facts.
 
 ### Protocol and tooling gaps
 
-- **The epoch rename is done except for two absent additions.** Five Event
+- **The epoch rename is done.** Five Event
   kinds are `claim.*` and `target.claimed`
-  (`crates/vela-protocol/src/kernel/events.rs`) and five vocabulary terms are
-  documented as retired (`docs/TERMINOLOGY.md`). `frontier_id` → `repository_id`,
+  (`crates/vela-protocol/src/kernel/events.rs`) and six vocabulary terms are
+  documented as retired (`docs/TERMINOLOGY.md`) — the five ADR 0039 §5 retired
+  plus Registration Record, which ADR 0033 retired and that table had been
+  missing, leaving §7 below naming six against its five. `frontier_id` → `repository_id`,
   `vfr_` → `vrepo_`, `frontier.toml` → `vela.toml`, `--frontier` → `--repo` and
   `vela.status.v3` → `v4` all landed: each is at zero across `crates/`,
   `schemas/`, `packages/` and the top level of `docs/`, and the occurrences that
@@ -404,9 +439,13 @@ different facts.
   and it stated two of them as `vela.toml` → `vela.toml` and `--repo` → `--repo`
   after a sweep rewrote both sides of the arrow.
 
-  Still absent: `crates/vela-protocol/src/epoch1/` and the read-only
-  `vela history <path>`. Both are additions the ADR asked for, not leftovers of
-  a half-executed rename.
+  `crates/vela-protocol/src/epoch1/` and the read-only `vela history <path>`
+  are absent because they were withdrawn, not because they are outstanding.
+  This list carried them as "additions the ADR asked for" by reading ADR 0039
+  §8 without its amendment: the same-day amendment withdraws §8, §9 and §10 and
+  records that `epoch1/` "was built, verified against all four checkouts, and
+  then deleted". Both are correctly absent and must stay absent, which is what
+  `scripts/ecosystem-status.py` declares.
 - **DSSE is not the common waist.** Authority records use DSSE; Submission,
   Verification Record and Proposal Withdrawal still sign a bespoke zeroed-field
   preimage (`crates/vela-protocol/src/objects/submission_v1.rs`). ADR 0035
@@ -439,15 +478,19 @@ different facts.
 - **Canonicalization vectors run in two languages, not three.**
   `conformance/canonical-hashing.json` declares exactly two conforming
   implementations (Rust and Python); `conformance/readers/` contains only
-  `python`. `conformance/emitters/javascript.mjs` emits submission and
-  verification objects but never reads the vector corpus.
+  `python`. The two emitters, `conformance/emitters/javascript.mjs` and
+  `conformance/emitters/python.py`, emit submission and verification objects
+  and neither reads the vector corpus.
 - **The portable TypeScript waist was removed, not deferred.**
   `@vela-science/protocol@0.1.0` was published (ADR 0024) and
-  `packages/` now holds only `vela-source-manifest`. `docs/THEORY.md:16` still
-  claims "The TypeScript package and language-neutral vectors check the
-  portable producer boundary." That sentence is false.
+  `packages/` now holds only `vela-source-manifest`. `docs/THEORY.md` claimed
+  "The TypeScript package and language-neutral vectors check the portable
+  producer boundary" and, in a second place this list never named, "independent
+  Python and JavaScript readers". Both now say what is there: one Python reader,
+  two clean-room emitters, and vectors that run in Rust and Python.
 - **No proptest, no cargo-fuzz, no CodeQL, no Scorecard, no CODEOWNERS.**
-  `.github/workflows/` holds `conformance.yml` and `release.yml` only.
+  `.github/workflows/` holds `conformance.yml`, `release.yml` and
+  `ecosystem-status.yml` only.
   `SECURITY.md:5` routes disclosure to a personal Gmail address.
 
 ### Documentation contradictions to resolve
@@ -456,14 +499,15 @@ Line numbers are not cited below: they drifted off their subjects once already
 while the contradictions themselves stood. Each item quotes the wording to
 search for instead.
 
-- `docs/ARCHITECTURE.md` says "The existing Observatory is the first-party Math
-  Atlas" in one place, and in another that the Atlas is "the existing
-  Observatory over the four declared" Frontiers. The second binds the Atlas to
-  the repositories the reset archived.
-- `docs/TERMINOLOGY.md` scopes the Math Atlas to "three maintained mathematical
-  Frontiers" and later reports that "All four Frontiers hold every indexed
-  Claim". The same file calls it "The current **Math Atlas**" in one section and
-  "A future removable cross-Frontier navigation concept" in another.
+- ~~`docs/ARCHITECTURE.md` binds the Atlas to "the four declared" Frontiers in
+  one place and to the Observatory in another.~~ Resolved: both read the one
+  live mathematics authority, which is what `vela-science/math` is.
+- ~~`docs/TERMINOLOGY.md` scopes the Math Atlas to "three maintained
+  mathematical Frontiers" and later reports that "All four Frontiers hold every
+  indexed Claim", and calls the Atlas current in one section and future in
+  another.~~ Resolved: the Math Atlas is scoped to `vela-science/math`, the four
+  are named as the repositories ADR 0039 archived, and the analysis-table row is
+  "Federated Atlas", which is the future one.
 - ~~`docs/TERMINOLOGY.md` derives `superseded` from a `finding.superseded`
   Event, after the same file retires `finding.*`.~~ Resolved: it reads
   "`superseded` follows a `claim.superseded` Event".
@@ -480,7 +524,9 @@ search for instead.
   `frontier_algebra_atom` is a permanently-null field in a `vela-web` projection
   fixture (`packages/frontier-data/tests/support/semantic-correction.ts`).
   Supersede 0017 or rename its layers; a reserved field that is never filled is
-  worse than an absent one.
+  worse than an absent one. `Lens` is a third row of the same table and a third
+  entry of §7's delete list, and belongs to the same ruling: the rows are not
+  removed here because which way they go is 0017's to decide, not a sweep's.
 
 ### One open governance question
 
@@ -529,8 +575,10 @@ repaired. Rooted at `vela.correction-repair-obligation.v1`; still not a
 first-class object (§6).
 
 **The four axes that never collapse.** Claim standing, Verification outcome,
-Proposal status, repository integrity. `packages/ui/src/components/vela/state-glyph.tsx`
-separates two of them visually today (ring = standing, core = verification).
+Proposal status, repository integrity. `vela-web`'s state glyph separates two of
+them visually today (ring = standing, core = verification). The path this
+sentence used to cite resolved inside *this* repository, where it has never
+existed; `packages/` here holds `vela-source-manifest` alone.
 
 The three mechanisms that are built and are the defensible part:
 
@@ -543,8 +591,8 @@ The three mechanisms that are built and are the defensible part:
    `crates/vela-edge/src/analysis/correction_impact.rs` partitions
    `lost_support_routes` from `surviving_support_routes` and emits repair
    obligations. Fixtures at `conformance/fixtures/correction/` run on every CI
-   run through `conformance/verify.py`. `vela correction impact` reaches it on
-   `main`, unreleased, over the accepted claim index of a real repository.
+   run through `conformance/verify.py`. `vela correction impact` reaches it over
+   the accepted claim index of a real repository, and shipped in 0.969.0.
 
    Driving one correction end to end to get there found two things worth
    stating plainly. First, a defect: accepting a Claim that corrects an
@@ -568,12 +616,18 @@ The three mechanisms that are built and are the defensible part:
 Executable Frontier Model, Frontier Algebra, Discovery Calculus, Frontier
 Calculus, Verified Frontier Learning, FrontierBench, possible worlds,
 distinction partitions, capabilities, the Frontier Inheritance Effect,
-long-horizon transition credit, Constellation, Lens, Capsules, Translation
+long-horizon transition credit, Constellation, Lens, Translation
 Studio, Atlas-as-application, release modes, risk tiers, sealed commitments.
 
 None of these has an implementation. All of them are named after `Frontier`,
 which no longer has an identity, so re-basing the names on the derived noun
 would preserve a tower whose foundation was removed.
+
+"Capsules" was on this list and does not belong: the verifier capsule is ADR
+0013's, it is built, and `vela submit --verifier-capsule-root` binds one
+(`crates/vela-protocol/src/objects/execution_binding.rs:22`). `docs/PROTOCOL.md`
+and `docs/VERIFICATION.md` describe it as current, correctly. It also failed the
+test the paragraph above states, since it is not named after `Frontier`.
 
 Already retired and not to be reintroduced: Finding, Frontier Commit, Review
 Packet, Frontier map, Attempt (ADR 0039 §5), and Registration Record (ADR
@@ -585,9 +639,11 @@ Packet, Frontier map, Attempt (ADR 0039 §5), and Registration Record (ADR
   kernel        crates/vela-protocol, vela-authority, vela-verify
                   ↑ objects, roots, signatures, authority, replay, Standing
   operator      crates/vela-cli
-                  ↑ 15 verbs: replay status claims log verification reproduce
-                    authority init review show why next start submit completions
-  readers       conformance/readers/python, conformance/emitters/javascript.mjs
+                  ↑ 16 verbs: replay status claims log verification reproduce
+                    correction authority init review show why next start submit
+                    completions
+  readers       conformance/readers/python, conformance/emitters/javascript.mjs,
+                conformance/emitters/python.py
                   ↑ independent implementations of the same bytes
   analysis      crates/vela-edge
                   ↑ correction impact, target index; read-only, never required

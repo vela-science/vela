@@ -130,6 +130,10 @@
         "declared": true,
         "present": true
       },
+      "conformance/emitters/python.py": {
+        "declared": true,
+        "present": true
+      },
       "conformance/fixtures/correction": {
         "declared": true,
         "present": true

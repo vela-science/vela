@@ -103,6 +103,27 @@ The same rule read backwards is the one already stated in `docs/PUBLISHING.md`,
 "Predecessor origins": keep the objects reachable, and do not present a second
 copy as a second live repository.
 
+### A repository whose bytes outlive its reader
+
+Preserving bytes is not the same as preserving a reader for them, and for four
+repositories the difference is live. `erdos-frontier`, `sidon-frontier`,
+`quantum-codes-frontier` and `formal-conjectures-frontier` are archived epoch-1
+repositories. Their signed history is intact and mirrored, and the current
+`vela` binary cannot read any of it: they carry `frontier.toml` and a
+`vela.frontier-profile.v1` profile, so every read path refuses them as
+`repository_predecessor_layout` and directs the reader to `v0.966.4`, the last
+release that reads them. `docs/ECOSYSTEM.md` §4 gives the mechanism.
+
+Continuity for those four is therefore continuity of bytes plus continuity of a
+pinned historical binary, and the second half is a real obligation: an install
+path that can no longer retrieve `v0.966.4` ends the ability to read them, and
+no mirror of the repositories would show it. ADR 0039 accepted that cost
+deliberately, and re-admitting state into `vela-science/math` through ordinary
+Submission → Verification → Decision is the sanctioned way to bring any of it
+forward. Nothing here claims the cost was wrong; it is written down because a
+reader looking for what survives a provider should not have to discover it from
+a parse error.
+
 ## 5. Promotion is a human decision with a recorded runbook
 
 Promoting a read replica to active writer is the one continuity action that

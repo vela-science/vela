@@ -150,6 +150,7 @@ DECLARED_SURFACES: dict[str, bool] = {
     "action.yml": True,
     "conformance/canonical-hashing.json": True,
     "conformance/emitters/javascript.mjs": True,
+    "conformance/emitters/python.py": True,
     "conformance/fixtures/correction": True,
     "conformance/readers/python": True,
     "conformance/verify.py": True,
@@ -170,9 +171,14 @@ DECLARED_SURFACES: dict[str, bool] = {
     "scripts/sign-published-release.sh": True,
     ".github/workflows/ecosystem-status.yml": True,
     "scripts/release_manifest.py": True,
-    # Named in docs/ECOSYSTEM.md as asked for by ADR 0039 and still absent. A
-    # declared-absent surface is worth as much as a declared-present one: it is
-    # how "still not built" stops being a claim nobody rechecks.
+    # Declared absent. A declared-absent surface is worth as much as a
+    # declared-present one: it is how "not built" stops being a claim nobody
+    # rechecks. The two are absent for different reasons, and the reason is the
+    # part worth writing down. No JavaScript reader has been built. `epoch1/`
+    # was built, verified against all four checkouts, and then deleted when ADR
+    # 0039's same-day amendment withdrew §8 — so this row guards a decision
+    # rather than tracking a gap, and a directory reappearing here is the
+    # epoch-1 branch coming back.
     "conformance/readers/javascript": False,
     "crates/vela-protocol/src/epoch1": False,
 }

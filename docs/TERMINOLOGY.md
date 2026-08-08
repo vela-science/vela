@@ -156,6 +156,7 @@ a reader meeting one in an older document knows it is not a current object.
 | Review Packet | the Proposal |
 | Frontier map | `vela status`, or the Observatory |
 | Attempt | the workbench's own run identity, as provenance |
+| Registration Record | the signed Submission, which already binds every link it repeated (ADR 0033) |
 
 The Event kinds moved with the words. `finding.asserted`, `finding.noted`,
 `finding.superseded`, `finding.retracted` and `attempt.claimed` are now
@@ -178,9 +179,10 @@ These terms describe bounded system behavior. They are not protocol objects:
 | Frontier closure | State, coverage, Targets, Decisions, corrections, and handoff each close over exact current inputs or fail explicitly |
 | compounding | Inherited Frontier state measurably improves later correct scientific work under a matched comparison |
 
-The current **Math Atlas** is the bounded first-party read product over the
-three maintained mathematical Frontiers. A future federated Atlas is an unearned
-cross-Frontier concept, not a current global authority or completeness claim.
+The current **Math Atlas** is the bounded first-party read product over
+`vela-science/math`, the one live mathematics authority. A future federated
+Atlas is an unearned cross-Frontier concept, not a current global authority or
+completeness claim.
 
 ## Daily commands
 
@@ -308,10 +310,10 @@ Decision records no conditions; `corrects` is a Claim relation no Decision
 reads. Deriving either from what is retained would be inventing semantics, so
 nothing emits them until the protocol gives each one an act to derive from.
 
-Nothing retained changed. All four Frontiers hold every indexed Claim at
-`accepted` and every pending list is empty, so this moved no repository root
-and no projection root; it changed which word the read surface says when a
-Claim has no ruling.
+Nothing retained changed. The four repositories ADR 0039 archived hold every
+indexed Claim at `accepted` and every pending list is empty, so this moved no
+repository root and no projection root; it changed which word the read surface
+says when a Claim has no ruling.
 
 Claim relations, which are two vocabularies wearing one field name. The
 correction algebra, closed and authoritative:
@@ -446,7 +448,7 @@ writer merely because they are useful:
 | Adapter | A replaceable translation from an exact workbench export to a Submission and explicit loss report | None |
 | Lens | A rooted view, metric, or action ordering under declared assumptions | None |
 | Package | A versioned, content-addressed unit of reusable language, capability, corpus, verifier, mapping, or adapter; publication has no authority effect | None |
-| Atlas | A future removable cross-Frontier navigation concept | None |
+| Federated Atlas | A future removable cross-repository navigation concept, distinct from the current first-party Math Atlas above | None |
 
 Mappings state one consequence tier. The default is `discovery`:
 

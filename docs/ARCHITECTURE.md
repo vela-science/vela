@@ -246,10 +246,10 @@ match the source tag.
 
 - Vela releases the protocol implementation and CLI.
 - An independent Python reader checks the portable object waist without
-  creating a second package or release surface. The JavaScript half is an
-  emitter, `conformance/emitters/javascript.mjs`, which signs and writes
-  Submission and Verification objects and never reads the vector corpus;
-  `conformance/readers/` holds `python` alone, and
+  creating a second package or release surface. Two clean-room emitters,
+  `conformance/emitters/javascript.mjs` and `conformance/emitters/python.py`,
+  sign and write Submission and Verification objects; neither reads the vector
+  corpus. `conformance/readers/` holds `python` alone, and
   `scripts/ecosystem-status.py` declares `conformance/readers/javascript`
   absent and fails if it appears.
 - Immutable Canopus `0.8.0` remains frozen for historical Runs that bind its
@@ -309,10 +309,12 @@ observation must bind native source identity, rights, snapshots, adapters,
 coverage, and omissions before any Atlas view is trustworthy. That deployed
 inventory does not distribute semantic packages or confer Standing.
 
-The first-party Math Atlas is the existing Observatory over the four declared
-Frontiers and registered native sources. Level 4 means a later federated Atlas
-over independently governed external Frontiers. Both are read projections,
-never canonical databases or writers.
+The first-party Math Atlas is the existing Observatory over the one live
+mathematics authority, `vela-science/math`, and the registered native sources.
+It read "the four declared Frontiers" until this line was corrected, which bound
+the Atlas to the four repositories ADR 0039 archived. Level 4 means a later
+federated Atlas over independently governed external Frontiers. Both are read
+projections, never canonical databases or writers.
 
 ## Non-goals
 

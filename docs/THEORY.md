@@ -13,8 +13,11 @@ actors, checks, and authorized transition needed to understand why a Claim has
 its current Standing.
 
 The normative wire and storage contract is [PROTOCOL.md](PROTOCOL.md). The Rust
-implementation is the executable reference. The TypeScript package and
-language-neutral vectors check the portable producer boundary.
+implementation is the executable reference. An independent Python reader, two
+clean-room emitters, and language-neutral vectors check the portable producer
+boundary. The TypeScript package that used to be named here was published as
+`@vela-science/protocol@0.1.0` and then removed rather than deferred (ADR 0024);
+`packages/` holds `vela-source-manifest` alone.
 
 ## 1. Guarantee ladder
 
@@ -49,8 +52,10 @@ The current implementations are:
 
 - Rust canonicalization in
   [`canonical.rs`](../crates/vela-protocol/src/kernel/canonical.rs);
-- independent Python and JavaScript readers plus portable vectors in
-  [`conformance`](../conformance).
+- an independent Python reader, two clean-room emitters, and portable vectors in
+  [`conformance`](../conformance). The vectors run in Rust and Python; there is
+  no JavaScript reader, and `scripts/ecosystem-status.py` declares
+  `conformance/readers/javascript` absent and fails if it appears.
 
 ## 3. Repository state
 
