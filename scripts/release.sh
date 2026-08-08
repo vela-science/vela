@@ -125,7 +125,7 @@ fi
 #
 # Only checked when signing. An unsigned build from a dirty tree is an ordinary
 # thing to do while working.
-if [ -n "$SIGN_KEY" ] && [ -d .git ]; then
+if [ -n "$SIGN_KEY" ] && git rev-parse --git-dir >/dev/null 2>&1; then
   if ! git diff --quiet HEAD 2>/dev/null; then
     die "refusing to sign a release built from a modified working tree; commit or stash first"
   fi

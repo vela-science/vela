@@ -55,7 +55,15 @@ ALLOWED_SIGNERS="$ROOT/allowed_signers"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-if [ "$(gh release view "$TAG" --repo "$REPO" --json isDraft --jq '.isDraft')" != "true" ]; then
+# Checked as a status first, then as a value. Reading the value inside an `if`
+# condition suppresses errexit, so a `gh` that failed for any reason — an unknown
+# tag, no network, an expired token — produced an empty string that compared
+# unequal to "true" and was reported as "already published", sending the operator
+# to cut a version they did not need.
+if ! draft_state="$(gh release view "$TAG" --repo "$REPO" --json isDraft --jq '.isDraft' 2>"$WORK/gh.err")"; then
+  die "cannot read $TAG from $REPO: $(tr -d '\n' < "$WORK/gh.err")"
+fi
+if [ "$draft_state" != "true" ]; then
   die "$TAG is already published, and a published release here is immutable — it
        refuses new assets with 422. Signing has to happen while the release is
        still a draft. Cut the next patch version, which release.yml now leaves
@@ -76,16 +84,23 @@ for manifest in "${MANIFESTS[@]}"; do
   echo "== $manifest =="
   gh release download "$TAG" --repo "$REPO" --pattern "$manifest" --dir "$WORK" --clobber
 
-  # Refuse a manifest that already carries a good signature rather than minting
-  # a second one: two signatures over the same bytes is not better evidence, and
-  # replacing one silently is how a rotation gets lost.
+  # A manifest that already carries a signature is not re-signed — two
+  # signatures over the same bytes is not better evidence, and replacing one
+  # silently is how a rotation gets lost. But it is still VERIFIED. Skipping
+  # outright trusted a sidecar on its filename alone and then published the
+  # release irreversibly, so a `.sig` uploaded by hand, left from a failed run,
+  # or made by the wrong key would have been sealed in unchecked.
+  already_signed=""
   if gh release view "$TAG" --repo "$REPO" --json assets \
       --jq '.assets[].name' | grep -qxF "${manifest}.sig"; then
-    echo "already signed; leaving it alone"
-    continue
+    already_signed="yes"
+    gh release download "$TAG" --repo "$REPO" --pattern "${manifest}.sig" --dir "$WORK" --clobber
+    echo "already signed; verifying the existing signature rather than replacing it"
   fi
 
-  ssh-keygen -Y sign -f "$SIGN_KEY" -U -n "$SIGNATURE_NAMESPACE" "$WORK/$manifest" >/dev/null
+  if [ -z "$already_signed" ]; then
+    ssh-keygen -Y sign -f "$SIGN_KEY" -U -n "$SIGNATURE_NAMESPACE" "$WORK/$manifest" >/dev/null
+  fi
   ssh-keygen -Y verify -f "$ALLOWED_SIGNERS" -I "$SIGNER_IDENTITY" \
     -n "$SIGNATURE_NAMESPACE" -s "$WORK/${manifest}.sig" < "$WORK/$manifest" >/dev/null \
     || die "the signature did not verify against $ALLOWED_SIGNERS; is this the published identity?"
@@ -102,8 +117,10 @@ for manifest in "${MANIFESTS[@]}"; do
     || die "$manifest declares $declared for $asset and the published asset is $observed"
   echo "manifest agrees with the published $asset"
 
-  gh release upload "$TAG" --repo "$REPO" "$WORK/${manifest}.sig"
-  echo "uploaded ${manifest}.sig"
+  if [ -z "$already_signed" ]; then
+    gh release upload "$TAG" --repo "$REPO" "$WORK/${manifest}.sig"
+    echo "uploaded ${manifest}.sig"
+  fi
 done
 
 # Publishing is what makes it immutable, and it happens only once every manifest
@@ -119,5 +136,5 @@ Signed by $(ssh-keygen -lf "$SIGN_KEY" -E sha256 | awk '{print $2}')
 
 Verify the way a consumer does, with no gh and no GitHub API:
 
-  VELA_VERSION=$TAG VELA_REQUIRE_SIGNED_MANIFEST=1 sh install.sh
+  VELA_VERSION=$TAG VELA_REQUIRE_SIGNED_MANIFEST=1 bash install.sh
 EOF

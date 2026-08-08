@@ -168,7 +168,7 @@ if [ -n "$SIGNED_MANIFEST" ]; then
   # match passes the whole line through, which would fail as a digest mismatch
   # and send someone hunting for tampering that never happened.
   MANIFEST_SHA256=$(grep -F -A3 "\"name\": \"${ASSET}\"" "$TMP/$MANIFEST_NAME" \
-    | grep '"sha256"' | head -1 | sed -E 's/.*"sha256": "(sha256:)?([0-9a-f]{64})".*/\2/')
+    | grep '"sha256"' | head -1 | sed -E 's/.*"sha256": "(sha256:)?([0-9a-f]{64})".*/\2/' || true)
   case "$MANIFEST_SHA256" in
     *[!0-9a-f]* | "")
       echo "ERROR: could not read a SHA-256 for ${ASSET} out of ${MANIFEST_NAME}." >&2
@@ -182,6 +182,19 @@ if [ -n "$SIGNED_MANIFEST" ]; then
   fi
   if [ "$(digest_of "$TMP/$ASSET")" != "$MANIFEST_SHA256" ]; then
     echo "ERROR: ${ASSET} does not match the digest in the signed release manifest." >&2
+    exit 1
+  fi
+
+  # The signature says these bytes are a Vela release. It does not say they are
+  # the release that was asked for — and with VELA_RELEASE_BASE_URL the URL is
+  # taken verbatim, so a mirror serving v0.900.0's signed manifest and archive
+  # under a directory named v0.968.1 would verify perfectly and install the
+  # wrong version. The manifest names its own tag; hold it to the one requested.
+  MANIFEST_TAG=$(grep -A2 '"release"' "$TMP/$MANIFEST_NAME" \
+    | grep '"tag"' | head -1 | sed -E 's/.*"tag": "([^"]*)".*/\1/' || true)
+  if [ -n "$MANIFEST_TAG" ] && [ "$MANIFEST_TAG" != "null" ] && [ "$MANIFEST_TAG" != "$TAG" ]; then
+    echo "ERROR: the signed manifest is for ${MANIFEST_TAG} and ${TAG} was requested." >&2
+    echo "       The signature is valid; it is valid for a different release." >&2
     exit 1
   fi
   VERIFIED_BY="signed release manifest (provider-independent)"

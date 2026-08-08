@@ -246,8 +246,8 @@ provider-coupled fallback refused.
 `v0.968.0` is immutable and unsigned and cannot be repaired; it stands as the
 last unsigned release.
 
-**Release assets are retained, and the mirror carries the signatures too.** The
-eight assets of the pinned release are mirrored to the replica by
+Release assets are retained, and the mirror carries the signatures too. The
+twelve assets of the pinned release are mirrored to the replica by
 `mirror-replicas.yml` and read back over the anonymous public URL, where they
 are compared to the SHA-256 digests committed in vela-web's
 `vela-release.v1.json` rather than to the copy just uploaded — and since the
@@ -256,14 +256,9 @@ them. So the replica now answers provenance and not only integrity: `vela
 0.968.1` installs from it with the signature required and no GitHub anywhere in
 the retrieval or the verification path.
 
-Scoped to the pinned release rather than the archive — 100 releases and 903
+Scoped to the pinned release rather than the archive — 127 releases and 1,023
 assets exist, and §11.1 asks for what it takes to install and reproduce the
 current system, which `vela-release.v1.json` names exactly.
-
-The claim that leaves is narrower than it sounds, and the emitted record says
-so: integrity against a reference committed in a repository, not provenance.
-Who built those bytes still rests on GitHub's attestation until a release
-carries a signed manifest.
 
 Steps 4 and 5 — one authorized local Decision, then a projection rebuild and
 root comparison — have not been exercised end to end. Nothing known blocks

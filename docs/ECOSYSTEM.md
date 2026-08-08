@@ -66,17 +66,17 @@ described its replacement, and this paragraph is the one a reader reaches first.
 **Frontier.** Derived, and no longer minted in the protocol. In `vela-web`,
 `registry.ts` now pins one slug, `math`, against `repository_id`
 `vrepo_56d3fdfcd34ff5c3` and validates it as `^vrepo_[0-9a-f]{16}$`; no `vfr_`
-identity survives there. What remains is the keying: thirteen projection tables
+identity survives there. What remains is the keying: twelve projection tables
 still carry `frontier_slug` in their primary key. That is the remaining epoch
 work, and it is a root migration rather than a rename: `rooted()` hashes
 `canonicalJson(row)` including keys, so every renamed column moves a `row_root`.
 
 **Atlas.** The Observatory, `apps/observatory/` in `vela-web`. There is no
 separate Atlas application, no Atlas compiler, no per-view ontology. Every
-projection row is root-bound. `packages/frontier-data/schema.sql` declares 21
-tables, of which 18 carry `row_root`; the other three — `releases`,
+projection row is root-bound. `packages/frontier-data/schema.sql` declares 20
+tables, of which 17 carry `row_root`; the other three — `releases`,
 `schema_migrations` and `current_release` — are the projection's own bookkeeping
-and hold no projected row. Of the 18, all but three also carry `release_root`,
+and hold no projected row. Of the 17, all but three also carry `release_root`,
 and those three are `source_declarations`, `source_observations` and
 `native_records`, which are content-addressed and reach a release through
 `release_sources`. The count of tables and the count of root-bound rows were
@@ -580,7 +580,7 @@ Packet, Frontier map, Attempt (ADR 0039 §5), and Registration Record (ADR
   analysis      crates/vela-edge
                   ↑ correction impact, target index; read-only, never required
                     for replay
-  projection    vela-web/packages/frontier-data  (21 tables; the 18 that hold
+  projection    vela-web/packages/frontier-data  (20 tables; the 17 that hold
                     projected rows are root-bound)
   surfaces      vela-web/apps/observatory, vela-web/apps/www
 ```
@@ -615,7 +615,7 @@ Dependencies point up the list only. Concretely:
   violated.
 
 One surface currently violates this. The Frontier Directory at
-`apps/observatory/src/app/frontiers/` routes by topic slug, and thirteen
+`apps/observatory/src/app/frontiers/` routes by topic slug, and twelve
 projection tables carry `frontier_slug` in their primary key. Under ADR 0039 a
 Frontier is derived and
 has no identifier, and topic is the one thing a Repository must never encode.
