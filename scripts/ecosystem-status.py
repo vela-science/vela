@@ -52,6 +52,12 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 ARTIFACT = ROOT / "ecosystem-status.json"
 SCHEMA = "vela.ecosystem-status.v1"
 DEFAULT_MAX_OBSERVATION_AGE_DAYS = 180
+# The manifest shape `observe_projection` knows how to read. vela-web pins the
+# same literal at `packages/frontier-data/src/projection-contract.ts`, and the
+# live manifest at app.vela.space serves it. A rename there must stop this
+# script rather than let it parse an unfamiliar document and report what it
+# failed to find as a fact.
+PROJECTION_SCHEMA = "vela.observatory-release-manifest"
 
 
 # One row per repository the ecosystem names.
@@ -76,48 +82,56 @@ DEFAULT_MAX_OBSERVATION_AGE_DAYS = 180
 DECLARED_REPOSITORIES: dict[str, dict[str, object]] = {
     "vela-science/vela": {
         "active_writer": "https://github.com/vela-science/vela.git",
+        "visibility": "public",
         "read_replicas": ["https://codeberg.org/vela-science/vela.git"],
         "responsibility": "Protocol semantics, the vela CLI, wire schemas, conformance, and releases",
         "state": "active",
     },
     "vela-science/vela-web": {
         "active_writer": "https://github.com/vela-science/vela-web.git",
+        "visibility": "private",
         "read_replicas": [],
         "responsibility": "Root-bound read projections, the Observatory, and the editorial site",
         "state": "active",
     },
     "vela-science/.github": {
         "active_writer": "https://github.com/vela-science/.github.git",
+        "visibility": "public",
         "read_replicas": [],
         "responsibility": "Organization profile, shared workflows, and security policy",
         "state": "active",
     },
     "vela-science/math": {
         "active_writer": "https://github.com/vela-science/math.git",
+        "visibility": "public",
         "read_replicas": ["https://codeberg.org/vela-science/math.git"],
         "responsibility": "The one live mathematics authority: sources, Claims, Decisions, replay state",
         "state": "active",
     },
     "vela-science/erdos-frontier": {
         "active_writer": "https://github.com/vela-science/erdos-frontier.git",
+        "visibility": "public",
         "read_replicas": [],
         "responsibility": "Historical epoch-1 repository, preserved for its signed history",
         "state": "frozen",
     },
     "vela-science/sidon-frontier": {
         "active_writer": "https://github.com/vela-science/sidon-frontier.git",
+        "visibility": "public",
         "read_replicas": [],
         "responsibility": "Historical epoch-1 repository, preserved for its signed history",
         "state": "frozen",
     },
     "vela-science/quantum-codes-frontier": {
         "active_writer": "https://github.com/vela-science/quantum-codes-frontier.git",
+        "visibility": "public",
         "read_replicas": [],
         "responsibility": "Historical epoch-1 repository, preserved for its signed history",
         "state": "frozen",
     },
     "vela-science/formal-conjectures-frontier": {
         "active_writer": "https://github.com/vela-science/formal-conjectures-frontier.git",
+        "visibility": "public",
         "read_replicas": [],
         "responsibility": "Historical epoch-1 repository, preserved for its signed history; dissolved into erdos-frontier",
         "state": "frozen",
@@ -602,6 +616,19 @@ def check(arguments: argparse.Namespace) -> list[str]:
                 failures.append(
                     f"{name} is documented as active but the host reports archived=true"
                 )
+            # Observed on every repository and asserted on none, so a repository
+            # going public — or a public one going private and taking a
+            # documented surface offline — was recorded and passed. Declared, a
+            # flip in either direction stops and asks, which is the same idiom
+            # DECLARED_SURFACES already uses for a surface that is meant to be
+            # absent.
+            declared_visibility = declared.get("visibility")
+            observed_visibility = remote.get("visibility")
+            if declared_visibility and observed_visibility and declared_visibility != observed_visibility:
+                failures.append(
+                    f"{name} is declared {declared_visibility} but the host reports "
+                    f"{observed_visibility}"
+                )
         # A row is a container until something observed it. Only entries
         # carrying a `method` are observations, and only those owe an instant.
         for label, entry in (("", row), ("remote ", remote)):
@@ -623,6 +650,38 @@ def check(arguments: argparse.Namespace) -> list[str]:
                     f"{name}: {label}observation from {stamp} is older than "
                     f"{arguments.max_age_days} days; re-observe or say it is unknown"
                 )
+
+    # The projection block sits at the top level rather than under `observed`,
+    # so the loop above never reached it and nothing checked it at all: it
+    # carries `method` and `observed_at` like every other observation, and a
+    # three-year-old reading of the deployed projection read as a pass. Same
+    # predicate, same horizon.
+    projection = committed.get("projection")
+    if isinstance(projection, dict) and "method" in projection:
+        stamp = projection.get("observed_at")
+        if not isinstance(stamp, str):
+            failures.append("projection: observation carries no observed_at")
+        else:
+            try:
+                when = dt.datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt.UTC)
+            except ValueError:
+                failures.append(f"projection: observed_at {stamp!r} is not an instant")
+            else:
+                if when < horizon:
+                    failures.append(
+                        f"projection: observation from {stamp} is older than "
+                        f"{arguments.max_age_days} days; re-observe with --observe-projection"
+                    )
+        # `observe_projection` reads `source_frontiers` out of the manifest, so
+        # it assumes a schema. Recording the id without checking it means a
+        # renamed manifest would be parsed as whatever the old shape was and the
+        # emptiness reported as fact.
+        observed_schema = projection.get("projection_schema")
+        if observed_schema is not None and observed_schema != PROJECTION_SCHEMA:
+            failures.append(
+                f"projection: manifest schema is {observed_schema!r}, and this script "
+                f"parses {PROJECTION_SCHEMA!r}"
+            )
     return failures
 
 
