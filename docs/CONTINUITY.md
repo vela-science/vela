@@ -246,10 +246,22 @@ the provider-neutral artifact depend on the provider again. So signing is an
 operator step with `scripts/release.sh --sign-key`, and until a signed release
 is cut, the strong path has nothing to check.
 
-**Release assets have no independent retention.** §11.1 asks for the assets and
-source bundles needed to install and reproduce, not only the repositories. The
-Git mirror covers the source; the binaries, SBOMs and manifests exist only as
-GitHub release attachments.
+**Release assets are retained, and only their integrity is checkable.** The
+eight assets of the pinned release are mirrored to the replica by
+`mirror-replicas.yml` and read back over the anonymous public URL, where they
+are compared to the SHA-256 digests committed in vela-web's
+`vela-release.v1.json` rather than to the copy just uploaded. Exercised: `vela
+0.967.0` installs from `codeberg.org/vela-science/vela/releases/download/` with
+`VELA_EXPECTED_SHA256` and no GitHub in the retrieval path.
+
+Scoped to the pinned release rather than the archive — 100 releases and 903
+assets exist, and §11.1 asks for what it takes to install and reproduce the
+current system, which `vela-release.v1.json` names exactly.
+
+The claim that leaves is narrower than it sounds, and the emitted record says
+so: integrity against a reference committed in a repository, not provenance.
+Who built those bytes still rests on GitHub's attestation until a release
+carries a signed manifest.
 
 Steps 4 and 5 — one authorized local Decision, then a projection rebuild and
 root comparison — have not been exercised end to end. Nothing known blocks
