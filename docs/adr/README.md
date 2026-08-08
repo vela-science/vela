@@ -53,3 +53,4 @@ grounds that it kept its own index, and it did not.
 - [ADR 0039: Repository is the authority boundary; Frontier is derived](0039-repository-authority-and-derived-frontiers.md)
 - [ADR 0040: A producer-declared dependency on `vela.submission.v1`](0040-producer-declared-claim-dependencies.md)
 - [ADR 0041: A language-independent conformance vector for the authority contract](0041-authority-conformance-vector.md)
+- [ADR 0042: Policy-bundle rotation, and what it takes to retire Cedar](0042-policy-bundle-rotation-and-cedar-retirement.md)

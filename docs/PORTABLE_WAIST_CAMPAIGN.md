@@ -68,6 +68,13 @@ No v1 object is silently reinterpreted as v2.
 
 ## Cut C — authorization history
 
+This list is about evidence, and all of it could pass while Cedar stayed
+unremovable. The blocker is a signature: `vela-science/math` retains a policy
+bundle naming the pinned evaluator, and the reader refuses any bundle that
+disagrees with the compiled-in constants. Retiring Cedar therefore needs a
+policy-bundle rotation on the live authority first, and no rotation writer
+exists. ADR 0042 states the sequence.
+
 Before deleting Cedar or changing the writer:
 
 - retain exact model, request, entity, engine, and profile inputs;
