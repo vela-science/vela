@@ -139,6 +139,12 @@ pub(crate) enum Commands {
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },
+    /// Read what one correction costs the Claims that rest on it.
+    #[command(after_long_help = crate::cli::help_text::CORRECTION)]
+    Correction {
+        #[command(subcommand)]
+        action: CorrectionAction,
+    },
     /// Manage independently distributed repository-authority trust roots.
     #[command(hide = true)]
     Authority {
@@ -373,6 +379,28 @@ pub(crate) enum VerifyAction {
         repo_flag: Option<PathBuf>,
         #[arg(long = "as", help = HELP_REQUIRED_AS)]
         actor: String,
+        #[arg(long, help = HELP_JSON)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum CorrectionAction {
+    /// Project the dependency impact of one recorded correction.
+    ///
+    /// This is a root-bound read projection. It never changes authority, and it
+    /// answers for a correction still under review as readily as for one
+    /// already accepted.
+    #[command(override_usage = "vela correction impact [OPTIONS] [REPO] <CLAIM>")]
+    Impact {
+        #[arg(value_name = "REPO", help = HELP_REPO_BEFORE_OBJECT)]
+        first: Option<String>,
+        /// The Claim carrying the `corrects` or `supersedes` relation
+        /// (`vcl_...`) — the successor, not the Claim it corrects.
+        #[arg(value_name = "CLAIM")]
+        second: Option<String>,
+        #[arg(long = "repo", value_name = "PATH", help = HELP_REPO)]
+        repo_flag: Option<PathBuf>,
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },

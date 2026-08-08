@@ -830,6 +830,36 @@ fn validate_current_proposal_standing(
             ));
         }
     }
+    /* Which Claims an accepted correction has already retired.
+
+    Acceptance of a Claim carrying `corrects` or `supersedes` retires the
+    predecessor, which leaves the accepted index — and the predecessor's own
+    Proposal is still retained saying `accepted`. Without this set the two
+    statements read as a contradiction and the repository stops loading: every
+    read verb, `status` and `replay` included, fails on a repository that did
+    nothing but accept a correction. That is what the first correction driven
+    end to end through the CLI actually produced.
+
+    The predecessor is identified from the successor's own retained Claim
+    Record rather than from a manifest field, so this reads the same bytes the
+    Decision acted on. `moves_standing` is the protocol's own test for which
+    relation kinds acceptance acts on; a descriptive relation retires
+    nothing. */
+    let mut retired_by_correction = BTreeSet::new();
+    for reference in &repository.proposals {
+        let bytes = read_rooted_object(root, &reference.path, &reference.root)?;
+        let proposal = ProposalV1::parse(&bytes)?;
+        if standings.get(&proposal.proposal_id).map(String::as_str) != Some("accepted") {
+            continue;
+        }
+        let claim = rooted_claim_for_proposal(root, &proposal)?;
+        for relation in &claim.relations {
+            if relation.moves_standing() {
+                retired_by_correction.insert(relation.target_claim_id.clone());
+            }
+        }
+    }
+
     for reference in &repository.proposals {
         let bytes = read_rooted_object(root, &reference.path, &reference.root)?;
         let proposal = ProposalV1::parse(&bytes)?;
@@ -849,6 +879,15 @@ fn validate_current_proposal_standing(
             .unwrap_or("pending_review");
         let expected = match (proposal.action.as_str(), standing) {
             ("claim.add" | "claim.revise", "pending_review") => (true, false),
+            /* An accepted Proposal whose Claim a later accepted correction has
+            since retired is correctly in neither index. It is not pending —
+            no ruling is owed — and it is not accepted, because the correction
+            replaced it. */
+            ("claim.add" | "claim.revise", "accepted")
+                if retired_by_correction.contains(&proposal.subject.id) =>
+            {
+                (false, false)
+            }
             ("claim.add" | "claim.revise", "accepted") => (false, true),
             ("claim.add" | "claim.revise", "rejected") => (false, false),
             ("claim.add" | "claim.revise", "withdrawn") => (false, false),

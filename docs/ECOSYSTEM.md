@@ -543,10 +543,22 @@ The three mechanisms that are built and are the defensible part:
    `crates/vela-edge/src/analysis/correction_impact.rs` partitions
    `lost_support_routes` from `surviving_support_routes` and emits repair
    obligations. Fixtures at `conformance/fixtures/correction/` run on every CI
-   run through `conformance/verify.py`. Its only caller in Rust is
-   `crates/vela-edge/tests/correction_impact.rs` with a synthetic input: it has
-   never run against a real repository, and no CLI verb reaches it. This is the
-   highest-value thing already built and not yet reachable.
+   run through `conformance/verify.py`. `vela correction impact` reaches it as
+   of v0.969.0, over the accepted claim index of a real repository.
+
+   Driving one correction end to end to get there found two things worth
+   stating plainly. First, a defect: accepting a Claim that corrects an
+   accepted Claim retires the predecessor, and until the loader learned that,
+   the repository stopped loading — `status`, `claims`, `replay`, `why` and
+   `review list` all failed on a repository that had done nothing but accept a
+   correction. `crates/vela-cli/tests/correction_impact.rs` holds that shut.
+   Second, a gap that is not fixed: the projection traverses `depends` and
+   `supports` claim-to-claim edges, and **the write path authors neither**.
+   Every such edge in the corpus was written by the epoch-1 ingest. A
+   repository built with today's CLI therefore has no edge to traverse and
+   correctly reports an empty cascade. Closing that means giving the signed
+   Submission schema a place to declare dependencies, which is a protocol
+   change with an ADR, not a CLI change.
 3. **Projections cannot silently go stale.** Every projection row is
    root-bound. The disclosure contract is partial: `projector_version`, lens
    identity and truncation rules are not built.

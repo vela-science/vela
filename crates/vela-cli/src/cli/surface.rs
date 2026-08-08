@@ -68,6 +68,7 @@ Daily product:
 
 Advanced verification and integration:
   verification  Retain non-authorizing scoped Verification Records
+  correction    Project what one correction costs the Claims resting on it
 
 Advanced setup:
   authority     pin an independently published repository trust root

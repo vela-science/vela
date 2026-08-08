@@ -195,6 +195,23 @@ Why derives current or retained superseded Claim standing from covered
 Proposal, Verification, Decision, and authority history and binds the
 explanation to current roots.";
 
+pub const CORRECTION: &str = "\
+EXAMPLES
+  vela correction impact vcl_0123456789abcdef --json
+                                what accepting this correction would cost
+  vela correction impact . vcl_0123456789abcdef
+                                name the repository first to read another
+
+The argument is the Claim carrying the correction — the successor holding a
+`corrects` or `supersedes` relation — not the Claim being corrected. A
+correction still in the review queue can be asked the same question as one
+already accepted, which is the question a repository authority has before it
+rules.
+
+Impact is a read projection over the accepted claim index. It reads the two
+relation kinds that carry consequence (`depends`, `supports`) and reports every
+relation it excluded, so a reader can check the judgement rather than take it.";
+
 #[cfg(test)]
 mod tests {
     use super::REVIEW;

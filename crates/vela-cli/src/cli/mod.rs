@@ -103,6 +103,29 @@ pub fn run_command() {
             );
         }
         Commands::Verification { action } => cmd_verify_evidence(action),
+        Commands::Correction { action } => match action {
+            crate::command_spec::CorrectionAction::Impact {
+                first,
+                second,
+                repo_flag,
+                json,
+            } => {
+                crate::ui::set_mode("correction impact", json);
+                let (repository, claim_id) = repo_arg::bind_repo_and_object(
+                    "correction impact",
+                    "a full Claim id (vcl_...)",
+                    "CLAIM",
+                    first,
+                    second,
+                    repo_flag,
+                );
+                crate::current_correction_impact::cmd_correction_impact(
+                    &repository,
+                    &claim_id,
+                    json,
+                );
+            }
+        },
         Commands::Completions { shell } => {
             use clap::CommandFactory;
             let mut cmd = Cli::command();

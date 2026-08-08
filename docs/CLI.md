@@ -59,7 +59,7 @@ init status claims next start submit show why review replay reproduce log
 ## Advanced commands
 
 ```text
-verification authority
+verification correction authority
 ```
 
 - `why` also resolves a retained superseded Claim through covered authority
@@ -73,6 +73,13 @@ verification authority
 Advanced verification and integration:
 
 - `verification import` retains a non-authorizing scoped Verification Record.
+- `correction impact` projects what one correction costs the Claims resting on
+  it, through the correction-impact derivation in `vela-edge`. The argument is
+  the successor — the Claim carrying `corrects` or `supersedes` — so the
+  question can be asked of a correction still in the review queue as readily as
+  of one already ruled on. It reads the two relation kinds that carry
+  consequence (`depends` as `depends_on`, and `supports`) and reports every
+  relation it excluded. See [Corrections](#corrections).
 
 Advanced setup:
 
@@ -332,6 +339,47 @@ explicitly authorized. The scope is the named Decision or campaign; each
 transaction still requires its own current Inbox root, reason, policy Allow,
 read-set recheck, and authority record. Never forward `SSH_AUTH_SOCK` to
 remote, untrusted, or proposal-supplied code.
+
+## Corrections
+
+Accepting a Claim that carries `corrects` or `supersedes` retires its
+predecessor. `vela correction impact` reports what that costs everything else
+the repository holds.
+
+```bash
+vela correction impact vcl_6fa1… --json
+```
+
+The argument is the **successor** — the Claim carrying the correction — not the
+Claim being corrected. Naming it that way is what lets the question be asked
+before the Decision: a correction sitting in `vela review inbox` can be asked
+its cost, which is the question a repository authority actually has. Ruling on
+it does not move the answer; the projection is over the transition and the two
+Claim roots, and none of those change when a Decision is recorded.
+
+The projection reads the two relation kinds that carry consequence. `depends`
+is a hard dependency — correcting its target puts the source under a repair
+obligation. `supports` is a support route — a source that loses every route it
+had is under a repair obligation too, and one that loses some but not all is
+reported as `route_changed`. Every other relation kind is retained description
+that moves no Standing, and the verb reports each one it excluded by kind and
+count rather than dropping it silently.
+
+A repair obligation needs a discharge condition. A Claim Record can declare one
+under the `vela.correction` extension:
+
+```json
+{ "extensions": { "vela.correction": { "repair_condition": "Re-run the search at the corrected bound." } } }
+```
+
+Where none is declared the protocol's own default applies, and the verb reports
+per obligation which of the two it used.
+
+**Known limitation.** The write path authors correction relations only.
+`depends` and `supports` claim-to-claim edges exist in retained epoch-1 records
+but no current verb writes one, so a repository built with today's CLI has no
+edge for this projection to traverse and correctly reports an empty cascade.
+Closing that is a change to the signed Submission schema and is not made here.
 
 ## Repository setup
 
