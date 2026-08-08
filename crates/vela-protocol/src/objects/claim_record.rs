@@ -79,11 +79,15 @@ pub const DESCRIPTIVE_RELATION_KINDS: &[&str] = &[
 ///
 /// Retained records cannot be rewritten, so both halves of a near-miss have to
 /// resolve to one meaning. `depends` is canonical by ADR 0004, which named it
-/// the stored wire value and `depends_on` the derived-graph rendering.
-/// `contradicts` is canonical because it is the spelling the repositories
-/// actually hold; `opposes` was declared and never written.
-const RELATION_KIND_ALIASES: &[(&str, &str)] =
-    &[("depends_on", "depends"), ("opposes", "contradicts")];
+/// the stored wire value and `depends_on` the derived-graph rendering, and that
+/// rendering is live: `correction_impact.rs` classifies edges by it.
+///
+/// `opposes` was here too, resolving to `contradicts`. It aliased nothing — it
+/// was declared in `PROTOCOL.md` and written into no record, which the fixture
+/// recorded as `retained_uses: 0`. A near-miss table is for spellings a
+/// retained record actually holds, so it is withdrawn rather than aliased, the
+/// same disposition `revises` and `retracts` already have.
+const RELATION_KIND_ALIASES: &[(&str, &str)] = &[("depends_on", "depends")];
 
 /// What a relation kind does to Standing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

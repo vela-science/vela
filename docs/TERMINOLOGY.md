@@ -337,11 +337,11 @@ imported from a corpus. The descriptive set is enumerated from those records
 rather than declared ahead of them, so it is open — a Frontier may write a kind
 it does not name, and that kind gains no authority by being written.
 
-Two spellings are recognised on input and resolve to one canonical name:
-`depends_on` reads as `depends`, `opposes` as `contradicts`. Producers emit the
-canonical spelling; consumers resolve before matching. `revises` and `retracts`
-were declared through `0.966.3` and written into no record; they are withdrawn.
-`conformance/fixtures/claim-relation-vocabulary-v1.json` fixes the pair, and a
+One near-miss spelling is recognised on input and resolves to a canonical name:
+`depends_on` reads as `depends`. Producers emit the canonical spelling;
+consumers resolve before matching. `revises`, `retracts` and `opposes` were
+declared and written into no record; all three are withdrawn.
+`conformance/fixtures/claim-relation-vocabulary-v1.json` fixes the alias, and a
 test in `vela-protocol` fails when an implementation drifts from it.
 
 Do not read `evidence[].relation` against this vocabulary. It names the role an

@@ -7,7 +7,10 @@
     "authoritative": true,
     "closed": true,
     "moves_standing": true,
-    "kinds": ["corrects", "supersedes"]
+    "kinds": [
+      "corrects",
+      "supersedes"
+    ]
   },
   "descriptive_relations": {
     "authoritative": false,
@@ -28,34 +31,64 @@
       "canonical": "depends",
       "authority": "ADR 0004 named `depends` the canonical stored wire value and `depends_on` the derived-graph rendering.",
       "retained_uses": 0
-    },
-    {
-      "recorded": "opposes",
-      "canonical": "contradicts",
-      "authority": "`contradicts` is the spelling the repositories hold. `opposes` was declared in PROTOCOL.md and written into no record.",
-      "retained_uses": 0
     }
   ],
   "classification_cases": [
-    { "kind": "corrects", "canonical": "corrects", "class": "correction" },
-    { "kind": "supersedes", "canonical": "supersedes", "class": "correction" },
-    { "kind": "supports", "canonical": "supports", "class": "descriptive" },
-    { "kind": "depends", "canonical": "depends", "class": "descriptive" },
-    { "kind": "depends_on", "canonical": "depends", "class": "descriptive" },
+    {
+      "kind": "corrects",
+      "canonical": "corrects",
+      "class": "correction"
+    },
+    {
+      "kind": "supersedes",
+      "canonical": "supersedes",
+      "class": "correction"
+    },
+    {
+      "kind": "supports",
+      "canonical": "supports",
+      "class": "descriptive"
+    },
+    {
+      "kind": "depends",
+      "canonical": "depends",
+      "class": "descriptive"
+    },
+    {
+      "kind": "depends_on",
+      "canonical": "depends",
+      "class": "descriptive"
+    },
     {
       "kind": "contradicts",
       "canonical": "contradicts",
       "class": "descriptive"
     },
-    { "kind": "opposes", "canonical": "contradicts", "class": "descriptive" },
+    {
+      "kind": "opposes",
+      "canonical": "opposes",
+      "class": "unrecognized"
+    },
     {
       "kind": "synthesized_from",
       "canonical": "synthesized_from",
       "class": "descriptive"
     },
-    { "kind": "replicates", "canonical": "replicates", "class": "descriptive" },
-    { "kind": "revises", "canonical": "revises", "class": "unrecognized" },
-    { "kind": "retracts", "canonical": "retracts", "class": "unrecognized" },
+    {
+      "kind": "replicates",
+      "canonical": "replicates",
+      "class": "descriptive"
+    },
+    {
+      "kind": "revises",
+      "canonical": "revises",
+      "class": "unrecognized"
+    },
+    {
+      "kind": "retracts",
+      "canonical": "retracts",
+      "class": "unrecognized"
+    },
     {
       "kind": "generic_link",
       "canonical": "generic_link",
@@ -96,7 +129,12 @@
     "separation": "Every `supersedes` sits on a revision-2 Claim whose sole provenance is a `submission`. Every other relation sits on a revision-1 Claim imported from a corpus. No correction relation has ever been written by an import, and no descriptive relation has ever appeared on a revised Claim.",
     "never_written": {
       "note": "Spellings PROTOCOL.md declared through 0.966.3 that no repository has ever recorded. `opposes` and `depends_on` survive as recognised aliases of the spellings that are recorded. `revises` and `retracts` are dropped: retraction moves Standing through the `claim.withdraw` Proposal action and needs no relation, and nothing ever emitted or read `revises`.",
-      "kinds": ["depends_on", "opposes", "retracts", "revises"]
+      "kinds": [
+        "depends_on",
+        "opposes",
+        "retracts",
+        "revises"
+      ]
     }
   }
 }

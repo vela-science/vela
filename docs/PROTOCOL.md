@@ -549,13 +549,14 @@ resolve to one canonical name:
 | Recorded | Canonical | Why |
 | --- | --- | --- |
 | `depends_on` | `depends` | ADR 0004 named `depends` the stored wire value and `depends_on` the derived-graph rendering |
-| `opposes` | `contradicts` | `contradicts` is what the repositories hold; `opposes` was declared and never written |
 
 Producers emit the canonical spelling. Consumers resolve before matching. A
-consumer that matches only `opposes` sees none of the recorded contradictions.
+consumer that matches only `depends_on` sees none of the recorded dependencies.
 
-`revises` and `retracts`, declared through `0.966.3`, are withdrawn: nothing
-ever emitted or read either one.
+`revises`, `retracts` and `opposes` are withdrawn: nothing ever emitted or read
+any of them. `opposes` was carried as an alias for `contradicts` until it was
+noticed that a near-miss table is for spellings a retained record holds, and no
+record holds this one.
 
 Do not confuse `relations[].kind` with `evidence[].relation`, which names the
 role an Artifact plays for one Claim rather than a link between two Claims.
