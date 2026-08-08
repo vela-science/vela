@@ -51,3 +51,5 @@ grounds that it kept its own index, and it did not.
 - [ADR 0037: Session-authenticated local repository authority](0037-session-authenticated-local-repository-authority.md)
 - [ADR 0038: Problem map and frontier-to-commons foundry](0038-problem-map-and-frontier-to-commons-foundry.md)
 - [ADR 0039: Repository is the authority boundary; Frontier is derived](0039-repository-authority-and-derived-frontiers.md)
+- [ADR 0040: A producer-declared dependency on `vela.submission.v1`](0040-producer-declared-claim-dependencies.md)
+- [ADR 0041: A language-independent conformance vector for the authority contract](0041-authority-conformance-vector.md)
