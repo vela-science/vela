@@ -167,6 +167,7 @@ DECLARED_SURFACES: dict[str, bool] = {
     "packages/vela-source-manifest": True,
     "scripts/ecosystem-status.py": True,
     "scripts/release.sh": True,
+    "scripts/sign-published-release.sh": True,
     "scripts/release_manifest.py": True,
     # Named in docs/ECOSYSTEM.md as asked for by ADR 0039 and still absent. A
     # declared-absent surface is worth as much as a declared-present one: it is

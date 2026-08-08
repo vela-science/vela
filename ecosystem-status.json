@@ -197,6 +197,10 @@
       "scripts/release_manifest.py": {
         "declared": true,
         "present": true
+      },
+      "scripts/sign-published-release.sh": {
+        "declared": true,
+        "present": true
       }
     },
     "workflows": [
