@@ -1,4 +1,4 @@
-//! Current evidence authoring, publication, and repository-operation helpers.
+//! Evidence authoring, publication, and repository-operation helpers.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};

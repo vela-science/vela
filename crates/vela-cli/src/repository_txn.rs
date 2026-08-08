@@ -1119,7 +1119,7 @@ fn verify_fresh_repository_authorization(
                 .into(),
         });
     }
-    let profile = crate::repository::verify_current_bootstrap_at(root).map_err(|reason| {
+    let profile = crate::repository::verify_bootstrap_at(root).map_err(|reason| {
         RepositoryTxnError::RepositoryWriteIntentDenied {
             intent: "repository_authority_initialization",
             reason,
@@ -1157,34 +1157,29 @@ fn fresh_repository_context_root(
     ))
 }
 
-fn verify_repository_authority_write_era(
-    root: &Path,
-) -> Result<RepositoryAuthorityWriteAuthorization, RepositoryTxnError> {
-    verify_current_repository_authority_write_era(root)
-}
-
 fn verify_routine_evidence_write_era(
     root: &Path,
 ) -> Result<RoutineEvidenceWriteAuthorization, RepositoryTxnError> {
     let intent = "routine_evidence";
-    let repository =
-        crate::repository::verify_current_repository_at(root, true).map_err(|error| {
-            RepositoryTxnError::RepositoryWriteIntentDenied {
-                intent,
-                reason: format!("current repository origin is invalid: {error}"),
-            }
-        })?;
+    let repository = crate::repository::verify_repository_at(root, true).map_err(|error| {
+        RepositoryTxnError::RepositoryWriteIntentDenied {
+            intent,
+            reason: format!("repository origin is invalid: {error}"),
+        }
+    })?;
     let origin_bytes = fs::read(root.join(".vela/origin.json"))
         .map_err(|error| RepositoryTxnError::Io(format!("read repository origin: {error}")))?;
     let origin = vela_protocol::repository_origin::RepositoryOriginV1::parse(&origin_bytes)
         .map_err(|error| RepositoryTxnError::RepositoryWriteIntentDenied {
             intent,
-            reason: format!("current repository origin is invalid: {error}"),
+            reason: format!("repository origin is invalid: {error}"),
         })?;
-    let authority = crate::cli::load_current_repository_authority(root, &repository, &origin)
-        .map_err(|error| RepositoryTxnError::RepositoryWriteIntentDenied {
-            intent,
-            reason: format!("current repository-authority history is invalid: {error}"),
+    let authority =
+        crate::cli::load_repository_authority(root, &repository, &origin).map_err(|error| {
+            RepositoryTxnError::RepositoryWriteIntentDenied {
+                intent,
+                reason: format!("current repository-authority history is invalid: {error}"),
+            }
         })?;
     if authority.verification.closed {
         return Err(RepositoryTxnError::RepositoryWriteIntentDenied {
@@ -1217,27 +1212,28 @@ fn verify_routine_evidence_write_era(
     })
 }
 
-fn verify_current_repository_authority_write_era(
+fn verify_repository_authority_write_era(
     root: &Path,
 ) -> Result<RepositoryAuthorityWriteAuthorization, RepositoryTxnError> {
-    let repository =
-        crate::repository::verify_current_repository_at(root, true).map_err(|error| {
-            RepositoryTxnError::RepositoryWriteIntentDenied {
-                intent: "repository_authority",
-                reason: format!("current repository origin is invalid: {error}"),
-            }
-        })?;
+    let repository = crate::repository::verify_repository_at(root, true).map_err(|error| {
+        RepositoryTxnError::RepositoryWriteIntentDenied {
+            intent: "repository_authority",
+            reason: format!("repository origin is invalid: {error}"),
+        }
+    })?;
     let origin_bytes = fs::read(root.join(".vela/origin.json"))
         .map_err(|error| RepositoryTxnError::Io(format!("read repository origin: {error}")))?;
     let origin = vela_protocol::repository_origin::RepositoryOriginV1::parse(&origin_bytes)
         .map_err(|error| RepositoryTxnError::RepositoryWriteIntentDenied {
             intent: "repository_authority",
-            reason: format!("current repository origin is invalid: {error}"),
+            reason: format!("repository origin is invalid: {error}"),
         })?;
-    let authority = crate::cli::load_current_repository_authority(root, &repository, &origin)
-        .map_err(|error| RepositoryTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority",
-            reason: format!("current repository-authority history is invalid: {error}"),
+    let authority =
+        crate::cli::load_repository_authority(root, &repository, &origin).map_err(|error| {
+            RepositoryTxnError::RepositoryWriteIntentDenied {
+                intent: "repository_authority",
+                reason: format!("current repository-authority history is invalid: {error}"),
+            }
         })?;
     verified_repository_authority_write_authorization(&repository, &authority)
 }
@@ -2016,7 +2012,7 @@ fn current_compaction_predecessor_repository_root(
     let origin =
         vela_protocol::repository_origin::RepositoryOriginV1::parse(&bytes).map_err(|error| {
             RepositoryTxnError::CorruptPlan(format!(
-                "current repository origin is invalid while checking completed history: {error}"
+                "repository origin is invalid while checking completed history: {error}"
             ))
         })?;
     origin
@@ -3807,7 +3803,7 @@ mod tests {
     fn fixture_plan(root: &Path, draft: &DeltaDraft, identity: &[u8]) -> RepositoryTxnPlan {
         let operation_id = OperationId::derive("submission", identity);
         let request_root = ContentDigest::hash(identity);
-        let repository_id = crate::repository::verify_current_repository_at(root, false)
+        let repository_id = crate::repository::verify_repository_at(root, false)
             .map(|repository| repository.repository_id)
             .unwrap_or_else(|_| "vrepo_test".to_string());
         RepositoryTxnPlan::new(

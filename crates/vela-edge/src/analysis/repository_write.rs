@@ -1,4 +1,4 @@
-//! Current repository write edges.
+//! Repository write edges.
 //!
 //! The protocol/runtime owns repository validation. This module retains only
 //! the operating-system edges that protocol code must not implement:

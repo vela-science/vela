@@ -1,4 +1,4 @@
-//! Current-only producer intake for Profile v2 repositories.
+//! Producer intake for Profile v2 repositories.
 //!
 //! This path consumes an authenticated Submission, creates the current Claim
 //! and Proposal, and advances the repository manifest
@@ -417,7 +417,7 @@ fn submit_inner(
     {
         return Err("submit actor must match the Submission producer identity".into());
     }
-    let repository = crate::repository::verify_current_repository_at(repository_path, true)?;
+    let repository = crate::repository::verify_repository_at(repository_path, true)?;
     let repository_root = repository.canonical_root()?;
     let submission_root = submission.canonical_root()?;
     if let Some(outcome) =
@@ -432,7 +432,7 @@ fn submit_inner(
         &journal_dir,
     )
     .map_err(|error| error.to_string())?;
-    let held_repository = crate::repository::verify_current_repository_at(repository_path, true)?;
+    let held_repository = crate::repository::verify_repository_at(repository_path, true)?;
     if held_repository.canonical_root()? != repository_root {
         return Err("current repository changed while acquiring the submit barrier".into());
     }
@@ -591,7 +591,7 @@ fn submit_inner(
         .map_err(|error| error.to_string())?;
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
-    crate::repository::verify_current_repository_allow_derived_drift_at(repository_path)?;
+    crate::repository::verify_repository_allow_derived_drift_at(repository_path)?;
     let publication = publish_exact_delta(
         repository_path,
         "submit",
@@ -604,14 +604,12 @@ fn submit_inner(
         publication.state,
         PublicationState::Unchanged { .. } | PublicationState::CommittedLocal { .. }
     ) {
-        crate::repository::verify_current_repository_at(repository_path, true).map_err(
-            |error| {
-                format!(
-                    "Submission was published but strict post-publication verification failed: \
+        crate::repository::verify_repository_at(repository_path, true).map_err(|error| {
+            format!(
+                "Submission was published but strict post-publication verification failed: \
                      {error}; do not retry the Submission"
-                )
-            },
-        )?;
+            )
+        })?;
         if let Err(error) = prepared.retire_completed_recovery_blobs() {
             crate::ui::warn_nonfatal(&format!(
                 "Submission {} was published and verified, but private recovery blob cleanup failed: {error}",

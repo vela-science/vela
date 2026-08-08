@@ -221,7 +221,7 @@ pub fn run_command() {
             crate::ui::set_mode("next", json);
             let dir = repo_arg::bind_repo("next", repository, repo_flag);
             crate::ui::require_initialized_repo(&dir);
-            crate::repository::cmd_current_next(&dir, limit, json);
+            crate::repository::cmd_next(&dir, limit, json);
         }
         Commands::Start {
             target,
@@ -499,7 +499,7 @@ pub fn run_from_args() {
 }
 
 fn cmd_status_compact(path: &Path, json_out: bool) {
-    crate::repository::cmd_current_status(path, json_out);
+    crate::repository::cmd_status(path, json_out);
 }
 
 fn cmd_log(
@@ -564,7 +564,7 @@ fn cmd_review(action: ReviewAction) {
         } => {
             crate::ui::set_mode("review list", json);
             let repository = repo_arg::bind_repo("review list", repository, repo_flag);
-            crate::repository::cmd_current_review_list(
+            crate::repository::cmd_review_list(
                 &repository,
                 status.as_deref(),
                 limit,
@@ -587,7 +587,7 @@ fn cmd_review(action: ReviewAction) {
                 second,
                 repo_flag,
             );
-            crate::repository::cmd_current_review_show(&repository, &proposal_id, json);
+            crate::repository::cmd_review_show(&repository, &proposal_id, json);
         }
         ReviewAction::Accept {
             first,

@@ -23,7 +23,7 @@ pub(crate) mod verification;
 pub(crate) mod withdrawal;
 pub(crate) mod work;
 pub(crate) use config::cli_identity;
-// Current repository verification and object projections.
+// Repository verification and object projections.
 mod operation_journal;
 pub(crate) mod repository;
 pub(crate) mod repository_txn;

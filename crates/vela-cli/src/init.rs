@@ -51,10 +51,7 @@ fn draw_genesis_entropy() -> Result<String, String> {
     Ok(hex::encode(bytes))
 }
 
-pub(crate) fn initialize_current_minimal(
-    path: &Path,
-    options: InitOptions<'_>,
-) -> Result<Value, String> {
+pub(crate) fn initialize_minimal(path: &Path, options: InitOptions<'_>) -> Result<Value, String> {
     let name = options.name.trim();
     let scope = options.scope.trim();
     if name.is_empty() {
@@ -336,7 +333,7 @@ mod tests {
     use super::*;
 
     fn initialize(root: &Path, name: &str, scope: &str) -> Value {
-        initialize_current_minimal(
+        initialize_minimal(
             root,
             InitOptions {
                 name,

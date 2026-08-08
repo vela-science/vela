@@ -1,4 +1,4 @@
-//! Current repository verification, reads, work offers, and review views.
+//! Repository verification, reads, work offers, and review views.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -56,7 +56,7 @@ pub(crate) fn cmd_replay_repository(repository_path: &Path, json_out: bool) {
             "current repository contains sensitive-looking files: {listed}"
         ));
     }
-    let repository = verify_current_repository_at(&repository_path, true)
+    let repository = verify_repository_at(&repository_path, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let origin = RepositoryOriginV1::parse(
         &fs::read(repository_path.join(".vela/origin.json")).unwrap_or_else(|error| {
@@ -189,19 +189,19 @@ fn decision_inbox_status_summary(
     )
 }
 
-pub(crate) fn cmd_current_status(repository_path: &Path, json_out: bool) {
+pub(crate) fn cmd_status(repository_path: &Path, json_out: bool) {
     crate::ui::set_mode("status", json_out);
     let repository_path = crate::ui::canonicalize_repo(repository_path);
     let profile_source =
         fs::read_to_string(repository_path.join("vela.toml")).unwrap_or_else(|error| {
-            crate::cli::fail_return(&format!("read current repository profile: {error}"))
+            crate::cli::fail_return(&format!("read repository profile: {error}"))
         });
     let profile = RepositoryProfileV1::from_toml_str(&profile_source)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     if !repository_path.join(".vela/origin.json").exists()
         && !repository_path.join(".vela/repository.json").exists()
     {
-        verify_current_bootstrap_at(&repository_path)
+        verify_bootstrap_at(&repository_path)
             .unwrap_or_else(|error| crate::cli::fail_return(&error));
         let commit = git_text(&repository_path, &["rev-parse", "HEAD^{commit}"]).ok();
         let tree = git_text(&repository_path, &["rev-parse", "HEAD^{tree}"]).ok();
@@ -279,7 +279,7 @@ pub(crate) fn cmd_current_status(repository_path: &Path, json_out: bool) {
         }
         return;
     }
-    let repository = load_current_repository_at(&repository_path, true)
+    let repository = load_repository_at(&repository_path, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let repository_root = repository
         .canonical_root()
@@ -308,7 +308,7 @@ pub(crate) fn cmd_current_status(repository_path: &Path, json_out: bool) {
         .values()
         .filter(|standing| standing.as_str() == "withdrawn")
         .count();
-    let target_assessment = vela_edge::target_index::assess_current_target_index(
+    let target_assessment = vela_edge::target_index::assess_target_index(
         &repository_path,
         &repository.repository_id,
         &repository.origin_id,
@@ -433,14 +433,14 @@ pub(crate) fn cmd_current_status(repository_path: &Path, json_out: bool) {
     }
 }
 
-pub(crate) fn verify_current_profile_at(root: &Path) -> Result<RepositoryProfileV1, String> {
+pub(crate) fn verify_profile_at(root: &Path) -> Result<RepositoryProfileV1, String> {
     let profile_source = fs::read_to_string(root.join("vela.toml"))
-        .map_err(|error| format!("read current vela.toml: {error}"))?;
+        .map_err(|error| format!("read vela.toml: {error}"))?;
     RepositoryProfileV1::from_toml_str(&profile_source)
 }
 
-pub(crate) fn verify_current_bootstrap_at(root: &Path) -> Result<RepositoryProfileV1, String> {
-    let profile = verify_current_profile_at(root)?;
+pub(crate) fn verify_bootstrap_at(root: &Path) -> Result<RepositoryProfileV1, String> {
+    let profile = verify_profile_at(root)?;
     if root.join(".vela/epoch.json").exists() {
         return Err("repository retains the retired .vela/epoch.json path".into());
     }
@@ -465,15 +465,15 @@ pub(crate) fn verify_current_bootstrap_at(root: &Path) -> Result<RepositoryProfi
     Ok(profile)
 }
 
-pub(crate) fn cmd_current_next(repository_path: &Path, limit: usize, json_out: bool) {
+pub(crate) fn cmd_next(repository_path: &Path, limit: usize, json_out: bool) {
     crate::ui::set_mode("next", json_out);
     let repository_path = crate::ui::canonicalize_repo(repository_path);
-    let repository = load_current_repository_at(&repository_path, true)
+    let repository = load_repository_at(&repository_path, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let repository_root = repository
         .canonical_root()
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let assessment = vela_edge::target_index::assess_current_target_index(
+    let assessment = vela_edge::target_index::assess_target_index(
         &repository_path,
         &repository.repository_id,
         &repository.origin_id,
@@ -706,8 +706,7 @@ pub(crate) fn load_current_proposal_decisions(
     let origin_bytes = fs::read(repository_path.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;
     let origin = RepositoryOriginV1::parse(&origin_bytes)?;
-    let authority =
-        crate::cli::load_current_repository_authority(repository_path, repository, &origin)?;
+    let authority = crate::cli::load_repository_authority(repository_path, repository, &origin)?;
     current_proposal_decisions(&authority.history.authority_events)
 }
 
@@ -975,7 +974,7 @@ fn validate_current_proposal_standing(
     Ok(())
 }
 
-pub(crate) fn cmd_current_review_list(
+pub(crate) fn cmd_review_list(
     repository_path: &Path,
     status: Option<&str>,
     limit: usize,
@@ -992,7 +991,7 @@ pub(crate) fn cmd_current_review_list(
         );
     }
     let repository_path = crate::ui::canonicalize_repo(repository_path);
-    let repository = load_current_repository_at(&repository_path, true)
+    let repository = load_repository_at(&repository_path, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let decisions = load_current_proposal_decisions(&repository_path, &repository)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
@@ -1090,11 +1089,11 @@ pub(crate) fn cmd_current_review_list(
     }
 }
 
-pub(crate) fn cmd_current_review_show(repository_path: &Path, proposal_id: &str, json_out: bool) {
+pub(crate) fn cmd_review_show(repository_path: &Path, proposal_id: &str, json_out: bool) {
     crate::ui::set_mode("review show", json_out);
     crate::ui::require_initialized_repo(repository_path);
     let repository_path = crate::ui::canonicalize_repo(repository_path);
-    let repository = load_current_repository_at(&repository_path, true)
+    let repository = load_repository_at(&repository_path, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let decisions = load_current_proposal_decisions(&repository_path, &repository)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
@@ -1398,12 +1397,12 @@ fn proposal_matches_signed_submission(
 }
 
 /// Load and validate the current repository identity and authority chain.
-pub(crate) fn load_current_repository_at(
+pub(crate) fn load_repository_at(
     root: &Path,
     require_authority_record: bool,
 ) -> Result<RepositoryV4, String> {
     let profile_source = fs::read_to_string(root.join("vela.toml"))
-        .map_err(|error| format!("read current vela.toml: {error}"))?;
+        .map_err(|error| format!("read vela.toml: {error}"))?;
     let profile = RepositoryProfileV1::from_toml_str(&profile_source)?;
     let profile_root = profile.profile_root()?;
     if root.join(".vela/epoch.json").exists() {
@@ -1428,7 +1427,7 @@ pub(crate) fn load_current_repository_at(
         );
     }
     if require_authority_record {
-        let loaded = crate::cli::load_current_repository_authority(root, &repository, &origin)?;
+        let loaded = crate::cli::load_repository_authority(root, &repository, &origin)?;
         validate_current_proposal_standing(root, &repository, &loaded.history.authority_events)?;
         let mut records = Vec::with_capacity(loaded.history.authority_envelopes.len());
         for envelope in &loaded.history.authority_envelopes {
@@ -1446,11 +1445,11 @@ pub(crate) fn load_current_repository_at(
     Ok(repository)
 }
 
-pub(crate) fn verify_current_repository_at(
+pub(crate) fn verify_repository_at(
     root: &Path,
     require_authority_record: bool,
 ) -> Result<RepositoryV4, String> {
-    let repository = load_current_repository_at(root, false)?;
+    let repository = load_repository_at(root, false)?;
     let origin_bytes = fs::read(root.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;
     let origin = RepositoryOriginV1::parse(&origin_bytes)?;
@@ -1471,7 +1470,7 @@ pub(crate) fn verify_current_repository_at(
             );
         }
         if require_authority_record {
-            let assessment = vela_edge::target_index::assess_current_target_index(
+            let assessment = vela_edge::target_index::assess_target_index(
                 root,
                 &repository.repository_id,
                 &repository.origin_id,
@@ -1501,7 +1500,7 @@ pub(crate) fn verify_current_repository_at(
         }
     }
 
-    let object_bytes = read_current_object_set(root, &repository)?;
+    let object_bytes = read_object_set(root, &repository)?;
     for reference in repository
         .accepted_claims
         .iter()
@@ -1695,19 +1694,19 @@ pub(crate) fn verify_current_repository_at(
             .strip_prefix(root)
             .map_err(|_| "current repository path escaped its root".to_string())?
             .to_string_lossy();
-        if is_retired_current_path(&relative) {
+        if is_retired_path(&relative) {
             return Err(format!(
                 "current repository retains retired protocol path {relative}"
             ));
         }
     }
     if require_authority_record {
-        verify_current_repository_authority(root, &repository, &origin)?;
+        verify_repository_authority(root, &repository, &origin)?;
     }
     Ok(repository)
 }
 
-fn read_current_object_set(
+fn read_object_set(
     root: &Path,
     repository: &RepositoryV4,
 ) -> Result<BTreeMap<String, Vec<u8>>, String> {
@@ -1777,14 +1776,14 @@ fn read_current_object_set(
 /// Target-index inspect, repair, and reseal must remain available precisely
 /// when tracked source or packet bytes drift. Canonical repository and
 /// authority objects still fail closed.
-pub(crate) fn verify_current_repository_allow_derived_drift_at(
+pub(crate) fn verify_repository_allow_derived_drift_at(
     root: &Path,
 ) -> Result<RepositoryV4, String> {
-    let repository = verify_current_repository_at(root, false)?;
+    let repository = verify_repository_at(root, false)?;
     let origin_bytes = fs::read(root.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;
     let origin = RepositoryOriginV1::parse(&origin_bytes)?;
-    verify_current_repository_authority(root, &repository, &origin)?;
+    verify_repository_authority(root, &repository, &origin)?;
     Ok(repository)
 }
 
@@ -1855,12 +1854,10 @@ pub(crate) fn read_rooted_object(
     path: &str,
     expected_root: &str,
 ) -> Result<Vec<u8>, String> {
-    let bytes = fs::read(root.join(path))
-        .map_err(|error| format!("read current object {path}: {error}"))?;
+    let bytes =
+        fs::read(root.join(path)).map_err(|error| format!("read object {path}: {error}"))?;
     if root_bytes(&bytes) != expected_root {
-        return Err(format!(
-            "current object {path} does not match its declared root"
-        ));
+        return Err(format!("object {path} does not match its declared root"));
     }
     let expected_name = expected_root.trim_start_matches("sha256:");
     if Path::new(path).file_stem().and_then(|value| value.to_str()) != Some(expected_name) {
@@ -1871,7 +1868,7 @@ pub(crate) fn read_rooted_object(
     Ok(bytes)
 }
 
-fn verify_current_repository_authority(
+fn verify_repository_authority(
     root: &Path,
     repository: &RepositoryV4,
     origin: &RepositoryOriginV1,
@@ -1890,7 +1887,7 @@ fn verify_current_repository_authority(
         .map_or(genesis_actor_registry_root.as_str(), |predecessor| {
             predecessor.archived_actor_registry_root.as_str()
         });
-    let loaded = crate::cli::load_current_repository_authority(root, repository, origin)?;
+    let loaded = crate::cli::load_repository_authority(root, repository, origin)?;
     validate_current_proposal_standing(root, repository, &loaded.history.authority_events)?;
     let initialization_event_id = loaded
         .verification
@@ -2097,7 +2094,7 @@ fn verify_current_repository_authority(
             ));
         }
     }
-    verify_current_record_coverage(
+    verify_record_coverage(
         &covered_record_paths,
         &current_record_paths,
         &observed_record_paths,
@@ -2468,7 +2465,7 @@ fn require_retained_object_refs(
 /// Claim references held by Proposals. Paths and roots are supplied only after
 /// their canonical object parsers have succeeded. This is intentionally a
 /// coverage check, not a second record format or transaction log.
-pub(crate) fn verify_current_record_coverage(
+pub(crate) fn verify_record_coverage(
     authority_covered: &BTreeMap<String, String>,
     evidence_references: &BTreeMap<String, String>,
     observed: &BTreeMap<String, String>,
@@ -2531,7 +2528,7 @@ fn git_text(repository: &Path, args: &[&str]) -> Result<String, String> {
 /// This is the verifier's own answer, and it is the only one. The authority
 /// writer asks it before admitting an object draft, so a repository that
 /// replay would refuse cannot be written in the first place.
-pub(crate) fn is_retired_current_path(path: &str) -> bool {
+pub(crate) fn is_retired_path(path: &str) -> bool {
     path == ".vela/actors.json"
         || path == "frontier.yaml"
         || path == "frontier.json"
@@ -2624,16 +2621,14 @@ mod tests {
 
     #[test]
     fn current_repository_rejects_retired_profile_paths() {
-        assert!(is_retired_current_path("frontier.yaml"));
-        assert!(is_retired_current_path("frontier.json"));
-        assert!(!is_retired_current_path("vela.toml"));
-        assert!(is_retired_current_path("vela.lock"));
-        assert!(is_retired_current_path("proof/erdos-203.lean"));
+        assert!(is_retired_path("frontier.yaml"));
+        assert!(is_retired_path("frontier.json"));
+        assert!(!is_retired_path("vela.toml"));
+        assert!(is_retired_path("vela.lock"));
+        assert!(is_retired_path("proof/erdos-203.lean"));
         // The prefix is the directory, not the word: a repository is free to
         // keep proofs anywhere it does not claim this exact retired layout.
-        assert!(!is_retired_current_path(
-            "artifacts/proof-scripts/sidon.lean"
-        ));
+        assert!(!is_retired_path("artifacts/proof-scripts/sidon.lean"));
     }
 
     fn root(byte: char) -> String {
@@ -3167,25 +3162,25 @@ mod tests {
             ("records/claims/sha256/a.json".into(), root('a')),
             ("records/submissions/sha256/b.json".into(), root('b')),
         ]);
-        verify_current_record_coverage(&authority, &evidence, &observed).unwrap();
+        verify_record_coverage(&authority, &evidence, &observed).unwrap();
 
         let mut unexplained = observed.clone();
         unexplained.insert("records/artifacts/sha256/c".into(), root('c'));
         assert_eq!(
-            verify_current_record_coverage(&authority, &evidence, &unexplained).unwrap_err(),
+            verify_record_coverage(&authority, &evidence, &unexplained).unwrap_err(),
             "current repository contains unexplained record records/artifacts/sha256/c"
         );
 
         let mut missing = observed.clone();
         missing.remove("records/claims/sha256/a.json");
         assert_eq!(
-            verify_current_record_coverage(&authority, &evidence, &missing).unwrap_err(),
+            verify_record_coverage(&authority, &evidence, &missing).unwrap_err(),
             "current repository is missing retained record records/claims/sha256/a.json"
         );
 
         let conflicting = BTreeMap::from([("records/claims/sha256/a.json".into(), root('d'))]);
         assert_eq!(
-            verify_current_record_coverage(&authority, &conflicting, &observed).unwrap_err(),
+            verify_record_coverage(&authority, &conflicting, &observed).unwrap_err(),
             "current evidence reference disagrees with retained authority bytes at records/claims/sha256/a.json"
         );
     }

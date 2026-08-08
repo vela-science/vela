@@ -1,4 +1,4 @@
-//! Current candidate transition: `vela.proposal.v1`.
+//! Candidate transition: `vela.proposal.v1`.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

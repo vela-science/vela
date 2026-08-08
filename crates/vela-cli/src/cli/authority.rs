@@ -312,12 +312,12 @@ fn pin_repository_authority(
     record_root: &str,
     previous_record_root: Option<&str>,
 ) -> Result<Value, String> {
-    let repository = crate::repository::verify_current_repository_at(repository_path, true)?;
+    let repository = crate::repository::verify_repository_at(repository_path, true)?;
     let origin = vela_protocol::repository_origin::RepositoryOriginV1::parse(
         &std::fs::read(repository_path.join(".vela/origin.json"))
             .map_err(|error| format!("read current repository origin: {error}"))?,
     )?;
-    let authority = load_current_repository_authority(repository_path, &repository, &origin)?;
+    let authority = load_repository_authority(repository_path, &repository, &origin)?;
     let first_envelope = authority
         .history
         .authority_envelopes
@@ -439,19 +439,11 @@ pub(crate) fn initialize_repository_authority(
     key_selector: Option<&str>,
     reason: &str,
 ) -> Result<Value, RepositoryAuthorityInitError> {
-    initialize_current_repository_authority(repository_path, key_selector, reason)
-}
-
-fn initialize_current_repository_authority(
-    repository_path: &Path,
-    key_selector: Option<&str>,
-    reason: &str,
-) -> Result<Value, RepositoryAuthorityInitError> {
     let reason = reason.trim();
     if reason.is_empty() {
         return Err("init requires a non-empty authority reason".into());
     }
-    let profile = crate::repository::verify_current_bootstrap_at(repository_path)?;
+    let profile = crate::repository::verify_bootstrap_at(repository_path)?;
     let profile_root = profile.profile_root()?;
     let identity = select_repository_authority_identity(key_selector)?;
     let recorded_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
@@ -638,7 +630,7 @@ fn initialize_current_repository_authority(
         &mut signer,
     )
     .map_err(|error| error.to_string())?;
-    let verified = crate::repository::load_current_repository_at(repository_path, true)?;
+    let verified = crate::repository::load_repository_at(repository_path, true)?;
     if verified.canonical_root()? != repository_root {
         return Err("native repository genesis replay produced a different manifest".into());
     }
@@ -688,7 +680,7 @@ fn initialize_current_repository_authority(
         )
         .into());
     }
-    let verified = crate::repository::verify_current_repository_at(repository_path, true)?;
+    let verified = crate::repository::verify_repository_at(repository_path, true)?;
     if verified.canonical_root()? != repository_root {
         return Err("native repository genesis replay produced a different manifest".into());
     }
@@ -754,7 +746,7 @@ fn initialize_current_repository_authority(
 ///
 /// A current origin starts a sequence-1 authority history over either its
 /// archived predecessor roots or the protocol null roots.
-pub(crate) fn load_current_repository_authority(
+pub(crate) fn load_repository_authority(
     repository_path: &Path,
     repository: &vela_protocol::repository::RepositoryV4,
     origin: &vela_protocol::repository_origin::RepositoryOriginV1,

@@ -36,7 +36,7 @@ pub struct RepositoryProfileLicenseV1 {
     pub data: String,
 }
 
-/// Current-only repository metadata.
+/// Repository metadata.
 ///
 /// Profile v2 deliberately keeps a small, human-editable field set. Repository
 /// identity and standing come from `.vela/origin.json` and
@@ -169,7 +169,7 @@ impl RepositoryV4 {
             return Err("current repository exceeds the 8 MiB encoded limit".into());
         }
         let value: Self = crate::canonical::from_json_slice_strict(bytes)
-            .map_err(|error| format!("parse current repository v4: {error}"))?;
+            .map_err(|error| format!("parse repository v4: {error}"))?;
         value.verify()?;
         if value.canonical_bytes()? != bytes {
             return Err("current repository bytes are not canonical JSON".into());
@@ -180,7 +180,7 @@ impl RepositoryV4 {
     pub fn verify(&self) -> Result<(), String> {
         if self.schema != REPOSITORY_SCHEMA_V4 {
             return Err(format!(
-                "current repository schema must be `{REPOSITORY_SCHEMA_V4}`"
+                "repository schema must be `{REPOSITORY_SCHEMA_V4}`"
             ));
         }
         require_prefixed("repository_id", &self.repository_id, "vrepo_")?;

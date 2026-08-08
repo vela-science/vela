@@ -146,6 +146,6 @@ agree with themselves:
 
 ```bash
 cargo test -p vela-protocol --test canonical_hashing_conformance
-cargo test -p vela-protocol --test current_object_interop
+cargo test -p vela-protocol --test object_interop
 uv run --project conformance --locked python conformance/verify.py
 ```

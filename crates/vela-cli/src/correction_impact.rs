@@ -139,7 +139,7 @@ pub(crate) fn cmd_correction_impact(repository_path: &Path, claim_arg: &str, jso
     crate::ui::require_initialized_repo(repository_path);
     let repository_path = crate::ui::canonicalize_repo(repository_path);
 
-    let repository = crate::repository::load_current_repository_at(&repository_path, true)
+    let repository = crate::repository::load_repository_at(&repository_path, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let repository_root = repository
         .canonical_root()

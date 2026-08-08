@@ -1,4 +1,4 @@
-//! Current-only Verification Record intake for Profile v2 repositories.
+//! Verification Record intake for Profile v2 repositories.
 //!
 //! Verification remains scoped authenticated evidence. This writer retains one
 //! exact Verification Record and advances the current repository without
@@ -69,7 +69,7 @@ struct ProposalPackage {
     submission: SubmissionV1,
 }
 
-fn load_current_proposal_package(
+fn load_proposal_package(
     repository_path: &Path,
     repository: &RepositoryV4,
     proposal_id: &str,
@@ -126,7 +126,7 @@ fn load_current_proposal_package(
     })
 }
 
-fn current_subject_for_package(
+fn subject_for_package(
     repository: &RepositoryV4,
     package: &ProposalPackage,
 ) -> Result<VerificationSubject, String> {
@@ -322,16 +322,15 @@ pub(crate) fn author_record(
 
     // Complete every repository and method preflight before the local agent
     // key resolver is allowed to mint or load a signer.
-    let repository = crate::repository::verify_current_repository_at(repository_path, true)?;
+    let repository = crate::repository::verify_repository_at(repository_path, true)?;
     ensure_pending_proposal(repository_path, &repository, &request.proposal_id)?;
-    let package =
-        load_current_proposal_package(repository_path, &repository, &request.proposal_id)?;
+    let package = load_proposal_package(repository_path, &repository, &request.proposal_id)?;
     let property = resolve_property(
         request.property,
         request.complementary,
         &package.submission.verification_requirements,
     )?;
-    let subject = current_subject_for_package(&repository, &package)?;
+    let subject = subject_for_package(&repository, &package)?;
     let (implementation, environment_root) =
         method_manifest_binding(repository_path, &request.method_path)?;
     let method = VerificationMethod {
@@ -394,7 +393,7 @@ fn read_exact_object<T>(
     canonical_bytes: impl FnOnce(&T) -> Result<Vec<u8>, String>,
 ) -> Result<T, String> {
     let bytes = fs::read(repository_path.join(&reference.path))
-        .map_err(|error| format!("read current object {}: {error}", reference.path))?;
+        .map_err(|error| format!("read object {}: {error}", reference.path))?;
     let object = parse(&bytes)?;
     if canonical_bytes(&object)? != bytes {
         return Err(format!(
@@ -410,8 +409,7 @@ fn load_subject(
     repository: &RepositoryV4,
     record: &VerificationRecordV1,
 ) -> Result<(ProposalV1, String, SubmissionV1), String> {
-    let package =
-        load_current_proposal_package(repository_path, repository, &record.subject.proposal_id)?;
+    let package = load_proposal_package(repository_path, repository, &record.subject.proposal_id)?;
     if package.proposal.subject.id != record.subject.claim_id
         || package.proposal.producer_package.id != record.subject.submission_id
         || package.proposal.producer_package.root != record.subject.submission_root
@@ -506,7 +504,7 @@ fn import_inner(
         return Err("verification import actor must match the Verification Record verifier".into());
     }
 
-    let repository = crate::repository::verify_current_repository_at(repository_path, true)?;
+    let repository = crate::repository::verify_repository_at(repository_path, true)?;
     let repository_root = repository.canonical_root()?;
     let (_proposal, proposal_root, submission) =
         load_subject(repository_path, &repository, record)?;
@@ -542,7 +540,7 @@ fn import_inner(
         &journal_dir,
     )
     .map_err(|error| error.to_string())?;
-    let held_repository = crate::repository::verify_current_repository_at(repository_path, true)?;
+    let held_repository = crate::repository::verify_repository_at(repository_path, true)?;
     if held_repository.canonical_root()? != repository_root {
         return Err(
             "current repository changed while acquiring the verification import barrier".into(),
@@ -650,7 +648,7 @@ fn import_inner(
         .map_err(|error| error.to_string())?;
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
-    crate::repository::verify_current_repository_allow_derived_drift_at(repository_path)?;
+    crate::repository::verify_repository_allow_derived_drift_at(repository_path)?;
     let publication = publish_exact_delta(
         repository_path,
         "verification import",
@@ -663,14 +661,12 @@ fn import_inner(
         publication.state,
         PublicationState::Unchanged { .. } | PublicationState::CommittedLocal { .. }
     ) {
-        crate::repository::verify_current_repository_at(repository_path, true).map_err(
-            |error| {
-                format!(
-                    "Verification Record was published but strict post-publication verification \
+        crate::repository::verify_repository_at(repository_path, true).map_err(|error| {
+            format!(
+                "Verification Record was published but strict post-publication verification \
                      failed: {error}; do not retry the import"
-                )
-            },
-        )?;
+            )
+        })?;
         if let Err(error) = prepared.retire_completed_recovery_blobs() {
             crate::ui::warn_nonfatal(&format!(
                 "Verification import {} was published and verified, but private recovery blob cleanup failed: {error}",

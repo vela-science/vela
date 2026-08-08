@@ -1,4 +1,4 @@
-//! Current repository-authority transaction writer.
+//! Repository-authority transaction writer.
 //!
 //! The writer composes authority records, runtime authentication, retained
 //! Cedar material, and the existing recoverable repository transaction without
@@ -1467,7 +1467,7 @@ fn validate_authority_object_path(
     // `.vela/findings/`, `.vela/artifacts/`, `.vela/policies/` and
     // `.vela/actors.json` stayed writable, which is a repository the writer
     // accepts and replay then rejects.
-    if crate::repository::is_retired_current_path(value) {
+    if crate::repository::is_retired_path(value) {
         return Err(AuthorityTransactionError::Invalid(format!(
             "authority object drafts cannot write retired protocol path {value}"
         )));
@@ -3923,7 +3923,7 @@ mod tests {
         // admits a repository replay rejects.
         for retired in ["frontier.json", "vela.lock", "proof/latest.json"] {
             assert!(
-                crate::repository::is_retired_current_path(retired),
+                crate::repository::is_retired_path(retired),
                 "{retired} is no longer retired; this test is stale"
             );
             assert!(!authority_derived_path(retired));
@@ -4019,7 +4019,7 @@ mod tests {
             "records/vrc_fixture.json",
         ] {
             assert!(
-                crate::repository::is_retired_current_path(path),
+                crate::repository::is_retired_path(path),
                 "{path} is no longer retired; this test is stale"
             );
             let parsed = RepoPath::parse(path.to_string()).unwrap();

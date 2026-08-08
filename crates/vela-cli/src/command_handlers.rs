@@ -324,7 +324,7 @@ pub(crate) fn proposal_reproduction_files(
     path: &Path,
     proposal_id: &str,
 ) -> Result<Vec<PathBuf>, String> {
-    let repository = crate::repository::load_current_repository_at(path, true)?;
+    let repository = crate::repository::load_repository_at(path, true)?;
     let proposal_reference = repository
         .proposals
         .iter()
@@ -463,7 +463,7 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
     };
     if files.is_empty() {
         if let Some(proposal_id) = proposal_id {
-            let repository = crate::repository::load_current_repository_at(path, true)
+            let repository = crate::repository::load_repository_at(path, true)
                 .unwrap_or_else(|error| fail_return(&error));
             let proposal = repository
                 .proposals

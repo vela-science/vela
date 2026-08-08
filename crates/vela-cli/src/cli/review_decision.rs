@@ -1,4 +1,4 @@
-//! Current repository-authority review decisions.
+//! Repository-authority review decisions.
 //!
 //! Human Vela keys, batch signing, detached signing, copied root ceremonies,
 //! and the local signer helper are deliberately absent. The exact command is
@@ -31,7 +31,7 @@ pub(crate) fn cmd_review_decide(
     if reason.trim().is_empty() {
         ui::fail_with(ErrorKind::Usage, "--reason must not be empty", None);
     }
-    cmd_current_review_decide(
+    run_review_decision(
         repository_path,
         proposal_id,
         action,
@@ -41,7 +41,7 @@ pub(crate) fn cmd_review_decide(
     );
 }
 
-fn cmd_current_review_decide(
+fn run_review_decision(
     repository_path: PathBuf,
     proposal_id: &str,
     action: DecisionAction,

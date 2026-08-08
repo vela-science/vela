@@ -210,12 +210,12 @@ declared sources are already declared by `erdos-frontier`.
 `vela.frontier-profile.v1` in `frontier.toml` declaring `frontier_id`, so they
 carry neither the `vela.toml` nor the `.vela/origin.json` and
 `.vela/repository.json` pair every read path requires. `require_initialized_repo`
-(`crates/vela-cli/src/ui.rs:360`) refuses them by name —
+in `crates/vela-cli/src/ui.rs` refuses them by name —
 `repository_predecessor_layout`, "this Vela release verifies only current
 repository origins" — and points at the pinned historical release instead.
 `v0.966.4` is that release. Held shut by
 `current_replay_refuses_retired_repositories_before_parsing_them` in
-`crates/vela-cli/tests/current_genesis.rs`.
+`crates/vela-cli/tests/genesis.rs`.
 
 Even reached directly, the profile would not parse:
 `RepositoryProfileV1` carries `#[serde(deny_unknown_fields)]` and a

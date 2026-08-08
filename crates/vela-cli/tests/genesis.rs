@@ -117,7 +117,7 @@ fn configure_test_git_identity(repository_path: &Path) {
     }
 }
 
-fn install_current_target_index(repository_path: &Path, _socket: &Path) {
+fn install_target_index(repository_path: &Path, _socket: &Path) {
     std::fs::create_dir_all(repository_path.join("domain")).expect("domain directory");
     std::fs::write(
         repository_path.join("domain/source.json"),
@@ -476,7 +476,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             .expect("trust anchor path"),
     );
     let _anchor = RemoveOnDrop(anchor_path.clone());
-    install_current_target_index(&repository_path, agent.socket());
+    install_target_index(&repository_path, agent.socket());
     std::fs::remove_file(&anchor_path).expect("remove routine writer trust pin");
     let actor = "agent:current-submission-regression";
     let offer = success_json(&run(&repository_path, None, &["next", ".", "--json"]));

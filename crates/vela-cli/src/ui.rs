@@ -399,7 +399,7 @@ pub fn require_initialized_repo(repository_path: &std::path::Path) {
         fail_coded(
             ErrorKind::Domain,
             Some("repository_incomplete"),
-            "current repository is incomplete: expected both `.vela/origin.json` and `.vela/repository.json`",
+            "repository is incomplete: expected both `.vela/origin.json` and `.vela/repository.json`",
             Some("restore the exact missing tracked file, then run `vela replay`"),
         );
     }

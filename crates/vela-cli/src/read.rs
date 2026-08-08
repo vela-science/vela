@@ -1,4 +1,4 @@
-//! Current object, standing, and authority-history readers.
+//! Object, standing, and authority-history readers.
 //!
 //! These projections use only the verified repository manifest, its
 //! content-addressed records, and covered repository-authority history.
@@ -44,10 +44,9 @@ fn read_exact(repository_path: &Path, path: &str, expected_root: &str) -> Result
     let metadata = fs::symlink_metadata(&candidate)
         .map_err(|error| format!("inspect current object {path}: {error}"))?;
     if metadata.file_type().is_symlink() || !metadata.is_file() {
-        return Err(format!("current object {path} must be a regular file"));
+        return Err(format!("object {path} must be a regular file"));
     }
-    let bytes =
-        fs::read(&candidate).map_err(|error| format!("read current object {path}: {error}"))?;
+    let bytes = fs::read(&candidate).map_err(|error| format!("read object {path}: {error}"))?;
     if root_bytes(&bytes) != expected_root {
         return Err(format!(
             "current object {path} does not match {expected_root}"
@@ -63,13 +62,12 @@ fn read_value(repository_path: &Path, reference: &RepositoryObjectRefV1) -> Resu
 }
 
 fn load_context(repository_path: &Path) -> Result<ReadContext, String> {
-    let repository = crate::repository::load_current_repository_at(repository_path, true)?;
+    let repository = crate::repository::load_repository_at(repository_path, true)?;
     let repository_root = repository.canonical_root()?;
     let origin_bytes = fs::read(repository_path.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;
     let origin = RepositoryOriginV1::parse(&origin_bytes)?;
-    let authority =
-        crate::cli::load_current_repository_authority(repository_path, &repository, &origin)?;
+    let authority = crate::cli::load_repository_authority(repository_path, &repository, &origin)?;
     let decisions =
         crate::repository::load_current_proposal_decisions(repository_path, &repository)?;
     let withdrawals =

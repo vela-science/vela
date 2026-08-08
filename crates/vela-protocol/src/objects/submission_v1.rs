@@ -1,4 +1,4 @@
-//! Current producer package: `vela.submission.v1`.
+//! Producer package: `vela.submission.v1`.
 //!
 //! A Submission is authenticated producer input. It may request a scientific
 //! change, but it cannot assert Standing, mint a Verification Record, or create

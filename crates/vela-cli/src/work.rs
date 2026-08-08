@@ -14,15 +14,15 @@ const AUTHORITY_CEILING: &str =
     "Evidence may be submitted for review; only an authorized human Decision changes Standing.";
 
 fn briefing(repository_path: &Path, target_id: &str) -> Result<Value, String> {
-    let repository = crate::repository::verify_current_repository_at(repository_path, true)?;
+    let repository = crate::repository::verify_repository_at(repository_path, true)?;
     let repository_root = repository.canonical_root()?;
-    let profile = crate::repository::verify_current_profile_at(repository_path)?;
+    let profile = crate::repository::verify_profile_at(repository_path)?;
     if profile.profile_root()? != repository.profile_root {
         return Err(
             "retained repository profile does not match the repository profile root".into(),
         );
     }
-    let assessment = vela_edge::target_index::assess_current_target_index(
+    let assessment = vela_edge::target_index::assess_target_index(
         repository_path,
         &repository.repository_id,
         &repository.origin_id,

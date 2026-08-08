@@ -53,7 +53,7 @@ fn read_exact(
     reference: &RepositoryObjectRefV1,
 ) -> Result<Vec<u8>, String> {
     let bytes = fs::read(repository_path.join(&reference.path))
-        .map_err(|error| format!("read current object {}: {error}", reference.path))?;
+        .map_err(|error| format!("read object {}: {error}", reference.path))?;
     let root = format!("sha256:{}", hex::encode(sha2::Sha256::digest(&bytes)));
     if root != reference.root {
         return Err(format!(
@@ -176,7 +176,7 @@ pub(crate) fn withdraw(
     if reason.is_empty() {
         return Err("proposal withdrawal reason cannot be empty".into());
     }
-    let repository = crate::repository::verify_current_repository_at(repository_path, true)?;
+    let repository = crate::repository::verify_repository_at(repository_path, true)?;
     if let Some(outcome) =
         existing_outcome(repository_path, &repository, proposal_id, actor, reason)?
     {
@@ -207,7 +207,7 @@ pub(crate) fn withdraw(
         &journal_dir,
     )
     .map_err(|error| error.to_string())?;
-    let held = crate::repository::verify_current_repository_at(repository_path, true)?;
+    let held = crate::repository::verify_repository_at(repository_path, true)?;
     if held.canonical_root()? != repository_root {
         return Err("current repository changed while acquiring the withdrawal barrier".into());
     }
@@ -323,7 +323,7 @@ pub(crate) fn withdraw(
         .map_err(|error| error.to_string())?;
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
-    crate::repository::verify_current_repository_allow_derived_drift_at(repository_path)?;
+    crate::repository::verify_repository_allow_derived_drift_at(repository_path)?;
     let publication = publish_exact_delta(
         repository_path,
         "proposal withdraw",
@@ -336,7 +336,7 @@ pub(crate) fn withdraw(
         publication.state,
         PublicationState::Unchanged { .. } | PublicationState::CommittedLocal { .. }
     ) {
-        crate::repository::verify_current_repository_at(repository_path, true).map_err(|error| {
+        crate::repository::verify_repository_at(repository_path, true).map_err(|error| {
             format!(
                 "Proposal Withdrawal was published but strict verification failed: {error}; do not retry"
             )

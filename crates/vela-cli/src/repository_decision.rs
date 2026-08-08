@@ -1,4 +1,4 @@
-//! Current repository review decisions.
+//! Repository review decisions.
 //!
 //! A human supplies the exact semantic command and is authenticated by the
 //! local operating-system session. Repository authority signs the covering
@@ -78,7 +78,7 @@ pub(crate) struct ReviewDecisionPlan {
     pub(crate) plan_root: String,
 }
 
-pub(crate) struct PreparedCurrentReviewDecision {
+pub(crate) struct PreparedReviewDecision {
     pub(crate) plan: ReviewDecisionPlan,
     pub(crate) repository: RepositoryV4,
     pub(crate) authority: crate::cli::LoadedRepositoryAuthority,
@@ -350,17 +350,16 @@ pub(crate) fn prepare(
     action: DecisionAction,
     reason: &str,
     observed_at: &str,
-) -> Result<PreparedCurrentReviewDecision, String> {
+) -> Result<PreparedReviewDecision, String> {
     if reason.trim().is_empty() || reason != reason.trim() {
         return Err("current review reason must be non-empty trimmed text".into());
     }
     DateTime::parse_from_rfc3339(observed_at)
         .map_err(|error| format!("current review observation time is invalid: {error}"))?;
-    let repository = crate::repository::verify_current_repository_at(repository_path, true)?;
+    let repository = crate::repository::verify_repository_at(repository_path, true)?;
     let repository_root = repository.canonical_root()?;
     let origin = load_origin(repository_path)?;
-    let authority =
-        crate::cli::load_current_repository_authority(repository_path, &repository, &origin)?;
+    let authority = crate::cli::load_repository_authority(repository_path, &repository, &origin)?;
     if authority.history.authority_events.iter().any(|event| {
         event.content.target.r#type == "proposal"
             && event.content.target.id == proposal_id
@@ -405,7 +404,7 @@ pub(crate) fn prepare(
     }
     let profile = vela_protocol::repository::RepositoryProfileV1::from_toml_str(
         &fs::read_to_string(repository_path.join("vela.toml"))
-            .map_err(|error| format!("read current repository profile: {error}"))?,
+            .map_err(|error| format!("read repository profile: {error}"))?,
     )?;
     let local = crate::cli::local_session(observed_at)?;
     let mut plan = ReviewDecisionPlan {
@@ -432,7 +431,7 @@ pub(crate) fn prepare(
         plan_root: String::new(),
     };
     plan.plan_root = plan_root(&plan)?;
-    Ok(PreparedCurrentReviewDecision {
+    Ok(PreparedReviewDecision {
         plan,
         repository,
         authority,
@@ -453,7 +452,7 @@ pub(crate) fn prepare_locked(
     action: DecisionAction,
     reason: &str,
     observed_at: &str,
-) -> Result<(PreparedCurrentReviewDecision, RepositoryRecoveryBarrier), String> {
+) -> Result<(PreparedReviewDecision, RepositoryRecoveryBarrier), String> {
     let journal_dir = crate::repository_ops::repository_transaction_journal_dir(repository_path)?;
     let barrier = RepositoryTxn::acquire_recovery_barrier(repository_path, &journal_dir)
         .map_err(|error| error.to_string())?;
@@ -673,7 +672,7 @@ fn decision_events(
 
 pub(crate) fn execute_prepared(
     repository_path: &Path,
-    prepared: PreparedCurrentReviewDecision,
+    prepared: PreparedReviewDecision,
     recovery_barrier: RepositoryRecoveryBarrier,
     action: DecisionAction,
 ) -> Result<AuthorityTransactionResult, String> {
@@ -831,8 +830,7 @@ pub(crate) fn execute_prepared(
         .map_err(|error| error.to_string())?;
     transaction.install().map_err(|error| error.to_string())?;
     transaction.complete().map_err(|error| error.to_string())?;
-    if let Err(error) =
-        crate::repository::verify_current_repository_allow_derived_drift_at(repository_path)
+    if let Err(error) = crate::repository::verify_repository_allow_derived_drift_at(repository_path)
     {
         return Err(format!(
             "repository-authority transaction committed as record {} but postcondition verification failed: {error}; do not retry the Decision",
@@ -861,7 +859,7 @@ pub(crate) fn execute_prepared(
             result.authority_record_id
         ));
     }
-    crate::repository::verify_current_repository_at(repository_path, true).map_err(|error| {
+    crate::repository::verify_repository_at(repository_path, true).map_err(|error| {
         format!(
             "review Decision was published but strict verification failed: {error}; do not retry the Decision"
         )

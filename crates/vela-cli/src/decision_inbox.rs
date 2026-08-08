@@ -19,7 +19,7 @@ use vela_protocol::submission_v1::SubmissionV1;
 use vela_protocol::verification_record::VerificationRecordV1;
 
 use crate::repository_decision::{
-    DecisionAction, PreparedCurrentReviewDecision, claim_for_proposal, exact_verifications,
+    DecisionAction, PreparedReviewDecision, claim_for_proposal, exact_verifications,
     next_repository, submission_for_proposal, verification_satisfies_requirement,
     verification_set_root,
 };
@@ -574,14 +574,13 @@ fn sort_entries(entries: &mut [DecisionInboxEntry]) {
 /// Rebuild the complete pending scientific Decision Inbox from exact current
 /// repository state. This function performs no writes and has no side effects.
 pub(crate) fn project(repository_path: &Path) -> Result<DecisionInboxProjection, String> {
-    let repository = crate::repository::load_current_repository_at(repository_path, true)?;
+    let repository = crate::repository::load_repository_at(repository_path, true)?;
     let repository_root = repository.canonical_root()?;
     let origin = RepositoryOriginV1::parse(
         &fs::read(repository_path.join(".vela/origin.json"))
             .map_err(|error| format!("read current repository origin: {error}"))?,
     )?;
-    let authority =
-        crate::cli::load_current_repository_authority(repository_path, &repository, &origin)?;
+    let authority = crate::cli::load_repository_authority(repository_path, &repository, &origin)?;
     let standings =
         crate::repository::load_current_proposal_standings(repository_path, &repository)?;
     let authority_heads = DecisionInboxAuthorityHeads {
@@ -680,7 +679,7 @@ fn validate_requested_entry_root(requested_entry_root: &str) -> Result<(), Strin
 /// Derive the reviewed Inbox packet from the exact repository, authority, and
 /// scientific objects already verified under the Decision write barrier.
 pub(crate) fn entry_for_prepared(
-    prepared: &PreparedCurrentReviewDecision,
+    prepared: &PreparedReviewDecision,
 ) -> Result<DecisionInboxEntry, String> {
     let authority_heads = DecisionInboxAuthorityHeads {
         policy_bundle_root: prepared.repository.authority_policy_root.clone(),
@@ -709,7 +708,7 @@ pub(crate) fn entry_for_prepared(
 /// Refuse a Decision before authority signing when the reviewed Inbox packet
 /// differs from the exact packet prepared under the write barrier.
 pub(crate) fn require_prepared_entry_root(
-    prepared: &PreparedCurrentReviewDecision,
+    prepared: &PreparedReviewDecision,
     requested_entry_root: &str,
 ) -> Result<(), String> {
     validate_requested_entry_root(requested_entry_root)?;

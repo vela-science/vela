@@ -1,4 +1,4 @@
-//! Current Target Index values and read-only repository assessment.
+//! Target Index values and read-only repository assessment.
 //!
 //! Target catalogues are derived briefing projections. This module proves
 //! their exact Git inputs and current repository context before they can
@@ -1255,7 +1255,7 @@ fn validate_input_git_bytes_for(
 /// Scientific standing is bound only through the exact current repository
 /// root. Git source/input checks and packet checks retain the same fail-closed
 /// work-advice guarantees as Target Index v2 without consulting Era-0 state.
-pub fn assess_current_target_index(
+pub fn assess_target_index(
     repo_path: &Path,
     repository_id: &str,
     origin_id: &str,
