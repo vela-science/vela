@@ -115,9 +115,9 @@ first-party agents, synthetic topology, or a broader claim.
 
 ### Next evidence pass — 2026-08-03
 
-The [active mathematical breakthrough campaign](CAMPAIGN.md) does not raise
-this publication ceiling by declaration. It is designed to earn or falsify the
-missing evidence through three linked cases:
+The [flagship mathematical breakthrough campaign](adr/0036-flagship-mathematical-breakthrough-campaign.md)
+does not raise this publication ceiling by declaration. It is designed to earn
+or falsify the missing evidence through three linked cases:
 
 1. exact inheritance of the external OpenAI Astra ten-advance release without
    equating native checking, statement fidelity, novelty, field review, or
