@@ -46,13 +46,31 @@ const BANNED_UNQUALIFIED: [&str; 4] = ["verified", "valid", "approved", "complet
 /// not as the bare noun — so this is a substring test, not a word test.
 const RETIRED_ON_THE_PRODUCT_SURFACE: &str = "frontier";
 
+/// The other retired names, from `docs/TERMINOLOGY.md`'s "Retired names" table.
+///
+/// Only the multi-word ones are here, and the omissions are the point. `Finding`
+/// and `Attempt` are ordinary English words that this surface uses in their
+/// ordinary sense — `--source-attempt` carries `provenance.source_attempt`,
+/// which is exactly the "workbench's own run identity, as provenance" the table
+/// says to use instead — so a substring test on them would be a test against
+/// English. `Frontier Commit` and `Frontier map` are already caught above.
+/// `Review Packet` is the one the Frontier check cannot see, and the binary was
+/// printing it in three places while `docs/ECOSYSTEM.md` listed it as retired
+/// and not to be reintroduced.
+const RETIRED_OBJECT_NAMES: [&str; 1] = ["review packet"];
+
 fn assert_vocabulary_retired(surface: &str, rendered: &str) {
+    let lowered = rendered.to_ascii_lowercase();
     assert!(
-        !rendered
-            .to_ascii_lowercase()
-            .contains(RETIRED_ON_THE_PRODUCT_SURFACE),
+        !lowered.contains(RETIRED_ON_THE_PRODUCT_SURFACE),
         "{surface} still says Frontier where ADR 0039 means Repository:\n{rendered}"
     );
+    for retired in RETIRED_OBJECT_NAMES {
+        assert!(
+            !lowered.contains(retired),
+            "{surface} names {retired:?}, which docs/TERMINOLOGY.md retired:\n{rendered}"
+        );
+    }
 }
 
 /// The retired word as a JSON *key*, anywhere in a document at any depth.

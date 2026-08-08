@@ -160,6 +160,32 @@ mod tests {
         );
     }
 
+    /// `Hidden utility:` is the group clap actually hides.
+    ///
+    /// The reference already draws the partition and three tests above read it,
+    /// but nothing held clap to it, and clap disagreed: `authority` was
+    /// `hide = true` while this grid listed it under `Advanced setup:`,
+    /// `docs/CLI.md` documented it as an advanced command, and
+    /// `repository_txn.rs` and `cli/lifecycle.rs` both print `vela authority
+    /// trust pin …` as the next step to run. So the one command the CLI asks a
+    /// consumer to run was the one `vela --help` would not show them.
+    #[test]
+    fn the_hidden_group_is_exactly_what_the_parser_hides() {
+        let hidden: BTreeSet<String> = super::super::Cli::command()
+            .get_subcommands()
+            .filter(|command| command.is_hide_set())
+            .map(|command| command.get_name().to_string())
+            .collect();
+        let grouped: BTreeSet<String> = advanced_grid_verbs()
+            .difference(&documented_verbs())
+            .cloned()
+            .collect();
+        assert_eq!(
+            hidden, grouped,
+            "`vela --help` hides a different set than the reference's `Hidden utility:` group"
+        );
+    }
+
     /// The compact grid is a chosen subset — the daily flow — so it is checked
     /// for membership rather than equality. What it may not do is print a verb
     /// the binary cannot run.

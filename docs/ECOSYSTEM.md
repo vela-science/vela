@@ -446,6 +446,13 @@ different facts.
   records that `epoch1/` "was built, verified against all four checkouts, and
   then deleted". Both are correctly absent and must stay absent, which is what
   `scripts/ecosystem-status.py` declares.
+- **One retired term is still wire.** ADR 0039 §5 retired `Attempt`, and
+  `provenance.source_attempt` with the `vat_` prefix was added afterwards and is
+  published in `schemas/submission-v1.schema.json`. The product surface says
+  "workbench run", which is what `docs/TERMINOLOGY.md` prescribes, but the field
+  and the prefix cannot follow without a schema version, so the retired spelling
+  is load-bearing on the wire. This is the same shape as
+  `integrity.replay: "verified"`: a token a prose sweep must not take.
 - **DSSE is not the common waist.** Authority records use DSSE; Submission,
   Verification Record and Proposal Withdrawal still sign a bespoke zeroed-field
   preimage (`crates/vela-protocol/src/objects/submission_v1.rs`). ADR 0035
