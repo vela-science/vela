@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use tempfile::TempDir;
@@ -146,22 +146,55 @@ fn every_subtree_index_lists_its_own_directory() {
     }
 }
 
+/// Every current document, as a path relative to `docs/`.
+///
+/// `docs/adr/` and `docs/history/` keep their own indexes and are excluded; no
+/// other subdirectory is. Scoping this to the top level was the same mistake
+/// one indirection down: `docs/interop/scientific-state-profile-v1.md` and
+/// `docs/integrations/genesis-open-models.md` were both published in 0.969.0
+/// into directories the index could not see, and no page in the repository
+/// linked either one.
+fn current_documents(docs: &Path) -> Vec<String> {
+    fn walk(root: &Path, directory: &Path, found: &mut Vec<String>) {
+        let entries = std::fs::read_dir(directory)
+            .unwrap_or_else(|error| panic!("read {}: {error}", directory.display()));
+        for entry in entries {
+            let path = entry.expect("directory entry").path();
+            let relative = path
+                .strip_prefix(root)
+                .expect("under docs/")
+                .to_string_lossy()
+                .into_owned();
+            if path.is_dir() {
+                if relative != "adr" && relative != "history" {
+                    walk(root, &path, found);
+                }
+            } else if relative.ends_with(".md") && relative != "README.md" {
+                found.push(relative);
+            }
+        }
+    }
+
+    let mut found = Vec::new();
+    walk(docs, docs, &mut found);
+    found.sort();
+    found
+}
+
 #[test]
 fn the_documentation_index_lists_every_current_document() {
     let docs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../docs");
     let index = std::fs::read_to_string(docs.join("README.md")).expect("read docs/README.md");
 
-    let mut present: Vec<String> = std::fs::read_dir(&docs)
-        .expect("read docs/")
-        .map(|entry| entry.expect("docs/ entry").file_name())
-        .filter_map(|name| name.to_str().map(str::to_string))
-        .filter(|name| name.ends_with(".md") && name != "README.md")
-        .collect();
-    present.sort();
+    let present = current_documents(&docs);
     assert!(
         present.len() > 10,
         "docs/ holds {} markdown files; the test is reading the wrong directory",
         present.len()
+    );
+    assert!(
+        present.iter().any(|name| name.contains('/')),
+        "the walk found no document below the top level; it is not recursing"
     );
 
     let unlinked: Vec<&String> = present
@@ -173,11 +206,14 @@ fn the_documentation_index_lists_every_current_document() {
         "docs/README.md does not link {unlinked:?}"
     );
 
+    /* Every link is checked, subtree links included: a dangling
+    `adr/0034-….md` is the same defect as a dangling `PROTOCOL.md` and was
+    outside the old filter. */
     let linked: Vec<String> = index
         .match_indices("](")
         .map(|(at, prefix)| &index[at + prefix.len()..])
         .filter_map(|rest| rest.split(')').next())
-        .filter(|target| target.ends_with(".md") && !target.contains('/'))
+        .filter(|target| target.ends_with(".md"))
         .map(str::to_string)
         .collect();
     let dangling: Vec<&String> = linked

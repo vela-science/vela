@@ -18,6 +18,7 @@
 - [Roots](ROOTS.md)
 - [Repository profile](REPOSITORY_PROFILE.md)
 - [Target Index](TARGET_INDEX.md)
+- [Scientific State Profile v1](interop/scientific-state-profile-v1.md)
 - [ADR 0034: Direct Target Index generation](adr/0034-direct-target-index-generation.md)
 - [Threat model](THREAT_MODEL.md)
 - [Continuity](CONTINUITY.md)
@@ -37,6 +38,7 @@
 - [Portable-waist campaign](PORTABLE_WAIST_CAMPAIGN.md)
 - [Protocol breakthrough benchmark](BREAKTHROUGH_BENCHMARK.md)
 - [Whitepaper evidence contract](WHITEPAPER_CONTRACT.md)
+- [Genesis: open models and the scientific-state control point](integrations/genesis-open-models.md)
 - [Roadmap](ROADMAP.md)
 - [Interoperability boundary](INTEROPERABILITY.md)
 - [Protocol adoption and interoperability](PROTOCOL_ADOPTION.md)
@@ -44,11 +46,15 @@
 - [Theory](THEORY.md)
 - [Publishing](PUBLISHING.md)
 
-This index covers `docs/` completely: a test in `vela-protocol` reads the
-directory and holds every current document to a link here, because an index
-nobody checks is how three documents came to be published on the web while
-this page had never heard of them. The groups are editorial; the coverage is
-not.
+This index covers `docs/` completely: a test in `vela-protocol` walks the tree
+and holds every current document to a link here, because an index nobody checks
+is how three documents came to be published on the web while this page had
+never heard of them. The groups are editorial; the coverage is not.
+
+It walks rather than lists a directory because the first version read the top
+level only, and the interoperability profile and the Genesis dossier were then
+published one directory down, where nothing could see them and no page in the
+repository linked either.
 
 [Decision records](adr/README.md) index every ADR in number order. They are
 linked as a directory rather than listed here because an ADR is a decision at a
