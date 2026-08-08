@@ -2557,6 +2557,31 @@ pub(crate) fn is_retired_current_path(path: &str) -> bool {
         || (path.starts_with("records/vrc_") && path.ends_with(".json"))
 }
 
+/// Walk the repository's own content. Git's storage is not content.
+///
+/// `.git` is skipped, and the reason is a failure rather than tidiness. This
+/// walk collects directories and reads them afterwards, so anything that
+/// rewrites the tree underneath it produces a read of a path that no longer
+/// exists. Git does exactly that on its own schedule: an auto-`gc` packs loose
+/// objects and removes the two-hex directories that held them, and a repository
+/// verified moments after a commit hits it. In CI that surfaced as
+///
+/// ```text
+/// err · read ./.git/objects/c0: No such file or directory (os error 2)
+/// ```
+///
+/// on one run in eight, from `vela authority trust pin`, with nothing wrong
+/// with the repository at all.
+///
+/// The caller is checking for retired protocol paths — `proof/`, `vela.lock`,
+/// `.vela/events/` — none of which can live inside `.git`. So the walk was
+/// reading tens of thousands of object files to answer a question about none of
+/// them, and racing Git to do it. A nested `.git` is skipped too: a vendored or
+/// submodule checkout is another repository's storage, not this one's content.
+///
+/// Everything outside `.git` stays strict. A directory that disappears from
+/// `records/` mid-walk is a concurrent write to retained state, and that is
+/// worth failing on.
 fn files_recursive(root: &Path) -> Result<Vec<PathBuf>, String> {
     let mut pending = vec![root.to_path_buf()];
     let mut files = Vec::new();
@@ -2567,6 +2592,9 @@ fn files_recursive(root: &Path) -> Result<Vec<PathBuf>, String> {
             let path = entry
                 .map_err(|error| format!("read {} entry: {error}", directory.display()))?
                 .path();
+            if path.file_name().is_some_and(|name| name == ".git") {
+                continue;
+            }
             if path.is_dir() {
                 pending.push(path);
             } else if path.is_file() {
