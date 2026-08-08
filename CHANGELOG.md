@@ -57,6 +57,23 @@ name a version that does not exist as a release.
   `vela correction impact` returned the same projection root before and after
   that Decision, `sha256:a31aaa80…`.
 
+- **Sequencing, learned the hard way.** A loader fix has to ship *before* the
+  state that needs it exists. The correction above was made against a `main`
+  build, and the projection pipeline pins the released generator by design — so
+  released v0.968.1 now cannot read `vela-science/math` at all:
+
+  ```
+  err · current Proposal vpr_74d3674dbe1954f2 standing disagrees with the
+  repository Claim indexes
+  ```
+
+  The refresh therefore fails, loudly, and activates nothing; the Observatory
+  keeps serving the last consistent state. That is the pin behaving correctly —
+  it refuses to project state its generator cannot read rather than projecting
+  something wrong — but the read side cannot advance until this release ships
+  and `vela-release.v1.json` is bumped. The correct order was release, bump,
+  then correct.
+
 - **Known and unclosed:** the correction-impact projection traverses `depends`
   and `supports` claim-to-claim edges and the write path authors neither.
   `vela.submission.v1` has no field for a producer to declare a dependency, so
