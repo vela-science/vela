@@ -42,9 +42,20 @@
 //! readable rows, one marked row, `unreadable_returned: 1`, and a `total` that
 //! still says 5.
 //!
-//! Across the four live repositories today, all 2,844 accepted Claims page out
-//! individually readable at their declared roots and none is unreachable; the
-//! last compaction retained every one.
+//! That paging was measured across the four epoch-1 repositories while they
+//! were still live: every accepted Claim came out individually readable at its
+//! declared root, none was unreachable, and the last compaction retained every
+//! one. It is a historical observation now and cannot be repeated with this
+//! binary — all four are archived and this release refuses their layout
+//! outright (`docs/ECOSYSTEM.md` §4). The paragraph above also carried a total,
+//! 2,844, which no artifact in this repository reproduces and which disagrees
+//! with both figures that are sourced: ADR 0039 records 2,782 accepted as the
+//! Observatory reported them, and the four `counts.accepted_claims` in
+//! `paper/artifacts/action-complete-frontier-2026-08-03/baseline.v1.json`
+//! sum to 2,834. The count is dropped rather than picked between.
+//!
+//! What still checks this verb is `crates/vela-cli/tests/claims_enumeration.rs`,
+//! against a repository the test builds.
 
 use std::collections::BTreeSet;
 use std::fs;
