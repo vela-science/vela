@@ -99,10 +99,10 @@ impl PolicyBundleV1 {
             ("entities_root", self.entities_root.as_str()),
             ("tests_root", self.tests_root.as_str()),
         ] {
-            require_sha256(name, value)?;
+            crate::shape::require_sha256_root(name, value)?;
         }
         if let Some(root) = &self.previous_bundle_root {
-            require_sha256("previous_bundle_root", root)?;
+            crate::shape::require_sha256_root("previous_bundle_root", root)?;
         }
         if self.repository_id.trim().is_empty() || self.authority_summary.trim().is_empty() {
             return Err("policy bundle repository and authority summary must be non-empty".into());
@@ -306,10 +306,10 @@ impl AuthorityKeysetV1 {
             }
         }
         if let Some(root) = &self.previous_keyset_root {
-            require_sha256("previous_keyset_root", root)?;
+            crate::shape::require_sha256_root("previous_keyset_root", root)?;
         }
         if let Some(root) = &self.activation_record_root {
-            require_sha256("activation_record_root", root)?;
+            crate::shape::require_sha256_root("activation_record_root", root)?;
         }
         Ok(())
     }
@@ -335,7 +335,7 @@ pub fn verify_authority_keyset_transition(
 ) -> Result<(), String> {
     current.validate()?;
     next.validate()?;
-    require_sha256(
+    crate::shape::require_sha256_root(
         "previous_authority_record_root",
         previous_authority_record_root,
     )?;
@@ -559,10 +559,10 @@ impl AuthorityRecordV1 {
                 content.execution.transaction_write_set_root.as_str(),
             ),
         ] {
-            require_sha256(name, root)?;
+            crate::shape::require_sha256_root(name, root)?;
         }
         if let Some(root) = &content.previous_authority_record_root {
-            require_sha256("previous_authority_record_root", root)?;
+            crate::shape::require_sha256_root("previous_authority_record_root", root)?;
         }
         let mut event_ids = BTreeSet::new();
         for event_id in &content.event_ids {
@@ -579,10 +579,10 @@ impl AuthorityRecordV1 {
                 ));
             }
             if let Some(root) = &delta.before_root {
-                require_sha256("object_delta.before_root", root)?;
+                crate::shape::require_sha256_root("object_delta.before_root", root)?;
             }
             if let Some(root) = &delta.after_root {
-                require_sha256("object_delta.after_root", root)?;
+                crate::shape::require_sha256_root("object_delta.after_root", root)?;
             }
             if delta.before_root == delta.after_root {
                 return Err(format!("object delta {} changes no bytes", delta.path));
@@ -762,23 +762,11 @@ fn decode_dsse_base64(name: &str, value: &str) -> Result<Vec<u8>, String> {
         .map_err(|error| format!("{name} is not base64: {error}"))
 }
 
-fn require_sha256(name: &str, value: &str) -> Result<(), String> {
-    let Some(hex) = value.strip_prefix("sha256:") else {
-        return Err(format!("{name} must use a full sha256: digest"));
-    };
-    if !crate::shape::is_lower_hex_64(hex) {
-        return Err(format!(
-            "{name} must contain 64 lowercase hexadecimal characters"
-        ));
-    }
-    Ok(())
-}
-
 fn require_state_root(name: &str, value: &str) -> Result<(), String> {
     if value == NULL_HASH {
         return Ok(());
     }
-    require_sha256(name, value)
+    crate::shape::require_sha256_root(name, value)
 }
 
 fn decode_fixed_hex<const N: usize>(name: &str, value: &str) -> Result<[u8; N], String> {

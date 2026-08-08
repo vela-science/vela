@@ -1150,10 +1150,7 @@ fn install_private_trust_document<T: Serialize + DeserializeOwned + PartialEq>(
 }
 
 fn validate_repository_id(value: &str) -> Result<(), String> {
-    let Some(suffix) = value.strip_prefix("vrepo_") else {
-        return Err("trust anchor repository_id must be vrepo_<16 lowercase hex>".to_string());
-    };
-    if suffix.len() != 16 || !suffix.bytes().all(vela_protocol::is_lower_hex) {
+    if !vela_protocol::is_prefixed_lower_hex(value, "vrepo_", 16) {
         return Err("trust anchor repository_id must be vrepo_<16 lowercase hex>".to_string());
     }
     Ok(())

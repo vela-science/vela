@@ -131,7 +131,7 @@ impl AuthorizationModelV1 {
             return Err("authorization model members must be strictly sorted".into());
         }
         if let Some(root) = &self.previous_model_root {
-            require_sha256("previous_model_root", root)?;
+            crate::shape::require_sha256_root("previous_model_root", root)?;
         }
         Ok(())
     }
@@ -190,7 +190,7 @@ impl AuthorizationRequestV1 {
         {
             return Err("authorization request schema or profile is invalid".into());
         }
-        require_sha256("authorization request model_root", &self.model_root)?;
+        crate::shape::require_sha256_root("authorization request model_root", &self.model_root)?;
         require_identifier(
             "authorization request repository_id",
             &self.repository_id,
@@ -202,15 +202,18 @@ impl AuthorizationRequestV1 {
             2048,
         )?;
         self.resource.validate()?;
-        require_sha256(
+        crate::shape::require_sha256_root(
             "authorization request authentication_root",
             &self.authentication_root,
         )?;
-        require_sha256(
+        crate::shape::require_sha256_root(
             "authorization request transaction_read_set_root",
             &self.transaction_read_set_root,
         )?;
-        require_sha256("authorization request intent_digest", &self.intent_digest)?;
+        crate::shape::require_sha256_root(
+            "authorization request intent_digest",
+            &self.intent_digest,
+        )?;
         Ok(())
     }
 
@@ -264,8 +267,11 @@ impl AuthorizationEvaluationV1 {
         {
             return Err("authorization evaluation schema or profile is invalid".into());
         }
-        require_sha256("authorization evaluation model_root", &self.model_root)?;
-        require_sha256("authorization evaluation request_root", &self.request_root)?;
+        crate::shape::require_sha256_root("authorization evaluation model_root", &self.model_root)?;
+        crate::shape::require_sha256_root(
+            "authorization evaluation request_root",
+            &self.request_root,
+        )?;
         match (self.decision, self.reason, self.matched_role) {
             (
                 AuthorizationDecisionV1::Allow,
@@ -291,18 +297,6 @@ fn require_identifier(name: &str, value: &str, prefix: &str) -> Result<(), Strin
     crate::shape::require_bounded_text(name, value, 2048)?;
     if value.len() <= prefix.len() || !value.starts_with(prefix) {
         return Err(format!("{name} must start with {prefix}"));
-    }
-    Ok(())
-}
-
-fn require_sha256(name: &str, value: &str) -> Result<(), String> {
-    let Some(hex) = value.strip_prefix("sha256:") else {
-        return Err(format!("{name} must use a full sha256: digest"));
-    };
-    if !crate::shape::is_lower_hex_64(hex) {
-        return Err(format!(
-            "{name} must contain 64 lowercase hexadecimal characters"
-        ));
     }
     Ok(())
 }

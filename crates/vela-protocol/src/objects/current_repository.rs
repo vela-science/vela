@@ -293,10 +293,7 @@ fn verify_object_refs(field: &str, references: &[RepositoryObjectRefV1]) -> Resu
 }
 
 fn validate_repository_id(value: &str) -> Result<(), String> {
-    let suffix = value
-        .strip_prefix("vrepo_")
-        .ok_or_else(|| "profile.repository_id must be vrepo_<16 lowercase hex>".to_string())?;
-    if suffix.len() != 16 || !suffix.bytes().all(crate::shape::is_lower_hex) {
+    if !crate::shape::is_prefixed_lower_hex(value, "vrepo_", 16) {
         return Err("profile.repository_id must be vrepo_<16 lowercase hex>".into());
     }
     Ok(())
@@ -356,10 +353,7 @@ fn require_prefixed(field: &str, value: &str, prefix: &str) -> Result<(), String
 }
 
 fn require_full_claim_id(field: &str, value: &str) -> Result<(), String> {
-    let digest = value
-        .strip_prefix("vcl_")
-        .ok_or_else(|| format!("current repository {field} must be vcl_<64 lowercase hex>"))?;
-    if !crate::shape::is_lower_hex_64(digest) {
+    if !crate::shape::is_prefixed_lower_hex(value, "vcl_", 64) {
         return Err(format!(
             "current repository {field} must be vcl_<64 lowercase hex>"
         ));

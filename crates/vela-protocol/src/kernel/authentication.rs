@@ -70,9 +70,9 @@ impl AuthenticationObservationV1 {
         crate::shape::require_bounded_text("authentication principal", &self.principal_id, 2048)?;
         crate::shape::require_bounded_text("authentication issuer", &self.issuer, 1024)?;
         crate::shape::require_bounded_text("authentication subject", &self.subject, 1024)?;
-        require_sha256("authentication session_root", &self.session_root)?;
+        crate::shape::require_sha256_root("authentication session_root", &self.session_root)?;
         if let Some(root) = &self.revocation_ref {
-            require_sha256("authentication revocation_ref", root)?;
+            crate::shape::require_sha256_root("authentication revocation_ref", root)?;
         }
 
         let authenticated_at = crate::shape::parse_canonical_time(
@@ -191,18 +191,6 @@ impl AuthenticationObservationV1 {
         }
         Ok(())
     }
-}
-
-fn require_sha256(name: &str, value: &str) -> Result<(), String> {
-    let Some(hex) = value.strip_prefix("sha256:") else {
-        return Err(format!("{name} must use a full sha256: digest"));
-    };
-    if !crate::shape::is_lower_hex_64(hex) {
-        return Err(format!(
-            "{name} must contain 64 lowercase hexadecimal characters"
-        ));
-    }
-    Ok(())
 }
 
 #[cfg(test)]

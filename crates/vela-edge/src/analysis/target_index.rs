@@ -152,10 +152,7 @@ fn require_sha256_root(field: &str, value: &str) -> Result<(), String> {
 }
 
 fn require_repository_id(value: &str) -> Result<(), String> {
-    let Some(suffix) = value.strip_prefix("vrepo_") else {
-        return Err("repository_id must use the vrepo_<16 lowercase hex> form".to_string());
-    };
-    if suffix.len() == 16 && suffix.bytes().all(vela_protocol::is_lower_hex) {
+    if vela_protocol::is_prefixed_lower_hex(value, "vrepo_", 16) {
         Ok(())
     } else {
         Err("repository_id must use the vrepo_<16 lowercase hex> form".to_string())
@@ -163,10 +160,7 @@ fn require_repository_id(value: &str) -> Result<(), String> {
 }
 
 fn require_origin_id(field: &str, value: &str) -> Result<(), String> {
-    let Some(suffix) = value.strip_prefix("vro_") else {
-        return Err(format!("{field} must use the vro_<16 lowercase hex> form"));
-    };
-    if suffix.len() == 16 && suffix.bytes().all(vela_protocol::is_lower_hex) {
+    if vela_protocol::is_prefixed_lower_hex(value, "vro_", 16) {
         Ok(())
     } else {
         Err(format!("{field} must use the vro_<16 lowercase hex> form"))

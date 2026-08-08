@@ -31,6 +31,40 @@ pub fn is_lower_hex(byte: u8) -> bool {
     byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)
 }
 
+/// Whether `value` is `prefix` followed by exactly `hex_len` lowercase
+/// hexadecimal characters — the shape of every Vela identifier.
+///
+/// `vrepo_` and `vro_` take 16, `vcl_` takes 64, and `sha256:` takes 64 through
+/// [`is_full_sha256_root`]. Six implementations spelled the strip-and-measure
+/// out in full, three of them for `vrepo_` alone, across two crates and three
+/// different error sentences.
+///
+/// The two `require_prefixed_hex` helpers are deliberately not callers. They
+/// distinguish a missing prefix from a malformed body and say so in two
+/// different messages, which a predicate returning one boolean cannot do.
+pub fn is_prefixed_lower_hex(value: &str, prefix: &str, hex_len: usize) -> bool {
+    value
+        .strip_prefix(prefix)
+        .is_some_and(|hex| hex.len() == hex_len && hex.bytes().all(is_lower_hex))
+}
+
+/// A full `sha256:` root, named for the caller's field.
+///
+/// Three kernel modules carried this character for character — body and error
+/// prose alike — so unlike the per-object helpers, which differ in prose on
+/// purpose, these really were one function written three times.
+pub(crate) fn require_sha256_root(name: &str, value: &str) -> Result<(), String> {
+    let Some(hex) = value.strip_prefix("sha256:") else {
+        return Err(format!("{name} must use a full sha256: digest"));
+    };
+    if !is_lower_hex_64(hex) {
+        return Err(format!(
+            "{name} must contain 64 lowercase hexadecimal characters"
+        ));
+    }
+    Ok(())
+}
+
 /// Parse an RFC3339 timestamp and require the one spelling Vela treats as
 /// canonical: UTC, whole seconds, zero offset written `Z`.
 ///
