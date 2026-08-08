@@ -85,7 +85,7 @@ fn an_accepted_correction_leaves_the_repository_readable_and_projectable() {
     let home = temporary.path().join("agent-home");
     std::fs::create_dir_all(&home).expect("isolated agent home");
     let frontier = temporary.path().join("frontier");
-    let frontier_text = frontier.to_string_lossy().into_owned();
+    let repository_path_text = frontier.to_string_lossy().into_owned();
 
     let init = run(
         temporary.path(),
@@ -93,7 +93,7 @@ fn an_accepted_correction_leaves_the_repository_readable_and_projectable() {
         &home,
         &[
             "init",
-            &frontier_text,
+            &repository_path_text,
             "--name",
             &format!("Correction impact fixture {unique}"),
             "--scope",

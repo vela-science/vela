@@ -71,7 +71,7 @@ impl Fixture {
         std::fs::create_dir_all(&home).expect("isolated home");
         let agent = EphemeralAgent::start(&root, "vela repository argument test");
         let frontier = root.join("frontier");
-        let frontier_text = frontier.to_string_lossy().into_owned();
+        let repository_path_text = frontier.to_string_lossy().into_owned();
 
         let initialized = run(
             &root,
@@ -79,7 +79,7 @@ impl Fixture {
             Some(agent.socket()),
             &[
                 "init",
-                &frontier_text,
+                &repository_path_text,
                 "--name",
                 &format!(
                     "Repository argument fixture {}",

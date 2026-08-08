@@ -184,7 +184,7 @@ fn review_accept_admits_the_event_that_moves_standing() {
         std::fs::create_dir_all(home).expect("isolated agent home");
     }
     let frontier = temporary.path().join("frontier");
-    let frontier_text = frontier.to_string_lossy().into_owned();
+    let repository_path_text = frontier.to_string_lossy().into_owned();
 
     let init = run(
         temporary.path(),
@@ -192,7 +192,7 @@ fn review_accept_admits_the_event_that_moves_standing() {
         &producer_home,
         &[
             "init",
-            &frontier_text,
+            &repository_path_text,
             "--name",
             &format!("Review acceptance fixture {unique}"),
             "--scope",

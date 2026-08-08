@@ -252,7 +252,7 @@ impl std::error::Error for AuthorityTransactionError {}
 /// canonical postimage.
 pub(crate) fn prepare_authority_transaction<A, S>(
     barrier: CanonicalWriteBarrier,
-    frontier_root: &Path,
+    repository_root: &Path,
     mut request: AuthorityTransactionRequest,
     authentication_adapter: &mut A,
     signer: &mut S,
@@ -281,9 +281,9 @@ where
             "authority close cannot include additional object drafts".into(),
         ));
     }
-    normalize_authority_snapshots(frontier_root, &mut request)?;
-    normalize_object_drafts(frontier_root, &mut request)?;
-    normalize_derived_drafts(frontier_root, &mut request)?;
+    normalize_authority_snapshots(repository_root, &mut request)?;
+    normalize_object_drafts(repository_root, &mut request)?;
+    normalize_derived_drafts(repository_root, &mut request)?;
     validate_request_shape(&request)?;
     let history = verify_authority_history(AuthorityHistoryInput {
         repository_id: &request.history.repository_id,
@@ -296,7 +296,7 @@ where
         authority_envelopes: &request.history.authority_envelopes,
     })
     .map_err(AuthorityTransactionError::History)?;
-    bind_repository_authority_history(frontier_root, &mut request)?;
+    bind_repository_authority_history(repository_root, &mut request)?;
     let fresh_initialization = history.era == AuthorityHistoryEra::Uninitialized;
     if fresh_initialization {
         validate_fresh_initialization_request(&request)?;
@@ -429,7 +429,7 @@ where
             .map(authority_object_planned_write)
             .collect::<Result<Vec<_>, _>>()?,
     );
-    let unsigned_draft = DeltaDraft::prepare(frontier_root, content_writes.clone())
+    let unsigned_draft = DeltaDraft::prepare(repository_root, content_writes.clone())
         .map_err(AuthorityTransactionError::Transaction)?;
     let full_object_delta =
         authority_object_delta(&unsigned_draft, &events, &request.object_drafts)?;
@@ -570,7 +570,7 @@ where
             .map(authority_derived_planned_write)
             .collect::<Result<Vec<_>, _>>()?,
     );
-    let draft = DeltaDraft::prepare(frontier_root, writes)
+    let draft = DeltaDraft::prepare(repository_root, writes)
         .map_err(AuthorityTransactionError::Transaction)?;
     let record_path = authority_record_path(&record.record_id);
     let record_writes = draft
@@ -638,7 +638,7 @@ where
             request_root: ContentDigest::parse(request.intent_digest.clone())
                 .map_err(AuthorityTransactionError::Transaction)?,
             frontier: RepositoryBinding::new(
-                frontier_root,
+                repository_root,
                 &request.history.repository_id,
                 &layout_identity,
             )
@@ -668,7 +668,7 @@ where
 
 pub(crate) fn execute_authority_transaction<A, S>(
     barrier: CanonicalWriteBarrier,
-    frontier_root: &Path,
+    repository_root: &Path,
     request: AuthorityTransactionRequest,
     authentication_adapter: &mut A,
     signer: &mut S,
@@ -679,7 +679,7 @@ where
 {
     let mut prepared = prepare_authority_transaction(
         barrier,
-        frontier_root,
+        repository_root,
         request,
         authentication_adapter,
         signer,
@@ -1057,7 +1057,7 @@ fn validate_requested_close(
 }
 
 fn normalize_authority_snapshots(
-    frontier_root: &Path,
+    repository_root: &Path,
     request: &mut AuthorityTransactionRequest,
 ) -> Result<(), AuthorityTransactionError> {
     if request.object_drafts.iter().any(|draft| {
@@ -1148,7 +1148,7 @@ fn normalize_authority_snapshots(
         ".vela/authority/policy-material/entities",
     ] {
         let binding = InputBinding::current_directory(
-            frontier_root,
+            repository_root,
             RepoPath::parse(directory.to_string())
                 .map_err(AuthorityTransactionError::Transaction)?,
         )
@@ -1159,10 +1159,10 @@ fn normalize_authority_snapshots(
     for (path_text, (object_kind, bytes)) in snapshots {
         let path =
             RepoPath::parse(path_text.clone()).map_err(AuthorityTransactionError::Transaction)?;
-        let absolute = frontier_root.join(path.as_str());
+        let absolute = repository_root.join(path.as_str());
         match fs::symlink_metadata(&absolute) {
             Ok(_) => {
-                let binding = InputBinding::exact_file(frontier_root, path, &bytes)
+                let binding = InputBinding::exact_file(repository_root, path, &bytes)
                     .map_err(AuthorityTransactionError::Transaction)?;
                 merge_input_binding(&mut request.read_set, binding)?;
             }
@@ -1172,7 +1172,7 @@ fn normalize_authority_snapshots(
                         "retained authority policy material {path_text} is missing"
                     )));
                 }
-                let binding = InputBinding::absent_file(frontier_root, path)
+                let binding = InputBinding::absent_file(repository_root, path)
                     .map_err(AuthorityTransactionError::Transaction)?;
                 merge_input_binding(&mut request.read_set, binding)?;
                 request.object_drafts.push(AuthorityObjectDraft {
@@ -1242,7 +1242,7 @@ fn insert_authority_snapshot(
 }
 
 fn normalize_object_drafts(
-    frontier_root: &Path,
+    repository_root: &Path,
     request: &mut AuthorityTransactionRequest,
 ) -> Result<(), AuthorityTransactionError> {
     request
@@ -1286,7 +1286,7 @@ fn normalize_object_drafts(
             }
         }
         object_inputs.push(
-            InputBinding::current_file(frontier_root, path)
+            InputBinding::current_file(repository_root, path)
                 .map_err(AuthorityTransactionError::Transaction)?,
         );
     }
@@ -1297,7 +1297,7 @@ fn normalize_object_drafts(
 }
 
 fn normalize_derived_drafts(
-    frontier_root: &Path,
+    repository_root: &Path,
     request: &mut AuthorityTransactionRequest,
 ) -> Result<(), AuthorityTransactionError> {
     request
@@ -1327,7 +1327,7 @@ fn normalize_derived_drafts(
             RepoPath::parse(draft.path.clone()).map_err(AuthorityTransactionError::Transaction)?;
         validate_authority_derived_path(&path)?;
         derived_inputs.push(
-            InputBinding::current_file(frontier_root, path)
+            InputBinding::current_file(repository_root, path)
                 .map_err(AuthorityTransactionError::Transaction)?,
         );
     }
@@ -1338,7 +1338,7 @@ fn normalize_derived_drafts(
 }
 
 fn bind_repository_authority_history(
-    frontier_root: &Path,
+    repository_root: &Path,
     request: &mut AuthorityTransactionRequest,
 ) -> Result<(), AuthorityTransactionError> {
     let mut bindings = Vec::new();
@@ -1346,7 +1346,7 @@ fn bind_repository_authority_history(
     for event in &request.history.authority_events {
         let path = RepoPath::parse(authority_event_path(&event.id))
             .map_err(AuthorityTransactionError::Transaction)?;
-        bindings.push(exact_verified_json_input(frontier_root, &path, event)?);
+        bindings.push(exact_verified_json_input(repository_root, &path, event)?);
         authority_event_paths.push(path);
     }
     let mut authority_record_paths = Vec::new();
@@ -1363,12 +1363,12 @@ fn bind_repository_authority_history(
         })?;
         let path = RepoPath::parse(authority_record_path(&record.record_id))
             .map_err(AuthorityTransactionError::Transaction)?;
-        bindings.push(exact_verified_json_input(frontier_root, &path, envelope)?);
+        bindings.push(exact_verified_json_input(repository_root, &path, envelope)?);
         authority_record_paths.push(path);
     }
     bindings.push(
         InputBinding::absent_file(
-            frontier_root,
+            repository_root,
             RepoPath::parse(".vela/actors.json".to_string())
                 .map_err(AuthorityTransactionError::Transaction)?,
         )
@@ -1381,7 +1381,7 @@ fn bind_repository_authority_history(
     ] {
         bindings.push(
             InputBinding::exact_directory(
-                frontier_root,
+                repository_root,
                 RepoPath::parse(directory.to_string())
                     .map_err(AuthorityTransactionError::Transaction)?,
                 &paths,
@@ -1396,7 +1396,7 @@ fn bind_repository_authority_history(
 }
 
 fn exact_verified_json_input<T>(
-    frontier_root: &Path,
+    repository_root: &Path,
     path: &RepoPath,
     expected: &T,
 ) -> Result<InputBinding, AuthorityTransactionError>
@@ -1405,7 +1405,7 @@ where
 {
     const MAX_AUTHORITY_MEMBER_BYTES: u64 = 16 * 1024 * 1024;
     let bytes = crate::bounded_file::read_bounded_frontier_file(
-        frontier_root,
+        repository_root,
         Path::new(path.as_str()),
         MAX_AUTHORITY_MEMBER_BYTES,
         path.as_str(),
@@ -1432,7 +1432,7 @@ where
             path.as_str()
         )));
     }
-    InputBinding::exact_file(frontier_root, path.clone(), &bytes)
+    InputBinding::exact_file(repository_root, path.clone(), &bytes)
         .map_err(AuthorityTransactionError::Transaction)
 }
 

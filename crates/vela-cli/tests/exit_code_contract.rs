@@ -69,7 +69,7 @@ fn missing_objects_exit_3_and_malformed_flags_exit_2() {
     std::fs::create_dir_all(&home).expect("isolated home");
     let agent = EphemeralAgent::start(temporary.path(), "vela exit-code contract test");
     let frontier = temporary.path().join("frontier");
-    let frontier_text = frontier.to_string_lossy().into_owned();
+    let repository_path_text = frontier.to_string_lossy().into_owned();
 
     let initialized = run(
         temporary.path(),
@@ -77,7 +77,7 @@ fn missing_objects_exit_3_and_malformed_flags_exit_2() {
         Some(agent.socket()),
         &[
             "init",
-            &frontier_text,
+            &repository_path_text,
             "--name",
             // The repository id derives from the name, and the trust anchor is
             // keyed by that id in a directory shared with every other run, so a

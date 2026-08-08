@@ -453,7 +453,7 @@ pub(crate) fn prepare_locked(
     reason: &str,
     observed_at: &str,
 ) -> Result<(PreparedCurrentReviewDecision, RepositoryRecoveryBarrier), String> {
-    let journal_dir = crate::repository_ops::frontier_transaction_journal_dir(frontier)?;
+    let journal_dir = crate::repository_ops::repository_transaction_journal_dir(frontier)?;
     let barrier = RepositoryTxn::acquire_recovery_barrier(frontier, &journal_dir)
         .map_err(|error| error.to_string())?;
     let prepared = prepare(frontier, proposal_id, action, reason, observed_at)?;

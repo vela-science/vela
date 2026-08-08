@@ -402,7 +402,7 @@ pub(crate) fn import_verification(
     crate::current_verification::import(frontier, record, executor)
 }
 
-pub(crate) fn frontier_transaction_journal_dir(frontier: &Path) -> Result<PathBuf, String> {
+pub(crate) fn repository_transaction_journal_dir(frontier: &Path) -> Result<PathBuf, String> {
     let root = frontier
         .canonicalize()
         .map_err(|error| format!("resolve repository transaction root: {error}"))?;

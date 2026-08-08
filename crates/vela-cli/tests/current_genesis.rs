@@ -244,14 +244,14 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let agent = EphemeralAgent::start(temporary.path(), "vela native genesis test");
     let frontier = temporary.path().join("frontier");
-    let frontier_text = frontier.to_string_lossy().into_owned();
+    let repository_path_text = frontier.to_string_lossy().into_owned();
 
     let initialized = success_json(&run(
         temporary.path(),
         Some(agent.socket()),
         &[
             "init",
-            &frontier_text,
+            &repository_path_text,
             "--name",
             &format!(
                 "Native genesis fixture {}",
@@ -360,13 +360,13 @@ fn current_replay_blocks_sensitive_local_files() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let agent = EphemeralAgent::start(temporary.path(), "vela sensitive path test");
     let frontier = temporary.path().join("frontier");
-    let frontier_text = frontier.to_string_lossy().into_owned();
+    let repository_path_text = frontier.to_string_lossy().into_owned();
     let initialized = success_json(&run(
         temporary.path(),
         Some(agent.socket()),
         &[
             "init",
-            &frontier_text,
+            &repository_path_text,
             "--name",
             &format!(
                 "Sensitive path fixture {}",
@@ -404,13 +404,13 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let temporary = tempfile::tempdir().expect("temporary directory");
     let agent = EphemeralAgent::start(temporary.path(), "vela current submit test");
     let frontier = temporary.path().join("frontier");
-    let frontier_text = frontier.to_string_lossy().into_owned();
+    let repository_path_text = frontier.to_string_lossy().into_owned();
     let initialized = success_json(&run(
         temporary.path(),
         Some(agent.socket()),
         &[
             "init",
-            &frontier_text,
+            &repository_path_text,
             "--name",
             &format!(
                 "Current submission fixture {}",

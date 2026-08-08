@@ -170,7 +170,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
     let home = temporary.path().join("home");
     std::fs::create_dir_all(&home).expect("isolated home");
     let frontier = temporary.path().join("frontier");
-    let frontier_text = frontier.to_string_lossy().into_owned();
+    let repository_path_text = frontier.to_string_lossy().into_owned();
     let socket = agent.socket();
 
     /* The repository id is derived from name, scope, and key, and the authority
@@ -191,7 +191,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
         socket,
         &[
             "init",
-            &frontier_text,
+            &repository_path_text,
             "--name",
             &name,
             "--scope",
@@ -208,7 +208,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
             temporary.path(),
             &home,
             socket,
-            &[verb, &frontier_text],
+            &[verb, &repository_path_text],
         ));
         assert_no_banned_word(verb, &rendered);
     }
@@ -217,7 +217,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
         temporary.path(),
         &home,
         socket,
-        &["status", &frontier_text, "--json"],
+        &["status", &repository_path_text, "--json"],
     ));
     assert_eq!(
         status["integrity"]["replay"], "verified",
@@ -237,7 +237,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
         temporary.path(),
         &home,
         socket,
-        &["replay", &frontier_text, "--json"],
+        &["replay", &repository_path_text, "--json"],
     ));
     assert_eq!(replayed["schema"], "vela.repository-verification.v3");
     assert!(
@@ -265,7 +265,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
         temporary.path(),
         &home,
         socket,
-        &["reproduce", &frontier_text, "--json"],
+        &["reproduce", &repository_path_text, "--json"],
     ));
     assert_eq!(reproduced["schema"], "vela.reproduction-summary.v2");
     assert_eq!(
@@ -276,7 +276,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
         temporary.path(),
         &home,
         socket,
-        &["reproduce", &frontier_text],
+        &["reproduce", &repository_path_text],
     ));
     /* Not `assert_vocabulary_retired`: this fixture's directory is literally
     named `frontier`, and `reproduce` echoes the path it was given. The token
@@ -299,7 +299,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
     let submit = [
         "submit",
         "--repo",
-        &frontier_text,
+        &repository_path_text,
         "--claim",
         "Exact bounded fixture claim.",
         "--type",
@@ -337,7 +337,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
         &[
             "review",
             "withdraw",
-            &frontier_text,
+            &repository_path_text,
             proposal,
             "--as",
             "agent:fixture",
@@ -354,7 +354,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
         &[
             "review",
             "withdraw",
-            &frontier_text,
+            &repository_path_text,
             &format!("vpr_{}", "0".repeat(16)),
             "--as",
             "agent:fixture",

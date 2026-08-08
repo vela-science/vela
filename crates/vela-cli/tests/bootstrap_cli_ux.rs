@@ -95,14 +95,14 @@ fn replay_is_the_only_repository_replay_verb() {
 fn bootstrap_discovery_and_blocked_commands_name_the_one_valid_next_action() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let frontier = temporary.path().join("frontier");
-    let frontier_text = frontier.to_string_lossy().into_owned();
+    let repository_path_text = frontier.to_string_lossy().into_owned();
     let name = unique_name("Cold-start UX", &temporary);
     let initialized = run(
         temporary.path(),
         None,
         &[
             "init",
-            &frontier_text,
+            &repository_path_text,
             "--name",
             &name,
             "--scope",
@@ -124,7 +124,7 @@ fn bootstrap_discovery_and_blocked_commands_name_the_one_valid_next_action() {
     assert!(init_hint.contains("ssh-add /path/to/private-key"));
     assert!(init_hint.contains("start ssh-agent first on Linux"));
     assert!(init_hint.contains("docs/QUICKSTART.md#first-time-authority-key-setup"));
-    assert!(init_hint.contains(&format!("vela init '{frontier_text}'")));
+    assert!(init_hint.contains(&format!("vela init '{repository_path_text}'")));
     assert!(init_hint.ends_with("first-time-authority-key-setup"));
 
     let nested = frontier.join("notes/drafts");
@@ -153,8 +153,8 @@ fn bootstrap_discovery_and_blocked_commands_name_the_one_valid_next_action() {
         vec!["replay", "--json"],
         vec!["next", "--json"],
         vec!["start", "missing:target", "--json"],
-        vec!["review", "inbox", &frontier_text, "--json"],
-        vec!["show", &frontier_text, "vcl_missing", "--json"],
+        vec!["review", "inbox", &repository_path_text, "--json"],
+        vec!["show", &repository_path_text, "vcl_missing", "--json"],
     ] {
         let blocked = run(&nested, None, &args);
         assert_eq!(blocked.status.code(), Some(1), "args={args:?}");
@@ -177,7 +177,7 @@ fn bootstrap_discovery_and_blocked_commands_name_the_one_valid_next_action() {
     let resumed = run(
         temporary.path(),
         Some(agent.socket()),
-        &["init", &frontier_text, "--json"],
+        &["init", &repository_path_text, "--json"],
     );
     assert!(resumed.status.success());
     let resumed = json(&resumed);
@@ -195,13 +195,13 @@ fn bootstrap_discovery_and_blocked_commands_name_the_one_valid_next_action() {
 fn human_init_recovery_keeps_the_resume_command_human_readable() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let frontier = temporary.path().join("frontier");
-    let frontier_text = frontier.to_string_lossy().into_owned();
+    let repository_path_text = frontier.to_string_lossy().into_owned();
     let initialized = run_with_advice(
         temporary.path(),
         None,
         &[
             "init",
-            &frontier_text,
+            &repository_path_text,
             "--name",
             "Human recovery",
             "--scope",
@@ -213,7 +213,7 @@ fn human_init_recovery_keeps_the_resume_command_human_readable() {
     let stderr = String::from_utf8_lossy(&initialized.stderr);
     assert!(stderr.contains("ssh-add /path/to/private-key"));
     assert!(stderr.contains("key setup: https://github.com/vela-science/vela/"));
-    assert!(stderr.contains(&format!("vela init '{frontier_text}'")));
+    assert!(stderr.contains(&format!("vela init '{repository_path_text}'")));
     assert!(!stderr.contains("--json"));
 }
 
@@ -222,14 +222,14 @@ fn init_creates_a_signed_ready_frontier_in_one_command() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let agent = EphemeralAgent::start(temporary.path(), "vela one-step init test");
     let frontier = temporary.path().join("frontier");
-    let frontier_text = frontier.to_string_lossy().into_owned();
+    let repository_path_text = frontier.to_string_lossy().into_owned();
     let name = unique_name("Ready repository", &temporary);
     let initialized = run(
         temporary.path(),
         Some(agent.socket()),
         &[
             "init",
-            &frontier_text,
+            &repository_path_text,
             "--name",
             &name,
             "--scope",
@@ -296,14 +296,14 @@ fn init_creates_a_signed_ready_frontier_in_one_command() {
 fn review_decision_preflight_keeps_json_error_contract() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let frontier = temporary.path().join("frontier");
-    let frontier_text = frontier.to_string_lossy().into_owned();
+    let repository_path_text = frontier.to_string_lossy().into_owned();
     assert!(
         run(
             temporary.path(),
             None,
             &[
                 "init",
-                &frontier_text,
+                &repository_path_text,
                 "--name",
                 "Decision UX",
                 "--scope",
@@ -322,7 +322,7 @@ fn review_decision_preflight_keeps_json_error_contract() {
         &[
             "review",
             "accept",
-            &frontier_text,
+            &repository_path_text,
             "vpr_missing",
             "--reason",
             "Inspect the JSON contract.",
@@ -446,13 +446,13 @@ fn two_repositories_on_the_same_question_receive_different_identities() {
         std::fs::create_dir_all(&agent_root).expect("agent root");
         let agent = EphemeralAgent::start(&agent_root, &format!("vela same question {label}"));
         let frontier = agent_root.join("frontier");
-        let frontier_text = frontier.to_string_lossy().into_owned();
+        let repository_path_text = frontier.to_string_lossy().into_owned();
         let created = run(
             temporary.path(),
             Some(agent.socket()),
             &[
                 "init",
-                &frontier_text,
+                &repository_path_text,
                 "--name",
                 &name,
                 "--scope",
@@ -498,13 +498,13 @@ fn the_scaffold_never_normalizes_a_content_addressed_path() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let agent = EphemeralAgent::start(temporary.path(), "vela gitattributes scaffold test");
     let frontier = temporary.path().join("frontier");
-    let frontier_text = frontier.to_string_lossy().into_owned();
+    let repository_path_text = frontier.to_string_lossy().into_owned();
     let initialized = run(
         temporary.path(),
         Some(agent.socket()),
         &[
             "init",
-            &frontier_text,
+            &repository_path_text,
             "--name",
             &unique_name("Byte stability", &temporary),
             "--scope",

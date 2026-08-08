@@ -144,7 +144,7 @@ fn verified_frontier_file(
     {
         return Err(format!("{label} path must remain repository-relative"));
     }
-    let frontier_root = std::fs::canonicalize(repository)
+    let repository_root = std::fs::canonicalize(repository)
         .map_err(|error| format!("resolve repository root: {error}"))?;
     let file = repository.join(relative);
     let metadata =
@@ -154,7 +154,7 @@ fn verified_frontier_file(
     }
     let resolved =
         std::fs::canonicalize(&file).map_err(|error| format!("resolve {label}: {error}"))?;
-    if !resolved.starts_with(&frontier_root) {
+    if !resolved.starts_with(&repository_root) {
         return Err(format!("{label} resolves outside the repository"));
     }
     use sha2::{Digest, Sha256};

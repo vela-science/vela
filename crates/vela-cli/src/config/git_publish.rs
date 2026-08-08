@@ -118,9 +118,9 @@ pub(crate) struct ExactPublicationPreflight {
 
 pub(crate) fn publication_repo_relative_path(
     frontier: &Path,
-    frontier_relative: &str,
+    repository_relative: &str,
 ) -> Result<String, String> {
-    validate_relative_path(frontier_relative)?;
+    validate_relative_path(repository_relative)?;
     let root = git_text(frontier, &["rev-parse", "--show-toplevel"])?;
     let root = PathBuf::from(root)
         .canonicalize()
@@ -131,7 +131,7 @@ pub(crate) fn publication_repo_relative_path(
     let prefix = frontier
         .strip_prefix(&root)
         .map_err(|_| "repository is outside the resolved Git worktree".to_string())?;
-    let path = prefix.join(frontier_relative);
+    let path = prefix.join(repository_relative);
     path.to_str()
         .map(str::to_string)
         .ok_or_else(|| "non-UTF-8 repository paths are not publishable".to_string())

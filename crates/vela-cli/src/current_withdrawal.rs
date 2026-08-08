@@ -196,7 +196,7 @@ pub(crate) fn withdraw(
         return Err("proposal withdrawal actor must own the exact retained Submission".into());
     }
 
-    let journal_dir = crate::repository_ops::frontier_transaction_journal_dir(frontier)?;
+    let journal_dir = crate::repository_ops::repository_transaction_journal_dir(frontier)?;
     let barrier = crate::repository_txn::RepositoryTxn::acquire_routine_evidence_write_barrier(
         frontier,
         &journal_dir,
