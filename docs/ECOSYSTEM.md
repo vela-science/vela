@@ -596,7 +596,7 @@ Dependencies point up the list only. Concretely:
   `crates/vela-cli/tests/wording_contract.rs:11` records that `vela-web` pins a
   literal, which is knowledge of a downstream consumer inside the protocol
   repository. Direction of the pin is correct (`vela-web` pins
-  `vela-science/vela@c4023f11`, `v0.967.0`); the test comment is a soft reverse
+  `vela-science/vela@b202e3bc`, `v0.968.1`); the test comment is a soft reverse
   coupling and should be stated as a note, not enforced as a contract.
 - **The projection must never hold a repository-authority credential** and must
   never be the source of a fact the repository does not already contain.
