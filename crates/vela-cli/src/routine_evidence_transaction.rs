@@ -223,10 +223,7 @@ fn rooted_sha256_path(path: &str, prefix: &str, suffix: &str) -> bool {
     else {
         return false;
     };
-    stem.len() == 64
-        && stem
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    vela_protocol::is_lower_hex_64(stem)
 }
 
 #[cfg(test)]

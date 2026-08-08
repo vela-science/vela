@@ -106,11 +106,7 @@ pub(crate) fn author_submission(
     was wrong. */
     if let Some(attempt) = source_attempt.as_deref() {
         let body = attempt.strip_prefix("vat_").unwrap_or_default();
-        if body.len() != 64
-            || !body
-                .bytes()
-                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
-        {
+        if !vela_protocol::is_lower_hex_64(body) {
             return Err(format!(
                 "--source-attempt takes an Attempt id, `vat_` and 64 lowercase hex digits; got {attempt:?}"
             ));

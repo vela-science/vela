@@ -293,29 +293,31 @@ pub fn run_command() {
                 crate::ui::fail_unchanged(kind, &message, &preflight_id, "vela submit --help")
             };
             let (submission, bundle_root, actor) = if let Some(path) = submission {
-                let raw =
-                    crate::bounded_file::read_bounded_file(&path, 8 * 1024 * 1024, "Submission v1")
-                        .unwrap_or_else(|error| {
-                            /* `bounded_file` distinguishes twelve reasons a
-                            named file did not produce bytes. This read one
-                            of them to pick an exit code and dropped the
-                            rest, so a caller was told the Submission file
-                            was a domain failure and could not learn whether
-                            it was oversized, a symlink, or swapped while
-                            being read — three different things to do next. */
-                            let kind = if error.code == "missing" {
-                                crate::ui::ErrorKind::NotFound
-                            } else {
-                                crate::ui::ErrorKind::Domain
-                            };
-                            crate::ui::fail_unchanged_coded(
-                                kind,
-                                Some(error.published_code()),
-                                &error.to_string(),
-                                &preflight_id,
-                                "vela submit --help",
-                            )
-                        });
+                let raw = crate::bounded_file::read_bounded_file(
+                    &path,
+                    vela_protocol::submission_v1::SUBMISSION_MAX_BYTES as u64,
+                    "Submission v1",
+                )
+                .unwrap_or_else(|error| {
+                    /* `bounded_file` distinguishes twelve reasons a named file
+                    did not produce bytes. This read one of them to pick an exit
+                    code and dropped the rest, so a caller was told the
+                    Submission file was a domain failure and could not learn
+                    whether it was oversized, a symlink, or swapped while being
+                    read — three different things to do next. */
+                    let kind = if error.code == "missing" {
+                        crate::ui::ErrorKind::NotFound
+                    } else {
+                        crate::ui::ErrorKind::Domain
+                    };
+                    crate::ui::fail_unchanged_coded(
+                        kind,
+                        Some(error.published_code()),
+                        &error.to_string(),
+                        &preflight_id,
+                        "vela submit --help",
+                    )
+                });
                 let parsed = vela_protocol::submission_v1::SubmissionV1::parse(&raw)
                     .unwrap_or_else(|error| {
                         fail_preflight(crate::ui::ErrorKind::Domain, error.to_string())

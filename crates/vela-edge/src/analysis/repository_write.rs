@@ -1153,11 +1153,7 @@ fn validate_repository_id(value: &str) -> Result<(), String> {
     let Some(suffix) = value.strip_prefix("vrepo_") else {
         return Err("trust anchor repository_id must be vrepo_<16 lowercase hex>".to_string());
     };
-    if suffix.len() != 16
-        || !suffix
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
+    if suffix.len() != 16 || !suffix.bytes().all(vela_protocol::is_lower_hex) {
         return Err("trust anchor repository_id must be vrepo_<16 lowercase hex>".to_string());
     }
     Ok(())
@@ -1173,11 +1169,7 @@ fn validate_sha256_root(field: &str, value: &str) -> Result<(), String> {
 }
 
 fn validate_lower_hex(field: &str, value: &str, length: usize) -> Result<(), String> {
-    if value.len() != length
-        || !value
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
+    if value.len() != length || !value.bytes().all(vela_protocol::is_lower_hex) {
         return Err(format!(
             "{field} must be exactly {length} lowercase hex characters"
         ));

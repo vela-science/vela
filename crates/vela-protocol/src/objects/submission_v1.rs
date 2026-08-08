@@ -13,6 +13,7 @@ use crate::execution_binding::ExecutionBindingV1;
 use crate::identity::{ActorClass, IdentityBinding};
 
 pub const SUBMISSION_V1_SCHEMA: &str = "vela.submission.v1";
+pub const SUBMISSION_MAX_BYTES: usize = 8 * 1024 * 1024;
 pub const SUBMISSION_V1_AUTH_ALGORITHM: &str = "ed25519";
 pub(crate) const PRODUCER_REPORTED_AUTHORITY: &str = "producer_reported";
 
@@ -284,7 +285,7 @@ impl SubmissionV1 {
     }
 
     pub fn parse(bytes: &[u8]) -> Result<Self, String> {
-        if bytes.len() > 8 * 1024 * 1024 {
+        if bytes.len() > SUBMISSION_MAX_BYTES {
             return Err("Submission exceeds the 8 MiB encoded limit".into());
         }
         let value: Self = crate::canonical::from_json_slice_strict(bytes)

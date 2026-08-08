@@ -142,7 +142,7 @@ fn canonical_root<T: Serialize + ?Sized>(value: &T) -> Result<String, String> {
 }
 
 fn require_sha256_root(field: &str, value: &str) -> Result<(), String> {
-    if vela_protocol::execution_binding::is_full_sha256_root(value) {
+    if vela_protocol::is_full_sha256_root(value) {
         Ok(())
     } else {
         Err(format!(
@@ -155,11 +155,7 @@ fn require_repository_id(value: &str) -> Result<(), String> {
     let Some(suffix) = value.strip_prefix("vrepo_") else {
         return Err("repository_id must use the vrepo_<16 lowercase hex> form".to_string());
     };
-    if suffix.len() == 16
-        && suffix
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
+    if suffix.len() == 16 && suffix.bytes().all(vela_protocol::is_lower_hex) {
         Ok(())
     } else {
         Err("repository_id must use the vrepo_<16 lowercase hex> form".to_string())
@@ -170,11 +166,7 @@ fn require_origin_id(field: &str, value: &str) -> Result<(), String> {
     let Some(suffix) = value.strip_prefix("vro_") else {
         return Err(format!("{field} must use the vro_<16 lowercase hex> form"));
     };
-    if suffix.len() == 16
-        && suffix
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
+    if suffix.len() == 16 && suffix.bytes().all(vela_protocol::is_lower_hex) {
         Ok(())
     } else {
         Err(format!("{field} must use the vro_<16 lowercase hex> form"))
@@ -190,11 +182,7 @@ fn git_digest_len(format: GitObjectFormat) -> usize {
 
 fn require_git_object(field: &str, value: &str, format: GitObjectFormat) -> Result<(), String> {
     let expected = git_digest_len(format);
-    if value.len() == expected
-        && value
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
+    if value.len() == expected && value.bytes().all(vela_protocol::is_lower_hex) {
         Ok(())
     } else {
         Err(format!(
@@ -729,10 +717,7 @@ fn batch_blobs(repo: &Path, entries: &[&GitTreeEntry]) -> Result<Vec<Vec<u8>>, S
     for entry in entries {
         if entry.kind != "blob"
             || !matches!(entry.object.len(), 40 | 64)
-            || !entry
-                .object
-                .bytes()
-                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            || !entry.object.bytes().all(vela_protocol::is_lower_hex)
         {
             return Err(format!(
                 "tracked path {} does not name an exact regular Git blob",

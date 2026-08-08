@@ -13,7 +13,7 @@ use chrono::{DateTime, SecondsFormat};
 /// Whether `digest` is exactly 64 lowercase hexadecimal characters — the
 /// payload half of a full Vela root or a full `vcl_` Claim id, with the
 /// prefix already stripped.
-pub(crate) fn is_lower_hex_64(digest: &str) -> bool {
+pub fn is_lower_hex_64(digest: &str) -> bool {
     digest.len() == 64
         && digest
             .bytes()
@@ -22,12 +22,12 @@ pub(crate) fn is_lower_hex_64(digest: &str) -> bool {
 
 /// Whether `value` is a full Vela root: lowercase `sha256:` plus
 /// [`is_lower_hex_64`].
-pub(crate) fn is_full_sha256_root(value: &str) -> bool {
+pub fn is_full_sha256_root(value: &str) -> bool {
     value.strip_prefix("sha256:").is_some_and(is_lower_hex_64)
 }
 
 /// Whether `byte` is a lowercase hexadecimal digit.
-pub(crate) fn is_lower_hex(byte: u8) -> bool {
+pub fn is_lower_hex(byte: u8) -> bool {
     byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)
 }
 

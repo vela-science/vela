@@ -512,10 +512,7 @@ fn require_sha256(_field: &str, value: &str) -> Result<(), String> {
 
 fn is_prefixed_hex(value: &str, prefix: &str, length: usize) -> bool {
     value.strip_prefix(prefix).is_some_and(|suffix| {
-        suffix.len() == length
-            && suffix
-                .bytes()
-                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        suffix.len() == length && suffix.bytes().all(vela_protocol::is_lower_hex)
     })
 }
 

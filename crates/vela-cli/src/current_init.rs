@@ -388,11 +388,7 @@ mod tests {
 
         let suffix = id.strip_prefix("vrepo_").expect("vrepo_ prefix");
         assert_eq!(suffix.len(), 16);
-        assert!(
-            suffix
-                .bytes()
-                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
-        );
+        assert!(suffix.bytes().all(vela_protocol::is_lower_hex));
 
         let profile = vela_protocol::current_repository::CurrentRepositoryProfileV1::from_toml_str(
             &fs::read_to_string(parent.path().join("frontier").join("vela.toml"))

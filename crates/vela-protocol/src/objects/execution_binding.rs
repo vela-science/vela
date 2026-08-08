@@ -35,16 +35,12 @@ impl ExecutionBindingV1 {
             ("verifier_capsule_root", &self.verifier_capsule_root),
             ("result_contract_root", &self.result_contract_root),
         ] {
-            if !is_full_sha256_root(value) {
+            if !crate::shape::is_full_sha256_root(value) {
                 return Err(format!("{field} must be a full lowercase sha256 root"));
             }
         }
         Ok(())
     }
-}
-
-pub fn is_full_sha256_root(value: &str) -> bool {
-    crate::shape::is_full_sha256_root(value)
 }
 
 #[cfg(test)]

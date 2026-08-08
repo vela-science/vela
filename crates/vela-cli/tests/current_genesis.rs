@@ -489,7 +489,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     );
     assert_eq!(briefing["packet"]["problem"], 1056);
     assert_eq!(briefing["verifier"], "exact-replay-v1");
-    assert!(vela_protocol::execution_binding::is_full_sha256_root(
+    assert!(vela_protocol::is_full_sha256_root(
         briefing["packet_root"].as_str().expect("packet root")
     ));
     assert!(

@@ -42,11 +42,7 @@ impl ContentDigest {
         let Some(hex) = value.strip_prefix("sha256:") else {
             return Err(RepositoryTxnError::InvalidDigest(value));
         };
-        if hex.len() != 64
-            || !hex
-                .bytes()
-                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-        {
+        if !vela_protocol::is_lower_hex_64(hex) {
             return Err(RepositoryTxnError::InvalidDigest(value));
         }
         Ok(Self(value))
@@ -77,11 +73,7 @@ impl OperationId {
         let Some(hex) = value.strip_prefix("vop_") else {
             return Err(RepositoryTxnError::InvalidOperationId(value));
         };
-        if hex.len() != 64
-            || !hex
-                .bytes()
-                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-        {
+        if !vela_protocol::is_lower_hex_64(hex) {
             return Err(RepositoryTxnError::InvalidOperationId(value));
         }
         Ok(Self(value))
