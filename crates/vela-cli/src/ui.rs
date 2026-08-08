@@ -141,6 +141,10 @@ fn advice_enabled() -> bool {
     if QUIET.load(std::sync::atomic::Ordering::Relaxed) {
         return false;
     }
+    /* The `Err` arm is `true` on purpose, and it is why this is not
+    `is_ok_and`: an unset VELA_ADVICE is `Err` and must mean advice on, so the
+    shorter spelling would turn every environment that never set the variable
+    into advice off — the whole hint surface disappearing silently. */
     std::env::var("VELA_ADVICE")
         .map(|value| !matches!(value.trim().to_ascii_lowercase().as_str(), "0" | "off"))
         .unwrap_or(true)

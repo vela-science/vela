@@ -1230,7 +1230,7 @@ fn usize_after_any(hay: &str, needles: &[&str]) -> Option<usize> {
     for needle in needles {
         if let Some(idx) = hay.find(needle)
             && let Some(v) = leading_usize(&hay[idx + needle.len()..])
-            && best.map(|(_, p)| idx < p).unwrap_or(true)
+            && best.is_none_or(|(_, p)| idx < p)
         {
             best = Some((v, idx));
         }
