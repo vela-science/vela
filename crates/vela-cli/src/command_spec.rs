@@ -290,6 +290,15 @@ pub(crate) enum Commands {
         /// Full root of the exact positive result contract checked by the capsule.
         #[arg(long, conflicts_with = "submission", requires_all = ["packet_root", "profile_root", "verifier_capsule_root"])]
         result_contract_root: Option<String>,
+        // The duplicate-execution guard compares two Submissions by the Attempt
+        // that produced them and gives up when either is absent
+        // (`current_repository_decision.rs`). Authoring left it absent every
+        // time, so the guard could not fire on anything the CLI wrote. A flag
+        // rather than something inferred here: the producer is the only party
+        // that knows which exploration a result came out of.
+        /// Attempt this result came out of, as `vat_<64 hex>`.
+        #[arg(long, conflicts_with = "submission")]
+        source_attempt: Option<String>,
         #[arg(long, help = HELP_AS)]
         r#as: Option<String>,
         #[arg(long, help = HELP_JSON)]
