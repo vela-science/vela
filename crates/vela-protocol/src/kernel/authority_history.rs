@@ -621,8 +621,10 @@ fn verify_authority_close_record(
         );
     }
     let event = transaction_events[0];
+    /* `target.id` is the test that means something: it binds the close to the
+    repository the record is for. `target.type` was tested beside it against a
+    literal this binary also writes, which is a check of a value against itself. */
     if event.content.kind.as_str() != AUTHORITY_CLOSED_EVENT_KIND
-        || event.content.target.r#type != "frontier"
         || event.content.target.id != verified.record.content.repository_id
         || event.content.actor.r#type != "human"
         || event.content.before_hash != event.content.after_hash
@@ -689,7 +691,6 @@ pub fn initialization_payload_from_event(
 ) -> Result<AuthorityInitializationV1, String> {
     event.validate()?;
     if event.content.kind.as_str() != AUTHORITY_INITIALIZED_EVENT_KIND
-        || event.content.target.r#type != "frontier"
         || event.content.actor.r#type != "human"
         || event.content.before_hash != NULL_HASH
         || event.content.after_hash != NULL_HASH
@@ -698,6 +699,16 @@ pub fn initialization_payload_from_event(
     }
     let payload: AuthorityInitializationV1 = serde_json::from_value(event.content.payload.clone())
         .map_err(|error| format!("authority initialization payload is invalid: {error}"))?;
+    /* The target names the repository this event initializes. The shape test
+    above used to compare `target.type` against a literal instead, which checked
+    that the writer had written what the writer chose to write, and left the id
+    unchecked — so an initialization event could name one repository in its
+    target and another in its payload and pass. */
+    if event.content.target.id != payload.repository_id {
+        return Err(
+            "authority initialization event targets a different repository than its payload".into(),
+        );
+    }
     payload.validate()?;
     if event.content.target.id != payload.repository_id
         || event.content.reason != payload.reason

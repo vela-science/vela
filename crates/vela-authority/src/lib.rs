@@ -297,13 +297,13 @@ pub fn evaluate_authorization_v1(
     } else if request.repository_id != model.repository_id {
         (
             AuthorizationDecisionV1::Deny,
-            AuthorizationReasonV1::FrontierMismatch,
+            AuthorizationReasonV1::RepositoryMismatch,
             None,
         )
     } else if request.resource.repository_id != request.repository_id {
         (
             AuthorizationDecisionV1::Deny,
-            AuthorizationReasonV1::ResourceFrontierMismatch,
+            AuthorizationReasonV1::ResourceRepositoryMismatch,
             None,
         )
     } else if request.principal_class != PrincipalClass::Human {
@@ -489,7 +489,7 @@ mod tests {
         administrator_request.action = AuthorityActionV1::AuthorityInitialize;
         administrator_request.resource = AuthorizationResourceV1 {
             repository_id: "vrepo_fixture".into(),
-            resource_type: AuthorityResourceTypeV1::Frontier,
+            resource_type: AuthorityResourceTypeV1::Repository,
             resource_id: "vrepo_fixture".into(),
         };
         let administrator = evaluate_authorization_v1(&model, &administrator_request).unwrap();
@@ -519,7 +519,7 @@ mod tests {
             evaluate_authorization_v1(&model, &wrong_frontier)
                 .unwrap()
                 .reason,
-            AuthorizationReasonV1::FrontierMismatch
+            AuthorizationReasonV1::RepositoryMismatch
         );
 
         let mut wrong_resource_frontier = closed_request(&model);
@@ -528,7 +528,7 @@ mod tests {
             evaluate_authorization_v1(&model, &wrong_resource_frontier)
                 .unwrap()
                 .reason,
-            AuthorizationReasonV1::ResourceFrontierMismatch
+            AuthorizationReasonV1::ResourceRepositoryMismatch
         );
 
         let mut machine = closed_request(&model);
@@ -556,7 +556,7 @@ mod tests {
         );
 
         let mut wrong_resource_type = closed_request(&model);
-        wrong_resource_type.resource.resource_type = AuthorityResourceTypeV1::Frontier;
+        wrong_resource_type.resource.resource_type = AuthorityResourceTypeV1::Repository;
         wrong_resource_type.resource.resource_id = "vrepo_fixture".into();
         assert_eq!(
             evaluate_authorization_v1(&model, &wrong_resource_type)

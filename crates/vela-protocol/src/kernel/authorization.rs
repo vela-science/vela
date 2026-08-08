@@ -53,21 +53,25 @@ impl AuthorityActionV1 {
             Self::AuthorityInitialize
             | Self::AuthorityRotate
             | Self::AuthorityClose
-            | Self::AuthorityModelUpdate => AuthorityResourceTypeV1::Frontier,
+            | Self::AuthorityModelUpdate => AuthorityResourceTypeV1::Repository,
             Self::ReviewAccept | Self::ReviewReject => AuthorityResourceTypeV1::Proposal,
         }
     }
 }
 
-/// The authority boundary is the Repository (ADR 0039), but this variant
-/// serializes as the wire token `"repository"` and cannot be renamed in place.
-/// It is hashed into `AuthorizationRequestV1::root()`, which is bound by the
-/// signed authority record, and `vela-science/math` has a live genesis holding
-/// it. Renaming it is a re-signing migration, not a prose sweep.
+/// The authority boundary is the Repository (ADR 0039), and this variant now
+/// says so on the wire.
+///
+/// `rename_all = "snake_case"` means the variant name *is* the token, so while
+/// this read `Frontier` it emitted `"frontier"` — and the comment here claimed
+/// it already emitted `"repository"`, which was a statement about the code that
+/// the code contradicted. It could not be renamed in place while a live genesis
+/// held the old token inside `AuthorizationRequestV1::root()`. The 0.970.0
+/// re-genesis of `vela-science/math` removed that constraint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorityResourceTypeV1 {
-    Frontier,
+    Repository,
     Proposal,
 }
 
@@ -158,7 +162,7 @@ impl AuthorizationResourceV1 {
             "vrepo_",
         )?;
         let prefix = match self.resource_type {
-            AuthorityResourceTypeV1::Frontier => "vrepo_",
+            AuthorityResourceTypeV1::Repository => "vrepo_",
             AuthorityResourceTypeV1::Proposal => "vpr_",
         };
         require_identifier("authorization resource_id", &self.resource_id, prefix)
@@ -230,17 +234,17 @@ pub enum AuthorizationDecisionV1 {
     Deny,
 }
 
-/// `FrontierMismatch` and `ResourceFrontierMismatch` serialize as
+/// `RepositoryMismatch` and `ResourceRepositoryMismatch` serialize as
 /// `"repository_mismatch"` and `"resource_repository_mismatch"` into
 /// `AuthorityEvaluationV1`, which is hashed into the authority record. Same
-/// migration as `AuthorityResourceTypeV1::Frontier` above.
+/// migration as `AuthorityResourceTypeV1::Repository` above.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorizationReasonV1 {
     MemberRoleAuthorized,
     ModelRootMismatch,
-    FrontierMismatch,
-    ResourceFrontierMismatch,
+    RepositoryMismatch,
+    ResourceRepositoryMismatch,
     PrincipalClassMismatch,
     UnknownMember,
     RoleActionMismatch,
@@ -395,7 +399,7 @@ mod tests {
             assert_eq!(action.required_role(), AuthorityRoleV1::Administrator);
             assert_eq!(
                 action.required_resource_type(),
-                AuthorityResourceTypeV1::Frontier
+                AuthorityResourceTypeV1::Repository
             );
         }
         for action in [

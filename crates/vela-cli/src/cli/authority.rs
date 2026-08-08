@@ -46,24 +46,25 @@ use crate::repository_txn::{ContentDigest, RepositoryTxn, WriteClass};
 
 use super::{fail_return, print_json};
 
-/// The Cedar entity is still `Frontier` after ADR 0039, and deliberately so.
+/// The Cedar entity is `Repository`, which is what it has always bounded.
 ///
 /// `authority_transaction.rs` hashes this exact text and refuses the write when
 /// the runtime root differs from `policy_bundle.cedar_schema_root` retained in
-/// history. `vela-science/math` retains a bundle whose `cedar_schema_root` was
-/// computed over these bytes and is bound by a valid DSSE signature, so editing
-/// one character here makes every subsequent authority write on that repository
-/// fail with "runtime Cedar schema, policies, or entities differ from the
-/// retained policy bundle". Renaming the entity is a policy-bundle rotation on
-/// every live repository, not a wording change. The same holds for the entities
-/// JSON and the `Frontier::` resource UID below, which the schema binds.
+/// history, so changing one character here makes every subsequent authority
+/// write fail on any repository holding a bundle computed over the old bytes.
+/// It said `Frontier` until 0.970.0 for exactly that reason: ADR 0039 had
+/// retired the noun, and the one live repository could not be rewritten to
+/// match. `vela-science/math` was re-genesised in that release, so there is no
+/// retained bundle carrying the old spelling and the entity now names the
+/// boundary it is actually the resource of. The entities JSON and the
+/// `Repository::` resource UID below are bound by the same schema.
 const HUMAN_AUTHORITY_SCHEMA: &str = r#"
-entity Frontier;
+entity Repository;
 entity Human;
 entity Proposal;
 action "authority_rotate" appliesTo {
     principal: Human,
-    resource: Frontier,
+    resource: Repository,
     context: {
         exact: Bool,
         authentication: {
@@ -80,7 +81,7 @@ action "authority_rotate" appliesTo {
 };
 action "authority_close" appliesTo {
     principal: Human,
-    resource: Frontier,
+    resource: Repository,
     context: {
         exact: Bool,
         authentication: {
@@ -97,7 +98,7 @@ action "authority_close" appliesTo {
 };
 action "policy_rotate" appliesTo {
     principal: Human,
-    resource: Frontier,
+    resource: Repository,
     context: {
         exact: Bool,
         authentication: {
@@ -151,7 +152,7 @@ action "review_reject" appliesTo {
 const FRESH_AUTHORITY_INITIALIZE_SCHEMA: &str = r#"
 action "authority_initialize" appliesTo {
     principal: Human,
-    resource: Frontier,
+    resource: Repository,
     context: {
         exact: Bool,
         authentication: {
@@ -183,7 +184,7 @@ pub(crate) fn fresh_authority_policy_for_frontier(
     let _ = observed_at;
     let entities = json!([
         {
-            "uid": {"type": "Frontier", "id": repository_id},
+            "uid": {"type": "Repository", "id": repository_id},
             "attrs": {},
             "parents": []
         },
@@ -219,7 +220,7 @@ pub(crate) fn fresh_authority_policy_for_frontier(
         principal_class: PrincipalClass::Human,
         action: AUTHORITY_INITIALIZE_ACTION.into(),
         resource: format!(
-            "Frontier::{}",
+            "Repository::{}",
             serde_json::to_string(repository_id).unwrap()
         ),
         context: json!({"exact": true}),
@@ -581,7 +582,7 @@ fn initialize_current_repository_authority(
             above rather than ahead of it. */
             semantic_approvals: vec![SemanticApprovalV1 {
                 principal_id: principal.principal_id.clone(),
-                role: "frontier_administrator".into(),
+                role: "repository_administrator".into(),
                 action: AUTHORITY_INITIALIZE_ACTION.into(),
                 reason: reason.into(),
                 approved_at: recorded_at.clone(),
@@ -590,7 +591,7 @@ fn initialize_current_repository_authority(
             event_drafts: vec![AuthorityEventDraft {
                 kind: EventKind::Other(AUTHORITY_INITIALIZED_EVENT_KIND.into()),
                 target: StateTarget {
-                    r#type: "frontier".into(),
+                    r#type: "repository".into(),
                     id: profile.repository_id.clone(),
                 },
                 actor: StateActor {

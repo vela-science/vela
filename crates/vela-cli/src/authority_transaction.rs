@@ -843,7 +843,6 @@ fn validate_fresh_initialization_request(
             draft.kind.as_str() == AUTHORITY_INITIALIZED_EVENT_KIND,
             "event_kind",
         ),
-        (draft.target.r#type == "frontier", "target_type"),
         (
             draft.target.id == request.history.repository_id,
             "target_repository",
@@ -1010,7 +1009,6 @@ fn validate_requested_close(
     }
     let draft = &request.event_drafts[0];
     if draft.kind.as_str() != AUTHORITY_CLOSED_EVENT_KIND
-        || draft.target.r#type != "frontier"
         || draft.target.id != request.history.repository_id
         || draft.actor.r#type != "human"
         || draft.before_hash != draft.after_hash
@@ -2312,7 +2310,7 @@ mod tests {
             authority_mode: AUTHORITY_MODE.into(),
             kind: EventKind::Other(AUTHORITY_INITIALIZED_EVENT_KIND.into()),
             target: StateTarget {
-                r#type: "frontier".into(),
+                r#type: "repository".into(),
                 id: REPOSITORY_ID.into(),
             },
             actor: StateActor {
@@ -2404,7 +2402,7 @@ mod tests {
             },
             semantic_approvals: vec![SemanticApprovalV1 {
                 principal_id: REPOSITORY_PRINCIPAL.into(),
-                role: "frontier_administrator".into(),
+                role: "repository_administrator".into(),
                 action: AUTHORITY_INITIALIZE_ACTION.into(),
                 reason: initialization.reason,
                 approved_at: "2026-07-24T12:00:00Z".into(),
@@ -2507,7 +2505,7 @@ mod tests {
             authorization_input,
             semantic_approvals: vec![SemanticApprovalV1 {
                 principal_id: REPOSITORY_PRINCIPAL.into(),
-                role: "frontier_administrator".into(),
+                role: "repository_administrator".into(),
                 action: "review_reject".into(),
                 reason: "Reject the disposable fixture proposal.".into(),
                 approved_at: RECORDED_AT.into(),
@@ -2632,7 +2630,7 @@ mod tests {
         );
         fixture.request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
-            role: "frontier_administrator".into(),
+            role: "repository_administrator".into(),
             action: AUTHORITY_INITIALIZE_ACTION.into(),
             reason: reason.into(),
             approved_at: RECORDED_AT.into(),
@@ -2652,7 +2650,7 @@ mod tests {
         fixture.request.event_drafts = vec![AuthorityEventDraft {
             kind: EventKind::Other(AUTHORITY_INITIALIZED_EVENT_KIND.into()),
             target: StateTarget {
-                r#type: "frontier".into(),
+                r#type: "repository".into(),
                 id: REPOSITORY_ID.into(),
             },
             actor: StateActor {
@@ -3128,7 +3126,7 @@ mod tests {
         request.authorization_input.resource = format!(r#"Frontier::"{REPOSITORY_ID}""#);
         request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
-            role: "frontier_administrator".into(),
+            role: "repository_administrator".into(),
             action: AUTHORITY_ROTATE_ACTION.into(),
             reason: reason.into(),
             approved_at: RECORDED_AT.into(),
@@ -3137,7 +3135,7 @@ mod tests {
         request.event_drafts = vec![AuthorityEventDraft {
             kind: EventKind::Other("authority.rotated".into()),
             target: StateTarget {
-                r#type: "frontier".into(),
+                r#type: "repository".into(),
                 id: REPOSITORY_ID.into(),
             },
             actor: StateActor {
@@ -3248,7 +3246,7 @@ mod tests {
         followup_request.authorization_input = fixture_authorization_input();
         followup_request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
-            role: "frontier_administrator".into(),
+            role: "repository_administrator".into(),
             action: "review_reject".into(),
             reason: "Reject a later proposal under the rotated repository key.".into(),
             approved_at: "2026-07-24T12:06:00Z".into(),
@@ -3351,7 +3349,7 @@ mod tests {
         request.authorization_input.resource = format!(r#"Frontier::"{REPOSITORY_ID}""#);
         request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
-            role: "frontier_administrator".into(),
+            role: "repository_administrator".into(),
             action: POLICY_ROTATE_ACTION.into(),
             reason: reason.into(),
             approved_at: RECORDED_AT.into(),
@@ -3360,7 +3358,7 @@ mod tests {
         request.event_drafts = vec![AuthorityEventDraft {
             kind: EventKind::Other("policy.rotated".into()),
             target: StateTarget {
-                r#type: "frontier".into(),
+                r#type: "repository".into(),
                 id: REPOSITORY_ID.into(),
             },
             actor: StateActor {
@@ -3516,7 +3514,7 @@ mod tests {
         request.authorization_input.resource = format!(r#"Frontier::"{REPOSITORY_ID}""#);
         request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
-            role: "frontier_administrator".into(),
+            role: "repository_administrator".into(),
             action: AUTHORITY_CLOSE_ACTION.into(),
             reason: reason.into(),
             approved_at: RECORDED_AT.into(),
@@ -3525,7 +3523,7 @@ mod tests {
         request.event_drafts = vec![AuthorityEventDraft {
             kind: EventKind::Other(AUTHORITY_CLOSED_EVENT_KIND.into()),
             target: StateTarget {
-                r#type: "frontier".into(),
+                r#type: "repository".into(),
                 id: REPOSITORY_ID.into(),
             },
             actor: StateActor {
