@@ -110,6 +110,10 @@
         "declared": true,
         "present": true
       },
+      ".github/workflows/ecosystem-status.yml": {
+        "declared": true,
+        "present": true
+      },
       ".github/workflows/release.yml": {
         "declared": true,
         "present": true
@@ -205,6 +209,7 @@
     },
     "workflows": [
       "conformance.yml",
+      "ecosystem-status.yml",
       "release.yml"
     ],
     "workspace_crates": [

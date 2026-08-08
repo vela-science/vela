@@ -168,6 +168,7 @@ DECLARED_SURFACES: dict[str, bool] = {
     "scripts/ecosystem-status.py": True,
     "scripts/release.sh": True,
     "scripts/sign-published-release.sh": True,
+    ".github/workflows/ecosystem-status.yml": True,
     "scripts/release_manifest.py": True,
     # Named in docs/ECOSYSTEM.md as asked for by ADR 0039 and still absent. A
     # declared-absent surface is worth as much as a declared-present one: it is
@@ -647,9 +648,21 @@ def check(arguments: argparse.Namespace) -> list[str]:
                 failures.append(f"{name}: {label}observed_at {stamp!r} is not an instant")
                 continue
             if when < horizon:
+                # Naming the command matters more here than anywhere else in
+                # this file. The fuse fires inside conformance, which has no
+                # network and no checkouts and therefore cannot repair what it
+                # is refusing — so the message has to carry the repair out to
+                # someone who can run it, or it is an alarm with no exit.
+                repair = (
+                    f"scripts/ecosystem-status.py --checkout {name.split('/')[-1]}=<path> "
+                    "--observe-remote"
+                    if label == ""
+                    else "scripts/ecosystem-status.py --observe-remote"
+                )
                 failures.append(
                     f"{name}: {label}observation from {stamp} is older than "
-                    f"{arguments.max_age_days} days; re-observe or say it is unknown"
+                    f"{arguments.max_age_days} days. Re-observe with `{repair}`, "
+                    "or drop the row if it can no longer be observed at all"
                 )
 
     # The projection block sits at the top level rather than under `observed`,
