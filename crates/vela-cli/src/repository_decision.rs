@@ -37,8 +37,8 @@ use crate::repository_txn::{
     ContentDigest, InputBinding, RepositoryRecoveryBarrier, RepositoryTxn, WriteClass,
 };
 
-const PLAN_SCHEMA: &str = "vela.current-review-decision.v1";
-const PLAN_DOMAIN: &[u8] = b"vela.current-review-decision.v1\0";
+const PLAN_SCHEMA: &str = "vela.review-decision.v1";
+const PLAN_DOMAIN: &[u8] = b"vela.review-decision.v1\0";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -61,7 +61,7 @@ impl DecisionAction {
 pub(crate) struct ReviewDecisionPlan {
     pub(crate) schema: String,
     pub(crate) repository_id: String,
-    pub(crate) frontier_name: String,
+    pub(crate) repository_name: String,
     pub(crate) repository_root: String,
     pub(crate) proposal_id: String,
     pub(crate) proposal_root: String,
@@ -203,7 +203,7 @@ pub(crate) fn verification_set_root(
     Ok(format!(
         "sha256:{}",
         vela_protocol::canonical::sha256_canonical(&json!({
-            "schema": "vela.current-verification-set.v1",
+            "schema": "vela.verification-set.v1",
             "records": records.iter().map(|(root, record)| json!({
                 "verification_record_id": record.verification_record_id,
                 "verification_record_root": root,
@@ -407,7 +407,7 @@ pub(crate) fn prepare(
     let mut plan = ReviewDecisionPlan {
         schema: PLAN_SCHEMA.into(),
         repository_id: repository.repository_id.clone(),
-        frontier_name: profile.name,
+        repository_name: profile.name,
         repository_root,
         proposal_id: proposal.proposal_id.clone(),
         proposal_root: proposal_reference.root.clone(),
@@ -1105,7 +1105,7 @@ mod tests {
         let mut plan = ReviewDecisionPlan {
             schema: PLAN_SCHEMA.into(),
             repository_id: "vrepo_0123456789abcdef".into(),
-            frontier_name: "Fixture repository".into(),
+            repository_name: "Fixture repository".into(),
             repository_root: root('1'),
             proposal_id: "vpr_fixture".into(),
             proposal_root: root('2'),

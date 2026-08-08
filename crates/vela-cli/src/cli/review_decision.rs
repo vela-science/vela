@@ -69,7 +69,7 @@ fn cmd_current_review_decide(
             action.as_str(),
             safe_inline(&plan.proposal_id)
         );
-        println!("  repository: {}", safe_inline(&plan.frontier_name));
+        println!("  repository: {}", safe_inline(&plan.repository_name));
         println!("  claim: {}", safe_inline(&plan.claim_id));
         println!("  reason: {}", safe_inline(&plan.reason));
         println!("  authority: local OS session → repository authority");

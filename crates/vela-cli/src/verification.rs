@@ -511,7 +511,7 @@ fn import_inner(
     let request_root = format!(
         "sha256:{}",
         vela_protocol::canonical::sha256_canonical(&json!({
-            "schema": "vela.current-verification-import-request.v1",
+            "schema": "vela.verification-import-request.v1",
             "repository_id": repository.repository_id,
             "origin_id": repository.origin_id,
             "repository_before": repository_root,

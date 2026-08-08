@@ -637,7 +637,7 @@ where
             operation_id,
             request_root: ContentDigest::parse(request.intent_digest.clone())
                 .map_err(AuthorityTransactionError::Transaction)?,
-            frontier: RepositoryBinding::new(
+            repository: RepositoryBinding::new(
                 repository_root,
                 &request.history.repository_id,
                 &layout_identity,

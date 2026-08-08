@@ -105,7 +105,7 @@ fn request_root(
     Ok(format!(
         "sha256:{}",
         vela_protocol::canonical::sha256_canonical(&json!({
-            "schema": "vela.current-proposal-withdrawal-request.v1",
+            "schema": "vela.proposal-withdrawal-request.v1",
             "repository_id": repository.repository_id,
             "origin_id": repository.origin_id,
             "repository_before": repository.canonical_root()?,

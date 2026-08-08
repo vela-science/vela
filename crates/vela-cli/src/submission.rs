@@ -357,7 +357,7 @@ fn submit_request_root(repository: &RepositoryV4, submission_root: &str) -> Resu
     Ok(format!(
         "sha256:{}",
         vela_protocol::canonical::sha256_canonical(&json!({
-            "schema": "vela.current-submit-request.v2",
+            "schema": "vela.submit-request.v2",
             "repository_id": repository.repository_id,
             "origin_id": repository.origin_id,
             "submission_root": submission_root,
