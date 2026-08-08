@@ -199,5 +199,19 @@ vela claims math --json          # 1 accepted
 vela review list math --status all --json
 ```
 
+And without trusting our tool at all — the repository root recomputed from a
+clean clone by ninety lines of Python whose entire dependency set is `rfc8785`
+and `hashlib`:
+
+```bash
+python conformance/readers/python/repository_root.py math \
+  --expect sha256:b35b335aa76cfeaa871bb6e90c2c70e93a466e4ceac1ed2393c6edbd1c12505c
+```
+
+That checks one thing — that the manifest bytes hash to the root they are named
+by — and says so on its own output. It is the anchor the rest hangs from, and
+it is the number a reader would otherwise have to take from the tool being
+checked.
+
 The mirror at `codeberg.org/vela-science/math` is a full replica on
 independent infrastructure, verified ref-for-ref on every run.
