@@ -453,6 +453,25 @@ fn installers_verify_release_bytes_and_do_not_ship_a_signer() {
     assert!(INSTALLER.contains("VELA_EXPECTED_SHA256"));
 }
 
+/// The distribution surface speaks the current vocabulary too.
+///
+/// `wording_contract.rs` walks the binary's whole help tree and both sides of
+/// its error surface, and `ecosystem-status.py` scans `crates/`, `schemas/` and
+/// `packages/` for the retired identifier spellings. Between them sits the one
+/// script every consumer runs before the binary exists, which neither reads: it
+/// told anyone who uninstalled Vela that "Frontier data was preserved" for as
+/// long as there had been no Frontier to hold data. `action.yml` is here for
+/// the same reason — it is the other file a consumer meets first.
+#[test]
+fn the_distribution_surface_does_not_name_a_frontier() {
+    for (name, source) in [("install.sh", INSTALLER), ("action.yml", ROOT_ACTION)] {
+        assert!(
+            !source.to_ascii_lowercase().contains("frontier"),
+            "{name} still says Frontier where ADR 0039 means Repository"
+        );
+    }
+}
+
 /// `docs/CONTINUITY.md` requires installing and verifying without the provider.
 ///
 /// The installer verified through `gh attestation verify --signer-workflow`,

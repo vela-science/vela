@@ -51,7 +51,7 @@ case "$ACTION" in
         if [ -w "$BINDIR/$binary" ]; then rm -f "$BINDIR/$binary"; else sudo rm -f "$BINDIR/$binary"; fi
       fi
     done
-    echo "Removed Vela. Frontier data was preserved."
+    echo "Removed Vela. Repository data was preserved."
     exit 0
     ;;
   -h|--help|help)
