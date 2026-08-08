@@ -8,7 +8,6 @@
 use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 
 pub const CURRENT_REPOSITORY_SCHEMA_V4: &str = "vela.repository.v4";
@@ -229,10 +228,7 @@ impl CurrentRepositoryV4 {
     }
 
     pub fn canonical_root(&self) -> Result<String, String> {
-        Ok(format!(
-            "sha256:{}",
-            hex::encode(Sha256::digest(self.canonical_bytes()?))
-        ))
+        Ok(crate::canonical::sha256_root(&self.canonical_bytes()?))
     }
 }
 
@@ -362,15 +358,13 @@ fn require_full_claim_id(field: &str, value: &str) -> Result<(), String> {
 }
 
 fn require_sha256(field: &str, value: &str) -> Result<(), String> {
-    let digest = value
-        .strip_prefix("sha256:")
-        .ok_or_else(|| format!("current repository {field} must be a full sha256: digest"))?;
-    if !crate::shape::is_lower_hex_64(digest) {
-        return Err(format!(
+    if crate::shape::is_full_sha256_root(value) {
+        Ok(())
+    } else {
+        Err(format!(
             "current repository {field} must be a full sha256: digest"
-        ));
+        ))
     }
-    Ok(())
 }
 
 fn require_path(field: &str, value: &str) -> Result<(), String> {

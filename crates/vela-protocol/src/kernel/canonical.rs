@@ -203,6 +203,19 @@ pub fn sha256_canonical<T: Serialize + ?Sized>(value: &T) -> Result<String, Stri
     Ok(hex::encode(Sha256::digest(&bytes)))
 }
 
+/// The full Vela root of arbitrary bytes: lowercase `sha256:` and 64 hex.
+///
+/// `sha256_canonical` above serializes first and returns a bare digest. This
+/// takes bytes that are already canonical — or that were never a Vela object,
+/// such as an artifact — and returns the prefixed form every root is written
+/// in. Between them, `format!("sha256:{}", hex::encode(Sha256::digest(…)))` was
+/// spelled out at eighteen sites across four crates, twice as a private
+/// `fn sha256_root` with this exact body.
+pub fn sha256_root(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
