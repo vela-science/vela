@@ -105,8 +105,47 @@ fn readme_install_block_advertises_the_released_version() {
 /// ARCHITECTURE and REPOSITORY_PROFILE while this index named none of
 /// them. Neither list is the set — `docs/` is — so each is now held to it: the
 /// web script reads the tree at its pinned commit, and this reads the working
-/// tree. `docs/adr/` and `docs/history/` keep their own indexes and are linked
-/// as directories, so only the top level is covered here.
+/// tree. `docs/adr/` and `docs/history/` are linked as directories and keep
+/// their own indexes, so only the top level is covered here — and those indexes
+/// are held to their directories below, because that sentence was an assertion
+/// about a file that did not exist: `docs/adr/` had no index at all, and the
+/// exclusion justified itself with the thing it was excluding.
+/// The two directories the index above excludes must actually index themselves.
+///
+/// Excluding a subtree because it "keeps its own index" is only sound if one
+/// exists and covers it. Read from the directory, so adding an ADR without
+/// listing it fails here rather than leaving a decision record that nothing
+/// points at.
+#[test]
+fn every_subtree_index_lists_its_own_directory() {
+    let docs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../docs");
+    for subtree in ["adr", "history"] {
+        let directory = docs.join(subtree);
+        let index = std::fs::read_to_string(directory.join("README.md"))
+            .unwrap_or_else(|_| panic!("docs/{subtree}/ is excluded from the top-level index because it keeps its own, and has no README.md"));
+        let mut present: Vec<String> = std::fs::read_dir(&directory)
+            .unwrap_or_else(|_| panic!("read docs/{subtree}/"))
+            .map(|entry| entry.expect("directory entry").file_name())
+            .filter_map(|name| name.to_str().map(str::to_string))
+            .filter(|name| name.ends_with(".md") && name != "README.md")
+            .collect();
+        present.sort();
+        assert!(
+            present.len() > 1,
+            "docs/{subtree}/ holds {} markdown files; the test is reading the wrong directory",
+            present.len()
+        );
+        let unlinked: Vec<&String> = present
+            .iter()
+            .filter(|name| !index.contains(&format!("]({name})")))
+            .collect();
+        assert!(
+            unlinked.is_empty(),
+            "docs/{subtree}/README.md does not link: {unlinked:?}"
+        );
+    }
+}
+
 #[test]
 fn the_documentation_index_lists_every_current_document() {
     let docs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../docs");

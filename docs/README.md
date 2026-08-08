@@ -50,6 +50,10 @@ nobody checks is how three documents came to be published on the web while
 this page had never heard of them. The groups are editorial; the coverage is
 not.
 
+[Decision records](adr/README.md) index every ADR in number order. They are
+linked as a directory rather than listed here because an ADR is a decision at a
+moment and this page is what holds now.
+
 [Historical documents](history/README.md) retain predecessor language,
 rejected designs, and dated assessments outside the current documentation
 surface.
