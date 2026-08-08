@@ -57,7 +57,7 @@ struct Fixture {
     _agent: EphemeralAgent,
     root: std::path::PathBuf,
     home: std::path::PathBuf,
-    frontier: std::path::PathBuf,
+    repository_path: std::path::PathBuf,
     submission_id: String,
     proposal_id: String,
     claim_id: String,
@@ -70,8 +70,8 @@ impl Fixture {
         let home = root.join("home");
         std::fs::create_dir_all(&home).expect("isolated home");
         let agent = EphemeralAgent::start(&root, "vela repository argument test");
-        let frontier = root.join("frontier");
-        let repository_path_text = frontier.to_string_lossy().into_owned();
+        let repository_path = root.join("repository_path");
+        let repository_path_text = repository_path.to_string_lossy().into_owned();
 
         let initialized = run(
             &root,
@@ -102,13 +102,13 @@ impl Fixture {
         );
 
         std::fs::write(
-            frontier.join("witness.json"),
+            repository_path.join("witness.json"),
             br#"{"schema":"vela.test-witness.v1","observed":true}"#,
         )
         .expect("fixture artifact");
 
         let submitted = run(
-            &frontier,
+            &repository_path,
             &home,
             Some(agent.socket()),
             &[
@@ -137,7 +137,7 @@ impl Fixture {
         Self {
             root,
             home,
-            frontier,
+            repository_path,
             submission_id: submitted["submission_id"]
                 .as_str()
                 .expect("submission id")
@@ -157,7 +157,7 @@ impl Fixture {
 
     /// Run inside the repository, where discovery has something to find.
     fn inside(&self, args: &[&str]) -> Output {
-        run(&self.frontier, &self.home, None, args)
+        run(&self.repository_path, &self.home, None, args)
     }
 
     /// Run outside any repository, where discovery must fail rather than
@@ -170,8 +170,8 @@ impl Fixture {
 #[test]
 fn one_frontier_convention_across_the_surface() {
     let fixture = Fixture::build();
-    let frontier = fixture.frontier.to_string_lossy().into_owned();
-    let frontier = frontier.as_str();
+    let repository_path = fixture.repository_path.to_string_lossy().into_owned();
+    let repository_path = repository_path.as_str();
     let claim = fixture.claim_id.as_str();
     let submission = fixture.submission_id.as_str();
     let proposal = fixture.proposal_id.as_str();
@@ -244,7 +244,7 @@ fn one_frontier_convention_across_the_surface() {
         habit; it now works on every verb that acts on a repository, and it
         works from outside the tree, where discovery has nothing to find. */
         let mut flagged = short.clone();
-        flagged.extend_from_slice(&["--repo", frontier]);
+        flagged.extend_from_slice(&["--repo", repository_path]);
         let flagged = fixture.outside(&flagged);
         assert!(
             flagged.status.success(),
@@ -260,9 +260,9 @@ fn one_frontier_convention_across_the_surface() {
     }
 
     /* The write verbs bind the same way, and this is as far as the assertion
-    may go: both spellings must reach the record parse, which is past frontier
+    may go: both spellings must reach the record parse, which is past repository_path
     resolution and before any durable write. */
-    std::fs::write(fixture.frontier.join("not-a-record.json"), b"{}")
+    std::fs::write(fixture.repository_path.join("not-a-record.json"), b"{}")
         .expect("malformed record fixture");
     for args in [
         vec![

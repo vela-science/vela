@@ -51,7 +51,7 @@
 //! 2,844, which no artifact in this repository reproduces and which disagrees
 //! with both figures that are sourced: ADR 0039 records 2,782 accepted as the
 //! Observatory reported them, and the four `counts.accepted_claims` in
-//! `paper/artifacts/action-complete-frontier-2026-08-03/baseline.v1.json`
+//! `paper/artifacts/action-complete-repository-2026-08-03/baseline.v1.json`
 //! sum to 2,834. The count is dropped rather than picked between.
 //!
 //! What still checks this verb is `crates/vela-cli/tests/claims_enumeration.rs`,
@@ -93,8 +93,8 @@ const ASSERTION_SCALARS: usize = 132;
 /// quantum-codes repository given two commits carrying identical origin bytes —
 /// `status`, `review list`, and `claims` all refuse it identically, at the
 /// load.
-fn origin_claim_ids(frontier: &Path, origin: &RepositoryOriginV1) -> BTreeSet<String> {
-    let initial = crate::repository::initial_repository(frontier, origin)
+fn origin_claim_ids(repository_path: &Path, origin: &RepositoryOriginV1) -> BTreeSet<String> {
+    let initial = crate::repository::initial_repository(repository_path, origin)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     initial
         .accepted_claims
@@ -115,9 +115,15 @@ fn era_label(origin_ids: &BTreeSet<String>, claim_id: &str) -> &'static str {
     }
 }
 
-fn read_claim(frontier: &Path, reference: &ClaimStandingRefV1) -> Result<ClaimRecordV1, String> {
-    let bytes =
-        crate::repository::read_rooted_object(frontier, &reference.path, &reference.claim_root)?;
+fn read_claim(
+    repository_path: &Path,
+    reference: &ClaimStandingRefV1,
+) -> Result<ClaimRecordV1, String> {
+    let bytes = crate::repository::read_rooted_object(
+        repository_path,
+        &reference.path,
+        &reference.claim_root,
+    )?;
     let claim = ClaimRecordV1::parse(&bytes)?;
     if claim.claim_id != reference.claim_id {
         return Err(format!(
@@ -139,14 +145,14 @@ fn one_line(text: &str, budget: usize) -> String {
 }
 
 pub(crate) fn cmd_claims(
-    frontier: &Path,
+    repository_path: &Path,
     status: Option<&str>,
     limit: usize,
     cursor: Option<&str>,
     json_out: bool,
 ) {
     crate::ui::set_mode("claims", json_out);
-    crate::ui::require_initialized_repo(frontier);
+    crate::ui::require_initialized_repo(repository_path);
     let status = status.unwrap_or("accepted");
     if !STATUS_VALUES.contains(&status) {
         crate::cli::fail_kind(
@@ -154,19 +160,19 @@ pub(crate) fn cmd_claims(
             "claims status must be accepted, unassessed, or all",
         );
     }
-    let frontier = crate::ui::canonicalize_repo(frontier);
+    let repository_path = crate::ui::canonicalize_repo(repository_path);
     /* The same load `review list` uses: the manifest is only worth listing if
     repository authority covers it. */
-    let repository = crate::repository::load_current_repository_at(&frontier, true)
+    let repository = crate::repository::load_current_repository_at(&repository_path, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let repository_root = repository
         .canonical_root()
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let origin_bytes = fs::read(frontier.join(".vela/origin.json"))
+    let origin_bytes = fs::read(repository_path.join(".vela/origin.json"))
         .unwrap_or_else(|error| crate::cli::fail_return(&format!("read current origin: {error}")));
     let origin = RepositoryOriginV1::parse(&origin_bytes)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let origin_ids = origin_claim_ids(&frontier, &origin);
+    let origin_ids = origin_claim_ids(&repository_path, &origin);
 
     /* Both manifest lists are already strictly sorted by Claim id and the
     protocol holds them that way, so this is the repository's own order, not
@@ -193,7 +199,7 @@ pub(crate) fn cmd_claims(
         .map(|reference| {
             let era = era_label(&origin_ids, &reference.claim_id);
             let standing = crate::claim_standing::from_proposal_status(&reference.standing);
-            match read_claim(&frontier, reference) {
+            match read_claim(&repository_path, reference) {
                 Ok(claim) => json!({
                     "claim_id": reference.claim_id,
                     "claim_root": reference.claim_root,

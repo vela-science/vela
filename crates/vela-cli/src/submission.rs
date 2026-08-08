@@ -118,7 +118,7 @@ fn add_pending_claim(
 }
 
 fn load_target_claim(
-    frontier: &Path,
+    repository_path: &Path,
     repository: &RepositoryV4,
     submission: &SubmissionV1,
 ) -> Result<Option<ClaimRecordV1>, String> {
@@ -138,7 +138,7 @@ fn load_target_claim(
     if reference.claim_root != target.claim_root {
         return Err("requested Claim root differs from current accepted state".into());
     }
-    let bytes = fs::read(frontier.join(&reference.path))
+    let bytes = fs::read(repository_path.join(&reference.path))
         .map_err(|error| format!("read requested Claim: {error}"))?;
     let claim = ClaimRecordV1::parse(&bytes)?;
     if claim.canonical_bytes()? != bytes
@@ -158,11 +158,11 @@ struct ProposedChange {
 }
 
 fn proposed_change(
-    frontier: &Path,
+    repository_path: &Path,
     repository: &RepositoryV4,
     submission: &SubmissionV1,
 ) -> Result<ProposedChange, String> {
-    let target = load_target_claim(frontier, repository, submission)?;
+    let target = load_target_claim(repository_path, repository, submission)?;
     if submission.requested_change.kind == "retract_claim" {
         let target =
             target.ok_or_else(|| "retract_claim requires an accepted Claim".to_string())?;
@@ -260,10 +260,10 @@ fn proposed_change(
 }
 
 pub(crate) fn rebind_target_index(
-    frontier: &Path,
+    repository_path: &Path,
     repository: &RepositoryV4,
 ) -> Result<Vec<AuthorityDerivedDraft>, String> {
-    let path = frontier.join("targets.json");
+    let path = repository_path.join("targets.json");
     if !path.is_file() {
         return Ok(Vec::new());
     }
@@ -294,7 +294,7 @@ pub(crate) fn rebind_target_index(
 }
 
 fn existing_outcome(
-    frontier: &Path,
+    repository_path: &Path,
     repository: &RepositoryV4,
     submission: &SubmissionV1,
     submission_root: &str,
@@ -311,7 +311,7 @@ fn existing_outcome(
     }
     let mut matching = Vec::new();
     for reference in &repository.proposals {
-        let bytes = fs::read(frontier.join(&reference.path))
+        let bytes = fs::read(repository_path.join(&reference.path))
             .map_err(|error| format!("read existing Proposal {}: {error}", reference.path))?;
         let proposal = ProposalV1::parse(&bytes)?;
         if proposal.producer_package.id == submission.submission_id
@@ -366,7 +366,7 @@ fn submit_request_root(repository: &RepositoryV4, submission_root: &str) -> Resu
 }
 
 fn require_unique_source_run(
-    frontier: &Path,
+    repository_path: &Path,
     repository: &RepositoryV4,
     submission: &SubmissionV1,
 ) -> Result<(), String> {
@@ -377,7 +377,7 @@ fn require_unique_source_run(
         if reference.id == submission.submission_id {
             continue;
         }
-        let bytes = fs::read(frontier.join(&reference.path))
+        let bytes = fs::read(repository_path.join(&reference.path))
             .map_err(|error| format!("read retained Submission for Run uniqueness: {error}"))?;
         let existing = SubmissionV1::parse(&bytes)?;
         if existing.provenance.producer == submission.provenance.producer
@@ -396,16 +396,16 @@ fn require_unique_source_run(
 }
 
 pub(crate) fn submit(
-    frontier: &Path,
+    repository_path: &Path,
     submission: &SubmissionV1,
     executor: &str,
     bundle_root: Option<&Path>,
 ) -> Result<SubmitOutcome, String> {
-    submit_inner(frontier, submission, executor, bundle_root)
+    submit_inner(repository_path, submission, executor, bundle_root)
 }
 
 fn submit_inner(
-    frontier: &Path,
+    repository_path: &Path,
     submission: &SubmissionV1,
     executor: &str,
     bundle_root: Option<&Path>,
@@ -417,29 +417,31 @@ fn submit_inner(
     {
         return Err("submit actor must match the Submission producer identity".into());
     }
-    let repository = crate::repository::verify_current_repository_at(frontier, true)?;
+    let repository = crate::repository::verify_current_repository_at(repository_path, true)?;
     let repository_root = repository.canonical_root()?;
     let submission_root = submission.canonical_root()?;
-    if let Some(outcome) = existing_outcome(frontier, &repository, submission, &submission_root)? {
+    if let Some(outcome) =
+        existing_outcome(repository_path, &repository, submission, &submission_root)?
+    {
         return Ok(outcome);
     }
 
-    let journal_dir = crate::repository_ops::repository_transaction_journal_dir(frontier)?;
+    let journal_dir = crate::repository_ops::repository_transaction_journal_dir(repository_path)?;
     let barrier = crate::repository_txn::RepositoryTxn::acquire_routine_evidence_write_barrier(
-        frontier,
+        repository_path,
         &journal_dir,
     )
     .map_err(|error| error.to_string())?;
-    let held_repository = crate::repository::verify_current_repository_at(frontier, true)?;
+    let held_repository = crate::repository::verify_current_repository_at(repository_path, true)?;
     if held_repository.canonical_root()? != repository_root {
         return Err("current repository changed while acquiring the submit barrier".into());
     }
-    require_unique_source_run(frontier, &held_repository, submission)?;
+    require_unique_source_run(repository_path, &held_repository, submission)?;
     let fixed_time = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
     let PreparedSubmissionArtifacts {
         writes: artifact_writes,
         mut read_set,
-    } = prepare_submission_artifacts(frontier, submission, bundle_root)?;
+    } = prepare_submission_artifacts(repository_path, submission, bundle_root)?;
     read_set.push(InputBinding {
         name: "submission".into(),
         digest: ContentDigest::parse(submission_root.clone()).map_err(|error| error.to_string())?,
@@ -449,7 +451,7 @@ fn submit_inner(
         digest: ContentDigest::parse(repository_root.clone()).map_err(|error| error.to_string())?,
     });
 
-    let change = proposed_change(frontier, &held_repository, submission)?;
+    let change = proposed_change(repository_path, &held_repository, submission)?;
     let mut next_repository = held_repository.clone();
     let mut object_drafts = Vec::new();
     if let Some(claim) = &change.claim {
@@ -516,7 +518,7 @@ fn submit_inner(
     let operation_id =
         crate::repository_txn::OperationId::derive("submit", request_root.as_bytes());
     next_repository.verify()?;
-    let derived_drafts = rebind_target_index(frontier, &next_repository)?;
+    let derived_drafts = rebind_target_index(repository_path, &next_repository)?;
     object_drafts.extend([
         AuthorityObjectDraft {
             path: proposal_path,
@@ -551,7 +553,7 @@ fn submit_inner(
 
     let mut prepared = crate::routine_evidence_transaction::prepare_routine_evidence_transaction(
         barrier,
-        frontier,
+        repository_path,
         &held_repository.repository_id,
         crate::repository_txn::OperationKind::Submission,
         operation_id.clone(),
@@ -568,10 +570,10 @@ fn submit_inner(
             .map_err(|error| error.to_string())?;
         let delta_root = prepared.canonical_delta_root().to_string();
         let publish_options = PublishOptions::local()
-            .with_preflight_inputs(submission_publication_inputs(frontier, submission)?);
-        let delta = publication_delta(frontier, &delta_root, public)?
+            .with_preflight_inputs(submission_publication_inputs(repository_path, submission)?);
+        let delta = publication_delta(repository_path, &delta_root, public)?
             .ok_or_else(|| "Submission transaction had no public Git delta".to_string())?;
-        let preflight = exact_publication_preflight(frontier, &delta, &publish_options)
+        let preflight = exact_publication_preflight(repository_path, &delta, &publish_options)
             .map_err(publication_error)?;
         Ok::<_, String>((delta, preflight))
     })();
@@ -589,9 +591,9 @@ fn submit_inner(
         .map_err(|error| error.to_string())?;
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
-    crate::repository::verify_current_repository_allow_derived_drift_at(frontier)?;
+    crate::repository::verify_current_repository_allow_derived_drift_at(repository_path)?;
     let publication = publish_exact_delta(
-        frontier,
+        repository_path,
         "submit",
         std::slice::from_ref(&proposal.proposal_id),
         &delta,
@@ -602,12 +604,14 @@ fn submit_inner(
         publication.state,
         PublicationState::Unchanged { .. } | PublicationState::CommittedLocal { .. }
     ) {
-        crate::repository::verify_current_repository_at(frontier, true).map_err(|error| {
-            format!(
-                "Submission was published but strict post-publication verification failed: \
+        crate::repository::verify_current_repository_at(repository_path, true).map_err(
+            |error| {
+                format!(
+                    "Submission was published but strict post-publication verification failed: \
                      {error}; do not retry the Submission"
-            )
-        })?;
+                )
+            },
+        )?;
         if let Err(error) = prepared.retire_completed_recovery_blobs() {
             crate::ui::warn_nonfatal(&format!(
                 "Submission {} was published and verified, but private recovery blob cleanup failed: {error}",
@@ -727,13 +731,13 @@ mod tests {
     }
 
     fn install_accepted_claim(
-        frontier: &Path,
+        repository_path: &Path,
         repository: &mut RepositoryV4,
         claim: &ClaimRecordV1,
     ) -> String {
         let claim_root = claim.canonical_root().unwrap();
         let path = rooted_path("records/claims/sha256", &claim_root).unwrap();
-        let absolute = frontier.join(&path);
+        let absolute = repository_path.join(&path);
         fs::create_dir_all(absolute.parent().unwrap()).unwrap();
         fs::write(&absolute, claim.canonical_bytes().unwrap()).unwrap();
         repository.accepted_claims.push(ClaimStandingRefV1 {
@@ -807,12 +811,12 @@ mod tests {
 
     #[test]
     fn canonical_run_binding_blocks_reexport_when_private_progress_was_lost() {
-        let frontier = TempDir::new().unwrap();
+        let repository_path = TempDir::new().unwrap();
         let mut repository = repository();
         let first = submission("add_claim", None, "First bounded assertion.");
         let first_root = first.canonical_root().unwrap();
         let first_path = rooted_path("records/submissions/sha256", &first_root).unwrap();
-        let absolute = frontier.path().join(&first_path);
+        let absolute = repository_path.path().join(&first_path);
         fs::create_dir_all(absolute.parent().unwrap()).unwrap();
         fs::write(&absolute, first.canonical_bytes().unwrap()).unwrap();
         repository.submissions.push(RepositoryObjectRefV1 {
@@ -824,7 +828,8 @@ mod tests {
 
         let reexport = submission("add_claim", None, "Re-exported bounded assertion.");
         assert_ne!(first.submission_id, reexport.submission_id);
-        let error = require_unique_source_run(frontier.path(), &repository, &reexport).unwrap_err();
+        let error =
+            require_unique_source_run(repository_path.path(), &repository, &reexport).unwrap_err();
 
         assert!(error.contains("already bound"), "{error}");
         assert!(error.contains(&first.submission_id), "{error}");
@@ -832,12 +837,12 @@ mod tests {
 
     #[test]
     fn run_identity_is_scoped_to_producer_and_source_system() {
-        let frontier = TempDir::new().unwrap();
+        let repository_path = TempDir::new().unwrap();
         let mut repository = repository();
         let first = submission("add_claim", None, "First bounded assertion.");
         let first_root = first.canonical_root().unwrap();
         let first_path = rooted_path("records/submissions/sha256", &first_root).unwrap();
-        let absolute = frontier.path().join(&first_path);
+        let absolute = repository_path.path().join(&first_path);
         fs::create_dir_all(absolute.parent().unwrap()).unwrap();
         fs::write(&absolute, first.canonical_bytes().unwrap()).unwrap();
         repository.submissions.push(RepositoryObjectRefV1 {
@@ -849,21 +854,25 @@ mod tests {
 
         let mut different_source = submission("add_claim", None, "Independent bounded assertion.");
         different_source.provenance.source_system = "another-native-runner".into();
-        assert!(require_unique_source_run(frontier.path(), &repository, &different_source).is_ok());
+        assert!(
+            require_unique_source_run(repository_path.path(), &repository, &different_source)
+                .is_ok()
+        );
 
         let mut different_producer = submission("add_claim", None, "Another bounded assertion.");
         different_producer.provenance.producer = "agent:another-producer".into();
         assert!(
-            require_unique_source_run(frontier.path(), &repository, &different_producer).is_ok()
+            require_unique_source_run(repository_path.path(), &repository, &different_producer)
+                .is_ok()
         );
     }
 
     #[test]
     fn add_submission_derives_a_pending_claim_without_accepted_state() {
-        let frontier = TempDir::new().unwrap();
+        let repository_path = TempDir::new().unwrap();
         let mut repository = repository();
         let change = proposed_change(
-            frontier.path(),
+            repository_path.path(),
             &repository,
             &submission("add_claim", None, "New bounded assertion."),
         )
@@ -888,12 +897,13 @@ mod tests {
 
     #[test]
     fn correction_binds_the_exact_current_claim_and_increments_revision() {
-        let frontier = TempDir::new().unwrap();
+        let repository_path = TempDir::new().unwrap();
         let mut repository = repository();
         let original = accepted_claim();
-        let original_root = install_accepted_claim(frontier.path(), &mut repository, &original);
+        let original_root =
+            install_accepted_claim(repository_path.path(), &mut repository, &original);
         let change = proposed_change(
-            frontier.path(),
+            repository_path.path(),
             &repository,
             &submission(
                 "correct_claim",
@@ -915,12 +925,13 @@ mod tests {
 
     #[test]
     fn retraction_targets_the_existing_claim_without_minting_a_replacement() {
-        let frontier = TempDir::new().unwrap();
+        let repository_path = TempDir::new().unwrap();
         let mut repository = repository();
         let original = accepted_claim();
-        let original_root = install_accepted_claim(frontier.path(), &mut repository, &original);
+        let original_root =
+            install_accepted_claim(repository_path.path(), &mut repository, &original);
         let change = proposed_change(
-            frontier.path(),
+            repository_path.path(),
             &repository,
             &submission(
                 "retract_claim",
@@ -941,12 +952,12 @@ mod tests {
 
     #[test]
     fn correction_with_a_different_root_fails_closed() {
-        let frontier = TempDir::new().unwrap();
+        let repository_path = TempDir::new().unwrap();
         let mut repository = repository();
         let original = accepted_claim();
-        install_accepted_claim(frontier.path(), &mut repository, &original);
+        install_accepted_claim(repository_path.path(), &mut repository, &original);
         let error = proposed_change(
-            frontier.path(),
+            repository_path.path(),
             &repository,
             &submission(
                 "correct_claim",

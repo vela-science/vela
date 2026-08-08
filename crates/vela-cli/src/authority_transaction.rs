@@ -2029,7 +2029,7 @@ mod tests {
             schema: r#"
                 entity Human;
                 entity Proposal;
-                entity Frontier;
+                entity Repository;
                 action "review_reject" appliesTo {
                     principal: Human,
                     resource: Proposal,
@@ -2066,7 +2066,7 @@ mod tests {
                 };
                 action "authority_initialize" appliesTo {
                     principal: Human,
-                    resource: Frontier,
+                    resource: Repository,
                     context: {
                         exact: Bool,
                         authentication: {
@@ -2083,7 +2083,7 @@ mod tests {
                 };
                 action "authority_rotate" appliesTo {
                     principal: Human,
-                    resource: Frontier,
+                    resource: Repository,
                     context: {
                         exact: Bool,
                         authentication: {
@@ -2100,7 +2100,7 @@ mod tests {
                 };
                 action "authority_close" appliesTo {
                     principal: Human,
-                    resource: Frontier,
+                    resource: Repository,
                     context: {
                         exact: Bool,
                         authentication: {
@@ -2117,7 +2117,7 @@ mod tests {
                 };
                 action "policy_rotate" appliesTo {
                     principal: Human,
-                    resource: Frontier,
+                    resource: Repository,
                     context: {
                         exact: Bool,
                         authentication: {
@@ -2151,7 +2151,7 @@ mod tests {
                     "parents": []
                 },
                 {
-                    "uid": {"type": "Frontier", "id": REPOSITORY_ID},
+                    "uid": {"type": "Repository", "id": REPOSITORY_ID},
                     "attrs": {},
                     "parents": []
                 }
@@ -2625,7 +2625,7 @@ mod tests {
         fixture.request.history.authority_envelopes.clear();
         fixture.request.authorization_input.action = AUTHORITY_INITIALIZE_ACTION.into();
         fixture.request.authorization_input.resource = format!(
-            "Frontier::{}",
+            "Repository::{}",
             serde_json::to_string(REPOSITORY_ID).unwrap()
         );
         fixture.request.semantic_approvals = vec![SemanticApprovalV1 {
@@ -2704,7 +2704,7 @@ mod tests {
     }
 
     fn prepared_journal_absent(fixture: &Fixture) -> bool {
-        !fixture.journal_dir().join("frontier").exists()
+        !fixture.journal_dir().join("repository_path").exists()
     }
 
     #[test]
@@ -3123,7 +3123,7 @@ mod tests {
         let mut request = fixture.request.clone();
         request.intent_digest = intent.clone();
         request.authorization_input.action = AUTHORITY_ROTATE_ACTION.into();
-        request.authorization_input.resource = format!(r#"Frontier::"{REPOSITORY_ID}""#);
+        request.authorization_input.resource = format!(r#"Repository::"{REPOSITORY_ID}""#);
         request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
             role: "repository_administrator".into(),
@@ -3346,7 +3346,7 @@ mod tests {
         let mut request = fixture.request.clone();
         request.intent_digest = intent.clone();
         request.authorization_input.action = POLICY_ROTATE_ACTION.into();
-        request.authorization_input.resource = format!(r#"Frontier::"{REPOSITORY_ID}""#);
+        request.authorization_input.resource = format!(r#"Repository::"{REPOSITORY_ID}""#);
         request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
             role: "repository_administrator".into(),
@@ -3511,7 +3511,7 @@ mod tests {
         let mut request = fixture.request.clone();
         request.intent_digest = intent.clone();
         request.authorization_input.action = AUTHORITY_CLOSE_ACTION.into();
-        request.authorization_input.resource = format!(r#"Frontier::"{REPOSITORY_ID}""#);
+        request.authorization_input.resource = format!(r#"Repository::"{REPOSITORY_ID}""#);
         request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
             role: "repository_administrator".into(),

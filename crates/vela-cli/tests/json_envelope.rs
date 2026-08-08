@@ -51,8 +51,8 @@ fn every_json_read_carries_the_envelope() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     std::fs::create_dir_all(temporary.path().join("home")).expect("isolated home");
     let agent = EphemeralAgent::start(temporary.path(), "vela json envelope test");
-    let frontier = temporary.path().join("frontier");
-    let repository_path_text = frontier.to_string_lossy().into_owned();
+    let repository_path = temporary.path().join("repository_path");
+    let repository_path_text = repository_path.to_string_lossy().into_owned();
 
     let (initialized, init_out) = run(
         temporary.path(),

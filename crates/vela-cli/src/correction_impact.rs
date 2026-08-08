@@ -134,12 +134,12 @@ struct HeldClaim {
     record: ClaimRecordV1,
 }
 
-pub(crate) fn cmd_correction_impact(frontier: &Path, claim_arg: &str, json_out: bool) {
+pub(crate) fn cmd_correction_impact(repository_path: &Path, claim_arg: &str, json_out: bool) {
     crate::ui::set_mode("correction impact", json_out);
-    crate::ui::require_initialized_repo(frontier);
-    let frontier = crate::ui::canonicalize_repo(frontier);
+    crate::ui::require_initialized_repo(repository_path);
+    let repository_path = crate::ui::canonicalize_repo(repository_path);
 
-    let repository = crate::repository::load_current_repository_at(&frontier, true)
+    let repository = crate::repository::load_current_repository_at(&repository_path, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let repository_root = repository
         .canonical_root()
@@ -158,7 +158,7 @@ pub(crate) fn cmd_correction_impact(frontier: &Path, claim_arg: &str, json_out: 
 
     let mut held: BTreeMap<String, HeldClaim> = BTreeMap::new();
     for reference in &repository.accepted_claims {
-        let record = read_claim(&frontier, reference)
+        let record = read_claim(&repository_path, reference)
             .unwrap_or_else(|error| crate::cli::fail_return(&error));
         held.insert(
             reference.claim_id.clone(),
@@ -169,7 +169,7 @@ pub(crate) fn cmd_correction_impact(frontier: &Path, claim_arg: &str, json_out: 
         );
     }
     if !held.contains_key(&successor_reference.claim_id) {
-        let record = read_claim(&frontier, &successor_reference)
+        let record = read_claim(&repository_path, &successor_reference)
             .unwrap_or_else(|error| crate::cli::fail_return(&error));
         held.insert(
             successor_reference.claim_id.clone(),
@@ -210,9 +210,10 @@ pub(crate) fn cmd_correction_impact(frontier: &Path, claim_arg: &str, json_out: 
     their own root, which is what the content-addressed store is for. */
     let predecessor_retired = !held.contains_key(&predecessor_id);
     if predecessor_retired {
-        let retained = read_retained_claim(&frontier, &predecessor_id).unwrap_or_else(|error| {
-            crate::cli::fail_kind_return(crate::ui::ErrorKind::Usage, &error)
-        });
+        let retained =
+            read_retained_claim(&repository_path, &predecessor_id).unwrap_or_else(|error| {
+                crate::cli::fail_kind_return(crate::ui::ErrorKind::Usage, &error)
+            });
         held.insert(predecessor_id.clone(), retained);
     }
     let predecessor_reference = held
@@ -484,8 +485,8 @@ fn resolve_claim<'a>(
 /// authority event log here, which this read verb does not otherwise need.
 /// Refusing an ambiguous id is the floor: it cannot return a wrong answer, only
 /// no answer.
-fn read_retained_claim(frontier: &Path, claim_id: &str) -> Result<HeldClaim, String> {
-    let directory = frontier.join("records/claims/sha256");
+fn read_retained_claim(repository_path: &Path, claim_id: &str) -> Result<HeldClaim, String> {
+    let directory = repository_path.join("records/claims/sha256");
     let entries = std::fs::read_dir(&directory)
         .map_err(|error| format!("read retained Claims at {}: {error}", directory.display()))?;
     let mut matches = Vec::new();
@@ -536,9 +537,15 @@ fn read_retained_claim(frontier: &Path, claim_id: &str) -> Result<HeldClaim, Str
     }
 }
 
-fn read_claim(frontier: &Path, reference: &ClaimStandingRefV1) -> Result<ClaimRecordV1, String> {
-    let bytes =
-        crate::repository::read_rooted_object(frontier, &reference.path, &reference.claim_root)?;
+fn read_claim(
+    repository_path: &Path,
+    reference: &ClaimStandingRefV1,
+) -> Result<ClaimRecordV1, String> {
+    let bytes = crate::repository::read_rooted_object(
+        repository_path,
+        &reference.path,
+        &reference.claim_root,
+    )?;
     let claim = ClaimRecordV1::parse(&bytes)?;
     if claim.claim_id != reference.claim_id {
         return Err(format!(

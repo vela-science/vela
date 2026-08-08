@@ -13,7 +13,7 @@ use crate::ui::{self, ErrorKind};
 use super::safe_text::inline as safe_inline;
 
 pub(crate) fn cmd_review_decide(
-    frontier: PathBuf,
+    repository_path: PathBuf,
     proposal_id: &str,
     action: DecisionAction,
     expected_entry_root: Option<&str>,
@@ -27,12 +27,12 @@ pub(crate) fn cmd_review_decide(
         },
         json,
     );
-    ui::require_initialized_repo(&frontier);
+    ui::require_initialized_repo(&repository_path);
     if reason.trim().is_empty() {
         ui::fail_with(ErrorKind::Usage, "--reason must not be empty", None);
     }
     cmd_current_review_decide(
-        frontier,
+        repository_path,
         proposal_id,
         action,
         expected_entry_root,
@@ -42,7 +42,7 @@ pub(crate) fn cmd_review_decide(
 }
 
 fn cmd_current_review_decide(
-    frontier: PathBuf,
+    repository_path: PathBuf,
     proposal_id: &str,
     action: DecisionAction,
     expected_entry_root: Option<&str>,
@@ -51,7 +51,7 @@ fn cmd_current_review_decide(
 ) {
     let observed_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
     let (prepared, recovery_barrier) = crate::repository_decision::prepare_locked(
-        &frontier,
+        &repository_path,
         proposal_id,
         action,
         &reason,
@@ -83,14 +83,18 @@ fn cmd_current_review_decide(
         );
         println!("  executing this exact proposal, action, and reason");
     }
-    let result =
-        crate::repository_decision::execute_prepared(&frontier, prepared, recovery_barrier, action)
-            .unwrap_or_else(|error| ui::fail_with(ErrorKind::Custody, &error, None));
+    let result = crate::repository_decision::execute_prepared(
+        &repository_path,
+        prepared,
+        recovery_barrier,
+        action,
+    )
+    .unwrap_or_else(|error| ui::fail_with(ErrorKind::Custody, &error, None));
     let payload = serde_json::json!({
         "ok": true,
         "command": format!("review.{}", action.as_str()),
         "schema": "vela.review-decision.v4",
-        "repository_path": frontier.display().to_string(),
+        "repository_path": repository_path.display().to_string(),
         "repository_id": plan.repository_id,
         "repository_before": plan.repository_root,
         "proposal_id": plan.proposal_id,

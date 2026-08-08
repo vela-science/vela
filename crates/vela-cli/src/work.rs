@@ -13,17 +13,17 @@ use crate::cli::safe_text;
 const AUTHORITY_CEILING: &str =
     "Evidence may be submitted for review; only an authorized human Decision changes Standing.";
 
-fn briefing(frontier: &Path, target_id: &str) -> Result<Value, String> {
-    let repository = crate::repository::verify_current_repository_at(frontier, true)?;
+fn briefing(repository_path: &Path, target_id: &str) -> Result<Value, String> {
+    let repository = crate::repository::verify_current_repository_at(repository_path, true)?;
     let repository_root = repository.canonical_root()?;
-    let profile = crate::repository::verify_current_profile_at(frontier)?;
+    let profile = crate::repository::verify_current_profile_at(repository_path)?;
     if profile.profile_root()? != repository.profile_root {
         return Err(
             "retained repository profile does not match the repository profile root".into(),
         );
     }
     let assessment = vela_edge::target_index::assess_current_target_index(
-        frontier,
+        repository_path,
         &repository.repository_id,
         &repository.origin_id,
         &repository_root,
@@ -89,10 +89,11 @@ fn briefing(frontier: &Path, target_id: &str) -> Result<Value, String> {
     Ok(result)
 }
 
-pub(crate) fn cmd_start(frontier: &Path, target: &str, json_out: bool) {
+pub(crate) fn cmd_start(repository_path: &Path, target: &str, json_out: bool) {
     crate::ui::set_mode("start", json_out);
-    crate::ui::require_initialized_repo(frontier);
-    let result = briefing(frontier, target).unwrap_or_else(|error| crate::cli::fail_return(&error));
+    crate::ui::require_initialized_repo(repository_path);
+    let result =
+        briefing(repository_path, target).unwrap_or_else(|error| crate::cli::fail_return(&error));
     if json_out {
         crate::cli::print_json(&result);
     } else {

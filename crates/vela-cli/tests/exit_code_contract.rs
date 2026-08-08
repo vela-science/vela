@@ -68,8 +68,8 @@ fn missing_objects_exit_3_and_malformed_flags_exit_2() {
     let home = temporary.path().join("home");
     std::fs::create_dir_all(&home).expect("isolated home");
     let agent = EphemeralAgent::start(temporary.path(), "vela exit-code contract test");
-    let frontier = temporary.path().join("frontier");
-    let repository_path_text = frontier.to_string_lossy().into_owned();
+    let repository_path = temporary.path().join("repository_path");
+    let repository_path_text = repository_path.to_string_lossy().into_owned();
 
     let initialized = run(
         temporary.path(),
@@ -124,7 +124,7 @@ fn missing_objects_exit_3_and_malformed_flags_exit_2() {
         ),
     ];
     for (args, what) in not_found {
-        let output = run(&frontier, &home, None, &args);
+        let output = run(&repository_path, &home, None, &args);
         assert_failure(&output, 3, "not_found", what);
     }
 
@@ -149,7 +149,7 @@ fn missing_objects_exit_3_and_malformed_flags_exit_2() {
         ),
     ];
     for (args, what) in usage {
-        let output = run(&frontier, &home, None, &args);
+        let output = run(&repository_path, &home, None, &args);
         assert_failure(&output, 2, "usage", what);
     }
 
@@ -169,7 +169,7 @@ fn missing_objects_exit_3_and_malformed_flags_exit_2() {
         "replay on a directory with no Vela store",
     );
     let output = run(
-        &frontier,
+        &repository_path,
         &home,
         None,
         &["start", "no-such-target", "--repo", ".", "--json"],

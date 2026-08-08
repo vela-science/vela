@@ -573,15 +573,17 @@ fn sort_entries(entries: &mut [DecisionInboxEntry]) {
 
 /// Rebuild the complete pending scientific Decision Inbox from exact current
 /// repository state. This function performs no writes and has no side effects.
-pub(crate) fn project(frontier: &Path) -> Result<DecisionInboxProjection, String> {
-    let repository = crate::repository::load_current_repository_at(frontier, true)?;
+pub(crate) fn project(repository_path: &Path) -> Result<DecisionInboxProjection, String> {
+    let repository = crate::repository::load_current_repository_at(repository_path, true)?;
     let repository_root = repository.canonical_root()?;
     let origin = RepositoryOriginV1::parse(
-        &fs::read(frontier.join(".vela/origin.json"))
+        &fs::read(repository_path.join(".vela/origin.json"))
             .map_err(|error| format!("read current repository origin: {error}"))?,
     )?;
-    let authority = crate::cli::load_current_repository_authority(frontier, &repository, &origin)?;
-    let standings = crate::repository::load_current_proposal_standings(frontier, &repository)?;
+    let authority =
+        crate::cli::load_current_repository_authority(repository_path, &repository, &origin)?;
+    let standings =
+        crate::repository::load_current_proposal_standings(repository_path, &repository)?;
     let authority_heads = DecisionInboxAuthorityHeads {
         policy_bundle_root: repository.authority_policy_root.clone(),
         authority_keyset_root: repository.authority_keyset_root.clone(),
@@ -599,7 +601,7 @@ pub(crate) fn project(frontier: &Path) -> Result<DecisionInboxProjection, String
             continue;
         }
         let proposal = crate::repository_decision::read_exact(
-            frontier,
+            repository_path,
             &proposal_reference.path,
             &proposal_reference.root,
             ProposalV1::parse,
@@ -611,12 +613,12 @@ pub(crate) fn project(frontier: &Path) -> Result<DecisionInboxProjection, String
                 proposal_reference.id
             ));
         }
-        let claim = claim_for_proposal(frontier, &repository, &proposal)?;
-        let submission = submission_for_proposal(frontier, &repository, &proposal)?;
+        let claim = claim_for_proposal(repository_path, &repository, &proposal)?;
+        let submission = submission_for_proposal(repository_path, &repository, &proposal)?;
         let verifications =
-            exact_verifications(frontier, &repository, &proposal, &claim, &submission)?;
+            exact_verifications(repository_path, &repository, &proposal, &claim, &submission)?;
         let pending_conflicts = crate::repository_decision::pending_submission_conflicts(
-            frontier,
+            repository_path,
             &repository,
             &proposal,
             &submission,
@@ -742,17 +744,17 @@ fn review_context_from_projection(
 /// Terminal Proposals are intentionally absent from the pending Inbox and
 /// therefore return a null entry under the still-current projection root.
 pub(crate) fn review_context(
-    frontier: &Path,
+    repository_path: &Path,
     proposal_id: &str,
 ) -> Result<serde_json::Value, String> {
-    let projection = project(frontier)?;
+    let projection = project(repository_path)?;
     Ok(review_context_from_projection(&projection, proposal_id))
 }
 
-pub(crate) fn cmd_decision_inbox(frontier: &Path, json_output: bool) {
+pub(crate) fn cmd_decision_inbox(repository_path: &Path, json_output: bool) {
     crate::ui::set_mode("review.inbox", json_output);
-    crate::ui::require_initialized_repo(frontier);
-    let projection = project(frontier).unwrap_or_else(|error| crate::cli::fail(&error));
+    crate::ui::require_initialized_repo(repository_path);
+    let projection = project(repository_path).unwrap_or_else(|error| crate::cli::fail(&error));
     if json_output {
         /* The envelope wraps the projection rather than joining it. Adding
         `ok` and `command` as struct fields would change `projection_root`,

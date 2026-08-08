@@ -1,5 +1,5 @@
 //! Feedback for the silent seconds: a braille spinner on stderr while
-//! a verifier replays or a frontier materializes. Restraint rules:
+//! a verifier replays or a repository materializes. Restraint rules:
 //! stderr only (never corrupts a --json stdout), TTY-gated (piped runs
 //! get one plain line), NO_COLOR respected via cli_style, finishes as
 //! one permanent moss line. No dependency — ~60 lines beat pulling a

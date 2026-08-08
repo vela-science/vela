@@ -290,9 +290,9 @@ pub fn header(command: &str, subject: &str, note: Option<&str>) {
     println!("  {}", style::tick_row(60));
 }
 
-/// Resolve the frontier argument: an explicit path wins; otherwise walk
-/// upward from cwd for a frontier-shaped `.vela` (the git discovery
-/// pattern — `vela status` from anywhere inside a frontier just works).
+/// Resolve the repository argument: an explicit path wins; otherwise walk
+/// upward from cwd for a repository-shaped `.vela` (the git discovery
+/// pattern — `vela status` from anywhere inside a repository just works).
 /// Discover a current repository or its native pre-authority bootstrap;
 /// predecessor layouts require their pinned historical Vela release.
 pub fn resolve_repo(explicit: Option<std::path::PathBuf>) -> std::path::PathBuf {
@@ -337,8 +337,8 @@ pub fn resolve_repo(explicit: Option<std::path::PathBuf>) -> std::path::PathBuf 
 /// directory exits 3 through [`require_initialized_repo`] and 1 through the
 /// verbs that canonicalize first. Every other io failure stays Domain because
 /// this call cannot tell a permission refusal from a broken repository.
-pub fn canonicalize_repo(frontier: &std::path::Path) -> std::path::PathBuf {
-    frontier.canonicalize().unwrap_or_else(|error| {
+pub fn canonicalize_repo(repository_path: &std::path::Path) -> std::path::PathBuf {
+    repository_path.canonicalize().unwrap_or_else(|error| {
         let kind = if error.kind() == std::io::ErrorKind::NotFound {
             ErrorKind::NotFound
         } else {
@@ -346,7 +346,10 @@ pub fn canonicalize_repo(frontier: &std::path::Path) -> std::path::PathBuf {
         };
         fail_with(
             kind,
-            &format!("resolve current repository {}: {error}", frontier.display()),
+            &format!(
+                "resolve current repository {}: {error}",
+                repository_path.display()
+            ),
             None,
         )
     })
@@ -361,30 +364,30 @@ pub fn canonicalize_repo(frontier: &std::path::Path) -> std::path::PathBuf {
 /// a file someone deleted, and reaching for a predecessor layout this release
 /// does not read are three different situations with three different next
 /// moves, so each names itself.
-pub fn require_initialized_repo(frontier: &std::path::Path) {
-    let store = frontier.join(".vela");
+pub fn require_initialized_repo(repository_path: &std::path::Path) {
+    let store = repository_path.join(".vela");
     let origin = store.join("origin.json");
     let repository = store.join("repository.json");
     if origin.is_file() && repository.is_file() {
         return;
     }
-    if !frontier.is_dir() {
+    if !repository_path.is_dir() {
         fail_coded(
             ErrorKind::NotFound,
             Some("repository_missing"),
             &format!(
                 "repository directory does not exist: {}",
-                frontier.display()
+                repository_path.display()
             ),
             Some("pass an existing repository path, or run `vela init <dir>`"),
         );
     }
     if store.is_dir()
-        && frontier.join("vela.toml").is_file()
+        && repository_path.join("vela.toml").is_file()
         && !origin.exists()
         && !repository.exists()
     {
-        let next = format!("vela init '{}' --json", frontier.display());
+        let next = format!("vela init '{}' --json", repository_path.display());
         fail_coded(
             ErrorKind::Domain,
             Some("repository_authority_uninitialized"),

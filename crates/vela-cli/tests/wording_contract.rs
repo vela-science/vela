@@ -83,7 +83,7 @@ fn assert_vocabulary_retired(surface: &str, rendered: &str) {
 ///
 /// This exists because three payloads kept the key after `replay` gave it up.
 /// `vela.review-decision`, `vela.authority-trust-pin-result` and
-/// `vela.authority-initialization-result` each carried `"frontier"` holding a
+/// `vela.authority-initialization-result` each carried `"repository"` holding a
 /// filesystem path, beside a `repository_id` naming the thing at that path —
 /// one document with two vocabularies, in the only place where the word had a
 /// consumer. Each was renamed to `repository_path` and bumped a version,
@@ -147,13 +147,13 @@ fn assert_no_banned_word(verb: &str, rendered: &str) {
     }
 }
 
-fn configure_git_identity(frontier: &Path) {
+fn configure_git_identity(repository_path: &Path) {
     for (key, value) in [
         ("user.name", "Vela Test"),
         ("user.email", "vela@example.invalid"),
     ] {
         let configured = Command::new("git")
-            .current_dir(frontier)
+            .current_dir(repository_path)
             .args(["config", key, value])
             .status()
             .expect("configure test Git identity");
@@ -169,8 +169,8 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
     let agent = EphemeralAgent::start(temporary.path(), "vela wording contract test");
     let home = temporary.path().join("home");
     std::fs::create_dir_all(&home).expect("isolated home");
-    let frontier = temporary.path().join("frontier");
-    let repository_path_text = frontier.to_string_lossy().into_owned();
+    let repository_path = temporary.path().join("repository_path");
+    let repository_path_text = repository_path.to_string_lossy().into_owned();
     let socket = agent.socket();
 
     /* The repository id is derived from name, scope, and key, and the authority
@@ -201,7 +201,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
     );
     let _anchor =
         support::RemoveAnchorOnDrop::from_init_json(&String::from_utf8_lossy(&initialized.stdout));
-    configure_git_identity(&frontier);
+    configure_git_identity(&repository_path);
 
     for verb in ["status", "replay"] {
         let rendered = stdout(&run(
@@ -226,7 +226,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
 
     /* Two JSON tokens spelled the retired word until they were bumped, and
     each moved with a version rather than in a sweep for the same reason
-    `integrity.replay` has not moved at all: a caller keys on them. `frontier`
+    `integrity.replay` has not moved at all: a caller keys on them. `repository_path`
     was a key of `vela.repository-verification.v2` and is `repository_path` in
     `.v3`; `accepted_frontier` was a scope value of
     `vela.reproduction-summary.v1` and is `accepted_repository` in `.v2`, which
@@ -246,14 +246,14 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
     );
     assert!(
         replayed.get("frontier").is_none(),
-        "v3 retired the `frontier` key; a document carrying both names one path twice:\n{replayed}"
+        "v3 retired the `repository_path` key; a document carrying both names one path twice:\n{replayed}"
     );
 
     /* The reproduction scope, on both surfaces. One witness from the
     checked-in corpus gives `reproduce` something to re-run; without it the
     command fails before it reaches the token, which is how the human half of
     this contract went unasserted while a comment claimed it. */
-    let witnesses = frontier.join("witnesses");
+    let witnesses = repository_path.join("witnesses");
     std::fs::create_dir_all(&witnesses).expect("witness directory");
     std::fs::copy(
         Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -279,7 +279,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
         &["reproduce", &repository_path_text],
     ));
     /* Not `assert_vocabulary_retired`: this fixture's directory is literally
-    named `frontier`, and `reproduce` echoes the path it was given. The token
+    named `repository_path`, and `reproduce` echoes the path it was given. The token
     is what is under test, so the token is what is asserted. */
     assert!(
         reproduced_text.contains("scope: accepted_repository"),
@@ -290,9 +290,9 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
         "the retired scope token is back on the human surface:\n{reproduced_text}"
     );
 
-    std::fs::create_dir_all(frontier.join("artifacts")).expect("artifacts directory");
+    std::fs::create_dir_all(repository_path.join("artifacts")).expect("artifacts directory");
     std::fs::write(
-        frontier.join("artifacts/note.json"),
+        repository_path.join("artifacts/note.json"),
         b"{\"note\":\"wording fixture\"}\n",
     )
     .expect("fixture artifact");
@@ -374,7 +374,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
     );
 
     /* Every document this test produced, swept for the retired noun as a key.
-    Asserting `frontier` absent from `replay` alone was a fix for one payload
+    Asserting `repository_path` absent from `replay` alone was a fix for one payload
     where the rule wanted all of them, and three others kept the key for a
     release after that assertion was written.
 
@@ -519,7 +519,7 @@ fn the_layering_diagram_names_the_verbs_the_binary_publishes() {
 /// and one `--help` per node of the parser tree — the `after_long_help` blocks
 /// in `cli/help_text.rs`, the `about` and `///` strings clap renders from
 /// `command_spec.rs`, and every flag's help. None of it was read by any test
-/// before, which is why `--frontier` survived in the quick start and
+/// before, which is why `--repository` survived in the quick start and
 /// `HELP_FRONTIER_BEFORE_OBJECT` survived on four verbs.
 #[test]
 fn no_help_body_names_a_frontier() {
@@ -561,7 +561,7 @@ fn no_help_body_names_a_frontier() {
 
 /// The failure surface, on both streams.
 ///
-/// `vela show <id>` outside any repository printed "no frontier found from …"
+/// `vela show <id>` outside any repository printed "no repository found from …"
 /// long after the identifier was gone, because the only wording assertions ran
 /// against successful `status` and `replay` output. A user meets these lines
 /// more often than the help.

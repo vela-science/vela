@@ -90,9 +90,9 @@ impl Drop for RemoveOnDrop {
     }
 }
 
-fn git_text(frontier: &Path, args: &[&str]) -> String {
+fn git_text(repository_path: &Path, args: &[&str]) -> String {
     let output = Command::new("git")
-        .current_dir(frontier)
+        .current_dir(repository_path)
         .args(args)
         .output()
         .expect("run git");
@@ -103,13 +103,13 @@ fn git_text(frontier: &Path, args: &[&str]) -> String {
         .to_string()
 }
 
-fn configure_test_git_identity(frontier: &Path) {
+fn configure_test_git_identity(repository_path: &Path) {
     for (key, value) in [
         ("user.name", "Vela Test"),
         ("user.email", "vela@example.invalid"),
     ] {
         let configured = Command::new("git")
-            .current_dir(frontier)
+            .current_dir(repository_path)
             .args(["config", key, value])
             .status()
             .expect("configure test Git identity");
@@ -117,24 +117,27 @@ fn configure_test_git_identity(frontier: &Path) {
     }
 }
 
-fn install_current_target_index(frontier: &Path, _socket: &Path) {
-    std::fs::create_dir_all(frontier.join("domain")).expect("domain directory");
-    std::fs::write(frontier.join("domain/source.json"), br#"{"open":[1056]}"#)
-        .expect("target source");
-    std::fs::create_dir_all(frontier.join("site/problems")).expect("packet directory");
+fn install_current_target_index(repository_path: &Path, _socket: &Path) {
+    std::fs::create_dir_all(repository_path.join("domain")).expect("domain directory");
     std::fs::write(
-        frontier.join("site/problems/1056.json"),
+        repository_path.join("domain/source.json"),
+        br#"{"open":[1056]}"#,
+    )
+    .expect("target source");
+    std::fs::create_dir_all(repository_path.join("site/problems")).expect("packet directory");
+    std::fs::write(
+        repository_path.join("site/problems/1056.json"),
         br#"{"problem":1056,"schema":"erdos-frontier.problem-work.v1","verifier_profile":"exact-replay-v1"}"#,
     )
     .expect("target packet");
     let committed = Command::new("git")
-        .current_dir(frontier)
+        .current_dir(repository_path)
         .args(["add", "domain/source.json", "site/problems/1056.json"])
         .status()
         .expect("stage target source");
     assert!(committed.success());
     let committed = Command::new("git")
-        .current_dir(frontier)
+        .current_dir(repository_path)
         .args([
             "-c",
             "user.name=Vela Test",
@@ -147,19 +150,20 @@ fn install_current_target_index(frontier: &Path, _socket: &Path) {
         .status()
         .expect("commit target source");
     assert!(committed.success());
-    let source = git_text(frontier, &["rev-parse", "HEAD^{commit}"]);
-    let source_tree = git_text(frontier, &["rev-parse", "HEAD^{tree}"]);
+    let source = git_text(repository_path, &["rev-parse", "HEAD^{commit}"]);
+    let source_tree = git_text(repository_path, &["rev-parse", "HEAD^{tree}"]);
     let profile_source =
-        std::fs::read_to_string(frontier.join("vela.toml")).expect("repository profile");
+        std::fs::read_to_string(repository_path.join("vela.toml")).expect("repository profile");
     let repository_id =
         vela_protocol::repository::RepositoryProfileV1::from_toml_str(&profile_source)
             .expect("current profile")
             .repository_id;
     let repository_bytes =
-        std::fs::read(frontier.join(".vela/repository.json")).expect("repository manifest");
+        std::fs::read(repository_path.join(".vela/repository.json")).expect("repository manifest");
     let repository = vela_protocol::repository::RepositoryV4::parse(&repository_bytes)
         .expect("current repository");
-    let source_bytes = std::fs::read(frontier.join("domain/source.json")).expect("source bytes");
+    let source_bytes =
+        std::fs::read(repository_path.join("domain/source.json")).expect("source bytes");
     let mut inputs = vela_edge::target_index::TargetIndexInputManifestV1 {
         schema: vela_edge::target_index::TARGET_INDEX_INPUT_MANIFEST_SCHEMA_V1.to_string(),
         input_root: format!("sha256:{}", "0".repeat(64)),
@@ -172,7 +176,7 @@ fn install_current_target_index(frontier: &Path, _socket: &Path) {
     };
     inputs.input_root = inputs.computed_root().expect("input root");
     let packet_bytes =
-        std::fs::read(frontier.join("site/problems/1056.json")).expect("packet bytes");
+        std::fs::read(repository_path.join("site/problems/1056.json")).expect("packet bytes");
     let mut index = vela_edge::target_index::TargetIndexV5 {
         schema: vela_edge::target_index::TARGET_INDEX_SCHEMA_V5.to_string(),
         repository_id,
@@ -210,18 +214,18 @@ fn install_current_target_index(frontier: &Path, _socket: &Path) {
     };
     index.index_root = index.computed_index_root().expect("index root");
     std::fs::write(
-        frontier.join("targets.json"),
+        repository_path.join("targets.json"),
         index.canonical_bytes().expect("canonical Target Index"),
     )
     .expect("write Target Index");
     let committed = Command::new("git")
-        .current_dir(frontier)
+        .current_dir(repository_path)
         .args(["add", "targets.json", "site/problems/1056.json"])
         .status()
         .expect("stage Target Index");
     assert!(committed.success());
     let committed = Command::new("git")
-        .current_dir(frontier)
+        .current_dir(repository_path)
         .args([
             "-c",
             "user.name=Vela Test",
@@ -240,8 +244,8 @@ fn install_current_target_index(frontier: &Path, _socket: &Path) {
 fn fresh_current_repository_replays_from_a_clean_clone() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let agent = EphemeralAgent::start(temporary.path(), "vela native genesis test");
-    let frontier = temporary.path().join("frontier");
-    let repository_path_text = frontier.to_string_lossy().into_owned();
+    let repository_path = temporary.path().join("repository_path");
+    let repository_path_text = repository_path.to_string_lossy().into_owned();
 
     let initialized = success_json(&run(
         temporary.path(),
@@ -271,7 +275,10 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
         "frontier.json",
         "vela.lock",
     ] {
-        assert!(!frontier.join(retired).exists(), "retired path {retired}");
+        assert!(
+            !repository_path.join(retired).exists(),
+            "retired path {retired}"
+        );
     }
 
     let _anchor = RemoveOnDrop(std::path::PathBuf::from(
@@ -280,12 +287,12 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
             .expect("local trust anchor path"),
     ));
 
-    let verified = success_json(&run(&frontier, None, &["replay", ".", "--json"]));
+    let verified = success_json(&run(&repository_path, None, &["replay", ".", "--json"]));
     assert_eq!(verified["ok"], true);
     assert_eq!(verified["command"], "replay");
-    let checked = success_json(&run(&frontier, None, &["replay", ".", "--json"]));
+    let checked = success_json(&run(&repository_path, None, &["replay", ".", "--json"]));
     assert_eq!(checked["repository_root"], verified["repository_root"]);
-    let status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
+    let status = success_json(&run(&repository_path, None, &["status", ".", "--json"]));
     assert_eq!(status["schema"], "vela.status.v4");
     assert_eq!(status["integrity"]["replay"], "verified");
     assert_eq!(status["integrity"]["strict"], "pass");
@@ -307,7 +314,7 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
     let clone = temporary.path().join("clone");
     let cloned = Command::new("git")
         .args(["clone", "-q"])
-        .arg(&frontier)
+        .arg(&repository_path)
         .arg(&clone)
         .output()
         .expect("clone native repository");
@@ -332,7 +339,7 @@ fn current_replay_refuses_retired_repositories_before_parsing_them() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     std::fs::write(
         temporary.path().join("vela.toml"),
-        "schema = \"vela.frontier-profile.v1\"\n",
+        "schema = \"vela.repository_path-profile.v1\"\n",
     )
     .expect("write retired profile marker");
 
@@ -356,8 +363,8 @@ fn current_replay_refuses_retired_repositories_before_parsing_them() {
 fn current_replay_blocks_sensitive_local_files() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let agent = EphemeralAgent::start(temporary.path(), "vela sensitive path test");
-    let frontier = temporary.path().join("frontier");
-    let repository_path_text = frontier.to_string_lossy().into_owned();
+    let repository_path = temporary.path().join("repository_path");
+    let repository_path_text = repository_path.to_string_lossy().into_owned();
     let initialized = success_json(&run(
         temporary.path(),
         Some(agent.socket()),
@@ -383,10 +390,13 @@ fn current_replay_blocks_sensitive_local_files() {
             .as_str()
             .expect("local trust anchor path"),
     ));
-    std::fs::write(frontier.join("accidental-private.key"), "not a real key")
-        .expect("write sensitive-looking file");
+    std::fs::write(
+        repository_path.join("accidental-private.key"),
+        "not a real key",
+    )
+    .expect("write sensitive-looking file");
 
-    let output = run(&frontier, None, &["replay", ".", "--json"]);
+    let output = run(&repository_path, None, &["replay", ".", "--json"]);
     assert_eq!(output.status.code(), Some(1));
     let payload: Value = serde_json::from_slice(&output.stdout).expect("decode error JSON");
     assert!(
@@ -400,8 +410,8 @@ fn current_replay_blocks_sensitive_local_files() {
 fn current_submission_and_verification_replay_without_changing_accepted_state() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let agent = EphemeralAgent::start(temporary.path(), "vela current submit test");
-    let frontier = temporary.path().join("frontier");
-    let repository_path_text = frontier.to_string_lossy().into_owned();
+    let repository_path = temporary.path().join("repository_path");
+    let repository_path_text = repository_path.to_string_lossy().into_owned();
     let initialized = success_json(&run(
         temporary.path(),
         Some(agent.socket()),
@@ -422,12 +432,12 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             "--json",
         ],
     ));
-    configure_test_git_identity(&frontier);
+    configure_test_git_identity(&repository_path);
     let record_root = initialized["authority"]["record_root"]
         .as_str()
         .expect("authority record root");
     let pinned = success_json(&run(
-        &frontier,
+        &repository_path,
         None,
         &[
             "authority",
@@ -441,7 +451,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     ));
     assert_eq!(pinned["operation"], "unchanged");
     let repeated_pin = success_json(&run(
-        &frontier,
+        &repository_path,
         None,
         &[
             "authority",
@@ -466,14 +476,14 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             .expect("trust anchor path"),
     );
     let _anchor = RemoveOnDrop(anchor_path.clone());
-    install_current_target_index(&frontier, agent.socket());
+    install_current_target_index(&repository_path, agent.socket());
     std::fs::remove_file(&anchor_path).expect("remove routine writer trust pin");
     let actor = "agent:current-submission-regression";
-    let offer = success_json(&run(&frontier, None, &["next", ".", "--json"]));
+    let offer = success_json(&run(&repository_path, None, &["next", ".", "--json"]));
     assert_eq!(offer["targets"][0]["queue_position"], 1);
     assert_eq!(offer["targets"][0]["rank"], 1);
     let briefing = success_json(&run(
-        &frontier,
+        &repository_path,
         None,
         &["start", "erdos:1056", "--repo", ".", "--json"],
     ));
@@ -501,7 +511,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     that can reach `start`'s miss rather than the earlier "no Target Index"
     domain failure. tests/exit_code_contract.rs covers the rest of the codes. */
     let absent = run(
-        &frontier,
+        &repository_path,
         None,
         &["start", "erdos:0", "--repo", ".", "--json"],
     );
@@ -604,19 +614,19 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     )
     .expect("write Submission");
     let before = Command::new("git")
-        .current_dir(&frontier)
+        .current_dir(&repository_path)
         .args(["rev-parse", "HEAD^{commit}"])
         .output()
         .expect("read before commit");
     assert!(before.status.success());
     let authority_events_before =
-        exact_directory_snapshot(&frontier.join(".vela/authority/events"));
+        exact_directory_snapshot(&repository_path.join(".vela/authority/events"));
     let authority_records_before =
-        exact_directory_snapshot(&frontier.join(".vela/authority/records"));
+        exact_directory_snapshot(&repository_path.join(".vela/authority/records"));
 
     let submission_path_text = submission_path.to_string_lossy().into_owned();
     let submitted = success_json(&run(
-        &frontier,
+        &repository_path,
         None,
         &["submit", &submission_path_text, "--repo", ".", "--json"],
     ));
@@ -631,16 +641,16 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         .expect("remove producer-side transport path after canonical retention");
 
     let method_path = "verification/exact-replay-v1.json";
-    std::fs::create_dir_all(frontier.join("verification")).expect("method directory");
+    std::fs::create_dir_all(repository_path.join("verification")).expect("method directory");
     std::fs::write(
-        frontier.join(method_path),
+        repository_path.join(method_path),
         br#"{"command":"sha256sum records/artifacts/sha256/<digest>","schema":"vela.test-method.v1"}"#,
     )
     .expect("method manifest");
     let untracked_method_home = temporary.path().join("untracked-method-home");
     std::fs::create_dir_all(&untracked_method_home).expect("untracked method home");
     let untracked_method = run_with_home(
-        &frontier,
+        &repository_path,
         Some(agent.socket()),
         &untracked_method_home,
         &[
@@ -681,13 +691,13 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         "method retention preflight must fail before verifier key creation"
     );
     let staged = Command::new("git")
-        .current_dir(&frontier)
+        .current_dir(&repository_path)
         .args(["add", method_path])
         .status()
         .expect("stage method manifest");
     assert!(staged.success());
     let committed = Command::new("git")
-        .current_dir(&frontier)
+        .current_dir(&repository_path)
         .args([
             "-c",
             "user.name=Vela Test",
@@ -712,7 +722,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let verifier_home = temporary.path().join("verifier-home");
     std::fs::create_dir_all(&verifier_home).expect("verifier home");
     let missing_proposal = run_with_home(
-        &frontier,
+        &repository_path,
         Some(agent.socket()),
         &verifier_home,
         &[
@@ -741,7 +751,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         "Proposal preflight must fail before verifier key creation"
     );
     let missing_method = run_with_home(
-        &frontier,
+        &repository_path,
         Some(agent.socket()),
         &verifier_home,
         &[
@@ -784,7 +794,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let method_root = format!(
         "sha256:{}",
         hex::encode(Sha256::digest(
-            std::fs::read(frontier.join(method_path)).expect("method bytes")
+            std::fs::read(repository_path.join(method_path)).expect("method bytes")
         ))
     );
     let verification_record = VerificationRecordV1::build(
@@ -841,7 +851,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     .expect("write Verification Record");
     let verification_path_text = verification_inbox_path.to_string_lossy().into_owned();
     let verified = success_json(&run(
-        &frontier,
+        &repository_path,
         None,
         &[
             "verification",
@@ -870,7 +880,8 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             .expect("full Verification Record root")
     );
     let retained: Value = serde_json::from_slice(
-        &std::fs::read(frontier.join(&verification_path)).expect("retained Verification Record"),
+        &std::fs::read(repository_path.join(&verification_path))
+            .expect("retained Verification Record"),
     )
     .expect("Verification Record JSON");
     assert_eq!(retained["verifier"], verifier);
@@ -890,7 +901,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         format!(
             "sha256:{}",
             hex::encode(Sha256::digest(
-                std::fs::read(frontier.join(method_path)).expect("method bytes")
+                std::fs::read(repository_path.join(method_path)).expect("method bytes")
             ))
         )
     );
@@ -901,7 +912,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
 
     let imported_again = success_json(
         &(run(
-            &frontier,
+            &repository_path,
             None,
             &[
                 "verification",
@@ -924,29 +935,29 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     );
     assert_eq!(imported_again["accepted_event_delta"], 0);
     assert_eq!(
-        exact_directory_snapshot(&frontier.join(".vela/authority/events")),
+        exact_directory_snapshot(&repository_path.join(".vela/authority/events")),
         authority_events_before,
         "routine evidence must not append an authority Event"
     );
     assert_eq!(
-        exact_directory_snapshot(&frontier.join(".vela/authority/records")),
+        exact_directory_snapshot(&repository_path.join(".vela/authority/records")),
         authority_records_before,
         "routine evidence must not append an Authority Record"
     );
     assert_eq!(imported_again["idempotent"], true);
 
     let after = Command::new("git")
-        .current_dir(&frontier)
+        .current_dir(&repository_path)
         .args(["rev-parse", "HEAD^{commit}"])
         .output()
         .expect("read after commit");
     assert!(after.status.success());
     assert_ne!(before.stdout, after.stdout);
-    let checked = success_json(&run(&frontier, None, &["replay", ".", "--json"]));
+    let checked = success_json(&run(&repository_path, None, &["replay", ".", "--json"]));
     assert_eq!(checked["counts"]["accepted_claims"], 0);
     assert_eq!(checked["counts"]["pending_claims"], 1);
     assert_eq!(checked["counts"]["verifications"], 1);
-    let status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
+    let status = success_json(&run(&repository_path, None, &["status", ".", "--json"]));
     assert_eq!(status["schema"], "vela.status.v4");
     assert_eq!(status["git"]["role"], "repository_head");
     assert_eq!(status["integrity"]["strict"], "pass");
@@ -979,13 +990,13 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         serde_json::to_vec(&status).expect("encode status").len() <= 16 * 1024,
         "status exceeds the compact projection budget"
     );
-    let human_status = run(&frontier, None, &["status", "."]);
+    let human_status = run(&repository_path, None, &["status", "."]);
     assert!(human_status.status.success());
     let human_status = String::from_utf8(human_status.stdout).expect("status text");
     assert!(human_status.lines().count() <= 40);
     assert!(!human_status.contains("review accept"));
     assert!(!human_status.contains("review reject"));
-    let parallel_status = success_json(&run(&frontier, None, &["status", ".", "--json"]));
+    let parallel_status = success_json(&run(&repository_path, None, &["status", ".", "--json"]));
     assert_eq!(parallel_status["decision_inbox"]["pending_count"], 1);
     assert_eq!(parallel_status["actions"]["work"]["mode"], "target");
     assert_eq!(parallel_status["actions"]["work"]["ready_target_count"], 1);
@@ -999,11 +1010,15 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             .as_str()
             .is_some_and(|command| command.starts_with("vela next "))
     );
-    let human_inbox = run(&frontier, None, &["review", "inbox", "."]);
+    let human_inbox = run(&repository_path, None, &["review", "inbox", "."]);
     assert!(human_inbox.status.success());
     let human_inbox = String::from_utf8(human_inbox.stdout).expect("inbox text");
     assert_eq!(human_inbox.matches("Inspect:").count(), 1);
-    let inbox = success_json(&run(&frontier, None, &["review", "inbox", ".", "--json"]));
+    let inbox = success_json(&run(
+        &repository_path,
+        None,
+        &["review", "inbox", ".", "--json"],
+    ));
     assert_eq!(inbox["schema"], "vela.decision-inbox.v2");
     assert_eq!(inbox["entries"].as_array().map(Vec::len), Some(1));
     let reviewed_entry_root = inbox["entries"][0]["entry_root"]
@@ -1012,7 +1027,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         .to_string();
     let proposal_id = submitted["proposal_id"].as_str().expect("Proposal ID");
     let review = success_json(&run(
-        &frontier,
+        &repository_path,
         None,
         &["review", "show", ".", proposal_id, "--json"],
     ));
@@ -1032,7 +1047,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         review["decision_inbox"]["entry"]["standing_delta"]["counts"]["global_accepted_claims"],
         serde_json::json!({"before": 0, "if_accept": 1, "if_reject": 0})
     );
-    let after_inspection = success_json(&run(&frontier, None, &["replay", ".", "--json"]));
+    let after_inspection = success_json(&run(&repository_path, None, &["replay", ".", "--json"]));
     assert_eq!(
         after_inspection["repository_root"],
         checked["repository_root"]
@@ -1040,7 +1055,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert_eq!(after_inspection["counts"]["accepted_claims"], 0);
     let stale_entry_root = format!("sha256:{}", "0".repeat(64));
     let stale_decision = run(
-        &frontier,
+        &repository_path,
         Some(agent.socket()),
         &[
             "review",
@@ -1062,13 +1077,14 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     );
     assert!(stale_error.contains("Decision Inbox entry changed"));
     assert!(stale_error.contains("no authority signature was requested"));
-    let after_stale_refusal = success_json(&run(&frontier, None, &["replay", ".", "--json"]));
+    let after_stale_refusal =
+        success_json(&run(&repository_path, None, &["replay", ".", "--json"]));
     assert_eq!(
         after_stale_refusal["repository_root"],
         after_inspection["repository_root"]
     );
     let target_index: Value = serde_json::from_slice(
-        &std::fs::read(frontier.join("targets.json")).expect("rebound Target Index"),
+        &std::fs::read(repository_path.join("targets.json")).expect("rebound Target Index"),
     )
     .expect("Target Index JSON");
     assert_eq!(target_index["schema"], "vela.target-index.v5");
@@ -1082,7 +1098,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let clone = temporary.path().join("submission-clone");
     let cloned = Command::new("git")
         .args(["clone", "-q"])
-        .arg(&frontier)
+        .arg(&repository_path)
         .arg(&clone)
         .output()
         .expect("clone submitted repository");
@@ -1120,7 +1136,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     // Routine evidence does not depend on caller-local authority custody, but
     // a later human Decision still requires the independent sequence-one pin.
     let unpinned_decision = run(
-        &frontier,
+        &repository_path,
         Some(agent.socket()),
         &[
             "review",
@@ -1145,7 +1161,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         "unexpected unpinned Decision error: {unpinned_error}"
     );
     let repinned = success_json(&run(
-        &frontier,
+        &repository_path,
         None,
         &[
             "authority",
@@ -1163,7 +1179,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     // evidence overlay instead of requiring each routine write to have carried
     // an Authority Record of its own.
     let rejected = success_json(&run(
-        &frontier,
+        &repository_path,
         Some(agent.socket()),
         &[
             "review",
@@ -1179,14 +1195,14 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     ));
     assert_eq!(rejected["action"], "reject");
     assert_eq!(rejected["scientific_state_changed"], false);
-    let decided = success_json(&run(&frontier, None, &["replay", ".", "--json"]));
+    let decided = success_json(&run(&repository_path, None, &["replay", ".", "--json"]));
     assert_eq!(decided["counts"]["accepted_claims"], 0);
     assert_eq!(decided["counts"]["pending_claims"], 0);
 
     let decided_clone = temporary.path().join("decided-clone");
     let cloned = Command::new("git")
         .args(["clone", "-q"])
-        .arg(&frontier)
+        .arg(&repository_path)
         .arg(&decided_clone)
         .output()
         .expect("clone decided repository");

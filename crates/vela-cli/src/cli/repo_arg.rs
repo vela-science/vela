@@ -109,10 +109,10 @@ pub(crate) fn bind_repo_and_object(
     };
     match (first, second) {
         (Some(_), Some(_)) if flag.is_some() => given_twice(verb),
-        (Some(frontier), Some(object)) => {
-            let frontier = PathBuf::from(frontier);
-            reject_object_id_as_repo(verb, &frontier);
-            (frontier, object)
+        (Some(repository_path), Some(object)) => {
+            let repository_path = PathBuf::from(repository_path);
+            reject_object_id_as_repo(verb, &repository_path);
+            (repository_path, object)
         }
         (Some(lone), None) => {
             /* A lone positional is the object — except when it is a directory
@@ -138,10 +138,10 @@ pub(crate) fn bind_repo_and_optional_object(
 ) -> (PathBuf, Option<String>) {
     match (first, second) {
         (Some(_), Some(_)) if flag.is_some() => given_twice(verb),
-        (Some(frontier), Some(object)) => {
-            let frontier = PathBuf::from(frontier);
-            reject_object_id_as_repo(verb, &frontier);
-            (frontier, Some(object))
+        (Some(repository_path), Some(object)) => {
+            let repository_path = PathBuf::from(repository_path);
+            reject_object_id_as_repo(verb, &repository_path);
+            (repository_path, Some(object))
         }
         (Some(lone), None) => {
             if flag.is_some() {

@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::process::{Command, Output};
 
-fn run(home: &Path, frontier: &Path, args: &[&str]) -> Output {
+fn run(home: &Path, repository_path: &Path, args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_vela"))
         .arg("submit")
         .args(args)
@@ -21,7 +21,7 @@ fn run(home: &Path, frontier: &Path, args: &[&str]) -> Output {
             "--as",
             "agent:fixture",
             "--repo",
-            frontier.to_str().expect("utf-8 repository"),
+            repository_path.to_str().expect("utf-8 repository"),
             "--json",
         ])
         .env("HOME", home)

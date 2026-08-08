@@ -44,11 +44,12 @@ pub(crate) struct VerificationRecordRequest {
 }
 
 fn ensure_pending_proposal(
-    frontier: &Path,
+    repository_path: &Path,
     repository: &RepositoryV4,
     proposal_id: &str,
 ) -> Result<(), String> {
-    let standings = crate::repository::load_current_proposal_standings(frontier, repository)?;
+    let standings =
+        crate::repository::load_current_proposal_standings(repository_path, repository)?;
     ensure_pending_standing(proposal_id, standings.get(proposal_id).map(String::as_str))
 }
 
@@ -69,7 +70,7 @@ struct ProposalPackage {
 }
 
 fn load_current_proposal_package(
-    frontier: &Path,
+    repository_path: &Path,
     repository: &RepositoryV4,
     proposal_id: &str,
 ) -> Result<ProposalPackage, String> {
@@ -83,7 +84,7 @@ fn load_current_proposal_package(
             )
         })?;
     let proposal = read_exact_object(
-        frontier,
+        repository_path,
         proposal_reference,
         ProposalV1::parse,
         ProposalV1::canonical_bytes,
@@ -108,7 +109,7 @@ fn load_current_proposal_package(
             )
         })?;
     let submission = read_exact_object(
-        frontier,
+        repository_path,
         submission_reference,
         SubmissionV1::parse,
         SubmissionV1::canonical_bytes,
@@ -164,7 +165,7 @@ fn current_subject_for_package(
 }
 
 fn method_manifest_binding(
-    frontier: &Path,
+    repository_path: &Path,
     method_path: &Path,
 ) -> Result<(String, String), String> {
     let implementation = method_path
@@ -187,7 +188,7 @@ fn method_manifest_binding(
         return Err("Verification method path must be normalized printable text".into());
     }
     let bytes = crate::bounded_file::read_bounded_frontier_file(
-        frontier,
+        repository_path,
         method_path,
         METHOD_MANIFEST_MAX_BYTES,
         "Verification method manifest",
@@ -197,7 +198,7 @@ fn method_manifest_binding(
         return Err("Verification method manifest must not be empty".into());
     }
     let tracked = vela_edge::git::output(
-        frontier,
+        repository_path,
         &["ls-files", "--error-unmatch", "--", &implementation],
     )?;
     if !tracked.status.success() {
@@ -206,7 +207,7 @@ fn method_manifest_binding(
         );
     }
     let dirt = vela_edge::git::text(
-        frontier,
+        repository_path,
         &[
             "status",
             "--porcelain=v1",
@@ -273,7 +274,7 @@ fn matches_request(
 }
 
 fn existing_semantic_record(
-    frontier: &Path,
+    repository_path: &Path,
     repository: &RepositoryV4,
     subject: &VerificationSubject,
     method: &VerificationMethod,
@@ -284,7 +285,7 @@ fn existing_semantic_record(
 ) -> Result<Option<VerificationRecordV1>, String> {
     for reference in &repository.verifications {
         let record = read_exact_object(
-            frontier,
+            repository_path,
             reference,
             VerificationRecordV1::parse,
             VerificationRecordV1::canonical_bytes,
@@ -305,7 +306,7 @@ fn existing_semantic_record(
 }
 
 pub(crate) fn author_record(
-    frontier: &Path,
+    repository_path: &Path,
     request: VerificationRecordRequest,
 ) -> Result<VerificationRecordV1, String> {
     let actor = request.actor.trim();
@@ -321,9 +322,10 @@ pub(crate) fn author_record(
 
     // Complete every repository and method preflight before the local agent
     // key resolver is allowed to mint or load a signer.
-    let repository = crate::repository::verify_current_repository_at(frontier, true)?;
-    ensure_pending_proposal(frontier, &repository, &request.proposal_id)?;
-    let package = load_current_proposal_package(frontier, &repository, &request.proposal_id)?;
+    let repository = crate::repository::verify_current_repository_at(repository_path, true)?;
+    ensure_pending_proposal(repository_path, &repository, &request.proposal_id)?;
+    let package =
+        load_current_proposal_package(repository_path, &repository, &request.proposal_id)?;
     let property = resolve_property(
         request.property,
         request.complementary,
@@ -331,7 +333,7 @@ pub(crate) fn author_record(
     )?;
     let subject = current_subject_for_package(&repository, &package)?;
     let (implementation, environment_root) =
-        method_manifest_binding(frontier, &request.method_path)?;
+        method_manifest_binding(repository_path, &request.method_path)?;
     let method = VerificationMethod {
         profile: request.profile,
         implementation,
@@ -346,7 +348,7 @@ pub(crate) fn author_record(
         shared_dependencies: request.shared_dependencies,
     };
     if let Some(record) = existing_semantic_record(
-        frontier,
+        repository_path,
         &repository,
         &subject,
         &method,
@@ -386,12 +388,12 @@ pub(crate) fn author_record(
 }
 
 fn read_exact_object<T>(
-    frontier: &Path,
+    repository_path: &Path,
     reference: &RepositoryObjectRefV1,
     parse: impl FnOnce(&[u8]) -> Result<T, String>,
     canonical_bytes: impl FnOnce(&T) -> Result<Vec<u8>, String>,
 ) -> Result<T, String> {
-    let bytes = fs::read(frontier.join(&reference.path))
+    let bytes = fs::read(repository_path.join(&reference.path))
         .map_err(|error| format!("read current object {}: {error}", reference.path))?;
     let object = parse(&bytes)?;
     if canonical_bytes(&object)? != bytes {
@@ -404,11 +406,12 @@ fn read_exact_object<T>(
 }
 
 fn load_subject(
-    frontier: &Path,
+    repository_path: &Path,
     repository: &RepositoryV4,
     record: &VerificationRecordV1,
 ) -> Result<(ProposalV1, String, SubmissionV1), String> {
-    let package = load_current_proposal_package(frontier, repository, &record.subject.proposal_id)?;
+    let package =
+        load_current_proposal_package(repository_path, repository, &record.subject.proposal_id)?;
     if package.proposal.subject.id != record.subject.claim_id
         || package.proposal.producer_package.id != record.subject.submission_id
         || package.proposal.producer_package.root != record.subject.submission_root
@@ -438,7 +441,7 @@ fn load_subject(
 }
 
 fn existing_outcome(
-    frontier: &Path,
+    repository_path: &Path,
     repository: &RepositoryV4,
     record: &VerificationRecordV1,
     record_root: &str,
@@ -455,7 +458,7 @@ fn existing_outcome(
         return Err("Verification Record ID collides with different canonical bytes".into());
     }
     let stored = read_exact_object(
-        frontier,
+        repository_path,
         reference,
         VerificationRecordV1::parse,
         VerificationRecordV1::canonical_bytes,
@@ -485,15 +488,15 @@ fn existing_outcome(
 }
 
 pub(crate) fn import(
-    frontier: &Path,
+    repository_path: &Path,
     record: &VerificationRecordV1,
     executor: &str,
 ) -> Result<VerificationImportOutcome, String> {
-    import_inner(frontier, record, executor)
+    import_inner(repository_path, record, executor)
 }
 
 fn import_inner(
-    frontier: &Path,
+    repository_path: &Path,
     record: &VerificationRecordV1,
     executor: &str,
 ) -> Result<VerificationImportOutcome, String> {
@@ -503,9 +506,10 @@ fn import_inner(
         return Err("verification import actor must match the Verification Record verifier".into());
     }
 
-    let repository = crate::repository::verify_current_repository_at(frontier, true)?;
+    let repository = crate::repository::verify_current_repository_at(repository_path, true)?;
     let repository_root = repository.canonical_root()?;
-    let (_proposal, proposal_root, submission) = load_subject(frontier, &repository, record)?;
+    let (_proposal, proposal_root, submission) =
+        load_subject(repository_path, &repository, record)?;
     let record_bytes = record.canonical_bytes()?;
     let record_root = record.canonical_root()?;
     let request_root = format!(
@@ -522,7 +526,7 @@ fn import_inner(
     let operation_id =
         crate::repository_txn::OperationId::derive("verification-import", request_root.as_bytes());
     if let Some(outcome) = existing_outcome(
-        frontier,
+        repository_path,
         &repository,
         record,
         &record_root,
@@ -530,22 +534,26 @@ fn import_inner(
     )? {
         return Ok(outcome);
     }
-    ensure_pending_proposal(frontier, &repository, &record.subject.proposal_id)?;
+    ensure_pending_proposal(repository_path, &repository, &record.subject.proposal_id)?;
 
-    let journal_dir = crate::repository_ops::repository_transaction_journal_dir(frontier)?;
+    let journal_dir = crate::repository_ops::repository_transaction_journal_dir(repository_path)?;
     let barrier = crate::repository_txn::RepositoryTxn::acquire_routine_evidence_write_barrier(
-        frontier,
+        repository_path,
         &journal_dir,
     )
     .map_err(|error| error.to_string())?;
-    let held_repository = crate::repository::verify_current_repository_at(frontier, true)?;
+    let held_repository = crate::repository::verify_current_repository_at(repository_path, true)?;
     if held_repository.canonical_root()? != repository_root {
         return Err(
             "current repository changed while acquiring the verification import barrier".into(),
         );
     }
-    ensure_pending_proposal(frontier, &held_repository, &record.subject.proposal_id)?;
-    let (_, _, held_submission) = load_subject(frontier, &held_repository, record)?;
+    ensure_pending_proposal(
+        repository_path,
+        &held_repository,
+        &record.subject.proposal_id,
+    )?;
+    let (_, _, held_submission) = load_subject(repository_path, &held_repository, record)?;
     if held_submission.canonical_root()? != submission.canonical_root()? {
         return Err(
             "Verification source Submission changed while acquiring the import barrier".into(),
@@ -564,12 +572,12 @@ fn import_inner(
         },
     )?;
     next_repository.verify()?;
-    let derived_drafts = crate::submission::rebind_target_index(frontier, &next_repository)?;
+    let derived_drafts = crate::submission::rebind_target_index(repository_path, &next_repository)?;
 
     let recorded_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
     let mut prepared = crate::routine_evidence_transaction::prepare_routine_evidence_transaction(
         barrier,
-        frontier,
+        repository_path,
         &held_repository.repository_id,
         crate::repository_txn::OperationKind::Verification,
         operation_id.clone(),
@@ -622,9 +630,9 @@ fn import_inner(
             .map_err(|error| error.to_string())?;
         let delta_root = prepared.canonical_delta_root().to_string();
         let publish_options = PublishOptions::local();
-        let delta = publication_delta(frontier, &delta_root, public)?
+        let delta = publication_delta(repository_path, &delta_root, public)?
             .ok_or_else(|| "Verification import had no public Git delta".to_string())?;
-        let preflight = exact_publication_preflight(frontier, &delta, &publish_options)
+        let preflight = exact_publication_preflight(repository_path, &delta, &publish_options)
             .map_err(publication_error)?;
         Ok::<_, String>((delta, preflight))
     })();
@@ -642,9 +650,9 @@ fn import_inner(
         .map_err(|error| error.to_string())?;
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
-    crate::repository::verify_current_repository_allow_derived_drift_at(frontier)?;
+    crate::repository::verify_current_repository_allow_derived_drift_at(repository_path)?;
     let publication = publish_exact_delta(
-        frontier,
+        repository_path,
         "verification import",
         std::slice::from_ref(&record.verification_record_id),
         &delta,
@@ -655,12 +663,14 @@ fn import_inner(
         publication.state,
         PublicationState::Unchanged { .. } | PublicationState::CommittedLocal { .. }
     ) {
-        crate::repository::verify_current_repository_at(frontier, true).map_err(|error| {
-            format!(
-                "Verification Record was published but strict post-publication verification \
+        crate::repository::verify_current_repository_at(repository_path, true).map_err(
+            |error| {
+                format!(
+                    "Verification Record was published but strict post-publication verification \
                      failed: {error}; do not retry the import"
-            )
-        })?;
+                )
+            },
+        )?;
         if let Err(error) = prepared.retire_completed_recovery_blobs() {
             crate::ui::warn_nonfatal(&format!(
                 "Verification import {} was published and verified, but private recovery blob cleanup failed: {error}",
@@ -719,8 +729,8 @@ mod tests {
         proposal_root: String,
     }
 
-    fn write(frontier: &Path, path: &str, bytes: &[u8]) {
-        let absolute = frontier.join(path);
+    fn write(repository_path: &Path, path: &str, bytes: &[u8]) {
+        let absolute = repository_path.join(path);
         fs::create_dir_all(absolute.parent().unwrap()).unwrap();
         fs::write(absolute, bytes).unwrap();
     }

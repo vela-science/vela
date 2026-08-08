@@ -265,7 +265,7 @@ mod tests {
             "authority.rotated",
             "policy.rotated",
             "authority.closed",
-            "frontier.created",
+            "repository_path.created",
         ] {
             let kind = EventKind::from(wire);
             assert!(matches!(kind, EventKind::Other(_)), "{wire} is not typed");

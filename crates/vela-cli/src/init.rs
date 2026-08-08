@@ -380,7 +380,7 @@ mod tests {
     fn genesis_identity_keeps_the_declared_repository_id_shape() {
         let parent = tempfile::tempdir().expect("staging parent");
         let payload = initialize(
-            &parent.path().join("frontier"),
+            &parent.path().join("repository_path"),
             "Bounded name",
             "Does X hold?",
         );
@@ -391,7 +391,7 @@ mod tests {
         assert!(suffix.bytes().all(vela_protocol::is_lower_hex));
 
         let profile = vela_protocol::repository::RepositoryProfileV1::from_toml_str(
-            &fs::read_to_string(parent.path().join("frontier").join("vela.toml"))
+            &fs::read_to_string(parent.path().join("repository_path").join("vela.toml"))
                 .expect("read retained vela.toml"),
         )
         .expect("retained profile validates");

@@ -700,8 +700,8 @@ fn blob(repo: &Path, entry: &GitTreeEntry) -> Result<Vec<u8>, String> {
 /// Read an ordered set of exact Git blobs through one hardened `cat-file`
 /// process.
 ///
-/// Source-frontier materialization previously spawned one Git process per
-/// `.vela` file. A real 2,189-event frontier therefore took minutes merely to
+/// Source-repository materialization previously spawned one Git process per
+/// `.vela` file. A real 2,189-event repository therefore took minutes merely to
 /// reconstruct one anchored view. `--batch` preserves the same exact object-ID
 /// boundary while keeping process count constant.
 fn batch_blobs(repo: &Path, entries: &[&GitTreeEntry]) -> Result<Vec<Vec<u8>>, String> {

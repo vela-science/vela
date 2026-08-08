@@ -62,12 +62,13 @@ impl AuthorityActionV1 {
 /// The authority boundary is the Repository (ADR 0039), and this variant now
 /// says so on the wire.
 ///
-/// `rename_all = "snake_case"` means the variant name *is* the token, so while
-/// this read `Frontier` it emitted `"frontier"` — and the comment here claimed
-/// it already emitted `"repository"`, which was a statement about the code that
-/// the code contradicted. It could not be renamed in place while a live genesis
-/// held the old token inside `AuthorizationRequestV1::root()`. The 0.970.0
-/// re-genesis of `vela-science/math` removed that constraint.
+/// `rename_all = "snake_case"` means the variant name *is* the token. While
+/// this variant was spelled with the retired noun it emitted the retired token,
+/// and the comment here asserted it already emitted `"repository"` — a statement
+/// about the code that the code contradicted. It could not be renamed in place
+/// while a live genesis held the old token inside
+/// `AuthorizationRequestV1::root()`. The 0.970.0 re-genesis of
+/// `vela-science/math` removed that constraint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorityResourceTypeV1 {

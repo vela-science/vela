@@ -1,7 +1,7 @@
-//! A cloned frontier must not be able to configure the operator.
+//! A cloned repository must not be able to configure the operator.
 //!
 //! Regression tests for the working-tree `.env` injection: `dotenvy`
-//! used to ancestor-walk from cwd, so a frontier repo could commit a
+//! used to ancestor-walk from cwd, so a repository repo could commit a
 //! `.env` that silently set VELA_ACTOR_ID / VELA_KEY_PATH for anyone running
 //! vela inside it — the attack
 //! class git's protected configuration and Codex's project-scope key
@@ -63,7 +63,7 @@ fn command_errors_use_stable_exit_codes() {
         Some(1),
         "replay current repository refusal: {out:?}"
     );
-    // Retired state writers fail as usage errors before touching the frontier.
+    // Retired state writers fail as usage errors before touching the repository.
     let out = run_in(tmp.path(), &["state", "anchor", ".", "vf_x", "--json"]);
     assert_eq!(
         out.status.code(),

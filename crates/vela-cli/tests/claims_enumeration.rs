@@ -47,13 +47,13 @@ fn json(output: &Output) -> Value {
 /// `vela submit` commits what it retains, so the fixture needs a Git identity
 /// the commit can carry. Without it the first Submission leaves its Artifact
 /// installed but untracked and the second refuses the occupied path.
-fn configure_git_identity(frontier: &Path) {
+fn configure_git_identity(repository_path: &Path) {
     for (key, value) in [
         ("user.name", "Vela Test"),
         ("user.email", "vela@example.invalid"),
     ] {
         let configured = Command::new("git")
-            .current_dir(frontier)
+            .current_dir(repository_path)
             .args(["config", key, value])
             .status()
             .expect("configure test Git identity");
@@ -79,8 +79,8 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
     let agent = EphemeralAgent::start(temporary.path(), "vela claims test");
     let home = temporary.path().join("home");
     std::fs::create_dir_all(&home).expect("isolated home");
-    let frontier = temporary.path().join("frontier");
-    let repository_path_text = frontier.to_string_lossy().into_owned();
+    let repository_path = temporary.path().join("repository_path");
+    let repository_path_text = repository_path.to_string_lossy().into_owned();
     let socket = agent.socket();
 
     /* The repository id derives from name, scope, and key, and the trust anchor
@@ -111,10 +111,10 @@ fn claims_enumerates_the_manifest_and_hands_back_usable_ids() {
     let _anchor =
         support::RemoveAnchorOnDrop::from_init_json(&String::from_utf8_lossy(&initialized.stdout));
 
-    configure_git_identity(&frontier);
-    std::fs::create_dir_all(frontier.join("artifacts")).expect("artifacts directory");
+    configure_git_identity(&repository_path);
+    std::fs::create_dir_all(repository_path.join("artifacts")).expect("artifacts directory");
     std::fs::write(
-        frontier.join("artifacts/note.json"),
+        repository_path.join("artifacts/note.json"),
         b"{\"note\":\"claims fixture\"}\n",
     )
     .expect("fixture artifact");
