@@ -111,6 +111,37 @@ if [ -n "$TAG" ] && [ "v$VERSION" != "$TAG" ]; then
   die "tag $TAG does not match the workspace version v$VERSION"
 fi
 
+# A signature says "these bytes are the release". Refuse to make that claim from
+# a tree that is not the release.
+#
+# The version comes from Cargo.toml and the bytes come from the working tree,
+# and nothing tied the two together. So running this on a checkout 42 commits
+# past `v0.967.0`, with the version not yet bumped, produced a correctly signed
+# manifest for an archive whose digest matches no published release — and
+# attaching it to `v0.967.0` would have made `install.sh` refuse every install,
+# because the digest tie-back would compare the published archive against the
+# locally built one and find they differ. That is the tie-back working, arriving
+# far too late to be useful.
+#
+# Only checked when signing. An unsigned build from a dirty tree is an ordinary
+# thing to do while working.
+if [ -n "$SIGN_KEY" ] && [ -d .git ]; then
+  if ! git diff --quiet HEAD 2>/dev/null; then
+    die "refusing to sign a release built from a modified working tree; commit or stash first"
+  fi
+  release_tag="${TAG:-v$VERSION}"
+  if tagged="$(git rev-parse --verify -q "${release_tag}^{commit}" 2>/dev/null)"; then
+    head="$(git rev-parse HEAD)"
+    if [ "$tagged" != "$head" ]; then
+      behind="$(git rev-list --count "${release_tag}..HEAD" 2>/dev/null || echo '?')"
+      die "HEAD is ${behind} commits from ${release_tag}, so these bytes are not that release.
+       Bump the version and tag this commit, or check out ${release_tag} to rebuild it.
+       Signing here would attest to an archive no release carries; \`install.sh\` compares
+       the published bytes to the manifest and would refuse every install."
+    fi
+  fi
+fi
+
 step "release identity"
 echo "version: $VERSION${TAG:+ (tag $TAG)}"
 
