@@ -2,6 +2,61 @@
 
 ## Unreleased
 
+The entries below are on `main` and are not published. `README.md` still
+advertises v0.968.1 because that is the tag `install.sh` can actually fetch,
+and `cli_release_contract.rs` holds those two together — the README may not
+name a version that does not exist as a release.
+
+
+- **`vela correction impact` reaches the correction-impact projection.**
+  `crates/vela-edge/src/analysis/correction_impact.rs` has implemented
+  `vela.correction-impact-projection.v1` — dependency traversal, lost and
+  surviving support routes, repair obligations — since it was written, and
+  nothing called it. The new verb calls it over the accepted claim index of a
+  real repository. It adds no object: the derivation, the input schema and the
+  projection schema are the ones already under conformance.
+
+  The argument is the successor — the Claim carrying `corrects` or
+  `supersedes` — so a correction still in the review queue can be asked what
+  accepting it would cost. The projection root is identical before and after
+  the Decision.
+
+  A Claim Record may declare a discharge condition under the `vela.correction`
+  extension; where none is declared the protocol's own default applies, and the
+  verb reports per obligation which of the two it used.
+
+- **Fixed: accepting a correction made the repository unreadable.** Acceptance
+  retires the predecessor, so it left the accepted index while its own Proposal
+  stayed retained saying `accepted`. `validate_current_proposal_standing` read
+  those two facts as a contradiction, and every read verb failed afterwards —
+  `status`, `claims`, `replay`, `why`, `review list`. A protocol whose central
+  move is correction could not be read after making one. The loader now
+  identifies a retired predecessor from the successor's own retained Claim
+  Record, using the protocol's `moves_standing` test for which relation kinds
+  acceptance acts on. Held shut by
+  `crates/vela-cli/tests/correction_impact.rs`.
+
+- **A second independent emitter.** `conformance/emitters/python.py` produces
+  byte-identical signed Submissions and Verification Records from a clean-room
+  implementation, and `verify_current_objects.py` holds both it and the
+  JavaScript emitter to the same fixtures. The two differ where it matters:
+  the JavaScript emitter sorts keys by UTF-16 code unit, this one calls
+  `rfc8785`, which sorts by code point as JCS specifies.
+
+- **`docs/interop/scientific-state-profile-v1.md`.** The seven contracts an
+  external implementation must satisfy, each paired with the conformance check
+  that decides whether it does. It names existing schemas and creates no
+  parallel object model.
+
+- **Known and unclosed:** the correction-impact projection traverses `depends`
+  and `supports` claim-to-claim edges and the write path authors neither.
+  `vela.submission.v1` has no field for a producer to declare a dependency, so
+  a repository built with this release records corrections and cannot record a
+  cascade. That absence is ADR 0004's standing position, and this release
+  supplies the first real evidence in that lane rather than settling it.
+
+### Earlier, also unreleased
+
 - **Epoch change.** `Frontier` was doing three incompatible jobs — authority
   boundary, topic boundary, product slice — and ADR 0039 separates them.
   `Repository` is the authority boundary, `Source` the provenance boundary,
