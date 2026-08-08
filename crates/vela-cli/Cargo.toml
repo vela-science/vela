@@ -51,7 +51,6 @@ libc = { workspace = true }
 rustix = { version = "1", features = ["process"] }
 
 [dev-dependencies]
-vela-protocol = { workspace = true }
 
 [lints]
 workspace = true

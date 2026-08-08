@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 pub const CORRECTION_IMPACT_INPUT_SCHEMA_V1: &str = "vela.correction-impact-input.v1";
-pub const CORRECTION_IMPACT_PROJECTION_SCHEMA_V1: &str = "vela.correction-impact-projection.v1";
+pub(crate) const CORRECTION_IMPACT_PROJECTION_SCHEMA_V1: &str =
+    "vela.correction-impact-projection.v1";
 
 /// The domain separator the repair-obligation root is computed under.
 ///
@@ -25,7 +26,8 @@ pub const CORRECTION_IMPACT_PROJECTION_SCHEMA_V1: &str = "vela.correction-impact
 /// produces, so publishing this would mean moving the type into the kernel —
 /// promoting a non-authoritative analysis to a canonical object by way of a
 /// directory. `docs/ECOSYSTEM.md` §6 states the argument in full.
-pub const CORRECTION_REPAIR_OBLIGATION_SCHEMA_V1: &str = "vela.correction-repair-obligation.v1";
+pub(crate) const CORRECTION_REPAIR_OBLIGATION_SCHEMA_V1: &str =
+    "vela.correction-repair-obligation.v1";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

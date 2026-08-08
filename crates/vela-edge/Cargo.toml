@@ -24,6 +24,5 @@ tempfile.workspace = true
 unicode-normalization.workspace = true
 rustix = { version = "1", features = ["fs", "process"] }
 [dev-dependencies]
-vela-protocol = { workspace = true }
 [lints]
 workspace = true

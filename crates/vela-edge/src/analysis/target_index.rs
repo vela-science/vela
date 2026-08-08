@@ -21,11 +21,11 @@ use vela_protocol::repository_inputs::{
 pub const TARGET_INDEX_SCHEMA_V5: &str = "vela.target-index.v5";
 pub const TARGET_INDEX_INPUT_MANIFEST_SCHEMA_V1: &str = "vela.target-index-input-manifest.v1";
 
-pub const TARGET_INDEX_JSON_MAX_BYTES: u64 = 4 * 1024 * 1024;
-pub const TARGET_PACKET_MAX_BYTES: u64 = 1024 * 1024;
-pub const TARGET_INDEX_MAX_TARGETS: usize = 16_384;
-pub const TARGET_INDEX_MAX_LABELS: usize = 64;
-pub const EXTERNAL_TARGET_ID_MAX_BYTES: usize = 256;
+pub(crate) const TARGET_INDEX_JSON_MAX_BYTES: u64 = 4 * 1024 * 1024;
+pub(crate) const TARGET_PACKET_MAX_BYTES: u64 = 1024 * 1024;
+pub(crate) const TARGET_INDEX_MAX_TARGETS: usize = 16_384;
+pub(crate) const TARGET_INDEX_MAX_LABELS: usize = 64;
+pub(crate) const EXTERNAL_TARGET_ID_MAX_BYTES: usize = 256;
 const JSON_SAFE_INTEGER_MAX: u64 = 9_007_199_254_740_991;
 const SOURCE_VIEW_BLOB_MAX_BYTES: u64 = 64 * 1024 * 1024;
 const SOURCE_VIEW_TOTAL_MAX_BYTES: u64 = 1024 * 1024 * 1024;
@@ -259,7 +259,7 @@ fn scientific_target_punctuation_is_balanced(target: &str) -> bool {
 
 /// The one external target-ID grammar shared by indexes, campaigns, and
 /// coordination leases.
-pub fn validate_target_id(target: &str) -> Result<(), String> {
+pub(crate) fn validate_target_id(target: &str) -> Result<(), String> {
     if target.is_empty() || target.len() > EXTERNAL_TARGET_ID_MAX_BYTES {
         return Err(format!(
             "external target id must be 1..={EXTERNAL_TARGET_ID_MAX_BYTES} bytes"
