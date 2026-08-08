@@ -155,7 +155,7 @@ DECLARED_SURFACES: dict[str, bool] = {
     "conformance/readers/python": True,
     "conformance/verify.py": True,
     "crates/vela-edge/src/analysis/correction_impact.rs": True,
-    "crates/vela-protocol/src/objects/current_repository.rs": True,
+    "crates/vela-protocol/src/objects/repository.rs": True,
     "crates/vela-protocol/src/wire_schema.rs": True,
     # The four documents `docs/CONTINUITY.md` cites. A citation whose target
     # moved is the same failure as a surface that moved, one indirection out.
@@ -244,13 +244,13 @@ def identifier_prefix() -> str:
     epoch that changes the prefix and forgets this file produces a diff, not a
     quiet agreement between two copies of the same number.
     """
-    text = (ROOT / "crates/vela-protocol/src/objects/current_repository.rs").read_text(
+    text = (ROOT / "crates/vela-protocol/src/objects/repository.rs").read_text(
         encoding="utf-8"
     )
     matches = set(re.findall(r'require_prefixed\("repository_id", &self\.\w+, "(\w+_)"\)', text))
     if len(matches) != 1:
         raise Failure(
-            "current_repository.rs does not pin exactly one repository-id prefix: "
+            "repository.rs does not pin exactly one repository-id prefix: "
             f"{sorted(matches) or 'none found'}"
         )
     return matches.pop()

@@ -63,14 +63,14 @@ use std::path::Path;
 
 use serde_json::{Value, json};
 use vela_protocol::claim_record::ClaimRecordV1;
-use vela_protocol::current_repository::ClaimStandingRefV1;
+use vela_protocol::repository::ClaimStandingRefV1;
 use vela_protocol::repository_origin::RepositoryOriginV1;
 
 /// The standings this index can bind, plus the escape hatch. `accepted` is the
 /// default because "what stands?" is the question.
 ///
 /// These are the standing axis's own words, not the manifest's. The manifest
-/// binds each list a Proposal-axis token — `CurrentRepositoryV4::verify` holds
+/// binds each list a Proposal-axis token — `RepositoryV4::verify` holds
 /// the pending list to `pending_review` — and this verb reads those tokens onto
 /// the standing axis through `crate::claim_standing`, so the filter spells what
 /// the rows now report. A Claim in the pending list is `unassessed`: no ruling
@@ -94,7 +94,7 @@ const ASSERTION_SCALARS: usize = 132;
 /// `status`, `review list`, and `claims` all refuse it identically, at the
 /// load.
 fn origin_claim_ids(frontier: &Path, origin: &RepositoryOriginV1) -> BTreeSet<String> {
-    let initial = crate::current_repository::initial_repository(frontier, origin)
+    let initial = crate::repository::initial_repository(frontier, origin)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     initial
         .accepted_claims
@@ -116,11 +116,8 @@ fn era_label(origin_ids: &BTreeSet<String>, claim_id: &str) -> &'static str {
 }
 
 fn read_claim(frontier: &Path, reference: &ClaimStandingRefV1) -> Result<ClaimRecordV1, String> {
-    let bytes = crate::current_repository::read_rooted_object(
-        frontier,
-        &reference.path,
-        &reference.claim_root,
-    )?;
+    let bytes =
+        crate::repository::read_rooted_object(frontier, &reference.path, &reference.claim_root)?;
     let claim = ClaimRecordV1::parse(&bytes)?;
     if claim.claim_id != reference.claim_id {
         return Err(format!(
@@ -160,7 +157,7 @@ pub(crate) fn cmd_claims(
     let frontier = crate::ui::canonicalize_repo(frontier);
     /* The same load `review list` uses: the manifest is only worth listing if
     repository authority covers it. */
-    let repository = crate::current_repository::load_current_repository_at(&frontier, true)
+    let repository = crate::repository::load_current_repository_at(&frontier, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let repository_root = repository
         .canonical_root()
@@ -326,7 +323,7 @@ mod tests {
     /// `unassessed`, so that is what `--status` takes.
     #[test]
     fn the_status_filter_spells_the_standings_the_rows_report() {
-        let manifest = vela_protocol::current_repository::ClaimStandingRefV1 {
+        let manifest = vela_protocol::repository::ClaimStandingRefV1 {
             claim_id: format!("vcl_{}", "a".repeat(64)),
             claim_root: format!("sha256:{}", "b".repeat(64)),
             standing: "pending_review".into(),

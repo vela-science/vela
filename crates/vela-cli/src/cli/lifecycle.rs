@@ -51,7 +51,7 @@ pub(crate) fn cmd_init(
         value.to_string()
     };
     let mut payload = if store.exists() {
-        let profile = crate::current_repository::verify_current_bootstrap_at(path)
+        let profile = crate::repository::verify_current_bootstrap_at(path)
             .unwrap_or_else(|error| fail_return(&error));
         if let Some(supplied) = name.map(str::trim).filter(|value| !value.is_empty())
             && supplied != profile.name
@@ -89,9 +89,9 @@ pub(crate) fn cmd_init(
     } else {
         let name = resolve("name", name);
         let scope = resolve("scope", scope);
-        let mut initialized = crate::current_init::initialize_current_minimal(
+        let mut initialized = crate::init::initialize_current_minimal(
             path,
-            crate::current_init::CurrentInitOptions {
+            crate::init::InitOptions {
                 name: &name,
                 scope: &scope,
                 initialize_git: true,

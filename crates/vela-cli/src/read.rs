@@ -12,23 +12,21 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use vela_protocol::authority::AuthorityEventV1;
 use vela_protocol::claim_record::ClaimRecordV1;
-use vela_protocol::current_repository::{
-    ClaimStandingRefV1, CurrentRepositoryV4, RepositoryObjectRefV1,
-};
 use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::proposal_withdrawal_v1::ProposalWithdrawalV1;
+use vela_protocol::repository::{ClaimStandingRefV1, RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::repository_origin::{RepositoryOriginPredecessorV1, RepositoryOriginV1};
 
 use crate::claim_standing::{self, ClaimStanding};
 use crate::cli::{fail_return, print_json};
-use crate::current_repository::CurrentProposalDecision;
+use crate::repository::ProposalDecision;
 
-struct CurrentReadContext {
-    repository: CurrentRepositoryV4,
+struct ReadContext {
+    repository: RepositoryV4,
     repository_root: String,
     origin: RepositoryOriginV1,
     proposals: Vec<(RepositoryObjectRefV1, ProposalV1)>,
-    decisions: BTreeMap<String, CurrentProposalDecision>,
+    decisions: BTreeMap<String, ProposalDecision>,
     withdrawals: BTreeMap<String, ProposalWithdrawalV1>,
     authority_events: Vec<AuthorityEventV1>,
 }
@@ -64,17 +62,15 @@ fn read_value(frontier: &Path, reference: &RepositoryObjectRefV1) -> Result<Valu
         .map_err(|error| format!("parse current object {}: {error}", reference.path))
 }
 
-fn load_context(frontier: &Path) -> Result<CurrentReadContext, String> {
-    let repository = crate::current_repository::load_current_repository_at(frontier, true)?;
+fn load_context(frontier: &Path) -> Result<ReadContext, String> {
+    let repository = crate::repository::load_current_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
     let origin_bytes = fs::read(frontier.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;
     let origin = RepositoryOriginV1::parse(&origin_bytes)?;
     let authority = crate::cli::load_current_repository_authority(frontier, &repository, &origin)?;
-    let decisions =
-        crate::current_repository::load_current_proposal_decisions(frontier, &repository)?;
-    let withdrawals =
-        crate::current_repository::load_current_proposal_withdrawals(frontier, &repository)?;
+    let decisions = crate::repository::load_current_proposal_decisions(frontier, &repository)?;
+    let withdrawals = crate::repository::load_current_proposal_withdrawals(frontier, &repository)?;
     let proposals = repository
         .proposals
         .iter()
@@ -90,7 +86,7 @@ fn load_context(frontier: &Path) -> Result<CurrentReadContext, String> {
             Ok((reference.clone(), proposal))
         })
         .collect::<Result<Vec<_>, String>>()?;
-    Ok(CurrentReadContext {
+    Ok(ReadContext {
         repository,
         repository_root,
         origin,
@@ -257,7 +253,7 @@ fn predecessor_authority_events(
 
 fn origin_standing_history(
     frontier: &Path,
-    context: &CurrentReadContext,
+    context: &ReadContext,
     claim_id: &str,
 ) -> Result<OriginStandingHistory, String> {
     let Some(mut predecessor) = context.origin.predecessor.clone() else {
@@ -412,10 +408,7 @@ fn origin_standing_history(
 /// The reference carries the manifest's own standing token. Reading that token
 /// onto the standing axis is [`crate::claim_standing`]'s job, not this lookup's,
 /// which is why the two lists are no longer labelled here.
-fn claim_reference<'a>(
-    context: &'a CurrentReadContext,
-    claim_id: &str,
-) -> Option<&'a ClaimStandingRefV1> {
+fn claim_reference<'a>(context: &'a ReadContext, claim_id: &str) -> Option<&'a ClaimStandingRefV1> {
     context
         .repository
         .accepted_claims
@@ -426,7 +419,7 @@ fn claim_reference<'a>(
 
 /// The newest retained Proposal about this Claim.
 fn latest_proposal<'a>(
-    context: &'a CurrentReadContext,
+    context: &'a ReadContext,
     claim_id: &str,
 ) -> Option<&'a (RepositoryObjectRefV1, ProposalV1)> {
     context
@@ -436,21 +429,20 @@ fn latest_proposal<'a>(
         .max_by(|left, right| left.1.created_at.cmp(&right.1.created_at))
 }
 
-fn claim_proposal_status(context: &CurrentReadContext, claim_id: &str) -> Option<String> {
+fn claim_proposal_status(context: &ReadContext, claim_id: &str) -> Option<String> {
     latest_proposal(context, claim_id)
         .map(|(_, proposal)| proposal_status(context, &proposal.proposal_id))
 }
 
 fn proposal_claim(
     frontier: &Path,
-    context: &CurrentReadContext,
+    context: &ReadContext,
     claim_id: &str,
 ) -> Result<Option<ClaimRecordV1>, String> {
     let Some((_, proposal)) = latest_proposal(context, claim_id) else {
         return Ok(None);
     };
-    let path =
-        crate::current_submission::rooted_path("records/claims/sha256", &proposal.subject.root)?;
+    let path = crate::submission::rooted_path("records/claims/sha256", &proposal.subject.root)?;
     let claim = ClaimRecordV1::parse(&read_exact(frontier, &path, &proposal.subject.root)?)?;
     if claim.claim_id != proposal.subject.id {
         return Err(format!(
@@ -464,7 +456,7 @@ fn proposal_claim(
 /// A Proposal's own status, on the Proposal axis. This was `proposal_standing`
 /// while its one caller handed the result straight back as a Claim's standing;
 /// the name agreed with the collapse instead of exposing it.
-fn proposal_status(context: &CurrentReadContext, proposal_id: &str) -> String {
+fn proposal_status(context: &ReadContext, proposal_id: &str) -> String {
     context.decisions.get(proposal_id).map_or_else(
         || {
             if context.withdrawals.contains_key(proposal_id) {
@@ -490,7 +482,7 @@ fn supersession_event<'a>(
 
 fn superseded_claim(
     frontier: &Path,
-    context: &CurrentReadContext,
+    context: &ReadContext,
     claim_id: &str,
 ) -> Result<Option<(ClaimRecordV1, String)>, String> {
     let Some(event) = supersession_event(&context.authority_events, claim_id) else {
@@ -503,7 +495,7 @@ fn superseded_claim(
             event.id
         ));
     }
-    let path = crate::current_submission::rooted_path("records/claims/sha256", &root)?;
+    let path = crate::submission::rooted_path("records/claims/sha256", &root)?;
     let claim = ClaimRecordV1::parse(&read_exact(frontier, &path, &root)?)?;
     if claim.claim_id != claim_id {
         return Err(format!(
@@ -516,7 +508,7 @@ fn superseded_claim(
 
 fn load_claim(
     frontier: &Path,
-    context: &CurrentReadContext,
+    context: &ReadContext,
     claim_id: &str,
 ) -> Result<Option<(ClaimRecordV1, String, ClaimStanding)>, String> {
     let proposal_status = claim_proposal_status(context, claim_id);
@@ -567,10 +559,7 @@ fn load_claim(
     Ok(None)
 }
 
-fn supersession_view(
-    context: &CurrentReadContext,
-    claim_id: &str,
-) -> Result<Option<Value>, String> {
+fn supersession_view(context: &ReadContext, claim_id: &str) -> Result<Option<Value>, String> {
     let Some(event) = supersession_event(&context.authority_events, claim_id) else {
         return Ok(None);
     };
@@ -599,7 +588,7 @@ fn supersession_view(
     })))
 }
 
-fn proposal_views(context: &CurrentReadContext, claim_id: &str) -> Vec<Value> {
+fn proposal_views(context: &ReadContext, claim_id: &str) -> Vec<Value> {
     context
         .proposals
         .iter()
@@ -617,7 +606,7 @@ fn proposal_views(context: &CurrentReadContext, claim_id: &str) -> Vec<Value> {
 
 fn verification_views(
     frontier: &Path,
-    context: &CurrentReadContext,
+    context: &ReadContext,
     claim_id: &str,
 ) -> Result<Vec<Value>, String> {
     context
@@ -637,10 +626,7 @@ fn verification_views(
         .collect()
 }
 
-fn related_authority_events(
-    context: &CurrentReadContext,
-    claim_id: &str,
-) -> Result<Vec<Value>, String> {
+fn related_authority_events(context: &ReadContext, claim_id: &str) -> Result<Vec<Value>, String> {
     let proposal_ids = context
         .proposals
         .iter()
@@ -677,7 +663,7 @@ fn related_authority_events(
 }
 
 fn object_projection(
-    context: &CurrentReadContext,
+    context: &ReadContext,
     object_id: &str,
     object_kind: &str,
     object_schema: &str,

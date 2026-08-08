@@ -13,10 +13,8 @@ use serde_json::json;
 use vela_protocol::claim_record::{
     ClaimAssertion, ClaimEvidenceRef, ClaimRecordV1, ClaimRelation, ClaimSource,
 };
-use vela_protocol::current_repository::{
-    ClaimStandingRefV1, CurrentRepositoryV4, RepositoryObjectRefV1,
-};
 use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject, ProposalV1};
+use vela_protocol::repository::{ClaimStandingRefV1, RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::submission_v1::SubmissionV1;
 
 use crate::authority_transaction::{AuthorityDerivedDraft, AuthorityObjectDraft};
@@ -91,7 +89,7 @@ fn add_artifact_ref(
 }
 
 fn add_pending_claim(
-    repository: &mut CurrentRepositoryV4,
+    repository: &mut RepositoryV4,
     claim: &ClaimRecordV1,
     root: &str,
     path: &str,
@@ -121,7 +119,7 @@ fn add_pending_claim(
 
 fn load_target_claim(
     frontier: &Path,
-    repository: &CurrentRepositoryV4,
+    repository: &RepositoryV4,
     submission: &SubmissionV1,
 ) -> Result<Option<ClaimRecordV1>, String> {
     let Some(target) = submission.requested_change.target.as_ref() else {
@@ -161,7 +159,7 @@ struct ProposedChange {
 
 fn proposed_change(
     frontier: &Path,
-    repository: &CurrentRepositoryV4,
+    repository: &RepositoryV4,
     submission: &SubmissionV1,
 ) -> Result<ProposedChange, String> {
     let target = load_target_claim(frontier, repository, submission)?;
@@ -263,7 +261,7 @@ fn proposed_change(
 
 pub(crate) fn rebind_target_index(
     frontier: &Path,
-    repository: &CurrentRepositoryV4,
+    repository: &RepositoryV4,
 ) -> Result<Vec<AuthorityDerivedDraft>, String> {
     let path = frontier.join("targets.json");
     if !path.is_file() {
@@ -297,7 +295,7 @@ pub(crate) fn rebind_target_index(
 
 fn existing_outcome(
     frontier: &Path,
-    repository: &CurrentRepositoryV4,
+    repository: &RepositoryV4,
     submission: &SubmissionV1,
     submission_root: &str,
 ) -> Result<Option<SubmitOutcome>, String> {
@@ -355,10 +353,7 @@ fn existing_outcome(
     }))
 }
 
-fn submit_request_root(
-    repository: &CurrentRepositoryV4,
-    submission_root: &str,
-) -> Result<String, String> {
+fn submit_request_root(repository: &RepositoryV4, submission_root: &str) -> Result<String, String> {
     Ok(format!(
         "sha256:{}",
         vela_protocol::canonical::sha256_canonical(&json!({
@@ -372,7 +367,7 @@ fn submit_request_root(
 
 fn require_unique_source_run(
     frontier: &Path,
-    repository: &CurrentRepositoryV4,
+    repository: &RepositoryV4,
     submission: &SubmissionV1,
 ) -> Result<(), String> {
     let Some(source_run) = submission.provenance.source_run.as_deref() else {
@@ -422,7 +417,7 @@ fn submit_inner(
     {
         return Err("submit actor must match the Submission producer identity".into());
     }
-    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let repository = crate::repository::verify_current_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
     let submission_root = submission.canonical_root()?;
     if let Some(outcome) = existing_outcome(frontier, &repository, submission, &submission_root)? {
@@ -435,7 +430,7 @@ fn submit_inner(
         &journal_dir,
     )
     .map_err(|error| error.to_string())?;
-    let held_repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let held_repository = crate::repository::verify_current_repository_at(frontier, true)?;
     if held_repository.canonical_root()? != repository_root {
         return Err("current repository changed while acquiring the submit barrier".into());
     }
@@ -594,7 +589,7 @@ fn submit_inner(
         .map_err(|error| error.to_string())?;
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
-    crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)?;
+    crate::repository::verify_current_repository_allow_derived_drift_at(frontier)?;
     let publication = publish_exact_delta(
         frontier,
         "submit",
@@ -607,14 +602,12 @@ fn submit_inner(
         publication.state,
         PublicationState::Unchanged { .. } | PublicationState::CommittedLocal { .. }
     ) {
-        crate::current_repository::verify_current_repository_at(frontier, true).map_err(
-            |error| {
-                format!(
-                    "Submission was published but strict post-publication verification failed: \
+        crate::repository::verify_current_repository_at(frontier, true).map_err(|error| {
+            format!(
+                "Submission was published but strict post-publication verification failed: \
                      {error}; do not retry the Submission"
-                )
-            },
-        )?;
+            )
+        })?;
         if let Err(error) = prepared.retire_completed_recovery_blobs() {
             crate::ui::warn_nonfatal(&format!(
                 "Submission {} was published and verified, but private recovery blob cleanup failed: {error}",
@@ -651,8 +644,8 @@ fn publication_error(outcome: PublicationOutcome) -> String {
 mod tests {
     use ed25519_dalek::SigningKey;
     use tempfile::TempDir;
-    use vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V4;
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
+    use vela_protocol::repository::REPOSITORY_SCHEMA_V4;
     use vela_protocol::submission_v1::{
         RequestedChange, RequestedChangeTarget, SubmissionArtifact, SubmissionClaim,
         SubmissionDraft, SubmissionProvenance,
@@ -664,9 +657,9 @@ mod tests {
         format!("sha256:{}", byte.to_string().repeat(64))
     }
 
-    fn repository() -> CurrentRepositoryV4 {
-        CurrentRepositoryV4 {
-            schema: CURRENT_REPOSITORY_SCHEMA_V4.into(),
+    fn repository() -> RepositoryV4 {
+        RepositoryV4 {
+            schema: REPOSITORY_SCHEMA_V4.into(),
             repository_id: "vrepo_0123456789abcdef".into(),
             profile_root: root('a'),
             origin_id: "vro_0123456789abcdef".into(),
@@ -735,7 +728,7 @@ mod tests {
 
     fn install_accepted_claim(
         frontier: &Path,
-        repository: &mut CurrentRepositoryV4,
+        repository: &mut RepositoryV4,
         claim: &ClaimRecordV1,
     ) -> String {
         let claim_root = claim.canonical_root().unwrap();

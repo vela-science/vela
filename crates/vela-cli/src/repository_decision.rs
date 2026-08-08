@@ -16,12 +16,10 @@ use vela_authority::CedarEvaluationInput;
 use vela_authority::runtime_authentication::AuthenticationRequest;
 use vela_protocol::authority::{PrincipalSnapshotV1, SemanticApprovalV1};
 use vela_protocol::claim_record::ClaimRecordV1;
-use vela_protocol::current_repository::{
-    ClaimStandingRefV1, CurrentRepositoryV4, RepositoryObjectRefV1,
-};
 use vela_protocol::events::{EventKind, NULL_HASH, StateActor, StateEvent, StateTarget};
 use vela_protocol::principal::PrincipalClass;
 use vela_protocol::proposal_v1::ProposalV1;
+use vela_protocol::repository::{ClaimStandingRefV1, RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::repository_origin::RepositoryOriginV1;
 use vela_protocol::submission_v1::SubmissionV1;
 use vela_protocol::verification_record::VerificationRecordV1;
@@ -60,7 +58,7 @@ impl DecisionAction {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CurrentReviewDecisionPlan {
+pub(crate) struct ReviewDecisionPlan {
     pub(crate) schema: String,
     pub(crate) repository_id: String,
     pub(crate) frontier_name: String,
@@ -81,8 +79,8 @@ pub(crate) struct CurrentReviewDecisionPlan {
 }
 
 pub(crate) struct PreparedCurrentReviewDecision {
-    pub(crate) plan: CurrentReviewDecisionPlan,
-    pub(crate) repository: CurrentRepositoryV4,
+    pub(crate) plan: ReviewDecisionPlan,
+    pub(crate) repository: RepositoryV4,
     pub(crate) authority: crate::cli::LoadedRepositoryAuthority,
     pub(crate) proposal_reference: RepositoryObjectRefV1,
     pub(crate) proposal: ProposalV1,
@@ -112,7 +110,7 @@ pub(crate) fn read_exact<T>(
 
 pub(crate) fn claim_for_proposal(
     frontier: &Path,
-    repository: &CurrentRepositoryV4,
+    repository: &RepositoryV4,
     proposal: &ProposalV1,
 ) -> Result<ClaimRecordV1, String> {
     let reference = repository
@@ -143,7 +141,7 @@ pub(crate) fn claim_for_proposal(
 
 pub(crate) fn submission_for_proposal(
     frontier: &Path,
-    repository: &CurrentRepositoryV4,
+    repository: &RepositoryV4,
     proposal: &ProposalV1,
 ) -> Result<SubmissionV1, String> {
     let reference = repository
@@ -175,7 +173,7 @@ pub(crate) fn submission_for_proposal(
 
 pub(crate) fn exact_verifications(
     frontier: &Path,
-    repository: &CurrentRepositoryV4,
+    repository: &RepositoryV4,
     proposal: &ProposalV1,
     claim: &ClaimRecordV1,
     submission: &SubmissionV1,
@@ -189,7 +187,7 @@ pub(crate) fn exact_verifications(
             VerificationRecordV1::parse,
             VerificationRecordV1::canonical_bytes,
         )?;
-        if crate::current_repository::verification_targets_proposal(proposal, claim, &record)
+        if crate::repository::verification_targets_proposal(proposal, claim, &record)
             && record.subject.submission_id == submission.submission_id
         {
             records.push((reference.root.clone(), record));
@@ -309,12 +307,11 @@ pub(crate) fn same_exact_producer_execution(left: &SubmissionV1, right: &Submiss
 /// wording retry look like two independent scientific advances.
 pub(crate) fn pending_submission_conflicts(
     frontier: &Path,
-    repository: &CurrentRepositoryV4,
+    repository: &RepositoryV4,
     proposal: &ProposalV1,
     submission: &SubmissionV1,
 ) -> Result<Vec<String>, String> {
-    let standings =
-        crate::current_repository::load_current_proposal_standings(frontier, repository)?;
+    let standings = crate::repository::load_current_proposal_standings(frontier, repository)?;
     let mut conflicts = Vec::new();
     for reference in &repository.proposals {
         if reference.id == proposal.proposal_id || standings.contains_key(&reference.id) {
@@ -357,7 +354,7 @@ pub(crate) fn prepare(
     }
     DateTime::parse_from_rfc3339(observed_at)
         .map_err(|error| format!("current review observation time is invalid: {error}"))?;
-    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let repository = crate::repository::verify_current_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
     let origin = load_origin(frontier)?;
     let authority = crate::cli::load_current_repository_authority(frontier, &repository, &origin)?;
@@ -402,12 +399,12 @@ pub(crate) fn prepare(
             ));
         }
     }
-    let profile = vela_protocol::current_repository::CurrentRepositoryProfileV1::from_toml_str(
+    let profile = vela_protocol::repository::RepositoryProfileV1::from_toml_str(
         &fs::read_to_string(frontier.join("vela.toml"))
             .map_err(|error| format!("read current repository profile: {error}"))?,
     )?;
     let local = crate::cli::local_session(observed_at)?;
-    let mut plan = CurrentReviewDecisionPlan {
+    let mut plan = ReviewDecisionPlan {
         schema: PLAN_SCHEMA.into(),
         repository_id: repository.repository_id.clone(),
         frontier_name: profile.name,
@@ -461,12 +458,12 @@ pub(crate) fn prepare_locked(
 }
 
 pub(crate) fn next_repository(
-    current: &CurrentRepositoryV4,
+    current: &RepositoryV4,
     proposal: &ProposalV1,
     subject_claim: &ClaimRecordV1,
     claim_root: &str,
     action: DecisionAction,
-) -> Result<CurrentRepositoryV4, String> {
+) -> Result<RepositoryV4, String> {
     let mut repository = current.clone();
     if action == DecisionAction::Reject {
         if proposal.action != "claim.withdraw" {
@@ -553,8 +550,8 @@ fn semantic_event_id(draft: &AuthorityEventDraft) -> String {
 }
 
 fn decision_events(
-    plan: &CurrentReviewDecisionPlan,
-    repository: &CurrentRepositoryV4,
+    plan: &ReviewDecisionPlan,
+    repository: &RepositoryV4,
     proposal: &ProposalV1,
     claim: &ClaimRecordV1,
     next_repository_root: &str,
@@ -701,7 +698,7 @@ pub(crate) fn execute_prepared(
         action,
     )?;
     let next_root = next.canonical_root()?;
-    let derived = crate::current_submission::rebind_target_index(frontier, &next)?;
+    let derived = crate::submission::rebind_target_index(frontier, &next)?;
     let events = decision_events(
         &prepared.plan,
         &prepared.repository,
@@ -846,7 +843,7 @@ pub(crate) fn execute_prepared(
     transaction.install().map_err(|error| error.to_string())?;
     transaction.complete().map_err(|error| error.to_string())?;
     if let Err(error) =
-        crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)
+        crate::repository::verify_current_repository_allow_derived_drift_at(frontier)
     {
         return Err(format!(
             "repository-authority transaction committed as record {} but postcondition verification failed: {error}; do not retry the Decision",
@@ -875,7 +872,7 @@ pub(crate) fn execute_prepared(
             result.authority_record_id
         ));
     }
-    crate::current_repository::verify_current_repository_at(frontier, true).map_err(|error| {
+    crate::repository::verify_current_repository_at(frontier, true).map_err(|error| {
         format!(
             "review Decision was published but strict verification failed: {error}; do not retry the Decision"
         )
@@ -889,7 +886,7 @@ pub(crate) fn execute_prepared(
     Ok(result)
 }
 
-fn plan_root(plan: &CurrentReviewDecisionPlan) -> Result<String, String> {
+fn plan_root(plan: &ReviewDecisionPlan) -> Result<String, String> {
     let mut value = serde_json::to_value(plan).map_err(|error| error.to_string())?;
     value
         .as_object_mut()
@@ -907,9 +904,9 @@ mod tests {
 
     use ed25519_dalek::SigningKey;
     use vela_protocol::claim_record::{ClaimAssertion, ClaimRelation, ClaimSource};
-    use vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V4;
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject};
+    use vela_protocol::repository::REPOSITORY_SCHEMA_V4;
     use vela_protocol::submission_v1::{
         RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
     };
@@ -924,9 +921,9 @@ mod tests {
         format!("sha256:{}", byte.to_string().repeat(64))
     }
 
-    fn repository() -> CurrentRepositoryV4 {
-        CurrentRepositoryV4 {
-            schema: CURRENT_REPOSITORY_SCHEMA_V4.into(),
+    fn repository() -> RepositoryV4 {
+        RepositoryV4 {
+            schema: REPOSITORY_SCHEMA_V4.into(),
             repository_id: "vrepo_0123456789abcdef".into(),
             profile_root: root('a'),
             origin_id: "vro_0123456789abcdef".into(),
@@ -1104,8 +1101,8 @@ mod tests {
         .unwrap()
     }
 
-    fn plan() -> CurrentReviewDecisionPlan {
-        let mut plan = CurrentReviewDecisionPlan {
+    fn plan() -> ReviewDecisionPlan {
+        let mut plan = ReviewDecisionPlan {
             schema: PLAN_SCHEMA.into(),
             repository_id: "vrepo_0123456789abcdef".into(),
             frontier_name: "Fixture repository".into(),
@@ -1311,10 +1308,10 @@ mod tests {
     fn decision_plan_root_binds_action_reason_time_and_exact_roots() {
         let baseline = plan();
         for mutate in [
-            |plan: &mut CurrentReviewDecisionPlan| plan.action = "review_reject".into(),
-            |plan: &mut CurrentReviewDecisionPlan| plan.reason = "Another reason.".into(),
-            |plan: &mut CurrentReviewDecisionPlan| plan.observed_at = "2026-07-27T00:00:05Z".into(),
-            |plan: &mut CurrentReviewDecisionPlan| plan.claim_root = root('9'),
+            |plan: &mut ReviewDecisionPlan| plan.action = "review_reject".into(),
+            |plan: &mut ReviewDecisionPlan| plan.reason = "Another reason.".into(),
+            |plan: &mut ReviewDecisionPlan| plan.observed_at = "2026-07-27T00:00:05Z".into(),
+            |plan: &mut ReviewDecisionPlan| plan.claim_root = root('9'),
         ] {
             let mut changed = baseline.clone();
             mutate(&mut changed);
@@ -1326,7 +1323,7 @@ mod tests {
     fn acceptance_links_one_domain_event_to_one_review_event() {
         let subject = claim("A new bounded result.", 1, Vec::new());
         let proposal = proposal("claim.add", &subject);
-        let plan = CurrentReviewDecisionPlan {
+        let plan = ReviewDecisionPlan {
             claim_id: subject.claim_id.clone(),
             claim_root: subject.canonical_root().unwrap(),
             proposal_id: proposal.proposal_id.clone(),

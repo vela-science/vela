@@ -14,9 +14,9 @@ const AUTHORITY_CEILING: &str =
     "Evidence may be submitted for review; only an authorized human Decision changes Standing.";
 
 fn briefing(frontier: &Path, target_id: &str) -> Result<Value, String> {
-    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let repository = crate::repository::verify_current_repository_at(frontier, true)?;
     let repository_root = repository.canonical_root()?;
-    let profile = crate::current_repository::verify_current_profile_at(frontier)?;
+    let profile = crate::repository::verify_current_profile_at(frontier)?;
     if profile.profile_root()? != repository.profile_root {
         return Err(
             "retained repository profile does not match the repository profile root".into(),

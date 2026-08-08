@@ -66,7 +66,7 @@
     "epoch": {
       "repository_id_prefix": "vrepo_",
       "retired_spelling_sites": [
-        "crates/vela-cli/src/current_init.rs",
+        "crates/vela-cli/src/init.rs",
         "crates/vela-cli/tests/bootstrap_cli_ux.rs",
         "crates/vela-cli/tests/wording_contract.rs",
         "crates/vela-protocol/tests/cli_release_contract.rs"
@@ -158,7 +158,7 @@
         "declared": false,
         "present": false
       },
-      "crates/vela-protocol/src/objects/current_repository.rs": {
+      "crates/vela-protocol/src/objects/repository.rs": {
         "declared": true,
         "present": true
       },

@@ -152,16 +152,13 @@ fn install_current_target_index(frontier: &Path, _socket: &Path) {
     let profile_source =
         std::fs::read_to_string(frontier.join("vela.toml")).expect("repository profile");
     let repository_id =
-        vela_protocol::current_repository::CurrentRepositoryProfileV1::from_toml_str(
-            &profile_source,
-        )
-        .expect("current profile")
-        .repository_id;
+        vela_protocol::repository::RepositoryProfileV1::from_toml_str(&profile_source)
+            .expect("current profile")
+            .repository_id;
     let repository_bytes =
         std::fs::read(frontier.join(".vela/repository.json")).expect("repository manifest");
-    let repository =
-        vela_protocol::current_repository::CurrentRepositoryV4::parse(&repository_bytes)
-            .expect("current repository");
+    let repository = vela_protocol::repository::RepositoryV4::parse(&repository_bytes)
+        .expect("current repository");
     let source_bytes = std::fs::read(frontier.join("domain/source.json")).expect("source bytes");
     let mut inputs = vela_edge::target_index::TargetIndexInputManifestV1 {
         schema: vela_edge::target_index::TARGET_INDEX_INPUT_MANIFEST_SCHEMA_V1.to_string(),

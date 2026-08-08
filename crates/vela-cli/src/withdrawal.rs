@@ -12,9 +12,9 @@ use chrono::{SecondsFormat, Utc};
 use serde::Serialize;
 use serde_json::json;
 use sha2::Digest;
-use vela_protocol::current_repository::{CurrentRepositoryV4, RepositoryObjectRefV1};
 use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::proposal_withdrawal_v1::ProposalWithdrawalV1;
+use vela_protocol::repository::{RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::submission_v1::SubmissionV1;
 
 use crate::authority_transaction::AuthorityObjectDraft;
@@ -63,7 +63,7 @@ fn read_exact(frontier: &Path, reference: &RepositoryObjectRefV1) -> Result<Vec<
 
 fn proposal_package(
     frontier: &Path,
-    repository: &CurrentRepositoryV4,
+    repository: &RepositoryV4,
     proposal_id: &str,
 ) -> Result<(ProposalV1, String, SubmissionV1), String> {
     let proposal_reference = repository
@@ -96,7 +96,7 @@ fn proposal_package(
 }
 
 fn request_root(
-    repository: &CurrentRepositoryV4,
+    repository: &RepositoryV4,
     proposal_root: &str,
     submission_root: &str,
     actor: &str,
@@ -119,13 +119,12 @@ fn request_root(
 
 fn existing_outcome(
     frontier: &Path,
-    repository: &CurrentRepositoryV4,
+    repository: &RepositoryV4,
     proposal_id: &str,
     actor: &str,
     reason: &str,
 ) -> Result<Option<ProposalWithdrawalOutcome>, String> {
-    let withdrawals =
-        crate::current_repository::load_current_proposal_withdrawals(frontier, repository)?;
+    let withdrawals = crate::repository::load_current_proposal_withdrawals(frontier, repository)?;
     let Some(withdrawal) = withdrawals.get(proposal_id) else {
         return Ok(None);
     };
@@ -173,13 +172,12 @@ pub(crate) fn withdraw(
     if reason.is_empty() {
         return Err("proposal withdrawal reason cannot be empty".into());
     }
-    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let repository = crate::repository::verify_current_repository_at(frontier, true)?;
     if let Some(outcome) = existing_outcome(frontier, &repository, proposal_id, actor, reason)? {
         return Ok(outcome);
     }
     if let Some(standing) =
-        crate::current_repository::load_current_proposal_standings(frontier, &repository)?
-            .get(proposal_id)
+        crate::repository::load_current_proposal_standings(frontier, &repository)?.get(proposal_id)
     {
         return Err(format!(
             "Proposal {proposal_id} is {}, not pending_review",
@@ -202,7 +200,7 @@ pub(crate) fn withdraw(
         &journal_dir,
     )
     .map_err(|error| error.to_string())?;
-    let held = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let held = crate::repository::verify_current_repository_at(frontier, true)?;
     if held.canonical_root()? != repository_root {
         return Err("current repository changed while acquiring the withdrawal barrier".into());
     }
@@ -219,10 +217,8 @@ pub(crate) fn withdraw(
         &key,
     )?;
     let withdrawal_root = withdrawal.canonical_root()?;
-    let withdrawal_path = crate::current_submission::rooted_path(
-        "records/proposal-withdrawals/sha256",
-        &withdrawal_root,
-    )?;
+    let withdrawal_path =
+        crate::submission::rooted_path("records/proposal-withdrawals/sha256", &withdrawal_root)?;
 
     let mut next = held.clone();
     if proposal.action == "claim.add" || proposal.action == "claim.revise" {
@@ -234,7 +230,7 @@ pub(crate) fn withdraw(
             return Err("pending Proposal does not bind exactly one pending Claim".into());
         }
     }
-    crate::current_submission::add_object_ref(
+    crate::submission::add_object_ref(
         &mut next.proposal_withdrawals,
         RepositoryObjectRefV1 {
             schema: withdrawal.schema.clone(),
@@ -244,7 +240,7 @@ pub(crate) fn withdraw(
         },
     )?;
     next.verify()?;
-    let derived = crate::current_submission::rebind_target_index(frontier, &next)?;
+    let derived = crate::submission::rebind_target_index(frontier, &next)?;
     let request_root = request_root(
         &held,
         &proposal_root,
@@ -320,7 +316,7 @@ pub(crate) fn withdraw(
         .map_err(|error| error.to_string())?;
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
-    crate::current_repository::verify_current_repository_allow_derived_drift_at(frontier)?;
+    crate::repository::verify_current_repository_allow_derived_drift_at(frontier)?;
     let publication = publish_exact_delta(
         frontier,
         "proposal withdraw",
@@ -333,7 +329,7 @@ pub(crate) fn withdraw(
         publication.state,
         PublicationState::Unchanged { .. } | PublicationState::CommittedLocal { .. }
     ) {
-        crate::current_repository::verify_current_repository_at(frontier, true).map_err(|error| {
+        crate::repository::verify_current_repository_at(frontier, true).map_err(|error| {
             format!(
                 "Proposal Withdrawal was published but strict verification failed: {error}; do not retry"
             )

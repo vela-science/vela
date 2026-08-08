@@ -297,7 +297,7 @@ pub(crate) enum Commands {
         result_contract_root: Option<String>,
         // The duplicate-execution guard compares two Submissions by the run
         // that produced them and gives up when either is absent
-        // (`current_repository_decision.rs`). Authoring left it absent every
+        // (`repository_decision.rs`). Authoring left it absent every
         // time, so the guard could not fire on anything the CLI wrote. A flag
         // rather than something inferred here: the producer is the only party
         // that knows which exploration a result came out of.

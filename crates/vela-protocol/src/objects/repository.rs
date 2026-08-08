@@ -10,8 +10,8 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 use unicode_normalization::UnicodeNormalization;
 
-pub const CURRENT_REPOSITORY_SCHEMA_V4: &str = "vela.repository.v4";
-pub const CURRENT_REPOSITORY_PROFILE_SCHEMA_V1: &str = "vela.repository-profile.v1";
+pub const REPOSITORY_SCHEMA_V4: &str = "vela.repository.v4";
+pub const REPOSITORY_PROFILE_SCHEMA_V1: &str = "vela.repository-profile.v1";
 const PROFILE_NAME_MAX_BYTES: usize = 256;
 const PROFILE_SUMMARY_MAX_BYTES: usize = 2 * 1024;
 const PROFILE_QUESTION_MAX_BYTES: usize = 4 * 1024;
@@ -43,7 +43,7 @@ pub struct RepositoryProfileLicenseV1 {
 /// `.vela/repository.json`, never from a generated compatibility view.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CurrentRepositoryProfileV1 {
+pub struct RepositoryProfileV1 {
     pub schema: String,
     pub repository_id: String,
     pub name: String,
@@ -53,24 +53,23 @@ pub struct CurrentRepositoryProfileV1 {
     pub license: RepositoryProfileLicenseV1,
 }
 
-impl CurrentRepositoryProfileV1 {
+impl RepositoryProfileV1 {
     pub fn from_toml_str(source: &str) -> Result<Self, String> {
         if source.len() > PROFILE_ENCODED_MAX_BYTES {
             return Err(format!(
-                "{CURRENT_REPOSITORY_PROFILE_SCHEMA_V1} exceeds the 64 KiB encoded limit"
+                "{REPOSITORY_PROFILE_SCHEMA_V1} exceeds the 64 KiB encoded limit"
             ));
         }
-        let profile: Self = toml::from_str(source).map_err(|error| {
-            format!("invalid {CURRENT_REPOSITORY_PROFILE_SCHEMA_V1} TOML: {error}")
-        })?;
+        let profile: Self = toml::from_str(source)
+            .map_err(|error| format!("invalid {REPOSITORY_PROFILE_SCHEMA_V1} TOML: {error}"))?;
         profile.validate()?;
         Ok(profile)
     }
 
     pub fn validate(&self) -> Result<(), String> {
-        if self.schema != CURRENT_REPOSITORY_PROFILE_SCHEMA_V1 {
+        if self.schema != REPOSITORY_PROFILE_SCHEMA_V1 {
             return Err(format!(
-                "profile.schema must be `{CURRENT_REPOSITORY_PROFILE_SCHEMA_V1}`"
+                "profile.schema must be `{REPOSITORY_PROFILE_SCHEMA_V1}`"
             ));
         }
         validate_repository_id(&self.repository_id)?;
@@ -146,7 +145,7 @@ pub struct ClaimStandingRefV1 {
 /// explicit and content addressed behind one immutable repository origin.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CurrentRepositoryV4 {
+pub struct RepositoryV4 {
     pub schema: String,
     pub repository_id: String,
     pub profile_root: String,
@@ -164,7 +163,7 @@ pub struct CurrentRepositoryV4 {
     pub authority_policy_root: String,
 }
 
-impl CurrentRepositoryV4 {
+impl RepositoryV4 {
     pub fn parse(bytes: &[u8]) -> Result<Self, String> {
         if bytes.len() > 8 * 1024 * 1024 {
             return Err("current repository exceeds the 8 MiB encoded limit".into());
@@ -179,9 +178,9 @@ impl CurrentRepositoryV4 {
     }
 
     pub fn verify(&self) -> Result<(), String> {
-        if self.schema != CURRENT_REPOSITORY_SCHEMA_V4 {
+        if self.schema != REPOSITORY_SCHEMA_V4 {
             return Err(format!(
-                "current repository schema must be `{CURRENT_REPOSITORY_SCHEMA_V4}`"
+                "current repository schema must be `{REPOSITORY_SCHEMA_V4}`"
             ));
         }
         require_prefixed("repository_id", &self.repository_id, "vrepo_")?;
@@ -398,9 +397,9 @@ mod tests {
         }
     }
 
-    fn fixture() -> CurrentRepositoryV4 {
-        CurrentRepositoryV4 {
-            schema: CURRENT_REPOSITORY_SCHEMA_V4.into(),
+    fn fixture() -> RepositoryV4 {
+        RepositoryV4 {
+            schema: REPOSITORY_SCHEMA_V4.into(),
             repository_id: "vrepo_0123456789abcdef".into(),
             profile_root: root('a'),
             origin_id: "vro_0123456789abcdef".into(),
@@ -432,7 +431,7 @@ mod tests {
         let repository = fixture();
         repository.verify().unwrap();
         let bytes = repository.canonical_bytes().unwrap();
-        assert_eq!(CurrentRepositoryV4::parse(&bytes).unwrap(), repository);
+        assert_eq!(RepositoryV4::parse(&bytes).unwrap(), repository);
         let mut tampered = repository;
         tampered.origin_id = "vre_0123456789abcdef".into();
         assert!(tampered.verify().is_err());
@@ -440,8 +439,8 @@ mod tests {
 
     #[test]
     fn current_profile_is_native_closed_metadata() {
-        let current = CurrentRepositoryProfileV1 {
-            schema: CURRENT_REPOSITORY_PROFILE_SCHEMA_V1.into(),
+        let current = RepositoryProfileV1 {
+            schema: REPOSITORY_PROFILE_SCHEMA_V1.into(),
             repository_id: "vrepo_0123456789abcdef".into(),
             name: "Example".into(),
             summary: "A bounded example repository.".into(),
@@ -458,7 +457,7 @@ mod tests {
             },
         };
         let toml = toml::to_string_pretty(&current).unwrap();
-        let parsed = CurrentRepositoryProfileV1::from_toml_str(&toml).unwrap();
+        let parsed = RepositoryProfileV1::from_toml_str(&toml).unwrap();
         assert_eq!(parsed, current);
         assert_eq!(
             current.profile_root().unwrap(),
@@ -485,19 +484,16 @@ content = "CC-BY-4.0"
 code = "Apache-2.0 OR MIT"
 data = "CC0-1.0"
 "#;
-        CurrentRepositoryProfileV1::from_toml_str(valid).unwrap();
-        assert!(
-            CurrentRepositoryProfileV1::from_toml_str(&format!("{valid}\nunknown = 1\n")).is_err()
-        );
+        RepositoryProfileV1::from_toml_str(valid).unwrap();
+        assert!(RepositoryProfileV1::from_toml_str(&format!("{valid}\nunknown = 1\n")).is_err());
         let duplicate = valid.replacen(
             "name = \"Example\"",
             "name = \"Example\"\nname = \"Again\"",
             1,
         );
-        assert!(CurrentRepositoryProfileV1::from_toml_str(&duplicate).is_err());
+        assert!(RepositoryProfileV1::from_toml_str(&duplicate).is_err());
         assert!(
-            CurrentRepositoryProfileV1::from_toml_str(&"x".repeat(PROFILE_ENCODED_MAX_BYTES + 1))
-                .is_err()
+            RepositoryProfileV1::from_toml_str(&"x".repeat(PROFILE_ENCODED_MAX_BYTES + 1)).is_err()
         );
     }
 }

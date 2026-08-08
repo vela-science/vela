@@ -27,8 +27,8 @@ authority, never because there is a new topic.**
 
 ### Where each boundary is in code
 
-**Repository.** `crates/vela-protocol/src/objects/current_repository.rs`
-(`CurrentRepositoryV4`), the authority history in `crates/vela-authority/`,
+**Repository.** `crates/vela-protocol/src/objects/repository.rs`
+(`RepositoryV4`), the authority history in `crates/vela-authority/`,
 replay in `crates/vela-verify/`. The rename landed in v0.967.0: `vfr_` and
 `frontier_id` are at zero in `crates/`, against 76 `vrepo_` and 392
 `repository_id`. The type parses `vela.toml`, mints `vrepo_<16 hex>`, and
@@ -218,10 +218,10 @@ repository origins" — and points at the pinned historical release instead.
 `crates/vela-cli/tests/current_genesis.rs`.
 
 Even reached directly, the profile would not parse:
-`CurrentRepositoryProfileV1` carries `#[serde(deny_unknown_fields)]` and a
+`RepositoryProfileV1` carries `#[serde(deny_unknown_fields)]` and a
 required `repository_id`
-(`crates/vela-protocol/src/objects/current_repository.rs:45-69`). ADR 0039 §8
-explains why no alias was available: `CurrentRepositoryV4::parse` re-serializes
+(`crates/vela-protocol/src/objects/repository.rs:45-69`). ADR 0039 §8
+explains why no alias was available: `RepositoryV4::parse` re-serializes
 and compares bytes, so a `#[serde(alias)]` would still fail the canonical-bytes
 check.
 
@@ -480,7 +480,7 @@ different facts.
   audit named forks as the option to avoid, and a fork is what was adopted. It
   is dev-only today (`crates/vela-protocol/tests/action_contracts.rs`), which
   bounds the exposure but does not resolve the decision.
-- **License fields are not SPDX.** `current_repository.rs:105-119` validates
+- **License fields are not SPDX.** `repository.rs:105-119` validates
   the three license fields as bounded NFC text only. The documented example in
   `docs/REPOSITORY_PROFILE.md:52` is `data = "varies"`, which is not an
   SPDX expression.

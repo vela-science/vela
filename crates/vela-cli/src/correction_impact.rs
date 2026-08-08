@@ -103,7 +103,7 @@ use vela_edge::correction_impact::{
 use vela_protocol::claim_record::{
     CORRECTION_RELATION_KINDS, ClaimRecordV1, canonical_relation_kind,
 };
-use vela_protocol::current_repository::ClaimStandingRefV1;
+use vela_protocol::repository::ClaimStandingRefV1;
 
 /// The extension namespace a Claim Record declares a repair condition under.
 ///
@@ -139,7 +139,7 @@ pub(crate) fn cmd_correction_impact(frontier: &Path, claim_arg: &str, json_out: 
     crate::ui::require_initialized_repo(frontier);
     let frontier = crate::ui::canonicalize_repo(frontier);
 
-    let repository = crate::current_repository::load_current_repository_at(&frontier, true)
+    let repository = crate::repository::load_current_repository_at(&frontier, true)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let repository_root = repository
         .canonical_root()
@@ -479,7 +479,7 @@ fn resolve_claim<'a>(
 ///
 /// The complete fix resolves by root rather than by id: the accepted Decision's
 /// applied `ClaimSuperseded` event binds the predecessor's exact root in
-/// `before_hash` (`current_repository.rs` checks it), and the Submission
+/// `before_hash` (`repository.rs` checks it), and the Submission
 /// carried the same value as `--target-root`. Reaching either means loading the
 /// authority event log here, which this read verb does not otherwise need.
 /// Refusing an ambiguous id is the floor: it cannot return a wrong answer, only
@@ -537,11 +537,8 @@ fn read_retained_claim(frontier: &Path, claim_id: &str) -> Result<HeldClaim, Str
 }
 
 fn read_claim(frontier: &Path, reference: &ClaimStandingRefV1) -> Result<ClaimRecordV1, String> {
-    let bytes = crate::current_repository::read_rooted_object(
-        frontier,
-        &reference.path,
-        &reference.claim_root,
-    )?;
+    let bytes =
+        crate::repository::read_rooted_object(frontier, &reference.path, &reference.claim_root)?;
     let claim = ClaimRecordV1::parse(&bytes)?;
     if claim.claim_id != reference.claim_id {
         return Err(format!(

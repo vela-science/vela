@@ -117,7 +117,7 @@ pub struct TargetIndexV5 {
 }
 
 #[derive(Debug, Clone)]
-pub struct CurrentTargetIndexAssessment {
+pub struct TargetIndexAssessment {
     pub index: TargetIndexV5,
     pub global_issues: Vec<TargetIndexIssue>,
     pub target_issues: BTreeMap<String, Vec<TargetIndexIssue>>,
@@ -1260,7 +1260,7 @@ pub fn assess_current_target_index(
     repository_id: &str,
     origin_id: &str,
     repository_root: &str,
-) -> Result<Option<CurrentTargetIndexAssessment>, String> {
+) -> Result<Option<TargetIndexAssessment>, String> {
     require_repository_id(repository_id)?;
     require_origin_id("origin_id", origin_id)?;
     require_sha256_root("repository_root", repository_root)?;
@@ -1409,7 +1409,7 @@ pub fn assess_current_target_index(
     for issues in target_issues.values_mut() {
         sort_issues(issues);
     }
-    Ok(Some(CurrentTargetIndexAssessment {
+    Ok(Some(TargetIndexAssessment {
         index,
         global_issues,
         target_issues,
@@ -1417,7 +1417,7 @@ pub fn assess_current_target_index(
     }))
 }
 
-impl CurrentTargetIndexAssessment {
+impl TargetIndexAssessment {
     pub fn configured_open(&self) -> usize {
         self.index
             .targets

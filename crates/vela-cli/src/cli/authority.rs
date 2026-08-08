@@ -29,9 +29,9 @@ use vela_protocol::authority_history::{
     AuthorityHistoryVerification, AuthorityInitializationV1, verify_authority_history,
 };
 use vela_protocol::canonical::to_canonical_bytes;
-use vela_protocol::current_repository::{CURRENT_REPOSITORY_SCHEMA_V4, CurrentRepositoryV4};
 use vela_protocol::events::{EventKind, NULL_HASH, StateActor, StateTarget};
 use vela_protocol::principal::PrincipalClass;
+use vela_protocol::repository::{REPOSITORY_SCHEMA_V4, RepositoryV4};
 use vela_protocol::repository_origin::RepositoryOriginV1;
 
 use crate::authority_transaction::{
@@ -311,7 +311,7 @@ fn pin_repository_authority(
     record_root: &str,
     previous_record_root: Option<&str>,
 ) -> Result<Value, String> {
-    let repository = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let repository = crate::repository::verify_current_repository_at(frontier, true)?;
     let origin = vela_protocol::repository_origin::RepositoryOriginV1::parse(
         &std::fs::read(frontier.join(".vela/origin.json"))
             .map_err(|error| format!("read current repository origin: {error}"))?,
@@ -450,7 +450,7 @@ fn initialize_current_repository_authority(
     if reason.is_empty() {
         return Err("init requires a non-empty authority reason".into());
     }
-    let profile = crate::current_repository::verify_current_bootstrap_at(frontier)?;
+    let profile = crate::repository::verify_current_bootstrap_at(frontier)?;
     let profile_root = profile.profile_root()?;
     let identity = select_repository_authority_identity(key_selector)?;
     let recorded_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
@@ -494,8 +494,8 @@ fn initialize_current_repository_authority(
         reason.to_string(),
     )?;
     let origin_root = origin.canonical_root()?;
-    let repository = CurrentRepositoryV4 {
-        schema: CURRENT_REPOSITORY_SCHEMA_V4.into(),
+    let repository = RepositoryV4 {
+        schema: REPOSITORY_SCHEMA_V4.into(),
         repository_id: profile.repository_id.clone(),
         profile_root: profile_root.clone(),
         origin_id: origin.origin_id.clone(),
@@ -635,7 +635,7 @@ fn initialize_current_repository_authority(
         &mut signer,
     )
     .map_err(|error| error.to_string())?;
-    let verified = crate::current_repository::load_current_repository_at(frontier, true)?;
+    let verified = crate::repository::load_current_repository_at(frontier, true)?;
     if verified.canonical_root()? != repository_root {
         return Err("native repository genesis replay produced a different manifest".into());
     }
@@ -685,7 +685,7 @@ fn initialize_current_repository_authority(
         )
         .into());
     }
-    let verified = crate::current_repository::verify_current_repository_at(frontier, true)?;
+    let verified = crate::repository::verify_current_repository_at(frontier, true)?;
     if verified.canonical_root()? != repository_root {
         return Err("native repository genesis replay produced a different manifest".into());
     }
@@ -753,7 +753,7 @@ fn initialize_current_repository_authority(
 /// archived predecessor roots or the protocol null roots.
 pub(crate) fn load_current_repository_authority(
     frontier: &Path,
-    repository: &vela_protocol::current_repository::CurrentRepositoryV4,
+    repository: &vela_protocol::repository::RepositoryV4,
     origin: &vela_protocol::repository_origin::RepositoryOriginV1,
 ) -> Result<LoadedRepositoryAuthority, String> {
     if repository.repository_id != origin.repository_id

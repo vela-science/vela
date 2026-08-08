@@ -57,7 +57,7 @@ def repository_root(repository: Path) -> tuple[str, dict]:
     canonical = canonical_bytes(manifest)
     # Hashing the re-encoded value while claiming to hash the file would pass a
     # reindented manifest that `vela` itself refuses
-    # (current_repository.rs: "current repository bytes are not canonical
+    # (repository.rs: "current repository bytes are not canonical
     # JSON"). Holding the file to its own canonical form first is what makes
     # the digest a statement about the bytes on disk.
     if raw != canonical:

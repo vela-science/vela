@@ -72,7 +72,7 @@ pub fn run_command() {
         } => {
             crate::ui::set_mode("claims", json);
             let repository = repo_arg::bind_repo("claims", repository, repo_flag);
-            crate::current_claims::cmd_claims(
+            crate::claims::cmd_claims(
                 &repository,
                 status.as_deref(),
                 limit,
@@ -119,11 +119,7 @@ pub fn run_command() {
                     second,
                     repo_flag,
                 );
-                crate::current_correction_impact::cmd_correction_impact(
-                    &repository,
-                    &claim_id,
-                    json,
-                );
+                crate::correction_impact::cmd_correction_impact(&repository, &claim_id, json);
             }
         },
         Commands::Completions { shell } => {
@@ -197,7 +193,7 @@ pub fn run_command() {
                 second,
                 repo_flag,
             );
-            crate::current_read::cmd_show(&repository, &object_id, json);
+            crate::read::cmd_show(&repository, &object_id, json);
         }
         Commands::Why {
             first,
@@ -214,7 +210,7 @@ pub fn run_command() {
                 second,
                 repo_flag,
             );
-            crate::current_read::cmd_why(&repository, &claim_id, json);
+            crate::read::cmd_why(&repository, &claim_id, json);
         }
         Commands::Next {
             repository,
@@ -225,7 +221,7 @@ pub fn run_command() {
             crate::ui::set_mode("next", json);
             let dir = repo_arg::bind_repo("next", repository, repo_flag);
             crate::ui::require_initialized_repo(&dir);
-            crate::current_repository::cmd_current_next(&dir, limit, json);
+            crate::repository::cmd_current_next(&dir, limit, json);
         }
         Commands::Start {
             target,
@@ -235,7 +231,7 @@ pub fn run_command() {
             crate::ui::set_mode("start", json);
             let dir = crate::ui::resolve_repo(repository);
             crate::ui::require_initialized_repo(&dir);
-            crate::current_work::cmd_start(&dir, &target, json);
+            crate::work::cmd_start(&dir, &target, json);
         }
         Commands::Submit {
             submission,
@@ -503,7 +499,7 @@ pub fn run_from_args() {
 }
 
 fn cmd_status_compact(path: &Path, json_out: bool) {
-    crate::current_repository::cmd_current_status(path, json_out);
+    crate::repository::cmd_current_status(path, json_out);
 }
 
 fn cmd_log(
@@ -515,7 +511,7 @@ fn cmd_log(
     json: bool,
 ) {
     crate::ui::set_mode("log", json);
-    let payload = crate::current_read::log_payload(path, object_id, limit, kind_filter, as_of)
+    let payload = crate::read::log_payload(path, object_id, limit, kind_filter, as_of)
         .unwrap_or_else(|error| fail_return(&error));
     if json {
         crate::cli::print_json(&payload);
@@ -568,7 +564,7 @@ fn cmd_review(action: ReviewAction) {
         } => {
             crate::ui::set_mode("review list", json);
             let repository = repo_arg::bind_repo("review list", repository, repo_flag);
-            crate::current_repository::cmd_current_review_list(
+            crate::repository::cmd_current_review_list(
                 &repository,
                 status.as_deref(),
                 limit,
@@ -591,7 +587,7 @@ fn cmd_review(action: ReviewAction) {
                 second,
                 repo_flag,
             );
-            crate::current_repository::cmd_current_review_show(&repository, &proposal_id, json);
+            crate::repository::cmd_current_review_show(&repository, &proposal_id, json);
         }
         ReviewAction::Accept {
             first,
@@ -613,7 +609,7 @@ fn cmd_review(action: ReviewAction) {
             review_decision::cmd_review_decide(
                 repository,
                 &proposal_id,
-                crate::current_repository_decision::DecisionAction::Accept,
+                crate::repository_decision::DecisionAction::Accept,
                 if_entry_root.as_deref(),
                 reason,
                 json,
@@ -639,7 +635,7 @@ fn cmd_review(action: ReviewAction) {
             review_decision::cmd_review_decide(
                 repository,
                 &proposal_id,
-                crate::current_repository_decision::DecisionAction::Reject,
+                crate::repository_decision::DecisionAction::Reject,
                 if_entry_root.as_deref(),
                 reason,
                 json,
@@ -662,13 +658,7 @@ fn cmd_review(action: ReviewAction) {
                 second,
                 repo_flag,
             );
-            crate::current_withdrawal::cmd_withdraw(
-                &repository,
-                &proposal_id,
-                &actor,
-                &reason,
-                json,
-            );
+            crate::withdrawal::cmd_withdraw(&repository, &proposal_id, &actor, &reason, json);
         }
     }
 }
@@ -681,7 +671,7 @@ fn cmd_replay(
     crate::ui::set_mode("replay", json_output);
     let repository = repo_arg::bind_repo("replay", repository, repo_flag);
     crate::ui::require_initialized_repo(&repository);
-    crate::current_repository::cmd_replay_repository(&repository, json_output);
+    crate::repository::cmd_replay_repository(&repository, json_output);
 }
 
 #[cfg(test)]

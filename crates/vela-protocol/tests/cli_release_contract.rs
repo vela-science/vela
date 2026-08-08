@@ -416,7 +416,7 @@ fn verification_help_exposes_ordinary_authoring_without_key_flags() {
 /// The profile contract's example TOML must parse as a profile.
 ///
 /// `docs/REPOSITORY_PROFILE.md` documented `frontier_id = "vfr_…"` against
-/// `CurrentRepositoryProfileV1`, whose field is `repository_id` under
+/// `RepositoryProfileV1`, whose field is `repository_id` under
 /// `#[serde(deny_unknown_fields)]`. A reader who copied the documented block
 /// got a hard parse rejection from the schema the same document describes, and
 /// nothing read the block, so it could say anything.
@@ -433,9 +433,8 @@ fn the_profile_contract_documents_a_profile_that_parses() {
         .split_once("```")
         .expect("the example profile block is unclosed")
         .0;
-    let profile =
-        vela_protocol::current_repository::CurrentRepositoryProfileV1::from_toml_str(block)
-            .expect("the documented profile must parse");
+    let profile = vela_protocol::repository::RepositoryProfileV1::from_toml_str(block)
+        .expect("the documented profile must parse");
     profile
         .validate()
         .expect("the documented profile must validate");

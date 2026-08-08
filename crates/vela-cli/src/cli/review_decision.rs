@@ -7,7 +7,7 @@
 
 use std::path::PathBuf;
 
-use crate::current_repository_decision::DecisionAction;
+use crate::repository_decision::DecisionAction;
 use crate::ui::{self, ErrorKind};
 
 use super::safe_text::inline as safe_inline;
@@ -50,7 +50,7 @@ fn cmd_current_review_decide(
     json: bool,
 ) {
     let observed_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
-    let (prepared, recovery_barrier) = crate::current_repository_decision::prepare_locked(
+    let (prepared, recovery_barrier) = crate::repository_decision::prepare_locked(
         &frontier,
         proposal_id,
         action,
@@ -83,13 +83,9 @@ fn cmd_current_review_decide(
         );
         println!("  executing this exact proposal, action, and reason");
     }
-    let result = crate::current_repository_decision::execute_prepared(
-        &frontier,
-        prepared,
-        recovery_barrier,
-        action,
-    )
-    .unwrap_or_else(|error| ui::fail_with(ErrorKind::Custody, &error, None));
+    let result =
+        crate::repository_decision::execute_prepared(&frontier, prepared, recovery_barrier, action)
+            .unwrap_or_else(|error| ui::fail_with(ErrorKind::Custody, &error, None));
     let payload = serde_json::json!({
         "ok": true,
         "command": format!("review.{}", action.as_str()),

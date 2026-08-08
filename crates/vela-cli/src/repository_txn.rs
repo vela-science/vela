@@ -1119,13 +1119,12 @@ fn verify_fresh_repository_authorization(
                 .into(),
         });
     }
-    let profile =
-        crate::current_repository::verify_current_bootstrap_at(root).map_err(|reason| {
-            RepositoryTxnError::RepositoryWriteIntentDenied {
-                intent: "repository_authority_initialization",
-                reason,
-            }
-        })?;
+    let profile = crate::repository::verify_current_bootstrap_at(root).map_err(|reason| {
+        RepositoryTxnError::RepositoryWriteIntentDenied {
+            intent: "repository_authority_initialization",
+            reason,
+        }
+    })?;
     let profile_root = profile.profile_root().map_err(|reason| {
         RepositoryTxnError::RepositoryWriteIntentDenied {
             intent: "repository_authority_initialization",
@@ -1169,7 +1168,7 @@ fn verify_routine_evidence_write_era(
 ) -> Result<RoutineEvidenceWriteAuthorization, RepositoryTxnError> {
     let intent = "routine_evidence";
     let repository =
-        crate::current_repository::verify_current_repository_at(root, true).map_err(|error| {
+        crate::repository::verify_current_repository_at(root, true).map_err(|error| {
             RepositoryTxnError::RepositoryWriteIntentDenied {
                 intent,
                 reason: format!("current repository origin is invalid: {error}"),
@@ -1222,7 +1221,7 @@ fn verify_current_repository_authority_write_era(
     root: &Path,
 ) -> Result<RepositoryAuthorityWriteAuthorization, RepositoryTxnError> {
     let repository =
-        crate::current_repository::verify_current_repository_at(root, true).map_err(|error| {
+        crate::repository::verify_current_repository_at(root, true).map_err(|error| {
             RepositoryTxnError::RepositoryWriteIntentDenied {
                 intent: "repository_authority",
                 reason: format!("current repository origin is invalid: {error}"),
@@ -1244,7 +1243,7 @@ fn verify_current_repository_authority_write_era(
 }
 
 fn verified_repository_authority_write_authorization(
-    repository: &vela_protocol::current_repository::CurrentRepositoryV4,
+    repository: &vela_protocol::repository::RepositoryV4,
     authority: &crate::cli::LoadedRepositoryAuthority,
 ) -> Result<RepositoryAuthorityWriteAuthorization, RepositoryTxnError> {
     if authority.verification.closed {
@@ -1431,7 +1430,7 @@ fn verify_fresh_repository_delta(
                 RepositoryTxnError::CorruptPlan("repository manifest has no postimage blob".into())
             })?;
             let bytes = read_blob(blob)?;
-            let repository = vela_protocol::current_repository::CurrentRepositoryV4::parse(&bytes)
+            let repository = vela_protocol::repository::RepositoryV4::parse(&bytes)
                 .map_err(RepositoryTxnError::CorruptPlan)?;
             repository_v3_manifests.push(repository);
         } else if !path.starts_with(".vela/authority/")
@@ -1602,7 +1601,7 @@ impl RepositoryRecoveryBarrier {
     /// prepared.
     pub(crate) fn authorize_verified_repository_authority(
         self,
-        repository: &vela_protocol::current_repository::CurrentRepositoryV4,
+        repository: &vela_protocol::repository::RepositoryV4,
         authority: &crate::cli::LoadedRepositoryAuthority,
     ) -> Result<CanonicalWriteBarrier, RepositoryTxnError> {
         let authorization =
@@ -3715,9 +3714,9 @@ mod tests {
 
     fn fixture_repository(
         origin: &vela_protocol::repository_origin::RepositoryOriginV1,
-    ) -> vela_protocol::current_repository::CurrentRepositoryV4 {
-        vela_protocol::current_repository::CurrentRepositoryV4 {
-            schema: vela_protocol::current_repository::CURRENT_REPOSITORY_SCHEMA_V4.into(),
+    ) -> vela_protocol::repository::RepositoryV4 {
+        vela_protocol::repository::RepositoryV4 {
+            schema: vela_protocol::repository::REPOSITORY_SCHEMA_V4.into(),
             repository_id: origin.repository_id.clone(),
             profile_root: origin.profile_root.clone(),
             origin_id: origin.origin_id.clone(),
@@ -3808,7 +3807,7 @@ mod tests {
     fn fixture_plan(root: &Path, draft: &DeltaDraft, identity: &[u8]) -> RepositoryTxnPlan {
         let operation_id = OperationId::derive("submission", identity);
         let request_root = ContentDigest::hash(identity);
-        let repository_id = crate::current_repository::verify_current_repository_at(root, false)
+        let repository_id = crate::repository::verify_current_repository_at(root, false)
             .map(|repository| repository.repository_id)
             .unwrap_or_else(|_| "vrepo_test".to_string());
         RepositoryTxnPlan::new(
@@ -4951,7 +4950,7 @@ mod tests {
 
         let mut final_predecessor_repository = predecessor_repository.clone();
         final_predecessor_repository.verifications.push(
-            vela_protocol::current_repository::RepositoryObjectRefV1 {
+            vela_protocol::repository::RepositoryObjectRefV1 {
                 id: "vvr_finalpredecessor".into(),
                 root: fixture_root('c'),
                 path: "records/verifications/sha256/final-predecessor.json".into(),
