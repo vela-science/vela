@@ -59,10 +59,6 @@ macro_rules! event_kinds {
 // retained strings round-trip through `Other` without reintroducing historical
 // writers, reducers, or product concepts.
 event_kinds! {
-    // `frontier.created` is retained history, not current vocabulary: ADR 0016
-    // keeps historical payloads valid replay input, so the wire string stays
-    // whatever the writer that minted it wrote.
-    FrontierCreated => "repository.created",
     ClaimAsserted => "claim.asserted",
     ClaimNoted => "claim.noted",
     ClaimRetracted => "claim.retracted",
@@ -227,5 +223,53 @@ mod tests {
             event_log_hash(&[left.clone(), right.clone()]),
             event_log_hash(&[right, left])
         );
+    }
+
+    /// Every scientific kind keeps a typed variant, and `Other` keeps every
+    /// string it is given.
+    ///
+    /// The two halves are one contract.
+    /// `authority_transaction.rs::validate_semantic_event_links` *skips*
+    /// `Other(_)` when it checks that no two events share a semantic identity,
+    /// because the authority vocabulary — `authority.initialized`,
+    /// `authority.rotated`, `policy.rotated`, `authority.closed` — is emitted
+    /// through `Other` and is not scientific. So a scientific kind that lost its
+    /// typed variant would not fail to parse; it would quietly stop being
+    /// checked for uniqueness. That is the failure this asserts against, and it
+    /// is why the inert `FrontierCreated => "repository.created"` variant could
+    /// be deleted safely: nothing emits that string, and `claim.*`,
+    /// `target.claimed` and `review.*` all still land on their own variants.
+    #[test]
+    fn every_scientific_kind_is_typed_and_other_round_trips() {
+        for wire in [
+            "claim.asserted",
+            "claim.noted",
+            "claim.retracted",
+            "claim.superseded",
+            "target.claimed",
+            "review.accepted",
+            "review.rejected",
+            "review.revision_requested",
+        ] {
+            let kind = EventKind::from(wire);
+            assert!(
+                !matches!(kind, EventKind::Other(_)),
+                "{wire} falls through to Other, which the semantic-identity \
+                 check skips"
+            );
+            assert_eq!(kind.as_str(), wire);
+        }
+
+        for wire in [
+            "authority.initialized",
+            "authority.rotated",
+            "policy.rotated",
+            "authority.closed",
+            "frontier.created",
+        ] {
+            let kind = EventKind::from(wire);
+            assert!(matches!(kind, EventKind::Other(_)), "{wire} is not typed");
+            assert_eq!(kind.as_str(), wire, "{wire} does not round-trip");
+        }
     }
 }

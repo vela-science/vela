@@ -5,15 +5,15 @@
 //! descriptor-bound atomic file replacement and the independently stored
 //! sequence-one repository-authority pin.
 
-#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[cfg(any(target_os = "linux", target_vendor = "apple"))]
 use std::ffi::OsString;
 use std::fs;
 use std::io::{Read, Write};
-#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[cfg(any(target_os = "linux", target_vendor = "apple"))]
 use std::path::Component;
 use std::path::{Path, PathBuf};
 
-#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[cfg(any(target_os = "linux", target_vendor = "apple"))]
 use rustix::fd::OwnedFd;
 
 use serde::de::DeserializeOwned;
@@ -100,7 +100,7 @@ pub enum RepositoryFileReplacementMode {
     Exact(u32),
 }
 
-#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[cfg(any(target_os = "linux", target_vendor = "apple"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct RepositoryFileIdentity {
     device: u64,
@@ -108,10 +108,9 @@ struct RepositoryFileIdentity {
     mode: u32,
 }
 
-// `rustix::fs::Stat` exposes normalized `u64`/`u32` fields on Linux and
-// Android. Apple uses libc's narrower `dev_t`/`mode_t`, so only that ABI needs
-// explicit widening.
-#[cfg(any(target_os = "linux", target_os = "android"))]
+// `rustix::fs::Stat` exposes normalized `u64`/`u32` fields on Linux. Apple uses
+// libc's narrower `dev_t`/`mode_t`, so only that ABI needs explicit widening.
+#[cfg(target_os = "linux")]
 fn stat_device(stat: &rustix::fs::Stat) -> u64 {
     stat.st_dev
 }
@@ -121,7 +120,7 @@ fn stat_device(stat: &rustix::fs::Stat) -> u64 {
     stat.st_dev as u64
 }
 
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(target_os = "linux")]
 fn stat_mode(stat: &rustix::fs::Stat) -> u32 {
     stat.st_mode
 }
@@ -131,7 +130,7 @@ fn stat_mode(stat: &rustix::fs::Stat) -> u32 {
     stat.st_mode as u32
 }
 
-#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[cfg(any(target_os = "linux", target_vendor = "apple"))]
 impl RepositoryFileIdentity {
     fn from_stat(stat: &rustix::fs::Stat) -> Self {
         Self {
@@ -146,7 +145,7 @@ impl RepositoryFileIdentity {
     }
 }
 
-#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[cfg(any(target_os = "linux", target_vendor = "apple"))]
 #[derive(Debug)]
 struct PinnedRepositoryDirectory {
     name: OsString,
@@ -154,21 +153,21 @@ struct PinnedRepositoryDirectory {
     identity: RepositoryFileIdentity,
 }
 
-#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[cfg(any(target_os = "linux", target_vendor = "apple"))]
 struct RepositoryReplacementTemporary<'a> {
     parent: &'a OwnedFd,
     name: String,
     armed: bool,
 }
 
-#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[cfg(any(target_os = "linux", target_vendor = "apple"))]
 impl RepositoryReplacementTemporary<'_> {
     fn disarm(&mut self) {
         self.armed = false;
     }
 }
 
-#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[cfg(any(target_os = "linux", target_vendor = "apple"))]
 impl Drop for RepositoryReplacementTemporary<'_> {
     fn drop(&mut self) {
         if self.armed {
@@ -181,12 +180,12 @@ impl Drop for RepositoryReplacementTemporary<'_> {
     }
 }
 
-#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[cfg(any(target_os = "linux", target_vendor = "apple"))]
 struct RepositoryRootWriteLock<'a> {
     descriptor: &'a OwnedFd,
 }
 
-#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[cfg(any(target_os = "linux", target_vendor = "apple"))]
 impl RepositoryRootWriteLock<'_> {
     fn try_acquire<'a>(
         descriptor: &'a OwnedFd,
@@ -209,7 +208,7 @@ impl RepositoryRootWriteLock<'_> {
     }
 }
 
-#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[cfg(any(target_os = "linux", target_vendor = "apple"))]
 impl Drop for RepositoryRootWriteLock<'_> {
     fn drop(&mut self) {
         let _ = rustix::fs::flock(self.descriptor, rustix::fs::FlockOperation::Unlock);
@@ -246,34 +245,34 @@ impl Drop for RepositoryRootWriteLock<'_> {
 /// falling back to a path-based rename with a known TOCTOU gap.
 #[derive(Debug)]
 pub struct PreparedRepositoryFileReplacement {
-    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     root_path: PathBuf,
-    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     relative_path: PathBuf,
-    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     root_descriptor: OwnedFd,
-    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     root_identity: RepositoryFileIdentity,
-    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     directories: Vec<PinnedRepositoryDirectory>,
-    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     leaf_name: OsString,
-    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     preimage: RepositoryFilePreimage,
-    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     preimage_identity: Option<RepositoryFileIdentity>,
-    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     replacement: Vec<u8>,
-    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     replacement_mode: u32,
-    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     max_bytes: u64,
-    #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
+    #[cfg(not(any(target_os = "linux", target_vendor = "apple")))]
     #[allow(dead_code)]
     unavailable: (),
 }
 
-#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+#[cfg(any(target_os = "linux", target_vendor = "apple"))]
 impl PreparedRepositoryFileReplacement {
     /// Prepare against an explicit exact preimage. `None` means the leaf must
     /// be absent; `Some(bytes)` means a regular non-symlink file with those
@@ -864,10 +863,10 @@ impl PreparedRepositoryFileReplacement {
     }
 }
 
-#[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
+#[cfg(not(any(target_os = "linux", target_vendor = "apple")))]
 pub const REPOSITORY_FILE_MUTATION_UNAVAILABLE: &str = "repository-file mutation is unavailable on this platform because Vela cannot provide descriptor-relative no-clobber/exchange replacement";
 
-#[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
+#[cfg(not(any(target_os = "linux", target_vendor = "apple")))]
 impl PreparedRepositoryFileReplacement {
     pub fn prepare_exact(
         _root_path: &Path,
@@ -1367,7 +1366,7 @@ mod tests {
         }
     }
 
-    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     fn no_repository_replacement_temporaries(directory: &Path) -> bool {
         std::fs::read_dir(directory)
             .unwrap()
@@ -1380,7 +1379,7 @@ mod tests {
             })
     }
 
-    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     #[test]
     fn repository_file_replacement_enforces_exact_mode_after_umask_and_on_equal_bytes() {
         use std::os::unix::fs::PermissionsExt;
@@ -1442,7 +1441,7 @@ mod tests {
         assert!(no_repository_replacement_temporaries(directory.path()));
     }
 
-    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     #[test]
     fn repository_file_replacement_cleans_a_temporary_after_precommit_failure() {
         let directory = tempfile::tempdir().unwrap();
@@ -1469,7 +1468,7 @@ mod tests {
         assert!(no_repository_replacement_temporaries(directory.path()));
     }
 
-    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     #[test]
     fn repository_file_replacement_serializes_competing_prepared_writers() {
         use std::sync::atomic::{AtomicBool, Ordering};
