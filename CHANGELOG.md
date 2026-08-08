@@ -1,11 +1,6 @@
 # Changelog
 
-## Unreleased
-
-The entries below are on `main` and are not published. `README.md` still
-advertises v0.968.1 because that is the tag `install.sh` can actually fetch,
-and `cli_release_contract.rs` holds those two together — the README may not
-name a version that does not exist as a release.
+## 0.969.0
 
 
 - **`vela correction impact` reaches the correction-impact projection.**
@@ -81,7 +76,7 @@ name a version that does not exist as a release.
   cascade. That absence is ADR 0004's standing position, and this release
   supplies the first real evidence in that lane rather than settling it.
 
-### Earlier, also unreleased
+## Unreleased
 
 - **Epoch change.** `Frontier` was doing three incompatible jobs — authority
   boundary, topic boundary, product slice — and ADR 0039 separates them.
