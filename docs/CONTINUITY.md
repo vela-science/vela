@@ -231,28 +231,30 @@ tool and nothing else. `VELA_RELEASE_BASE_URL` points it at a mirror or a local
 directory, and `VELA_ALLOWED_SIGNERS` supplies the trust root out of band, so
 neither the bytes nor the verifier need come from GitHub.
 
-Three things still fail, and they are the reason this is written as a test.
+One thing still fails, and it is the reason this is written as a test.
 
-**No published release carries a manifest yet.** `release.yml:176` requires one
-in `dist/` before publishing, but that requirement postdates `v0.967.0`, so
-every release available today has only archives, checksums and SBOMs. Against
-those, `install.sh` falls back to `gh attestation verify` and says so in its
-output. The provider-independent path is real and exercised against a stand-in
-release; it has not yet had a real one to verify.
+`v0.968.1` closed the other two. It is the first release published with signed
+manifests: `release.yml` publishes a draft, `scripts/sign-published-release.sh`
+signs each manifest against the bytes CI built, checks every digest, uploads the
+sidecars and then publishes — so the release is immutable and signed from the
+moment it is visible. Exercised both ways: `VELA_VERSION=v0.968.1
+VELA_REQUIRE_SIGNED_MANIFEST=1` installs from GitHub and from
+`codeberg.org/vela-science/vela/releases/download/v0.968.1`, in both cases
+reporting `Verified by: signed release manifest (provider-independent)` with the
+provider-coupled fallback refused.
 
-**CI does not sign the manifest.** `release.yml:97` passes no `--sign-key`, by
-a deliberate choice: putting the distribution key in GitHub Actions would make
-the provider-neutral artifact depend on the provider again. So signing is an
-operator step with `scripts/release.sh --sign-key`, and until a signed release
-is cut, the strong path has nothing to check.
+`v0.968.0` is immutable and unsigned and cannot be repaired; it stands as the
+last unsigned release.
 
-**Release assets are retained, and only their integrity is checkable.** The
+**Release assets are retained, and the mirror carries the signatures too.** The
 eight assets of the pinned release are mirrored to the replica by
 `mirror-replicas.yml` and read back over the anonymous public URL, where they
 are compared to the SHA-256 digests committed in vela-web's
-`vela-release.v1.json` rather than to the copy just uploaded. Exercised: `vela
-0.967.0` installs from `codeberg.org/vela-science/vela/releases/download/` with
-`VELA_EXPECTED_SHA256` and no GitHub in the retrieval path.
+`vela-release.v1.json` rather than to the copy just uploaded — and since the
+job mirrors whatever assets the release carries, the `.sig` files travel with
+them. So the replica now answers provenance and not only integrity: `vela
+0.968.1` installs from it with the signature required and no GitHub anywhere in
+the retrieval or the verification path.
 
 Scoped to the pinned release rather than the archive — 100 releases and 903
 assets exist, and §11.1 asks for what it takes to install and reproduce the

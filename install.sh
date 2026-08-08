@@ -193,13 +193,15 @@ elif command -v gh >/dev/null 2>&1; then
   # real check against GitHub's provenance, so stripping the `.sig` buys an
   # attacker a different verification rather than none.
   #
-  # This branch has to exist because the pipeline produces the state it handles.
-  # `release.yml` requires the manifest before publishing and deliberately does
-  # not sign it — putting the distribution key in Actions would re-couple the
-  # artifact to the provider — so a manifest is published, then signed out of
-  # band by an operator. Making a manifest without a signature fatal would have
-  # broken every install on the next tag, on every platform, which is strictly
-  # worse than the coupling it was trying to remove.
+  # This branch exists for the releases that predate signing, and for the window
+  # in which a draft has been built and not yet signed — a state a consumer
+  # cannot normally reach, because `release.yml` publishes the release as a
+  # draft and `scripts/sign-published-release.sh` publishes it only after every
+  # manifest is signed and every digest checked.
+  #
+  # Every release from v0.968.1 takes the path above. v0.968.0 and earlier
+  # cannot: they are immutable and carry no signature, so this is the only check
+  # available for them.
   if [ -f "$TMP/$MANIFEST_NAME" ]; then
     echo "Note: ${TAG} publishes a release manifest with no signature beside it, so it"
     echo "      proves nothing on its own and was ignored. Verifying through GitHub instead."

@@ -97,8 +97,12 @@ jobs:
       # The manifest is unsigned here. Signing it needs the distribution
       # identity's private key, and putting that in Actions would make the
       # provider-neutral artifact depend on the provider again. It is signed
-      # out of band with `scripts/release.sh --sign-key`, or by an operator
-      # running the same entry point locally.
+      # out of band by `scripts/sign-published-release.sh`, which signs these
+      # exact published bytes and then publishes the draft.
+      #
+      # Not `scripts/release.sh --sign-key`, which rebuilds: a rebuild is a
+      # different archive, so the manifest would describe bytes no release
+      # carries and `install.sh` would refuse every install.
       - name: Build the release bundle
         shell: bash
         env:

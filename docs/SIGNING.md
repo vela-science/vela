@@ -189,11 +189,14 @@ That entry carries `namespaces="vela-release"`, which scopes the key to release
 manifests. Without it the line would accept a signature this identity made over
 anything at all, which is a wider claim than the one it exists to support.
 
-Verify a published manifest against it:
+Verify a published manifest against it. One manifest per built bundle, named
+after it — `release-manifest.json` is only what `scripts/release.sh` writes into
+a local `dist/`, and no release carries that name:
 
 ```bash
 ssh-keygen -Y verify -f allowed_signers -I release@vela.space \
-  -n vela-release -s release-manifest.json.sig < release-manifest.json
+  -n vela-release -s vela-macos-aarch64.zip.release-manifest.json.sig \
+  < vela-macos-aarch64.zip.release-manifest.json
 ```
 
 A good signature reports the fingerprint above. Any edit to the manifest — one
@@ -201,8 +204,23 @@ byte is enough — reports `Signature verification failed`.
 
 The manifest is unsigned when CI builds it, deliberately. Putting the private
 half into Actions would re-couple the artifact to the provider the manifest
-exists to be independent of, so a signed manifest is produced by a human running
-the same script on a machine holding the identity. Per-asset build provenance
+exists to be independent of, so the signature is applied by a human on a machine
+holding the identity — with `scripts/sign-published-release.sh`, which signs the
+bytes CI published.
+
+Not `scripts/release.sh --sign-key`, which rebuilds. A rebuild is a different
+archive: a different tree, different absolute paths in the debug info, and no
+reproducible build claimed anywhere here. The manifest it signs describes bytes
+nobody can download, and attaching it makes `install.sh` refuse every install,
+because the installer compares the published archive to the digest in the
+manifest and finds they disagree. `release.sh` now refuses to sign from a tree
+that is not the tag it names, for that reason.
+
+The signature goes on while the release is still a draft. A published release is
+immutable and refuses new assets, so `release.yml` leaves it unpublished and
+`sign-published-release.sh` publishes it once every manifest is signed and every
+digest checked — immutability and signature both, and no window in which a
+consumer can install the unsigned intermediate. Per-asset build provenance
 (`actions/attest-build-provenance`) is OIDC-bound to GitHub and stays
 provider-bound; it attests who built an asset, not who published the release.
 

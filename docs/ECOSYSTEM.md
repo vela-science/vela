@@ -239,7 +239,7 @@ Vela-format distribution channel.
 | Python tools | PyPI | `uv.lock`, `uv run --locked` | `packages/vela-source-manifest/` (pyproject.toml + uv.lock) |
 | TypeScript | npm, `@vela-science/*` | `bun.lock` (`vela-web` uses `bun@1.3.12`) | none currently published; `@vela-science/protocol@0.1.0` was published and then removed |
 | Lean | Lake, pinned to an immutable Git revision | `lake-manifest.json` | in Frontier repositories only |
-| Binaries | GitHub Releases | SHA-256 checksums, SPDX SBOM, release manifest (signable; unsigned in CI), build provenance attestation | `scripts/release.sh`, called by `.github/workflows/release.yml`; two targets, `vela-linux-x86_64` and `vela-macos-aarch64` |
+| Binaries | GitHub Releases | SHA-256 checksums, SPDX SBOM, release manifest (signed out of band before publication), build provenance attestation | `scripts/release.sh`, called by `.github/workflows/release.yml`; two targets, `vela-linux-x86_64` and `vela-macos-aarch64` |
 | Containers | GHCR | image digest | none |
 | Vela-format contracts | none | none | empty set |
 
@@ -257,9 +257,11 @@ the build command, the binary digest, and every asset and SBOM digest. One
 manifest per bundle rather than one per release: a cross-target manifest would
 have to be assembled in a job holding both targets and signed by whatever key
 that job could reach, which is the provider coupling the manifest exists to
-remove. It is signable with `ssh-keygen -Y sign` under a distribution identity
-separate from the repository-authority key, and it is unsigned in CI for the
-same reason. Per-asset attestation is unchanged and stays provider-bound:
+remove. It is signed with `ssh-keygen -Y sign` under a distribution identity separate
+from the repository-authority key, by an operator rather than in CI for the same
+reason — `scripts/sign-published-release.sh` signs the bytes CI published and
+then publishes the draft, so the release is immutable and signed from the moment
+it is visible. Per-asset attestation is unchanged and stays provider-bound:
 `actions/attest-build-provenance` is OIDC-bound to a GitHub identity and has no
 neutral equivalent.
 

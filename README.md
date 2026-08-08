@@ -110,7 +110,7 @@ it does not prove that a Claim is true.
 
 ## Quick start
 
-Install the GitHub-attested release:
+Install the signed release:
 
 Vela supports Linux x86-64 and macOS Apple-silicon release bundles.
 
@@ -257,9 +257,10 @@ canonical Frontier repositories remain separate because they have independent
 deployment and scientific-history lifecycles.
 
 Package-local tooling stays with its package. The top-level `scripts/` holds
-three files and is not a bucket for a fourth kind of thing: `release.sh` is the
-release, `release_manifest.py` is what it emits, and `ecosystem-status.py` is
-what checks this documentation against the tree. The root `install.sh` is the
+four files and is not a bucket for a fifth kind of thing: `release.sh` is the
+release, `release_manifest.py` is what it emits, `sign-published-release.sh` is
+the operator step that signs what CI published and then publishes it, and
+`ecosystem-status.py` is what checks this documentation against the tree. The root `install.sh` is the
 public product installer.
 
 The Rust crates are internal implementation boundaries, tested together and

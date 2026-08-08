@@ -180,6 +180,14 @@ installation, artifact transport, OIDC build provenance, and `gh release
 create`. Do not move a build decision back into the YAML; the entry point has
 to keep running on a clean checkout with no CI.
 
+A tagged release is a DRAFT until someone signs it. `release.yml` publishes it
+unlisted and uninstallable, and `scripts/sign-published-release.sh` signs each
+manifest, checks its digests against the published assets, uploads the sidecars
+and then publishes — which is when the release becomes immutable, with the
+signatures already inside. A release that fails any check stays a draft. Do not
+drop `--draft`: a published release refuses new assets, so publishing first
+closes the door on the signature.
+
 Release artifacts must come from the release workflow and include the existing
 checksums, SBOMs, provenance attestations, and bundle smoke tests.
 
