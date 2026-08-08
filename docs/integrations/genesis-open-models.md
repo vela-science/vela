@@ -9,7 +9,7 @@ at the pages commit named below. Three clones, each pinned.
 
 - **Protocol:** Vela `v0.968.1` released; the correction work below is on `main` and unreleased at the time of writing
 - **Live authority:** `vela-science/math`, repository `vrepo_56d3fdfcd34ff5c3`
-- **Repository root at time of writing:** `sha256:b35b335aa76cfeaa871bb6e90c2c70e93a466e4ceac1ed2393c6edbd1c12505c`
+- **Repository root at time of writing:** `sha256:83e430583f49a8ecbec3989a1aae71831b7d0165c807fd8c7815ac9a32750b3d`
 - **Target submission date:** 24 August 2026
 
 Every claim below is reproducible with:
@@ -62,8 +62,8 @@ reader can recompute the whole thing.
 ## Evidence: two transitions, driven end to end
 
 `vela-science/math` held zero claims, submissions, verifications and decisions
-until this month. It now holds two complete transitions, which are deliberately
-the two halves of the same argument.
+until this month. It now holds three complete transitions: a refusal, an
+admission, and a correction of the admission.
 
 ### Erdős 522 — refused, on evidence that passed
 
@@ -103,9 +103,35 @@ Inconclusive, not passing, and the reason is exact: Formal Conjectures'
 fixed formal statement to match or fail to match. The admitted Claim says
 *candidate answer*, not *proof*, and Erdős 321 remains open.
 
-**Read together**, the pair shows the two distinct ways one green check
-misreports. In 522 the statement exists and is vacuous. In 321 the statement
-does not exist. A single `outcome` column returns `pass` for both.
+**Read together**, the pair shows two distinct ways one green check misreports.
+In 522 there is a statement to discharge, and discharging it establishes
+nothing, because its hypothesis is unsatisfiable. In 321 the question's own
+right-hand side is still a placeholder.
+
+### The 321 record, corrected
+
+An adversarial review of this repository's own records found two overstatements
+in the 321 evidence, and both are now corrected through the protocol rather than
+by editing a retained file.
+
+The evidence said four defining notions corresponded exactly. Three do;
+`Admissible N A` is the conjunction `A ⊆ Finset.Icc 1 N ∧ Valid A`, so pairing
+it against the subset condition alone was a one-way implication counted as an
+identity, and its second conjunct was already another pair. And it said, without
+qualification, that no fixed formal statement exists — while `321.lean` carries
+`erdos_321.variants.lower` and `.upper`, both `research solved`, both complete
+statements about `R N` with no placeholder, and both the same two-sided shape
+this development proves. The true statement is that none exists for the *open*
+question, and that the comparison against those two has still not been made.
+
+Decision: **accept the correction**, authority record `var_ae99ca528cae8078`.
+The predecessor is retired; its bytes stay retained.
+
+The denotational conclusion did not move. What moved is how it was argued, and
+the record now says which of the two it was. That is the whole mechanism working
+on its author: nothing was rewritten, a correction was submitted, verified and
+ruled on, and the repository is readable afterwards — which it was not, three
+days ago, for any repository that accepted a correction at all. A single `outcome` column returns `pass` for both.
 
 ## The three environments
 
@@ -202,7 +228,7 @@ Everything above is checkable without contacting us.
 
 ```bash
 git clone https://github.com/vela-science/math
-vela replay math --json          # ok: true, repository_root: sha256:b35b335a…
+vela replay math --json          # ok: true, repository_root: sha256:83e43058…
 vela status math --json          # integrity.replay: verified, strict: pass
 vela claims math --json          # indexed.accepted: 1
 vela review list math --status all --json
@@ -214,10 +240,10 @@ and `hashlib`:
 
 ```bash
 python conformance/readers/python/repository_root.py math \
-  --expect sha256:b35b335aa76cfeaa871bb6e90c2c70e93a466e4ceac1ed2393c6edbd1c12505c
+  --expect sha256:83e430583f49a8ecbec3989a1aae71831b7d0165c807fd8c7815ac9a32750b3d
 ```
 
-That root is the repository at commit `ba11109`. Every Decision after it moves
+That root is the repository at commit `97245e1`. Every Decision after it moves
 the root, correctly — a mismatch means the repository has advanced, not that
 something is wrong. Clone at that commit, or take the current value from `vela
 replay` at the commit you cloned.

@@ -574,10 +574,14 @@ fn render(
     for diagnostic in &projection.diagnostics {
         println!("    ! {diagnostic}");
     }
+    /* `unaffected_claims` excludes the predecessor and successor by
+    construction; `affected_claims` does not. Adding two to the two lists
+    therefore counted either of them twice whenever the correction reached
+    one. The bound the derivation was handed is the count. */
     println!(
         "  affected    {} of {} held Claim(s)",
         projection.affected_claims.len(),
-        projection.affected_claims.len() + projection.unaffected_claims.len() + 2
+        projection.bounds.max_claims
     );
     for claim in &projection.affected_claims {
         println!("    {} · {}", claim.claim_id, claim.classification);

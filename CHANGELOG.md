@@ -48,6 +48,15 @@ name a version that does not exist as a release.
   that decides whether it does. It names existing schemas and creates no
   parallel object model.
 
+- **A correction driven through the live authority.** `vela-science/math`
+  corrected its own accepted Erdos 321 Claim after an adversarial review of the
+  repository's own records found two overstatements in its evidence. Nothing was
+  rewritten: a `corrects` Submission was verified and ruled on, the predecessor
+  retired, and the repository stayed readable afterwards — which is the fix
+  above, exercised against a real Decision rather than a fixture.
+  `vela correction impact` returned the same projection root before and after
+  that Decision, `sha256:a31aaa80…`.
+
 - **Known and unclosed:** the correction-impact projection traverses `depends`
   and `supports` claim-to-claim edges and the write path authors neither.
   `vela.submission.v1` has no field for a producer to declare a dependency, so
