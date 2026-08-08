@@ -160,7 +160,21 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - name: Publish immutable GitHub release
+      # Published as a DRAFT, and the draft is the whole point.
+      #
+      # A published release here is immutable, which is the right property for a
+      # scientific artifact and is incompatible with signing afterwards: the
+      # manifest is built here and deliberately not signed here — the
+      # distribution identity must not live in Actions — so the signature has to
+      # be attached by an operator, and an immutable release refuses new assets
+      # with `422 Cannot upload assets to an immutable release`.
+      #
+      # A draft is mutable and invisible. `scripts/sign-published-release.sh`
+      # signs the manifest this job produced, uploads the sidecar, and then
+      # publishes — at which point the release becomes immutable WITH its
+      # signature inside. Both properties survive, and the unsigned intermediate
+      # state is never something a consumer can see or install.
+      - name: Publish the release as a draft for signing
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -179,4 +193,6 @@ jobs:
           if [[ "$GITHUB_REF_NAME" == *-* ]]; then
             release_flags+=(--prerelease)
           fi
-          gh release create "$GITHUB_REF_NAME" dist/* "${release_flags[@]}" --verify-tag --title "$GITHUB_REF_NAME" --notes-from-tag
+          gh release create "$GITHUB_REF_NAME" dist/* "${release_flags[@]}" --draft --verify-tag --title "$GITHUB_REF_NAME" --notes-from-tag
+          echo "::notice::${GITHUB_REF_NAME} is a draft until it is signed. Run:" \
+               "scripts/sign-published-release.sh ${GITHUB_REF_NAME} <distribution public key>" 

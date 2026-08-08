@@ -319,7 +319,7 @@ fn reviewed_tags_publish_provenance_labeled_supported_bundles() {
             .is_some_and(|value| value.starts_with("actions/attest-build-provenance@"))
     }));
 
-    let publish_script = script_named(publish, "Publish immutable GitHub release");
+    let publish_script = script_named(publish, "Publish the release as a draft for signing");
     for asset in expected_assets {
         assert!(
             publish_script.contains(asset),
@@ -332,6 +332,19 @@ fn reviewed_tags_publish_provenance_labeled_supported_bundles() {
     assert!(publish_script.contains("$asset.release-manifest.json"));
     assert!(publish_script.contains("gh release create"));
     assert!(publish_script.contains("--verify-tag"));
+
+    // A draft, and it has to stay one until an operator signs it.
+    //
+    // A published release in this repository is immutable, which is right for a
+    // scientific artifact and refuses new assets outright. The manifest is built
+    // here and deliberately not signed here, so publishing straight away closed
+    // the door on the signature — observed as `422 Cannot upload assets to an
+    // immutable release` on v0.968.0. Dropping `--draft` would restore that,
+    // silently, and the release would look fine until someone tried to sign it.
+    assert!(
+        publish_script.contains("--draft"),
+        "the release must be published as a draft so it can be signed before it becomes immutable"
+    );
 }
 
 /// The release manifest is not the scientific authority record.

@@ -8,6 +8,13 @@
 # (`docs/SIGNING.md`, "Distribution identity"). So the signature is an operator
 # step, and this is it.
 #
+# The release is a DRAFT when this runs, and publishing it is the last thing
+# this script does. A published release in this repository is immutable, which
+# is correct for a scientific artifact and refuses new assets outright, so the
+# signature has to go on before that door closes. `release.yml` therefore leaves
+# the release unpublished and invisible, and a consumer never sees the unsigned
+# intermediate state.
+#
 # It signs the bytes the release already carries. It does not rebuild them, and
 # that distinction is the whole reason this script exists rather than
 # `scripts/release.sh --sign-key`: a local rebuild produces a different archive —
@@ -47,6 +54,13 @@ ALLOWED_SIGNERS="$ROOT/allowed_signers"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
+
+if [ "$(gh release view "$TAG" --repo "$REPO" --json isDraft --jq '.isDraft')" != "true" ]; then
+  die "$TAG is already published, and a published release here is immutable — it
+       refuses new assets with 422. Signing has to happen while the release is
+       still a draft. Cut the next patch version, which release.yml now leaves
+       as a draft for exactly this."
+fi
 
 # One manifest per built bundle, named after it — the shape `release.yml`
 # publishes and the shape `install.sh` fetches. A bare `release-manifest.json`
@@ -91,6 +105,12 @@ for manifest in "${MANIFESTS[@]}"; do
   gh release upload "$TAG" --repo "$REPO" "$WORK/${manifest}.sig"
   echo "uploaded ${manifest}.sig"
 done
+
+# Publishing is what makes it immutable, and it happens only once every manifest
+# is signed and every digest checked. A release that fails any check above stays
+# a draft, which is the reversible state.
+gh release edit "$TAG" --repo "$REPO" --draft=false
+echo "published $TAG"
 
 cat <<EOF
 
