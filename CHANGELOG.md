@@ -1,5 +1,13 @@
 # Changelog
 
+The `0.967.0`, `0.968.0` and `0.968.1` headings are reconstructed. Those three
+releases shipped while this file still called their notes "Unreleased", and the
+heading sat below `0.969.0` rather than above it. The split is taken from the
+commits that moved `Cargo.toml`'s version: everything the file held at `5d40bb5`
+is `0.967.0`, what `5cd6f01`, `b478530` and `f9c127c` added is `0.968.0`, and
+`0.968.1` is `6c500dc`. Those sections carry what was written at the time and
+not a note per commit, so they are shorter than the releases were.
+
 ## 0.969.0
 
 
@@ -76,7 +84,60 @@
   cascade. That absence is ADR 0004's standing position, and this release
   supplies the first real evidence in that lane rather than settling it.
 
-## Unreleased
+## 0.968.1
+
+- **A release is signed before it becomes immutable, not after.** `v0.968.0`
+  published its manifests and then refused the signatures — `HTTP 422: Cannot
+  upload assets to an immutable release` — because publication closed the door
+  and signing had to come after it. `release.yml` now creates the release as a
+  draft, and `scripts/sign-published-release.sh` signs each manifest, checks its
+  digests against the published assets, uploads the sidecars, and then
+  publishes, which is where immutability takes hold. A release that fails any
+  check stays a draft. `action_contracts.rs` asserts `--draft`, because dropping
+  it restores the deadlock silently.
+
+  `v0.968.0` is immutable and carries no signature. It cannot be repaired and
+  stands as the last unsigned release.
+
+## 0.968.0
+
+- The published Action takes `repository`. `frontier` remains, declared and
+  documented as a deprecated alias, because four pinned consumer workflows pass
+  it and a pin cannot be edited from here. A composite action has no alias
+  mechanism, so the two are separate inputs coalesced in one step: `repository`
+  wins when set, `frontier` warns, and two different non-empty paths fail
+  rather than being resolved silently to one of them. Both inputs default to
+  empty so that unset stays distinguishable from set — a `"."` default on
+  `repository` would make every legacy caller passing a subdirectory look like
+  a disagreement. The internal `FRONTIER` variable is `REPOSITORY_PATH`.
+
+  ```text
+  frontier:  <path>   ->  repository: <path>
+  ```
+
+- The last two wire tokens spelling the retired word moved, each with the
+  version bump that was the reason they survived the prose sweep:
+
+  ```text
+  vela.repository-verification.v2  ->  vela.repository-verification.v3
+    frontier                       ->    repository_path
+  vela.reproduction-summary.v1     ->  vela.reproduction-summary.v2
+    scope accepted_frontier        ->    scope accepted_repository
+  ```
+
+  `replay` was reporting the directory it read, which is a Repository; a
+  Frontier is a derived query with no directory to report. The reproduction
+  scope is printed verbatim by `vela reproduce`, so the human surface moved
+  with the schema, and `docs/VERIFICATION.md` documents the new token.
+  `wording_contract.rs` now pins both new tokens and asserts the retired
+  spellings absent, which is the half that was missing: the old contract
+  asserted `frontier` present and never ran `reproduce` at all.
+
+  `integrity.replay: "verified"` in `vela.status.v4` is untouched. It is the
+  one wire token left that a prose sweep must not take, and `vela-web` pins it
+  as `z.literal("verified")`.
+
+## 0.967.0
 
 - **Epoch change.** `Frontier` was doing three incompatible jobs — authority
   boundary, topic boundary, product slice — and ADR 0039 separates them.
@@ -145,42 +206,6 @@
   history rather than into the tree — at `e6859041`, the last commit that
   carried the directory, so the citations resolve permanently instead of
   resolving to whatever `benchmarks/` next means.
-
-- The published Action takes `repository`. `frontier` remains, declared and
-  documented as a deprecated alias, because four pinned consumer workflows pass
-  it and a pin cannot be edited from here. A composite action has no alias
-  mechanism, so the two are separate inputs coalesced in one step: `repository`
-  wins when set, `frontier` warns, and two different non-empty paths fail
-  rather than being resolved silently to one of them. Both inputs default to
-  empty so that unset stays distinguishable from set — a `"."` default on
-  `repository` would make every legacy caller passing a subdirectory look like
-  a disagreement. The internal `FRONTIER` variable is `REPOSITORY_PATH`.
-
-  ```text
-  frontier:  <path>   ->  repository: <path>
-  ```
-
-- The last two wire tokens spelling the retired word moved, each with the
-  version bump that was the reason they survived the prose sweep:
-
-  ```text
-  vela.repository-verification.v2  ->  vela.repository-verification.v3
-    frontier                       ->    repository_path
-  vela.reproduction-summary.v1     ->  vela.reproduction-summary.v2
-    scope accepted_frontier        ->    scope accepted_repository
-  ```
-
-  `replay` was reporting the directory it read, which is a Repository; a
-  Frontier is a derived query with no directory to report. The reproduction
-  scope is printed verbatim by `vela reproduce`, so the human surface moved
-  with the schema, and `docs/VERIFICATION.md` documents the new token.
-  `wording_contract.rs` now pins both new tokens and asserts the retired
-  spellings absent, which is the half that was missing: the old contract
-  asserted `frontier` present and never ran `reproduce` at all.
-
-  `integrity.replay: "verified"` in `vela.status.v4` is untouched. It is the
-  one wire token left that a prose sweep must not take, and `vela-web` pins it
-  as `z.literal("verified")`.
 
 - `docs/CLI.md`'s verb grid is bound to the parser. The published reference
   named the same commands a third time — after the two printed grids, which
