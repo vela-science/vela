@@ -291,7 +291,7 @@ pub fn run_command() {
             let (submission, bundle_root, actor) = if let Some(path) = submission {
                 let raw = crate::bounded_file::read_bounded_file(
                     &path,
-                    vela_protocol::submission_v2::SUBMISSION_MAX_BYTES as u64,
+                    vela_protocol::submission::SUBMISSION_MAX_BYTES as u64,
                     "Submission v1",
                 )
                 .unwrap_or_else(|error| {
@@ -314,7 +314,7 @@ pub fn run_command() {
                         "vela submit --help",
                     )
                 });
-                let parsed = vela_protocol::submission_v2::SubmissionRecordV2::parse(&raw)
+                let parsed = vela_protocol::submission::SubmissionRecordV2::parse(&raw)
                     .unwrap_or_else(|error| {
                         fail_preflight(crate::ui::ErrorKind::Domain, error.to_string())
                     });

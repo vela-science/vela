@@ -3,7 +3,7 @@
 Measured against the four repositories that predate ADR 0039 and are now
 archived. Every byte here is retained exactly as recorded.
 
-`authorization-profile-parity-v1.json` pins those repositories' commits and
+`authorization-profile-parity.json` pins those repositories' commits and
 their `AuthorizationModelV1` roots, and it carries `frontier_id` and
 `"resource_type": "frontier"` because that is the shape the repositories
 actually have. It is not migrated: rewriting it to the current spelling would

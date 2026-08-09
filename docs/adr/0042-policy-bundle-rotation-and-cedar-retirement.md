@@ -126,7 +126,7 @@ argues for deciding this ADR and 0035 together rather than in either order.
 - **Whether Cut C's parity work is reachable.** Cedar's removal additionally
   needs every historical Allow recomputed against the closed profile.
   `evaluate_authorization_v1` exists and has no production caller;
-  `conformance/fixtures/epoch1/authorization-profile-parity-v1.json` holds the
+  `conformance/fixtures/epoch1/authorization-profile-parity.json` holds the
   epoch-1 corpus and is read by nothing, and its own README says the replacement
   is "measured against `vela-science/math` once that repository has a genesis" —
   which it now has. That fixture is the cheapest available test of whether the

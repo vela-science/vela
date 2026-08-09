@@ -36,7 +36,7 @@ This cut may proceed without a core release:
 - freeze independent readers and emitters; and
 - reject misleading support claims for MCP, A2A, packages, or hosted writes.
 
-What landed: `docs/interop/scientific-state-profile-v1.md` states the seven
+What landed: `docs/interop/scientific-state-profile.md` states the seven
 contracts an outside implementation must satisfy and pairs each with its check.
 `conformance/readers/python` and the two emitters,
 `conformance/emitters/javascript.mjs` and `conformance/emitters/python.py`, are

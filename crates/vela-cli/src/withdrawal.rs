@@ -12,10 +12,10 @@ use chrono::{SecondsFormat, Utc};
 use serde::Serialize;
 use serde_json::json;
 use sha2::Digest;
-use vela_protocol::proposal_v1::ProposalV1;
-use vela_protocol::proposal_withdrawal_v2::ProposalWithdrawalEnvelopeV2;
+use vela_protocol::proposal::ProposalV1;
+use vela_protocol::proposal_withdrawal::ProposalWithdrawalEnvelopeV2;
 use vela_protocol::repository::{RepositoryObjectRefV1, RepositoryV4};
-use vela_protocol::submission_v2::SubmissionRecordV2;
+use vela_protocol::submission::SubmissionRecordV2;
 
 use crate::authority_transaction::AuthorityObjectDraft;
 use crate::config::git_publish::{

@@ -7,8 +7,8 @@
 
 use std::path::PathBuf;
 
-use vela_protocol::submission_v2::{RequestedChange, SubmissionRecordV2};
-use vela_protocol::verification_record_v2::VerificationRecordEnvelopeV2;
+use vela_protocol::submission::{RequestedChange, SubmissionRecordV2};
+use vela_protocol::verification_record::VerificationRecordEnvelopeV2;
 
 const SUBMISSION_ROOT: &str =
     "sha256:8779dcb8999d6030c234a14fe3af0e3745b84e513c9791913c128d0750c86830";

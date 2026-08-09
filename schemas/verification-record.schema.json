@@ -1,5 +1,5 @@
 {
-  "$id": "https://vela.science/schemas/verification-record-v2.schema.json",
+  "$id": "https://vela.science/schemas/verification-record.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {

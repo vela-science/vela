@@ -11,19 +11,19 @@ use vela_protocol::authority::AuthorityEventV1;
 use vela_protocol::authority_history::AuthorityInitializationV1;
 use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::events::{EventKind, NULL_HASH};
-use vela_protocol::proposal_v1::ProposalV1;
-use vela_protocol::proposal_withdrawal_v2::ProposalWithdrawalEnvelopeV2;
+use vela_protocol::proposal::ProposalV1;
+use vela_protocol::proposal_withdrawal::ProposalWithdrawalEnvelopeV2;
 use vela_protocol::repository::{
     ClaimStandingRefV1, RepositoryObjectRefV1, RepositoryProfileV1, RepositoryV4,
 };
 use vela_protocol::repository_origin::RepositoryOriginV1;
-use vela_protocol::status_v4::{
+use vela_protocol::status::{
     REPOSITORY_HEAD_ROLE, ReplayState, StatusActions, StatusCounts, StatusDecisionInbox, StatusGit,
     StatusIntegrity, StatusRepository, StatusReviewAction, StatusRoots, StatusV4, StatusWork,
     StatusWorkAction, StrictState,
 };
-use vela_protocol::submission_v2::SubmissionRecordV2;
-use vela_protocol::verification_record_v2::VerificationRecordEnvelopeV2;
+use vela_protocol::submission::SubmissionRecordV2;
+use vela_protocol::verification_record::VerificationRecordEnvelopeV2;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub(crate) struct ProposalDecision {
@@ -1175,7 +1175,7 @@ pub(crate) fn cmd_review_show(repository_path: &Path, proposal_id: &str, json_ou
         &submission_reference.root,
     )
     .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let submission = vela_protocol::submission_v2::SubmissionRecordV2::parse(&submission_bytes)
+    let submission = vela_protocol::submission::SubmissionRecordV2::parse(&submission_bytes)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let verifications = repository
         .verifications
@@ -2668,12 +2668,12 @@ mod tests {
     use vela_protocol::authority::{AUTHORITY_MODE, AuthorityEventContentV1};
     use vela_protocol::claim_record::ClaimAssertion;
     use vela_protocol::events::{NULL_HASH, StateActor, StateTarget};
-    use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject};
+    use vela_protocol::proposal::{ProposalProducerPackage, ProposalSubject};
     use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
-    use vela_protocol::submission_v2::{
+    use vela_protocol::submission::{
         RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
     };
-    use vela_protocol::verification_record_v2::{
+    use vela_protocol::verification_record::{
         IndependenceDisclosure, VerificationMethod, VerificationRecordDraft, VerificationScope,
         VerificationSubject,
     };
@@ -2838,7 +2838,7 @@ mod tests {
             "2026-07-27T00:00:01Z".into(),
             "Review the exact signed Submission.".into(),
             ProposalProducerPackage {
-                kind: "submission_v2".into(),
+                kind: "submission".into(),
                 id: submission.id.clone(),
                 root: submission.root.clone(),
                 path: format!(
@@ -2896,7 +2896,7 @@ mod tests {
             "2026-07-27T00:00:01Z".into(),
             "Submit the exact bounded result.".into(),
             ProposalProducerPackage {
-                kind: "submission_v2".into(),
+                kind: "submission".into(),
                 id: submission_id.clone(),
                 root: submission_root.clone(),
                 path: "records/submissions/sha256/fixture.json".into(),

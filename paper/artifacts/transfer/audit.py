@@ -68,7 +68,7 @@ def main() -> int:
             "ImportedClaimSource",
         )
         proposal_fields = struct_fields(
-            sources["crates/vela-protocol/src/objects/proposal_v1.rs"],
+            sources["crates/vela-protocol/src/objects/proposal.rs"],
             "ImportedProposalSource",
         )
         cli = sources["crates/vela-cli/src/server/cli_commands.rs"]

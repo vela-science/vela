@@ -9,11 +9,11 @@ use ed25519_dalek::SigningKey;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
-use vela_protocol::submission_v2::{
+use vela_protocol::submission::{
     RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
     SubmissionRecordV2,
 };
-use vela_protocol::verification_record_v2::{
+use vela_protocol::verification_record::{
     IndependenceDisclosure, VerificationMethod, VerificationRecordDraft,
     VerificationRecordEnvelopeV2, VerificationScope, VerificationSubject,
 };

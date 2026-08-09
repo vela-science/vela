@@ -562,7 +562,7 @@ Do not confuse `relations[].kind` with `evidence[].relation`, which names the
 role an Artifact plays for one Claim rather than a link between two Claims.
 
 The vocabulary is fixed by
-`conformance/fixtures/claim-relation-vocabulary-v1.json`.
+`conformance/fixtures/claim-relation-vocabulary.json`.
 
 ## 9. Derived readers
 

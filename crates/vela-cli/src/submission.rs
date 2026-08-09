@@ -13,9 +13,9 @@ use serde_json::json;
 use vela_protocol::claim_record::{
     ClaimAssertion, ClaimEvidenceRef, ClaimRecordV1, ClaimRelation, ClaimSource,
 };
-use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject, ProposalV1};
+use vela_protocol::proposal::{ProposalProducerPackage, ProposalSubject, ProposalV1};
 use vela_protocol::repository::{ClaimStandingRefV1, RepositoryObjectRefV1, RepositoryV4};
-use vela_protocol::submission_v2::SubmissionRecordV2;
+use vela_protocol::submission::SubmissionRecordV2;
 
 use crate::authority_transaction::{AuthorityDerivedDraft, AuthorityObjectDraft};
 use crate::config::git_publish::{
@@ -482,7 +482,7 @@ fn submit_inner(
             submission.id
         ),
         ProposalProducerPackage {
-            kind: "submission_v2".into(),
+            kind: "submission".into(),
             id: submission.id.clone(),
             root: submission_root.clone(),
             path: submission_path.clone(),
@@ -647,7 +647,7 @@ mod tests {
     use tempfile::TempDir;
     use vela_protocol::repository::REPOSITORY_SCHEMA_V4;
     use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
-    use vela_protocol::submission_v2::{
+    use vela_protocol::submission::{
         RequestedChange, RequestedChangeTarget, SubmissionArtifact, SubmissionClaim,
         SubmissionDraft, SubmissionProvenance,
     };

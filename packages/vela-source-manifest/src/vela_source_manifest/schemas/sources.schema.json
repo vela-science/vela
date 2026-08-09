@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vela.science/schemas/sources.v1.schema.json",
+  "$id": "https://vela.science/schemas/sources.schema.json",
   "title": "Frontier source declaration",
   "description": "The shape of a Frontier's `sources.yaml`: the inventory of everything that Frontier acquires or consults, declared in the Frontier that acquires it. This file is the single definition of the shape. Producers validate against it before locking; consumers in any language should read it rather than restate it, because a restated schema is a second opinion that can disagree in silence.",
   "type": "object",

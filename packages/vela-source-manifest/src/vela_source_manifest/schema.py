@@ -15,8 +15,8 @@ from typing import Any
 
 import jsonschema
 
-DECLARATION_SCHEMA = "sources.v1.schema.json"
-LOCK_SCHEMA = "sources-lock.v1.schema.json"
+DECLARATION_SCHEMA = "sources.schema.json"
+LOCK_SCHEMA = "sources-lock.schema.json"
 SCHEMA_NAMES = (DECLARATION_SCHEMA, LOCK_SCHEMA)
 
 

@@ -32,15 +32,15 @@ use schemars::{JsonSchema, Schema, SchemaGenerator, generate::SchemaSettings, js
 use serde_json::{Map, Value};
 
 use crate::execution_binding::EXECUTION_BINDING_SCHEMA;
-use crate::proposal_withdrawal_v2::PROPOSAL_WITHDRAWAL_V2_SCHEMA;
+use crate::proposal_withdrawal::PROPOSAL_WITHDRAWAL_V2_SCHEMA;
 use crate::repository_origin::REPOSITORY_ORIGIN_V1_SCHEMA;
 use crate::signer_identity::SIGNER_IDENTITY_V1_SCHEMA;
-use crate::status_v4::{REPOSITORY_HEAD_ROLE, STATUS_V4_COMMAND, STATUS_V4_SCHEMA};
-use crate::submission_v2::{
+use crate::status::{REPOSITORY_HEAD_ROLE, STATUS_V4_COMMAND, STATUS_V4_SCHEMA};
+use crate::submission::{
     CLAIM_TYPES, PRODUCER_CHECK_OUTCOMES, PRODUCER_REPORTED_AUTHORITY, REPLAYABILITY_LEVELS,
     REQUESTED_CHANGE_KINDS, SUBMISSION_V2_SCHEMA,
 };
-use crate::verification_record_v2::{VERIFICATION_OUTCOMES, VERIFICATION_RECORD_V2_SCHEMA};
+use crate::verification_record::{VERIFICATION_OUTCOMES, VERIFICATION_RECORD_V2_SCHEMA};
 
 /// The published base for every `$id` in `schemas/`.
 const SCHEMA_BASE: &str = "https://vela.science/schemas";
@@ -207,7 +207,7 @@ pub fn repository_id(_: &mut SchemaGenerator) -> Schema {
 /// null arm has to be added here, where the subschema is in hand.
 pub fn nullable_review_action(generator: &mut SchemaGenerator) -> Schema {
     let action =
-        serde_json::to_value(generator.subschema_for::<crate::status_v4::StatusReviewAction>())
+        serde_json::to_value(generator.subschema_for::<crate::status::StatusReviewAction>())
             .expect("a generated subschema serializes");
     Schema::try_from(serde_json::json!({ "anyOf": [action, { "type": "null" }] }))
         .expect("the nullable review action is an object schema")
@@ -482,36 +482,36 @@ pub fn published() -> Vec<(&'static str, Value)> {
         were four envelope-shaped schemas before, three of them folded into
         the object they wrapped. */
         (
-            "dsse-envelope-v1.schema.json",
+            "dsse-envelope.schema.json",
             document::<crate::dsse::EnvelopeV1>(
-                "dsse-envelope-v1.schema.json",
+                "dsse-envelope.schema.json",
                 "Vela DSSE Envelope v1",
             ),
         ),
         (
-            "submission-v2.schema.json",
-            document::<crate::submission_v2::SubmissionV2>(
-                "submission-v2.schema.json",
+            "submission.schema.json",
+            document::<crate::submission::SubmissionV2>(
+                "submission.schema.json",
                 "Vela Submission v2",
             ),
         ),
         (
-            "verification-record-v2.schema.json",
-            document::<crate::verification_record_v2::VerificationRecordV2>(
-                "verification-record-v2.schema.json",
+            "verification-record.schema.json",
+            document::<crate::verification_record::VerificationRecordV2>(
+                "verification-record.schema.json",
                 "Vela Verification Record v2",
             ),
         ),
         (
-            "proposal-withdrawal-v2.schema.json",
-            document::<crate::proposal_withdrawal_v2::ProposalWithdrawalV2>(
-                "proposal-withdrawal-v2.schema.json",
+            "proposal-withdrawal.schema.json",
+            document::<crate::proposal_withdrawal::ProposalWithdrawalV2>(
+                "proposal-withdrawal.schema.json",
                 "Vela Proposal Withdrawal v2",
             ),
         ),
         (
-            "status-v4.schema.json",
-            document::<crate::status_v4::StatusV4>("status-v4.schema.json", "Vela Status v4"),
+            "status.schema.json",
+            document::<crate::status::StatusV4>("status.schema.json", "Vela Status v4"),
         ),
         /* The three objects that carry the science. Until these were derived,
         the schema for a Claim Record could not be generated at all, which
@@ -519,23 +519,20 @@ pub fn published() -> Vec<(&'static str, Value)> {
         it. A reader checking a Claim without this implementation needs the
         Claim's own contract most of all. */
         (
-            "claim-record-v1.schema.json",
+            "claim-record.schema.json",
             document::<crate::claim_record::ClaimRecordV1>(
-                "claim-record-v1.schema.json",
+                "claim-record.schema.json",
                 "Vela Claim Record v1",
             ),
         ),
         (
-            "proposal-v1.schema.json",
-            document::<crate::proposal_v1::ProposalV1>(
-                "proposal-v1.schema.json",
-                "Vela Proposal v1",
-            ),
+            "proposal.schema.json",
+            document::<crate::proposal::ProposalV1>("proposal.schema.json", "Vela Proposal v1"),
         ),
         (
-            "repository-origin-v1.schema.json",
+            "repository-origin.schema.json",
             document::<crate::repository_origin::RepositoryOriginV1>(
-                "repository-origin-v1.schema.json",
+                "repository-origin.schema.json",
                 "Vela Repository Origin v1",
             ),
         ),

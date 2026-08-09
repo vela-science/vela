@@ -84,14 +84,14 @@
       ]
     },
     "published_schemas": [
-      "claim-record-v1.schema.json",
-      "dsse-envelope-v1.schema.json",
-      "proposal-v1.schema.json",
-      "proposal-withdrawal-v2.schema.json",
-      "repository-origin-v1.schema.json",
-      "status-v4.schema.json",
-      "submission-v2.schema.json",
-      "verification-record-v2.schema.json"
+      "claim-record.schema.json",
+      "dsse-envelope.schema.json",
+      "proposal-withdrawal.schema.json",
+      "proposal.schema.json",
+      "repository-origin.schema.json",
+      "status.schema.json",
+      "submission.schema.json",
+      "verification-record.schema.json"
     ],
     "release": {
       "toolchain_channel": "1.97.1",

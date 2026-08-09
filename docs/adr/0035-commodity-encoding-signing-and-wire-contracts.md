@@ -87,7 +87,7 @@ protocol objects:
 All 17 integers outside the interoperable IEEE-754 safe-integer range occur in
 the Erdős 1093 raw evidence artifact. Those values must remain exact raw bytes
 or use strings in any future portable Vela object; JCS must never round them
-silently. `conformance/jcs-shadow-audit.v1.json` binds the exact repository
+silently. `conformance/jcs-shadow-audit.json` binds the exact repository
 commits and trees, counts, seven authority payloads, raw exception byte hashes
 and Git blobs, first-difference offsets, unsafe-integer counts, and canonical
 result root. The result supports a root-preserving canonicalizer switch only
@@ -108,7 +108,7 @@ The dependency-free Vela Authorization Profile evaluator now exists in shadow
 mode. It has two human roles, six closed actions, explicit Frontier-owned
 resource identity, exact authentication/read-set/intent bindings, and stable
 fail-closed reason codes. The frozen
-`conformance/fixtures/authorization-profile-parity-v1.json` corpus binds the
+`conformance/fixtures/authorization-profile-parity.json` corpus binds the
 current four Frontier heads and all seven retained authority transactions. It
 independently reproduces every legacy Cedar request root, golden-locks the four
 candidate model roots and seven candidate request roots, and proves Allow

@@ -32,10 +32,10 @@ The corpus protects five contract families:
 
 `current-objects/` contains deterministic signed Submission and Verification
 vectors. The seed files are public fixture material only. They are never used
-as production identities. `manifest.v1.json` freezes the exact fixture bytes;
+as production identities. `manifest.json` freezes the exact fixture bytes;
 the schemas document structure and carry no authority or Standing effect.
 
-`fixtures/exact-witness-floor-v1.json` is a normative test vector.
+`fixtures/exact-witness-floor.json` is a normative test vector.
 
 ## `repository_lint.py`
 
@@ -83,8 +83,8 @@ a lock with no `sources.yaml` behind it at all.
 runs it. A rule that can no longer be made to fire is reported coverage that
 does not exist, which is worse than an absent rule.
 
-`fixtures/correction/diamond-input.v1.json`,
-`diamond-expected.v1.json`, and `diamond-adversarial.v1.json` are synthetic
+`fixtures/correction/diamond-input.json`,
+`diamond-expected.json`, and `diamond-adversarial.json` are synthetic
 conformance vectors only. They let the Rust reader in `vela-edge` and the
 clean-room Python reader agree on exact bytes before a real correction fixture
 exists. They earn no scientific or protocol-breakthrough credit.

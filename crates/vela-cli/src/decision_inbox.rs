@@ -12,11 +12,11 @@ use std::path::Path;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use vela_protocol::claim_record::ClaimRecordV1;
-use vela_protocol::proposal_v1::ProposalV1;
+use vela_protocol::proposal::ProposalV1;
 use vela_protocol::repository::{RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::repository_origin::RepositoryOriginV1;
-use vela_protocol::submission_v2::SubmissionRecordV2;
-use vela_protocol::verification_record_v2::VerificationRecordEnvelopeV2;
+use vela_protocol::submission::SubmissionRecordV2;
+use vela_protocol::verification_record::VerificationRecordEnvelopeV2;
 
 use crate::repository_decision::{
     DecisionAction, PreparedReviewDecision, claim_for_proposal, exact_verifications,
@@ -857,15 +857,15 @@ mod tests {
 
     use ed25519_dalek::SigningKey;
     use vela_protocol::claim_record::{ClaimAssertion, ClaimRelation, ClaimSource};
-    use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject};
+    use vela_protocol::proposal::{ProposalProducerPackage, ProposalSubject};
     use vela_protocol::repository::{
         ClaimStandingRefV1, REPOSITORY_SCHEMA_V4, RepositoryObjectRefV1,
     };
     use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
-    use vela_protocol::submission_v2::{
+    use vela_protocol::submission::{
         RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
     };
-    use vela_protocol::verification_record_v2::{
+    use vela_protocol::verification_record::{
         IndependenceDisclosure, VerificationMethod, VerificationRecordDraft, VerificationScope,
         VerificationSubject,
     };
@@ -959,7 +959,7 @@ mod tests {
             "2026-07-30T00:00:01Z".into(),
             "Review the exact bounded fixture evidence.".into(),
             ProposalProducerPackage {
-                kind: "submission_v2".into(),
+                kind: "submission".into(),
                 id: submission.id.clone(),
                 root: submission.root.clone(),
                 path: format!(
@@ -1071,14 +1071,14 @@ mod tests {
             accepted_claims: accepted,
             pending_claims: pending,
             proposals: vec![object_reference(
-                vela_protocol::proposal_v1::PROPOSAL_V1_SCHEMA,
+                vela_protocol::proposal::PROPOSAL_V1_SCHEMA,
                 &proposal.id(),
                 &proposal_root,
                 "proposals",
             )],
             proposal_withdrawals: Vec::new(),
             submissions: vec![RepositoryObjectRefV1 {
-                schema: vela_protocol::submission_v2::SUBMISSION_V2_SCHEMA.into(),
+                schema: vela_protocol::submission::SUBMISSION_V2_SCHEMA.into(),
                 id: submission.id.clone(),
                 root: submission_root.clone(),
                 path: format!(
@@ -1087,7 +1087,7 @@ mod tests {
                 ),
             }],
             verifications: vec![object_reference(
-                vela_protocol::verification_record_v2::VERIFICATION_RECORD_V2_SCHEMA,
+                vela_protocol::verification_record::VERIFICATION_RECORD_V2_SCHEMA,
                 &verification.id,
                 &verification_root,
                 "verifications",

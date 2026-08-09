@@ -21,11 +21,11 @@ use vela_protocol::authorization::{
 use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::events::{EventKind, NULL_HASH, StateActor, StateEvent, StateTarget};
 use vela_protocol::principal::PrincipalClass;
-use vela_protocol::proposal_v1::ProposalV1;
+use vela_protocol::proposal::ProposalV1;
 use vela_protocol::repository::{ClaimStandingRefV1, RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::repository_origin::RepositoryOriginV1;
-use vela_protocol::submission_v2::SubmissionRecordV2;
-use vela_protocol::verification_record_v2::VerificationRecordEnvelopeV2;
+use vela_protocol::submission::SubmissionRecordV2;
+use vela_protocol::verification_record::VerificationRecordEnvelopeV2;
 
 use crate::authority_transaction::{
     AuthorityEventDraft, AuthorityObjectDraft, AuthorityTransactionRequest,
@@ -903,13 +903,13 @@ mod tests {
 
     use ed25519_dalek::SigningKey;
     use vela_protocol::claim_record::{ClaimAssertion, ClaimRelation, ClaimSource};
-    use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject};
+    use vela_protocol::proposal::{ProposalProducerPackage, ProposalSubject};
     use vela_protocol::repository::REPOSITORY_SCHEMA_V4;
     use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
-    use vela_protocol::submission_v2::{
+    use vela_protocol::submission::{
         RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
     };
-    use vela_protocol::verification_record_v2::{
+    use vela_protocol::verification_record::{
         IndependenceDisclosure, VerificationMethod, VerificationRecordDraft, VerificationScope,
         VerificationSubject,
     };
@@ -989,7 +989,7 @@ mod tests {
             "2026-07-27T00:00:01Z".into(),
             "Request the exact fixture transition.".into(),
             ProposalProducerPackage {
-                kind: "submission_v2".into(),
+                kind: "submission".into(),
                 id: vela_protocol::derive_handle("vsb_", &root('e')).unwrap(),
                 root: root('e'),
                 path: format!("records/submissions/sha256/{}.json", "e".repeat(64)),

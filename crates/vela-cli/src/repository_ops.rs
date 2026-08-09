@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use vela_protocol::submission_v2::{
+use vela_protocol::submission::{
     ProducerCheck, RequestedChange, RequestedChangeTarget, SubmissionArtifact, SubmissionClaim,
     SubmissionDraft, SubmissionProvenance, SubmissionRecordV2,
 };
@@ -401,7 +401,7 @@ pub(crate) fn submit(
 
 pub(crate) fn import_verification(
     repository_path: &Path,
-    record: &vela_protocol::verification_record_v2::VerificationRecordEnvelopeV2,
+    record: &vela_protocol::verification_record::VerificationRecordEnvelopeV2,
     executor: &str,
 ) -> Result<VerificationImportOutcome, String> {
     crate::verification::import(repository_path, record, executor)

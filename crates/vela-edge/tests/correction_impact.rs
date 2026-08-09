@@ -6,7 +6,7 @@ use vela_edge::correction_impact::{
 
 fn fixture() -> CorrectionImpactInputV1 {
     serde_json::from_str(include_str!(
-        "../../../conformance/fixtures/correction/diamond-input.v1.json"
+        "../../../conformance/fixtures/correction/diamond-input.json"
     ))
     .expect("parse correction fixture")
 }
@@ -88,7 +88,7 @@ fn apply_mutation(
 fn correction_impact_preserves_the_independent_route_and_opens_one_repair() {
     let projection = derive_correction_impact(&fixture()).expect("derive correction impact");
     let expected: serde_json::Value = serde_json::from_str(include_str!(
-        "../../../conformance/fixtures/correction/diamond-expected.v1.json"
+        "../../../conformance/fixtures/correction/diamond-expected.json"
     ))
     .expect("parse expected correction projection");
     let expected_projection: CorrectionImpactProjectionV1 =
@@ -186,7 +186,7 @@ fn adversarial_vectors_have_identical_bounded_outcomes() {
         ))
     );
     let vectors: serde_json::Value = serde_json::from_str(include_str!(
-        "../../../conformance/fixtures/correction/diamond-adversarial.v1.json"
+        "../../../conformance/fixtures/correction/diamond-adversarial.json"
     ))
     .expect("parse adversarial vectors");
     assert_eq!(vectors["schema"], "vela.correction-impact-adversarial.v1");

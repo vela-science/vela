@@ -7,7 +7,7 @@
 - Authority effect: none, and the design question is entirely about keeping it
   that way — a vector must not ship anything that lets its holder produce a
   Decision a verifier would accept as real
-- Relates to: `docs/interop/scientific-state-profile-v1.md` contract 4, which
+- Relates to: `docs/interop/scientific-state-profile.md` contract 4, which
   states this gap about itself
 
 ## Context
@@ -29,7 +29,7 @@ runs `verify_canonical_hashing.py`, `verify_current_objects.py`,
 `verify_wire_schemas.py`, `verify_correction_impact.py`, an inline exact-witness
 floor, and the ecosystem check. Nothing exercises an authority chain.
 
-`conformance/fixtures/epoch1/authorization-profile-parity-v1.json` looks like it
+`conformance/fixtures/epoch1/authorization-profile-parity.json` looks like it
 might. It does not: its own README records that its test was removed with the
 epoch-1 reader, and nothing in `crates/`, `conformance/`, `scripts/` or
 `.github/` reads it. `AGENTS.md` records the evaluator half of the same gap.
@@ -154,14 +154,14 @@ record. If that never happens, the gap was never real.
 
 ## Consequences
 
-Whichever is chosen, `docs/interop/scientific-state-profile-v1.md` must keep
+Whichever is chosen, `docs/interop/scientific-state-profile.md` must keep
 stating contract 4's coverage exactly. It currently overstates nothing, which is
 why this ADR could be written from the document itself, and that is the property
 worth preserving: a profile that claimed a check it did not have would be worse
 than the gap.
 
 If any option ships, `conformance/verify.py` gains the check and
-`conformance/fixtures/epoch1/authorization-profile-parity-v1.json` should be
+`conformance/fixtures/epoch1/authorization-profile-parity.json` should be
 addressed at the same time — it is a record nothing reads, sitting in a fixture
 directory, in the same subject area, and leaving it there beside a real vector
 invites it to be mistaken for one.
@@ -179,7 +179,7 @@ purpose is to be checkable by something that shares no code with the reference,
 and naming an in-tree test as the check would be the overstatement this document
 exists to avoid.
 
-**Revive `authorization-profile-parity-v1.json` as the vector.** It pins the
+**Revive `authorization-profile-parity.json` as the vector.** It pins the
 epoch-1 repositories' commits and is a record rather than a check; its own
 README says the test was removed with the epoch-1 reader. It also describes
 `frontier_id` and `resource_type: "frontier"`, which is the shape those

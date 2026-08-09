@@ -609,7 +609,7 @@ rewrite roots or old signatures.
 
 The frozen 2026-08-02 parsed-value shadow audit recursively rejected duplicate
 JSON properties and bound exact commits, trees, counts, raw exceptions, and a
-canonical result root in `conformance/jcs-shadow-audit.v1.json`. On those four
+canonical result root in `conformance/jcs-shadow-audit.json`. On those four
 clean Frontier heads, 3,158 of 3,161 parsed tracked JSON values and all seven
 decoded authority payloads were JCS-byte-identical. Three exact raw Erdős
 evidence artifacts differed and remain byte-preserved evidence rather than JCS

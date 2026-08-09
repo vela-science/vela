@@ -196,7 +196,7 @@ found in the first week of using it.
 
 ## Interoperability
 
-`docs/interop/scientific-state-profile-v1.md` states the seven contracts an
+`docs/interop/scientific-state-profile.md` states the seven contracts an
 external implementation must satisfy, each paired with the conformance check
 that decides whether it does. No parallel object model: the profile names the
 schemas that already exist.

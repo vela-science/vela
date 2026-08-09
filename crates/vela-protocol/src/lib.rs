@@ -27,8 +27,8 @@ pub use kernel::{
 };
 mod objects;
 pub use objects::{
-    claim_record, execution_binding, proposal_v1, proposal_withdrawal_v2, repository,
-    repository_inputs, repository_origin, signer_identity, submission_v2, verification_record_v2,
+    claim_record, execution_binding, proposal, proposal_withdrawal, repository, repository_inputs,
+    repository_origin, signer_identity, submission, verification_record,
 };
 mod read_surface;
-pub use read_surface::status_v4;
+pub use read_surface::status;

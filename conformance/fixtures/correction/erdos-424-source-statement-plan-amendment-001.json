@@ -3,7 +3,7 @@
   "status": "frozen",
   "frozen_at": "2026-07-29T07:12:00Z",
   "prior_plan": {
-    "path": "conformance/fixtures/correction/erdos-424-source-statement-plan.v1.json",
+    "path": "conformance/fixtures/correction/erdos-424-source-statement-plan.json",
     "root": "sha256:43d37c927e2e2b616770f21d18946e85d0f831d8e048c097c71bc554a8e6b3f1"
   },
   "reason": "The exact current Erdős Target Index contains only erdos:1056. Creating an erdos:424 target would invent ranked work or require an unrelated authority mutation.",

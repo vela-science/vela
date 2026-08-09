@@ -1,5 +1,5 @@
 {
-  "$id": "https://vela.science/schemas/proposal-withdrawal-v2.schema.json",
+  "$id": "https://vela.science/schemas/proposal-withdrawal.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {

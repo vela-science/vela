@@ -74,8 +74,8 @@ holds the acquired bytes.
 
 ## The schemas are the definition
 
-`src/vela_source_manifest/schemas/sources.v1.schema.json` and
-`sources-lock.v1.schema.json` are JSON Schema 2020-12, closed
+`src/vela_source_manifest/schemas/sources.schema.json` and
+`sources-lock.schema.json` are JSON Schema 2020-12, closed
 (`additionalProperties: false`), and they ship as package data. The resolver
 validates both its input and its own output against them.
 
@@ -84,7 +84,7 @@ shape. A restated schema is a second opinion, and second opinions drift — whic
 is the whole reason this package exists. Get the file with:
 
 ```sh
-vela-source-lock --print-schema sources-lock.v1.schema.json
+vela-source-lock --print-schema sources-lock.schema.json
 ```
 
 or, from Python, `vela_source_manifest.schema_path(name)`.

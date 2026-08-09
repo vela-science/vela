@@ -120,8 +120,8 @@ impl ProposalV1 {
         chrono::DateTime::parse_from_rfc3339(&self.created_at)
             .map_err(|_| "Proposal created_at must be RFC 3339".to_string())?;
         require_text("reason", &self.reason)?;
-        if self.producer_package.kind != "submission_v2" {
-            return Err("Proposal producer_package.kind must be `submission_v2`".into());
+        if self.producer_package.kind != "submission" {
+            return Err("Proposal producer_package.kind must be `submission`".into());
         }
         require_sha256("producer_package.root", &self.producer_package.root)?;
         crate::shape::require_derived_handle(
@@ -179,7 +179,7 @@ mod tests {
 
     fn producer_package() -> ProposalProducerPackage {
         ProposalProducerPackage {
-            kind: "submission_v2".into(),
+            kind: "submission".into(),
             id: crate::shape::derive_handle("vsb_", &root('b')).unwrap(),
             root: root('b'),
             path: format!("records/submissions/sha256/{}.json", "b".repeat(64)),
@@ -237,6 +237,6 @@ mod tests {
             path: "records/receipts/sha256/fixture.json".into(),
         })
         .unwrap_err();
-        assert!(error.contains("submission_v2"));
+        assert!(error.contains("submission"));
     }
 }

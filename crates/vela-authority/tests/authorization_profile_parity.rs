@@ -4,7 +4,7 @@
 //! is deleted: "recompute every historical Allow result with the closed
 //! profile" and "prove parity and negative boundary cases". The corpus for it
 //! has existed since 2026-08-02 in
-//! `conformance/fixtures/epoch1/authorization-profile-parity-v1.json` and, as
+//! `conformance/fixtures/epoch1/authorization-profile-parity.json` and, as
 //! `AGENTS.md` says in as many words, nothing read it — not `crates/`, not
 //! `conformance/`, not `scripts/`, not `.github/`. This is the reader.
 //!
@@ -47,7 +47,7 @@ const REQUEST_SCHEMA: &str = "vela.authorization-request.v1";
 
 fn corpus() -> Value {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../conformance/fixtures/epoch1/authorization-profile-parity-v1.json");
+        .join("../../conformance/fixtures/epoch1/authorization-profile-parity.json");
     serde_json::from_slice(&std::fs::read(path).expect("read the epoch-1 parity corpus"))
         .expect("the parity corpus is JSON")
 }

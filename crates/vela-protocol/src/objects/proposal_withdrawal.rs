@@ -15,8 +15,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::dsse::EnvelopeV1;
-use crate::proposal_v1::ProposalV1;
-use crate::submission_v2::SubmissionRecordV2;
+use crate::proposal::ProposalV1;
+use crate::submission::SubmissionRecordV2;
 
 pub const PROPOSAL_WITHDRAWAL_V2_SCHEMA: &str = "vela.proposal-withdrawal.v2";
 pub const PROPOSAL_WITHDRAWAL_V2_PAYLOAD_TYPE: &str =
@@ -242,9 +242,9 @@ fn require_sha256(field: &str, value: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::proposal_v1::{ProposalProducerPackage, ProposalSubject};
+    use crate::proposal::{ProposalProducerPackage, ProposalSubject};
     use crate::signer_identity::{ActorClass, SignerIdentityV1};
-    use crate::submission_v2::{
+    use crate::submission::{
         RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
     };
 
@@ -302,7 +302,7 @@ mod tests {
             "2026-08-01T00:00:00Z".into(),
             "Request review.".into(),
             ProposalProducerPackage {
-                kind: "submission_v2".into(),
+                kind: "submission".into(),
                 id: submission.id.clone(),
                 root: submission.root.clone(),
                 path: format!(

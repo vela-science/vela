@@ -176,7 +176,7 @@ not a note per commit, so they are shorter than the releases were.
   the JavaScript emitter sorts keys by UTF-16 code unit, this one calls
   `rfc8785`, which sorts by code point as JCS specifies.
 
-- **`docs/interop/scientific-state-profile-v1.md`.** The seven contracts an
+- **`docs/interop/scientific-state-profile.md`.** The seven contracts an
   external implementation must satisfy, each paired with the conformance check
   that decides whether it does. It names existing schemas and creates no
   parallel object model.

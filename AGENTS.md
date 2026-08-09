@@ -109,7 +109,7 @@ cargo test --locked -p vela-authority
 The last line used to name `--test authorization_profile_parity`, which has
 never existed: `crates/vela-authority/` has no `tests/` directory, so the
 command failed for everyone who copied it. The corpus that name implies,
-`conformance/fixtures/epoch1/authorization-profile-parity-v1.json`, is read by
+`conformance/fixtures/epoch1/authorization-profile-parity.json`, is read by
 nothing in `crates/`, `conformance/`, `scripts/` or `.github/`. `docs/ECOSYSTEM.md`
 §6 records the evaluator half of that gap; the corpus half is the same gap seen
 from the fixture's side.

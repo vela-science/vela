@@ -10,11 +10,11 @@ use std::path::{Component, Path, PathBuf};
 use chrono::{SecondsFormat, Utc};
 use serde_json::json;
 use sha2::{Digest, Sha256};
-use vela_protocol::proposal_v1::ProposalV1;
+use vela_protocol::proposal::ProposalV1;
 use vela_protocol::repository::{RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
-use vela_protocol::submission_v2::SubmissionRecordV2;
-use vela_protocol::verification_record_v2::{
+use vela_protocol::submission::SubmissionRecordV2;
+use vela_protocol::verification_record::{
     IndependenceDisclosure, VerificationMethod, VerificationRecordDraft,
     VerificationRecordEnvelopeV2, VerificationScope, VerificationSubject,
 };
@@ -691,13 +691,13 @@ fn import_inner(
 mod tests {
     use ed25519_dalek::SigningKey;
     use tempfile::TempDir;
-    use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject};
+    use vela_protocol::proposal::{ProposalProducerPackage, ProposalSubject};
     use vela_protocol::repository::REPOSITORY_SCHEMA_V4;
     use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
-    use vela_protocol::submission_v2::{
+    use vela_protocol::submission::{
         RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
     };
-    use vela_protocol::verification_record_v2::{
+    use vela_protocol::verification_record::{
         IndependenceDisclosure, VerificationMethod, VerificationRecordDraft, VerificationScope,
         VerificationSubject,
     };
@@ -779,7 +779,7 @@ mod tests {
             "2026-07-27T00:00:01Z".into(),
             "Fixture proposal.".into(),
             ProposalProducerPackage {
-                kind: "submission_v2".into(),
+                kind: "submission".into(),
                 id: submission.id.clone(),
                 root: submission_root.clone(),
                 path: submission_path.clone(),

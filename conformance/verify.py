@@ -65,7 +65,7 @@ def claim_matches_witness(claim: object, witness: object) -> bool:
 
 
 def verify_exact_witness_floor() -> int:
-    path = CONFORMANCE / "fixtures" / "exact-witness-floor-v1.json"
+    path = CONFORMANCE / "fixtures" / "exact-witness-floor.json"
     try:
         fixture = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:

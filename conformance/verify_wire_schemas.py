@@ -74,7 +74,7 @@ def verify_patterns_are_portable() -> int:
 
 
 def verify_manifest() -> None:
-    path = CONFORMANCE / "current-objects" / "manifest.v1.json"
+    path = CONFORMANCE / "current-objects" / "manifest.json"
     manifest = load_json(path)
     if not isinstance(manifest, dict):
         raise AssertionError("fixture manifest must be an object")
@@ -150,7 +150,7 @@ def status_document(**overrides: object) -> dict:
 
 
 def verify_status_read_surface() -> tuple[int, int]:
-    """Hold `status-v4.schema.json` to the two documents `vela status` emits.
+    """Hold `status.schema.json` to the two documents `vela status` emits.
 
     This schema describes a read surface rather than a signed object, so there
     is no canonical-bytes fixture behind it and no signature to check. What
@@ -174,7 +174,7 @@ def verify_status_read_surface() -> tuple[int, int]:
     `docs/INTEROPERABILITY.md` states the rule and its opposite, which governs
     signed preimages and stays closed.
     """
-    check = validator("status-v4.schema.json")
+    check = validator("status.schema.json")
 
     replaying = status_document()
     check.validate(replaying)
@@ -288,10 +288,10 @@ def envelope_payload(name: str) -> object:
 
 
 def main() -> int:
-    submission_check = validator("submission-v2.schema.json")
-    verification_check = validator("verification-record-v2.schema.json")
-    withdrawal_check = validator("proposal-withdrawal-v2.schema.json")
-    envelope_check = validator("dsse-envelope-v1.schema.json")
+    submission_check = validator("submission.schema.json")
+    verification_check = validator("verification-record.schema.json")
+    withdrawal_check = validator("proposal-withdrawal.schema.json")
+    envelope_check = validator("dsse-envelope.schema.json")
 
     submission = envelope_payload("submission.json")
     verification = envelope_payload("verification.json")

@@ -102,7 +102,7 @@ executes a real authorized acceptance over a contiguous record chain, but it is
 Rust and it exercises this implementation. Contracts 1, 3 and 7 each have
 fixtures a foreign implementation can be held to; this one does not, so an
 implementation claiming to verify authority is currently taking its own word
-for it. `conformance/fixtures/epoch1/authorization-profile-parity-v1.json` pins
+for it. `conformance/fixtures/epoch1/authorization-profile-parity.json` pins
 the epoch-1 repositories' commits and is a record, not a check — no code reads
 it.
 
@@ -154,7 +154,7 @@ this protocol.
 
 RFC 8785 JSON Canonicalization Scheme, then SHA-256, rendered `sha256:<64
 lowercase hex>`. `conformance/verify_canonical_hashing.py` holds it to vectors,
-and `conformance/jcs-shadow-audit.v1.json` records where a naive JSON encoder
+and `conformance/jcs-shadow-audit.json` records where a naive JSON encoder
 diverges.
 
 Get this wrong and every root differs, which at least fails loudly. Get it

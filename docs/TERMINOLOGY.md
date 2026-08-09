@@ -341,7 +341,7 @@ One near-miss spelling is recognised on input and resolves to a canonical name:
 `depends_on` reads as `depends`. Producers emit the canonical spelling;
 consumers resolve before matching. `revises`, `retracts` and `opposes` were
 declared and written into no record; all three are withdrawn.
-`conformance/fixtures/claim-relation-vocabulary-v1.json` fixes the alias, and a
+`conformance/fixtures/claim-relation-vocabulary.json` fixes the alias, and a
 test in `vela-protocol` fails when an implementation drifts from it.
 
 Do not read `evidence[].relation` against this vocabulary. It names the role an

@@ -254,7 +254,7 @@ fn retained_frontier_json_is_audited_against_rfc_8785() {
 fn fixture_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
-        .join("conformance/jcs-shadow-audit.v1.json")
+        .join("conformance/jcs-shadow-audit.json")
 }
 
 fn read_fixture() -> AuditFixture {

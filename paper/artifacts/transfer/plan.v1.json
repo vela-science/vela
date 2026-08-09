@@ -14,7 +14,7 @@
       "root": "sha256:80ce2c9e43909e47a09d0b33594bf540c47ec13aede9d6973d054ed3a369e63e"
     },
     {
-      "path": "crates/vela-protocol/src/objects/proposal_v1.rs",
+      "path": "crates/vela-protocol/src/objects/proposal.rs",
       "root": "sha256:0fce4623902f9430779029e00d4b00bec3f5594ee21baa42aeb8d249be6f64d4"
     },
     {

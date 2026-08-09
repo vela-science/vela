@@ -6,8 +6,8 @@ use crate::cli::{
 use crate::command_spec::*;
 use serde_json::{Value, json};
 use std::path::{Component, Path, PathBuf};
-use vela_protocol::proposal_v1::ProposalV1;
-use vela_protocol::submission_v2::SubmissionRecordV2;
+use vela_protocol::proposal::ProposalV1;
+use vela_protocol::submission::SubmissionRecordV2;
 
 const REPLAY_CAPSULE_MAX_BYTES: u64 = 1024 * 1024;
 const WITNESS_MAX_BYTES: u64 = 64 * 1024 * 1024;
@@ -92,12 +92,12 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
             crate::ui::require_initialized_repo(&repository);
             let bytes = crate::bounded_file::read_bounded_file(
                 &record,
-                vela_protocol::verification_record_v2::VERIFICATION_RECORD_MAX_BYTES as u64,
+                vela_protocol::verification_record::VERIFICATION_RECORD_MAX_BYTES as u64,
                 "Verification Record v1",
             )
             .unwrap_or_else(|error| fail_return(&error.to_string()));
             let record =
-                vela_protocol::verification_record_v2::VerificationRecordEnvelopeV2::parse(&bytes)
+                vela_protocol::verification_record::VerificationRecordEnvelopeV2::parse(&bytes)
                     .unwrap_or_else(|error| {
                         fail_return(&format!(
                             "parse {} as Verification Record v1: {error}",

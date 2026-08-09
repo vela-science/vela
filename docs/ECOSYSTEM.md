@@ -377,7 +377,7 @@ at all. A protocol that cannot name an unattributable failure will overclaim
 attribution for every failure it does report. Adding the state is a root change
 — the preimage is hashed including keys, so a new field moves every
 `obligation_root`, including the one frozen in
-`conformance/fixtures/correction/diamond-expected.v1.json` — and it belongs with
+`conformance/fixtures/correction/diamond-expected.json` — and it belongs with
 the caller, in one deliberate change, rather than ahead of it.
 
 ### 1,217 open Problems were stored as accepted Claims
@@ -459,7 +459,7 @@ different facts.
   0004 gave it.
 - **One retired term is still wire.** ADR 0039 §5 retired `Attempt`, and
   `provenance.source_attempt` with the `vat_` prefix was added afterwards and is
-  published in `schemas/submission-v2.schema.json`. The product surface says
+  published in `schemas/submission.schema.json`. The product surface says
   "workbench run", which is what `docs/TERMINOLOGY.md` prescribes, but the field
   and the prefix cannot follow without a schema version, so the retired spelling
   is load-bearing on the wire. This is the same shape as
@@ -474,7 +474,7 @@ different facts.
 - **Cedar is not removed.** The closed evaluator exists
   (`evaluate_authorization_v1` in `crates/vela-authority/src/lib.rs`) and the
   parity corpus exists
-  (`conformance/fixtures/epoch1/authorization-profile-parity-v1.json`), but the
+  (`conformance/fixtures/epoch1/authorization-profile-parity.json`), but the
   evaluator is called only from tests and `cedar-policy = "=4.11.2"` is still a
   workspace dependency of the active writer.
 - **`serde_yaml_ng` is a `serde_yaml` fork.** `Cargo.toml:43`. The standards

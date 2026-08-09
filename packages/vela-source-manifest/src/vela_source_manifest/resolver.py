@@ -35,7 +35,7 @@ days before anyone committed its output. Whether the lock is *stale* is a
 different question again, and ``--check --refetch`` is what asks it.
 
 That invariant is stated once more, machine-readably, in
-``schemas/sources-lock.v1.schema.json``, and this module validates its own output
+``schemas/sources-lock.schema.json``, and this module validates its own output
 against it before returning. A resolver that trusts its own output is a resolver
 whose bugs reach the lock.
 """

@@ -1,7 +1,7 @@
 # Vela JSON Schemas
 
 One of these documents describes the transport, and the rest describe what it
-carries. `dsse-envelope-v1.schema.json` is the DSSE envelope every signed Vela
+carries. `dsse-envelope.schema.json` is the DSSE envelope every signed Vela
 object is stored in — Submissions, Verification Records, producer Withdrawals
 and repository-authority records alike. In accordance with DSSE, the envelope
 and its signature entries permit unknown fields; each closed payload beneath
@@ -31,7 +31,7 @@ repository did not state.
 
 ## One of these is a read surface
 
-`status-v4.schema.json` describes `vela.status.v4`, the document
+`status.schema.json` describes `vela.status.v4`, the document
 `vela status --json` answers with. It signs nothing and roots nothing. It is
 published because a second implementation parses it: the Observatory in
 `vela-web` builds its whole projection from this document, and until this file
@@ -67,7 +67,7 @@ identifiers, Ed25519 signatures, referenced objects, actor relationships,
 repository invariants, human Decision authority, or Standing. The schemas use
 `format: date-time` as an assertion in Vela's conformance check.
 
-`status-v4.schema.json` states one rule its consumer does not have to restate:
+`status.schema.json` states one rule its consumer does not have to restate:
 every field is `required`, including the ones whose value is `null` on a
 Frontier that cannot fill them. A bootstrapping repository has a Git pointer
 with no commit behind it, not an absent Git pointer, and a schema that let the
@@ -90,7 +90,7 @@ them with a finite-automaton engine that has no backtracking at all.
 `verify_patterns_are_portable` in `conformance/verify_wire_schemas.py` reads
 every pattern in every published document and holds them to that.
 
-The Artifact-path rule in `submission-v2.schema.json` used to be the exception.
+The Artifact-path rule in `submission.schema.json` used to be the exception.
 It rejected paths that escape the tree with two negative lookaheads, which
 ECMA-262 and Python provide and Rust's `regex` does not, so the one published
 pattern guarding path traversal was the one a Rust consumer could not compile.
@@ -100,7 +100,7 @@ The rule is now spelled as the structure it describes: components joined by
 The two spellings agree on every string with no line terminator in it, and
 there the current one is exactly the rule the readers apply:
 `safe_path_pattern_agrees_with_the_reader` in
-`crates/vela-protocol/src/objects/submission_v2.rs` settles that against
+`crates/vela-protocol/src/objects/submission.rs` settles that against
 `require_safe_relative_path` over all 21845 strings of up to seven dots,
 slashes, spaces and other characters, rather than over a sample of them. Where
 a line terminator is present the two part, and it was the lookahead that was

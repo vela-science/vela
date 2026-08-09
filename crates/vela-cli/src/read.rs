@@ -12,8 +12,8 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use vela_protocol::authority::AuthorityEventV1;
 use vela_protocol::claim_record::ClaimRecordV1;
-use vela_protocol::proposal_v1::ProposalV1;
-use vela_protocol::proposal_withdrawal_v2::ProposalWithdrawalEnvelopeV2;
+use vela_protocol::proposal::ProposalV1;
+use vela_protocol::proposal_withdrawal::ProposalWithdrawalEnvelopeV2;
 use vela_protocol::repository::{ClaimStandingRefV1, RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::repository_origin::RepositoryOriginV1;
 
@@ -448,7 +448,7 @@ pub(crate) fn show_payload(repository_path: &Path, object_id: &str) -> Result<Va
             &context,
             object_id,
             "proposal",
-            vela_protocol::proposal_v1::PROPOSAL_V1_SCHEMA,
+            vela_protocol::proposal::PROPOSAL_V1_SCHEMA,
             "requests a scientific-state change; a producer may withdraw it, but only an authorized Decision changes accepted Standing",
             reference.root.clone(),
             json!({
