@@ -16,7 +16,7 @@ fn vela_bin() -> &'static str {
 
 /// Run vela in `dir` with a SCRUBBED environment (no VELA_* inherited)
 /// so the only possible source of the poisoned values is the .env file.
-fn init_frontier(dir: &std::path::Path) {
+fn init_repository(dir: &std::path::Path) {
     let out = Command::new(vela_bin())
         .current_dir(dir)
         .env("HOME", dir)
@@ -53,7 +53,7 @@ fn run_in(dir: &std::path::Path, args: &[&str]) -> std::process::Output {
 #[test]
 fn command_errors_use_stable_exit_codes() {
     let tmp = tempfile::TempDir::new().unwrap();
-    init_frontier(tmp.path());
+    init_repository(tmp.path());
     // A failed signing attempt retains a resumable Repository Profile v1 shell. Until
     // `init` is rerun with a key, `replay` rejects it as a domain error rather
     // than falling through to a retired profile loader.

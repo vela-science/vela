@@ -188,7 +188,7 @@ fn method_manifest_binding(
     {
         return Err("Verification method path must be normalized printable text".into());
     }
-    let bytes = crate::bounded_file::read_bounded_frontier_file(
+    let bytes = crate::bounded_file::read_bounded_repository_file(
         repository_path,
         method_path,
         METHOD_MANIFEST_MAX_BYTES,

@@ -218,7 +218,7 @@ fn human_init_recovery_keeps_the_resume_command_human_readable() {
 }
 
 #[test]
-fn init_creates_a_signed_ready_frontier_in_one_command() {
+fn init_creates_a_signed_ready_repository_in_one_command() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let agent = EphemeralAgent::start(temporary.path(), "vela one-step init test");
     let repository_path = temporary.path().join("repository_path");
@@ -354,14 +354,14 @@ fn a_colliding_trust_pin_is_not_reported_as_a_signing_failure() {
     let first_root = temporary.path().join("first");
     std::fs::create_dir_all(&first_root).expect("first agent root");
     let first_agent = EphemeralAgent::start(&first_root, "vela pin collision first");
-    let first_frontier = temporary.path().join("first/repository");
-    let first_frontier_text = first_frontier.to_string_lossy().into_owned();
+    let first_repository = temporary.path().join("first/repository");
+    let first_repository_text = first_repository.to_string_lossy().into_owned();
     let established = run(
         temporary.path(),
         Some(first_agent.socket()),
         &[
             "init",
-            &first_frontier_text,
+            &first_repository_text,
             "--name",
             &name,
             "--scope",
@@ -382,11 +382,11 @@ fn a_colliding_trust_pin_is_not_reported_as_a_signing_failure() {
     let second_root = temporary.path().join("second");
     std::fs::create_dir_all(&second_root).expect("second agent root");
     let second_agent = EphemeralAgent::start(&second_root, "vela pin collision second");
-    let second_frontier = temporary.path().join("second/repository");
-    let second_frontier_text = second_frontier.to_string_lossy().into_owned();
+    let second_repository = temporary.path().join("second/repository");
+    let second_repository_text = second_repository.to_string_lossy().into_owned();
     // Copy the first repository's retained bootstrap, which carries its exact
     // repository_id, and resume `vela init` there against the second key.
-    std::fs::create_dir_all(second_frontier.join(".vela")).expect("second bootstrap .vela");
+    std::fs::create_dir_all(second_repository.join(".vela")).expect("second bootstrap .vela");
     for retained in [
         "vela.toml",
         "README.md",
@@ -396,14 +396,14 @@ fn a_colliding_trust_pin_is_not_reported_as_a_signing_failure() {
         ".gitattributes",
     ] {
         std::fs::copy(
-            first_frontier.join(retained),
-            second_frontier.join(retained),
+            first_repository.join(retained),
+            second_repository.join(retained),
         )
         .unwrap_or_else(|error| panic!("copy retained bootstrap {retained}: {error}"));
     }
     let git = Command::new("git")
         .args(["init", "--quiet", "-b", "main"])
-        .arg(&second_frontier)
+        .arg(&second_repository)
         .output()
         .expect("git init the copied bootstrap");
     assert!(
@@ -414,7 +414,7 @@ fn a_colliding_trust_pin_is_not_reported_as_a_signing_failure() {
     let collided = run(
         temporary.path(),
         Some(second_agent.socket()),
-        &["init", &second_frontier_text, "--json"],
+        &["init", &second_repository_text, "--json"],
     );
     assert_eq!(collided.status.code(), Some(1));
     let collided = json(&collided);

@@ -62,7 +62,7 @@ impl Drop for RemoveOnDrop {
     }
 }
 
-fn initialized_frontier(temporary: &Path, agent: &EphemeralAgent) -> (String, RemoveOnDrop) {
+fn initialized_repository(temporary: &Path, agent: &EphemeralAgent) -> (String, RemoveOnDrop) {
     std::fs::create_dir_all(temporary.join("home")).expect("isolated home");
     let repository_path = temporary.join("repository_path");
     let text = repository_path.to_string_lossy().into_owned();
@@ -102,7 +102,7 @@ signing agents starting concurrently in the same process race each other. */
 fn json_changes_what_a_read_verb_prints() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let agent = EphemeralAgent::start(temporary.path(), "vela human output test");
-    let (repository_path, _anchor) = initialized_frontier(temporary.path(), &agent);
+    let (repository_path, _anchor) = initialized_repository(temporary.path(), &agent);
 
     for verb in [
         vec!["log", repository_path.as_str(), "--limit", "5"],

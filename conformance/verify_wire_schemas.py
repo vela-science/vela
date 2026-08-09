@@ -93,7 +93,7 @@ def verify_manifest() -> None:
 
 
 def status_document(**overrides: object) -> dict:
-    """A replaying Frontier's `vela.status.v4`, as the CLI emits it."""
+    """A replaying Repository's `vela.status.v4`, as the CLI emits it."""
     document = {
         "schema": "vela.status.v4",
         "ok": True,
@@ -179,7 +179,7 @@ def verify_status_read_surface() -> tuple[int, int]:
     replaying = status_document()
     check.validate(replaying)
 
-    # A Frontier whose repository authority has not finished initializing
+    # A Repository whose repository authority has not finished initializing
     # answers the same document, with the anchors it does not have yet null.
     bootstrapping = status_document(
         git={"role": "repository_head", "commit": None, "tree": None},

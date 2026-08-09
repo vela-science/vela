@@ -120,7 +120,7 @@ pub(crate) fn author_submission(
             ));
         }
         let read_limit = public_artifact_read_limit(total_artifact_bytes, index)?;
-        let bytes = crate::bounded_file::read_bounded_frontier_file(
+        let bytes = crate::bounded_file::read_bounded_repository_file(
             repository_path,
             relative,
             read_limit,
@@ -248,7 +248,7 @@ pub(crate) fn prepare_submission_artifacts(
         let canonical_relative = Path::new(&canonical_path);
         let canonical_target = repository_path.join(canonical_relative);
         let bytes = if canonical_target.exists() {
-            let bytes = crate::bounded_file::read_bounded_frontier_file(
+            let bytes = crate::bounded_file::read_bounded_repository_file(
                 repository_path,
                 canonical_relative,
                 limit,
@@ -301,7 +301,7 @@ pub(crate) fn prepare_submission_artifacts(
             )
             .map_err(|error| public_artifact_read_error(error, limit, index))?
         } else {
-            crate::bounded_file::read_bounded_frontier_file(
+            crate::bounded_file::read_bounded_repository_file(
                 repository_path,
                 relative,
                 limit,
@@ -343,7 +343,7 @@ pub(crate) fn submission_publication_inputs(
     repository_path: &Path,
     submission: &SubmissionRecordV2,
 ) -> Result<Vec<PathBuf>, String> {
-    let canonical_frontier = repository_path
+    let canonical_repository = repository_path
         .canonicalize()
         .map_err(|error| format!("canonicalize repository: {error}"))?;
     let mut inputs = submission
@@ -351,7 +351,7 @@ pub(crate) fn submission_publication_inputs(
         .artifacts
         .iter()
         .map(|artifact| PathBuf::from(&artifact.path))
-        .filter_map(|relative| canonical_submission_input(&canonical_frontier, &relative))
+        .filter_map(|relative| canonical_submission_input(&canonical_repository, &relative))
         .collect::<Vec<_>>();
     inputs.sort();
     inputs.dedup();
@@ -599,7 +599,7 @@ mod tests {
     }
 
     #[test]
-    fn submission_preflight_input_is_absolute_and_frontier_bound() {
+    fn submission_preflight_input_is_absolute_and_repository_bound() {
         let temporary = tempfile::tempdir().expect("temporary repository");
         let repository_path = temporary
             .path()

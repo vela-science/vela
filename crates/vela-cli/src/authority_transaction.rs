@@ -1358,7 +1358,7 @@ where
     T: Serialize + serde::de::DeserializeOwned,
 {
     const MAX_AUTHORITY_MEMBER_BYTES: u64 = 16 * 1024 * 1024;
-    let bytes = crate::bounded_file::read_bounded_frontier_file(
+    let bytes = crate::bounded_file::read_bounded_repository_file(
         repository_root,
         Path::new(path.as_str()),
         MAX_AUTHORITY_MEMBER_BYTES,

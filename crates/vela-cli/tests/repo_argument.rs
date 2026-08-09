@@ -168,7 +168,7 @@ impl Fixture {
 }
 
 #[test]
-fn one_frontier_convention_across_the_surface() {
+fn one_repository_convention_across_the_surface() {
     let fixture = Fixture::build();
     let repository_path = fixture.repository_path.to_string_lossy().into_owned();
     let repository_path = repository_path.as_str();
