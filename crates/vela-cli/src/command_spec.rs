@@ -304,7 +304,7 @@ pub(crate) enum Commands {
         //
         // The field and its prefix keep the retired spelling because they are
         // wire: `provenance.source_attempt` and `vat_` are published in
-        // `schemas/submission-v1.schema.json`, so moving them is a schema
+        // `schemas/submission-v2.schema.json`, so moving them is a schema
         // change and not a wording one. `docs/ECOSYSTEM.md` §6 records it.
         /// Workbench run this result came out of, as `vat_<64 hex>`.
         #[arg(long, conflicts_with = "submission")]

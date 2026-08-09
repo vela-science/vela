@@ -13,9 +13,9 @@ use serde::Serialize;
 use serde_json::json;
 use sha2::Digest;
 use vela_protocol::proposal_v1::ProposalV1;
-use vela_protocol::proposal_withdrawal_v1::ProposalWithdrawalV1;
+use vela_protocol::proposal_withdrawal_v2::ProposalWithdrawalEnvelopeV2;
 use vela_protocol::repository::{RepositoryObjectRefV1, RepositoryV4};
-use vela_protocol::submission_v1::SubmissionV1;
+use vela_protocol::submission_v2::SubmissionRecordV2;
 
 use crate::authority_transaction::AuthorityObjectDraft;
 use crate::config::git_publish::{
@@ -68,14 +68,14 @@ fn proposal_package(
     repository_path: &Path,
     repository: &RepositoryV4,
     proposal_id: &str,
-) -> Result<(ProposalV1, String, SubmissionV1), String> {
+) -> Result<(ProposalV1, String, SubmissionRecordV2), String> {
     let proposal_reference = repository
         .proposals
         .iter()
         .find(|reference| reference.id == proposal_id)
         .ok_or_else(|| format!("current repository has no exact Proposal {proposal_id}"))?;
     let proposal = ProposalV1::parse(&read_exact(repository_path, proposal_reference)?)?;
-    if proposal.proposal_id != proposal_reference.id
+    if proposal.id() != proposal_reference.id
         || proposal.canonical_root()? != proposal_reference.root
     {
         return Err("stored Proposal differs from its repository reference".into());
@@ -89,9 +89,10 @@ fn proposal_package(
                 && reference.path == proposal.producer_package.path
         })
         .ok_or_else(|| "Proposal does not bind one exact retained Submission".to_string())?;
-    let submission = SubmissionV1::parse(&read_exact(repository_path, submission_reference)?)?;
-    if submission.submission_id != submission_reference.id
-        || submission.canonical_root()? != submission_reference.root
+    let submission =
+        SubmissionRecordV2::parse(&read_exact(repository_path, submission_reference)?)?;
+    if submission.id != submission_reference.id
+        || submission.root.clone() != submission_reference.root
     {
         return Err("stored Submission differs from its repository reference".into());
     }
@@ -132,23 +133,23 @@ fn existing_outcome(
     let Some(withdrawal) = withdrawals.get(proposal_id) else {
         return Ok(None);
     };
-    if withdrawal.actor != actor || withdrawal.reason != reason {
+    if withdrawal.withdrawal.actor != actor || withdrawal.withdrawal.reason != reason {
         return Err(format!(
             "Proposal {proposal_id} is already withdrawn by {} with a different exact request",
-            withdrawal.actor
+            withdrawal.withdrawal.actor
         ));
     }
-    let root = withdrawal.canonical_root()?;
+    let root = withdrawal.root.clone();
     let operation_id = OperationId::derive("proposal-withdraw", root.as_bytes());
     Ok(Some(ProposalWithdrawalOutcome {
         schema: "vela.proposal-withdrawal-result.v1",
         ok: true,
         command: COMMAND,
         operation_id: operation_id.as_str().into(),
-        withdrawal_id: withdrawal.withdrawal_id.clone(),
+        withdrawal_id: withdrawal.id.clone(),
         withdrawal_root: root,
-        proposal_id: withdrawal.proposal_id.clone(),
-        submission_id: withdrawal.submission_id.clone(),
+        proposal_id: withdrawal.withdrawal.proposal_id.clone(),
+        submission_id: withdrawal.withdrawal.submission_id.clone(),
         standing: "withdrawn",
         accepted_event_delta: 0,
         accepted_state_changed: false,
@@ -195,8 +196,8 @@ pub(crate) fn withdraw(
     let (proposal, proposal_root, submission) =
         proposal_package(repository_path, &repository, proposal_id)?;
     if actor != proposal.actor
-        || actor != submission.provenance.producer
-        || actor != submission.authentication.identity_binding.actor_id
+        || actor != submission.submission.provenance.producer
+        || actor != submission.submission.identity.actor_id
     {
         return Err("proposal withdrawal actor must own the exact retained Submission".into());
     }
@@ -214,16 +215,15 @@ pub(crate) fn withdraw(
 
     let created_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
     let key = vela_edge::agent_identity::existing_agent_signing_key(actor)?;
-    let withdrawal = ProposalWithdrawalV1::build(
+    let withdrawal = ProposalWithdrawalEnvelopeV2::seal(
         &proposal,
-        proposal_root.clone(),
         &submission,
         actor.into(),
         reason.into(),
         created_at.clone(),
         &key,
     )?;
-    let withdrawal_root = withdrawal.canonical_root()?;
+    let withdrawal_root = withdrawal.root.clone();
     let withdrawal_path =
         crate::submission::rooted_path("records/proposal-withdrawals/sha256", &withdrawal_root)?;
 
@@ -240,8 +240,8 @@ pub(crate) fn withdraw(
     crate::submission::add_object_ref(
         &mut next.proposal_withdrawals,
         RepositoryObjectRefV1 {
-            schema: withdrawal.schema.clone(),
-            id: withdrawal.withdrawal_id.clone(),
+            schema: withdrawal.withdrawal.schema.clone(),
+            id: withdrawal.id.clone(),
             root: withdrawal_root.clone(),
             path: withdrawal_path.clone(),
         },
@@ -251,7 +251,7 @@ pub(crate) fn withdraw(
     let request_root = request_root(
         &held,
         &proposal_root,
-        &submission.canonical_root()?,
+        &submission.root.clone(),
         actor,
         reason,
     )?;
@@ -267,7 +267,7 @@ pub(crate) fn withdraw(
         },
         InputBinding {
             name: "submission".into(),
-            digest: ContentDigest::parse(submission.canonical_root()?)
+            digest: ContentDigest::parse(submission.root.clone())
                 .map_err(|error| error.to_string())?,
         },
     ];
@@ -276,7 +276,7 @@ pub(crate) fn withdraw(
             path: withdrawal_path,
             object_kind: "proposal_withdrawal".into(),
             class: WriteClass::PublicReview,
-            postimage: Some(withdrawal.canonical_bytes()?),
+            postimage: Some(withdrawal.bytes.clone()),
         },
         AuthorityObjectDraft {
             path: ".vela/repository.json".into(),
@@ -327,7 +327,7 @@ pub(crate) fn withdraw(
     let publication = publish_exact_delta(
         repository_path,
         "proposal withdraw",
-        std::slice::from_ref(&withdrawal.withdrawal_id),
+        std::slice::from_ref(&withdrawal.id),
         &delta,
         preflight,
     )
@@ -353,10 +353,10 @@ pub(crate) fn withdraw(
         ok: true,
         command: COMMAND,
         operation_id: operation_id.as_str().into(),
-        withdrawal_id: withdrawal.withdrawal_id,
+        withdrawal_id: withdrawal.id,
         withdrawal_root,
-        proposal_id: withdrawal.proposal_id,
-        submission_id: withdrawal.submission_id,
+        proposal_id: withdrawal.withdrawal.proposal_id,
+        submission_id: withdrawal.withdrawal.submission_id,
         standing: "withdrawn",
         accepted_event_delta: 0,
         accepted_state_changed: false,

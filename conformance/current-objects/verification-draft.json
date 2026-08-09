@@ -4,9 +4,10 @@
     "artifact_ids": [
       "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
     ],
-    "submission_id": "vsb_8a36cdb336823499",
-    "submission_root": "sha256:81fd3abb891383dfc985d213b01b779f2edd51e6da23a68d3f85e0c8f6c41b82",
-    "proposal_id": "vpr_0123456789abcdef"
+    "submission_id": "vsb_8779dcb8999d6030",
+    "submission_root": "sha256:8779dcb8999d6030c234a14fe3af0e3745b84e513c9791913c128d0750c86830",
+    "proposal_id": "vpr_cccccccccccccccc",
+    "proposal_root": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccd"
   },
   "method": {
     "profile": "fixture-recompute-v1",
@@ -20,7 +21,6 @@
     ]
   },
   "outcome": "pass",
-  "verifier": "verifier:independent-js",
   "independence": {
     "declared_independent_of": [
       "agent:independent-js"

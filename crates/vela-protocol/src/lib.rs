@@ -15,8 +15,8 @@ mod shape;
 /// `shape.rs` was written to write down once was written down eleven more
 /// times, in two different spellings, in `vela-edge` and `vela-cli`.
 pub use shape::{
-    REPOSITORY_ID_HEX_LEN, is_full_sha256_root, is_lower_hex, is_lower_hex_64,
-    is_prefixed_lower_hex,
+    HANDLE_HEX_LEN, REPOSITORY_ID_HEX_LEN, derive_handle, is_full_sha256_root, is_lower_hex,
+    is_lower_hex_64, is_prefixed_lower_hex,
 };
 pub mod wire_schema;
 
@@ -27,8 +27,8 @@ pub use kernel::{
 };
 mod objects;
 pub use objects::{
-    claim_record, execution_binding, identity, proposal_v1, proposal_withdrawal_v1, repository,
-    repository_inputs, repository_origin, submission_v1, verification_record,
+    claim_record, execution_binding, proposal_v1, proposal_withdrawal_v2, repository,
+    repository_inputs, repository_origin, signer_identity, submission_v2, verification_record_v2,
 };
 mod read_surface;
 pub use read_surface::status_v4;

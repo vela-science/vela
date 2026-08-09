@@ -1,79 +1,50 @@
 {
-  "$id": "https://vela.science/schemas/verification-record-v1.schema.json",
+  "$id": "https://vela.science/schemas/verification-record-v2.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
-    "authentication": {
+    "completed_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "identity": {
       "additionalProperties": false,
       "properties": {
-        "algorithm": {
-          "const": "ed25519",
+        "actor_class": {
+          "enum": [
+            "human",
+            "agent",
+            "org"
+          ],
           "type": "string"
         },
-        "identity_binding": {
-          "additionalProperties": false,
-          "properties": {
-            "actor_class": {
-              "enum": [
-                "human",
-                "agent",
-                "org"
-              ],
-              "type": "string"
-            },
-            "actor_id": {
-              "maxLength": 16384,
-              "minLength": 1,
-              "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
-              "type": "string"
-            },
-            "binding_id": {
-              "pattern": "^vib_[0-9a-f]{16}$",
-              "type": "string"
-            },
-            "created_at": {
-              "format": "date-time",
-              "type": "string"
-            },
-            "public_key_hex": {
-              "pattern": "^[0-9a-f]{64}$",
-              "type": "string"
-            },
-            "schema": {
-              "const": "vela.identity_binding.v0.1",
-              "type": "string"
-            },
-            "signature": {
-              "pattern": "^[0-9a-f]{128}$",
-              "type": "string"
-            }
-          },
-          "required": [
-            "schema",
-            "binding_id",
-            "actor_id",
-            "actor_class",
-            "public_key_hex",
-            "created_at",
-            "signature"
-          ],
-          "type": "object"
+        "actor_id": {
+          "maxLength": 16384,
+          "minLength": 1,
+          "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+          "type": "string"
         },
-        "signature": {
-          "pattern": "^[0-9a-f]{128}$",
+        "declared_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "public_key_hex": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "schema": {
+          "const": "vela.signer-identity.v1",
           "type": "string"
         }
       },
       "required": [
-        "algorithm",
-        "identity_binding",
-        "signature"
+        "schema",
+        "actor_id",
+        "actor_class",
+        "public_key_hex",
+        "declared_at"
       ],
       "type": "object"
-    },
-    "completed_at": {
-      "format": "date-time",
-      "type": "string"
     },
     "independence": {
       "additionalProperties": false,
@@ -147,7 +118,7 @@
       "type": "array"
     },
     "schema": {
-      "const": "vela.verification-record.v1",
+      "const": "vela.verification-record.v2",
       "type": "string"
     },
     "scope": {
@@ -195,11 +166,15 @@
           "type": "string"
         },
         "proposal_id": {
-          "pattern": "^vpr_.+$",
+          "pattern": "^vpr_[0-9a-f]{16}$",
+          "type": "string"
+        },
+        "proposal_root": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
           "type": "string"
         },
         "submission_id": {
-          "pattern": "^vsb_.+$",
+          "pattern": "^vsb_[0-9a-f]{16}$",
           "type": "string"
         },
         "submission_root": {
@@ -212,35 +187,24 @@
         "artifact_ids",
         "submission_id",
         "submission_root",
-        "proposal_id"
+        "proposal_id",
+        "proposal_root"
       ],
       "type": "object"
-    },
-    "verification_record_id": {
-      "pattern": "^vvr_[0-9a-f]{16}$",
-      "type": "string"
-    },
-    "verifier": {
-      "maxLength": 16384,
-      "minLength": 1,
-      "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
-      "type": "string"
     }
   },
   "required": [
     "schema",
-    "verification_record_id",
+    "identity",
     "subject",
     "method",
     "scope",
     "outcome",
-    "verifier",
     "independence",
     "output_artifact_ids",
     "started_at",
-    "completed_at",
-    "authentication"
+    "completed_at"
   ],
-  "title": "Vela Verification Record v1",
+  "title": "Vela Verification Record v2",
   "type": "object"
 }

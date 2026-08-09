@@ -12,7 +12,7 @@ use vela_protocol::authority_history::AuthorityInitializationV1;
 use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::events::{EventKind, NULL_HASH};
 use vela_protocol::proposal_v1::ProposalV1;
-use vela_protocol::proposal_withdrawal_v1::ProposalWithdrawalV1;
+use vela_protocol::proposal_withdrawal_v2::ProposalWithdrawalEnvelopeV2;
 use vela_protocol::repository::{
     ClaimStandingRefV1, RepositoryObjectRefV1, RepositoryProfileV1, RepositoryV4,
 };
@@ -22,8 +22,8 @@ use vela_protocol::status_v4::{
     StatusIntegrity, StatusRepository, StatusReviewAction, StatusRoots, StatusV4, StatusWork,
     StatusWorkAction, StrictState,
 };
-use vela_protocol::submission_v1::SubmissionV1;
-use vela_protocol::verification_record::VerificationRecordV1;
+use vela_protocol::submission_v2::SubmissionRecordV2;
+use vela_protocol::verification_record_v2::VerificationRecordEnvelopeV2;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub(crate) struct ProposalDecision {
@@ -755,14 +755,32 @@ pub(crate) fn load_current_proposal_standings(
 pub(crate) fn load_current_proposal_withdrawals(
     repository_path: &Path,
     repository: &RepositoryV4,
-) -> Result<BTreeMap<String, ProposalWithdrawalV1>, String> {
+) -> Result<BTreeMap<String, ProposalWithdrawalEnvelopeV2>, String> {
     let mut withdrawals = BTreeMap::new();
     for reference in &repository.proposal_withdrawals {
         let bytes = read_rooted_object(repository_path, &reference.path, &reference.root)?;
-        let withdrawal = ProposalWithdrawalV1::parse(&bytes)?;
-        if withdrawal.withdrawal_id != reference.id
-            || withdrawal.canonical_root()? != reference.root
-        {
+        /* A withdrawal declares no key of its own: it is signed by whoever
+        signed the Submission behind it, so the retained Submission has to be
+        found before the signature can be checked at all. */
+        let (declared_id, declared_root) =
+            ProposalWithdrawalEnvelopeV2::declared_submission(&bytes)?;
+        let submission_reference = repository
+            .submissions
+            .iter()
+            .find(|candidate| candidate.id == declared_id && candidate.root == declared_root)
+            .ok_or_else(|| {
+                format!(
+                    "Proposal Withdrawal {} does not bind one exact retained Submission",
+                    reference.id
+                )
+            })?;
+        let submission = SubmissionRecordV2::parse(&read_rooted_object(
+            repository_path,
+            &submission_reference.path,
+            &submission_reference.root,
+        )?)?;
+        let withdrawal = ProposalWithdrawalEnvelopeV2::parse(&bytes, &submission)?;
+        if withdrawal.id != reference.id || withdrawal.root != reference.root {
             return Err(format!(
                 "current Proposal Withdrawal {} differs from its repository reference",
                 reference.id
@@ -772,12 +790,13 @@ pub(crate) fn load_current_proposal_withdrawals(
             .proposals
             .iter()
             .find(|candidate| {
-                candidate.id == withdrawal.proposal_id && candidate.root == withdrawal.proposal_root
+                candidate.id == withdrawal.withdrawal.proposal_id
+                    && candidate.root == withdrawal.withdrawal.proposal_root
             })
             .ok_or_else(|| {
                 format!(
                     "Proposal Withdrawal {} does not bind one exact retained Proposal",
-                    withdrawal.withdrawal_id
+                    withdrawal.id
                 )
             })?;
         let proposal = ProposalV1::parse(&read_rooted_object(
@@ -785,32 +804,14 @@ pub(crate) fn load_current_proposal_withdrawals(
             &proposal_reference.path,
             &proposal_reference.root,
         )?)?;
-        let submission_reference = repository
-            .submissions
-            .iter()
-            .find(|candidate| {
-                candidate.id == withdrawal.submission_id
-                    && candidate.root == withdrawal.submission_root
-            })
-            .ok_or_else(|| {
-                format!(
-                    "Proposal Withdrawal {} does not bind one exact retained Submission",
-                    withdrawal.withdrawal_id
-                )
-            })?;
-        let submission = SubmissionV1::parse(&read_rooted_object(
-            repository_path,
-            &submission_reference.path,
-            &submission_reference.root,
-        )?)?;
         withdrawal.verify_with(&proposal, &submission)?;
         if withdrawals
-            .insert(withdrawal.proposal_id.clone(), withdrawal)
+            .insert(withdrawal.withdrawal.proposal_id.clone(), withdrawal)
             .is_some()
         {
             return Err(format!(
                 "current Proposal {} has more than one Withdrawal",
-                proposal.proposal_id
+                proposal.id()
             ));
         }
     }
@@ -868,7 +869,7 @@ fn validate_current_proposal_standing(
     for reference in &repository.proposals {
         let bytes = read_rooted_object(root, &reference.path, &reference.root)?;
         let proposal = ProposalV1::parse(&bytes)?;
-        if standings.get(&proposal.proposal_id).map(String::as_str) != Some("accepted") {
+        if standings.get(&proposal.id()).map(String::as_str) != Some("accepted") {
             continue;
         }
         let claim = rooted_claim_for_proposal(root, &proposal)?;
@@ -891,9 +892,9 @@ fn validate_current_proposal_standing(
             candidate.claim_id == proposal.subject.id
                 && candidate.claim_root == proposal.subject.root
         });
-        let decision = decisions.get(&proposal.proposal_id);
+        let decision = decisions.get(&proposal.id());
         let standing = standings
-            .get(&proposal.proposal_id)
+            .get(&proposal.id())
             .map(String::as_str)
             .unwrap_or("pending_review");
         let expected = match (proposal.action.as_str(), standing) {
@@ -916,14 +917,14 @@ fn validate_current_proposal_standing(
             (action, standing) => {
                 return Err(format!(
                     "current Proposal {} has unsupported action/standing {action}/{standing}",
-                    proposal.proposal_id
+                    proposal.id()
                 ));
             }
         };
         if (pending, accepted) != expected {
             return Err(format!(
                 "current Proposal {} standing disagrees with the repository Claim indexes",
-                proposal.proposal_id
+                proposal.id()
             ));
         }
         let Some(decision) = decision else {
@@ -944,7 +945,7 @@ fn validate_current_proposal_standing(
                 .payload
                 .get("proposal_id")
                 .and_then(Value::as_str)
-                != Some(proposal.proposal_id.as_str())
+                != Some(proposal.id().as_str())
             || applied
                 .content
                 .payload
@@ -954,7 +955,7 @@ fn validate_current_proposal_standing(
         {
             return Err(format!(
                 "current Proposal {} applied event has the wrong actor or object binding",
-                proposal.proposal_id
+                proposal.id()
             ));
         }
         let transition_matches = match proposal.action.as_str() {
@@ -987,7 +988,7 @@ fn validate_current_proposal_standing(
         if !transition_matches {
             return Err(format!(
                 "current Proposal {} applied event does not match its exact transition",
-                proposal.proposal_id
+                proposal.id()
             ));
         }
     }
@@ -1025,8 +1026,8 @@ pub(crate) fn cmd_review_list(
                 .unwrap_or_else(|error| crate::cli::fail_return(&error));
             let proposal =
                 ProposalV1::parse(&bytes).unwrap_or_else(|error| crate::cli::fail_return(&error));
-            let decision = decisions.get(&proposal.proposal_id);
-            let withdrawal = withdrawals.get(&proposal.proposal_id);
+            let decision = decisions.get(&proposal.id());
+            let withdrawal = withdrawals.get(&proposal.id());
             let standing = decision.map_or_else(
                 || {
                     if withdrawal.is_some() {
@@ -1043,7 +1044,7 @@ pub(crate) fn cmd_review_list(
             Some((
                 proposal.created_at.clone(),
                 json!({
-                    "proposal_id": proposal.proposal_id,
+                    "proposal_id": proposal.id(),
                     "proposal_root": reference.root,
                     "created_at": proposal.created_at,
                     "action": proposal.action,
@@ -1055,7 +1056,7 @@ pub(crate) fn cmd_review_list(
                     "reason": proposal.reason,
                     "caveats": proposal.caveats,
                     "decision": decision,
-                    "withdrawal": withdrawal
+                    "withdrawal": withdrawal.map(|value| &value.withdrawal)
                 }),
             ))
         })
@@ -1174,7 +1175,7 @@ pub(crate) fn cmd_review_show(repository_path: &Path, proposal_id: &str, json_ou
         &submission_reference.root,
     )
     .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let submission = vela_protocol::submission_v1::SubmissionV1::parse(&submission_bytes)
+    let submission = vela_protocol::submission_v2::SubmissionRecordV2::parse(&submission_bytes)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let verifications = repository
         .verifications
@@ -1183,11 +1184,11 @@ pub(crate) fn cmd_review_show(repository_path: &Path, proposal_id: &str, json_ou
             let bytes =
                 read_rooted_object(&repository_path, &verification.path, &verification.root)
                     .unwrap_or_else(|error| crate::cli::fail_return(&error));
-            let record = VerificationRecordV1::parse(&bytes)
+            let record = VerificationRecordEnvelopeV2::parse(&bytes)
                 .unwrap_or_else(|error| crate::cli::fail_return(&error));
             verification_targets_proposal(&proposal, &claim, &record).then_some(json!({
                 "verification_record_root": verification.root,
-                "record": record
+                "record": record.record
             }))
         })
         .collect::<Vec<_>>();
@@ -1201,15 +1202,15 @@ pub(crate) fn cmd_review_show(repository_path: &Path, proposal_id: &str, json_ou
         "command": "review.show",
         "repository_id": repository.repository_id,
         "repository_root": repository.canonical_root().unwrap_or_else(|error| crate::cli::fail_return(&error)),
-        "proposal_id": proposal.proposal_id,
+        "proposal_id": proposal.id(),
         "proposal_root": reference.root,
         "status": status,
         "proposal": proposal,
         "claim": claim,
-        "submission": submission,
+        "submission": submission.submission,
         "verification_records": verifications,
         "decision": decision,
-        "withdrawal": withdrawal,
+        "withdrawal": withdrawal.map(|value| &value.withdrawal),
         "decision_inbox": decision_inbox,
         "authority_boundary": "Verification records report bounded checks. A producer may close its own pending Proposal; only a repository-authority Decision can change accepted scientific Standing.",
     });
@@ -1267,15 +1268,15 @@ pub(crate) fn cmd_review_show(repository_path: &Path, proposal_id: &str, json_ou
 pub(crate) fn verification_targets_proposal(
     proposal: &ProposalV1,
     claim: &ClaimRecordV1,
-    record: &VerificationRecordV1,
+    record: &VerificationRecordEnvelopeV2,
 ) -> bool {
     if claim.claim_id != proposal.subject.id {
         return false;
     }
-    record.subject.proposal_id == proposal.proposal_id
-        && record.subject.claim_id == proposal.subject.id
-        && record.subject.submission_id == proposal.producer_package.id
-        && record.subject.submission_root == proposal.producer_package.root
+    record.record.subject.proposal_id == proposal.id()
+        && record.record.subject.claim_id == proposal.subject.id
+        && record.record.subject.submission_id == proposal.producer_package.id
+        && record.record.subject.submission_root == proposal.producer_package.root
 }
 
 fn rooted_claim_for_proposal(root: &Path, proposal: &ProposalV1) -> Result<ClaimRecordV1, String> {
@@ -1286,7 +1287,7 @@ fn rooted_claim_for_proposal(root: &Path, proposal: &ProposalV1) -> Result<Claim
     if claim.canonical_bytes()? != claim_bytes || claim.claim_id != proposal.subject.id {
         return Err(format!(
             "current Proposal {} has the wrong canonical Claim bytes",
-            proposal.proposal_id
+            proposal.id()
         ));
     }
     Ok(claim)
@@ -1295,7 +1296,7 @@ fn rooted_claim_for_proposal(root: &Path, proposal: &ProposalV1) -> Result<Claim
 fn verification_targets_rooted_proposal(
     root: &Path,
     proposal: &ProposalV1,
-    record: &VerificationRecordV1,
+    record: &VerificationRecordEnvelopeV2,
 ) -> Result<bool, String> {
     let claim = rooted_claim_for_proposal(root, proposal)?;
     Ok(verification_targets_proposal(proposal, &claim, record))
@@ -1304,13 +1305,15 @@ fn verification_targets_rooted_proposal(
 fn proposal_matches_signed_submission(
     proposal: &ProposalV1,
     claim: &ClaimRecordV1,
-    submission: &SubmissionV1,
+    submission: &SubmissionRecordV2,
 ) -> Result<(), String> {
-    if proposal.actor != submission.provenance.producer || proposal.caveats != submission.caveats {
+    if proposal.actor != submission.submission.provenance.producer
+        || proposal.caveats != submission.submission.caveats
+    {
         return Err("Proposal actor or caveats disagree with its signed Submission".into());
     }
 
-    let expected_action = match submission.requested_change.kind.as_str() {
+    let expected_action = match submission.submission.requested_change.kind.as_str() {
         "add_claim" => "claim.add",
         "correct_claim" | "supersede_claim" => "claim.revise",
         "retract_claim" => "claim.withdraw",
@@ -1322,6 +1325,7 @@ fn proposal_matches_signed_submission(
 
     if proposal.action == "claim.withdraw" {
         let target = submission
+            .submission
             .requested_change
             .target
             .as_ref()
@@ -1332,17 +1336,18 @@ fn proposal_matches_signed_submission(
         return Ok(());
     }
 
-    if claim.assertion.text != submission.claim.assertion
-        || claim.assertion.kind != submission.claim.claim_type
-        || claim.created_at != submission.provenance.emitted_at
+    if claim.assertion.text != submission.submission.claim.assertion
+        || claim.assertion.kind != submission.submission.claim.claim_type
+        || claim.created_at != submission.submission.provenance.emitted_at
         || !claim.extensions.is_empty()
     {
         return Err("Proposal Claim body disagrees with its signed Submission".into());
     }
 
-    let mut expected_conditions = submission.claim.conditions.clone();
+    let mut expected_conditions = submission.submission.claim.conditions.clone();
     expected_conditions.extend(
         submission
+            .submission
             .caveats
             .iter()
             .map(|caveat| format!("Caveat: {caveat}")),
@@ -1352,6 +1357,7 @@ fn proposal_matches_signed_submission(
     }
 
     let expected_evidence = submission
+        .submission
         .artifacts
         .iter()
         .map(|artifact| {
@@ -1383,16 +1389,16 @@ fn proposal_matches_signed_submission(
         return Err("Proposal Claim evidence disagrees with its signed Submission".into());
     }
 
-    let relation_matches = match submission.requested_change.kind.as_str() {
+    let relation_matches = match submission.submission.requested_change.kind.as_str() {
         "add_claim" => claim.revision == 1 && claim.relations.is_empty(),
         "correct_claim" | "supersede_claim" => {
-            let target = submission.requested_change.target.as_ref();
+            let target = submission.submission.requested_change.target.as_ref();
             claim.revision > 1
                 && claim.relations.len() == 1
                 && target.is_some_and(|target| {
                     claim.relations[0].target_claim_id == target.claim_id
                         && claim.relations[0].kind
-                            == if submission.requested_change.kind == "correct_claim" {
+                            == if submission.submission.requested_change.kind == "correct_claim" {
                                 "corrects"
                             } else {
                                 "supersedes"
@@ -1407,9 +1413,8 @@ fn proposal_matches_signed_submission(
 
     if claim.provenance.len() != 1
         || claim.provenance[0].kind != "submission"
-        || claim.provenance[0].title
-            != format!("Authenticated Submission {}", submission.submission_id)
-        || claim.provenance[0].authors != [submission.provenance.producer.clone()]
+        || claim.provenance[0].title != format!("Authenticated Submission {}", submission.id)
+        || claim.provenance[0].authors != [submission.submission.provenance.producer.clone()]
     {
         return Err("Proposal Claim provenance disagrees with its signed Submission".into());
     }
@@ -1551,7 +1556,7 @@ pub(crate) fn verify_repository_at(
             .ok_or_else(|| format!("current object {} was not loaded", reference.path))?;
         let proposal = ProposalV1::parse(bytes)?;
         if proposal.canonical_bytes()?.as_slice() != bytes.as_slice()
-            || proposal.proposal_id != reference.id
+            || proposal.id() != reference.id
         {
             return Err(format!(
                 "{} does not contain the declared canonical Proposal",
@@ -1578,7 +1583,7 @@ pub(crate) fn verify_repository_at(
             ));
         }
         let submission =
-            SubmissionV1::parse(object_bytes.get(&submission_reference.path).ok_or_else(
+            SubmissionRecordV2::parse(object_bytes.get(&submission_reference.path).ok_or_else(
                 || {
                     format!(
                         "current object {} was not loaded",
@@ -1592,13 +1597,13 @@ pub(crate) fn verify_repository_at(
                 reference.path
             )
         })?;
-        if let Some(previous) = proposal_by_submission.insert(
-            proposal.producer_package.id.clone(),
-            proposal.proposal_id.clone(),
-        ) {
+        if let Some(previous) =
+            proposal_by_submission.insert(proposal.producer_package.id.clone(), proposal.id())
+        {
             return Err(format!(
                 "Submission {} is retained by multiple Proposals: {previous} and {}",
-                proposal.producer_package.id, proposal.proposal_id
+                proposal.producer_package.id,
+                proposal.id()
             ));
         }
     }
@@ -1606,16 +1611,15 @@ pub(crate) fn verify_repository_at(
         let bytes = object_bytes
             .get(&reference.path)
             .ok_or_else(|| format!("current object {} was not loaded", reference.path))?;
-        let submission = SubmissionV1::parse(bytes)?;
-        if submission.canonical_bytes()?.as_slice() != bytes.as_slice()
-            || submission.submission_id != reference.id
+        let submission = SubmissionRecordV2::parse(bytes)?;
+        if submission.bytes.clone().as_slice() != bytes.as_slice() || submission.id != reference.id
         {
             return Err(format!(
                 "{} does not contain the declared canonical Submission",
                 reference.path
             ));
         }
-        if !proposal_by_submission.contains_key(&submission.submission_id) {
+        if !proposal_by_submission.contains_key(&submission.id) {
             return Err(format!("{} has no exact retained Proposal", reference.path));
         }
     }
@@ -1623,10 +1627,8 @@ pub(crate) fn verify_repository_at(
         let bytes = object_bytes
             .get(&reference.path)
             .ok_or_else(|| format!("current object {} was not loaded", reference.path))?;
-        let verification = VerificationRecordV1::parse(bytes)?;
-        if verification.canonical_bytes()?.as_slice() != bytes.as_slice()
-            || verification.verification_record_id != reference.id
-        {
+        let verification = VerificationRecordEnvelopeV2::parse(bytes)?;
+        if verification.bytes.as_slice() != bytes.as_slice() || verification.id != reference.id {
             return Err(format!(
                 "{} does not contain the declared canonical Verification Record",
                 reference.path
@@ -1635,11 +1637,11 @@ pub(crate) fn verify_repository_at(
         let proposal_reference = repository
             .proposals
             .iter()
-            .find(|candidate| candidate.id == verification.subject.proposal_id)
+            .find(|candidate| candidate.id == verification.record.subject.proposal_id)
             .ok_or_else(|| {
                 format!(
                     "{} targets Proposal {} outside the current repository",
-                    reference.path, verification.subject.proposal_id
+                    reference.path, verification.record.subject.proposal_id
                 )
             })?;
         let proposal =
@@ -1655,14 +1657,14 @@ pub(crate) fn verify_repository_at(
         let submission_reference = repository
             .submissions
             .iter()
-            .find(|candidate| candidate.id == verification.subject.submission_id)
+            .find(|candidate| candidate.id == verification.record.subject.submission_id)
             .ok_or_else(|| {
                 format!(
                     "{} targets Submission {} outside the current repository",
-                    reference.path, verification.subject.submission_id
+                    reference.path, verification.record.subject.submission_id
                 )
             })?;
-        if submission_reference.root != verification.subject.submission_root
+        if submission_reference.root != verification.record.subject.submission_root
             || submission_reference.path != proposal.producer_package.path
         {
             return Err(format!(
@@ -1671,10 +1673,11 @@ pub(crate) fn verify_repository_at(
             ));
         }
         for artifact_id in verification
+            .record
             .subject
             .artifact_ids
             .iter()
-            .chain(&verification.output_artifact_ids)
+            .chain(&verification.record.output_artifact_ids)
         {
             if !repository
                 .artifacts
@@ -2675,12 +2678,12 @@ mod tests {
     use vela_protocol::authority::{AUTHORITY_MODE, AuthorityEventContentV1};
     use vela_protocol::claim_record::ClaimAssertion;
     use vela_protocol::events::{NULL_HASH, StateActor, StateTarget};
-    use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject};
-    use vela_protocol::submission_v1::{
+    use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
+    use vela_protocol::submission_v2::{
         RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
     };
-    use vela_protocol::verification_record::{
+    use vela_protocol::verification_record_v2::{
         IndependenceDisclosure, VerificationMethod, VerificationRecordDraft, VerificationScope,
         VerificationSubject,
     };
@@ -2759,20 +2762,13 @@ mod tests {
         }
     }
 
-    fn signed_submission_and_claim() -> (SubmissionV1, ClaimRecordV1) {
+    fn signed_submission_and_claim() -> (SubmissionRecordV2, ClaimRecordV1) {
         let key = SigningKey::from_bytes(&[71_u8; 32]);
         let producer = "agent:proposal-binding-fixture";
         let emitted_at = "2026-07-27T00:00:00Z";
-        let identity = IdentityBinding::build(
-            IdentityBindingDraft {
-                actor_id: producer.into(),
-                actor_class: ActorClass::Agent,
-                created_at: emitted_at.into(),
-            },
-            &key,
-        )
-        .unwrap();
-        let submission = SubmissionV1::build(
+        let identity =
+            SignerIdentityV1::new(producer, ActorClass::Agent, &key, emitted_at).unwrap();
+        let submission = SubmissionRecordV2::seal(
             SubmissionDraft {
                 claim: SubmissionClaim {
                     assertion: "An exact bounded search completed.".into(),
@@ -2804,20 +2800,20 @@ mod tests {
         let claim = ClaimRecordV1::build(
             1,
             ClaimAssertion {
-                text: submission.claim.assertion.clone(),
-                kind: submission.claim.claim_type.clone(),
+                text: submission.submission.claim.assertion.clone(),
+                kind: submission.submission.claim.claim_type.clone(),
             },
             vec![
-                submission.claim.conditions[0].clone(),
-                format!("Caveat: {}", submission.caveats[0]),
+                submission.submission.claim.conditions[0].clone(),
+                format!("Caveat: {}", submission.submission.caveats[0]),
             ],
             vec![vela_protocol::claim_record::ClaimEvidenceRef {
                 relation: "supports".into(),
                 artifact_id: None,
-                artifact_root: submission.artifacts[0].digest.clone(),
+                artifact_root: submission.submission.artifacts[0].digest.clone(),
                 artifact_path: Some(format!(
                     "records/artifacts/sha256/{}",
-                    submission.artifacts[0]
+                    submission.submission.artifacts[0]
                         .digest
                         .strip_prefix("sha256:")
                         .unwrap()
@@ -2825,7 +2821,7 @@ mod tests {
             }],
             vec![vela_protocol::claim_record::ClaimSource {
                 kind: "submission".into(),
-                title: format!("Authenticated Submission {}", submission.submission_id),
+                title: format!("Authenticated Submission {}", submission.id),
                 locator: None,
                 authors: vec![producer.into()],
                 year: Some(2026),
@@ -2848,23 +2844,19 @@ mod tests {
                 id: claim.claim_id.clone(),
                 root: claim.canonical_root().unwrap(),
             },
-            submission.provenance.producer.clone(),
+            submission.submission.provenance.producer.clone(),
             "2026-07-27T00:00:01Z".into(),
             "Review the exact signed Submission.".into(),
             ProposalProducerPackage {
-                kind: "submission_v1".into(),
-                id: submission.submission_id.clone(),
-                root: submission.canonical_root().unwrap(),
+                kind: "submission_v2".into(),
+                id: submission.id.clone(),
+                root: submission.root.clone(),
                 path: format!(
                     "records/submissions/sha256/{}.json",
-                    submission
-                        .canonical_root()
-                        .unwrap()
-                        .strip_prefix("sha256:")
-                        .unwrap()
+                    submission.root.strip_prefix("sha256:").unwrap()
                 ),
             },
-            submission.caveats.clone(),
+            submission.submission.caveats.clone(),
         )
         .unwrap();
         proposal_matches_signed_submission(&proposal, &claim, &submission).unwrap();
@@ -2886,9 +2878,9 @@ mod tests {
         );
     }
 
-    fn current_review_lineage() -> (ProposalV1, ClaimRecordV1, VerificationRecordV1) {
-        let submission_id = "vsb_ce7f0f4d4b6a4c40".to_string();
+    fn current_review_lineage() -> (ProposalV1, ClaimRecordV1, VerificationRecordEnvelopeV2) {
         let submission_root = root('2');
+        let submission_id = vela_protocol::derive_handle("vsb_", &submission_root).unwrap();
         let claim = ClaimRecordV1::build(
             1,
             ClaimAssertion {
@@ -2914,7 +2906,7 @@ mod tests {
             "2026-07-27T00:00:01Z".into(),
             "Submit the exact bounded result.".into(),
             ProposalProducerPackage {
-                kind: "submission_v1".into(),
+                kind: "submission_v2".into(),
                 id: submission_id.clone(),
                 root: submission_root.clone(),
                 path: "records/submissions/sha256/fixture.json".into(),
@@ -2924,23 +2916,17 @@ mod tests {
         .unwrap();
         let key = SigningKey::from_bytes(&[73_u8; 32]);
         let verifier = "verifier:fixture";
-        let identity = IdentityBinding::build(
-            IdentityBindingDraft {
-                actor_id: verifier.into(),
-                actor_class: ActorClass::Org,
-                created_at: "2026-07-27T00:00:02Z".into(),
-            },
-            &key,
-        )
-        .unwrap();
-        let verification = VerificationRecordV1::build(
+        let identity =
+            SignerIdentityV1::new(verifier, ActorClass::Org, &key, "2026-07-27T00:00:02Z").unwrap();
+        let verification = VerificationRecordEnvelopeV2::seal(
             VerificationRecordDraft {
                 subject: VerificationSubject {
                     claim_id: claim.claim_id.clone(),
                     artifact_ids: vec!["a".repeat(64)],
                     submission_id,
                     submission_root,
-                    proposal_id: proposal.proposal_id.clone(),
+                    proposal_id: proposal.id(),
+                    proposal_root: proposal.canonical_root().unwrap(),
                 },
                 method: VerificationMethod {
                     profile: "fixture-v1".into(),
@@ -2952,7 +2938,6 @@ mod tests {
                     does_not_establish: vec!["Scientific acceptance.".into()],
                 },
                 outcome: "pass".into(),
-                verifier: verifier.into(),
                 independence: IndependenceDisclosure {
                     declared_independent_of: vec!["agent:producer-fixture".into()],
                     shared_dependencies: Vec::new(),
@@ -3310,13 +3295,8 @@ mod tests {
             &verification
         ));
 
-        let mut direct = verification.clone();
-        direct.subject.proposal_id = proposal.proposal_id.clone();
-        direct.subject.claim_id = claim.claim_id.clone();
-        assert!(verification_targets_proposal(&proposal, &claim, &direct));
-
         let mut wrong_submission_root = verification.clone();
-        wrong_submission_root.subject.submission_root = root('9');
+        wrong_submission_root.record.subject.submission_root = root('9');
         assert!(!verification_targets_proposal(
             &proposal,
             &claim,
@@ -3324,7 +3304,7 @@ mod tests {
         ));
 
         let mut wrong_proposal = verification.clone();
-        wrong_proposal.subject.proposal_id = "vpr_0000000000000000".into();
+        wrong_proposal.record.subject.proposal_id = "vpr_0000000000000000".into();
         assert!(!verification_targets_proposal(
             &proposal,
             &claim,
@@ -3332,7 +3312,7 @@ mod tests {
         ));
 
         let mut wrong_claim = verification.clone();
-        wrong_claim.subject.claim_id = "vf_0000000000000000".into();
+        wrong_claim.record.subject.claim_id = "vf_0000000000000000".into();
         assert!(!verification_targets_proposal(
             &proposal,
             &claim,

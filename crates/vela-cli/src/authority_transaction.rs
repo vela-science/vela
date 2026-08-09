@@ -26,7 +26,7 @@ use vela_protocol::authority::{
     AUTHORITY_MODE, AUTHORITY_PAYLOAD_TYPE_V1, AuthorityEnvelopeV1, AuthorityEventContentV1,
     AuthorityEventV1, AuthorityKeysetV1, AuthorityRecordContentV1, AuthorityRecordV1,
     AuthorizationClaimV1, DsseSignatureV1, ExecutionClaimV1, ObjectDeltaV1, PolicyBundleV1,
-    PrincipalSnapshotV1, SemanticApprovalV1, verify_authority_envelope,
+    PrincipalSnapshotV1, SemanticApprovalV1, authority_envelope, verify_authority_envelope,
     verify_authority_keyset_transition, verify_policy_bundle_transition,
 };
 use vela_protocol::authority_history::{
@@ -488,8 +488,8 @@ where
     let signatures = signer
         .sign(AUTHORITY_PAYLOAD_TYPE_V1, &canonical_record)
         .map_err(AuthorityTransactionError::Signing)?;
-    let envelope = AuthorityEnvelopeV1::from_record(&record, signatures)
-        .map_err(AuthorityTransactionError::Invalid)?;
+    let envelope =
+        authority_envelope(&record, signatures).map_err(AuthorityTransactionError::Invalid)?;
     let verified = verify_authority_envelope(
         &envelope,
         &request.history.authority_keyset,

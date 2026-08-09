@@ -1,10 +1,15 @@
 //! Candidate transition: `vela.proposal.v1`.
+//!
+//! A Proposal is minted by the repository rather than signed by a producer, so
+//! it has no envelope. It does share the identity rule: `vpr_` is derived from
+//! the Proposal's canonical root by [`ProposalV1::id`] and is not a
+//! stored field. It used to be one, over a preimage built by clearing it.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 pub const PROPOSAL_V1_SCHEMA: &str = "vela.proposal.v1";
+pub const PROPOSAL_HANDLE_PREFIX: &str = "vpr_";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -27,7 +32,6 @@ pub struct ProposalProducerPackage {
 #[serde(deny_unknown_fields)]
 pub struct ProposalV1 {
     pub schema: String,
-    pub proposal_id: String,
     pub action: String,
     pub subject: ProposalSubject,
     pub actor: String,
@@ -48,9 +52,8 @@ impl ProposalV1 {
         producer_package: ProposalProducerPackage,
         caveats: Vec<String>,
     ) -> Result<Self, String> {
-        let mut value = Self {
+        let value = Self {
             schema: PROPOSAL_V1_SCHEMA.to_string(),
-            proposal_id: String::new(),
             action,
             subject,
             actor,
@@ -59,8 +62,6 @@ impl ProposalV1 {
             producer_package,
             caveats,
         };
-        value.validate_semantics()?;
-        value.proposal_id = value.derive_id()?;
         value.verify()?;
         Ok(value)
     }
@@ -76,15 +77,7 @@ impl ProposalV1 {
     }
 
     pub fn verify(&self) -> Result<(), String> {
-        self.validate_semantics()?;
-        let expected = self.derive_id()?;
-        if self.proposal_id != expected {
-            return Err(format!(
-                "Proposal id mismatch: declared {}, rebuilt {expected}",
-                self.proposal_id
-            ));
-        }
-        Ok(())
+        self.validate_semantics()
     }
 
     pub fn canonical_bytes(&self) -> Result<Vec<u8>, String> {
@@ -95,11 +88,20 @@ impl ProposalV1 {
         Ok(crate::canonical::sha256_root(&self.canonical_bytes()?))
     }
 
-    fn derive_id(&self) -> Result<String, String> {
-        let mut body = self.clone();
-        body.proposal_id.clear();
-        let bytes = crate::canonical::to_canonical_bytes(&body)?;
-        Ok(format!("vpr_{}", &hex::encode(Sha256::digest(bytes))[..16]))
+    /// The readable `vpr_` handle for this Proposal's canonical root.
+    ///
+    /// Infallible, unlike the roots of the objects that carry evidence.
+    /// Canonicalization refuses only non-finite floats and integers outside
+    /// the interoperable range, and every field of a Proposal is a bounded
+    /// string — so there is nothing here for it to refuse, and the read
+    /// surfaces that render a Proposal do not have to carry a `Result`
+    /// through every closure to print its name.
+    pub fn id(&self) -> String {
+        let root = self
+            .canonical_root()
+            .expect("a Proposal carries no numeric field that canonicalization can refuse");
+        crate::shape::derive_handle(PROPOSAL_HANDLE_PREFIX, &root)
+            .expect("a full sha256 root always derives a handle")
     }
 
     fn validate_semantics(&self) -> Result<(), String> {
@@ -118,11 +120,16 @@ impl ProposalV1 {
         chrono::DateTime::parse_from_rfc3339(&self.created_at)
             .map_err(|_| "Proposal created_at must be RFC 3339".to_string())?;
         require_text("reason", &self.reason)?;
-        if self.producer_package.kind != "submission_v1" {
-            return Err("Proposal producer_package.kind must be `submission_v1`".into());
+        if self.producer_package.kind != "submission_v2" {
+            return Err("Proposal producer_package.kind must be `submission_v2`".into());
         }
-        require_prefixed("producer_package.id", &self.producer_package.id, "vsb_")?;
         require_sha256("producer_package.root", &self.producer_package.root)?;
+        crate::shape::require_derived_handle(
+            "Proposal producer_package.id",
+            &self.producer_package.id,
+            "vsb_",
+            &self.producer_package.root,
+        )?;
         require_relative_path("producer_package.path", &self.producer_package.path)?;
         for caveat in &self.caveats {
             require_text("caveats", caveat)?;
@@ -170,52 +177,66 @@ mod tests {
         format!("sha256:{}", byte.to_string().repeat(64))
     }
 
-    #[test]
-    fn proposal_v1_requires_a_current_submission_and_claim() {
-        let value = ProposalV1::build(
+    fn producer_package() -> ProposalProducerPackage {
+        ProposalProducerPackage {
+            kind: "submission_v2".into(),
+            id: crate::shape::derive_handle("vsb_", &root('b')).unwrap(),
+            root: root('b'),
+            path: format!("records/submissions/sha256/{}.json", "b".repeat(64)),
+        }
+    }
+
+    fn build(package: ProposalProducerPackage) -> Result<ProposalV1, String> {
+        ProposalV1::build(
             "claim.add".into(),
             ProposalSubject {
                 kind: "claim".into(),
-                id: "vcl_fixture".into(),
+                id: format!("vcl_{}", "a".repeat(64)),
                 root: root('a'),
             },
             "agent:producer".into(),
             "2026-07-27T00:00:00Z".into(),
             "Submit bounded evidence for review.".into(),
-            ProposalProducerPackage {
-                kind: "submission_v1".into(),
-                id: "vsb_fixture".into(),
-                root: root('b'),
-                path: format!("records/submissions/sha256/{}.json", "b".repeat(64)),
-            },
+            package,
             vec!["Bounded result only.".into()],
         )
-        .unwrap();
-        assert!(value.proposal_id.starts_with("vpr_"));
+    }
+
+    #[test]
+    fn a_proposal_derives_its_handle_from_its_own_root() {
+        let value = build(producer_package()).unwrap();
+        assert_eq!(
+            value.id(),
+            crate::shape::derive_handle("vpr_", &value.canonical_root().unwrap()).unwrap()
+        );
         ProposalV1::parse(&value.canonical_bytes().unwrap()).unwrap();
+
+        // The handle is not a stored field, so it cannot disagree with the
+        // bytes and cannot be carried across an edit.
+        let mut value = serde_json::to_value(&value).unwrap();
+        assert!(value.get("proposal_id").is_none());
+        value["proposal_id"] = serde_json::json!("vpr_0000000000000000");
+        assert!(ProposalV1::parse(&serde_json::to_vec(&value).unwrap()).is_err());
+    }
+
+    #[test]
+    fn the_producer_package_handle_must_derive_from_its_root() {
+        let mut package = producer_package();
+        package.id = crate::shape::derive_handle("vsb_", &root('c')).unwrap();
+        let error = build(package).unwrap_err();
+        assert!(error.contains("producer_package.id"), "{error}");
+        assert!(error.contains("the handle its root derives"), "{error}");
     }
 
     #[test]
     fn receipt_backed_proposal_is_not_current() {
-        let error = ProposalV1::build(
-            "claim.add".into(),
-            ProposalSubject {
-                kind: "claim".into(),
-                id: "vcl_fixture".into(),
-                root: root('a'),
-            },
-            "agent:producer".into(),
-            "2026-07-27T00:00:00Z".into(),
-            "Request".into(),
-            ProposalProducerPackage {
-                kind: "receipt_v1".into(),
-                id: "vrc_fixture".into(),
-                root: root('b'),
-                path: "records/receipts/sha256/fixture.json".into(),
-            },
-            vec![],
-        )
+        let error = build(ProposalProducerPackage {
+            kind: "receipt_v1".into(),
+            id: "vrc_fixture".into(),
+            root: root('b'),
+            path: "records/receipts/sha256/fixture.json".into(),
+        })
         .unwrap_err();
-        assert!(error.contains("submission_v1"));
+        assert!(error.contains("submission_v2"));
     }
 }

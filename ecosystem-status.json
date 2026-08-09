@@ -83,14 +83,14 @@
       ]
     },
     "published_schemas": [
-      "authority-envelope-v1.schema.json",
       "claim-record-v1.schema.json",
+      "dsse-envelope-v1.schema.json",
       "proposal-v1.schema.json",
-      "proposal-withdrawal-v1.schema.json",
+      "proposal-withdrawal-v2.schema.json",
       "repository-origin-v1.schema.json",
       "status-v4.schema.json",
-      "submission-v1.schema.json",
-      "verification-record-v1.schema.json"
+      "submission-v2.schema.json",
+      "verification-record-v2.schema.json"
     ],
     "release": {
       "toolchain_channel": "1.97.1",

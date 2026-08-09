@@ -30,10 +30,19 @@ def main() -> int:
         ("Python", [sys.executable, str(emitters / "python.py")]),
     )
 
+    # The signer identity is the emitter's argument, not a draft field: a
+    # producer must not be able to smuggle an actor or a key through the
+    # scientific content it is asking someone to sign.
+    signers = {
+        "submission": ("agent:independent-js", "agent", "2026-07-27T12:00:00Z"),
+        "verification": ("verifier:independent-js", "org", "2026-07-27T12:05:00Z"),
+    }
+
     with tempfile.TemporaryDirectory(prefix="vela-current-objects-") as directory:
         work = Path(directory)
         for language, command in clients:
             for kind, stem in (("submission", "producer"), ("verification", "verifier")):
+                actor, actor_class, declared_at = signers[kind]
                 seed = work / f"{language}-{stem}.seed.hex"
                 shutil.copyfile(fixtures / f"{stem}.seed.hex", seed)
                 seed.chmod(0o600)
@@ -46,6 +55,12 @@ def main() -> int:
                         str(fixtures / f"{kind}-draft.json"),
                         "--seed-file",
                         str(seed),
+                        "--actor",
+                        actor,
+                        "--actor-class",
+                        actor_class,
+                        "--declared-at",
+                        declared_at,
                         "--output",
                         str(output),
                     ],

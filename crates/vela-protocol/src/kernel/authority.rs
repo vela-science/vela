@@ -6,7 +6,6 @@
 
 use std::collections::BTreeSet;
 
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -604,31 +603,25 @@ impl AuthorityRecordV1 {
 /// One DSSE signature entry, shared with every other signed Vela object.
 pub use crate::dsse::SignatureV1 as DsseSignatureV1;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[schemars(extend("additionalProperties" = true))]
-pub struct AuthorityEnvelopeV1 {
-    #[serde(rename = "payloadType")]
-    #[schemars(schema_with = "crate::wire_schema::authority_payload_type_tag")]
-    pub payload_type: String,
-    #[schemars(schema_with = "crate::wire_schema::base64_body")]
-    pub payload: String,
-    // `verify_authority_envelope` refuses an empty list before it reads a key.
-    #[schemars(length(min = 1))]
-    pub signatures: Vec<DsseSignatureV1>,
-}
+/// The authority envelope is the shared envelope.
+///
+/// It was a separate type whose only difference was a wire schema pinning
+/// `payloadType` to the authority constant — a constraint the reader below has
+/// always enforced anyway, and one no envelope schema can express now that a
+/// single schema serves four payload types.
+pub use crate::dsse::EnvelopeV1 as AuthorityEnvelopeV1;
 
-impl AuthorityEnvelopeV1 {
-    pub fn from_record(
-        record: &AuthorityRecordV1,
-        signatures: Vec<DsseSignatureV1>,
-    ) -> Result<Self, String> {
-        record.validate()?;
-        Ok(Self {
-            payload_type: AUTHORITY_PAYLOAD_TYPE_V1.into(),
-            payload: crate::dsse::encode_base64(&to_canonical_bytes(record)?),
-            signatures,
-        })
-    }
+/// Seal an authority record into its envelope.
+pub fn authority_envelope(
+    record: &AuthorityRecordV1,
+    signatures: Vec<DsseSignatureV1>,
+) -> Result<AuthorityEnvelopeV1, String> {
+    record.validate()?;
+    Ok(AuthorityEnvelopeV1::seal(
+        AUTHORITY_PAYLOAD_TYPE_V1,
+        &to_canonical_bytes(record)?,
+        signatures,
+    ))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -926,7 +919,7 @@ mod tests {
     }
 
     fn signed_envelope(record: &AuthorityRecordV1, key: &SigningKey) -> AuthorityEnvelopeV1 {
-        let mut envelope = AuthorityEnvelopeV1::from_record(record, Vec::new()).unwrap();
+        let mut envelope = authority_envelope(record, Vec::new()).unwrap();
         let payload = BASE64_STANDARD.decode(&envelope.payload).unwrap();
         let signature = key.sign(&crate::dsse::pae(&envelope.payload_type, &payload));
         envelope.signatures.push(DsseSignatureV1 {

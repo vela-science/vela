@@ -1,5 +1,5 @@
 {
-  "$id": "https://vela.science/schemas/authority-envelope-v1.schema.json",
+  "$id": "https://vela.science/schemas/dsse-envelope-v1.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
   "properties": {
@@ -9,7 +9,7 @@
       "type": "string"
     },
     "payloadType": {
-      "const": "application/vnd.vela.authority-record.v1+json",
+      "pattern": "^application/vnd\\.vela\\.[a-z0-9.-]+\\+json$",
       "type": "string"
     },
     "signatures": {
@@ -39,6 +39,6 @@
     "payload",
     "signatures"
   ],
-  "title": "Vela Authority DSSE Envelope v1",
+  "title": "Vela DSSE Envelope v1",
   "type": "object"
 }

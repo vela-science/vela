@@ -31,20 +31,15 @@
 use schemars::{JsonSchema, Schema, SchemaGenerator, generate::SchemaSettings, json_schema};
 use serde_json::{Map, Value};
 
-use crate::authority::AUTHORITY_PAYLOAD_TYPE_V1;
 use crate::execution_binding::EXECUTION_BINDING_SCHEMA;
-use crate::identity::IDENTITY_BINDING_SCHEMA;
-use crate::proposal_withdrawal_v1::{
-    PROPOSAL_WITHDRAWAL_V1_AUTH_ALGORITHM, PROPOSAL_WITHDRAWAL_V1_SCHEMA,
-};
+use crate::proposal_withdrawal_v2::PROPOSAL_WITHDRAWAL_V2_SCHEMA;
+use crate::signer_identity::SIGNER_IDENTITY_V1_SCHEMA;
 use crate::status_v4::{REPOSITORY_HEAD_ROLE, STATUS_V4_COMMAND, STATUS_V4_SCHEMA};
-use crate::submission_v1::{
+use crate::submission_v2::{
     CLAIM_TYPES, PRODUCER_CHECK_OUTCOMES, PRODUCER_REPORTED_AUTHORITY, REPLAYABILITY_LEVELS,
-    REQUESTED_CHANGE_KINDS, SUBMISSION_V1_AUTH_ALGORITHM, SUBMISSION_V1_SCHEMA,
+    REQUESTED_CHANGE_KINDS, SUBMISSION_V2_SCHEMA,
 };
-use crate::verification_record::{
-    VERIFICATION_OUTCOMES, VERIFICATION_RECORD_AUTH_ALGORITHM, VERIFICATION_RECORD_V1_SCHEMA,
-};
+use crate::verification_record_v2::{VERIFICATION_OUTCOMES, VERIFICATION_RECORD_V2_SCHEMA};
 
 /// The published base for every `$id` in `schemas/`.
 const SCHEMA_BASE: &str = "https://vela.science/schemas";
@@ -242,24 +237,10 @@ pub fn producer_actor(_: &mut SchemaGenerator) -> Schema {
     })
 }
 
-// Readable routing handles. The `<prefix>_<n>hex` forms are content-addressed
-// and fully determined; the `.+` forms name an object whose own reader derives
-// the identifier, so this document checks only the namespace.
-
-/// `vsb_` and 16 hex digits.
-pub fn submission_id(_: &mut SchemaGenerator) -> Schema {
-    json_schema!({ "type": "string", "pattern": "^vsb_[0-9a-f]{16}$" })
-}
-
-/// `vvr_` and 16 hex digits.
-pub fn verification_record_id(_: &mut SchemaGenerator) -> Schema {
-    json_schema!({ "type": "string", "pattern": "^vvr_[0-9a-f]{16}$" })
-}
-
-/// `vib_` and 16 hex digits.
-pub fn identity_binding_id(_: &mut SchemaGenerator) -> Schema {
-    json_schema!({ "type": "string", "pattern": "^vib_[0-9a-f]{16}$" })
-}
+// Readable routing handles. Every one is a prefix of a full root, so each
+// pattern is the namespace and exactly sixteen hexadecimal characters. The
+// `.+` forms these replaced accepted any body at all, which is what let a
+// reference name one object while the root beside it named another.
 
 /// `vcl_` and 64 hex digits.
 pub fn claim_id(_: &mut SchemaGenerator) -> Schema {
@@ -278,13 +259,16 @@ pub fn source_attempt_id(_: &mut SchemaGenerator) -> Schema {
 /// no object, and the readers that check these fields are held to this
 /// spelling by name — see `require_prefixed` in `objects/verification_record.rs`
 /// and `objects/proposal_withdrawal_v1.rs`.
-pub const SUBMISSION_ID_REFERENCE_PATTERN: &str = "^vsb_.+$";
+pub const SUBMISSION_ID_REFERENCE_PATTERN: &str = "^vsb_[0-9a-f]{16}$";
 
-/// A `vpr_` namespace and a body.
-pub const PROPOSAL_ID_REFERENCE_PATTERN: &str = "^vpr_.+$";
+/// A `vpr_` namespace and a derived handle body.
+pub const PROPOSAL_ID_REFERENCE_PATTERN: &str = "^vpr_[0-9a-f]{16}$";
 
-/// A `vpw_` namespace and a body.
-pub const WITHDRAWAL_ID_REFERENCE_PATTERN: &str = "^vpw_.+$";
+/// A `vpw_` namespace and a derived handle body.
+pub const WITHDRAWAL_ID_REFERENCE_PATTERN: &str = "^vpw_[0-9a-f]{16}$";
+
+/// The `application/vnd.vela.<name>.<version>+json` shape.
+pub const VELA_PAYLOAD_TYPE_PATTERN: &str = r"^application/vnd\.vela\.[a-z0-9.-]+\+json$";
 
 /// A `vsb_` namespace only, for readers that do not re-derive the identifier.
 pub fn submission_id_reference(_: &mut SchemaGenerator) -> Schema {
@@ -306,23 +290,34 @@ pub fn base64_body(_: &mut SchemaGenerator) -> Schema {
     json_schema!({ "type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9+/_-]+={0,2}$" })
 }
 
+/// The `payloadType` namespace every Vela DSSE envelope draws from.
+///
+/// One envelope schema serves every signed object, so this cannot pin a single
+/// type the way the four payload schemas each pin their own `schema` tag. Each
+/// object's reader requires its exact type before it verifies a signature;
+/// what the wire schema can say is that the value is a Vela payload type and
+/// not an arbitrary media type.
+pub fn vela_payload_type(_: &mut SchemaGenerator) -> Schema {
+    json_schema!({ "type": "string", "pattern": VELA_PAYLOAD_TYPE_PATTERN })
+}
+
 // Schema tags and closed vocabularies. Each reads the constant its validator
 // reads, so the vocabulary is stated once in the object module and rendered
 // here.
 
-/// `vela.submission.v1`.
+/// `vela.submission.v2`.
 pub fn submission_schema_tag(_: &mut SchemaGenerator) -> Schema {
-    tag(SUBMISSION_V1_SCHEMA)
+    tag(SUBMISSION_V2_SCHEMA)
 }
 
-/// `vela.verification-record.v1`.
+/// `vela.verification-record.v2`.
 pub fn verification_record_schema_tag(_: &mut SchemaGenerator) -> Schema {
-    tag(VERIFICATION_RECORD_V1_SCHEMA)
+    tag(VERIFICATION_RECORD_V2_SCHEMA)
 }
 
-/// `vela.proposal-withdrawal.v1`.
+/// `vela.proposal-withdrawal.v2`.
 pub fn proposal_withdrawal_schema_tag(_: &mut SchemaGenerator) -> Schema {
-    tag(PROPOSAL_WITHDRAWAL_V1_SCHEMA)
+    tag(PROPOSAL_WITHDRAWAL_V2_SCHEMA)
 }
 
 /// `vela.execution-binding.v1`.
@@ -330,14 +325,9 @@ pub fn execution_binding_schema_tag(_: &mut SchemaGenerator) -> Schema {
     tag(EXECUTION_BINDING_SCHEMA)
 }
 
-/// The one DSSE payload type a Vela authority envelope may carry.
-pub fn authority_payload_type_tag(_: &mut SchemaGenerator) -> Schema {
-    tag(AUTHORITY_PAYLOAD_TYPE_V1)
-}
-
-/// `vela.identity_binding.v0.1`.
-pub fn identity_binding_schema_tag(_: &mut SchemaGenerator) -> Schema {
-    tag(IDENTITY_BINDING_SCHEMA)
+/// `vela.signer-identity.v1`.
+pub fn signer_identity_schema_tag(_: &mut SchemaGenerator) -> Schema {
+    tag(SIGNER_IDENTITY_V1_SCHEMA)
 }
 
 /// `vela.status.v4`.
@@ -353,21 +343,6 @@ pub fn status_command_tag(_: &mut SchemaGenerator) -> Schema {
 /// The one role a repository's tracked Git pointer plays.
 pub fn repository_head_role_tag(_: &mut SchemaGenerator) -> Schema {
     tag(REPOSITORY_HEAD_ROLE)
-}
-
-/// The one signature algorithm a Submission may declare.
-pub fn submission_auth_algorithm(_: &mut SchemaGenerator) -> Schema {
-    tag(SUBMISSION_V1_AUTH_ALGORITHM)
-}
-
-/// The one signature algorithm a Verification Record may declare.
-pub fn verification_auth_algorithm(_: &mut SchemaGenerator) -> Schema {
-    tag(VERIFICATION_RECORD_AUTH_ALGORITHM)
-}
-
-/// The one signature algorithm a Proposal Withdrawal may declare.
-pub fn withdrawal_auth_algorithm(_: &mut SchemaGenerator) -> Schema {
-    tag(PROPOSAL_WITHDRAWAL_V1_AUTH_ALGORITHM)
 }
 
 /// A producer check reports only its own authority; it is not a Verification.
@@ -495,32 +470,37 @@ fn document<T: JsonSchema>(file: &str, title: &str) -> Value {
 /// removed — fails rather than going unnoticed.
 pub fn published() -> Vec<(&'static str, Value)> {
     vec![
+        /* One envelope schema, then the closed payload each envelope may
+        carry. ADR 0035 §3 asks for exactly this split: the transport is open
+        and shared, and the science inside it is closed and versioned. There
+        were four envelope-shaped schemas before, three of them folded into
+        the object they wrapped. */
         (
-            "submission-v1.schema.json",
-            document::<crate::submission_v1::SubmissionV1>(
-                "submission-v1.schema.json",
-                "Vela Submission v1",
+            "dsse-envelope-v1.schema.json",
+            document::<crate::dsse::EnvelopeV1>(
+                "dsse-envelope-v1.schema.json",
+                "Vela DSSE Envelope v1",
             ),
         ),
         (
-            "verification-record-v1.schema.json",
-            document::<crate::verification_record::VerificationRecordV1>(
-                "verification-record-v1.schema.json",
-                "Vela Verification Record v1",
+            "submission-v2.schema.json",
+            document::<crate::submission_v2::SubmissionV2>(
+                "submission-v2.schema.json",
+                "Vela Submission v2",
             ),
         ),
         (
-            "proposal-withdrawal-v1.schema.json",
-            document::<crate::proposal_withdrawal_v1::ProposalWithdrawalV1>(
-                "proposal-withdrawal-v1.schema.json",
-                "Vela Proposal Withdrawal v1",
+            "verification-record-v2.schema.json",
+            document::<crate::verification_record_v2::VerificationRecordV2>(
+                "verification-record-v2.schema.json",
+                "Vela Verification Record v2",
             ),
         ),
         (
-            "authority-envelope-v1.schema.json",
-            document::<crate::authority::AuthorityEnvelopeV1>(
-                "authority-envelope-v1.schema.json",
-                "Vela Authority DSSE Envelope v1",
+            "proposal-withdrawal-v2.schema.json",
+            document::<crate::proposal_withdrawal_v2::ProposalWithdrawalV2>(
+                "proposal-withdrawal-v2.schema.json",
+                "Vela Proposal Withdrawal v2",
             ),
         ),
         (

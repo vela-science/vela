@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import base64
 import copy
 import hashlib
 import json
@@ -270,28 +271,46 @@ def verify_status_read_surface() -> tuple[int, int]:
     return 3, negatives
 
 
-def main() -> int:
-    submission_check = validator("submission-v1.schema.json")
-    verification_check = validator("verification-record-v1.schema.json")
-    withdrawal_check = validator("proposal-withdrawal-v1.schema.json")
-    authority_envelope_check = validator("authority-envelope-v1.schema.json")
+def derived(prefix: str, root: str) -> str:
+    """The handle a full root derives: prefix plus its first sixteen digits."""
+    return f"{prefix}_{root[len('sha256:'):][:16]}"
 
-    submission = load_json(CONFORMANCE / "current-objects" / "submission.json")
-    verification = load_json(CONFORMANCE / "current-objects" / "verification.json")
+
+def envelope_payload(name: str) -> object:
+    """The decoded payload of a retained envelope fixture.
+
+    The fixture on disk is the DSSE envelope; what the payload schema
+    validates is what the signature covers, so it has to come back out of the
+    base64 before it can be checked against anything.
+    """
+    envelope = load_json(CONFORMANCE / "current-objects" / name)
+    return json.loads(base64.b64decode(envelope["payload"]))
+
+
+def main() -> int:
+    submission_check = validator("submission-v2.schema.json")
+    verification_check = validator("verification-record-v2.schema.json")
+    withdrawal_check = validator("proposal-withdrawal-v2.schema.json")
+    envelope_check = validator("dsse-envelope-v1.schema.json")
+
+    submission = envelope_payload("submission.json")
+    verification = envelope_payload("verification.json")
     submission_check.validate(submission)
     verification_check.validate(verification)
+    envelope_check.validate(load_json(CONFORMANCE / "current-objects" / "submission.json"))
+    envelope_check.validate(load_json(CONFORMANCE / "current-objects" / "verification.json"))
 
+    proposal_root = "sha256:" + "1" * 64
+    submission_root = "sha256:" + "2" * 64
     withdrawal = {
-        "schema": "vela.proposal-withdrawal.v1",
-        "withdrawal_id": "vpw_0123456789abcdef",
-        "proposal_id": "vpr_0123456789abcdef",
-        "proposal_root": "sha256:" + "1" * 64,
-        "submission_id": "vsb_0123456789abcdef",
-        "submission_root": "sha256:" + "2" * 64,
+        "schema": "vela.proposal-withdrawal.v2",
+        "proposal_id": derived("vpr", proposal_root),
+        "proposal_root": proposal_root,
+        "submission_id": derived("vsb", submission_root),
+        "submission_root": submission_root,
         "actor": "agent:fixture",
         "reason": "The producer withdraws this pending fixture.",
         "created_at": "2026-08-03T00:00:00Z",
-        "authentication": {"algorithm": "ed25519", "signature": "3" * 128},
     }
     withdrawal_check.validate(withdrawal)
     authority_envelope = {
@@ -300,7 +319,7 @@ def main() -> int:
         "signatures": [{"sig": "YWJj", "future": "ignored"}],
         "future": "ignored",
     }
-    authority_envelope_check.validate(authority_envelope)
+    envelope_check.validate(authority_envelope)
 
     mutated = copy.deepcopy(submission)
     mutated["unexpected"] = True
@@ -336,21 +355,33 @@ def main() -> int:
     mutated["subject"]["submission_id"] = "vsb_"
     expect_rejected(verification_check, mutated, "submission reference with no body")
     mutated = copy.deepcopy(verification)
+    del mutated["subject"]["proposal_root"]
+    expect_rejected(verification_check, mutated, "proposal handle with no root to derive from")
+    mutated = copy.deepcopy(verification)
     mutated["outcome"] = "accepted"
     expect_rejected(verification_check, mutated, "verification implies acceptance")
     mutated = copy.deepcopy(verification)
     mutated["scope"]["does_not_establish"] = []
     expect_rejected(verification_check, mutated, "missing verification nonclaim")
     mutated = copy.deepcopy(withdrawal)
-    mutated["authentication"]["algorithm"] = "none"
-    expect_rejected(withdrawal_check, mutated, "withdrawal without Ed25519")
+    mutated["authentication"] = {"algorithm": "ed25519", "signature": "3" * 128}
+    expect_rejected(withdrawal_check, mutated, "withdrawal carrying its own signature")
     mutated = copy.deepcopy(authority_envelope)
     mutated["signatures"] = []
-    expect_rejected(authority_envelope_check, mutated, "authority envelope without signatures")
+    expect_rejected(envelope_check, mutated, "envelope without signatures")
+    mutated = copy.deepcopy(authority_envelope)
+    mutated["payloadType"] = "application/json"
+    expect_rejected(envelope_check, mutated, "envelope outside the Vela payload namespace")
 
+    # A handle is a prefix of a root and exactly sixteen digits. The `.+` forms
+    # these replaced accepted any body at all, so a reference could name one
+    # object while the root beside it named another.
     mutated = copy.deepcopy(withdrawal)
-    mutated["withdrawal_id"] = "vpw_"
+    mutated["proposal_id"] = "vpr_"
     expect_rejected(withdrawal_check, mutated, "withdrawal reference with no body")
+    mutated = copy.deepcopy(withdrawal)
+    mutated["submission_id"] = "vsb_" + "2" * 64
+    expect_rejected(withdrawal_check, mutated, "withdrawal reference carrying a whole root")
 
     positive, negative = verify_status_read_surface()
 

@@ -42,9 +42,6 @@
       ],
       "type": "object"
     },
-    "proposal_id": {
-      "type": "string"
-    },
     "reason": {
       "type": "string"
     },
@@ -74,7 +71,6 @@
   },
   "required": [
     "schema",
-    "proposal_id",
     "action",
     "subject",
     "actor",

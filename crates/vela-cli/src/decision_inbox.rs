@@ -15,8 +15,8 @@ use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::repository::{RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::repository_origin::RepositoryOriginV1;
-use vela_protocol::submission_v1::SubmissionV1;
-use vela_protocol::verification_record::VerificationRecordV1;
+use vela_protocol::submission_v2::SubmissionRecordV2;
+use vela_protocol::verification_record_v2::VerificationRecordEnvelopeV2;
 
 use crate::repository_decision::{
     DecisionAction, PreparedReviewDecision, claim_for_proposal, exact_verifications,
@@ -204,31 +204,31 @@ struct EntryInputs<'a> {
     proposal_reference: &'a RepositoryObjectRefV1,
     proposal: &'a ProposalV1,
     claim: &'a ClaimRecordV1,
-    submission: &'a SubmissionV1,
-    verifications: &'a [(String, VerificationRecordV1)],
+    submission: &'a SubmissionRecordV2,
+    verifications: &'a [(String, VerificationRecordEnvelopeV2)],
     pending_conflicts: &'a [String],
     authority_heads: &'a DecisionInboxAuthorityHeads,
 }
 
 fn acceptance_blockers(
-    submission: &SubmissionV1,
-    records: &[(String, VerificationRecordV1)],
+    submission: &SubmissionRecordV2,
+    records: &[(String, VerificationRecordEnvelopeV2)],
     pending_conflicts: &[String],
 ) -> Vec<DecisionInboxBlocker> {
     let mut blockers = Vec::new();
     for (_, record) in records {
-        if matches!(record.outcome.as_str(), "fail" | "error") {
+        if matches!(record.record.outcome.as_str(), "fail" | "error") {
             blockers.push(DecisionInboxBlocker {
                 code: "failing_verification".into(),
-                subject: record.verification_record_id.clone(),
+                subject: record.id.clone(),
                 detail: format!(
                     "Verification {} reports {} for {}.",
-                    record.verification_record_id, record.outcome, record.scope.property
+                    record.id, record.record.outcome, record.record.scope.property
                 ),
             });
         }
     }
-    for requirement in &submission.verification_requirements {
+    for requirement in &submission.submission.verification_requirements {
         let satisfied = records
             .iter()
             .any(|(_, record)| verification_satisfies_requirement(submission, requirement, record));
@@ -257,17 +257,18 @@ fn acceptance_blockers(
 }
 
 fn classify_verification(
-    submission: &SubmissionV1,
+    submission: &SubmissionRecordV2,
     root: &str,
-    record: &VerificationRecordV1,
+    record: &VerificationRecordEnvelopeV2,
 ) -> DecisionInboxVerification {
     let satisfies_requirements = submission
+        .submission
         .verification_requirements
         .iter()
         .filter(|requirement| verification_satisfies_requirement(submission, requirement, record))
         .cloned()
         .collect::<Vec<_>>();
-    let protocol_evidence_role = if matches!(record.outcome.as_str(), "fail" | "error") {
+    let protocol_evidence_role = if matches!(record.record.outcome.as_str(), "fail" | "error") {
         "blocking"
     } else if satisfies_requirements.is_empty() {
         "complementary"
@@ -275,19 +276,21 @@ fn classify_verification(
         "requirement_satisfying"
     };
     DecisionInboxVerification {
-        verification_record_id: record.verification_record_id.clone(),
+        verification_record_id: record.id.clone(),
         verification_record_root: root.into(),
-        outcome: record.outcome.clone(),
-        property: record.scope.property.clone(),
-        verifier: record.verifier.clone(),
-        independent_of_producer: record.verifier != submission.provenance.producer
+        outcome: record.record.outcome.clone(),
+        property: record.record.scope.property.clone(),
+        verifier: record.record.verifier().to_string(),
+        independent_of_producer: record.record.verifier()
+            != submission.submission.provenance.producer
             && record
+                .record
                 .independence
                 .declared_independent_of
-                .contains(&submission.provenance.producer),
+                .contains(&submission.submission.provenance.producer),
         satisfies_requirements,
         protocol_evidence_role: protocol_evidence_role.into(),
-        does_not_establish: record.scope.does_not_establish.clone(),
+        does_not_establish: record.record.scope.does_not_establish.clone(),
     }
 }
 
@@ -345,7 +348,7 @@ fn semantic_transition(
             let [predecessor] = predecessors.as_slice() else {
                 return Err(format!(
                     "Decision Inbox Proposal {} does not name exactly one corrected Claim",
-                    proposal.proposal_id
+                    proposal.id()
                 ));
             };
             affected.insert(predecessor.target_claim_id.clone());
@@ -362,16 +365,16 @@ fn semantic_transition(
         )),
         other => Err(format!(
             "Decision Inbox Proposal {} uses unsupported action {other}",
-            proposal.proposal_id
+            proposal.id()
         )),
     }
 }
 
-fn decision_limits(proposal: &ProposalV1, submission: &SubmissionV1) -> Vec<String> {
+fn decision_limits(proposal: &ProposalV1, submission: &SubmissionRecordV2) -> Vec<String> {
     proposal
         .caveats
         .iter()
-        .chain(&submission.caveats)
+        .chain(&submission.submission.caveats)
         .cloned()
         .collect::<BTreeSet<_>>()
         .into_iter()
@@ -401,18 +404,18 @@ fn derive_entry(inputs: EntryInputs<'_>) -> Result<DecisionInboxEntry, String> {
     let records = inputs.verifications;
     let actual_repository_root = inputs.repository.canonical_root()?;
     let claim_root = claim.canonical_root()?;
-    let submission_root = submission.canonical_root()?;
+    let submission_root = submission.root.clone();
     if inputs.repository_root != actual_repository_root
         || inputs.authority_heads.policy_bundle_root != inputs.repository.authority_policy_root
         || inputs.authority_heads.authority_keyset_root != inputs.repository.authority_keyset_root
-        || inputs.proposal_reference.id != proposal.proposal_id
+        || inputs.proposal_reference.id != proposal.id()
         || claim_root != proposal.subject.root
         || submission_root != proposal.producer_package.root
         || inputs.proposal_reference.root != proposal.canonical_root()?
     {
         return Err(format!(
             "Decision Inbox Proposal {} input roots disagree",
-            proposal.proposal_id
+            proposal.id()
         ));
     }
 
@@ -438,7 +441,7 @@ fn derive_entry(inputs: EntryInputs<'_>) -> Result<DecisionInboxEntry, String> {
     {
         return Err(format!(
             "Decision Inbox Proposal {} changes accepted Standing outside its declared Claim scope",
-            proposal.proposal_id
+            proposal.id()
         ));
     }
     let verification_set_root = verification_set_root(records)?;
@@ -463,7 +466,7 @@ fn derive_entry(inputs: EntryInputs<'_>) -> Result<DecisionInboxEntry, String> {
     let mut entry = DecisionInboxEntry {
         schema: ENTRY_SCHEMA.into(),
         repository_id: inputs.repository.repository_id.clone(),
-        proposal_id: proposal.proposal_id.clone(),
+        proposal_id: proposal.id(),
         created_at: proposal.created_at.clone(),
         requested_decision: "accept_or_reject".into(),
         proposal_action: proposal.action.clone(),
@@ -480,7 +483,7 @@ fn derive_entry(inputs: EntryInputs<'_>) -> Result<DecisionInboxEntry, String> {
             verification_set_root,
         },
         authority_heads: inputs.authority_heads.clone(),
-        verification_requirements: submission.verification_requirements.clone(),
+        verification_requirements: submission.submission.verification_requirements.clone(),
         verification_records,
         readiness: DecisionInboxReadiness {
             protocol_gate,
@@ -606,7 +609,7 @@ pub(crate) fn project(repository_path: &Path) -> Result<DecisionInboxProjection,
             ProposalV1::parse,
             ProposalV1::canonical_bytes,
         )?;
-        if proposal.proposal_id != proposal_reference.id {
+        if proposal.id() != proposal_reference.id {
             return Err(format!(
                 "Decision Inbox Proposal reference {} has the wrong identity",
                 proposal_reference.id
@@ -854,15 +857,15 @@ mod tests {
 
     use ed25519_dalek::SigningKey;
     use vela_protocol::claim_record::{ClaimAssertion, ClaimRelation, ClaimSource};
-    use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject};
     use vela_protocol::repository::{
         ClaimStandingRefV1, REPOSITORY_SCHEMA_V4, RepositoryObjectRefV1,
     };
-    use vela_protocol::submission_v1::{
+    use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
+    use vela_protocol::submission_v2::{
         RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
     };
-    use vela_protocol::verification_record::{
+    use vela_protocol::verification_record_v2::{
         IndependenceDisclosure, VerificationMethod, VerificationRecordDraft, VerificationScope,
         VerificationSubject,
     };
@@ -896,18 +899,16 @@ mod tests {
         .unwrap()
     }
 
-    fn submission(requirement: &str) -> SubmissionV1 {
+    fn submission(requirement: &str) -> SubmissionRecordV2 {
         let key = SigningKey::from_bytes(&[71_u8; 32]);
-        let identity = IdentityBinding::build(
-            IdentityBindingDraft {
-                actor_id: "agent:fixture-producer".into(),
-                actor_class: ActorClass::Agent,
-                created_at: "2026-07-30T00:00:00Z".into(),
-            },
+        let identity = SignerIdentityV1::new(
+            "agent:fixture-producer",
+            ActorClass::Agent,
             &key,
+            "2026-07-30T00:00:00Z",
         )
         .unwrap();
-        SubmissionV1::build(
+        SubmissionRecordV2::seal(
             SubmissionDraft {
                 claim: SubmissionClaim {
                     assertion: "A bounded fixture result.".into(),
@@ -942,7 +943,11 @@ mod tests {
         .unwrap()
     }
 
-    fn proposal(action: &str, claim: &ClaimRecordV1, submission: &SubmissionV1) -> ProposalV1 {
+    fn proposal(
+        action: &str,
+        claim: &ClaimRecordV1,
+        submission: &SubmissionRecordV2,
+    ) -> ProposalV1 {
         ProposalV1::build(
             action.into(),
             ProposalSubject {
@@ -950,19 +955,16 @@ mod tests {
                 id: claim.claim_id.clone(),
                 root: claim.canonical_root().unwrap(),
             },
-            submission.provenance.producer.clone(),
+            submission.submission.provenance.producer.clone(),
             "2026-07-30T00:00:01Z".into(),
             "Review the exact bounded fixture evidence.".into(),
             ProposalProducerPackage {
-                kind: "submission_v1".into(),
-                id: submission.submission_id.clone(),
-                root: submission.canonical_root().unwrap(),
+                kind: "submission_v2".into(),
+                id: submission.id.clone(),
+                root: submission.root.clone(),
                 path: format!(
                     "records/submissions/sha256/{}.json",
-                    submission
-                        .canonical_root()
-                        .unwrap()
-                        .trim_start_matches("sha256:")
+                    submission.root.trim_start_matches("sha256:")
                 ),
             },
             vec!["Scientific acceptance remains separate.".into()],
@@ -972,28 +974,27 @@ mod tests {
 
     fn verification(
         proposal: &ProposalV1,
-        submission: &SubmissionV1,
+        submission: &SubmissionRecordV2,
         property: &str,
         outcome: &str,
-    ) -> VerificationRecordV1 {
+    ) -> VerificationRecordEnvelopeV2 {
         let key = SigningKey::from_bytes(&[72_u8; 32]);
-        let identity = IdentityBinding::build(
-            IdentityBindingDraft {
-                actor_id: "service:fixture-verifier".into(),
-                actor_class: ActorClass::Org,
-                created_at: "2026-07-30T00:00:00Z".into(),
-            },
+        let identity = SignerIdentityV1::new(
+            "service:fixture-verifier",
+            ActorClass::Org,
             &key,
+            "2026-07-30T00:00:00Z",
         )
         .unwrap();
-        VerificationRecordV1::build(
+        VerificationRecordEnvelopeV2::seal(
             VerificationRecordDraft {
                 subject: VerificationSubject {
                     claim_id: proposal.subject.id.clone(),
                     artifact_ids: vec!["a".repeat(64)],
-                    submission_id: submission.submission_id.clone(),
-                    submission_root: submission.canonical_root().unwrap(),
-                    proposal_id: proposal.proposal_id.clone(),
+                    submission_id: submission.id.clone(),
+                    submission_root: submission.root.clone(),
+                    proposal_id: proposal.id(),
+                    proposal_root: proposal.canonical_root().unwrap(),
                 },
                 method: VerificationMethod {
                     profile: "fixture-v1".into(),
@@ -1005,9 +1006,10 @@ mod tests {
                     does_not_establish: vec!["Scientific acceptance.".into()],
                 },
                 outcome: outcome.into(),
-                verifier: "service:fixture-verifier".into(),
                 independence: IndependenceDisclosure {
-                    declared_independent_of: vec![submission.provenance.producer.clone()],
+                    declared_independent_of: vec![
+                        submission.submission.provenance.producer.clone(),
+                    ],
                     shared_dependencies: Vec::new(),
                 },
                 output_artifact_ids: Vec::new(),
@@ -1054,12 +1056,12 @@ mod tests {
         accepted: Vec<ClaimStandingRefV1>,
         pending: Vec<ClaimStandingRefV1>,
         proposal: &ProposalV1,
-        submission: &SubmissionV1,
-        verification: &VerificationRecordV1,
+        submission: &SubmissionRecordV2,
+        verification: &VerificationRecordEnvelopeV2,
     ) -> RepositoryV4 {
         let proposal_root = proposal.canonical_root().unwrap();
-        let submission_root = submission.canonical_root().unwrap();
-        let verification_root = verification.canonical_root().unwrap();
+        let submission_root = submission.root.clone();
+        let verification_root = verification.root.clone();
         RepositoryV4 {
             schema: REPOSITORY_SCHEMA_V4.into(),
             repository_id: "vrepo_0123456789abcdef0123456789abcdef".into(),
@@ -1070,14 +1072,14 @@ mod tests {
             pending_claims: pending,
             proposals: vec![object_reference(
                 vela_protocol::proposal_v1::PROPOSAL_V1_SCHEMA,
-                &proposal.proposal_id,
+                &proposal.id(),
                 &proposal_root,
                 "proposals",
             )],
             proposal_withdrawals: Vec::new(),
             submissions: vec![RepositoryObjectRefV1 {
-                schema: vela_protocol::submission_v1::SUBMISSION_V1_SCHEMA.into(),
-                id: submission.submission_id.clone(),
+                schema: vela_protocol::submission_v2::SUBMISSION_V2_SCHEMA.into(),
+                id: submission.id.clone(),
                 root: submission_root.clone(),
                 path: format!(
                     "records/submissions/sha256/{}.json",
@@ -1085,8 +1087,8 @@ mod tests {
                 ),
             }],
             verifications: vec![object_reference(
-                vela_protocol::verification_record::VERIFICATION_RECORD_V1_SCHEMA,
-                &verification.verification_record_id,
+                vela_protocol::verification_record_v2::VERIFICATION_RECORD_V2_SCHEMA,
+                &verification.id,
                 &verification_root,
                 "verifications",
             )],
@@ -1109,8 +1111,8 @@ mod tests {
         repository: &RepositoryV4,
         proposal: &ProposalV1,
         claim: &ClaimRecordV1,
-        submission: &SubmissionV1,
-        verification: &VerificationRecordV1,
+        submission: &SubmissionRecordV2,
+        verification: &VerificationRecordEnvelopeV2,
         authority_heads: &DecisionInboxAuthorityHeads,
     ) -> DecisionInboxEntry {
         let proposal_reference = repository.proposals.first().unwrap();
@@ -1121,7 +1123,7 @@ mod tests {
             proposal,
             claim,
             submission,
-            verifications: &[(verification.canonical_root().unwrap(), verification.clone())],
+            verifications: &[(verification.root.clone(), verification.clone())],
             pending_conflicts: &[],
             authority_heads,
         })
@@ -1161,7 +1163,7 @@ mod tests {
         assert!(
             crate::repository_decision::require_acceptance_evidence(
                 &submission,
-                &[(verification.canonical_root().unwrap(), verification.clone())],
+                &[(verification.root.clone(), verification.clone())],
             )
             .is_ok()
         );
@@ -1195,11 +1197,7 @@ mod tests {
         );
         assert_eq!(
             entry.inputs.verification_set_root,
-            verification_set_root(&[(
-                verification.canonical_root().unwrap(),
-                verification.clone()
-            )])
-            .unwrap()
+            verification_set_root(&[(verification.root.clone(), verification.clone())]).unwrap()
         );
         assert_eq!(entry.entry_root, entry_root(&entry).unwrap());
         assert_eq!(entry.authority_heads, heads());
@@ -1282,7 +1280,7 @@ mod tests {
         };
         projection.projection_root = projection_root(&projection).unwrap();
 
-        let context = review_context_from_projection(&projection, &proposal.proposal_id);
+        let context = review_context_from_projection(&projection, &proposal.id());
         assert_eq!(context["projection_root"], projection.projection_root);
         assert_eq!(context["entry"]["entry_root"], entry.entry_root);
         assert_eq!(context["entry"]["readiness"]["protocol_gate"], "satisfied");
@@ -1366,7 +1364,7 @@ mod tests {
         assert!(
             crate::repository_decision::require_acceptance_evidence(
                 &submission,
-                &[(verification.canonical_root().unwrap(), verification.clone())],
+                &[(verification.root.clone(), verification.clone())],
             )
             .is_err()
         );
@@ -1407,7 +1405,7 @@ mod tests {
             proposal: &proposal,
             claim: &subject,
             submission: &submission,
-            verifications: &[(verification.canonical_root().unwrap(), verification)],
+            verifications: &[(verification.root.clone(), verification)],
             pending_conflicts: &["vpr_correctedwording".into()],
             authority_heads: &heads(),
         })

@@ -459,7 +459,7 @@ different facts.
   0004 gave it.
 - **One retired term is still wire.** ADR 0039 §5 retired `Attempt`, and
   `provenance.source_attempt` with the `vat_` prefix was added afterwards and is
-  published in `schemas/submission-v1.schema.json`. The product surface says
+  published in `schemas/submission-v2.schema.json`. The product surface says
   "workbench run", which is what `docs/TERMINOLOGY.md` prescribes, but the field
   and the prefix cannot follow without a schema version, so the retired spelling
   is load-bearing on the wire. This is the same shape as

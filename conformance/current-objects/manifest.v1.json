@@ -1,6 +1,6 @@
 {
   "schema": "vela.current-object-fixture-manifest.v1",
-  "captured_at": "2026-08-03",
+  "captured_at": "2026-08-09",
   "authority_effect": "none",
   "files": [
     {
@@ -15,20 +15,20 @@
     },
     {
       "path": "submission.json",
-      "bytes": 1584,
-      "sha256": "sha256:63a572ee2881d37610c731c9a4b9492deebfd0de7a3ca189647bfebb2355a78f"
+      "bytes": 1823,
+      "sha256": "sha256:8779dcb8999d6030c234a14fe3af0e3745b84e513c9791913c128d0750c86830"
     },
     {
       "path": "verification-draft.json",
-      "bytes": 1106,
-      "sha256": "sha256:2468229e48b11c94122537bdb29a054b17a51191df98ba11a5099d91e49f8556"
+      "bytes": 1161,
+      "sha256": "sha256:c7d9bac52b48f67f294f770f8c24317e28bef22634f195e8c1222f8fce611c5c"
     },
     {
       "path": "verification.json",
-      "bytes": 1625,
-      "sha256": "sha256:d93e78efa5eed9cfeacbaff7e82f4abd5152c20ad2b3faf19d96ed7b71fbff4c"
+      "bytes": 1940,
+      "sha256": "sha256:e03b1f71c12d79489025dd846aa92a60673a8f7fcf6703935c838d1681b14ba8"
     }
   ],
   "root_rule": "sha256 of RFC 8785 canonical JSON for this manifest with manifest_root omitted",
-  "manifest_root": "sha256:082b5ae83e41b4944ce8460fd84c6a3a82f98adc06c7f7d5aee632755da7568c"
+  "manifest_root": "sha256:9317ed45093a857f6d56943c5d1aa8a5ae8db9b3cdc108de63d381be320c1018"
 }

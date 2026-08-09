@@ -10,13 +10,13 @@ use std::path::{Component, Path, PathBuf};
 use chrono::{SecondsFormat, Utc};
 use serde_json::json;
 use sha2::{Digest, Sha256};
-use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
 use vela_protocol::proposal_v1::ProposalV1;
 use vela_protocol::repository::{RepositoryObjectRefV1, RepositoryV4};
-use vela_protocol::submission_v1::SubmissionV1;
-use vela_protocol::verification_record::{
-    IndependenceDisclosure, VerificationMethod, VerificationRecordDraft, VerificationRecordV1,
-    VerificationScope, VerificationSubject,
+use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
+use vela_protocol::submission_v2::SubmissionRecordV2;
+use vela_protocol::verification_record_v2::{
+    IndependenceDisclosure, VerificationMethod, VerificationRecordDraft,
+    VerificationRecordEnvelopeV2, VerificationScope, VerificationSubject,
 };
 
 use crate::authority_transaction::AuthorityObjectDraft;
@@ -66,7 +66,7 @@ fn ensure_pending_standing(proposal_id: &str, standing: Option<&str>) -> Result<
 struct ProposalPackage {
     proposal: ProposalV1,
     proposal_root: String,
-    submission: SubmissionV1,
+    submission: SubmissionRecordV2,
 }
 
 fn load_proposal_package(
@@ -90,7 +90,7 @@ fn load_proposal_package(
         ProposalV1::canonical_bytes,
     )?;
     let proposal_root = proposal.canonical_root()?;
-    if proposal.proposal_id != proposal_reference.id || proposal_root != proposal_reference.root {
+    if proposal.id() != proposal_reference.id || proposal_root != proposal_reference.root {
         return Err(format!(
             "current Proposal {proposal_id} differs from its exact repository reference"
         ));
@@ -111,11 +111,11 @@ fn load_proposal_package(
     let submission = read_exact_object(
         repository_path,
         submission_reference,
-        SubmissionV1::parse,
-        SubmissionV1::canonical_bytes,
+        SubmissionRecordV2::parse,
+        |value: &SubmissionRecordV2| Ok(value.bytes.clone()),
     )?;
-    if submission.submission_id != submission_reference.id
-        || submission.canonical_root()? != submission_reference.root
+    if submission.id != submission_reference.id
+        || submission.root.clone() != submission_reference.root
     {
         return Err("stored Submission identity differs from the current repository".into());
     }
@@ -130,8 +130,8 @@ fn subject_for_package(
     repository: &RepositoryV4,
     package: &ProposalPackage,
 ) -> Result<VerificationSubject, String> {
-    let mut artifact_ids = Vec::with_capacity(package.submission.artifacts.len());
-    for artifact in &package.submission.artifacts {
+    let mut artifact_ids = Vec::with_capacity(package.submission.submission.artifacts.len());
+    for artifact in &package.submission.submission.artifacts {
         let artifact_id = artifact
             .digest
             .strip_prefix("sha256:")
@@ -158,9 +158,10 @@ fn subject_for_package(
     Ok(VerificationSubject {
         claim_id: package.proposal.subject.id.clone(),
         artifact_ids,
-        submission_id: package.submission.submission_id.clone(),
+        submission_id: package.submission.id.clone(),
         submission_root: package.proposal.producer_package.root.clone(),
-        proposal_id: package.proposal.proposal_id.clone(),
+        proposal_id: package.proposal.id(),
+        proposal_root: package.proposal.canonical_root()?,
     })
 }
 
@@ -256,7 +257,7 @@ fn resolve_property(
 }
 
 fn matches_request(
-    record: &VerificationRecordV1,
+    record: &VerificationRecordEnvelopeV2,
     subject: &VerificationSubject,
     method: &VerificationMethod,
     scope: &VerificationScope,
@@ -264,13 +265,13 @@ fn matches_request(
     verifier: &str,
     independence: &IndependenceDisclosure,
 ) -> bool {
-    record.subject == *subject
-        && record.method == *method
-        && record.scope == *scope
-        && record.outcome == outcome
-        && record.verifier == verifier
-        && record.independence == *independence
-        && record.output_artifact_ids.is_empty()
+    record.record.subject == *subject
+        && record.record.method == *method
+        && record.record.scope == *scope
+        && record.record.outcome == outcome
+        && record.record.verifier() == verifier
+        && record.record.independence == *independence
+        && record.record.output_artifact_ids.is_empty()
 }
 
 fn existing_semantic_record(
@@ -282,13 +283,13 @@ fn existing_semantic_record(
     outcome: &str,
     verifier: &str,
     independence: &IndependenceDisclosure,
-) -> Result<Option<VerificationRecordV1>, String> {
+) -> Result<Option<VerificationRecordEnvelopeV2>, String> {
     for reference in &repository.verifications {
         let record = read_exact_object(
             repository_path,
             reference,
-            VerificationRecordV1::parse,
-            VerificationRecordV1::canonical_bytes,
+            VerificationRecordEnvelopeV2::parse,
+            |value: &VerificationRecordEnvelopeV2| Ok(value.bytes.clone()),
         )?;
         if matches_request(
             &record,
@@ -308,7 +309,7 @@ fn existing_semantic_record(
 pub(crate) fn author_record(
     repository_path: &Path,
     request: VerificationRecordRequest,
-) -> Result<VerificationRecordV1, String> {
+) -> Result<VerificationRecordEnvelopeV2, String> {
     let actor = request.actor.trim();
     if actor != request.actor
         || !(actor.starts_with("agent:")
@@ -328,7 +329,7 @@ pub(crate) fn author_record(
     let property = resolve_property(
         request.property,
         request.complementary,
-        &package.submission.verification_requirements,
+        &package.submission.submission.verification_requirements,
     )?;
     let subject = subject_for_package(&repository, &package)?;
     let (implementation, environment_root) =
@@ -361,21 +362,13 @@ pub(crate) fn author_record(
 
     let observed_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
     let key = vela_edge::agent_identity::agent_signing_key(actor)?;
-    let identity = IdentityBinding::build(
-        IdentityBindingDraft {
-            actor_id: actor.into(),
-            actor_class: ActorClass::Agent,
-            created_at: observed_at.clone(),
-        },
-        &key,
-    )?;
-    VerificationRecordV1::build(
+    let identity = SignerIdentityV1::new(actor, ActorClass::Agent, &key, observed_at.clone())?;
+    VerificationRecordEnvelopeV2::seal(
         VerificationRecordDraft {
             subject,
             method,
             scope,
             outcome: request.outcome,
-            verifier: actor.into(),
             independence,
             output_artifact_ids: Vec::new(),
             started_at: observed_at.clone(),
@@ -407,12 +400,16 @@ fn read_exact_object<T>(
 fn load_subject(
     repository_path: &Path,
     repository: &RepositoryV4,
-    record: &VerificationRecordV1,
-) -> Result<(ProposalV1, String, SubmissionV1), String> {
-    let package = load_proposal_package(repository_path, repository, &record.subject.proposal_id)?;
-    if package.proposal.subject.id != record.subject.claim_id
-        || package.proposal.producer_package.id != record.subject.submission_id
-        || package.proposal.producer_package.root != record.subject.submission_root
+    record: &VerificationRecordEnvelopeV2,
+) -> Result<(ProposalV1, String, SubmissionRecordV2), String> {
+    let package = load_proposal_package(
+        repository_path,
+        repository,
+        &record.record.subject.proposal_id,
+    )?;
+    if package.proposal.subject.id != record.record.subject.claim_id
+        || package.proposal.producer_package.id != record.record.subject.submission_id
+        || package.proposal.producer_package.root != record.record.subject.submission_root
     {
         return Err(
             "Verification Record does not bind the current Proposal and producer package".into(),
@@ -420,10 +417,11 @@ fn load_subject(
     }
 
     for artifact_id in record
+        .record
         .subject
         .artifact_ids
         .iter()
-        .chain(&record.output_artifact_ids)
+        .chain(&record.record.output_artifact_ids)
     {
         if !repository
             .artifacts
@@ -441,14 +439,14 @@ fn load_subject(
 fn existing_outcome(
     repository_path: &Path,
     repository: &RepositoryV4,
-    record: &VerificationRecordV1,
+    record: &VerificationRecordEnvelopeV2,
     record_root: &str,
     operation_id: &str,
 ) -> Result<Option<VerificationImportOutcome>, String> {
     let Some(reference) = repository
         .verifications
         .iter()
-        .find(|reference| reference.id == record.verification_record_id)
+        .find(|reference| reference.id == record.id)
     else {
         return Ok(None);
     };
@@ -458,22 +456,20 @@ fn existing_outcome(
     let stored = read_exact_object(
         repository_path,
         reference,
-        VerificationRecordV1::parse,
-        VerificationRecordV1::canonical_bytes,
+        VerificationRecordEnvelopeV2::parse,
+        |value: &VerificationRecordEnvelopeV2| Ok(value.bytes.clone()),
     )?;
-    if stored.verification_record_id != record.verification_record_id
-        || stored.canonical_root()? != record_root
-    {
+    if stored.id != record.id || stored.root.clone() != record_root {
         return Err("stored Verification Record differs from the current repository".into());
     }
     Ok(Some(VerificationImportOutcome {
         schema: "vela.verification-import-result.v1",
         operation_id: operation_id.into(),
-        verification_record_id: record.verification_record_id.clone(),
+        verification_record_id: record.id.clone(),
         verification_record_root: record_root.into(),
-        proposal_id: record.subject.proposal_id.clone(),
-        claim_id: record.subject.claim_id.clone(),
-        outcome: record.outcome.clone(),
+        proposal_id: record.record.subject.proposal_id.clone(),
+        claim_id: record.record.subject.claim_id.clone(),
+        outcome: record.record.outcome.clone(),
         idempotent: true,
         accepted_event_delta: 0,
         publication: PublicationOutcome {
@@ -487,7 +483,7 @@ fn existing_outcome(
 
 pub(crate) fn import(
     repository_path: &Path,
-    record: &VerificationRecordV1,
+    record: &VerificationRecordEnvelopeV2,
     executor: &str,
 ) -> Result<VerificationImportOutcome, String> {
     import_inner(repository_path, record, executor)
@@ -495,12 +491,11 @@ pub(crate) fn import(
 
 fn import_inner(
     repository_path: &Path,
-    record: &VerificationRecordV1,
+    record: &VerificationRecordEnvelopeV2,
     executor: &str,
 ) -> Result<VerificationImportOutcome, String> {
-    record.verify()?;
     let executor = executor.trim();
-    if executor != record.verifier || executor != record.authentication.identity_binding.actor_id {
+    if executor != record.record.verifier() || executor != record.record.identity.actor_id {
         return Err("verification import actor must match the Verification Record verifier".into());
     }
 
@@ -508,8 +503,8 @@ fn import_inner(
     let repository_root = repository.canonical_root()?;
     let (_proposal, proposal_root, submission) =
         load_subject(repository_path, &repository, record)?;
-    let record_bytes = record.canonical_bytes()?;
-    let record_root = record.canonical_root()?;
+    let record_bytes = record.bytes.clone();
+    let record_root = record.root.clone();
     let request_root = format!(
         "sha256:{}",
         vela_protocol::canonical::sha256_canonical(&json!({
@@ -518,7 +513,7 @@ fn import_inner(
             "origin_id": repository.origin_id,
             "repository_before": repository_root,
             "verification_record_root": record_root,
-            "source_attempt": submission.provenance.source_attempt.as_deref(),
+            "source_attempt": submission.submission.provenance.source_attempt.as_deref(),
         }))?
     );
     let operation_id =
@@ -532,7 +527,11 @@ fn import_inner(
     )? {
         return Ok(outcome);
     }
-    ensure_pending_proposal(repository_path, &repository, &record.subject.proposal_id)?;
+    ensure_pending_proposal(
+        repository_path,
+        &repository,
+        &record.record.subject.proposal_id,
+    )?;
 
     let journal_dir = crate::repository_ops::repository_transaction_journal_dir(repository_path)?;
     let barrier = crate::repository_txn::RepositoryTxn::acquire_routine_evidence_write_barrier(
@@ -549,10 +548,10 @@ fn import_inner(
     ensure_pending_proposal(
         repository_path,
         &held_repository,
-        &record.subject.proposal_id,
+        &record.record.subject.proposal_id,
     )?;
     let (_, _, held_submission) = load_subject(repository_path, &held_repository, record)?;
-    if held_submission.canonical_root()? != submission.canonical_root()? {
+    if held_submission.root.clone() != submission.root.clone() {
         return Err(
             "Verification source Submission changed while acquiring the import barrier".into(),
         );
@@ -563,8 +562,8 @@ fn import_inner(
     crate::submission::add_object_ref(
         &mut next_repository.verifications,
         RepositoryObjectRefV1 {
-            schema: record.schema.clone(),
-            id: record.verification_record_id.clone(),
+            schema: record.record.schema.clone(),
+            id: record.id.clone(),
             root: record_root.clone(),
             path: record_path.clone(),
         },
@@ -590,7 +589,7 @@ fn import_inner(
                 },
                 InputBinding {
                     name: "submission".into(),
-                    digest: ContentDigest::parse(record.subject.submission_root.clone())
+                    digest: ContentDigest::parse(record.record.subject.submission_root.clone())
                         .map_err(|error| error.to_string())?,
                 },
                 InputBinding {
@@ -652,7 +651,7 @@ fn import_inner(
     let publication = publish_exact_delta(
         repository_path,
         "verification import",
-        std::slice::from_ref(&record.verification_record_id),
+        std::slice::from_ref(&record.id),
         &delta,
         preflight,
     )
@@ -677,11 +676,11 @@ fn import_inner(
     Ok(VerificationImportOutcome {
         schema: "vela.verification-import-result.v1",
         operation_id: operation_id.as_str().into(),
-        verification_record_id: record.verification_record_id.clone(),
+        verification_record_id: record.id.clone(),
         verification_record_root: record_root,
-        proposal_id: record.subject.proposal_id.clone(),
-        claim_id: record.subject.claim_id.clone(),
-        outcome: record.outcome.clone(),
+        proposal_id: record.record.subject.proposal_id.clone(),
+        claim_id: record.record.subject.claim_id.clone(),
+        outcome: record.record.outcome.clone(),
         idempotent: false,
         accepted_event_delta: 0,
         publication,
@@ -692,13 +691,13 @@ fn import_inner(
 mod tests {
     use ed25519_dalek::SigningKey;
     use tempfile::TempDir;
-    use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject};
     use vela_protocol::repository::REPOSITORY_SCHEMA_V4;
-    use vela_protocol::submission_v1::{
+    use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
+    use vela_protocol::submission_v2::{
         RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
     };
-    use vela_protocol::verification_record::{
+    use vela_protocol::verification_record_v2::{
         IndependenceDisclosure, VerificationMethod, VerificationRecordDraft, VerificationScope,
         VerificationSubject,
     };
@@ -712,7 +711,7 @@ mod tests {
     struct Fixture {
         _directory: TempDir,
         repository: RepositoryV4,
-        record: VerificationRecordV1,
+        record: VerificationRecordEnvelopeV2,
         proposal_root: String,
     }
 
@@ -725,16 +724,14 @@ mod tests {
     fn fixture() -> Fixture {
         let directory = TempDir::new().unwrap();
         let producer_key = SigningKey::from_bytes(&[51_u8; 32]);
-        let producer_identity = IdentityBinding::build(
-            IdentityBindingDraft {
-                actor_id: "agent:producer-fixture".into(),
-                actor_class: ActorClass::Agent,
-                created_at: "2026-07-27T00:00:00Z".into(),
-            },
+        let producer_identity = SignerIdentityV1::new(
+            "agent:producer-fixture",
+            ActorClass::Agent,
             &producer_key,
+            "2026-07-27T00:00:00Z",
         )
         .unwrap();
-        let submission = SubmissionV1::build(
+        let submission = SubmissionRecordV2::seal(
             SubmissionDraft {
                 claim: SubmissionClaim {
                     assertion: "A bounded witness satisfies the fixture.".into(),
@@ -767,7 +764,7 @@ mod tests {
             &producer_key,
         )
         .unwrap();
-        let submission_root = submission.canonical_root().unwrap();
+        let submission_root = submission.root.clone();
         let submission_path =
             crate::submission::rooted_path("records/submissions/sha256", &submission_root).unwrap();
         let claim_id = format!("vcl_{}", "a".repeat(64));
@@ -782,8 +779,8 @@ mod tests {
             "2026-07-27T00:00:01Z".into(),
             "Fixture proposal.".into(),
             ProposalProducerPackage {
-                kind: "submission_v1".into(),
-                id: submission.submission_id.clone(),
+                kind: "submission_v2".into(),
+                id: submission.id.clone(),
                 root: submission_root.clone(),
                 path: submission_path.clone(),
             },
@@ -796,7 +793,7 @@ mod tests {
         write(
             directory.path(),
             &submission_path,
-            &submission.canonical_bytes().unwrap(),
+            &submission.bytes.clone(),
         );
         write(
             directory.path(),
@@ -805,23 +802,22 @@ mod tests {
         );
 
         let verifier_key = SigningKey::from_bytes(&[52_u8; 32]);
-        let verifier_identity = IdentityBinding::build(
-            IdentityBindingDraft {
-                actor_id: "service:verifier-fixture".into(),
-                actor_class: ActorClass::Org,
-                created_at: "2026-07-27T00:00:00Z".into(),
-            },
+        let verifier_identity = SignerIdentityV1::new(
+            "service:verifier-fixture",
+            ActorClass::Org,
             &verifier_key,
+            "2026-07-27T00:00:00Z",
         )
         .unwrap();
-        let record = VerificationRecordV1::build(
+        let record = VerificationRecordEnvelopeV2::seal(
             VerificationRecordDraft {
                 subject: VerificationSubject {
                     claim_id,
                     artifact_ids: vec!["e".repeat(64)],
-                    submission_id: submission.submission_id.clone(),
+                    submission_id: submission.id.clone(),
                     submission_root: submission_root.clone(),
-                    proposal_id: proposal.proposal_id.clone(),
+                    proposal_id: proposal.id(),
+                    proposal_root: proposal.canonical_root().unwrap(),
                 },
                 method: VerificationMethod {
                     profile: "fixture-v1".into(),
@@ -833,7 +829,6 @@ mod tests {
                     does_not_establish: vec!["Scientific acceptance.".into()],
                 },
                 outcome: "pass".into(),
-                verifier: "service:verifier-fixture".into(),
                 independence: IndependenceDisclosure {
                     declared_independent_of: vec!["agent:producer-fixture".into()],
                     shared_dependencies: Vec::new(),
@@ -856,14 +851,14 @@ mod tests {
             pending_claims: Vec::new(),
             proposals: vec![RepositoryObjectRefV1 {
                 schema: proposal.schema.clone(),
-                id: proposal.proposal_id,
+                id: proposal.id(),
                 root: proposal_root.clone(),
                 path: proposal_path,
             }],
             proposal_withdrawals: Vec::new(),
             submissions: vec![RepositoryObjectRefV1 {
-                schema: submission.schema,
-                id: submission.submission_id,
+                schema: submission.submission.schema.clone(),
+                id: submission.id,
                 root: submission_root,
                 path: submission_path,
             }],
@@ -896,10 +891,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(proposal_root, fixture.proposal_root);
-        assert_eq!(proposal.subject.id, fixture.record.subject.claim_id);
+        assert_eq!(proposal.subject.id, fixture.record.record.subject.claim_id);
         assert_eq!(
-            submission.canonical_root().unwrap(),
-            fixture.record.subject.submission_root
+            submission.root.clone(),
+            fixture.record.record.subject.submission_root
         );
     }
 
@@ -932,20 +927,20 @@ mod tests {
     #[test]
     fn exact_retained_verification_is_idempotent_and_non_authoritative() {
         let mut fixture = fixture();
-        let record_root = fixture.record.canonical_root().unwrap();
+        let record_root = fixture.record.root.clone();
         let path =
             crate::submission::rooted_path("records/verifications/sha256", &record_root).unwrap();
         write(
             fixture._directory.path(),
             &path,
-            &fixture.record.canonical_bytes().unwrap(),
+            &fixture.record.bytes.clone(),
         );
         fixture
             .repository
             .verifications
             .push(RepositoryObjectRefV1 {
-                schema: fixture.record.schema.clone(),
-                id: fixture.record.verification_record_id.clone(),
+                schema: fixture.record.record.schema.clone(),
+                id: fixture.record.id.clone(),
                 root: record_root.clone(),
                 path,
             });
@@ -967,24 +962,24 @@ mod tests {
         let fixture = fixture();
         assert!(matches_request(
             &fixture.record,
-            &fixture.record.subject,
-            &fixture.record.method,
-            &fixture.record.scope,
-            &fixture.record.outcome,
-            &fixture.record.verifier,
-            &fixture.record.independence,
+            &fixture.record.record.subject,
+            &fixture.record.record.method,
+            &fixture.record.record.scope,
+            &fixture.record.record.outcome,
+            fixture.record.record.verifier(),
+            &fixture.record.record.independence,
         ));
 
-        let mut changed_scope = fixture.record.scope.clone();
+        let mut changed_scope = fixture.record.record.scope.clone();
         changed_scope.property.push_str(" changed");
         assert!(!matches_request(
             &fixture.record,
-            &fixture.record.subject,
-            &fixture.record.method,
+            &fixture.record.record.subject,
+            &fixture.record.record.method,
             &changed_scope,
-            &fixture.record.outcome,
-            &fixture.record.verifier,
-            &fixture.record.independence,
+            &fixture.record.record.outcome,
+            fixture.record.record.verifier(),
+            &fixture.record.record.independence,
         ));
     }
 

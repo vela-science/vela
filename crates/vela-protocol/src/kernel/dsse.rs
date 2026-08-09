@@ -100,6 +100,111 @@ pub struct VerifiedPayload {
     pub verified_key_ids: Vec<String>,
 }
 
+/// The one envelope every signed Vela object is stored and transported in.
+///
+/// The field set is open because DSSE requires it. What the envelope carries
+/// is closed: each object's `open` refuses a payload type other than its own
+/// before it looks at a signature, so an envelope is never read as a kind of
+/// object it does not claim to be.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(extend("additionalProperties" = true))]
+pub struct EnvelopeV1 {
+    #[serde(rename = "payloadType")]
+    #[schemars(schema_with = "crate::wire_schema::vela_payload_type")]
+    pub payload_type: String,
+    #[schemars(schema_with = "crate::wire_schema::base64_body")]
+    pub payload: String,
+    // Every `open` refuses an empty list before it reads a key.
+    #[schemars(length(min = 1))]
+    pub signatures: Vec<SignatureV1>,
+}
+
+impl EnvelopeV1 {
+    /// Wrap already-canonical payload bytes with signatures made over them.
+    pub fn seal(payload_type: &str, payload: &[u8], signatures: Vec<SignatureV1>) -> Self {
+        Self {
+            payload_type: payload_type.to_string(),
+            payload: encode_base64(payload),
+            signatures,
+        }
+    }
+
+    /// Seal under exactly one key. This is the producer and verifier shape:
+    /// one actor, one signature, no threshold to configure.
+    pub fn seal_single(key: &SigningKey, payload_type: &str, payload: &[u8]) -> Self {
+        Self::seal(
+            payload_type,
+            payload,
+            vec![sign(key, payload_type, payload)],
+        )
+    }
+
+    /// The exact retained bytes of the envelope itself.
+    ///
+    /// This is what a repository writes and what its content address is taken
+    /// over — the payload root would name the same scientific content signed
+    /// by anyone, which is not what a retained object is.
+    pub fn canonical_bytes(&self) -> Result<Vec<u8>, String> {
+        crate::canonical::to_canonical_bytes(self)
+    }
+
+    pub fn canonical_root(&self) -> Result<String, String> {
+        Ok(crate::canonical::sha256_root(&self.canonical_bytes()?))
+    }
+
+    /// Parse an envelope from retained bytes, requiring them to be canonical.
+    pub fn parse(name: &str, bytes: &[u8], max_bytes: usize) -> Result<Self, String> {
+        if bytes.len() > max_bytes {
+            return Err(format!("{name} exceeds the {max_bytes}-byte encoded limit"));
+        }
+        // The envelope is open, so this is an ordinary tolerant parse; the
+        // payload underneath is read strictly by the object that owns it.
+        let value: Self = serde_json::from_slice(bytes)
+            .map_err(|error| format!("parse {name} envelope: {error}"))?;
+        if value.canonical_bytes()? != bytes {
+            return Err(format!("{name} envelope bytes are not canonical JSON"));
+        }
+        Ok(value)
+    }
+
+    /// Verify against candidate keys and return the exact payload bytes.
+    pub fn open(
+        &self,
+        name: &str,
+        expected_payload_type: &str,
+        candidates: &[CandidateKey],
+        threshold: usize,
+    ) -> Result<VerifiedPayload, String> {
+        if self.payload_type != expected_payload_type {
+            return Err(format!(
+                "{name} payload type must be `{expected_payload_type}`"
+            ));
+        }
+        verify(
+            name,
+            &self.payload_type,
+            &self.payload,
+            &self.signatures,
+            candidates,
+            threshold,
+        )
+    }
+
+    /// Verify against the single key the payload itself declares.
+    pub fn open_single(
+        &self,
+        name: &str,
+        expected_payload_type: &str,
+        public_key_hex: &str,
+    ) -> Result<Vec<u8>, String> {
+        let candidate = CandidateKey::from_hex(public_key_hex, public_key_hex)
+            .ok_or_else(|| format!("{name} declares an unusable public key"))?;
+        Ok(self
+            .open(name, expected_payload_type, &[candidate], 1)?
+            .payload)
+    }
+}
+
 /// DSSE Pre-Authentication Encoding:
 /// `DSSEv1 SP LEN(payloadType) SP payloadType SP LEN(payload) SP payload`.
 pub fn pae(payload_type: &str, payload: &[u8]) -> Vec<u8> {

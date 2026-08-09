@@ -13,7 +13,7 @@ use sha2::{Digest, Sha256};
 use vela_protocol::authority::AuthorityEventV1;
 use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::proposal_v1::ProposalV1;
-use vela_protocol::proposal_withdrawal_v1::ProposalWithdrawalV1;
+use vela_protocol::proposal_withdrawal_v2::ProposalWithdrawalEnvelopeV2;
 use vela_protocol::repository::{ClaimStandingRefV1, RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::repository_origin::{RepositoryOriginPredecessorV1, RepositoryOriginV1};
 
@@ -27,7 +27,7 @@ struct ReadContext {
     origin: RepositoryOriginV1,
     proposals: Vec<(RepositoryObjectRefV1, ProposalV1)>,
     decisions: BTreeMap<String, ProposalDecision>,
-    withdrawals: BTreeMap<String, ProposalWithdrawalV1>,
+    withdrawals: BTreeMap<String, ProposalWithdrawalEnvelopeV2>,
     authority_events: Vec<AuthorityEventV1>,
 }
 
@@ -78,7 +78,7 @@ fn load_context(repository_path: &Path) -> Result<ReadContext, String> {
         .map(|reference| {
             let bytes = read_exact(repository_path, &reference.path, &reference.root)?;
             let proposal = ProposalV1::parse(&bytes)?;
-            if proposal.proposal_id != reference.id {
+            if proposal.id() != reference.id {
                 return Err(format!(
                     "current Proposal {} does not match its repository reference",
                     reference.id
@@ -437,8 +437,7 @@ fn latest_proposal<'a>(
 }
 
 fn claim_proposal_status(context: &ReadContext, claim_id: &str) -> Option<String> {
-    latest_proposal(context, claim_id)
-        .map(|(_, proposal)| proposal_status(context, &proposal.proposal_id))
+    latest_proposal(context, claim_id).map(|(_, proposal)| proposal_status(context, &proposal.id()))
 }
 
 fn proposal_claim(
@@ -454,7 +453,7 @@ fn proposal_claim(
     if claim.claim_id != proposal.subject.id {
         return Err(format!(
             "current Proposal {} resolves to the wrong Claim",
-            proposal.proposal_id
+            proposal.id()
         ));
     }
     Ok(Some(claim))
@@ -604,8 +603,8 @@ fn proposal_views(context: &ReadContext, claim_id: &str) -> Vec<Value> {
             json!({
                 "proposal": proposal,
                 "proposal_root": reference.root,
-                "decision": context.decisions.get(&proposal.proposal_id),
-                "withdrawal": context.withdrawals.get(&proposal.proposal_id),
+                "decision": context.decisions.get(&proposal.id()),
+                "withdrawal": context.withdrawals.get(&proposal.id()).map(|value| &value.withdrawal),
             })
         })
         .collect()
@@ -638,7 +637,7 @@ fn related_authority_events(context: &ReadContext, claim_id: &str) -> Result<Vec
         .proposals
         .iter()
         .filter(|(_, proposal)| proposal.subject.id == claim_id)
-        .map(|(_, proposal)| proposal.proposal_id.as_str())
+        .map(|(_, proposal)| proposal.id())
         .collect::<Vec<_>>();
     context
         .authority_events
@@ -656,7 +655,9 @@ fn related_authority_events(context: &ReadContext, claim_id: &str) -> Result<Vec
                     .payload
                     .get("proposal_id")
                     .and_then(Value::as_str)
-                    .is_some_and(|proposal_id| proposal_ids.contains(&proposal_id))
+                    .is_some_and(|proposal_id| {
+                        proposal_ids.iter().any(|known| known == proposal_id)
+                    })
         })
         .map(|event| {
             Ok(json!({
@@ -755,7 +756,7 @@ pub(crate) fn show_payload(repository_path: &Path, object_id: &str) -> Result<Va
     if let Some((reference, proposal)) = context
         .proposals
         .iter()
-        .find(|(_, proposal)| proposal.proposal_id == object_id)
+        .find(|(_, proposal)| proposal.id() == object_id)
     {
         return Ok(object_projection(
             &context,
@@ -767,7 +768,7 @@ pub(crate) fn show_payload(repository_path: &Path, object_id: &str) -> Result<Va
             json!({
                 "proposal": proposal,
                 "decision": context.decisions.get(object_id),
-                "withdrawal": context.withdrawals.get(object_id),
+                "withdrawal": context.withdrawals.get(object_id).map(|value| &value.withdrawal),
             }),
         ));
     }
@@ -956,9 +957,9 @@ pub(crate) fn log_payload(
                 .proposals
                 .iter()
                 .filter(|(_, proposal)| {
-                    proposal.proposal_id == object_id || proposal.subject.id == object_id
+                    proposal.id() == object_id || proposal.subject.id == object_id
                 })
-                .map(|(_, proposal)| proposal.proposal_id.as_str())
+                .map(|(_, proposal)| proposal.id())
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
@@ -984,7 +985,8 @@ pub(crate) fn log_payload(
                         .get("proposal_id")
                         .and_then(Value::as_str)
                         .is_some_and(|proposal_id| {
-                            proposal_id == object_id || proposal_ids.contains(&proposal_id)
+                            proposal_id == object_id
+                                || proposal_ids.iter().any(|known| known == proposal_id)
                         })
             })
         })

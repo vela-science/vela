@@ -1,5 +1,5 @@
 {
-  "$id": "https://vela.science/schemas/submission-v1.schema.json",
+  "$id": "https://vela.science/schemas/submission-v2.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
@@ -33,74 +33,6 @@
       },
       "minItems": 1,
       "type": "array"
-    },
-    "authentication": {
-      "additionalProperties": false,
-      "properties": {
-        "algorithm": {
-          "const": "ed25519",
-          "type": "string"
-        },
-        "identity_binding": {
-          "additionalProperties": false,
-          "properties": {
-            "actor_class": {
-              "enum": [
-                "human",
-                "agent",
-                "org"
-              ],
-              "type": "string"
-            },
-            "actor_id": {
-              "maxLength": 16384,
-              "minLength": 1,
-              "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
-              "type": "string"
-            },
-            "binding_id": {
-              "pattern": "^vib_[0-9a-f]{16}$",
-              "type": "string"
-            },
-            "created_at": {
-              "format": "date-time",
-              "type": "string"
-            },
-            "public_key_hex": {
-              "pattern": "^[0-9a-f]{64}$",
-              "type": "string"
-            },
-            "schema": {
-              "const": "vela.identity_binding.v0.1",
-              "type": "string"
-            },
-            "signature": {
-              "pattern": "^[0-9a-f]{128}$",
-              "type": "string"
-            }
-          },
-          "required": [
-            "schema",
-            "binding_id",
-            "actor_id",
-            "actor_class",
-            "public_key_hex",
-            "created_at",
-            "signature"
-          ],
-          "type": "object"
-        },
-        "signature": {
-          "pattern": "^[0-9a-f]{128}$",
-          "type": "string"
-        }
-      },
-      "required": [
-        "algorithm",
-        "identity_binding",
-        "signature"
-      ],
-      "type": "object"
     },
     "caveats": {
       "items": {
@@ -178,6 +110,45 @@
         "profile_root",
         "verifier_capsule_root",
         "result_contract_root"
+      ],
+      "type": "object"
+    },
+    "identity": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_class": {
+          "enum": [
+            "human",
+            "agent",
+            "org"
+          ],
+          "type": "string"
+        },
+        "actor_id": {
+          "maxLength": 16384,
+          "minLength": 1,
+          "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+          "type": "string"
+        },
+        "declared_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "public_key_hex": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "schema": {
+          "const": "vela.signer-identity.v1",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema",
+        "actor_id",
+        "actor_class",
+        "public_key_hex",
+        "declared_at"
       ],
       "type": "object"
     },
@@ -330,11 +301,7 @@
       "type": "object"
     },
     "schema": {
-      "const": "vela.submission.v1",
-      "type": "string"
-    },
-    "submission_id": {
-      "pattern": "^vsb_[0-9a-f]{16}$",
+      "const": "vela.submission.v2",
       "type": "string"
     },
     "verification_requirements": {
@@ -349,7 +316,7 @@
   },
   "required": [
     "schema",
-    "submission_id",
+    "identity",
     "claim",
     "artifacts",
     "caveats",
@@ -357,9 +324,8 @@
     "producer_checks",
     "verification_requirements",
     "requested_change",
-    "provenance",
-    "authentication"
+    "provenance"
   ],
-  "title": "Vela Submission v1",
+  "title": "Vela Submission v2",
   "type": "object"
 }

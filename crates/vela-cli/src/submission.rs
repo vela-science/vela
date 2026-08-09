@@ -15,7 +15,7 @@ use vela_protocol::claim_record::{
 };
 use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject, ProposalV1};
 use vela_protocol::repository::{ClaimStandingRefV1, RepositoryObjectRefV1, RepositoryV4};
-use vela_protocol::submission_v1::SubmissionV1;
+use vela_protocol::submission_v2::SubmissionRecordV2;
 
 use crate::authority_transaction::{AuthorityDerivedDraft, AuthorityObjectDraft};
 use crate::config::git_publish::{
@@ -120,9 +120,9 @@ fn add_pending_claim(
 fn load_target_claim(
     repository_path: &Path,
     repository: &RepositoryV4,
-    submission: &SubmissionV1,
+    submission: &SubmissionRecordV2,
 ) -> Result<Option<ClaimRecordV1>, String> {
-    let Some(target) = submission.requested_change.target.as_ref() else {
+    let Some(target) = submission.submission.requested_change.target.as_ref() else {
         return Ok(None);
     };
     let reference = repository
@@ -160,10 +160,10 @@ struct ProposedChange {
 fn proposed_change(
     repository_path: &Path,
     repository: &RepositoryV4,
-    submission: &SubmissionV1,
+    submission: &SubmissionRecordV2,
 ) -> Result<ProposedChange, String> {
     let target = load_target_claim(repository_path, repository, submission)?;
-    if submission.requested_change.kind == "retract_claim" {
+    if submission.submission.requested_change.kind == "retract_claim" {
         let target =
             target.ok_or_else(|| "retract_claim requires an accepted Claim".to_string())?;
         let target_root = target.canonical_root()?;
@@ -178,14 +178,16 @@ fn proposed_change(
         });
     }
 
-    let mut conditions = submission.claim.conditions.clone();
+    let mut conditions = submission.submission.claim.conditions.clone();
     conditions.extend(
         submission
+            .submission
             .caveats
             .iter()
             .map(|caveat| format!("Caveat: {caveat}")),
     );
     let evidence = submission
+        .submission
         .artifacts
         .iter()
         .map(|artifact| {
@@ -201,50 +203,53 @@ fn proposed_change(
             }
         })
         .collect::<Vec<_>>();
-    let emitted_at = chrono::DateTime::parse_from_rfc3339(&submission.provenance.emitted_at)
-        .map_err(|error| format!("Submission emitted_at: {error}"))?;
-    let (revision, relations, action) =
-        match (submission.requested_change.kind.as_str(), target.as_ref()) {
-            ("add_claim", None) => (1, Vec::new(), "claim.add"),
-            ("correct_claim", Some(target)) => (
-                target.revision.saturating_add(1),
-                vec![ClaimRelation {
-                    kind: "corrects".into(),
-                    target_claim_id: target.claim_id.clone(),
-                }],
-                "claim.revise",
-            ),
-            ("supersede_claim", Some(target)) => (
-                target.revision.saturating_add(1),
-                vec![ClaimRelation {
-                    kind: "supersedes".into(),
-                    target_claim_id: target.claim_id.clone(),
-                }],
-                "claim.revise",
-            ),
-            (kind, _) => {
-                return Err(format!(
-                    "Submission requested change {kind:?} is inconsistent with its target"
-                ));
-            }
-        };
+    let emitted_at =
+        chrono::DateTime::parse_from_rfc3339(&submission.submission.provenance.emitted_at)
+            .map_err(|error| format!("Submission emitted_at: {error}"))?;
+    let (revision, relations, action) = match (
+        submission.submission.requested_change.kind.as_str(),
+        target.as_ref(),
+    ) {
+        ("add_claim", None) => (1, Vec::new(), "claim.add"),
+        ("correct_claim", Some(target)) => (
+            target.revision.saturating_add(1),
+            vec![ClaimRelation {
+                kind: "corrects".into(),
+                target_claim_id: target.claim_id.clone(),
+            }],
+            "claim.revise",
+        ),
+        ("supersede_claim", Some(target)) => (
+            target.revision.saturating_add(1),
+            vec![ClaimRelation {
+                kind: "supersedes".into(),
+                target_claim_id: target.claim_id.clone(),
+            }],
+            "claim.revise",
+        ),
+        (kind, _) => {
+            return Err(format!(
+                "Submission requested change {kind:?} is inconsistent with its target"
+            ));
+        }
+    };
     let claim = ClaimRecordV1::build(
         revision,
         ClaimAssertion {
-            text: submission.claim.assertion.clone(),
-            kind: submission.claim.claim_type.clone(),
+            text: submission.submission.claim.assertion.clone(),
+            kind: submission.submission.claim.claim_type.clone(),
         },
         conditions,
         evidence,
         vec![ClaimSource {
             kind: "submission".into(),
-            title: format!("Authenticated Submission {}", submission.submission_id),
+            title: format!("Authenticated Submission {}", submission.id),
             locator: None,
-            authors: vec![submission.provenance.producer.clone()],
+            authors: vec![submission.submission.provenance.producer.clone()],
             year: Some(emitted_at.year()),
         }],
         relations,
-        submission.provenance.emitted_at.clone(),
+        submission.submission.provenance.emitted_at.clone(),
         BTreeMap::new(),
     )?;
     let root = claim.canonical_root()?;
@@ -296,13 +301,13 @@ pub(crate) fn rebind_target_index(
 fn existing_outcome(
     repository_path: &Path,
     repository: &RepositoryV4,
-    submission: &SubmissionV1,
+    submission: &SubmissionRecordV2,
     submission_root: &str,
 ) -> Result<Option<SubmitOutcome>, String> {
     let Some(existing) = repository
         .submissions
         .iter()
-        .find(|reference| reference.id == submission.submission_id)
+        .find(|reference| reference.id == submission.id)
     else {
         return Ok(None);
     };
@@ -314,7 +319,7 @@ fn existing_outcome(
         let bytes = fs::read(repository_path.join(&reference.path))
             .map_err(|error| format!("read existing Proposal {}: {error}", reference.path))?;
         let proposal = ProposalV1::parse(&bytes)?;
-        if proposal.producer_package.id == submission.submission_id
+        if proposal.producer_package.id == submission.id
             && proposal.producer_package.root == submission_root
             && proposal.producer_package.path == existing.path
         {
@@ -324,7 +329,7 @@ fn existing_outcome(
     let [proposal_reference] = matching.as_slice() else {
         return Err(format!(
             "retained Submission {} must have exactly one Proposal; found {}",
-            submission.submission_id,
+            submission.id,
             matching.len()
         ));
     };
@@ -335,9 +340,10 @@ fn existing_outcome(
     Ok(Some(SubmitOutcome {
         schema: "vela.submit-result.v1",
         operation_id: operation_id.as_str().into(),
-        submission_id: submission.submission_id.clone(),
+        submission_id: submission.id.clone(),
         submission_root: submission_root.to_string(),
-        proposal_id: proposal.proposal_id.clone(),
+        proposal_id: proposal.id(),
+        proposal_root: proposal.canonical_root()?,
         claim_id: proposal.subject.id.clone(),
         route: "pending_review",
         accepted_event_count_before: 0,
@@ -368,27 +374,28 @@ fn submit_request_root(repository: &RepositoryV4, submission_root: &str) -> Resu
 fn require_unique_source_run(
     repository_path: &Path,
     repository: &RepositoryV4,
-    submission: &SubmissionV1,
+    submission: &SubmissionRecordV2,
 ) -> Result<(), String> {
-    let Some(source_run) = submission.provenance.source_run.as_deref() else {
+    let Some(source_run) = submission.submission.provenance.source_run.as_deref() else {
         return Ok(());
     };
     for reference in &repository.submissions {
-        if reference.id == submission.submission_id {
+        if reference.id == submission.id {
             continue;
         }
         let bytes = fs::read(repository_path.join(&reference.path))
             .map_err(|error| format!("read retained Submission for Run uniqueness: {error}"))?;
-        let existing = SubmissionV1::parse(&bytes)?;
-        if existing.provenance.producer == submission.provenance.producer
-            && existing.provenance.source_system == submission.provenance.source_system
-            && existing.provenance.source_run.as_deref() == Some(source_run)
+        let existing = SubmissionRecordV2::parse(&bytes)?;
+        if existing.submission.provenance.producer == submission.submission.provenance.producer
+            && existing.submission.provenance.source_system
+                == submission.submission.provenance.source_system
+            && existing.submission.provenance.source_run.as_deref() == Some(source_run)
         {
             return Err(format!(
                 "Run {source_run} from producer {} in source system {} is already bound to retained Submission {}",
-                submission.provenance.producer,
-                submission.provenance.source_system,
-                existing.submission_id
+                submission.submission.provenance.producer,
+                submission.submission.provenance.source_system,
+                existing.id
             ));
         }
     }
@@ -397,7 +404,7 @@ fn require_unique_source_run(
 
 pub(crate) fn submit(
     repository_path: &Path,
-    submission: &SubmissionV1,
+    submission: &SubmissionRecordV2,
     executor: &str,
     bundle_root: Option<&Path>,
 ) -> Result<SubmitOutcome, String> {
@@ -406,20 +413,19 @@ pub(crate) fn submit(
 
 fn submit_inner(
     repository_path: &Path,
-    submission: &SubmissionV1,
+    submission: &SubmissionRecordV2,
     executor: &str,
     bundle_root: Option<&Path>,
 ) -> Result<SubmitOutcome, String> {
-    submission.verify()?;
     let executor = executor.trim();
-    if executor != submission.provenance.producer
-        || executor != submission.authentication.identity_binding.actor_id
+    if executor != submission.submission.provenance.producer
+        || executor != submission.submission.identity.actor_id
     {
         return Err("submit actor must match the Submission producer identity".into());
     }
     let repository = crate::repository::verify_repository_at(repository_path, true)?;
     let repository_root = repository.canonical_root()?;
-    let submission_root = submission.canonical_root()?;
+    let submission_root = submission.root.clone();
     if let Some(outcome) =
         existing_outcome(repository_path, &repository, submission, &submission_root)?
     {
@@ -473,15 +479,15 @@ fn submit_inner(
         fixed_time.clone(),
         format!(
             "Retain authenticated Submission {} for independent verification and authorized review.",
-            submission.submission_id
+            submission.id
         ),
         ProposalProducerPackage {
-            kind: "submission_v1".into(),
-            id: submission.submission_id.clone(),
+            kind: "submission_v2".into(),
+            id: submission.id.clone(),
             root: submission_root.clone(),
             path: submission_path.clone(),
         },
-        submission.caveats.clone(),
+        submission.submission.caveats.clone(),
     )?;
     let proposal_root = proposal.canonical_root()?;
     let proposal_path = rooted_path("records/proposals/sha256", &proposal_root)?;
@@ -489,7 +495,7 @@ fn submit_inner(
         &mut next_repository.proposals,
         RepositoryObjectRefV1 {
             schema: proposal.schema.clone(),
-            id: proposal.proposal_id.clone(),
+            id: proposal.id(),
             root: proposal_root.clone(),
             path: proposal_path.clone(),
         },
@@ -497,13 +503,13 @@ fn submit_inner(
     add_object_ref(
         &mut next_repository.submissions,
         RepositoryObjectRefV1 {
-            schema: submission.schema.clone(),
-            id: submission.submission_id.clone(),
+            schema: submission.submission.schema.clone(),
+            id: submission.id.clone(),
             root: submission_root.clone(),
             path: submission_path.clone(),
         },
     )?;
-    for artifact in &submission.artifacts {
+    for artifact in &submission.submission.artifacts {
         let digest = artifact
             .digest
             .strip_prefix("sha256:")
@@ -530,7 +536,7 @@ fn submit_inner(
             path: submission_path,
             object_kind: "submission".into(),
             class: WriteClass::PublicReview,
-            postimage: Some(submission.canonical_bytes()?),
+            postimage: Some(submission.bytes.clone()),
         },
         AuthorityObjectDraft {
             path: ".vela/repository.json".into(),
@@ -592,10 +598,11 @@ fn submit_inner(
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
     crate::repository::verify_repository_allow_derived_drift_at(repository_path)?;
+    let proposal_id = proposal.id();
     let publication = publish_exact_delta(
         repository_path,
         "submit",
-        std::slice::from_ref(&proposal.proposal_id),
+        std::slice::from_ref(&proposal_id),
         &delta,
         preflight,
     )
@@ -620,9 +627,10 @@ fn submit_inner(
     Ok(SubmitOutcome {
         schema: "vela.submit-result.v1",
         operation_id: operation_id.as_str().into(),
-        submission_id: submission.submission_id.clone(),
+        submission_id: submission.id.clone(),
         submission_root,
-        proposal_id: proposal.proposal_id,
+        proposal_id,
+        proposal_root,
         claim_id: proposal.subject.id,
         route: "pending_review",
         accepted_event_count_before: 0,
@@ -637,9 +645,9 @@ fn submit_inner(
 mod tests {
     use ed25519_dalek::SigningKey;
     use tempfile::TempDir;
-    use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::repository::REPOSITORY_SCHEMA_V4;
-    use vela_protocol::submission_v1::{
+    use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
+    use vela_protocol::submission_v2::{
         RequestedChange, RequestedChangeTarget, SubmissionArtifact, SubmissionClaim,
         SubmissionDraft, SubmissionProvenance,
     };
@@ -673,50 +681,59 @@ mod tests {
         kind: &str,
         target: Option<RequestedChangeTarget>,
         assertion: &str,
-    ) -> SubmissionV1 {
+    ) -> SubmissionRecordV2 {
+        submission_from(kind, target, assertion, |_| {})
+    }
+
+    /// Seal a fixture Submission after letting the caller edit its draft.
+    ///
+    /// A sealed Submission cannot be edited — the signature covers the whole
+    /// payload — so a test that wants a different producer or source system
+    /// asks for a different draft.
+    fn submission_from(
+        kind: &str,
+        target: Option<RequestedChangeTarget>,
+        assertion: &str,
+        edit: impl FnOnce(&mut SubmissionDraft),
+    ) -> SubmissionRecordV2 {
         let key = SigningKey::from_bytes(&[41_u8; 32]);
-        let identity = IdentityBinding::build(
-            IdentityBindingDraft {
-                actor_id: "agent:current-submission-fixture".into(),
-                actor_class: ActorClass::Agent,
-                created_at: "2026-07-27T00:00:00Z".into(),
+        let mut draft = SubmissionDraft {
+            claim: SubmissionClaim {
+                assertion: assertion.into(),
+                claim_type: "computational".into(),
+                conditions: vec!["Fixture domain only.".into()],
             },
+            artifacts: vec![SubmissionArtifact {
+                kind: "witness".into(),
+                path: "result.json".into(),
+                digest: root('e'),
+            }],
+            caveats: vec!["Does not establish an unrestricted result.".into()],
+            replayability: "exact".into(),
+            producer_checks: Vec::new(),
+            verification_requirements: vec!["Replay the frozen verifier.".into()],
+            requested_change: RequestedChange {
+                kind: kind.into(),
+                target,
+            },
+            provenance: SubmissionProvenance {
+                producer: "agent:current-submission-fixture".into(),
+                source_system: "fixture".into(),
+                source_attempt: None,
+                source_run: Some("run_fixture".into()),
+                emitted_at: "2026-07-27T00:00:00Z".into(),
+            },
+            execution_binding: None,
+        };
+        edit(&mut draft);
+        let identity = SignerIdentityV1::new(
+            draft.provenance.producer.clone(),
+            ActorClass::Agent,
             &key,
+            "2026-07-27T00:00:00Z",
         )
         .unwrap();
-        SubmissionV1::build(
-            SubmissionDraft {
-                claim: SubmissionClaim {
-                    assertion: assertion.into(),
-                    claim_type: "computational".into(),
-                    conditions: vec!["Fixture domain only.".into()],
-                },
-                artifacts: vec![SubmissionArtifact {
-                    kind: "witness".into(),
-                    path: "result.json".into(),
-                    digest: root('e'),
-                }],
-                caveats: vec!["Does not establish an unrestricted result.".into()],
-                replayability: "exact".into(),
-                producer_checks: Vec::new(),
-                verification_requirements: vec!["Replay the frozen verifier.".into()],
-                requested_change: RequestedChange {
-                    kind: kind.into(),
-                    target,
-                },
-                provenance: SubmissionProvenance {
-                    producer: "agent:current-submission-fixture".into(),
-                    source_system: "fixture".into(),
-                    source_attempt: None,
-                    source_run: Some("run_fixture".into()),
-                    emitted_at: "2026-07-27T00:00:00Z".into(),
-                },
-                execution_binding: None,
-            },
-            identity,
-            &key,
-        )
-        .unwrap()
+        SubmissionRecordV2::seal(draft, identity, &key).unwrap()
     }
 
     fn install_accepted_claim(
@@ -803,25 +820,25 @@ mod tests {
         let repository_path = TempDir::new().unwrap();
         let mut repository = repository();
         let first = submission("add_claim", None, "First bounded assertion.");
-        let first_root = first.canonical_root().unwrap();
+        let first_root = first.root.clone();
         let first_path = rooted_path("records/submissions/sha256", &first_root).unwrap();
         let absolute = repository_path.path().join(&first_path);
         fs::create_dir_all(absolute.parent().unwrap()).unwrap();
-        fs::write(&absolute, first.canonical_bytes().unwrap()).unwrap();
+        fs::write(&absolute, first.bytes.clone()).unwrap();
         repository.submissions.push(RepositoryObjectRefV1 {
-            schema: first.schema.clone(),
-            id: first.submission_id.clone(),
+            schema: first.submission.schema.clone(),
+            id: first.id.clone(),
             root: first_root,
             path: first_path,
         });
 
         let reexport = submission("add_claim", None, "Re-exported bounded assertion.");
-        assert_ne!(first.submission_id, reexport.submission_id);
+        assert_ne!(first.id, reexport.id);
         let error =
             require_unique_source_run(repository_path.path(), &repository, &reexport).unwrap_err();
 
         assert!(error.contains("already bound"), "{error}");
-        assert!(error.contains(&first.submission_id), "{error}");
+        assert!(error.contains(&first.id), "{error}");
     }
 
     #[test]
@@ -829,27 +846,33 @@ mod tests {
         let repository_path = TempDir::new().unwrap();
         let mut repository = repository();
         let first = submission("add_claim", None, "First bounded assertion.");
-        let first_root = first.canonical_root().unwrap();
+        let first_root = first.root.clone();
         let first_path = rooted_path("records/submissions/sha256", &first_root).unwrap();
         let absolute = repository_path.path().join(&first_path);
         fs::create_dir_all(absolute.parent().unwrap()).unwrap();
-        fs::write(&absolute, first.canonical_bytes().unwrap()).unwrap();
+        fs::write(&absolute, first.bytes.clone()).unwrap();
         repository.submissions.push(RepositoryObjectRefV1 {
-            schema: first.schema.clone(),
-            id: first.submission_id.clone(),
+            schema: first.submission.schema.clone(),
+            id: first.id.clone(),
             root: first_root,
             path: first_path,
         });
 
-        let mut different_source = submission("add_claim", None, "Independent bounded assertion.");
-        different_source.provenance.source_system = "another-native-runner".into();
+        let different_source = submission_from(
+            "add_claim",
+            None,
+            "Independent bounded assertion.",
+            |draft| draft.provenance.source_system = "another-native-runner".into(),
+        );
         assert!(
             require_unique_source_run(repository_path.path(), &repository, &different_source)
                 .is_ok()
         );
 
-        let mut different_producer = submission("add_claim", None, "Another bounded assertion.");
-        different_producer.provenance.producer = "agent:another-producer".into();
+        let different_producer =
+            submission_from("add_claim", None, "Another bounded assertion.", |draft| {
+                draft.provenance.producer = "agent:another-producer".into()
+            });
         assert!(
             require_unique_source_run(repository_path.path(), &repository, &different_producer)
                 .is_ok()
