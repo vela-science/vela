@@ -21,7 +21,7 @@ agent_started=false
 trust_pin_path=""
 cleanup() {
   case "$trust_pin_path" in
-    */.vela/trust/authorities/vfr_*.json)
+    */.vela/trust/authorities/vrepo_*.json)
       /bin/rm -f -- "$trust_pin_path"
       ;;
   esac
@@ -88,13 +88,16 @@ claim_id="$(jq -r '.claim_id' "$root/submit.json")"
 proposal_id="$(jq -r '.proposal_id' "$root/submit.json")"
 submission_id="$(jq -r '.submission_id' "$root/submit.json")"
 submission_root="$(jq -r '.submission_root' "$root/submit.json")"
+proposal_root="$(jq -r '.proposal_root' "$root/submit.json")"
 jq \
   --arg claim "$claim_id" \
   --arg proposal "$proposal_id" \
+  --arg proposal_root "$proposal_root" \
   --arg submission "$submission_id" \
   --arg root "$submission_root" \
   '.subject.claim_id=$claim
    | .subject.proposal_id=$proposal
+   | .subject.proposal_root=$proposal_root
    | .subject.submission_id=$submission
    | .subject.submission_root=$root
    | .subject.artifact_ids=[]' \
@@ -102,9 +105,15 @@ jq \
   >"$root/verification-draft.json"
 cp "$repo/conformance/current-objects/verifier.seed.hex" "$root/verifier.seed.hex"
 chmod 0600 "$root/verifier.seed.hex"
+# The signer identity is the emitter's argument and not a draft field, so the
+# actor these three flags name is the actor the envelope signature covers. They
+# match `verify_current_objects.py`, which signs the same fixture verifier.
 node "$repo/conformance/emitters/javascript.mjs" verification \
   --draft "$root/verification-draft.json" \
   --seed-file "$root/verifier.seed.hex" \
+  --actor verifier:independent-js \
+  --actor-class org \
+  --declared-at 2026-07-27T12:05:00Z \
   --output "$root/verification.json" \
   >"$root/emission.json"
 "$vela" verification import "$frontier" "$root/verification.json" \
@@ -148,7 +157,7 @@ git clone -q --no-hardlinks "$remote" "$replay"
 "$vela" review show "$replay" "$proposal_id" --json >"$root/replay-review.json"
 "$vela" review inbox "$replay" --json >"$root/replay-inbox.json"
 [[ "$(jq -r '.roots.repository' "$root/replay-status.json")" == "$repository_root_after" ]]
-[[ "$(jq -r '.verification_records[0].record.verification_record_id' "$root/replay-review.json")" == "$(jq -r '.verification_record_id' "$root/import.json")" ]]
+[[ "$(jq -r '.verification_records[0].verification_record_id' "$root/replay-review.json")" == "$(jq -r '.verification_record_id' "$root/import.json")" ]]
 [[ "$(jq -r '.projection_root' "$root/replay-inbox.json")" == "$(jq -r '.projection_root' "$root/inbox.json")" ]]
 [[ "$(jq -r '.entries[0].entry_root' "$root/replay-inbox.json")" == "$(jq -r '.entries[0].entry_root' "$root/inbox.json")" ]]
 [[ -z "$(git -C "$replay" status --porcelain=v1 --untracked-files=all)" ]]

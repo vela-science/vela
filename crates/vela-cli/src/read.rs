@@ -16,6 +16,7 @@ use vela_protocol::proposal::ProposalV1;
 use vela_protocol::proposal_withdrawal::ProposalWithdrawalEnvelopeV2;
 use vela_protocol::repository::{ClaimStandingRefV1, RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::repository_origin::RepositoryOriginV1;
+use vela_protocol::verification_record::VerificationRecordEnvelopeV2;
 
 use crate::claim_standing::{self, ClaimStanding};
 use crate::cli::{fail_return, print_json};
@@ -296,6 +297,14 @@ fn proposal_views(context: &ReadContext, claim_id: &str) -> Vec<Value> {
         .collect()
 }
 
+/// The Verification Records about one Claim, as their verified payloads.
+///
+/// What is on disk is a DSSE envelope, so the payload this explanation is
+/// about is base64 inside it and the subject it filters on is not reachable
+/// from the stored JSON at all. Reading the file and pointing at
+/// `/subject/claim_id` therefore matched nothing and silently explained every
+/// Claim as having no Verification. Parse the envelope, which verifies the
+/// signature against the key the payload declares, and project the payload.
 fn verification_views(
     repository_path: &Path,
     context: &ReadContext,
@@ -305,12 +314,15 @@ fn verification_views(
         .repository
         .verifications
         .iter()
-        .map(|reference| read_value(repository_path, reference))
+        .map(|reference| {
+            let bytes = read_exact(repository_path, &reference.path, &reference.root)?;
+            VerificationRecordEnvelopeV2::parse(&bytes)
+        })
         .filter_map(|result| match result {
-            Ok(value)
-                if value.pointer("/subject/claim_id").and_then(Value::as_str) == Some(claim_id) =>
-            {
-                Some(Ok(value))
+            Ok(record) if record.record.subject.claim_id == claim_id => {
+                Some(serde_json::to_value(&record.record).map_err(|error| {
+                    format!("project current Verification Record {}: {error}", record.id)
+                }))
             }
             Ok(_) => None,
             Err(error) => Some(Err(error)),
@@ -835,6 +847,31 @@ mod tests {
         assert_eq!(
             root_bytes(b"current"),
             "sha256:97b0560280ed60a5a1eaa1bc45492543c8a986ad5a25b468c427eb83c3e88191"
+        );
+    }
+
+    /// A stored Verification Record answers nothing about its subject until it
+    /// is opened.
+    ///
+    /// `why` filtered the stored JSON on `/subject/claim_id`, which was a
+    /// field of the object before the DSSE cut and is now base64 inside the
+    /// envelope. The pointer resolved to nothing for every record, so every
+    /// Claim explained itself as having no Verification and no test noticed:
+    /// an empty list is what a Claim with no Verification legitimately looks
+    /// like. Whatever `verification_views` does, it must open the envelope
+    /// first.
+    #[test]
+    fn a_stored_verification_record_hides_its_subject_until_the_envelope_is_opened() {
+        const STORED: &[u8] =
+            include_bytes!("../../../conformance/current-objects/verification.json");
+
+        let raw: Value = serde_json::from_slice(STORED).expect("stored Verification Record JSON");
+        assert_eq!(raw.pointer("/subject/claim_id"), None);
+
+        let record = VerificationRecordEnvelopeV2::parse(STORED).expect("open the envelope");
+        assert_eq!(
+            record.record.subject.claim_id,
+            "vcl_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
         );
     }
 

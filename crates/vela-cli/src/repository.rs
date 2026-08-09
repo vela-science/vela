@@ -1187,6 +1187,12 @@ pub(crate) fn cmd_review_show(repository_path: &Path, proposal_id: &str, json_ou
             let record = VerificationRecordEnvelopeV2::parse(&bytes)
                 .unwrap_or_else(|error| crate::cli::fail_return(&error));
             verification_targets_proposal(&proposal, &claim, &record).then_some(json!({
+                /* The handle belongs beside the root it comes from. The payload
+                used to carry a `verification_record_id` and no longer does —
+                it is derived from the retained envelope root, so the object
+                that stores the root is the object that can state it. A reader
+                that only had `record` had no way to name what it was reading. */
+                "verification_record_id": record.id,
                 "verification_record_root": verification.root,
                 "record": record.record
             }))
