@@ -113,10 +113,20 @@ not a note per commit, so they are shorter than the releases were.
   `research/lean-replay-contract` from `sha256:5653a31b…` to `sha256:a72d2e26…`,
   agreed by `build_root.py` and the independent Rust reader, and the
   scientific-change-package plan from `sha256:72d84fd4…` to `sha256:b719174a…`,
-  which the builder cascaded through its amendments and generated outputs. The
-  retained qualification record in `research/lean-replay-contract-evidence/`
-  keeps the root it measured: it names the commit, tree and two consumer CI runs
-  it was computed over, and a later rename does not make any of that untrue.
+  which the builder cascaded through its amendments and generated outputs.
+
+  `research/lean-replay-contract-evidence/qualification.json` was recomputed to
+  the package's current identity, with the superseded root kept under
+  `predecessor`. Its two-consumer gate went to `false` in the same edit, and
+  that is the substantive change rather than the root: Formal and Erdős agreed
+  on the predecessor root at the commits the record names, and ADR 0039 has
+  since archived both repositories read-only, so those runs cannot be repeated
+  and no live repository consumes the package. The gate is unrepeatable against
+  those consumers rather than merely unpassed, and Level 1 promotion needs it
+  earned again on a live one. A new test holds the record's `package.root` to
+  the root the Rust reader measures, because `conformance/repository_lint.py`
+  reads that field to qualify a repository's dependency on this unreleased path
+  and a record naming a stale root qualifies nothing, silently.
 
 - **`vela why` explained every Claim as having no Verification.** It filtered
   the stored Verification Record JSON on `/subject/claim_id`, which the DSSE cut

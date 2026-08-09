@@ -5,16 +5,22 @@ use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// The root of the package as it stands in this tree, not as it stood when the
-/// qualification record in `research/lean-replay-contract-evidence/` was taken.
+/// The root of the package as it stands in this tree.
 ///
-/// Three of the package's ten files carried a `.v1` in their names and were
-/// renamed with the rest of the repository, and two more name those files in
-/// their bodies. A logical package root is a function of the exact paths and
-/// bytes under it, so all five edits move it. The retained qualification record
-/// is bound to the commit and tree it was computed over and keeps the root it
-/// measured; this constant tracks the working tree, which is what the reader
-/// below actually walks.
+/// It moved once, when three of the package's ten files lost a `.v1` from their
+/// names and two more stopped naming the old spellings in their bodies. A
+/// logical package root is a function of the exact paths and bytes under it, so
+/// all five edits move it, and the superseded root is retained under
+/// `predecessor` in `research/lean-replay-contract-evidence/qualification.json`.
+///
+/// Three readers now have to agree on it, and each is checked against this
+/// constant rather than against one of the others.
+/// `independent_reader_reproduces_frozen_package_root` walks the tree,
+/// `.github/workflows/conformance.yml` reads this constant out of this file and
+/// runs `build_root.py`, and `the_qualification_record_states_the_current_root`
+/// holds the evidence record to it — because a package whose stated identity
+/// has drifted from its measured one is the failure that record exists to make
+/// impossible.
 const EXPECTED_ROOT: &str =
     "sha256:a72d2e262785d4465e6d7b7fd7b8472107182ceaed79f17b77bb62d660a5e6f3";
 
@@ -131,4 +137,32 @@ fn independent_reader_reproduces_frozen_package_root() {
     let canonical = serde_json_canonicalizer::to_vec(&descriptor)
         .expect("RFC 8785 canonical package descriptor");
     assert_eq!(sha256(&canonical), EXPECTED_ROOT);
+}
+
+/// The evidence record beside the package states the root the package has.
+///
+/// `research/lean-replay-contract-evidence/qualification.json` is what a reader
+/// consults to learn this package's identity, and `conformance/repository_lint.py`
+/// reads `package.root` out of it to decide whether a repository's dependency on
+/// this unreleased path is one somebody qualified. A record naming a root the
+/// package no longer has qualifies nothing and denies everything, silently, and
+/// the drift that produces it is the ordinary one: an edit under the package
+/// that nobody thought moved its identity.
+#[test]
+fn the_qualification_record_states_the_current_root() {
+    const RECORD: &[u8] =
+        include_bytes!("../../../research/lean-replay-contract-evidence/qualification.json");
+
+    let record: serde_json::Value =
+        serde_json::from_slice(RECORD).expect("qualification record JSON");
+    assert_eq!(
+        record["package"]["root"].as_str(),
+        Some(EXPECTED_ROOT),
+        "the qualification record names a different root than the package has"
+    );
+    assert_eq!(
+        record["package"]["source_path"].as_str(),
+        Some("research/lean-replay-contract"),
+        "the qualification record is about a different path than this reader walks"
+    );
 }
