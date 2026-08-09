@@ -1,7 +1,7 @@
 # Vela JSON Schemas
 
-One of these documents describes the transport, and the rest describe what it
-carries. `dsse-envelope.schema.json` is the DSSE envelope every signed Vela
+One document describes the signed transport. `dsse-envelope.schema.json` is the
+DSSE envelope every signed Vela
 object is stored in — Submissions, Verification Records, producer Withdrawals
 and repository-authority records alike. In accordance with DSSE, the envelope
 and its signature entries permit unknown fields; each closed payload beneath
@@ -29,7 +29,18 @@ for a Claim Record could not be generated at all — the contract a reader most
 needs to check a Claim without this implementation was the one contract the
 repository did not state.
 
-## One of these is a read surface
+The repository and authority boundary is also published from its live types:
+
+- `vela.repository-profile.v1`;
+- `vela.authorization-request.v1`; and
+- `vela.authorization-evaluation.v1`.
+
+The Profile schema describes the decoded TOML structure whose canonical JSON
+defines `profile_root`. Authorization request and evaluation are exact payloads
+retained inside repository-authority records; an Allow remains authorization
+evidence and is not a scientific Decision.
+
+## Two are read surfaces
 
 `status.schema.json` describes `vela.status.v4`, the document
 `vela status --json` answers with. It signs nothing and roots nothing. It is
@@ -43,6 +54,12 @@ week — `counts.withdrawn_review` and `git.role` arriving, and
 Everything a read surface reports is derived, so nothing here is evidence of
 anything. `integrity.replay` says what replay found on the machine that ran it;
 a consumer that needs to establish that for itself runs `vela replay`.
+
+`error.schema.json` describes `vela.error.v1`, the failure object every CLI
+command emits under `--json`. Its stable `kind` selects the exit-code class and
+its optional `code` names a machine-actionable refusal. Message text is prose.
+The enriched preflight branch may additionally prove `changed: false` and name
+the retained request identifier; it carries no authority or Standing effect.
 
 ## These files are generated
 
@@ -73,14 +90,21 @@ Frontier that cannot fill them. A bootstrapping repository has a Git pointer
 with no commit behind it, not an absent Git pointer, and a schema that let the
 key vanish would let a dropped field pass as an empty one.
 
-Four further rules live only in the readers, because JSON Schema cannot reach
-them:
+Further rules live only in the readers, because JSON Schema cannot reach them:
 
 - a Verification Record's `completed_at` may not precede its `started_at`;
 - a Verification Record may not declare independence from its own `verifier`;
 - text fields reject interior control characters, where the published pattern
   can only reject leading and trailing whitespace; and
-- each object's encoded size ceiling (8 MiB, 4 MiB, and 2 MiB respectively).
+- each object's encoded size ceiling (8 MiB, 4 MiB, and 2 MiB respectively);
+- all three Repository Profile license values parse as SPDX license
+  expressions, and its include/exclude sets do not overlap;
+- Profile bounds are byte bounds and text is NFC, while JSON Schema length is
+  measured in Unicode characters;
+- an authorization evaluation's roots recompute from the retained request and
+  model; and
+- the request, operation, and retained identifiers in an enriched error
+  envelope agree exactly.
 
 ## Every pattern is portable
 

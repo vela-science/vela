@@ -1,7 +1,7 @@
 # Target Index
 
 The Target Index is one optional, tracked `targets.json` file owned by a
-Frontier. It is a derived work catalogue, not scientific Standing and not an
+Repository's source-local adapter. It is a derived work catalogue, not scientific Standing and not an
 authority surface.
 
 Current repositories use `vela.target-index.v5`. A domain adapter writes the
@@ -12,7 +12,7 @@ apply, inspect, or repair lifecycle for this derived file.
 
 The index binds:
 
-- the exact Frontier and current repository root (`repository_id`, and
+- the exact Repository and current repository root (`repository_id`, and
   `repository` as `origin_id` plus `repository_root`);
 - one exact Git source commit and tree;
 - the sorted tracked input paths and their byte roots;

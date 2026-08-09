@@ -8,6 +8,49 @@ is `0.967.0`, what `5cd6f01`, `b478530` and `f9c127c` added is `0.968.0`, and
 `0.968.1` is `6c500dc`. Those sections carry what was written at the time and
 not a note per commit, so they are shorter than the releases were.
 
+## Unreleased
+
+- **Repository identity is a standard RFC 9562 UUIDv4.** `vela init` now mints
+  lowercase canonical UUIDv4 text from the operating system random source, and
+  every protocol reader, authority boundary, schema, conformance reader, and
+  derived view rejects the retired `vrepo_` shape. The identifier remains an
+  opaque routing identity rather than a security root; origin, repository, and
+  authority roots continue to carry the security commitments. This supersedes
+  the interim 128-bit custom identifier described in the 0.971.0 notes before
+  that shape reaches another release. There is no dual reader: the live
+  mathematics authority receives one UUID when it is re-genesised for this
+  already-breaking release.
+
+- **Submission provenance has one external run identity.** The unreleased v2
+  payload carried both `source_run` and a bespoke `source_attempt` with a
+  `vat_` identifier, while CLI authoring populated only the latter and the
+  duplicate-run guard depended on the former. The redundant field and custom
+  identifier are deleted before release. `--source-run` now writes the one
+  standards-neutral `provenance.source_run` value; Vela records that external
+  identity but does not mint or govern workbench runs.
+
+- **The required gittuf deletion spike selects the native authority path.** An
+  isolated gittuf v0.15.0 policy protected the same Repository in which Vela
+  completed Submission, independent Verification, an authorized Decision, and
+  strict replay. Gittuf correctly rejected an unauthorized RSL signer, but the
+  combined design deleted zero Vela code, added a second root and policy
+  lifecycle, and still required every scientific authority check. The evidence
+  and measurements are retained in `docs/GITTUF_AUTHORITY_DELETION_SPIKE.md`;
+  gittuf remains an optional external publication-integrity layer.
+
+- **The public contract closes its remaining standards gaps.** Repository
+  Profile licenses are parsed as SPDX expressions and initialization uses
+  `NOASSERTION` instead of free-form `varies`; the dev-only Action test uses
+  maintained `serde-saphyr` rather than the `serde_yaml` fork. Generated JSON
+  Schema 2020-12 documents now cover Repository Profile, authorization request,
+  authorization evaluation, and the stable `vela.error.v1` CLI failure
+  envelope. RFC 8785 vectors run independently in Rust, Python, and JavaScript,
+  including a UTF-16 property-order case. CodeQL default setup, a pinned
+  OpenSSF Scorecard workflow, CODEOWNERS, and GitHub private vulnerability
+  reporting complete the repository security surface. The independent Python
+  emitter now pins `cryptography` 50.0.0, clearing the six open advisories that
+  affected its previous 46.0.5 pin.
+
 ## 0.971.0
 
 - **One DSSE implementation, and every signed Vela object uses it.**

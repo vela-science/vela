@@ -591,7 +591,6 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             provenance: SubmissionProvenance {
                 producer: actor.into(),
                 source_system: "vela-cli-regression".into(),
-                source_attempt: None,
                 source_run: Some("current-submission-regression".into()),
                 emitted_at,
             },
@@ -865,25 +864,30 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             .strip_prefix("sha256:")
             .expect("full Verification Record root")
     );
-    let retained: Value = serde_json::from_slice(
+    let retained = VerificationRecordEnvelopeV2::parse(
         &std::fs::read(repository_path.join(&verification_path))
             .expect("retained Verification Record"),
     )
-    .expect("Verification Record JSON");
-    assert_eq!(retained["verifier"], verifier);
-    assert_eq!(retained["subject"]["proposal_id"], submitted["proposal_id"]);
+    .expect("retained Verification Record envelope");
+    assert_eq!(retained.record.verifier(), verifier);
     assert_eq!(
-        retained["subject"]["submission_id"],
-        submitted["submission_id"]
+        retained.record.subject.proposal_id,
+        submitted["proposal_id"].as_str().expect("proposal id")
     );
     assert_eq!(
-        retained["subject"]["submission_root"],
+        retained.record.subject.submission_id,
+        submitted["submission_id"].as_str().expect("submission id")
+    );
+    assert_eq!(
+        retained.record.subject.submission_root,
         submitted["submission_root"]
+            .as_str()
+            .expect("submission root")
     );
-    assert_eq!(retained["subject"]["artifact_ids"][0], artifact_stem);
-    assert_eq!(retained["method"]["implementation"], method_path);
+    assert_eq!(retained.record.subject.artifact_ids[0], artifact_stem);
+    assert_eq!(retained.record.method.implementation, method_path);
     assert_eq!(
-        retained["method"]["environment_root"],
+        retained.record.method.environment_root,
         format!(
             "sha256:{}",
             hex::encode(Sha256::digest(
@@ -892,7 +896,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         )
     );
     assert_eq!(
-        retained["independence"]["declared_independent_of"][0],
+        retained.record.independence.declared_independent_of[0],
         actor
     );
 

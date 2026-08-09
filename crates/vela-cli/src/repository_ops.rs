@@ -92,7 +92,7 @@ pub(crate) fn author_submission(
     verification_requirements: Vec<String>,
     requested_change: RequestedChange,
     execution_binding: Option<vela_protocol::execution_binding::ExecutionBindingV1>,
-    source_attempt: Option<String>,
+    source_run: Option<String>,
 ) -> Result<SubmissionRecordV2, String> {
     use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
 
@@ -100,18 +100,6 @@ pub(crate) fn author_submission(
         return Err("Submission authoring requires an agent: or ci: producer".to_string());
     }
 
-    /* Rejected here rather than at schema validation. `source_attempt_id`
-    declares `^vat_[0-9a-f]{64}$` on the wire, so a malformed value authors a
-    Submission that is refused later by something that cannot say which flag
-    was wrong. */
-    if let Some(attempt) = source_attempt.as_deref() {
-        let body = attempt.strip_prefix("vat_").unwrap_or_default();
-        if !vela_protocol::is_lower_hex_64(body) {
-            return Err(format!(
-                "--source-attempt takes an Attempt id, `vat_` and 64 lowercase hex digits; got {attempt:?}"
-            ));
-        }
-    }
     let emitted_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     let mut artifacts = Vec::new();
     let mut total_artifact_bytes = 0_u64;
@@ -178,8 +166,7 @@ pub(crate) fn author_submission(
             provenance: SubmissionProvenance {
                 producer: actor.to_string(),
                 source_system: "vela-cli".to_string(),
-                source_attempt,
-                source_run: None,
+                source_run,
                 emitted_at,
             },
             execution_binding,

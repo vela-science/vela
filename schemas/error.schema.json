@@ -1,0 +1,185 @@
+{
+  "$id": "https://vela.science/schemas/error.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "oneOf": [
+    {
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "request_id"
+            ]
+          },
+          {
+            "required": [
+              "operation_id"
+            ]
+          },
+          {
+            "required": [
+              "changed"
+            ]
+          },
+          {
+            "required": [
+              "retained"
+            ]
+          },
+          {
+            "required": [
+              "next"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "properties": {
+        "changed": {
+          "const": false
+        },
+        "next": {
+          "type": "string"
+        },
+        "operation_id": {
+          "type": "string"
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "retained": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "request_id",
+        "operation_id",
+        "changed",
+        "retained",
+        "next"
+      ]
+    }
+  ],
+  "properties": {
+    "changed": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "command": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "error": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "enum": [
+            "file_missing",
+            "file_not_regular",
+            "file_symlink",
+            "file_oversized",
+            "file_path_escape",
+            "file_path_invalid",
+            "file_path_changed",
+            "file_unreadable",
+            "repository_missing",
+            "repository_authority_uninitialized",
+            "repository_incomplete",
+            "repository_predecessor_layout",
+            null
+          ],
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "enum": [
+            "usage",
+            "not_found",
+            "custody_refused",
+            "already_exists",
+            "domain",
+            "internal"
+          ],
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "code",
+        "message",
+        "hint"
+      ],
+      "type": "object"
+    },
+    "next": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "ok": {
+      "const": false,
+      "type": "boolean"
+    },
+    "operation_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "request_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "retained": {
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "type": "string"
+        },
+        "transaction_marker": {
+          "const": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "request_id",
+        "transaction_marker"
+      ],
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "schema": {
+      "const": "vela.error.v1",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "ok",
+    "command",
+    "error"
+  ],
+  "title": "Vela CLI Error v1",
+  "type": "object"
+}

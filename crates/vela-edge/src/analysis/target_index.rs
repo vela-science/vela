@@ -152,10 +152,10 @@ fn require_sha256_root(field: &str, value: &str) -> Result<(), String> {
 }
 
 fn require_repository_id(value: &str) -> Result<(), String> {
-    if vela_protocol::is_prefixed_lower_hex(value, "vrepo_", vela_protocol::REPOSITORY_ID_HEX_LEN) {
+    if vela_protocol::is_repository_id(value) {
         Ok(())
     } else {
-        Err("repository_id must use the vrepo_<32 lowercase hex> form".to_string())
+        Err("repository_id must be lowercase canonical RFC 9562 UUIDv4".to_string())
     }
 }
 

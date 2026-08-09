@@ -5,7 +5,8 @@
   "scope": {
     "conforming_implementations": [
       "Rust: vela_protocol::canonical::to_canonical_bytes / to_canonical_string / sha256_canonical using serde_json_canonicalizer 0.3.2",
-      "Python: conformance/readers/python/canonical.py using rfc8785 0.1.4"
+      "Python: conformance/readers/python/canonical.py using rfc8785 0.1.4",
+      "JavaScript: conformance/readers/javascript/canonical.mjs using the RFC 8785 normative ECMAScript serialization algorithms"
     ],
     "explicitly_out_of_scope": [
       "Raw scientific artifacts may contain integers outside the I-JSON interoperable range; they remain exact byte-addressed evidence and are not parsed-and-recanonicalized protocol objects.",
@@ -24,6 +25,12 @@
       "input": { "claim": "least prime factor near amyloid-β", "greek": "αβγ" },
       "canonical": "{\"claim\":\"least prime factor near amyloid-β\",\"greek\":\"αβγ\"}",
       "sha256": "016340518d42e38bf144785a7b4da7cc97a1338321b927915b6c2349721e0040"
+    },
+    {
+      "name": "property names use UTF-16 code-unit order",
+      "input": { "דּ": 3, "😀": 2, "€": 1 },
+      "canonical": "{\"€\":1,\"😀\":2,\"דּ\":3}",
+      "sha256": "1cc660cd5172089959778cbdc132675f077acd2c356d97dde33b2bfe98864272"
     },
     {
       "name": "numbers use RFC 8785 ECMAScript serialization",

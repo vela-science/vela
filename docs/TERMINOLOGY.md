@@ -236,7 +236,7 @@ Repository authority, Event, and before/after state roots.
 
 ## Lifecycle vocabularies
 
-A native workbench may supply its own run or attempt identity as provenance.
+A native workbench may supply its own run identity as provenance.
 That lifecycle remains defined by the source workbench and never becomes Vela
 Standing.
 

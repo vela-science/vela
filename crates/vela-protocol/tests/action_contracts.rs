@@ -10,7 +10,7 @@ protects is the order and the pins, not which file happens to hold them. */
 const RELEASE_SCRIPT: &str = include_str!("../../../scripts/release.sh");
 
 fn parse_yaml(source: &str) -> Value {
-    serde_yaml_ng::from_str(source).expect("source must be valid YAML")
+    serde_saphyr::from_str(source).expect("source must be valid YAML")
 }
 
 fn steps(container: &Value) -> &[Value] {

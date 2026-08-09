@@ -7,9 +7,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use serde::Serialize;
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use vela_protocol::repository::{
     REPOSITORY_PROFILE_SCHEMA_V1, RepositoryProfileLicenseV1, RepositoryProfileScopeV1,
     RepositoryProfileV1,
@@ -20,35 +18,6 @@ pub(crate) struct InitOptions<'a> {
     pub(crate) name: &'a str,
     pub(crate) scope: &'a str,
     pub(crate) initialize_git: bool,
-}
-
-/* A Vela repository is one independently clonable Git repository with a bounded
-scope, so its identity must distinguish repositories rather than questions. The v1
-preimage was exactly the declared name and scope, which handed two unrelated
-repositories that chose the same wording one identity; the user-local trust
-store keys on `vrepo_`, so the second repository's authority anchor then refused
-to install over the first. The repository origin would be the natural
-distinguishing commitment, but `vro_` is derived from the repository_id, and it
-is written by `vela authority init` after this point, so it cannot enter this
-preimage. A fresh 256-bit draw from the OS CSPRNG is what makes this repository
-this one. It is not retained: nothing recomputes a repository_id, and a retained
-nonce would not make the identity checkable, because the creator chooses it. */
-#[derive(Serialize)]
-struct RepositoryGenesisIdentity<'a> {
-    schema: &'static str,
-    name: &'a str,
-    scope: &'a str,
-    genesis_entropy: &'a str,
-}
-
-fn draw_genesis_entropy() -> Result<String, String> {
-    use rand_core::RngCore;
-
-    let mut bytes = [0u8; 32];
-    rand_core::OsRng
-        .try_fill_bytes(&mut bytes)
-        .map_err(|error| format!("draw repository genesis entropy: {error}"))?;
-    Ok(hex::encode(bytes))
 }
 
 pub(crate) fn initialize_minimal(path: &Path, options: InitOptions<'_>) -> Result<Value, String> {
@@ -162,18 +131,7 @@ fn rollback_install(installed: &[(std::path::PathBuf, std::path::PathBuf)]) {
 fn initialize_in_place(path: &Path, options: &InitOptions<'_>) -> Result<Value, String> {
     let name = options.name.trim();
     let scope = options.scope.trim();
-    let genesis_entropy = draw_genesis_entropy()?;
-    let identity_bytes =
-        vela_protocol::canonical::to_canonical_bytes(&RepositoryGenesisIdentity {
-            schema: "vela.repository-genesis-identity.v1",
-            name,
-            scope,
-            genesis_entropy: &genesis_entropy,
-        })?;
-    let repository_id = format!(
-        "vrepo_{}",
-        &hex::encode(Sha256::digest(identity_bytes))[..vela_protocol::REPOSITORY_ID_HEX_LEN]
-    );
+    let repository_id = uuid::Uuid::new_v4().hyphenated().to_string();
     let profile = RepositoryProfileV1 {
         schema: REPOSITORY_PROFILE_SCHEMA_V1.into(),
         repository_id: repository_id.clone(),
@@ -188,7 +146,7 @@ fn initialize_in_place(path: &Path, options: &InitOptions<'_>) -> Result<Value, 
         license: RepositoryProfileLicenseV1 {
             content: "CC-BY-4.0".into(),
             code: "Apache-2.0".into(),
-            data: "varies".into(),
+            data: "NOASSERTION".into(),
         },
     };
     profile.validate()?;
@@ -383,9 +341,7 @@ mod tests {
         );
         let id = repository_id(&payload);
 
-        let suffix = id.strip_prefix("vrepo_").expect("vrepo_ prefix");
-        assert_eq!(suffix.len(), vela_protocol::REPOSITORY_ID_HEX_LEN);
-        assert!(suffix.bytes().all(vela_protocol::is_lower_hex));
+        assert!(vela_protocol::is_repository_id(&id));
 
         let profile = vela_protocol::repository::RepositoryProfileV1::from_toml_str(
             &fs::read_to_string(parent.path().join("repository_path").join("vela.toml"))
@@ -396,10 +352,11 @@ mod tests {
     }
 
     #[test]
-    fn genesis_entropy_is_a_fresh_full_width_draw() {
-        let first = draw_genesis_entropy().expect("draw entropy");
-        let second = draw_genesis_entropy().expect("draw entropy");
-        assert_eq!(first.len(), 64);
+    fn repository_id_is_a_fresh_uuidv4() {
+        let first = uuid::Uuid::new_v4().hyphenated().to_string();
+        let second = uuid::Uuid::new_v4().hyphenated().to_string();
+        assert!(vela_protocol::is_repository_id(&first));
+        assert!(vela_protocol::is_repository_id(&second));
         assert_ne!(first, second);
     }
 }

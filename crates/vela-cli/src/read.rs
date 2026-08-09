@@ -817,13 +817,11 @@ fn render_why(projection: &Value) {
         }
     }
 
-    /* standing_basis distinguishes a Claim carried through compaction from one
-    decided in the current authority chain. Print the count of current-chain
-    events beside it: where a Claim reports `compacted_origin` and still has
-    events here, the two disagree and the reader should see both. */
-    let basis = text(&chain["standing_basis"]);
+    /* One lineage has one current authority chain. The event count says how
+    much of that chain directly explains this Claim without resurrecting the
+    retired compaction-era `standing_basis` vocabulary. */
     let events = chain["authority_events"].as_array().map_or(0, Vec::len);
-    println!("  basis     {basis} · {events} event(s) in the current authority chain");
+    println!("  authority {events} event(s) directly explain this Claim");
 
     if let Some(by) = chain["supersession"]["superseded_by"].as_str() {
         println!("  superseded by {by}");

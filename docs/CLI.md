@@ -445,11 +445,11 @@ active paths. The one-time migration writer is not part of the current binary.
 Default JSON does not embed full packet bodies, review collections, private
 coordination, test telemetry, or secret material.
 
-Every `--json` outcome, success or failure, is one object carrying `ok` and
-`command`. A success also names its `schema`; a failure carries an `error` with
-a `kind`, a `code`, a message, and a hint naming the next command.
+Every `--json` outcome, success or failure, is one object carrying `ok`,
+`command`, and a versioned `schema`. A failure is `vela.error.v1` and carries an
+`error` with a `kind`, a `code`, a message, and a hint naming the next command.
 
-The three failure fields have three different contracts, and mixing them up is
+The failure fields have different contracts, and mixing them up is
 how a caller ends up parsing English:
 
 - `kind` is one of six classes and chooses the exit code. It is stable.

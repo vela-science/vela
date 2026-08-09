@@ -93,14 +93,14 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
             let bytes = crate::bounded_file::read_bounded_file(
                 &record,
                 vela_protocol::verification_record::VERIFICATION_RECORD_MAX_BYTES as u64,
-                "Verification Record v1",
+                "Verification Record v2 envelope",
             )
             .unwrap_or_else(|error| fail_return(&error.to_string()));
             let record =
                 vela_protocol::verification_record::VerificationRecordEnvelopeV2::parse(&bytes)
                     .unwrap_or_else(|error| {
                         fail_return(&format!(
-                            "parse {} as Verification Record v1: {error}",
+                            "parse {} as Verification Record v2 envelope: {error}",
                             record.display()
                         ))
                     });

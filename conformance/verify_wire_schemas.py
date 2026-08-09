@@ -99,7 +99,7 @@ def status_document(**overrides: object) -> dict:
         "ok": True,
         "command": "status",
         "repository": {
-            "id": "vrepo_0a25edabc16db1430a25edabc16db143",
+            "id": "0a25edab-c16d-4b14-b0a2-5edabc16db14",
             "name": "Fixture repository",
             "profile_root": "sha256:" + "1" * 64,
         },
@@ -287,6 +287,187 @@ def envelope_payload(name: str) -> object:
     return json.loads(base64.b64decode(envelope["payload"]))
 
 
+def verify_repository_and_authorization_schemas() -> tuple[int, int]:
+    """Exercise the generated non-envelope protocol contracts."""
+    profile_check = validator("repository-profile.schema.json")
+    request_check = validator("authorization-request.schema.json")
+    evaluation_check = validator("authorization-evaluation.schema.json")
+
+    repository_id = "0a25edab-c16d-4b14-b0a2-5edabc16db14"
+    root = "sha256:" + "1" * 64
+    profile = {
+        "schema": "vela.repository-profile.v1",
+        "repository_id": repository_id,
+        "name": "Fixture repository",
+        "summary": "A bounded repository profile fixture.",
+        "scope": {
+            "question": "What exact claim does this fixture test?",
+            "includes": ["Generated schema boundaries."],
+            "excludes": ["Scientific acceptance."],
+        },
+        "maintainers": ["Fixture Maintainer"],
+        "license": {
+            "content": "CC-BY-4.0",
+            "code": "Apache-2.0 OR MIT",
+            "data": "NOASSERTION",
+        },
+    }
+    request = {
+        "schema": "vela.authorization-request.v1",
+        "profile": "vela.repository-authorization.v1",
+        "model_root": root,
+        "repository_id": repository_id,
+        "principal_id": "local:fixture",
+        "principal_class": "human",
+        "action": "authority_initialize",
+        "resource": {
+            "repository_id": repository_id,
+            "resource_type": "repository",
+            "resource_id": repository_id,
+        },
+        "authentication_root": "sha256:" + "2" * 64,
+        "transaction_read_set_root": "sha256:" + "3" * 64,
+        "intent_digest": "sha256:" + "4" * 64,
+        "recovery_recent": False,
+    }
+    evaluation = {
+        "schema": "vela.authorization-evaluation.v1",
+        "profile": "vela.repository-authorization.v1",
+        "model_root": root,
+        "request_root": "sha256:" + "5" * 64,
+        "decision": "allow",
+        "reason": "member_role_authorized",
+        "matched_role": "administrator",
+    }
+    for checker, value in (
+        (profile_check, profile),
+        (request_check, request),
+        (evaluation_check, evaluation),
+    ):
+        checker.validate(value)
+
+    negatives = 0
+    for checker, value, mutation, label in (
+        (
+            profile_check,
+            profile,
+            lambda item: item.update(unexpected=True),
+            "repository profile unknown field",
+        ),
+        (
+            profile_check,
+            profile,
+            lambda item: item.update(repository_id="0a25edab-c16d-7b14-b0a2-5edabc16db14"),
+            "repository profile UUID outside version 4",
+        ),
+        (
+            profile_check,
+            profile,
+            lambda item: item.update(maintainers=["duplicate", "duplicate"]),
+            "repository profile duplicate maintainer",
+        ),
+        (
+            request_check,
+            request,
+            lambda item: item["resource"].update(resource_id="vpr_fixture"),
+            "repository authorization resource with proposal identifier",
+        ),
+        (
+            request_check,
+            request,
+            lambda item: item.update(intent_digest="sha256:short"),
+            "authorization request short intent digest",
+        ),
+        (
+            evaluation_check,
+            evaluation,
+            lambda item: item.update(matched_role=None),
+            "allowed authorization evaluation without matched role",
+        ),
+        (
+            evaluation_check,
+            evaluation,
+            lambda item: item.update(
+                decision="deny", reason="unknown_member", matched_role="reviewer"
+            ),
+            "denied authorization evaluation with matched role",
+        ),
+    ):
+        mutated = copy.deepcopy(value)
+        mutation(mutated)
+        expect_rejected(checker, mutated, label)
+        negatives += 1
+
+    return 3, negatives
+
+
+def verify_error_schema() -> tuple[int, int]:
+    """Hold both structured CLI failure branches to one generated schema."""
+    check = validator("error.schema.json")
+    regular = {
+        "schema": "vela.error.v1",
+        "ok": False,
+        "command": "replay",
+        "error": {
+            "kind": "domain",
+            "code": "repository_incomplete",
+            "message": "repository replay failed",
+            "hint": None,
+        },
+    }
+    unchanged = {
+        "schema": "vela.error.v1",
+        "ok": False,
+        "command": "submit",
+        "request_id": "op_fixture",
+        "operation_id": "op_fixture",
+        "changed": False,
+        "retained": {
+            "request_id": "op_fixture",
+            "transaction_marker": False,
+        },
+        "next": "vela submit --help",
+        "error": {
+            "kind": "usage",
+            "code": None,
+            "message": "artifact is absent",
+            "hint": "vela submit --help",
+        },
+    }
+    check.validate(regular)
+    check.validate(unchanged)
+
+    negatives = 0
+    for value, mutation, label in (
+        (
+            regular,
+            lambda item: item.update(ok=True),
+            "error envelope claiming success",
+        ),
+        (
+            regular,
+            lambda item: item["error"].update(code="unpublished_code"),
+            "error envelope with unpublished code",
+        ),
+        (
+            regular,
+            lambda item: item.update(changed=False),
+            "error envelope with partial zero-delta state",
+        ),
+        (
+            unchanged,
+            lambda item: item["retained"].update(transaction_marker=True),
+            "zero-delta error retaining a transaction marker",
+        ),
+    ):
+        mutated = copy.deepcopy(value)
+        mutation(mutated)
+        expect_rejected(check, mutated, label)
+        negatives += 1
+
+    return 2, negatives
+
+
 def main() -> int:
     submission_check = validator("submission.schema.json")
     verification_check = validator("verification-record.schema.json")
@@ -384,13 +565,17 @@ def main() -> int:
     expect_rejected(withdrawal_check, mutated, "withdrawal reference carrying a whole root")
 
     positive, negative = verify_status_read_surface()
+    core_positive, core_negative = verify_repository_and_authorization_schemas()
+    error_positive, error_negative = verify_error_schema()
 
     patterns = verify_patterns_are_portable()
     verify_manifest()
     schemas = len(list(SCHEMAS.glob("*.schema.json")))
     print(
-        f"wire-schemas: ok ({schemas} schemas, {10 + positive} positive objects, "
-        f"{16 + negative} negative cases, {patterns} portable patterns)"
+        f"wire-schemas: ok ({schemas} schemas, "
+        f"{10 + positive + core_positive + error_positive} positive objects, "
+        f"{16 + negative + core_negative + error_negative} negative cases, "
+        f"{patterns} portable patterns)"
     )
     return 0
 

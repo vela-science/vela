@@ -23,7 +23,7 @@ use std::sync::Mutex;
 
 use crate::style;
 use colored::Colorize;
-use serde_json::json;
+use vela_protocol::error::ErrorEnvelopeV1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorKind {
@@ -84,26 +84,7 @@ impl ErrorKind {
 /// on it, which is precisely the promise `message` does not make, so the two
 /// fields are governed differently on purpose. `wording_contract.rs` holds the
 /// emitted set to this list.
-pub const ERROR_CODES: &[&str] = &[
-    // A retained file a command was told to read. `bounded_file` distinguishes
-    // twelve causes; the submit preflight chose an `ErrorKind` from one of them
-    // and discarded the rest, so a caller could not learn whether the artifact
-    // it named was absent, oversized, or a symlink.
-    "file_missing",
-    "file_not_regular",
-    "file_symlink",
-    "file_oversized",
-    "file_path_escape",
-    "file_path_invalid",
-    "file_path_changed",
-    "file_unreadable",
-    // The four distinct refusals of the current-repository gate, which reported
-    // three of them as one `ErrorKind::Domain` and one sentence apiece.
-    "repository_missing",
-    "repository_authority_uninitialized",
-    "repository_incomplete",
-    "repository_predecessor_layout",
-];
+pub use vela_protocol::error::ERROR_CODES;
 
 /// The per-invocation output mode, set once by the dispatch arm. A CLI
 /// process runs exactly one command, so a process-global is the honest
@@ -179,16 +160,14 @@ pub fn fail_coded(
     );
     let (command, json) = mode();
     if json {
-        let payload = json!({
-            "ok": false,
-            "command": if command.is_empty() { serde_json::Value::Null } else { json!(command) },
-            "error": {
-                "kind": kind.as_str(),
-                "code": code,
-                "message": message,
-                "hint": hint,
-            },
-        });
+        let payload = ErrorEnvelopeV1::regular(
+            (!command.is_empty()).then_some(command),
+            kind.as_str(),
+            code,
+            message,
+            hint,
+        )
+        .expect("CLI error values satisfy the published error contract");
         println!(
             "{}",
             serde_json::to_string_pretty(&payload).unwrap_or_else(|_| "{}".into())
@@ -229,24 +208,15 @@ pub fn fail_unchanged_coded(
     );
     let (command, json) = mode();
     if json {
-        let payload = json!({
-            "ok": false,
-            "command": if command.is_empty() { serde_json::Value::Null } else { json!(command) },
-            "request_id": operation_id,
-            "operation_id": operation_id,
-            "changed": false,
-            "retained": {
-                "request_id": operation_id,
-                "transaction_marker": false,
-            },
-            "next": next_command,
-            "error": {
-                "kind": kind.as_str(),
-                "code": code,
-                "message": message,
-                "hint": next_command,
-            },
-        });
+        let payload = ErrorEnvelopeV1::unchanged(
+            (!command.is_empty()).then_some(command),
+            kind.as_str(),
+            code,
+            message,
+            operation_id,
+            next_command,
+        )
+        .expect("CLI zero-delta error values satisfy the published error contract");
         println!(
             "{}",
             serde_json::to_string_pretty(&payload).unwrap_or_else(|_| "{}".into())

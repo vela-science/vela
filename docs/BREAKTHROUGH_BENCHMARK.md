@@ -242,7 +242,7 @@ shared adapter contract.
 
 The receiver preflight is complete. After deferring SSH-agent access until the
 signature boundary, Vela verified the signed record, every exact subject,
-repository, authority history, trust anchor, Cedar authorization, and
+repository, authority history, trust anchor, closed authorization model, and
 canonical transaction set. With `SSH_AUTH_SOCK` absent it then stopped at
 signing without changing Git, the worktree, or operation journals. The
 observation is rooted at

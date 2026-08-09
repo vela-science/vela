@@ -40,7 +40,8 @@ serde_json_canonicalizer = "=0.3.2"
 # written alongside them. See `crates/vela-protocol/src/wire_schema.rs`.
 schemars = "1"
 toml = "1.1.4"
-serde_yaml_ng = "0.10.0"
+serde-saphyr = "1.0.1"
+spdx = "0.13.5"
 sha2 = "0.10"
 chrono = "0.4"
 hex = "0.4"
@@ -51,6 +52,7 @@ ssh-key = { version = "0.6", default-features = false, features = ["std"] }
 ssh-encoding = { version = "0.2", features = ["std"] }
 unicode-normalization = "0.1"
 rand_core = { version = "0.6", features = ["getrandom"] }
+uuid = { version = "1.24.0", features = ["v4"] }
 tempfile = "3"
 regex = "1"
 libc = "0.2"

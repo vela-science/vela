@@ -247,7 +247,7 @@ fn acceptance_blockers(
             code: "same_execution_pending".into(),
             subject: proposal_id.clone(),
             detail: format!(
-                "Proposal {proposal_id} binds the same exact producer run, attempt, artifacts, scope, requested change, and verifier contract. Resolve one wording before acceptance."
+                "Proposal {proposal_id} binds the same exact producer run, artifacts, scope, requested change, and verifier contract. Resolve one wording before acceptance."
             ),
         });
     }
@@ -931,7 +931,6 @@ mod tests {
                 provenance: SubmissionProvenance {
                     producer: "agent:fixture-producer".into(),
                     source_system: "fixture".into(),
-                    source_attempt: None,
                     source_run: Some("run_fixture".into()),
                     emitted_at: "2026-07-30T00:00:00Z".into(),
                 },
@@ -1064,7 +1063,7 @@ mod tests {
         let verification_root = verification.root.clone();
         RepositoryV4 {
             schema: REPOSITORY_SCHEMA_V4.into(),
-            repository_id: "vrepo_0123456789abcdef0123456789abcdef".into(),
+            repository_id: "01234567-89ab-4def-8123-456789abcdef".into(),
             profile_root: root('1'),
             origin_id: "vro_0123456789abcdef".into(),
             origin_root: root('2'),

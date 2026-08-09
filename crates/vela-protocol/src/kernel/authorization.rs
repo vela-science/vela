@@ -6,6 +6,7 @@
 
 use std::collections::BTreeMap;
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::canonical::sha256_canonical;
@@ -16,7 +17,9 @@ pub const AUTHORIZATION_MODEL_SCHEMA_V1: &str = "vela.authorization-model.v1";
 pub const AUTHORIZATION_REQUEST_SCHEMA_V1: &str = "vela.authorization-request.v1";
 pub const AUTHORIZATION_EVALUATION_SCHEMA_V1: &str = "vela.authorization-evaluation.v1";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorityRoleV1 {
     Administrator,
@@ -26,7 +29,7 @@ pub enum AuthorityRoleV1 {
 /// The complete current repository-authority action vocabulary. Routine
 /// evidence production, Submission registration, and Verification import are
 /// intentionally absent.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorityActionV1 {
     AuthorityInitialize,
@@ -69,7 +72,7 @@ impl AuthorityActionV1 {
 /// while a live genesis held the old token inside
 /// `AuthorizationRequestV1::root()`. The 0.970.0 re-genesis of
 /// `vela-science/math` removed that constraint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorityResourceTypeV1 {
     Repository,
@@ -105,11 +108,7 @@ impl AuthorizationModelV1 {
         {
             return Err("authorization model schema or profile is invalid".into());
         }
-        require_identifier(
-            "authorization model repository_id",
-            &self.repository_id,
-            "vrepo_",
-        )?;
+        require_repository_id("authorization model repository_id", &self.repository_id)?;
         if self.members.is_empty() {
             return Err("authorization model must contain at least one member".into());
         }
@@ -147,43 +146,71 @@ impl AuthorizationModelV1 {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[schemars(extend("oneOf" = [
+    {
+        "properties": {
+            "resource_type": {"const": "repository"},
+            "resource_id": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            }
+        },
+        "required": ["resource_type", "resource_id"],
+    },
+    {
+        "properties": {
+            "resource_type": {"const": "proposal"},
+            "resource_id": {"pattern": "^vpr_.+$"}
+        },
+        "required": ["resource_type", "resource_id"],
+    },
+]))]
 pub struct AuthorizationResourceV1 {
+    #[schemars(schema_with = "crate::wire_schema::repository_id")]
     pub repository_id: String,
     pub resource_type: AuthorityResourceTypeV1,
+    #[schemars(schema_with = "crate::wire_schema::authorization_text")]
     pub resource_id: String,
 }
 
 impl AuthorizationResourceV1 {
     pub fn validate(&self) -> Result<(), String> {
-        require_identifier(
-            "authorization resource repository_id",
-            &self.repository_id,
-            "vrepo_",
-        )?;
-        let prefix = match self.resource_type {
-            AuthorityResourceTypeV1::Repository => "vrepo_",
-            AuthorityResourceTypeV1::Proposal => "vpr_",
-        };
-        require_identifier("authorization resource_id", &self.resource_id, prefix)
+        require_repository_id("authorization resource repository_id", &self.repository_id)?;
+        match self.resource_type {
+            AuthorityResourceTypeV1::Repository => {
+                require_repository_id("authorization resource_id", &self.resource_id)
+            }
+            AuthorityResourceTypeV1::Proposal => {
+                require_identifier("authorization resource_id", &self.resource_id, "vpr_")
+            }
+        }
     }
 }
 
 /// Fully bound request evaluated before a repository-authority transaction.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AuthorizationRequestV1 {
+    #[schemars(schema_with = "crate::wire_schema::authorization_request_schema_tag")]
     pub schema: String,
+    #[schemars(schema_with = "crate::wire_schema::authorization_profile_tag")]
     pub profile: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub model_root: String,
+    #[schemars(schema_with = "crate::wire_schema::repository_id")]
     pub repository_id: String,
+    #[schemars(schema_with = "crate::wire_schema::authorization_text")]
     pub principal_id: String,
     pub principal_class: PrincipalClass,
     pub action: AuthorityActionV1,
     pub resource: AuthorizationResourceV1,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub authentication_root: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub transaction_read_set_root: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub intent_digest: String,
     pub recovery_recent: bool,
 }
@@ -196,11 +223,7 @@ impl AuthorizationRequestV1 {
             return Err("authorization request schema or profile is invalid".into());
         }
         crate::shape::require_sha256_root("authorization request model_root", &self.model_root)?;
-        require_identifier(
-            "authorization request repository_id",
-            &self.repository_id,
-            "vrepo_",
-        )?;
+        require_repository_id("authorization request repository_id", &self.repository_id)?;
         crate::shape::require_bounded_text(
             "authorization request principal_id",
             &self.principal_id,
@@ -228,7 +251,7 @@ impl AuthorizationRequestV1 {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorizationDecisionV1 {
     Allow,
@@ -239,7 +262,7 @@ pub enum AuthorizationDecisionV1 {
 /// `"repository_mismatch"` and `"resource_repository_mismatch"` into
 /// `AuthorityEvaluationV1`, which is hashed into the authority record. Same
 /// migration as `AuthorityResourceTypeV1::Repository` above.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorizationReasonV1 {
     MemberRoleAuthorized,
@@ -253,15 +276,48 @@ pub enum AuthorizationReasonV1 {
     RecoverySessionForbidden,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[schemars(extend("oneOf" = [
+    {
+        "properties": {
+            "decision": {"const": "allow"},
+            "reason": {"const": "member_role_authorized"},
+            "matched_role": {"enum": ["administrator", "reviewer"]}
+        },
+        "required": ["decision", "reason", "matched_role"],
+    },
+    {
+        "properties": {
+            "decision": {"const": "deny"},
+            "reason": {"enum": [
+                "model_root_mismatch",
+                "repository_mismatch",
+                "resource_repository_mismatch",
+                "principal_class_mismatch",
+                "unknown_member",
+                "role_action_mismatch",
+                "resource_type_mismatch",
+                "recovery_session_forbidden"
+            ]},
+            "matched_role": {"type": "null"}
+        },
+        "required": ["decision", "reason", "matched_role"],
+    },
+]))]
 pub struct AuthorizationEvaluationV1 {
+    #[schemars(schema_with = "crate::wire_schema::authorization_evaluation_schema_tag")]
     pub schema: String,
+    #[schemars(schema_with = "crate::wire_schema::authorization_profile_tag")]
     pub profile: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub model_root: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub request_root: String,
     pub decision: AuthorizationDecisionV1,
     pub reason: AuthorizationReasonV1,
+    #[schemars(required)]
+    #[schemars(schema_with = "crate::wire_schema::nullable_authority_role")]
     pub matched_role: Option<AuthorityRoleV1>,
 }
 
@@ -304,6 +360,16 @@ fn require_identifier(name: &str, value: &str, prefix: &str) -> Result<(), Strin
         return Err(format!("{name} must start with {prefix}"));
     }
     Ok(())
+}
+
+fn require_repository_id(name: &str, value: &str) -> Result<(), String> {
+    if crate::shape::is_repository_id(value) {
+        Ok(())
+    } else {
+        Err(format!(
+            "{name} must be lowercase canonical RFC 9562 UUIDv4"
+        ))
+    }
 }
 
 /// Check that one authorization model succeeds another exactly.
@@ -443,7 +509,7 @@ mod tests {
         AuthorizationModelV1 {
             schema: AUTHORIZATION_MODEL_SCHEMA_V1.into(),
             profile: AUTHORIZATION_PROFILE_V1.into(),
-            repository_id: "vrepo_fixture".into(),
+            repository_id: "11111111-1111-4111-8111-111111111111".into(),
             members: vec![
                 AuthorityMemberV1 {
                     principal_id: "local:device-1|uid:501".into(),
@@ -465,12 +531,12 @@ mod tests {
             schema: AUTHORIZATION_REQUEST_SCHEMA_V1.into(),
             profile: AUTHORIZATION_PROFILE_V1.into(),
             model_root,
-            repository_id: "vrepo_fixture".into(),
+            repository_id: "11111111-1111-4111-8111-111111111111".into(),
             principal_id: "local:device-1|uid:501".into(),
             principal_class: PrincipalClass::Human,
             action: AuthorityActionV1::ReviewAccept,
             resource: AuthorizationResourceV1 {
-                repository_id: "vrepo_fixture".into(),
+                repository_id: "11111111-1111-4111-8111-111111111111".into(),
                 resource_type: AuthorityResourceTypeV1::Proposal,
                 resource_id: "vpr_0123456789abcdef".into(),
             },
@@ -544,7 +610,7 @@ mod tests {
         AuthorizationModelV1 {
             schema: AUTHORIZATION_MODEL_SCHEMA_V1.into(),
             profile: AUTHORIZATION_PROFILE_V1.into(),
-            repository_id: "vrepo_fixture".into(),
+            repository_id: "11111111-1111-4111-8111-111111111111".into(),
             members: vec![
                 AuthorityMemberV1 {
                     principal_id: "local:device-1|uid:501".into(),
@@ -566,12 +632,12 @@ mod tests {
             schema: AUTHORIZATION_REQUEST_SCHEMA_V1.into(),
             profile: AUTHORIZATION_PROFILE_V1.into(),
             model_root: model.root().unwrap(),
-            repository_id: "vrepo_fixture".into(),
+            repository_id: "11111111-1111-4111-8111-111111111111".into(),
             principal_id: "local:device-1|uid:501".into(),
             principal_class: PrincipalClass::Human,
             action: AuthorityActionV1::ReviewAccept,
             resource: AuthorizationResourceV1 {
-                repository_id: "vrepo_fixture".into(),
+                repository_id: "11111111-1111-4111-8111-111111111111".into(),
                 resource_type: AuthorityResourceTypeV1::Proposal,
                 resource_id: "vpr_0123456789abcdef".into(),
             },
@@ -594,9 +660,9 @@ mod tests {
         let mut administrator_request = closed_request(&model);
         administrator_request.action = AuthorityActionV1::AuthorityInitialize;
         administrator_request.resource = AuthorizationResourceV1 {
-            repository_id: "vrepo_fixture".into(),
+            repository_id: "11111111-1111-4111-8111-111111111111".into(),
             resource_type: AuthorityResourceTypeV1::Repository,
-            resource_id: "vrepo_fixture".into(),
+            resource_id: "11111111-1111-4111-8111-111111111111".into(),
         };
         let administrator = evaluate_authorization_v1(&model, &administrator_request).unwrap();
         assert_eq!(administrator.decision, AuthorizationDecisionV1::Allow);
@@ -620,7 +686,7 @@ mod tests {
         );
 
         let mut wrong_frontier = closed_request(&model);
-        wrong_frontier.repository_id = "vrepo_other".into();
+        wrong_frontier.repository_id = "22222222-2222-4222-8222-222222222222".into();
         assert_eq!(
             evaluate_authorization_v1(&model, &wrong_frontier)
                 .unwrap()
@@ -629,7 +695,8 @@ mod tests {
         );
 
         let mut wrong_resource_frontier = closed_request(&model);
-        wrong_resource_frontier.resource.repository_id = "vrepo_other".into();
+        wrong_resource_frontier.resource.repository_id =
+            "22222222-2222-4222-8222-222222222222".into();
         assert_eq!(
             evaluate_authorization_v1(&model, &wrong_resource_frontier)
                 .unwrap()
@@ -663,7 +730,7 @@ mod tests {
 
         let mut wrong_resource_type = closed_request(&model);
         wrong_resource_type.resource.resource_type = AuthorityResourceTypeV1::Repository;
-        wrong_resource_type.resource.resource_id = "vrepo_fixture".into();
+        wrong_resource_type.resource.resource_id = "11111111-1111-4111-8111-111111111111".into();
         assert_eq!(
             evaluate_authorization_v1(&model, &wrong_resource_type)
                 .unwrap()

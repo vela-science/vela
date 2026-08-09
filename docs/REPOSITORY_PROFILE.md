@@ -31,13 +31,13 @@ User-local `~/.vela/` is private machine state: configuration, identity
 custody, and local execution output. Nothing there is canonical scientific
 state. Repositories and readers must not depend on it for replay.
 
-## Profile v2
+## Current profile
 
 `vela.toml` is closed, human-readable metadata:
 
 ```toml
 schema = "vela.repository-profile.v1"
-repository_id = "vrepo_0123456789abcdef0123456789abcdef"
+repository_id = "01234567-89ab-4def-8123-456789abcdef"
 name = "Bounded human-readable name"
 summary = "One concise description"
 maintainers = []
@@ -50,11 +50,14 @@ excludes = []
 [license]
 content = "CC-BY-4.0"
 code = "Apache-2.0"
-data = "varies"
+data = "NOASSERTION"
 ```
 
 The schema rejects unknown fields, duplicate keys, oversized input, non-NFC
-text, and disallowed control characters.
+text, disallowed control characters, and license values that are not SPDX
+license expressions. Use SPDX's `NOASSERTION` value when the profile cannot
+make a more specific license assertion; free-form placeholders such as
+`"varies"` are invalid.
 
 ```text
 profile_root = sha256(canonical_json(profile))
@@ -66,29 +69,29 @@ authority from the profile.
 
 ## Repository identity
 
-`vela init` draws the `repository_id` once, at genesis, from canonical
-`vela.repository-genesis-identity.v1` bytes:
+`vela init` draws the `repository_id` once, at genesis, as an RFC 9562 UUIDv4
+from the operating system's cryptographically secure random source. Its
+canonical wire form is lowercase, hyphenated text:
 
 ```text
-schema           vela.repository-genesis-identity.v1
-name             exact trimmed profile name
-scope            exact trimmed bounded question
-genesis_entropy  fresh 256-bit draw from the OS CSPRNG
-repository_id    "vrepo_" + sha256(canonical_json(...))[..16 hex chars]
+repository_id    xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+                 where y is 8, 9, a, or b
 ```
 
 The entropy is what makes the identity name one repository. A Repository is one
 independently clonable Git repository with a bounded scope, and two groups may
 legitimately open repositories on the same question with the same wording; they
 are different repositories and must not receive the same identity. The user-local
-trust store keys on `vrepo_`, so a shared identity would make one repository's
+trust store keys on the UUID, so a shared identity would make one repository's
 authority anchor collide with the other's.
 
-The entropy is not retained anywhere, and the derivation is deliberately not
-reproducible. A `repository_id` is asserted once and then carried: the Profile
-holds it, the origin, manifest, keyset, and authorization model bind it, and
-no reader recomputes it from the Profile's name and scope. Retaining the nonce would not
-make the identity checkable, because whoever creates the repository chooses it.
+The random draw is not retained separately, and identity generation is
+deliberately not reproducible. A `repository_id` is asserted once and then
+carried: the Profile holds it, the origin, manifest, keyset, and authorization
+model bind it, and no reader recomputes it from the Profile's name and scope.
+The UUID is not accepted in compact, uppercase, braced, or `urn:uuid:` form on
+the wire; a URI that names the repository may use the standard URN form at an
+integration boundary without changing the canonical protocol value.
 
 The identity is a repository handle, not a scientific commitment. It is not a
 Git commit, a repository root, or any statement about Standing.
@@ -101,16 +104,16 @@ and full origin identity carried by `vela.repository.v4`. Unknown or
 substituted origins fail closed.
 
 A native `vela init` writes Profile v2 and scaffolding, then installs the
-genesis, manifest, keyset, policy, sequence-1 authority event and record and
+genesis, manifest, keyset, authorization model, sequence-1 authority Event and record and
 creates the initial unsigned Git commit. If signing cannot complete, the exact
 Profile remains as a resumable bootstrap and `status` reports the same
 `vela.status.v4` document it reports for a replaying repository, with
 `integrity.strict` blocked and `actions.work.mode` `authority_uninitialized`;
 rerunning `vela init` completes the same lifecycle.
 
-The four compacted pre-release repositories retain one exact predecessor block
-inside their origin. It is provenance, not an alternate active schema. There
-is no current migration command.
+The current origin has no predecessor block. The four compacted pre-release
+repositories retain their historical origin bytes and remain readable only by
+the pinned binaries of their era. There is no current migration command.
 
 ## Current canonical layout
 
@@ -121,8 +124,7 @@ vela.toml
 .vela/authority/events/
 .vela/authority/records/
 .vela/authority/keysets/
-.vela/authority/policies/
-.vela/authority/policy-material/
+.vela/authority/models/
 records/claims/sha256/
 records/submissions/sha256/
 records/verifications/sha256/

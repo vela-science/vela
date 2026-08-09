@@ -147,11 +147,13 @@ DECLARED_SURFACES: dict[str, bool] = {
     ".github/release/smoke-bundle.sh": True,
     ".github/workflows/conformance.yml": True,
     ".github/workflows/release.yml": True,
+    ".github/workflows/scorecard.yml": True,
     "action.yml": True,
     "conformance/canonical-hashing.json": True,
     "conformance/emitters/javascript.mjs": True,
     "conformance/emitters/python.py": True,
     "conformance/fixtures/correction": True,
+    "conformance/readers/javascript": True,
     "conformance/readers/python": True,
     "conformance/verify.py": True,
     "crates/vela-edge/src/analysis/correction_impact.rs": True,
@@ -174,12 +176,11 @@ DECLARED_SURFACES: dict[str, bool] = {
     # Declared absent. A declared-absent surface is worth as much as a
     # declared-present one: it is how "not built" stops being a claim nobody
     # rechecks. The two are absent for different reasons, and the reason is the
-    # part worth writing down. No JavaScript reader has been built. `epoch1/`
-    # was built, verified against all four checkouts, and then deleted when ADR
+    # part worth writing down. `epoch1/` was built, verified against all four
+    # checkouts, and then deleted when ADR
     # 0039's same-day amendment withdrew §8 — so this row guards a decision
     # rather than tracking a gap, and a directory reappearing here is the
     # epoch-1 branch coming back.
-    "conformance/readers/javascript": False,
     "crates/vela-protocol/src/epoch1": False,
 }
 
@@ -237,20 +238,22 @@ def toolchain_channel() -> str:
         return tomllib.load(source)["toolchain"]["channel"]
 
 
-def identifier_prefix() -> str:
-    """Read the current repository-id prefix out of the type that mints it.
+def repository_id_contract() -> str:
+    """Read the current repository-id contract out of the protocol source.
 
-    Taking it from the source rather than from a constant here is the point: an
-    epoch that changes the prefix and forgets this file produces a diff, not a
-    quiet agreement between two copies of the same number.
+    Taking it from the source rather than from a constant here is the point: a
+    wire cut that changes identity and forgets this file produces a diff, not a
+    quiet agreement between two copies of the same string.
     """
-    text = (ROOT / "crates/vela-protocol/src/objects/repository.rs").read_text(
+    text = (ROOT / "crates/vela-protocol/src/shape.rs").read_text(
         encoding="utf-8"
     )
-    matches = set(re.findall(r'require_prefixed\("repository_id", &self\.\w+, "(\w+_)"\)', text))
+    matches = set(
+        re.findall(r'REPOSITORY_ID_CONTRACT: &str = "([a-z0-9-]+)"', text)
+    )
     if len(matches) != 1:
         raise Failure(
-            "repository.rs does not pin exactly one repository-id prefix: "
+            "shape.rs does not pin exactly one repository-id contract: "
             f"{sorted(matches) or 'none found'}"
         )
     return matches.pop()
@@ -292,7 +295,7 @@ def local_block() -> dict[str, object]:
         surfaces[name] = {"declared": DECLARED_SURFACES[name], "present": present}
     return {
         "epoch": {
-            "repository_id_prefix": identifier_prefix(),
+            "repository_id_contract": repository_id_contract(),
             "retired_spelling_sites": retired_spelling_sites(),
             "retired_spellings": list(RETIRED_SPELLINGS),
             "retired_spelling_trees": list(RETIRED_SPELLING_TREES),

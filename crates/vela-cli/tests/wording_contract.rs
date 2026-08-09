@@ -49,8 +49,8 @@ const RETIRED_ON_THE_PRODUCT_SURFACE: &str = "frontier";
 /// The other retired names, from `docs/TERMINOLOGY.md`'s "Retired names" table.
 ///
 /// Only the multi-word ones are here, and the omissions are the point. `Finding`
-/// and `Attempt` are ordinary English words that this surface uses in their
-/// ordinary sense — `--source-attempt` carries `provenance.source_attempt`,
+/// and `attempt` are ordinary English words that this surface uses in their
+/// ordinary sense — `--source-run` carries `provenance.source_run`,
 /// which is exactly the "workbench's own run identity, as provenance" the table
 /// says to use instead — so a substring test on them would be a test against
 /// English. `Frontier Commit` and `Frontier map` are already caught above.

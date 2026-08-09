@@ -643,7 +643,7 @@ mod tests {
         let model = AuthorizationModelV1 {
             schema: AUTHORIZATION_MODEL_SCHEMA_V1.into(),
             profile: AUTHORIZATION_PROFILE_V1.into(),
-            repository_id: format!("vrepo_{}", "1".repeat(32)),
+            repository_id: "11111111-1111-4111-8111-111111111111".into(),
             members: vec![AuthorityMemberV1 {
                 principal_id: "local:device-1|uid:501".into(),
                 principal_class: PrincipalClass::Human,
@@ -778,7 +778,7 @@ mod tests {
         let key = SigningKey::from_bytes(&[7; 32]);
         let mut keyset = AuthorityKeysetV1 {
             schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
-            repository_id: "vrepo_fixture".into(),
+            repository_id: "11111111-1111-4111-8111-111111111111".into(),
             generation: 1,
             threshold: 1,
             keys: vec![AuthorityKeyV1 {
@@ -794,7 +794,7 @@ mod tests {
             closed: false,
         };
         let content = AuthorityRecordContentV1 {
-            repository_id: "vrepo_fixture".into(),
+            repository_id: "11111111-1111-4111-8111-111111111111".into(),
             sequence: 1,
             previous_authority_record_root: None,
             operation_id: "vop_fixture".into(),
@@ -882,8 +882,14 @@ mod tests {
             envelope.payload,
             BASE64_STANDARD.encode(to_canonical_bytes(&record).unwrap())
         );
-        let verified =
-            verify_authority_envelope(&envelope, &keyset, "vrepo_fixture", 1, None).unwrap();
+        let verified = verify_authority_envelope(
+            &envelope,
+            &keyset,
+            "11111111-1111-4111-8111-111111111111",
+            1,
+            None,
+        )
+        .unwrap();
         assert_eq!(verified.record, record);
         assert_eq!(verified.verified_key_ids, vec!["repo-key-1"]);
     }
@@ -909,8 +915,14 @@ mod tests {
             }],
         };
 
-        let error =
-            verify_authority_envelope(&envelope, &keyset, "vrepo_fixture", 1, None).unwrap_err();
+        let error = verify_authority_envelope(
+            &envelope,
+            &keyset,
+            "11111111-1111-4111-8111-111111111111",
+            1,
+            None,
+        )
+        .unwrap_err();
         assert!(error.contains("duplicate JSON property `scope`"), "{error}");
     }
 
@@ -923,8 +935,14 @@ mod tests {
         envelope.signatures[0].sig = BASE64_URL_SAFE_NO_PAD
             .encode(BASE64_STANDARD.decode(&envelope.signatures[0].sig).unwrap());
 
-        let verified =
-            verify_authority_envelope(&envelope, &keyset, "vrepo_fixture", 1, None).unwrap();
+        let verified = verify_authority_envelope(
+            &envelope,
+            &keyset,
+            "11111111-1111-4111-8111-111111111111",
+            1,
+            None,
+        )
+        .unwrap();
         assert_eq!(verified.record, record);
         assert_eq!(verified.verified_key_ids, vec!["repo-key-1"]);
     }
@@ -942,8 +960,14 @@ mod tests {
         signature.insert("extension".into(), serde_json::json!("ignored"));
         let envelope: AuthorityEnvelopeV1 = serde_json::from_value(value).unwrap();
 
-        let verified =
-            verify_authority_envelope(&envelope, &keyset, "vrepo_fixture", 1, None).unwrap();
+        let verified = verify_authority_envelope(
+            &envelope,
+            &keyset,
+            "11111111-1111-4111-8111-111111111111",
+            1,
+            None,
+        )
+        .unwrap();
         assert_eq!(verified.record, record);
         assert_eq!(verified.verified_key_ids, vec!["repo-key-1"]);
     }
@@ -960,8 +984,14 @@ mod tests {
             },
         );
 
-        let verified =
-            verify_authority_envelope(&envelope, &keyset, "vrepo_fixture", 1, None).unwrap();
+        let verified = verify_authority_envelope(
+            &envelope,
+            &keyset,
+            "11111111-1111-4111-8111-111111111111",
+            1,
+            None,
+        )
+        .unwrap();
         assert_eq!(verified.record, record);
         assert_eq!(verified.verified_key_ids, vec!["repo-key-1"]);
     }
@@ -1001,7 +1031,16 @@ mod tests {
             serde_json::from_slice(&BASE64_STANDARD.decode(&envelope.payload).unwrap()).unwrap();
         value["content"]["after_event_log_root"] = serde_json::json!(root('9'));
         envelope.payload = BASE64_STANDARD.encode(to_canonical_bytes(&value).unwrap());
-        assert!(verify_authority_envelope(&envelope, &keyset, "vrepo_fixture", 1, None).is_err());
+        assert!(
+            verify_authority_envelope(
+                &envelope,
+                &keyset,
+                "11111111-1111-4111-8111-111111111111",
+                1,
+                None
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -1024,22 +1063,37 @@ mod tests {
 
         let mut wrong_type = envelope.clone();
         wrong_type.payload_type = "application/json".into();
-        assert!(verify_authority_envelope(&wrong_type, &keyset, "vrepo_fixture", 1, None).is_err());
+        assert!(
+            verify_authority_envelope(
+                &wrong_type,
+                &keyset,
+                "11111111-1111-4111-8111-111111111111",
+                1,
+                None
+            )
+            .is_err()
+        );
 
         let wrong_key = SigningKey::from_bytes(&[8; 32]);
         assert!(
             verify_authority_envelope(
                 &signed_envelope(&record, &wrong_key),
                 &keyset,
-                "vrepo_fixture",
+                "11111111-1111-4111-8111-111111111111",
                 1,
                 None
             )
             .is_err()
         );
         assert!(
-            verify_authority_envelope(&envelope, &keyset, "vrepo_fixture", 2, Some(&root('9')))
-                .is_err()
+            verify_authority_envelope(
+                &envelope,
+                &keyset,
+                "11111111-1111-4111-8111-111111111111",
+                2,
+                Some(&root('9'))
+            )
+            .is_err()
         );
     }
 
@@ -1053,7 +1107,16 @@ mod tests {
         )
         .unwrap();
         envelope.payload = BASE64_STANDARD.encode(pretty);
-        assert!(verify_authority_envelope(&envelope, &keyset, "vrepo_fixture", 1, None).is_err());
+        assert!(
+            verify_authority_envelope(
+                &envelope,
+                &keyset,
+                "11111111-1111-4111-8111-111111111111",
+                1,
+                None
+            )
+            .is_err()
+        );
 
         let second_key = SigningKey::from_bytes(&[8; 32]);
         let mut threshold_keyset = keyset;
@@ -1071,9 +1134,14 @@ mod tests {
         let threshold_record = AuthorityRecordV1::new(content).unwrap();
         let mut duplicate = signed_envelope(&threshold_record, &key);
         duplicate.signatures.push(duplicate.signatures[0].clone());
-        let error =
-            verify_authority_envelope(&duplicate, &threshold_keyset, "vrepo_fixture", 1, None)
-                .unwrap_err();
+        let error = verify_authority_envelope(
+            &duplicate,
+            &threshold_keyset,
+            "11111111-1111-4111-8111-111111111111",
+            1,
+            None,
+        )
+        .unwrap_err();
         assert!(error.contains("threshold"), "{error}");
     }
 
@@ -1084,7 +1152,7 @@ mod tests {
         let error = verify_authority_envelope(
             &signed_envelope(&record, &key),
             &keyset,
-            "vrepo_fixture",
+            "11111111-1111-4111-8111-111111111111",
             1,
             None,
         )

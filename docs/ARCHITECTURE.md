@@ -247,13 +247,13 @@ and supported interface versions; unchanged components do not churn merely to
 match the source tag.
 
 - Vela releases the protocol implementation and CLI.
-- An independent Python reader checks the portable object waist without
-  creating a second package or release surface. Two clean-room emitters,
+- Independent Python and JavaScript readers check the canonical-byte boundary
+  without creating another package or release surface. Two clean-room emitters,
   `conformance/emitters/javascript.mjs` and `conformance/emitters/python.py`,
   build DSSE envelopes from PAE, base64 and Ed25519 and write Submission and
-  Verification objects; neither reads the vector corpus. `conformance/readers/` holds `python` alone, and
-  `scripts/ecosystem-status.py` declares `conformance/readers/javascript`
-  absent and fails if it appears.
+  Verification objects. The readers in `conformance/readers/python` and
+  `conformance/readers/javascript` independently check the RFC 8785 vector
+  corpus; the Python reader also reconstructs repository roots.
 - Immutable Canopus `0.8.0` remains frozen for historical Runs that bind its
   exact bytes. Current Vela contains no executor or separate runner release.
 - Each Repository verifies and reproduces its own exact state.
@@ -266,45 +266,19 @@ source does not grant an executor authority access, and component versions do
 not move in lockstep. One Vela source tag and manifest coordinate changed
 artifacts without erasing their component versions.
 
-Package and network surfaces follow a strict maturity ladder:
+Reusable software and capabilities stay in their native package ecosystems:
+Cargo and crates.io, Python and PyPI or uv, JavaScript and npm, Lean and Lake,
+Git releases, and OCI or ORAS where those are the natural distribution
+surfaces. Vela may retain their exact PURLs, SWHIDs, versions, and digests, but
+it does not add another resolver, package namespace, hosted registry, or
+package-acquisition command surface.
 
-| Level | Surface | Entry gate |
-| --- | --- | --- |
-| 0 | Source-local profile | One reproduced semantic or adapter recurrence |
-| 1 | Shared immutable package | Two maintained consumers and net deletion of maintained duplication |
-| 2 | Static read-only index | Released package reuse and measured integration benefit |
-| 3 | Hosted Registry | External publishing demand and Git-release friction |
-| 4 | Federated read-only Atlas | Exact cross-Repository correction, independent agreement, and cold-user lift |
-
-Only level 0 of this **package** ladder is active. A package carries reusable
-language or capability but confers no Standing. A package Registry distributes
-packages but is not scientific authority.
-
-### Rust ecosystem comparison
-
-Rust separates the Cargo client and resolver, the crates.io publication
-service, the immutable registry index, docs.rs derived documentation, and
-rustup toolchain distribution because each has an independently demonstrated
-operational boundary. Vela adopts that separation of responsibilities without
-copying the repository or service count prematurely:
-
-- native package managers continue to resolve native dependencies;
-- source-local Vela profiles remain in their owning repositories at level 0;
-- if level 1 is earned, reusable package sources move to one
-  `vela-science/vela-packages` repository with exact Git releases and content
-  roots, not to a repository named `vela-registry`;
-- package inspection, validation, and acquisition remain subcommands of the
-  existing `vela` executable rather than a second package-manager binary;
-- if level 2 is earned, the existing Vela Web deployment generates and serves
-  a root-bound sparse read index over released packages; and
-- a stateful publication service is level 3 work, justified only by external
-  publishers who require namespace delegation, authentication, yanking,
-  advisories, and operational ownership.
-
-Package bytes, index entries, generated documentation, and discovery records
-remain replaceable distribution artifacts. None is a Repository, Decision,
-Event, or source of Standing. Until level 1 is earned, there is no new package
-repository, package command surface, index, database, or service to maintain.
+A repeated source-local contract may move into shared Vela code only after two
+maintained consumers need the same semantics, independent readers agree on its
+exact bytes, and the extraction deletes more maintained duplication than it
+adds. That is a code-reuse gate, not a roadmap toward a Vela package manager or
+registry. Shared bytes, generated documentation, and discovery records remain
+replaceable artifacts and confer no Standing.
 
 Accepted ADR 0030 defines the current Math Source Registry because exact
 observation must bind native source identity, rights, snapshots, adapters,
@@ -314,9 +288,10 @@ inventory does not distribute semantic packages or confer Standing.
 The first-party Math Atlas is the existing Observatory over the one live
 mathematics authority, `vela-science/math`, and the registered native sources.
 It read "the four declared Frontiers" until this line was corrected, which bound
-the Atlas to the four repositories ADR 0039 archived. Level 4 means a later
-federated Atlas over independently governed external Repositories. Both are read
-projections, never canonical databases or writers.
+the Atlas to the four repositories ADR 0039 archived. A later federated Atlas
+requires independently governed external Repositories and exact cross-Repository
+correction evidence. Both are read projections, never canonical databases or
+writers.
 
 ## Non-goals
 

@@ -1894,7 +1894,7 @@ mod tests {
     use super::*;
     use crate::repository_txn::{RecoveryOutcome, RepositoryTxnStep};
 
-    const REPOSITORY_ID: &str = "vrepo_0123456789abcdef0123456789abcdef";
+    const REPOSITORY_ID: &str = "01234567-89ab-4def-8123-456789abcdef";
     const REPOSITORY_PRINCIPAL: &str = "local:device-1|uid:501";
     const RECORDED_AT: &str = "2026-07-24T12:05:00Z";
 

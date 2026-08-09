@@ -24,19 +24,21 @@ serde_json.workspace = true
 serde_json_canonicalizer.workspace = true
 schemars.workspace = true
 toml.workspace = true
+spdx.workspace = true
 sha2.workspace = true
 chrono.workspace = true
 hex.workspace = true
 ed25519-dalek.workspace = true
 base64.workspace = true
 unicode-normalization.workspace = true
+uuid.workspace = true
 
 [dev-dependencies]
 rand_core.workspace = true
 regex.workspace = true
 tempfile.workspace = true
 vela-verify.workspace = true
-serde_yaml_ng.workspace = true
+serde-saphyr.workspace = true
 
 [lints]
 workspace = true

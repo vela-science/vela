@@ -59,6 +59,7 @@ fn assert_failure(output: &Output, expected_code: i32, expected_kind: &str, what
             )
         });
     assert_eq!(envelope["ok"], false, "{what}");
+    assert_eq!(envelope["schema"], "vela.error.v1", "{what}");
     assert_eq!(envelope["error"]["kind"], expected_kind, "{what}");
 }
 

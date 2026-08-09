@@ -10,9 +10,11 @@ uv sync --project conformance --locked --all-groups
 uv run --project conformance --locked ./conformance/check-core.sh
 ```
 
-The independent reader supports Python 3.11 through 3.14. CI uses an exact
-interpreter while `requires-python` keeps the reader contract independent of a
-single minor line. CI-affecting Python tools are part of the same lock:
+The independent Python reader supports Python 3.11 through 3.14; the independent
+JavaScript canonical reader uses the Node runtime already required by the
+current-object emitter. CI uses an exact Python interpreter while
+`requires-python` keeps that reader contract independent of a single minor
+line. CI-affecting Python tools are part of the same lock:
 
 ```bash
 uv run --project conformance --locked ruff check conformance
@@ -21,7 +23,7 @@ uv run --project conformance --locked zizmor --offline --min-severity medium .
 
 The corpus protects five contract families:
 
-1. canonical JSON bytes and SHA-256 roots;
+1. canonical JSON bytes and SHA-256 roots in Rust, Python, and JavaScript;
 2. byte-identical Submission and Verification emission from an independent
    JavaScript implementation; and
 3. checked JSON Schema 2020-12 descriptions and frozen current-object fixture

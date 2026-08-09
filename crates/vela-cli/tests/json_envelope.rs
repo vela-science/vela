@@ -125,16 +125,16 @@ fn every_json_read_carries_the_envelope() {
             if success { "0" } else { "non-zero" },
             parsed["ok"]
         );
-        if success {
-            assert!(
-                parsed.get("schema").is_some(),
-                "`vela {verb} --json` succeeded without naming its schema"
-            );
-        } else {
+        assert!(
+            parsed.get("schema").is_some(),
+            "`vela {verb} --json` omitted its versioned schema"
+        );
+        if !success {
             assert!(
                 parsed.get("error").is_some(),
                 "`vela {verb} --json` failed without an error object"
             );
+            assert_eq!(parsed["schema"], "vela.error.v1");
         }
     }
 }

@@ -16,7 +16,7 @@ Four bindings, jointly. Any one of them alone identifies nothing.
 
 | Binding | Where it is retained | Example (`vela-science/math`, 2026-08-09) |
 | --- | --- | --- |
-| `repository_id` | `vela.toml`, `vela.repository-profile.v1` | `vrepo_8b32ff6fa11cdb5fa0bb8a043c7d6941` |
+| `repository_id` | `vela.toml`, `vela.repository-profile.v1` | legacy 0.971.0 value `vrepo_8b32ff6fa11cdb5fa0bb8a043c7d6941`; UUID after the next re-genesis |
 | Origin ID and origin root | `.vela/origin.json`, `.vela/repository.json` | `vro_3cfb63bdb525a407` |
 | Current repository root | derived by replay over the canonical object set | `vela.repository.v4` |
 | Sequence-one authority-record root | distributed independently of the checkout | installed by `vela authority trust pin` |

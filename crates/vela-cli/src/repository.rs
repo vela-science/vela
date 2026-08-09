@@ -399,7 +399,8 @@ pub(crate) fn cmd_status(repository_path: &Path, json_out: bool) {
 
         `repository_id` is what the protocol names a repository and what the
         trust store keys on, and it is the wrong thing to lead with: nobody
-        says "open vrepo_8348fae157f9c447", they say `vela-science/math`. This
+        says "open 01234567-89ab-4def-8123-456789abcdef", they say
+        `vela-science/math`. This
         is the same split Git already draws between `main` and the commit it
         points at. The id has not moved and is not less important; it is one
         line down, where an identity, trust or debugging question finds it. */
@@ -2783,7 +2784,6 @@ mod tests {
                 provenance: SubmissionProvenance {
                     producer: producer.into(),
                     source_system: "fixture".into(),
-                    source_attempt: None,
                     source_run: None,
                     emitted_at: emitted_at.into(),
                 },
@@ -3161,7 +3161,7 @@ mod tests {
     fn repository_fixture() -> RepositoryV4 {
         RepositoryV4 {
             schema: vela_protocol::repository::REPOSITORY_SCHEMA_V4.into(),
-            repository_id: "vrepo_0123456789abcdef0123456789abcdef".into(),
+            repository_id: "01234567-89ab-4def-8123-456789abcdef".into(),
             profile_root: root('1'),
             origin_id: "vro_0123456789abcdef".into(),
             origin_root: root('2'),
