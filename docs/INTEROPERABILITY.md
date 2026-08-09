@@ -82,8 +82,8 @@ evidence, not a current product or interoperability requirement.
 
 ## Semantic packages
 
-Domain terminology and constraints remain versioned, content-addressed
-Frontier-local packages. A package may contain:
+Domain terminology and constraints remain versioned, content-addressed,
+Repository-local profiles or Artifacts. Such an Artifact may contain:
 
 - terms and identifiers;
 - constraints and validation shapes;

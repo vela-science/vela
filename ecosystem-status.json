@@ -240,7 +240,7 @@
         "archived": false,
         "default_branch": "main",
         "method": "github-api repos/vela-science/.github",
-        "observed_at": "2026-08-09T05:33:43Z",
+        "observed_at": "2026-08-09T13:14:05Z",
         "pushed_at": "2026-08-09T05:33:14Z",
         "visibility": "public"
       }
@@ -250,7 +250,7 @@
         "archived": true,
         "default_branch": "main",
         "method": "github-api repos/vela-science/erdos-frontier",
-        "observed_at": "2026-08-09T05:33:44Z",
+        "observed_at": "2026-08-09T13:14:06Z",
         "pushed_at": "2026-08-07T14:25:48Z",
         "visibility": "public"
       }
@@ -260,7 +260,7 @@
         "archived": true,
         "default_branch": "main",
         "method": "github-api repos/vela-science/formal-conjectures-frontier",
-        "observed_at": "2026-08-09T05:33:46Z",
+        "observed_at": "2026-08-09T13:14:08Z",
         "pushed_at": "2026-08-07T14:25:52Z",
         "visibility": "public"
       }
@@ -273,27 +273,27 @@
         "pending_claims": 0,
         "proposals": 3,
         "submissions": 3,
-        "verifications": 6
+        "verifications": 7
       },
       "git": {
-        "commit": "27cb6e407f1d42177169c2a02ccd337e1c7bdcc6",
+        "commit": "130fc283b99b8c55dea51b5f8f959a6c33a679f6",
         "remote": "https://github.com/vela-science/math.git",
-        "tree": "8aab0f13d529664e2ebbd822c301d076932f69df"
+        "tree": "3c99d1b9c969a8559605a664bdd7280e9729169f"
       },
       "method": "local-checkout",
-      "observed_at": "2026-08-09T05:33:41Z",
+      "observed_at": "2026-08-09T13:14:03Z",
       "origin": {
         "generation": 1,
-        "kind": "genesis",
-        "origin_id": "vro_3cfb63bdb525a407"
+        "origin_id": "vro_229ce0a08217da5e",
+        "schema": "vela.repository-origin.v1"
       },
-      "origin_root": "sha256:7437b73c0d8da00ac160689bed40c8171e51fe27dbc1e53f7d6038ad7bd28163",
+      "origin_root": "sha256:229ce0a08217da5e8bad2059c35070989652ca546ab45b8e699922ba182e8a69",
       "remote": {
         "archived": false,
         "default_branch": "main",
         "method": "github-api repos/vela-science/math",
-        "observed_at": "2026-08-09T05:33:44Z",
-        "pushed_at": "2026-08-09T00:44:44Z",
+        "observed_at": "2026-08-09T13:14:06Z",
+        "pushed_at": "2026-08-09T12:31:51Z",
         "visibility": "public"
       },
       "replay": {
@@ -303,17 +303,17 @@
           "replay": "verified",
           "strict": "pass"
         },
-        "reported_by": "vela 0.971.0",
-        "repository_root": null
+        "reported_by": "vela 0.972.1",
+        "repository_root": "sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc"
       },
-      "repository_id": "vrepo_8b32ff6fa11cdb5fa0bb8a043c7d6941"
+      "repository_id": "8115c538-7688-40b7-ab75-3c4765bf3c19"
     },
     "vela-science/quantum-codes-frontier": {
       "remote": {
         "archived": true,
         "default_branch": "main",
         "method": "github-api repos/vela-science/quantum-codes-frontier",
-        "observed_at": "2026-08-09T05:33:45Z",
+        "observed_at": "2026-08-09T13:14:07Z",
         "pushed_at": "2026-08-07T14:25:54Z",
         "visibility": "public"
       }
@@ -323,7 +323,7 @@
         "archived": true,
         "default_branch": "main",
         "method": "github-api repos/vela-science/sidon-frontier",
-        "observed_at": "2026-08-09T05:33:45Z",
+        "observed_at": "2026-08-09T13:14:07Z",
         "pushed_at": "2026-08-07T14:25:49Z",
         "visibility": "public"
       }
@@ -333,59 +333,59 @@
         "archived": false,
         "default_branch": "main",
         "method": "github-api repos/vela-science/vela",
-        "observed_at": "2026-08-09T05:33:42Z",
-        "pushed_at": "2026-08-09T05:29:29Z",
+        "observed_at": "2026-08-09T13:14:04Z",
+        "pushed_at": "2026-08-09T07:54:21Z",
         "visibility": "public"
       }
     },
     "vela-science/vela-web": {
       "git": {
-        "commit": "fd1c5cb155a205f3a64e1f7dbf1c48fe8761f87b",
+        "commit": "6adcc733141271f707b60bbb2b00e2dc3e301d2d",
         "remote": "https://github.com/vela-science/vela-web.git",
-        "tree": "c31acb659454174744179f4324d0b379d2bd3c27"
+        "tree": "beb8de38f1cfe8bf0423c02a839d77d9cc443206"
       },
       "method": "local-checkout",
-      "observed_at": "2026-08-08T00:38:40Z",
+      "observed_at": "2026-08-09T13:14:04Z",
       "remote": {
         "archived": false,
         "default_branch": "main",
         "method": "github-api repos/vela-science/vela-web",
-        "observed_at": "2026-08-09T05:33:43Z",
-        "pushed_at": "2026-08-09T01:15:41Z",
+        "observed_at": "2026-08-09T13:14:05Z",
+        "pushed_at": "2026-08-09T13:07:41Z",
         "visibility": "private"
       }
     }
   },
   "projection": {
-    "activation_time": "2026-08-09T01:15:49.242Z",
+    "activation_time": "2026-08-09T13:07:50.169Z",
     "method": "https-get",
-    "observed_at": "2026-08-09T05:33:47Z",
+    "observed_at": "2026-08-09T13:14:08Z",
     "projected_repositories": [
       {
-        "commit": "27cb6e407f1d42177169c2a02ccd337e1c7bdcc6",
+        "commit": "130fc283b99b8c55dea51b5f8f959a6c33a679f6",
         "counts": {
           "accepted_claim": 1,
           "claim": 1,
-          "graph_claim": 2,
-          "graph_edge": 5,
+          "graph_claim": 3,
+          "graph_edge": 4,
           "graph_node": 9,
           "pending_claim": 0,
           "problem": 1217,
-          "result_dossier": 0,
+          "result_dossier": 1,
           "review": 3,
           "submission": 3,
-          "verification": 6
+          "verification": 7
         },
-        "origin_root": "sha256:7437b73c0d8da00ac160689bed40c8171e51fe27dbc1e53f7d6038ad7bd28163",
-        "repository_root": "sha256:fc53ce1e2accd3e5243887ea2db1104f480d7e6b7823ac3e1c0a1c01e1067fcc",
-        "slug": null,
-        "tree": "8aab0f13d529664e2ebbd822c301d076932f69df"
+        "origin_root": "sha256:229ce0a08217da5e8bad2059c35070989652ca546ab45b8e699922ba182e8a69",
+        "repository_id": "8115c538-7688-40b7-ab75-3c4765bf3c19",
+        "repository_root": "sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc",
+        "tree": "3c99d1b9c969a8559605a664bdd7280e9729169f"
       }
     ],
     "projection_schema": "vela.observatory-release-manifest",
-    "release_root": "sha256:e4ae81de4e33fae165465c1f0c95928c20e04e5267005f26f34c5d1c1d18e153",
+    "release_root": "sha256:eba70ba9604105bbc4fbdd229d806877d467a86e25bea4c071ee78066bc5ca78",
     "source": "https://app.vela.space/.well-known/vela-site.json",
-    "vela_version": "vela 0.971.0"
+    "vela_version": "vela 0.972.1"
   },
   "schema": "vela.ecosystem-status.v1"
 }

@@ -320,10 +320,12 @@ action installs the pinned release and runs `vela replay <path> --json`. An
 archived repository takes no push and no pull request, so none of that runs
 again.
 
-The one live repository, `vela-science/math` (`vrepo_8b32ff6fa11cdb5fa0bb8a043c7d6941`), carries
-no `.github/` at all. `vela init` scaffolds no workflow, and each of the four
-wrote its own copy, so a repository gets this gate only by writing one, and
-`math` has not.
+The one live authority repository, `vela-science/math`
+(`8115c538-7688-40b7-ab75-3c4765bf3c19`), carries no `.github/` at all. `vela
+init` scaffolds no workflow, and each of the four archived repositories wrote
+its own copy, so a repository gets this gate only by writing one. The ecosystem
+instead verifies Math during the root-bound Observatory refresh and in Vela's
+independent conformance readers; neither surface can change its Standing.
 
 The action took `frontier` as a deprecated alias for `repository` until this
 was reread. The reason given was that four archived pins spell it and an

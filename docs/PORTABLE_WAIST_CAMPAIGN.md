@@ -1,28 +1,27 @@
 # Portable-waist and interoperability campaign
 
-Status: **All three cuts landed, 2026-08-09; one operator step outstanding.**
-Cut B and Cut C shipped together as one wire break, because separately each
-would have forced another `vela-science/math` re-genesis. What remains is that
-re-genesis itself, which needs the authority key in a local OpenSSH agent and
-cannot be performed from this repository or from CI. Until an operator performs
-it the binary refuses the current `math` head, which is the intended sequencing
-and the release blocker.
+Status: **Complete, 2026-08-09.** All three cuts landed, and Cut B and Cut C
+shipped together as one wire break because separately each would have forced
+another `vela-science/math` re-genesis. The operator then completed that one
+re-genesis under Vela 0.972.1 and re-admitted only the bounded corrected Claim.
+The current Math head strictly replays with no blocker; the signed 0.971.0
+predecessor remains retained and contributes no Standing to the new genesis.
 
 ## Objective
 
 Replace commodity edge machinery with exact maintained standards while keeping
 Vela's scientific meaning, correction, Decision, and Standing semantics
-custom and Frontier-local.
+custom and Repository-local.
 
 ## Current baseline
 
 - RFC 8785 JCS and SHA-256 are current.
 - Every signed Vela object is a DSSE 1.0.2-compatible envelope, produced and
   read by one implementation, `crates/vela-protocol/src/kernel/dsse.rs`.
-- Eight JSON Schema 2020-12 documents cover the DSSE envelope, Submission,
-  Verification Record, Proposal Withdrawal, Claim Record, Proposal, repository
-  origin, and `vela.status.v4`. This line said four for as long as `schemas/`
-  has held eight.
+- Twelve generated JSON Schema 2020-12 documents cover the current portable
+  objects and read contracts, including the DSSE envelope, Submission,
+  Verification Record, Proposal Withdrawal, authorization request and result,
+  Repository Profile and origin, and `vela.status.v4`.
 - Current fixture bytes and roots are frozen.
 - The closed Vela Authorization Profile is the only evaluator. Nothing runs in
   shadow.
@@ -71,9 +70,9 @@ No predecessor object is silently reinterpreted under the current contract:
 every payload type and schema tag moved with the signature, so an old object
 fails to parse rather than parsing differently.
 
-All of it landed except the last item, which is an operator ceremony rather
-than a repository change. Independent verification is Rust, Python, and
-JavaScript: `conformance/emitters/python.py` and
+All of it landed, including the explicit current-epoch cut exercised by the
+Math 0.972.1 genesis. Independent verification is Rust, Python, and JavaScript:
+`conformance/emitters/python.py` and
 `conformance/emitters/javascript.mjs` construct DSSE envelopes from first
 principles and reproduce the frozen fixture bytes exactly.
 
@@ -95,11 +94,13 @@ The evidence this cut required, and where it is:
 - recompute every historical Allow result with the closed profile —
   `crates/vela-authority/tests/authorization_profile_parity.rs`, which drives
   `evaluate_authorization_v1` over all seven retained transactions;
-- prove parity and negative boundary cases across all canonical Frontiers — the
-  same test checks seven negative cases for their exact fail-closed reasons;
-  and
-- replay every Frontier from a clean clone — outstanding, and part of the
-  operator re-genesis rather than of this repository.
+- prove parity and negative boundary cases across the retained epoch-1 corpus;
+  the same test checks seven negative cases for their exact fail-closed
+  reasons; and
+- replay the current authority from a clean clone, exercised by
+  `vela-science/math@130fc283b99b8c55dea51b5f8f959a6c33a679f6`, yielding
+  Repository root
+  `sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc`.
 
 The deletion followed: `cedar-policy` is out of both manifests, `engine_pin.rs`
 is gone, `PolicyBundleV1` is `AuthorizationModelV1` naming no engine, and

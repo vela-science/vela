@@ -10,5 +10,8 @@ actually have. It is not migrated: rewriting it to the current spelling would
 assert a shape the measured data does not have, and the DSSE signatures over
 the Cedar entity token cannot be regenerated.
 
-Its test was removed with the epoch-1 reader. A replacement parity fixture is
-measured against `vela-science/math` once that repository has a genesis.
+`crates/vela-authority/tests/authorization_profile_parity.rs` reads this
+retained corpus. It deterministically translates the retired identifier
+spelling, reproduces all seven published Allows with the current closed
+evaluator, and checks seven negative boundary cases for their exact reasons.
+It does not claim that roots survive the vocabulary and UUID migration.

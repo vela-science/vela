@@ -340,10 +340,11 @@ binaries of their era; every Repository the current binary writes starts at a
 native genesis. Historical Git revisions preserve earlier contracts, and the
 current binary exposes no migration writer.
 
-The final pre-1.0 standards cut has landed in this repository and has not yet
-reached `vela-science/math`, which must re-genesis under the new signed
-contract before the current binary can read it. That is an operator step, and
-until it happens the binary refuses the current `math` head. See
+The final pre-1.0 standards cut is active across the ecosystem. The
+`vela-science/math` authority re-genesised once under Vela 0.972.1, uses RFC
+9562 UUIDv4 identity `8115c538-7688-40b7-ab75-3c4765bf3c19`, and strictly
+replays its current accepted state. The signed 0.971.0 predecessor remains
+retained as continuity evidence and carries no Standing into the new genesis. See
 [the 2026-08-08 architecture memo](docs/history/2026-08-08-ideal-ecosystem-and-architecture-memo.md)
 and [ADR 0035](docs/adr/0035-commodity-encoding-signing-and-wire-contracts.md).
 

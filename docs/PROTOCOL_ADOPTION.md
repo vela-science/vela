@@ -9,10 +9,10 @@ authority.
 | Layer | Owner | Current Vela boundary | Authority effect |
 |---|---|---|---|
 | Proof, computation, data, models | Native tools and repositories | Exact references, artifacts, and replay contracts | None |
-| Encoding and identity | JCS, SHA-256, Ed25519; DSSE for authority records | Pinned implementations and conformance vectors | None |
+| Encoding and identity | JCS, SHA-256, Ed25519, DSSE 1.0.2 | One DSSE implementation, pinned implementations, and conformance vectors | None |
 | Portable structure | JSON Schema 2020-12 | Checked descriptions of current producer/verifier objects | None |
-| Scientific state | Vela protocol | Claim lineage, scoped Verification, Decision, correction, Standing | Only an authorized Frontier Decision changes Standing |
-| Admission policy | Each Frontier | Closed local authority profile and exact human checkpoint | Frontier-local |
+| Scientific state | Vela protocol | Claim lineage, scoped Verification, Decision, correction, Standing | Only an authorized Repository Decision changes Standing |
+| Admission policy | Each Repository | Closed local authority profile and exact human checkpoint | Repository-local |
 | Orientation | Observatory and other read projections | Root-bound, reconstructable, SELECT-only views | None |
 
 ## Current, experimental, and absent surfaces
@@ -20,12 +20,12 @@ authority.
 | Surface | State | Honest contract |
 |---|---|---|
 | CLI JSON reads | Current | Versioned machine views; not a universal protocol API |
-| Submission, Verification Record, Withdrawal JSON | Current | Closed signed v1 objects; Rust semantic validation is authoritative |
+| Submission, Verification Record, Withdrawal JSON | Current | Versioned payloads in DSSE envelopes; semantic validation is authoritative |
 | JSON Schema descriptions | Current documentation | Structural validation only; no signature, reference, Decision, or Standing inference |
-| Authority DSSE envelope | Current | Repository-authority transport only |
-| Result Dossier | Experimental read projection | Exact rooted case record; no Vela object and no authority |
-| Common DSSE producer/verifier v2 | Planned | Requires a separate ADR 0035 cut and retained migration evidence |
-| AuthZEN-shaped closed evaluator | Shadow | Not the writer; historical recomputation is incomplete |
+| Common DSSE signed-object boundary | Current | Submission, Verification Record, Withdrawal, and authority transport; never scientific admission by itself |
+| Result Dossier | Current read projection | Exact rooted case record; no Vela object and no authority |
+| Common DSSE producer/verifier v2 | Current | Independently emitted and checked in Rust, Python, and JavaScript |
+| AuthZEN-shaped closed evaluator | Current | The only writer-side evaluator; retained Cedar Allows and negative boundaries are recomputed in conformance |
 | MCP or A2A edge | Absent | No support claim, server, tool, resource, or write contract |
 | Package manager or Registry | Absent | Source-local experiments only after a second real consumer |
 | Hosted writer or automatic Decision | Prohibited by current boundary | Requires a later explicit authority and threat-model decision |
@@ -41,8 +41,8 @@ authority.
   has `authority_effect = none`.
 - Assurance labels are source-local presentation vocabulary. They do not
   overload protocol Standing.
-- Only an attributed, authorized human Decision admitted by one Frontier
-  changes that Frontier's Standing.
+- Only an attributed, authorized human Decision admitted by one Repository
+  changes that Repository's Standing.
 
 ## Adoption test
 

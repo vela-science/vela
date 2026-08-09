@@ -7,9 +7,11 @@ faithfulness corpus counts are in `williamjblair/lean-proofs` at the commit
 named below, and the formal statements in `google-deepmind/formal-conjectures`
 at the pages commit named below. Three clones, each pinned.
 
-- **Protocol:** Vela `v0.971.0` released, which is the release carrying the correction work below
-- **Live authority:** `vela-science/math`, legacy 0.971.0 repository identifier `vrepo_8b32ff6fa11cdb5fa0bb8a043c7d6941` pending the next-release UUID re-genesis
-- **Repository root at time of writing:** `sha256:fc53ce1e2accd3e5243887ea2db1104f480d7e6b7823ac3e1c0a1c01e1067fcc`
+- **Protocol:** Vela `v0.972.1`
+- **Live authority:** `vela-science/math`, Repository UUID `8115c538-7688-40b7-ab75-3c4765bf3c19`
+- **Current Repository root:** `sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc`
+- **Current bounded Standing:** corrected Erdős 321 correspondence Claim `vcl_3d4fd59554ccaa2b792b08abae16a8d0fe329d4901ad798fe05c6c7769c9966b`; no resolution or optimality claim
+- **Retained predecessor:** the 0.971.0 decisions discussed below remain signed continuity evidence and carry no Standing into the UUIDv4 genesis
 - **Target submission date:** 24 August 2026
 
 Every claim below is reproducible with:
@@ -61,9 +63,14 @@ reader can recompute the whole thing.
 
 ## Evidence: two transitions, driven end to end
 
-`vela-science/math` held zero claims, submissions, verifications and decisions
-until this month. It now holds three complete transitions: a refusal, an
-admission, and a correction of the admission.
+At the start of this case, `vela-science/math` held zero Claims, Submissions,
+Verifications, and Decisions. The retained 0.971.0 predecessor then recorded a
+refusal, an admission, and a correction of that admission. Under Vela 0.972.1,
+the authority made the migration boundary explicit: it rejected the overstated
+321 proposal, rejected the vacuous 522 proposal, and accepted only the corrected
+bounded 321 correspondence. The current repository therefore has one accepted
+Claim, two rejected Proposals, three Submissions, and seven Verification
+Records.
 
 ### Erdős 522 — refused, on evidence that passed
 
@@ -230,7 +237,8 @@ Everything above is checkable without contacting us.
 
 ```bash
 git clone https://github.com/vela-science/math
-vela replay math --json          # ok: true, repository_root: sha256:83e43058…
+git -C math checkout 130fc283b99b8c55dea51b5f8f959a6c33a679f6
+vela replay math --json          # ok: true, repository_root: sha256:db4d435c…
 vela status math --json          # integrity.replay: verified, strict: pass
 vela claims math --json          # indexed.accepted: 1
 vela review list math --status all --json
@@ -242,10 +250,11 @@ and `hashlib`:
 
 ```bash
 python conformance/readers/python/repository_root.py math \
-  --expect sha256:83e430583f49a8ecbec3989a1aae71831b7d0165c807fd8c7815ac9a32750b3d
+  --expect sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc
 ```
 
-That root is the repository at commit `97245e1`. Every Decision after it moves
+That root is the Repository at commit
+`130fc283b99b8c55dea51b5f8f959a6c33a679f6`. Every Decision after it moves
 the root, correctly — a mismatch means the repository has advanced, not that
 something is wrong. Clone at that commit, or take the current value from `vela
 replay` at the commit you cloned.

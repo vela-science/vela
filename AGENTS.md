@@ -103,16 +103,15 @@ cargo test --locked -p vela-cli --test bootstrap_cli_ux
 cargo test --locked -p vela-cli --test genesis
 cargo test --locked -p vela-protocol --test canonical_hashing_conformance
 cargo test --locked -p vela-protocol --test engine_pin
-cargo test --locked -p vela-authority
+cargo test --locked -p vela-authority --test authorization_profile_parity
 ```
 
-The last line used to name `--test authorization_profile_parity`, which has
-never existed: `crates/vela-authority/` has no `tests/` directory, so the
-command failed for everyone who copied it. The corpus that name implies,
-`conformance/fixtures/epoch1/authorization-profile-parity.json`, is read by
-nothing in `crates/`, `conformance/`, `scripts/` or `.github/`. `docs/ECOSYSTEM.md`
-§6 records the evaluator half of that gap; the corpus half is the same gap seen
-from the fixture's side.
+The authority parity test reads
+`conformance/fixtures/epoch1/authorization-profile-parity.json`, translates its
+retired epoch-1 identifiers into the current vocabulary, reproduces all seven
+retained Cedar Allows with the closed evaluator, and checks seven exact negative
+boundaries. It does not claim byte-root parity across the vocabulary and UUID
+migration.
 
 If a shared type or behavior changed, test its direct consumer crates as well.
 If canonical bytes, roots, schemas, or the current interoperability waist

@@ -42,11 +42,11 @@ authority_effect: "None. This memo proposes architecture and migration decisions
 > - §18 Phase 2 — bundled into one wire break, so `vela-science/math`
 >   re-genesises once rather than once per change.
 >
-> What it did not deliver: the `vela-science/math` re-genesis itself, which
-> needs the authority key in a local OpenSSH agent and is an operator ceremony,
-> not a repository change. Until it happens the current binary refuses the
-> current `math` head, which is the intended sequencing and the release
-> blocker.
+> The repository cut did not itself perform the `vela-science/math` re-genesis,
+> because that required the authority key in a local OpenSSH agent. The operator
+> completed it later on 2026-08-09 under Vela 0.972.1. The current UUIDv4 Math
+> Repository strictly replays; its signed 0.971.0 predecessor remains continuity
+> evidence and carries no Standing forward.
 >
 > Everything else the memo proposes — the §12 crate consolidation, the §13
 > conformance and interoperability program, the §16 external validation
