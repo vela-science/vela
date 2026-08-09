@@ -1,10 +1,8 @@
 # Vela ecosystem architecture
 
-- Status: current as of 2026-08-07
+- Status: current as of 2026-08-09
 - Binding decision: ADR 0039, `docs/adr/0039-repository-authority-and-derived-frontiers.md`
-- Supersedes: the ecosystem sections of `docs/ARCHITECTURE.md` §"Source and
-  repository ownership" and §"Rust ecosystem comparison", which still describe
-  the four-Frontier topology and a package layer this document closes
+- Governing simplification: the 2026-08-08 ideal ecosystem and architecture memo
 
 This document states the ecosystem structure once. Where a layer exists, the
 path is given. Where a layer does not exist, it is named as future with the
@@ -163,18 +161,10 @@ of the named consumers are now frozen repositories, so the experiment cannot be
 re-run as designed. It should be closed as answered in the negative rather than
 carried as open backlog.
 
-Consequently these lines in `docs/ARCHITECTURE.md` are dead and should be
-deleted rather than reworded:
-
-- `:279-281` reusable package sources move to a `vela-science/vela-packages`
-  repository;
-- `:282-283` package inspection, validation and acquisition become `vela`
-  subcommands (this directly contradicts "no custom package manager");
-- `:284-285` the Vela Web deployment serves a sparse package index.
-
-The five-level ladder in the same file survives only as a description of what
-would have to become true before the question could be reopened. Levels 3
-(hosted registry) and 4 (federated registry) are **not destinations**.
+`docs/ARCHITECTURE.md` now states the same closed decision: native package
+ecosystems own resolution and publication; the two-consumer and net-deletion
+gate governs ordinary code extraction rather than opening a roadmap to a Vela
+package manager, package repository, or hosted registry.
 
 ## 4. Repository topology
 
@@ -187,17 +177,17 @@ would have to become true before the question could be reopened. Levels 3
 | `vela-science/.github` | Organization profile, reusable workflows, security policy | exists |
 | `vela-science/math` | The one live mathematics authority, fresh genesis | exists |
 
-`vela-science/math` exists and holds a signed genesis. The epoch rename this
-paragraph named as its blocker is done, so the genesis was written by a binary
-that mints `vrepo_` and writes `vela.toml`, which is what the repository
-carries. What its authority record still holds from before the rename — the
-Cedar entity `Frontier`, the `frontier_administrator` role and the StateTarget
-type `frontier`, all inside a valid signature — is now unreadable by the
-current binary rather than merely stale. The pre-1.0 standards cut moved the
-signature preimage, so `math` must re-genesis under the new contract before it
-can be read again, and that re-genesis retires those spellings along with the
-engine that defined them. It is an operator ceremony with the authority key in
-a local OpenSSH agent, and it is the release blocker.
+`vela-science/math` exists with a signed Vela 0.971.0 genesis, one accepted
+Claim, three Submissions, six Verification Records, one accepted correction,
+one rejected Proposal, and one accepted dependent transition. Its 128-bit
+`vrepo_` identity and Repository vocabulary are current for that release.
+
+The unreleased wire cut on Vela `main` moves portable signed objects to DSSE,
+replaces retained Cedar material with the closed authorization model, and
+removes compaction from the current origin. The current binary therefore
+refuses the 0.971.0 `math` bytes until that cut is released and an operator
+re-genesisizes the live authority once under the new contract. That is the
+remaining release blocker, not unfinished Frontier vocabulary migration.
 
 ### Frozen
 

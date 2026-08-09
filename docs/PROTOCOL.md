@@ -96,8 +96,7 @@ vela.toml
 .vela/authority/events/
 .vela/authority/records/
 .vela/authority/keysets/
-.vela/authority/policies/
-.vela/authority/policy-material/
+.vela/authority/models/
 records/claims/sha256/
 records/submissions/sha256/
 records/verifications/sha256/
