@@ -183,7 +183,7 @@ transport Standing.
 ## Math Atlas read boundary
 
 The existing Observatory is the first-party Math Atlas. The Git Repositories
-remain canonical. `@vela/frontier-data` acquires and validates source-native
+remain canonical. `@vela/observatory-data` acquires and validates source-native
 observations, projects their exact state, and loads one disposable PostgreSQL
 read model.
 

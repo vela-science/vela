@@ -16,10 +16,10 @@ Four bindings, jointly. Any one of them alone identifies nothing.
 
 | Binding | Where it is retained | Example (`vela-science/math`, 2026-08-09) |
 | --- | --- | --- |
-| `repository_id` | `vela.toml`, `vela.repository-profile.v1` | legacy 0.971.0 value `vrepo_8b32ff6fa11cdb5fa0bb8a043c7d6941`; UUID after the next re-genesis |
-| Origin ID and origin root | `.vela/origin.json`, `.vela/repository.json` | `vro_3cfb63bdb525a407` |
-| Current repository root | derived by replay over the canonical object set | `vela.repository.v4` |
-| Sequence-one authority-record root | distributed independently of the checkout | installed by `vela authority trust pin` |
+| `repository_id` | `vela.toml`, `vela.repository-profile.v1` | `8115c538-7688-40b7-ab75-3c4765bf3c19` |
+| Origin ID and origin root | `.vela/origin.json`, `.vela/repository.json` | `vro_229ce0a08217da5e`; `sha256:229ce0a08217da5e8bad2059c35070989652ca546ab45b8e699922ba182e8a69` |
+| Current repository root | derived by replay over the canonical object set | `sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc` |
+| Sequence-one authority-record root | distributed independently of the checkout | `sha256:4ac100cd870f51c14f72d2d5226a1ca3eca8058aed7d896848214f61f3d5d59b` |
 
 The first three travel inside the checkout. The fourth deliberately does not:
 `docs/SIGNING.md`, "Consumer trust", requires the first authority-record root to
@@ -240,10 +240,12 @@ with no credential, failing if it holds different refs from the primary. The
 scheduled refresh is the point: a mirror updated when someone remembers is not a
 replica, it is a stale copy discovered at the worst moment.
 
-The retrieval was exercised rather than assumed. `math` was cloned from Codeberg
-with no GitHub involvement and replayed to
-`sha256:b1999eb485b04c63d06ae0173db91fa0a564d9919f50319aa1544704f0d254a4`, the
-same repository root, origin root and authority keyset root as the primary.
+The retrieval was exercised rather than assumed. After the UUIDv4 re-genesis
+and human Decisions, `math` was cloned anonymously from Codeberg with no GitHub
+involvement and replayed to
+`sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc`,
+the same Repository, origin, authorization-model, and authority-keyset roots as
+the active writer.
 
 `install.sh` no longer fails step 1. It prefers the signed release manifest —
 `ssh-keygen -Y verify` against the `vela-release` namespace, then a digest
@@ -252,9 +254,8 @@ tool and nothing else. `VELA_RELEASE_BASE_URL` points it at a mirror or a local
 directory, and `VELA_ALLOWED_SIGNERS` supplies the trust root out of band, so
 neither the bytes nor the verifier need come from GitHub.
 
-One thing still fails, and it is the reason this is written as a test.
-
-`v0.968.1` closed the other two. It is the first release published with signed
+`v0.968.1` first closed the two release-distribution gaps. It is the first
+release published with signed
 manifests: `release.yml` publishes a draft, `scripts/sign-published-release.sh`
 signs each manifest against the bytes CI built, checks every digest, uploads the
 sidecars and then publishes — so the release is immutable and signed from the
@@ -267,24 +268,31 @@ provider-coupled fallback refused.
 `v0.968.0` is immutable and unsigned and cannot be repaired; it stands as the
 last unsigned release.
 
-Release assets are retained, and the mirror carries the signatures too. The
-twelve assets of the pinned release are mirrored to the replica by
-`mirror-replicas.yml` and read back over the anonymous public URL, where they
-are compared to the SHA-256 digests committed in vela-web's
-`vela-release.v1.json` rather than to the copy just uploaded — and since the
-job mirrors whatever assets the release carries, the `.sig` files travel with
-them. So the replica now answers provenance and not only integrity: `vela
-0.968.1` installs from it with the signature required and no GitHub anywhere in
-the retrieval or the verification path.
+The current `v0.972.1` release follows the same signed-before-publication path.
+Its two published manifests and assets agree, both signatures verify under the
+out-of-band distribution identity, and a clean consumer installation with
+`VELA_REQUIRE_SIGNED_MANIFEST=1` reports provider-independent verification.
+Those exact current assets are replicated to Codeberg and anonymously read back
+against the committed digests by `mirror-replicas.yml`.
 
-Scoped to the pinned release rather than the archive — 127 releases and 1,023
-assets exist, and §11.1 asks for what it takes to install and reproduce the
-current system, which `vela-release.v1.json` names exactly.
+The mirror mechanism carries signatures too. It reads each retained asset back
+over the anonymous public URL and compares it to the SHA-256 committed in
+vela-web's `vela-release.v1.json`, rather than to the copy just uploaded. The
+current fully exercised replica path is `v0.972.1`: its retained assets and
+signatures pass anonymous Codeberg readback with no GitHub dependency in the
+retrieval or verification path.
 
-Steps 4 and 5 — one authorized local Decision, then a projection rebuild and
-root comparison — have not been exercised end to end. Nothing known blocks
-them; they are simply not yet an artifact, and this document does not count
-unexercised steps as passing.
+Mirroring stays scoped to the release the Observatory pins rather than the
+historical archive. Section 11.1 asks for what it takes to install and reproduce
+the current system, which `vela-release.v1.json` names exactly.
+
+Steps 4 and 5 now pass. The human Decisions were signed through the local
+OpenSSH-agent authority path; a Codeberg-only clone of their published state
+then rebuilt twice into fresh local PostgreSQL clusters from one retained
+source-adapter artifact, verified identical manifest and table roots, enforced
+a SELECT-only reader, and exported the root-bound `erdos-321` Dossier. Exact
+inputs, roots, limitations, and the public mirror run are retained in
+`docs/PROVIDER_LOSS_QUALIFICATION_2026-08-09.md`.
 
 ## What this document does not do
 

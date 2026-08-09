@@ -53,7 +53,7 @@ ARTIFACT = ROOT / "ecosystem-status.json"
 SCHEMA = "vela.ecosystem-status.v1"
 DEFAULT_MAX_OBSERVATION_AGE_DAYS = 180
 # The manifest shape `observe_projection` knows how to read. vela-web pins the
-# same literal at `packages/frontier-data/src/projection-contract.ts`, and the
+# same literal at `packages/observatory-data/src/projection-contract.ts`, and the
 # live manifest at app.vela.space serves it. A rename there must stop this
 # script rather than let it parse an unfamiliar document and report what it
 # failed to find as a fact.
@@ -338,8 +338,7 @@ def observe_checkout(path: pathlib.Path, vela_bin: str | None) -> dict[str, obje
         document = json.loads(origin.read_text(encoding="utf-8"))
         observation["origin"] = {
             "generation": document.get("generation"),
-            "kind": document.get("kind"),
-            "origin_id": document.get("origin_id"),
+            "schema": document.get("schema"),
         }
 
     state = path / ".vela/repository.json"
@@ -387,11 +386,25 @@ def observe_checkout(path: pathlib.Path, vela_bin: str | None) -> dict[str, obje
             if isinstance(document, dict):
                 observation["replay"] = {
                     "integrity": document.get("integrity"),
-                    "repository_root": (document.get("repository") or {}).get(
-                        "repository_root"
-                    ),
+                    "repository_root": (document.get("roots") or {}).get("repository"),
                     "reported_by": run([vela_bin, "--version"]),
                 }
+        replay = run([vela_bin, "replay", str(path), "--json"])
+        if replay:
+            try:
+                document = json.loads(replay)
+            except json.JSONDecodeError:
+                document = None
+            if isinstance(document, dict):
+                origin = observation.setdefault("origin", {})
+                if isinstance(origin, dict):
+                    origin["origin_id"] = document.get("origin_id")
+                observation["origin_root"] = document.get("origin_root")
+                replay_observation = observation.setdefault("replay", {})
+                if isinstance(replay_observation, dict):
+                    replay_observation["repository_root"] = document.get(
+                        "repository_root"
+                    )
     return observation
 
 
@@ -447,8 +460,8 @@ def observe_projection(url: str) -> dict[str, object] | None:
                     if key.endswith("_count") and isinstance(entry[key], int)
                 },
                 "origin_root": entry.get("origin_root"),
+                "repository_id": entry.get("repository_id"),
                 "repository_root": entry.get("repository_root"),
-                "slug": entry.get("slug"),
                 "tree": entry.get("tree"),
             }
         )

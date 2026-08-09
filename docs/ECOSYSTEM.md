@@ -36,11 +36,11 @@ mints a standard UUIDv4 once at genesis, and answers `vela.status.v4`.
 `packages/vela-source-manifest/` (a Python package with `pyproject.toml` and
 `uv.lock`). Projected by `vela-web` into `observatory.source_declarations`,
 `observatory.source_observations`, `observatory.native_records` and
-`observatory.release_sources` (`packages/frontier-data/schema.sql`). Thirteen
+`observatory.release_sources` (`packages/observatory-data/schema.sql`). Thirteen
 sources are declared in
-`packages/frontier-data/config/math-sources.v1.ts`, which is the same thirteen
+`packages/observatory-data/config/math-sources.v1.ts`, which is the same thirteen
 §2 says `math` declares. Adapters live in
-`packages/frontier-data/src/source-adapters/` (fifteen files, including
+`packages/observatory-data/src/source-adapters/` (fifteen files, including
 `formal-conjectures.ts`, `oeis.ts`, `physlib.ts`, `openai-ten-proofs.ts` and
 `vibemathed.ts`).
 
@@ -51,7 +51,7 @@ reference or snapshot of an external source cannot carry Standing.
 
 **Problem.** No protocol object. No projection table. The surface at
 `apps/observatory/src/app/frontiers/[slug]/problems/` is derived, in
-`packages/frontier-data/src/index.ts`, from `observatory.native_records` scoped
+`packages/observatory-data/src/index.ts`, from `observatory.native_records` scoped
 through `release_sources`, with the Claim a `LEFT JOIN LATERAL` and the declared
 status, formalization, prize and subject tags read from the Source record's
 metadata. It used to be an inner join from `observatory.graph_nodes` to
@@ -62,19 +62,19 @@ described its replacement, and this paragraph is the one a reader reaches first.
 
 **Frontier.** Derived, and no longer minted in the protocol. In `vela-web`,
 `registry.ts` pins one slug, `math`, against `repository_id`
-`vrepo_8b32ff6fa11cdb5fa0bb8a043c7d6941`, the legacy identifier retained by the
-deployed 0.971.0 snapshot. The next release and its required re-genesis replace
-that pin with the Repository UUID; no `vfr_` identity survives there. The
-keying is finished too: all thirteen projection
-tables key on `repository_id`, and the slug is a presentation fact that lives
-only in the registry, where a URL handle meets a protocol identity. It was a
-root migration rather than a rename — `rooted()` hashes `canonicalJson(row)`
-including keys, so every renamed column moved a `row_root` — and the release it
-produced was rebuilt from an empty database and compared root for root.
+`8115c538-7688-40b7-ab75-3c4765bf3c19`. The Vela 0.972.1 Math genesis and the
+one-way Web migration are active. No `vfr_` or `vrepo_` identity survives in
+the current reader. The keying is finished too: canonical projection joins key
+on `repository_id`, and the slug is a
+presentation fact that lives only in the registry, where a URL handle meets a
+protocol identity. It was a root migration rather than a rename — `rooted()`
+hashes `canonicalJson(row)` including keys, so every renamed column moved a
+`row_root` — and the release it produced was rebuilt from an empty database and
+compared root for root.
 
 **Atlas.** The Observatory, `apps/observatory/` in `vela-web`. There is no
 separate Atlas application, no Atlas compiler, no per-view ontology. Every
-projection row is root-bound. `packages/frontier-data/schema.sql` declares 20
+projection row is root-bound. `packages/observatory-data/schema.sql` declares 20
 tables, of which 17 carry `row_root`; the other three — `releases`,
 `schema_migrations` and `current_release` — are the projection's own bookkeeping
 and hold no projected row. Of the 17, all but three also carry `release_root`,
@@ -91,10 +91,12 @@ stated as one number here, which made the bookkeeping tables look like state.
 library, not a package namespace, not an index of other people's mathematics,
 and not a second Mathlib. Nothing in it is a hub for anything outside it.
 
-It exists as of 2026-08-09: `vrepo_8b32ff6fa11cdb5fa0bb8a043c7d6941`, origin
-`vro_3cfb63bdb525a407`, genesis generation 1, signed, and it replays from a
-clean clone. It declares thirteen Sources and holds one accepted Claim, which
-entered the only way a Claim can — through a Decision.
+It exists as of 2026-08-09: UUID
+`8115c538-7688-40b7-ab75-3c4765bf3c19`, origin
+`vro_229ce0a08217da5e`, genesis generation 1, signed, and it replays from a
+clean clone. It declares thirteen Sources and holds one accepted bounded Claim,
+which entered through a Decision. Two other
+Proposals were explicitly rejected.
 
 **New nouns added: zero.** `vela-science/math` is an instance of Repository,
 which already exists.
@@ -127,8 +129,8 @@ destination.
 ### The Math Source Registry: exists
 
 It is the projection of Source declarations. Thirteen sources in
-`packages/frontier-data/config/math-sources.v1.ts`, adapters in
-`packages/frontier-data/src/source-adapters/`, tables
+`packages/observatory-data/config/math-sources.v1.ts`, adapters in
+`packages/observatory-data/src/source-adapters/`, tables
 `observatory.source_declarations` / `source_observations` / `native_records` /
 `release_sources` / `frontier_source_bindings`, read surface under
 `apps/observatory/src/app/sources/`.
@@ -136,9 +138,9 @@ It is the projection of Source declarations. Thirteen sources in
 **New nouns added: zero.** Source is already one of the four boundaries. The
 registry is a view of it, and a view is not a noun.
 
-It observes. It never governs. Each Frontier owns its own `sources.yaml` and,
-when the registry and the repository disagree, the repository is right
-(`packages/frontier-data/src/source-declarations.ts`).
+It observes. It never governs. Each Repository owns its own `sources.yaml` and,
+when the registry and the Repository disagree, the Repository is right
+(`packages/observatory-data/src/source-declarations.ts`).
 
 ### The Vela Package Registry: not a destination
 
@@ -178,19 +180,17 @@ package manager, package repository, or hosted registry.
 | `vela-science/.github` | Organization profile, reusable workflows, security policy | exists |
 | `vela-science/math` | The one live mathematics authority, fresh genesis | exists |
 
-`vela-science/math` exists with a signed Vela 0.971.0 genesis, one accepted
-Claim, three Submissions, six Verification Records, one accepted correction,
-one rejected Proposal, and one accepted dependent transition. Its 128-bit
-custom `vrepo_` identity and Repository vocabulary are the deployed snapshot
-for that release, not the identifier contract of the next release.
+`vela-science/math` exists with a signed Vela 0.972.1 genesis, UUID
+`8115c538-7688-40b7-ab75-3c4765bf3c19`, one accepted bounded Claim, three
+Submissions, seven Verification Records, one accepted Proposal, and two
+rejected Proposals. Strict replay at
+`130fc283b99b8c55dea51b5f8f959a6c33a679f6` yields Repository root
+`sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc`.
 
-The unreleased wire cut on Vela `main` moves portable signed objects to DSSE,
-replaces retained Cedar material with the closed authorization model, and
-removes compaction from the current origin. It also standardizes Repository
-identity on RFC 9562 UUIDv4. The current binary therefore
-refuses the 0.971.0 `math` bytes until that cut is released and an operator
-re-genesisizes the live authority once under the new contract. That is the
-remaining release blocker, not unfinished Frontier vocabulary migration.
+The signed Vela 0.972.1 release uses one DSSE transport implementation, the
+closed authorization model, genesis-only origin, and RFC 9562 UUIDv4 Repository
+identity. The 0.971.0 Math predecessor is retained as a signed continuity
+bundle and contributes no Standing to the current genesis.
 
 ### Frozen
 
@@ -391,11 +391,11 @@ The replacement was built first. The catalogue is now acquired as Source
 observations from the pinned upstream registry, the ledger reads it directly,
 and the live release publishes 1,217 Problems with no Claim behind any of them.
 
-What the corpus does not yet have is Standing, and that is the point rather than
-a gap: a Claim in `math` arrives by Decision on evidence, one at a time. The
-manifest bears that out from the other side of the boundary — `math` holds zero
-accepted Claims, zero Proposals and zero Submissions — so the 1,217 are a read
-projection over Source observations and nothing there has been adjudicated.
+The catalogue corpus has no Standing, and that is the point rather than a gap:
+a Claim in `math` arrives by Decision on evidence, one at a time. Math now holds
+one accepted Claim, three Proposals and three Submissions, none of which turns
+the 1,217 catalogue entries into Claims. They remain a read projection over
+Source observations and nothing in that catalogue was bulk-adjudicated.
 
 **On the numbers, one honest correction.** ADR 0039's own measured table reads:
 
@@ -411,7 +411,7 @@ Verification Records. A figure of 8,532 accepted Claims with 162 carrying
 evidence has been circulating. It is roughly three times the ADR's count and
 does not reproduce from this repository; the likely cause is a count unfiltered
 by `release_root` against a projection that retains three activated releases
-(`packages/frontier-data/scripts/prune-releases.mjs` uses `LIMIT 3`). Use the
+(`packages/observatory-data/scripts/prune-releases.mjs` uses `LIMIT 3`). Use the
 ADR's numbers. Re-measure with an explicit `release_root` filter before any of
 these figures is published.
 
@@ -469,16 +469,11 @@ different facts.
   fetch, and could not replace any scientific authority check. The selected
   current architecture remains the one closed native evaluator; gittuf stays an
   optional external publication check.
-- **One repository has to re-genesis before it can be read.** The two entries
-  that stood here — DSSE not being the common waist, and Cedar not being
-  removed — are resolved in the tree and unresolved on disk at
-  `vela-science/math`. `crates/vela-protocol/src/kernel/dsse.rs` is the only
-  DSSE implementation and every signed object is an envelope; `cedar-policy` is
-  out of both manifests and `evaluate_authorization_v1` is the only evaluator.
-  Both changes move what `math`'s retained records mean, so the current binary
-  refuses its current head. Nothing in this repository can fix that: the
-  re-genesis needs the authority key in a local OpenSSH agent. This is the same
-  sequencing as release 0.970.0, and it is the release blocker.
+- ~~One repository has to re-genesis before it can be read.~~ Resolved by the
+  single Vela 0.972.1 Math genesis and explicit re-admission. The current binary
+  strictly replays the UUIDv4 Repository and its one accepted Claim; the
+  retained 0.971.0 predecessor remains readable with its pinned binary and does
+  not carry Standing forward.
 - ~~`serde_yaml_ng` is a `serde_yaml` fork.~~ Resolved: the sole YAML consumer,
   the dev-only GitHub Action contract test, now uses maintained pure-Rust
   `serde-saphyr` 1.0.1. No runtime protocol path parses YAML.
@@ -546,7 +541,7 @@ search for instead.
   calculus. Its two layer names, Frontier Algebra and Discovery Calculus, are
   live rows in the analysis table of `docs/TERMINOLOGY.md`, and
   `frontier_algebra_atom` is a permanently-null field in a `vela-web` projection
-  fixture (`packages/frontier-data/tests/support/semantic-correction.ts`).
+  fixture (`packages/observatory-data/tests/support/semantic-correction.ts`).
   Supersede 0017 or rename its layers; a reserved field that is never filled is
   worse than an absent one. `Lens` is a third row of the same table and a third
   entry of §7's delete list, and belongs to the same ruling: the rows are not
@@ -672,7 +667,7 @@ Packet, Frontier map, Attempt (ADR 0039 §5), and Registration Record (ADR
   analysis      crates/vela-edge
                   ↑ correction impact, target index; read-only, never required
                     for replay
-  projection    vela-web/packages/frontier-data  (20 tables; the 17 that hold
+  projection    vela-web/packages/observatory-data  (20 tables; the 17 that hold
                     projected rows are root-bound)
   surfaces      vela-web/apps/observatory, vela-web/apps/www
 ```
@@ -688,7 +683,7 @@ Dependencies point up the list only. Concretely:
   `crates/vela-cli/tests/wording_contract.rs:11` records that `vela-web` pins a
   literal, which is knowledge of a downstream consumer inside the protocol
   repository. Direction of the pin is correct (`vela-web` pins
-  `vela-science/vela@b202e3bc`, `v0.968.1`); the test comment is a soft reverse
+  `vela-science/vela@26e7afa2`, `v0.972.1`); the test comment is a soft reverse
   coupling and should be stated as a note, not enforced as a contract.
 - **The projection must never hold a repository-authority credential** and must
   never be the source of a fact the repository does not already contain.
@@ -706,9 +701,9 @@ Dependencies point up the list only. Concretely:
   from a clean clone with the kernel and the CLI alone, the layering has been
   violated.
 
-One surface currently violates this. The Frontier Directory at
-`apps/observatory/src/app/frontiers/` routes by topic slug, and twelve
-projection tables carry `frontier_slug` in their primary key. Under ADR 0039 a
-Frontier is derived and
-has no identifier, and topic is the one thing a Repository must never encode.
-That surface needs re-deriving against Problem, not renaming.
+The former violation is closed. The route under
+`apps/observatory/src/app/frontiers/` keeps `math` only as a public presentation
+handle; `packages/observatory-data/src/registry.ts` maps it to the Repository
+UUID. Canonical rows and joins use `repository_id`, while remaining
+`frontier_slugs` fields describe declared route coverage and confer no protocol
+identity or authority.
