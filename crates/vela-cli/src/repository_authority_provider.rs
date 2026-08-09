@@ -25,7 +25,8 @@ use ssh_encoding::{Decode, Encode, Reader};
 use ssh_key::Signature as SshSignature;
 use ssh_key::public::KeyData;
 use ssh_key::{Algorithm as SshAlgorithm, HashAlg};
-use vela_protocol::authority::{AUTHORITY_PAYLOAD_TYPE_V1, DsseSignatureV1, dsse_pae};
+use vela_protocol::authority::{AUTHORITY_PAYLOAD_TYPE_V1, DsseSignatureV1};
+use vela_protocol::dsse::pae;
 
 use crate::authority_transaction::RepositoryAuthoritySigner;
 
@@ -408,7 +409,7 @@ impl RepositoryAuthoritySigner for SshAgentRepositoryAuthoritySigner {
             ));
         }
         self.connect_from_environment()?;
-        let pae = dsse_pae(payload_type, canonical_payload);
+        let pae = pae(payload_type, canonical_payload);
         let connection = self
             .connection
             .as_mut()
@@ -635,7 +636,7 @@ mod tests {
         let signature = Signature::try_from(signature_bytes.as_slice()).unwrap();
         VerifyingKey::from_bytes(&public_key)
             .unwrap()
-            .verify(&dsse_pae(AUTHORITY_PAYLOAD_TYPE_V1, payload), &signature)
+            .verify(&pae(AUTHORITY_PAYLOAD_TYPE_V1, payload), &signature)
             .unwrap();
 
         let second_payload = br#"{"schema":"vela.authority-record.v1","sequence":2}"#;
@@ -649,7 +650,7 @@ mod tests {
         VerifyingKey::from_bytes(&public_key)
             .unwrap()
             .verify(
-                &dsse_pae(AUTHORITY_PAYLOAD_TYPE_V1, second_payload),
+                &pae(AUTHORITY_PAYLOAD_TYPE_V1, second_payload),
                 &second_signature,
             )
             .unwrap();

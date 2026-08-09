@@ -6,12 +6,6 @@
 
 use std::collections::BTreeSet;
 
-use base64::Engine as _;
-use base64::engine::general_purpose::{
-    STANDARD as BASE64_STANDARD, STANDARD_NO_PAD as BASE64_STANDARD_NO_PAD,
-    URL_SAFE as BASE64_URL_SAFE, URL_SAFE_NO_PAD as BASE64_URL_SAFE_NO_PAD,
-};
-use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -20,6 +14,7 @@ pub use crate::authentication::{
     AuthenticationAssurance, AuthenticationMethod, AuthenticationObservationV1,
 };
 use crate::canonical::{from_json_slice_strict, sha256_canonical, to_canonical_bytes};
+use crate::dsse::CandidateKey;
 use crate::events::{
     EVENT_SCHEMA, EventKind, NULL_HASH, StateActor, StateEvent, StateTarget, compute_event_id,
 };
@@ -606,21 +601,8 @@ impl AuthorityRecordV1 {
     }
 }
 
-/// One DSSE signature entry.
-///
-/// Neither this type nor [`AuthorityEnvelopeV1`] closes its field set. DSSE
-/// requires the transport to tolerate entries it does not understand, so the
-/// absent `deny_unknown_fields` is the rule, not an oversight, and the wire
-/// schema generated from these types stays open for the same reason. The
-/// decoded Vela authority payload underneath remains closed.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[schemars(extend("additionalProperties" = true))]
-pub struct DsseSignatureV1 {
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub keyid: String,
-    #[schemars(schema_with = "crate::wire_schema::base64_body")]
-    pub sig: String,
-}
+/// One DSSE signature entry, shared with every other signed Vela object.
+pub use crate::dsse::SignatureV1 as DsseSignatureV1;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[schemars(extend("additionalProperties" = true))]
@@ -643,7 +625,7 @@ impl AuthorityEnvelopeV1 {
         record.validate()?;
         Ok(Self {
             payload_type: AUTHORITY_PAYLOAD_TYPE_V1.into(),
-            payload: BASE64_STANDARD.encode(to_canonical_bytes(record)?),
+            payload: crate::dsse::encode_base64(&to_canonical_bytes(record)?),
             signatures,
         })
     }
@@ -667,52 +649,29 @@ pub fn verify_authority_envelope(
     if envelope.payload_type != AUTHORITY_PAYLOAD_TYPE_V1 {
         return Err("authority envelope payload type is invalid".into());
     }
-    if envelope.signatures.is_empty() {
-        return Err("authority envelope has no signatures".into());
-    }
-    let payload = decode_dsse_base64("authority envelope payload", &envelope.payload)?;
 
-    let pae = dsse_pae(&envelope.payload_type, &payload);
-    let mut verified = BTreeSet::new();
-    'signatures: for signed in &envelope.signatures {
-        let Ok(signature_bytes) = decode_dsse_base64("authority signature", &signed.sig) else {
-            continue;
-        };
-        let Ok(signature_bytes) = <[u8; 64]>::try_from(signature_bytes.as_slice()) else {
-            continue;
-        };
-        let signature = Signature::from_bytes(&signature_bytes);
-
-        for key in &keyset.keys {
-            if (!signed.keyid.is_empty() && signed.keyid != key.key_id)
-                || verified.contains(&key.key_id)
-                || expected_sequence < key.valid_from_sequence
-                || key
+    // Key selection is authority policy, so it happens here: only keys whose
+    // validity window covers this record's sequence are offered to DSSE.
+    let candidates: Vec<CandidateKey> = keyset
+        .keys
+        .iter()
+        .filter(|key| {
+            expected_sequence >= key.valid_from_sequence
+                && !key
                     .valid_through_sequence
                     .is_some_and(|through| expected_sequence > through)
-            {
-                continue;
-            }
-            let Ok(public_key_bytes) =
-                decode_fixed_hex::<32>("authority public key", &key.public_key)
-            else {
-                continue;
-            };
-            let Ok(public_key) = VerifyingKey::from_bytes(&public_key_bytes) else {
-                continue;
-            };
-            if public_key.verify(&pae, &signature).is_ok() {
-                verified.insert(key.key_id.clone());
-                if verified.len() >= usize::try_from(keyset.threshold).unwrap_or(usize::MAX) {
-                    break 'signatures;
-                }
-                break;
-            }
-        }
-    }
-    if verified.len() < usize::try_from(keyset.threshold).unwrap_or(usize::MAX) {
-        return Err("authority signature threshold was not met".into());
-    }
+        })
+        .filter_map(|key| CandidateKey::from_hex(&key.key_id, &key.public_key))
+        .collect();
+    let verified = crate::dsse::verify(
+        "authority envelope",
+        &envelope.payload_type,
+        &envelope.payload,
+        &envelope.signatures,
+        &candidates,
+        usize::try_from(keyset.threshold).unwrap_or(usize::MAX),
+    )?;
+    let payload = verified.payload;
 
     let record: AuthorityRecordV1 = from_json_slice_strict(&payload)
         .map_err(|error| format!("authority record JSON is invalid: {error}"))?;
@@ -734,32 +693,8 @@ pub fn verify_authority_envelope(
     Ok(VerifiedAuthorityRecord {
         record_root: record.root()?,
         record,
-        verified_key_ids: verified.into_iter().collect(),
+        verified_key_ids: verified.verified_key_ids,
     })
-}
-
-/// DSSE Pre-Authentication Encoding:
-/// `DSSEv1 SP LEN(payloadType) SP payloadType SP LEN(payload) SP payload`.
-pub fn dsse_pae(payload_type: &str, payload: &[u8]) -> Vec<u8> {
-    let mut output = Vec::with_capacity(payload_type.len() + payload.len() + 32);
-    output.extend_from_slice(b"DSSEv1 ");
-    output.extend_from_slice(payload_type.len().to_string().as_bytes());
-    output.push(b' ');
-    output.extend_from_slice(payload_type.as_bytes());
-    output.push(b' ');
-    output.extend_from_slice(payload.len().to_string().as_bytes());
-    output.push(b' ');
-    output.extend_from_slice(payload);
-    output
-}
-
-fn decode_dsse_base64(name: &str, value: &str) -> Result<Vec<u8>, String> {
-    BASE64_STANDARD
-        .decode(value)
-        .or_else(|_| BASE64_URL_SAFE.decode(value))
-        .or_else(|_| BASE64_STANDARD_NO_PAD.decode(value))
-        .or_else(|_| BASE64_URL_SAFE_NO_PAD.decode(value))
-        .map_err(|error| format!("{name} is not base64: {error}"))
 }
 
 fn require_state_root(name: &str, value: &str) -> Result<(), String> {
@@ -779,6 +714,10 @@ fn decode_fixed_hex<const N: usize>(name: &str, value: &str) -> Result<[u8; N], 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use base64::Engine as _;
+    use base64::engine::general_purpose::{
+        STANDARD as BASE64_STANDARD, URL_SAFE_NO_PAD as BASE64_URL_SAFE_NO_PAD,
+    };
     use ed25519_dalek::{Signer, SigningKey};
 
     fn root(byte: char) -> String {
@@ -989,7 +928,7 @@ mod tests {
     fn signed_envelope(record: &AuthorityRecordV1, key: &SigningKey) -> AuthorityEnvelopeV1 {
         let mut envelope = AuthorityEnvelopeV1::from_record(record, Vec::new()).unwrap();
         let payload = BASE64_STANDARD.decode(&envelope.payload).unwrap();
-        let signature = key.sign(&dsse_pae(&envelope.payload_type, &payload));
+        let signature = key.sign(&crate::dsse::pae(&envelope.payload_type, &payload));
         envelope.signatures.push(DsseSignatureV1 {
             keyid: "repo-key-1".into(),
             sig: BASE64_STANDARD.encode(signature.to_bytes()),
@@ -1022,7 +961,7 @@ mod tests {
             )
             .into_bytes();
         assert_ne!(payload, canonical.as_bytes());
-        let signature = key.sign(&dsse_pae(AUTHORITY_PAYLOAD_TYPE_V1, &payload));
+        let signature = key.sign(&crate::dsse::pae(AUTHORITY_PAYLOAD_TYPE_V1, &payload));
         let envelope = AuthorityEnvelopeV1 {
             payload_type: AUTHORITY_PAYLOAD_TYPE_V1.into(),
             payload: BASE64_STANDARD.encode(&payload),
@@ -1362,7 +1301,7 @@ mod tests {
     #[test]
     fn dsse_pae_matches_the_spec_shape() {
         assert_eq!(
-            dsse_pae("text/plain", b"hello"),
+            crate::dsse::pae("text/plain", b"hello"),
             b"DSSEv1 10 text/plain 5 hello"
         );
     }

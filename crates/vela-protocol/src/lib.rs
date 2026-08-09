@@ -22,7 +22,8 @@ pub mod wire_schema;
 
 mod kernel;
 pub use kernel::{
-    authentication, authority, authority_history, authorization, canonical, events, principal, sign,
+    authentication, authority, authority_history, authorization, canonical, dsse, events,
+    principal, sign,
 };
 mod objects;
 pub use objects::{

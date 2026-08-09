@@ -1984,8 +1984,10 @@ mod tests {
     use vela_protocol::authority::{
         AUTHORITY_KEY_ALGORITHM, AUTHORITY_KEY_PURPOSE, AUTHORITY_KEYSET_SCHEMA_V1, AuthorityKeyV1,
         CEDAR_ENGINE, CEDAR_ENGINE_VERSION, CEDAR_PROFILE_V1, CedarDecision, CedarEvaluation,
-        DsseSignatureV1, POLICY_BUNDLE_SCHEMA_V1, SemanticApprovalV1, dsse_pae,
+        DsseSignatureV1, POLICY_BUNDLE_SCHEMA_V1, SemanticApprovalV1,
     };
+    use vela_protocol::dsse::pae;
+
     use vela_protocol::authority_history::{
         AUTHORITY_INITIALIZATION_SCHEMA_V1, AUTHORITY_INITIALIZE_ACTION,
         AUTHORITY_INITIALIZED_EVENT_KIND, AuthorityInitializationV1, authority_event_log_root,
@@ -2181,7 +2183,7 @@ mod tests {
             if self.fail {
                 return Err("injected signer refusal".into());
             }
-            let signature = self.key.sign(&dsse_pae(payload_type, canonical_payload));
+            let signature = self.key.sign(&pae(payload_type, canonical_payload));
             Ok(vec![DsseSignatureV1 {
                 keyid: self.key_id.clone(),
                 sig: BASE64_STANDARD.encode(signature.to_bytes()),
@@ -2427,7 +2429,7 @@ mod tests {
                 keyid: "repository-key-1".into(),
                 sig: BASE64_STANDARD.encode(
                     repository_key
-                        .sign(&dsse_pae(AUTHORITY_PAYLOAD_TYPE_V1, &first_payload))
+                        .sign(&pae(AUTHORITY_PAYLOAD_TYPE_V1, &first_payload))
                         .to_bytes(),
                 ),
             }],
