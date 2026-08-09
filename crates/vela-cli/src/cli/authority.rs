@@ -845,7 +845,7 @@ mod tests {
             AUTHORIZATION_REQUEST_SCHEMA_V1, AuthorizationDecisionV1, evaluate_authorization_v1,
         };
 
-        let repository_id = "vrepo_00000000000000000000000000000000";
+        let repository_id = "00000000-0000-4000-8000-000000000000";
         let principal = "local:device-fixture|uid:501";
         let model = fresh_authority_model(repository_id, principal).unwrap();
 

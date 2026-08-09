@@ -254,7 +254,7 @@ pub(crate) fn require_acceptance_evidence(
 ///
 /// A shared artifact is not enough: one run may support multiple Claims. The
 /// collision key therefore requires the same producer, source system, run,
-/// attempt, requested change, scoped conditions, artifacts, and verifier
+/// requested change, scoped conditions, artifacts, and verifier
 /// contract. The assertion may differ because corrected wording is the common
 /// reason the same execution is submitted twice.
 pub(crate) fn same_exact_producer_execution(
@@ -267,17 +267,7 @@ pub(crate) fn same_exact_producer_execution(
     let Some(right_run) = right.submission.provenance.source_run.as_deref() else {
         return false;
     };
-    let Some(left_attempt) = left.submission.provenance.source_attempt.as_deref() else {
-        return false;
-    };
-    let Some(right_attempt) = right.submission.provenance.source_attempt.as_deref() else {
-        return false;
-    };
-    if left_run.is_empty()
-        || left_attempt.is_empty()
-        || left_run != right_run
-        || left_attempt != right_attempt
-    {
+    if left_run.is_empty() || left_run != right_run {
         return false;
     }
 
@@ -923,7 +913,7 @@ mod tests {
     fn repository() -> RepositoryV4 {
         RepositoryV4 {
             schema: REPOSITORY_SCHEMA_V4.into(),
-            repository_id: "vrepo_0123456789abcdef0123456789abcdef".into(),
+            repository_id: "01234567-89ab-4def-8123-456789abcdef".into(),
             profile_root: root('a'),
             origin_id: "vro_0123456789abcdef".into(),
             origin_root: root('b'),
@@ -1039,7 +1029,6 @@ mod tests {
             provenance: SubmissionProvenance {
                 producer: "agent:producer-fixture".into(),
                 source_system: "fixture".into(),
-                source_attempt: None,
                 source_run: Some("run_fixture".into()),
                 emitted_at: "2026-07-27T00:00:00Z".into(),
             },
@@ -1100,7 +1089,7 @@ mod tests {
     fn plan() -> ReviewDecisionPlan {
         let mut plan = ReviewDecisionPlan {
             schema: PLAN_SCHEMA.into(),
-            repository_id: "vrepo_0123456789abcdef0123456789abcdef".into(),
+            repository_id: "01234567-89ab-4def-8123-456789abcdef".into(),
             repository_name: "Fixture repository".into(),
             repository_root: root('1'),
             proposal_id: "vpr_fixture".into(),
@@ -1191,26 +1180,25 @@ mod tests {
     }
 
     #[test]
-    fn execution_collision_requires_the_complete_exact_attempt_identity() {
-        // `vat_` and sixty-four hexadecimal digits: an Attempt id, not a label.
-        let attempt = |value: char| {
-            let value = format!("vat_{}", value.to_string().repeat(64));
+    fn execution_collision_requires_the_complete_exact_run_identity() {
+        let run = |value: char| {
+            let value = format!("workbench-run-{value}");
             move |draft: &mut SubmissionDraft| {
-                draft.provenance.source_attempt = Some(value.clone());
+                draft.provenance.source_run = Some(value.clone());
             }
         };
-        let original = sealed_submission(attempt('a'));
+        let original = sealed_submission(run('a'));
         let refined_wording = sealed_submission(|draft| {
-            attempt('a')(draft);
+            run('a')(draft);
             draft.claim.assertion = "A more precise bounded fixture result.".into();
         });
         assert!(same_exact_producer_execution(&original, &refined_wording));
 
-        let another_attempt = sealed_submission(attempt('b'));
-        assert!(!same_exact_producer_execution(&original, &another_attempt));
+        let another_run = sealed_submission(run('b'));
+        assert!(!same_exact_producer_execution(&original, &another_run));
 
         let another_artifact = sealed_submission(|draft| {
-            attempt('a')(draft);
+            run('a')(draft);
             draft.artifacts[0].digest = root('b');
         });
         assert!(!same_exact_producer_execution(&original, &another_artifact));

@@ -21,7 +21,7 @@ agent_started=false
 trust_pin_path=""
 cleanup() {
   case "$trust_pin_path" in
-    */.vela/trust/authorities/vrepo_*.json)
+    "$home"/.vela/trust/authorities/*.json)
       /bin/rm -f -- "$trust_pin_path"
       ;;
   esac

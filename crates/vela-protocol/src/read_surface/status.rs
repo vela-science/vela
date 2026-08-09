@@ -383,7 +383,7 @@ mod tests {
     fn the_serialized_document_carries_every_required_key() {
         let bootstrapping = super::StatusV4::new(
             super::StatusRepository {
-                id: "vrepo_00000000000000000000000000000000".into(),
+                id: "00000000-0000-4000-8000-000000000000".into(),
                 name: "fixture".into(),
                 profile_root: format!("sha256:{}", "0".repeat(64)),
             },

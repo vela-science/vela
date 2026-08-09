@@ -3671,7 +3671,7 @@ mod tests {
     fn fresh_repository_delta_accepts_only_empty_genesis_origin() {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path();
-        let repository_id = "vrepo_0123456789abcdef0123456789abcdef";
+        let repository_id = "01234567-89ab-4def-8123-456789abcdef";
         let profile_root = fixture_root('c');
         let genesis = vela_protocol::repository_origin::RepositoryOriginV1::genesis(
             repository_id.into(),
@@ -3694,7 +3694,7 @@ mod tests {
         let request_root = ContentDigest::hash(identity);
         let repository_id = crate::repository::verify_repository_at(root, false)
             .map(|repository| repository.repository_id)
-            .unwrap_or_else(|_| "vrepo_test".to_string());
+            .unwrap_or_else(|_| "33333333-3333-4333-8333-333333333333".to_string());
         RepositoryTxnPlan::new(
             RepositoryTxnPlanSpec {
                 kind: OperationKind::Submission,

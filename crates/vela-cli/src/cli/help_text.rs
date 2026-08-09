@@ -26,7 +26,7 @@ EXAMPLES
 Start is stateless and write-free. It validates the current repository and
 Target Index, prints the exact packet and read roots, and includes the exact
 Submission binding when the packet declares rooted execution contracts. It
-creates no lease, Attempt, counter, lock, Event, or Standing change.
+creates no lease, workbench run, counter, lock, Event, or Standing change.
 
 SEE ALSO
   vela next   the ranked offer this claims from

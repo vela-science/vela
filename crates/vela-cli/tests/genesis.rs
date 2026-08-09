@@ -591,7 +591,6 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             provenance: SubmissionProvenance {
                 producer: actor.into(),
                 source_system: "vela-cli-regression".into(),
-                source_attempt: None,
                 source_run: Some("current-submission-regression".into()),
                 emitted_at,
             },

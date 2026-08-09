@@ -72,7 +72,7 @@ impl RepositoryProfileV1 {
                 "profile.schema must be `{REPOSITORY_PROFILE_SCHEMA_V1}`"
             ));
         }
-        validate_repository_id(&self.repository_id)?;
+        validate_repository_id("profile.repository_id", &self.repository_id)?;
         validate_profile_text("profile.name", &self.name, PROFILE_NAME_MAX_BYTES)?;
         validate_profile_text("profile.summary", &self.summary, PROFILE_SUMMARY_MAX_BYTES)?;
         validate_profile_text(
@@ -183,7 +183,7 @@ impl RepositoryV4 {
                 "repository schema must be `{REPOSITORY_SCHEMA_V4}`"
             ));
         }
-        require_prefixed("repository_id", &self.repository_id, "vrepo_")?;
+        validate_repository_id("repository_id", &self.repository_id)?;
         require_sha256("profile_root", &self.profile_root)?;
         require_prefixed("origin_id", &self.origin_id, "vro_")?;
         require_sha256("origin_root", &self.origin_root)?;
@@ -287,9 +287,11 @@ fn verify_object_refs(field: &str, references: &[RepositoryObjectRefV1]) -> Resu
     Ok(())
 }
 
-fn validate_repository_id(value: &str) -> Result<(), String> {
-    if !crate::shape::is_prefixed_lower_hex(value, "vrepo_", crate::shape::REPOSITORY_ID_HEX_LEN) {
-        return Err("profile.repository_id must be vrepo_<32 lowercase hex>".into());
+fn validate_repository_id(name: &str, value: &str) -> Result<(), String> {
+    if !crate::shape::is_repository_id(value) {
+        return Err(format!(
+            "{name} must be lowercase canonical RFC 9562 UUIDv4"
+        ));
     }
     Ok(())
 }
@@ -400,7 +402,7 @@ mod tests {
     fn fixture() -> RepositoryV4 {
         RepositoryV4 {
             schema: REPOSITORY_SCHEMA_V4.into(),
-            repository_id: "vrepo_0123456789abcdef0123456789abcdef".into(),
+            repository_id: "01234567-89ab-4def-8123-456789abcdef".into(),
             profile_root: root('a'),
             origin_id: "vro_0123456789abcdef".into(),
             origin_root: root('b'),
@@ -441,7 +443,7 @@ mod tests {
     fn current_profile_is_native_closed_metadata() {
         let current = RepositoryProfileV1 {
             schema: REPOSITORY_PROFILE_SCHEMA_V1.into(),
-            repository_id: "vrepo_0123456789abcdef0123456789abcdef".into(),
+            repository_id: "01234567-89ab-4def-8123-456789abcdef".into(),
             name: "Example".into(),
             summary: "A bounded example repository.".into(),
             scope: RepositoryProfileScopeV1 {
@@ -461,7 +463,7 @@ mod tests {
         assert_eq!(parsed, current);
         assert_eq!(
             current.profile_root().unwrap(),
-            "sha256:b85e57f820a78e509b1577faff333862b9983d340a3a28132fc24856a848157e"
+            "sha256:d4cb9aa73ae8609bdabb6fec89748a6af08db3048f615879e8c8670b78feed91"
         );
     }
 
@@ -469,7 +471,7 @@ mod tests {
     fn current_profile_rejects_unknown_duplicate_and_oversized_toml() {
         let valid = r#"
 schema = "vela.repository-profile.v1"
-repository_id = "vrepo_0123456789abcdef0123456789abcdef"
+repository_id = "01234567-89ab-4def-8123-456789abcdef"
 name = "Example"
 summary = "A bounded example repository."
 maintainers = []

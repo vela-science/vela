@@ -661,7 +661,7 @@ mod tests {
     fn repository() -> RepositoryV4 {
         RepositoryV4 {
             schema: REPOSITORY_SCHEMA_V4.into(),
-            repository_id: "vrepo_0123456789abcdef0123456789abcdef".into(),
+            repository_id: "01234567-89ab-4def-8123-456789abcdef".into(),
             profile_root: root('a'),
             origin_id: "vro_0123456789abcdef".into(),
             origin_root: root('b'),
@@ -719,7 +719,6 @@ mod tests {
             provenance: SubmissionProvenance {
                 producer: "agent:current-submission-fixture".into(),
                 source_system: "fixture".into(),
-                source_attempt: None,
                 source_run: Some("run_fixture".into()),
                 emitted_at: "2026-07-27T00:00:00Z".into(),
             },

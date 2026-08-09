@@ -914,10 +914,10 @@ fn verify_event_object_delta(
 }
 
 fn require_repository(repository_id: &str) -> Result<(), String> {
-    if repository_id.starts_with("vrepo_") {
+    if crate::shape::is_repository_id(repository_id) {
         Ok(())
     } else {
-        Err("authority history repository_id must start with vrepo_".into())
+        Err("authority history repository_id must be lowercase canonical RFC 9562 UUIDv4".into())
     }
 }
 
@@ -933,7 +933,7 @@ mod tests {
     fn initialization_is_closed_and_root_bound() {
         let value = AuthorityInitializationV1 {
             schema: AUTHORITY_INITIALIZATION_SCHEMA_V1.into(),
-            repository_id: "vrepo_fixture".into(),
+            repository_id: "11111111-1111-4111-8111-111111111111".into(),
             initial_event_log_root: root('1'),
             initial_actor_registry_root: root('2'),
             new_authority_keyset_root: root('3'),
@@ -954,7 +954,7 @@ mod tests {
         let initial_event_root = root('a');
         let initial_actor_root = root('b');
         let verification = verify_authority_history(AuthorityHistoryInput {
-            repository_id: "vrepo_fixture",
+            repository_id: "11111111-1111-4111-8111-111111111111",
             initial_event_log_root: &initial_event_root,
             initial_actor_registry_root: &initial_actor_root,
             authority_keysets: &[],

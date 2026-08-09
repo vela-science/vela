@@ -37,7 +37,7 @@ state. Repositories and readers must not depend on it for replay.
 
 ```toml
 schema = "vela.repository-profile.v1"
-repository_id = "vrepo_0123456789abcdef0123456789abcdef"
+repository_id = "01234567-89ab-4def-8123-456789abcdef"
 name = "Bounded human-readable name"
 summary = "One concise description"
 maintainers = []
@@ -66,29 +66,29 @@ authority from the profile.
 
 ## Repository identity
 
-`vela init` draws the `repository_id` once, at genesis, from canonical
-`vela.repository-genesis-identity.v1` bytes:
+`vela init` draws the `repository_id` once, at genesis, as an RFC 9562 UUIDv4
+from the operating system's cryptographically secure random source. Its
+canonical wire form is lowercase, hyphenated text:
 
 ```text
-schema           vela.repository-genesis-identity.v1
-name             exact trimmed profile name
-scope            exact trimmed bounded question
-genesis_entropy  fresh 256-bit draw from the OS CSPRNG
-repository_id    "vrepo_" + sha256(canonical_json(...))[..32 hex chars]
+repository_id    xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+                 where y is 8, 9, a, or b
 ```
 
 The entropy is what makes the identity name one repository. A Repository is one
 independently clonable Git repository with a bounded scope, and two groups may
 legitimately open repositories on the same question with the same wording; they
 are different repositories and must not receive the same identity. The user-local
-trust store keys on `vrepo_`, so a shared identity would make one repository's
+trust store keys on the UUID, so a shared identity would make one repository's
 authority anchor collide with the other's.
 
-The entropy is not retained anywhere, and the derivation is deliberately not
-reproducible. A `repository_id` is asserted once and then carried: the Profile
-holds it, the origin, manifest, keyset, and authorization model bind it, and
-no reader recomputes it from the Profile's name and scope. Retaining the nonce would not
-make the identity checkable, because whoever creates the repository chooses it.
+The random draw is not retained separately, and identity generation is
+deliberately not reproducible. A `repository_id` is asserted once and then
+carried: the Profile holds it, the origin, manifest, keyset, and authorization
+model bind it, and no reader recomputes it from the Profile's name and scope.
+The UUID is not accepted in compact, uppercase, braced, or `urn:uuid:` form on
+the wire; a URI that names the repository may use the standard URN form at an
+integration boundary without changing the canonical protocol value.
 
 The identity is a repository handle, not a scientific commitment. It is not a
 Git commit, a repository root, or any statement about Standing.

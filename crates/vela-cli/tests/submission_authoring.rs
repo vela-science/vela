@@ -41,18 +41,18 @@ fn combined(output: &Output) -> String {
 }
 
 #[test]
-fn new_claim_authoring_does_not_invent_an_attempt() {
+fn new_claim_authoring_does_not_require_a_source_run() {
     let directory = tempfile::tempdir().expect("temporary directory");
     let output = run(directory.path(), directory.path(), &[]);
     let message = combined(&output);
 
     assert!(!output.status.success());
-    assert!(!message.contains("requires --attempt"));
+    assert!(!message.contains("requires --source-run"));
     assert!(message.contains("artifact 0"));
 }
 
 #[test]
-fn exact_supersession_authoring_does_not_invent_an_attempt() {
+fn exact_supersession_authoring_does_not_require_a_source_run() {
     let directory = tempfile::tempdir().expect("temporary directory");
     let output = run(
         directory.path(),
@@ -67,6 +67,6 @@ fn exact_supersession_authoring_does_not_invent_an_attempt() {
     let message = combined(&output);
 
     assert!(!output.status.success());
-    assert!(!message.contains("requires --attempt"));
+    assert!(!message.contains("requires --source-run"));
     assert!(message.contains("artifact 0"));
 }

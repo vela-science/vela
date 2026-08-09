@@ -99,7 +99,7 @@ def status_document(**overrides: object) -> dict:
         "ok": True,
         "command": "status",
         "repository": {
-            "id": "vrepo_0a25edabc16db1430a25edabc16db143",
+            "id": "0a25edab-c16d-4b14-b0a2-5edabc16db14",
             "name": "Fixture repository",
             "profile_root": "sha256:" + "1" * 64,
         },

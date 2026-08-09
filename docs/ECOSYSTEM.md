@@ -14,7 +14,7 @@ ADR 0039 split one overloaded word into four boundaries and one projection.
 
 | Boundary | What it bounds | Identifier |
 | --- | --- | --- |
-| Repository | authority: Git repository, trust root, canonical history, Standing | `repository_id`, `^vrepo_[0-9a-f]{32}$` |
+| Repository | authority: Git repository, trust root, canonical history, Standing | `repository_id`, canonical RFC 9562 UUIDv4 |
 | Source | provenance: exact observations of external systems, never governed | `source_id`, prefixed `source:` |
 | Problem | one bounded scientific question | native source identifier |
 | Frontier | derived: the unresolved state around one or more Problems; owns nothing | none, by design |
@@ -28,9 +28,8 @@ authority, never because there is a new topic.**
 **Repository.** `crates/vela-protocol/src/objects/repository.rs`
 (`RepositoryV4`), the authority history in `crates/vela-authority/`,
 replay in `crates/vela-verify/`. The rename landed in v0.967.0: `vfr_` and
-`frontier_id` are at zero in `crates/`, against 76 `vrepo_` and 392
-`repository_id`. The type parses `vela.toml`, mints `vrepo_<32 hex>`, and
-answers `vela.status.v4`.
+`frontier_id` are absent from current crate code. The type parses `vela.toml`,
+mints a standard UUIDv4 once at genesis, and answers `vela.status.v4`.
 
 **Source.** Declared per repository in `sources.yaml` and locked in
 `sources.lock.json`; the shared lock tooling is
@@ -63,8 +62,10 @@ described its replacement, and this paragraph is the one a reader reaches first.
 
 **Frontier.** Derived, and no longer minted in the protocol. In `vela-web`,
 `registry.ts` pins one slug, `math`, against `repository_id`
-`vrepo_8b32ff6fa11cdb5fa0bb8a043c7d6941` and validates it as `^vrepo_[0-9a-f]{32}$`; no `vfr_`
-identity survives there. The keying is finished too: all thirteen projection
+`vrepo_8b32ff6fa11cdb5fa0bb8a043c7d6941`, the legacy identifier retained by the
+deployed 0.971.0 snapshot. The next release and its required re-genesis replace
+that pin with the Repository UUID; no `vfr_` identity survives there. The
+keying is finished too: all thirteen projection
 tables key on `repository_id`, and the slug is a presentation fact that lives
 only in the registry, where a URL handle meets a protocol identity. It was a
 root migration rather than a rename — `rooted()` hashes `canonicalJson(row)`
@@ -180,11 +181,13 @@ package manager, package repository, or hosted registry.
 `vela-science/math` exists with a signed Vela 0.971.0 genesis, one accepted
 Claim, three Submissions, six Verification Records, one accepted correction,
 one rejected Proposal, and one accepted dependent transition. Its 128-bit
-`vrepo_` identity and Repository vocabulary are current for that release.
+custom `vrepo_` identity and Repository vocabulary are the deployed snapshot
+for that release, not the identifier contract of the next release.
 
 The unreleased wire cut on Vela `main` moves portable signed objects to DSSE,
 replaces retained Cedar material with the closed authorization model, and
-removes compaction from the current origin. The current binary therefore
+removes compaction from the current origin. It also standardizes Repository
+identity on RFC 9562 UUIDv4. The current binary therefore
 refuses the 0.971.0 `math` bytes until that cut is released and an operator
 re-genesisizes the live authority once under the new contract. That is the
 remaining release blocker, not unfinished Frontier vocabulary migration.
@@ -451,13 +454,12 @@ different facts.
   it reads the same way in the fixture but is live, because
   `correction_impact.rs` classifies edges by the derived-graph rendering ADR
   0004 gave it.
-- **One retired term is still wire.** ADR 0039 §5 retired `Attempt`, and
-  `provenance.source_attempt` with the `vat_` prefix was added afterwards and is
-  published in `schemas/submission.schema.json`. The product surface says
-  "workbench run", which is what `docs/TERMINOLOGY.md` prescribes, but the field
-  and the prefix cannot follow without a schema version, so the retired spelling
-  is load-bearing on the wire. This is the same shape as
-  `integrity.replay: "verified"`: a token a prose sweep must not take.
+- ~~One retired term is still wire.~~ Resolved in the final pre-release wire
+  cut: `provenance.source_attempt`, its bespoke `vat_` identifier, and the
+  `--source-attempt` flag are deleted. `provenance.source_run` is the one
+  optional external workbench-run identity, `--source-run` authors it, and the
+  duplicate-execution guards compare it. Vela neither mints a run identity nor
+  owns the workbench runtime.
 - **One repository has to re-genesis before it can be read.** The two entries
   that stood here — DSSE not being the common waist, and Cedar not being
   removed — are resolved in the tree and unresolved on disk at

@@ -513,7 +513,7 @@ fn import_inner(
             "origin_id": repository.origin_id,
             "repository_before": repository_root,
             "verification_record_root": record_root,
-            "source_attempt": submission.submission.provenance.source_attempt.as_deref(),
+            "source_run": submission.submission.provenance.source_run.as_deref(),
         }))?
     );
     let operation_id =
@@ -754,7 +754,6 @@ mod tests {
                 provenance: SubmissionProvenance {
                     producer: "agent:producer-fixture".into(),
                     source_system: "fixture".into(),
-                    source_attempt: None,
                     source_run: Some("run_fixture".into()),
                     emitted_at: "2026-07-27T00:00:00Z".into(),
                 },
@@ -843,7 +842,7 @@ mod tests {
         .unwrap();
         let repository = RepositoryV4 {
             schema: REPOSITORY_SCHEMA_V4.into(),
-            repository_id: "vrepo_0123456789abcdef0123456789abcdef".into(),
+            repository_id: "01234567-89ab-4def-8123-456789abcdef".into(),
             profile_root: root('1'),
             origin_id: "vro_0123456789abcdef".into(),
             origin_root: root('2'),

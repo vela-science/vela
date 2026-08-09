@@ -202,8 +202,8 @@ replayability
 producer_checks[]          method, outcome, authority
 verification_requirements[]
 requested_change           kind, optional target { claim_id, claim_root }
-provenance                 producer, source_system, optional source_attempt,
-                           optional source_run, emitted_at
+provenance                 producer, source_system, optional source_run,
+                           emitted_at
 execution_binding          optional `vela.execution-binding.v1`
 ```
 

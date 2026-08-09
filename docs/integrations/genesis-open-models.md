@@ -8,7 +8,7 @@ named below, and the formal statements in `google-deepmind/formal-conjectures`
 at the pages commit named below. Three clones, each pinned.
 
 - **Protocol:** Vela `v0.971.0` released, which is the release carrying the correction work below
-- **Live authority:** `vela-science/math`, repository `vrepo_8b32ff6fa11cdb5fa0bb8a043c7d6941`
+- **Live authority:** `vela-science/math`, legacy 0.971.0 repository identifier `vrepo_8b32ff6fa11cdb5fa0bb8a043c7d6941` pending the next-release UUID re-genesis
 - **Repository root at time of writing:** `sha256:fc53ce1e2accd3e5243887ea2db1104f480d7e6b7823ac3e1c0a1c01e1067fcc`
 - **Target submission date:** 24 August 2026
 

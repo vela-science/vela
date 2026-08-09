@@ -105,7 +105,12 @@ impl RepositoryOriginV1 {
                 "repository origin schema must be `{REPOSITORY_ORIGIN_V1_SCHEMA}`"
             ));
         }
-        require_prefixed("repository_id", &self.repository_id, "vrepo_")?;
+        if !crate::shape::is_repository_id(&self.repository_id) {
+            return Err(
+                "repository origin repository_id must be lowercase canonical RFC 9562 UUIDv4"
+                    .into(),
+            );
+        }
         require_sha256("profile_root", &self.profile_root)?;
         require_sha256("initial_object_set_root", &self.initial_object_set_root)?;
         require_text("reason", &self.reason)?;
@@ -135,16 +140,6 @@ fn require_text(field: &str, value: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn require_prefixed(field: &str, value: &str, prefix: &str) -> Result<(), String> {
-    require_text(field, value)?;
-    if !value.starts_with(prefix) {
-        return Err(format!(
-            "repository origin {field} must start with `{prefix}`"
-        ));
-    }
-    Ok(())
-}
-
 fn require_sha256(field: &str, value: &str) -> Result<(), String> {
     if crate::shape::is_full_sha256_root(value) {
         Ok(())
@@ -165,7 +160,7 @@ mod tests {
 
     fn genesis() -> RepositoryOriginV1 {
         RepositoryOriginV1::genesis(
-            format!("vrepo_{}", "a".repeat(32)),
+            "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa".into(),
             root('a'),
             "Create one current repository.".into(),
         )

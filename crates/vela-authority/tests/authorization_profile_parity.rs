@@ -13,14 +13,14 @@
 //! The corpus is epoch-1. It was measured against the four repositories that
 //! ADR 0039 archived, so it speaks their vocabulary: `frontier_id` rather than
 //! `repository_id`, `"resource_type": "frontier"`, `vfr_` and sixteen hex
-//! digits rather than `vrepo_` and thirty-two. Its README is explicit that it
+//! digits rather than RFC 9562 UUIDv4. Its README is explicit that it
 //! is retained rather than migrated, "because that is the shape the
 //! repositories actually have".
 //!
 //! So the frozen roots beside each case cannot be reproduced and this test does
 //! not pretend to reproduce them. A root is taken over field names, and the
-//! field names were renamed by ADR 0039 and the identifier widened by the
-//! 128-bit change; a test that claimed root parity across that would be
+//! field names were renamed by ADR 0039 and the identifier moved to UUIDv4; a
+//! test that claimed root parity across that would be
 //! claiming the rename never happened.
 //!
 //! What does carry over is the thing Cut C actually asks about: the decision.
@@ -58,19 +58,30 @@ fn text<'a>(value: &'a Value, key: &str) -> &'a str {
         .unwrap_or_else(|| panic!("parity corpus entry has no `{key}`"))
 }
 
-/// Translate a retired `vfr_` identifier into the current `vrepo_` shape.
+/// Translate a retired `vfr_` identifier into a deterministic current UUIDv4.
 ///
-/// One rule, stated once: keep the sixteen measured digits and pad the width
-/// the 128-bit change added. It is a spelling, not a claim — no epoch-1
-/// repository has a `vrepo_` identifier, and none ever will, because all four
-/// are archived. What the translation preserves is exactly what the decision
-/// depends on: two repositories that differed still differ, and one that
-/// matched still matches.
+/// One rule, stated once: retain all sixteen measured digits in the UUID body
+/// and insert the RFC 9562 version and variant bits. It is a spelling, not a
+/// claim — no epoch-1 repository has a UUID identifier, and none ever will,
+/// because all four are archived. What the translation preserves is exactly
+/// what the decision depends on: two repositories that differed still differ,
+/// and one that matched still matches.
 fn current_repository_id(frontier_id: &str) -> String {
     let body = frontier_id
         .strip_prefix("vfr_")
         .expect("an epoch-1 identifier carries the retired prefix");
-    format!("vrepo_{body}{}", "0".repeat(32 - body.len()))
+    assert_eq!(
+        body.len(),
+        16,
+        "epoch-1 identifiers carry sixteen hex digits"
+    );
+    format!(
+        "{}-{}-4{}-8{}00-000000000000",
+        &body[..8],
+        &body[8..12],
+        &body[12..15],
+        &body[15..16]
+    )
 }
 
 fn role(value: &str) -> AuthorityRoleV1 {

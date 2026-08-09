@@ -105,11 +105,7 @@ impl AuthorizationModelV1 {
         {
             return Err("authorization model schema or profile is invalid".into());
         }
-        require_identifier(
-            "authorization model repository_id",
-            &self.repository_id,
-            "vrepo_",
-        )?;
+        require_repository_id("authorization model repository_id", &self.repository_id)?;
         if self.members.is_empty() {
             return Err("authorization model must contain at least one member".into());
         }
@@ -157,16 +153,15 @@ pub struct AuthorizationResourceV1 {
 
 impl AuthorizationResourceV1 {
     pub fn validate(&self) -> Result<(), String> {
-        require_identifier(
-            "authorization resource repository_id",
-            &self.repository_id,
-            "vrepo_",
-        )?;
-        let prefix = match self.resource_type {
-            AuthorityResourceTypeV1::Repository => "vrepo_",
-            AuthorityResourceTypeV1::Proposal => "vpr_",
-        };
-        require_identifier("authorization resource_id", &self.resource_id, prefix)
+        require_repository_id("authorization resource repository_id", &self.repository_id)?;
+        match self.resource_type {
+            AuthorityResourceTypeV1::Repository => {
+                require_repository_id("authorization resource_id", &self.resource_id)
+            }
+            AuthorityResourceTypeV1::Proposal => {
+                require_identifier("authorization resource_id", &self.resource_id, "vpr_")
+            }
+        }
     }
 }
 
@@ -196,11 +191,7 @@ impl AuthorizationRequestV1 {
             return Err("authorization request schema or profile is invalid".into());
         }
         crate::shape::require_sha256_root("authorization request model_root", &self.model_root)?;
-        require_identifier(
-            "authorization request repository_id",
-            &self.repository_id,
-            "vrepo_",
-        )?;
+        require_repository_id("authorization request repository_id", &self.repository_id)?;
         crate::shape::require_bounded_text(
             "authorization request principal_id",
             &self.principal_id,
@@ -304,6 +295,16 @@ fn require_identifier(name: &str, value: &str, prefix: &str) -> Result<(), Strin
         return Err(format!("{name} must start with {prefix}"));
     }
     Ok(())
+}
+
+fn require_repository_id(name: &str, value: &str) -> Result<(), String> {
+    if crate::shape::is_repository_id(value) {
+        Ok(())
+    } else {
+        Err(format!(
+            "{name} must be lowercase canonical RFC 9562 UUIDv4"
+        ))
+    }
 }
 
 /// Check that one authorization model succeeds another exactly.
@@ -443,7 +444,7 @@ mod tests {
         AuthorizationModelV1 {
             schema: AUTHORIZATION_MODEL_SCHEMA_V1.into(),
             profile: AUTHORIZATION_PROFILE_V1.into(),
-            repository_id: "vrepo_fixture".into(),
+            repository_id: "11111111-1111-4111-8111-111111111111".into(),
             members: vec![
                 AuthorityMemberV1 {
                     principal_id: "local:device-1|uid:501".into(),
@@ -465,12 +466,12 @@ mod tests {
             schema: AUTHORIZATION_REQUEST_SCHEMA_V1.into(),
             profile: AUTHORIZATION_PROFILE_V1.into(),
             model_root,
-            repository_id: "vrepo_fixture".into(),
+            repository_id: "11111111-1111-4111-8111-111111111111".into(),
             principal_id: "local:device-1|uid:501".into(),
             principal_class: PrincipalClass::Human,
             action: AuthorityActionV1::ReviewAccept,
             resource: AuthorizationResourceV1 {
-                repository_id: "vrepo_fixture".into(),
+                repository_id: "11111111-1111-4111-8111-111111111111".into(),
                 resource_type: AuthorityResourceTypeV1::Proposal,
                 resource_id: "vpr_0123456789abcdef".into(),
             },
@@ -544,7 +545,7 @@ mod tests {
         AuthorizationModelV1 {
             schema: AUTHORIZATION_MODEL_SCHEMA_V1.into(),
             profile: AUTHORIZATION_PROFILE_V1.into(),
-            repository_id: "vrepo_fixture".into(),
+            repository_id: "11111111-1111-4111-8111-111111111111".into(),
             members: vec![
                 AuthorityMemberV1 {
                     principal_id: "local:device-1|uid:501".into(),
@@ -566,12 +567,12 @@ mod tests {
             schema: AUTHORIZATION_REQUEST_SCHEMA_V1.into(),
             profile: AUTHORIZATION_PROFILE_V1.into(),
             model_root: model.root().unwrap(),
-            repository_id: "vrepo_fixture".into(),
+            repository_id: "11111111-1111-4111-8111-111111111111".into(),
             principal_id: "local:device-1|uid:501".into(),
             principal_class: PrincipalClass::Human,
             action: AuthorityActionV1::ReviewAccept,
             resource: AuthorizationResourceV1 {
-                repository_id: "vrepo_fixture".into(),
+                repository_id: "11111111-1111-4111-8111-111111111111".into(),
                 resource_type: AuthorityResourceTypeV1::Proposal,
                 resource_id: "vpr_0123456789abcdef".into(),
             },
@@ -594,9 +595,9 @@ mod tests {
         let mut administrator_request = closed_request(&model);
         administrator_request.action = AuthorityActionV1::AuthorityInitialize;
         administrator_request.resource = AuthorizationResourceV1 {
-            repository_id: "vrepo_fixture".into(),
+            repository_id: "11111111-1111-4111-8111-111111111111".into(),
             resource_type: AuthorityResourceTypeV1::Repository,
-            resource_id: "vrepo_fixture".into(),
+            resource_id: "11111111-1111-4111-8111-111111111111".into(),
         };
         let administrator = evaluate_authorization_v1(&model, &administrator_request).unwrap();
         assert_eq!(administrator.decision, AuthorizationDecisionV1::Allow);
@@ -620,7 +621,7 @@ mod tests {
         );
 
         let mut wrong_frontier = closed_request(&model);
-        wrong_frontier.repository_id = "vrepo_other".into();
+        wrong_frontier.repository_id = "22222222-2222-4222-8222-222222222222".into();
         assert_eq!(
             evaluate_authorization_v1(&model, &wrong_frontier)
                 .unwrap()
@@ -629,7 +630,8 @@ mod tests {
         );
 
         let mut wrong_resource_frontier = closed_request(&model);
-        wrong_resource_frontier.resource.repository_id = "vrepo_other".into();
+        wrong_resource_frontier.resource.repository_id =
+            "22222222-2222-4222-8222-222222222222".into();
         assert_eq!(
             evaluate_authorization_v1(&model, &wrong_resource_frontier)
                 .unwrap()
@@ -663,7 +665,7 @@ mod tests {
 
         let mut wrong_resource_type = closed_request(&model);
         wrong_resource_type.resource.resource_type = AuthorityResourceTypeV1::Repository;
-        wrong_resource_type.resource.resource_id = "vrepo_fixture".into();
+        wrong_resource_type.resource.resource_id = "11111111-1111-4111-8111-111111111111".into();
         assert_eq!(
             evaluate_authorization_v1(&model, &wrong_resource_type)
                 .unwrap()

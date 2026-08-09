@@ -251,7 +251,7 @@ pub fn run_command() {
             profile_root,
             verifier_capsule_root,
             result_contract_root,
-            source_attempt,
+            source_run,
             r#as,
             json,
         } => {
@@ -404,7 +404,7 @@ pub fn run_command() {
                     verification_requirement,
                     requested_change,
                     execution_binding,
-                    source_attempt,
+                    source_run,
                 )
                 .unwrap_or_else(|error| {
                     fail_preflight(

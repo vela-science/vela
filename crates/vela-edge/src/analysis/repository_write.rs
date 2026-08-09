@@ -1149,9 +1149,10 @@ fn install_private_trust_document<T: Serialize + DeserializeOwned + PartialEq>(
 }
 
 fn validate_repository_id(value: &str) -> Result<(), String> {
-    if !vela_protocol::is_prefixed_lower_hex(value, "vrepo_", vela_protocol::REPOSITORY_ID_HEX_LEN)
-    {
-        return Err("trust anchor repository_id must be vrepo_<32 lowercase hex>".to_string());
+    if !vela_protocol::is_repository_id(value) {
+        return Err(
+            "trust anchor repository_id must be lowercase canonical RFC 9562 UUIDv4".to_string(),
+        );
     }
     Ok(())
 }
@@ -1362,7 +1363,7 @@ mod tests {
     fn authority_trust_anchor() -> AuthorityTrustAnchorV1 {
         AuthorityTrustAnchorV1 {
             schema: AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.to_string(),
-            repository_id: "vrepo_0123456789abcdef0123456789abcdef".to_string(),
+            repository_id: "01234567-89ab-4def-8123-456789abcdef".to_string(),
             first_authority_record_root: format!("sha256:{}", "4".repeat(64)),
         }
     }
@@ -1538,11 +1539,11 @@ mod tests {
         assert_eq!(
             installed.path,
             home.path()
-                .join(".vela/trust/authorities/vrepo_0123456789abcdef0123456789abcdef.json")
+                .join(".vela/trust/authorities/01234567-89ab-4def-8123-456789abcdef.json")
         );
         let loaded = load_authority_trust_anchor_from_home(
             home.path(),
-            "vrepo_0123456789abcdef0123456789abcdef",
+            "01234567-89ab-4def-8123-456789abcdef",
         )
         .unwrap()
         .unwrap();

@@ -194,9 +194,13 @@ pub fn nullable_git_object_id(_: &mut SchemaGenerator) -> Schema {
     json_schema!({ "type": ["string", "null"], "pattern": GIT_OBJECT_ID_PATTERN })
 }
 
-/// `vrepo_` and 32 hex digits.
+/// Lowercase canonical RFC 9562 UUIDv4 text.
 pub fn repository_id(_: &mut SchemaGenerator) -> Schema {
-    json_schema!({ "type": "string", "pattern": "^vrepo_[0-9a-f]{32}$" })
+    json_schema!({
+        "type": "string",
+        "format": "uuid",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    })
 }
 
 /// The review lane's action, or null when no Decision is waiting.
@@ -246,11 +250,6 @@ pub fn producer_actor(_: &mut SchemaGenerator) -> Schema {
 /// `vcl_` and 64 hex digits.
 pub fn claim_id(_: &mut SchemaGenerator) -> Schema {
     json_schema!({ "type": "string", "pattern": "^vcl_[0-9a-f]{64}$" })
-}
-
-/// `vat_` and 64 hex digits.
-pub fn source_attempt_id(_: &mut SchemaGenerator) -> Schema {
-    json_schema!({ "type": "string", "pattern": "^vat_[0-9a-f]{64}$" })
 }
 
 /// A `vsb_` namespace and a body, for readers that do not re-derive the

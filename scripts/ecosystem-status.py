@@ -237,20 +237,22 @@ def toolchain_channel() -> str:
         return tomllib.load(source)["toolchain"]["channel"]
 
 
-def identifier_prefix() -> str:
-    """Read the current repository-id prefix out of the type that mints it.
+def repository_id_contract() -> str:
+    """Read the current repository-id contract out of the protocol source.
 
-    Taking it from the source rather than from a constant here is the point: an
-    epoch that changes the prefix and forgets this file produces a diff, not a
-    quiet agreement between two copies of the same number.
+    Taking it from the source rather than from a constant here is the point: a
+    wire cut that changes identity and forgets this file produces a diff, not a
+    quiet agreement between two copies of the same string.
     """
-    text = (ROOT / "crates/vela-protocol/src/objects/repository.rs").read_text(
+    text = (ROOT / "crates/vela-protocol/src/shape.rs").read_text(
         encoding="utf-8"
     )
-    matches = set(re.findall(r'require_prefixed\("repository_id", &self\.\w+, "(\w+_)"\)', text))
+    matches = set(
+        re.findall(r'REPOSITORY_ID_CONTRACT: &str = "([a-z0-9-]+)"', text)
+    )
     if len(matches) != 1:
         raise Failure(
-            "repository.rs does not pin exactly one repository-id prefix: "
+            "shape.rs does not pin exactly one repository-id contract: "
             f"{sorted(matches) or 'none found'}"
         )
     return matches.pop()
@@ -292,7 +294,7 @@ def local_block() -> dict[str, object]:
         surfaces[name] = {"declared": DECLARED_SURFACES[name], "present": present}
     return {
         "epoch": {
-            "repository_id_prefix": identifier_prefix(),
+            "repository_id_contract": repository_id_contract(),
             "retired_spelling_sites": retired_spelling_sites(),
             "retired_spellings": list(RETIRED_SPELLINGS),
             "retired_spelling_trees": list(RETIRED_SPELLING_TREES),

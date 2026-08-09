@@ -64,7 +64,7 @@
   "generator": "scripts/ecosystem-status.py",
   "local": {
     "epoch": {
-      "repository_id_prefix": "vrepo_",
+      "repository_id_contract": "rfc9562-uuidv4",
       "retired_spelling_sites": [
         "crates/vela-authority/tests/authorization_profile_parity.rs",
         "crates/vela-cli/src/init.rs",

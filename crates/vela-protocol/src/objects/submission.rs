@@ -192,9 +192,6 @@ pub struct SubmissionProvenance {
     #[schemars(schema_with = "crate::wire_schema::text")]
     pub source_system: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(schema_with = "crate::wire_schema::source_attempt_id")]
-    pub source_attempt: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(schema_with = "crate::wire_schema::text")]
     pub source_run: Option<String>,
     #[schemars(schema_with = "crate::wire_schema::timestamp")]
@@ -379,10 +376,6 @@ impl SubmissionV2 {
         self.requested_change.validate()?;
         require_actor("provenance.producer", &self.provenance.producer)?;
         require_text("provenance.source_system", &self.provenance.source_system)?;
-        if let Some(source_attempt) = &self.provenance.source_attempt {
-            require_text("provenance.source_attempt", source_attempt)?;
-            require_prefixed_hex("provenance.source_attempt", source_attempt, "vat_", 64)?;
-        }
         if let Some(source_run) = &self.provenance.source_run {
             require_text("provenance.source_run", source_run)?;
         }
@@ -502,7 +495,6 @@ mod tests {
             provenance: SubmissionProvenance {
                 producer: "agent:fixture".into(),
                 source_system: "fixture".into(),
-                source_attempt: Some(format!("vat_{}", "4".repeat(64))),
                 source_run: Some("run_fixture".into()),
                 emitted_at: "2026-07-26T00:00:00Z".into(),
             },

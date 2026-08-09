@@ -281,7 +281,6 @@ mod tests {
                 provenance: SubmissionProvenance {
                     producer: actor.clone(),
                     source_system: "fixture".into(),
-                    source_attempt: Some(format!("vat_{}", "d".repeat(64))),
                     source_run: Some("run_fixture".into()),
                     emitted_at: "2026-08-01T00:00:00Z".into(),
                 },

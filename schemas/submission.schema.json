@@ -198,10 +198,6 @@
           "pattern": "^(agent|ci):[^\\s]+$",
           "type": "string"
         },
-        "source_attempt": {
-          "pattern": "^vat_[0-9a-f]{64}$",
-          "type": "string"
-        },
         "source_run": {
           "maxLength": 16384,
           "minLength": 1,
