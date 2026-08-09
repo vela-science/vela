@@ -257,27 +257,27 @@
     },
     "vela-science/math": {
       "counts": {
-        "accepted_claims": 0,
-        "artifacts": 0,
+        "accepted_claims": 1,
+        "artifacts": 3,
         "declared_sources": 13,
         "pending_claims": 0,
-        "proposals": 0,
-        "submissions": 0,
-        "verifications": 0
+        "proposals": 3,
+        "submissions": 3,
+        "verifications": 6
       },
       "git": {
-        "commit": "079e884cb001cd8695b26f93fa5e8c1e8ade050e",
+        "commit": "27cb6e407f1d42177169c2a02ccd337e1c7bdcc6",
         "remote": "https://github.com/vela-science/math.git",
-        "tree": "7b349607d1a1a9adfd655a4bf078e6da422a9ded"
+        "tree": "8aab0f13d529664e2ebbd822c301d076932f69df"
       },
       "method": "local-checkout",
-      "observed_at": "2026-08-08T00:38:39Z",
+      "observed_at": "2026-08-09T01:00:31Z",
       "origin": {
         "generation": 1,
         "kind": "genesis",
-        "origin_id": "vro_2e75a5b77102842f"
+        "origin_id": "vro_3cfb63bdb525a407"
       },
-      "origin_root": "sha256:089e8e958beae0c78780007c9737bb68da20bfc3e2ae0c7dd01e7095d2d0c910",
+      "origin_root": "sha256:7437b73c0d8da00ac160689bed40c8171e51fe27dbc1e53f7d6038ad7bd28163",
       "remote": {
         "archived": false,
         "default_branch": "main",
@@ -286,7 +286,17 @@
         "pushed_at": "2026-08-07T20:54:37Z",
         "visibility": "public"
       },
-      "repository_id": "vrepo_56d3fdfcd34ff5c3"
+      "replay": {
+        "integrity": {
+          "blocker_count": 0,
+          "blockers_by_code": {},
+          "replay": "verified",
+          "strict": "pass"
+        },
+        "reported_by": "vela 0.971.0",
+        "repository_root": null
+      },
+      "repository_id": "vrepo_8b32ff6fa11cdb5fa0bb8a043c7d6941"
     },
     "vela-science/quantum-codes-frontier": {
       "remote": {
