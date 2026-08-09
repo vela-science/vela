@@ -29,7 +29,7 @@ init -> submit -> verify -> decide -> replay
   the public map.
 - Run a bounded Physlib pilot after maintainer policy or direct alignment
   supports the selected contribution class.
-- Reach fifty high-quality deep problem pages only as source and Frontier
+- Reach fifty high-quality deep problem pages only as source and Repository
   evidence earns them.
 - Measure evidence-location time, fidelity defects, reviewer effort, reuse,
   and correction recovery.
@@ -56,5 +56,5 @@ init -> submit -> verify -> decide -> replay
   internal instrumentation.
 - Source-specific scientific campaigns in the Vela core repository.
 
-Scientific work belongs to its source-owning Frontier. Vela core changes only
+Scientific work belongs to its source-owning Repository. Vela core changes only
 when they remain useful after every named scientific case is removed.

@@ -30,7 +30,7 @@ The paper will not claim that:
 
 - Vela determines scientific truth, novelty, importance, or ethics;
 - one verifier pass implies acceptance;
-- one Frontier's Decision governs another Frontier;
+- one Repository's Decision governs another Repository;
 - all scientific relations fit one ontology or graph;
 - Canopus is required to produce or replay Vela state;
 - the Observatory, Neon, a Registry, or any hosted service is canonical;
@@ -53,7 +53,7 @@ work after a real correction?
 
 ### RQ3: Authority containment
 
-Can a second Frontier retain and check a foreign transition without changing
+Can a second Repository retain and check a foreign transition without changing
 local Standing until its own authorized Decision?
 
 ### RQ4: Inheritance value
@@ -70,7 +70,7 @@ the original producer session are removed?
 
 ### RQ6: Product legibility
 
-Can a cold user reconstruct the exact current state of a Frontier, distinguish
+Can a cold user reconstruct the exact current state of a Repository, distinguish
 accepted, checked, recorded, disputed, rejected, and open state, and select one
 valid next action without private maintainer context? Does the map update
 correctly after a Decision without becoming canonical authority?
@@ -81,7 +81,7 @@ correctly after a Decision without becoming canonical authority?
 | --- | --- | --- |
 | 0 | Vela records and replays local admission | Current canonical fixtures and completed Erdős loop |
 | 1 | Two implementations agree on bounded correction impact | Primary real fixture and adversarial vectors |
-| 2 | Vela demonstrates the registered protocol result | Primary and held-out fixtures, second Frontier, external cold use, all hard gates |
+| 2 | Vela demonstrates the registered protocol result | Primary and held-out fixtures, second Repository, external cold use, all hard gates |
 | 3 | The result recurs outside the project | Multiple organizations and independent implementations |
 | 4 | Scientific state compounds routinely | Longitudinal correction, reuse, and adoption evidence |
 
@@ -95,7 +95,7 @@ registered protocol-breakthrough paper:
 
 - attributed human Decisions, exact replay, and root-bound remapping pass on
   real Erdős and Quantum results;
-- one first-party cross-Frontier package passes exact retention, two
+- one first-party cross-Repository package passes exact retention, two
   first-party scoped receiver Verifications, clean-clone replay, and zero
   imported Standing;
 - three matched native Harbor tasks show task-specific first-party exactness
@@ -161,7 +161,7 @@ The paper artifact contains one immutable evaluation plan with:
 | B5 | Are optional producers and readers removable? | Replay unchanged after deletion |
 | B6 | Does hosted read-model failure affect verification? | No |
 | B7 | Does route diversity reduce correction blast radius as declared? | Exact route accounting |
-| B8 | Does cross-Frontier transfer retain identity without importing authority? | Exact import and zero local Standing delta |
+| B8 | Does cross-Repository transfer retain identity without importing authority? | Exact import and zero local Standing delta |
 | B9 | Are omissions, inaccessible inputs, and truncation explicit? | No silent completeness claim |
 | B10 | Does Vela improve correct cold continuation over Git? | At least 20% median lift on both fixtures |
 
@@ -192,7 +192,7 @@ substitute for the Git state baseline.
 1. **Abstract.** One problem, one mechanism, one measured result, one limit.
 2. **Introduction.** Why abundant production creates an inheritance and
    correction bottleneck.
-3. **Scope and model.** Frontiers, plural authority, exact objects, Standing,
+3. **Scope and model.** Repositories, plural authority, exact objects, Standing,
    and trust assumptions.
 4. **Protocol.** Submission, scoped Verification, Decision, Event, replay, and
    correction without erasure.

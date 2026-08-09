@@ -177,7 +177,7 @@ These terms describe bounded system behavior. They are not protocol objects:
 | correction-closed | A declared complete relation slice identifies affected, surviving, and repair-required state after a correction |
 | inheritance-complete | A cold successor can recover current Standing, decisive evidence, and the next valid action without private maintainer context |
 | Frontier closure | State, coverage, Targets, Decisions, corrections, and handoff each close over exact current inputs or fail explicitly |
-| compounding | Inherited Frontier state measurably improves later correct scientific work under a matched comparison |
+| compounding | Inherited Repository state measurably improves later correct scientific work under a matched comparison |
 
 The current **Math Atlas** is the bounded first-party read product over
 `vela-science/math`, the one live mathematics authority. A future federated

@@ -1,4 +1,4 @@
-"""A Frontier root and a GitHub that only serves what a test says it serves.
+"""A Repository root and a GitHub that only serves what a test says it serves.
 
 No test here touches the network. That is not only about speed: the two failure
 cases this suite exists for — a declared root that upstream contradicts, and a
@@ -58,8 +58,8 @@ class FakeGitHub:
 
 
 @pytest.fixture
-def frontier(tmp_path: Path):
-    """Write a `sources.yaml` into a throwaway Frontier root."""
+def repository(tmp_path: Path):
+    """Write a `sources.yaml` into a throwaway Repository root."""
 
     def build(sources: dict, files: dict[str, bytes] | None = None) -> Path:
         (tmp_path / "sources.yaml").write_text(yaml.safe_dump({"sources": sources}))

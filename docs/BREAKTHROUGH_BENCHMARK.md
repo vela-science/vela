@@ -5,7 +5,7 @@ Status: **north-star contract; historical fixture entry gate failed**
 This benchmark is the binary test for Vela's protocol-scale claim:
 
 > Vela demonstrates a protocol breakthrough when a real scientific correction
-> crosses independent implementations and independently governed Frontiers,
+> crosses independent implementations and independently governed Repositories,
 > produces the same exact bounded consequences, preserves unaffected knowledge
 > and local authority, opens the correct repair work, and lets a cold successor
 > continue materially faster without a central Vela service.
@@ -23,7 +23,7 @@ independent producer
   -> portable Submission
 independently controlled verifier
   -> scoped Verification Record
-Frontier F1 authority
+Repository R1 authority
   -> Decision and exact root transition
 clean-room implementation
   -> same replayed bounded state
@@ -31,7 +31,7 @@ later scientific correction to accepted Claim A
   -> exact affected set
   -> unaffected knowledge and independent support preserved
   -> bounded repair Obligation opened
-Frontier F2
+Repository R2
   -> foreign correction retained and checked
   -> local Standing unchanged without a local Decision
 cold successor
@@ -80,7 +80,7 @@ failure.
 - Submission, Verification, and foreign import each have accepted-state delta
   zero.
 - Only an authorized local Decision changes local Standing.
-- Producer, verifier, foreign Frontier, model, database, and reader authority
+- Producer, verifier, foreign Repository, model, database, and reader authority
   never escalate.
 - No human or repository-authority credential enters a producer, verifier, or
   model trust path.
@@ -143,8 +143,8 @@ formal or mechanical verification
 statement fidelity
 scientific support and opposition
 review status
-local Frontier Standing
-foreign Frontier Standing
+local Repository Standing
+foreign Repository Standing
 ```
 
 At least one Verification Record must come from a verifier independently
@@ -251,7 +251,7 @@ It proves fail-closed readiness and signer ordering; the separately rooted
 publication audit above proves B8.
 
 The frozen held-out selector has also produced a negative result. Its original
-four-Frontier audit found only the already excluded Erdős 424
+audit across the four epoch-1 Repositories found only the already excluded Erdős 424
 writer-qualification transition. The 2026-08-02 post-Decision rerun additionally
 detects the accepted Quantum `[[10,1,4]]` correction at `718de33d`; it too lacks
 the required hard dependent, support diamond, and non-consequential incoming
@@ -306,11 +306,12 @@ benchmark. Rust and clean-room Python readers now agree on one synthetic
 diamond projection at root
 `sha256:935e084f8c5c45bcee234d2e9752062ba54493aa1b14f731e0efbbb1ecc01df6`.
 That is implementation qualification only. The real correction fixture,
-second Frontier, and cold-use evidence remain incomplete. The held-out entry
+second Repository, and cold-use evidence remain incomplete. The held-out entry
 gate has failed because the frozen selector found no qualifying candidate.
 
 The 2026-07-29 source audit found no qualifying historical fixture. At those
-frozen pre-campaign heads, the four Frontiers retained 2,831 Claim records and
+frozen pre-campaign heads, the four epoch-1 Repositories retained 2,831 Claim
+records and
 no accepted correction, supersession, or retraction relation. Erdős 281 has
 the required dependency shape without a real correction. Erdős 128 has a real
 upstream statement correction, but the accepted Claim binds a mutable theorem

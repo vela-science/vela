@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vela.science/schemas/sources-lock.schema.json",
-  "title": "Frontier source lock",
-  "description": "The shape of a Frontier's `sources.lock.json`. Every hash in a lock is computed by the resolver from bytes it actually fetched or read; none is ever copied through from the declaration, because a hash nobody computed is worse than no hash at all. This file is the single definition of the shape, and it is what makes the reader invariant below checkable by anything, in any language, without rerunning the resolver. Every value here is derived from those bytes, and nothing here is read from the clock: a lock exists to be re-resolved and compared, so two runs over identical inputs have to produce identical files. When the lock was made is Git's to answer, and Git answers it about the record rather than about a process that may have run days before anyone committed it.",
+  "title": "Repository source lock",
+  "description": "The shape of a repository's `sources.lock.json`. Every hash in a lock is computed by the resolver from bytes it actually fetched or read; none is ever copied through from the declaration, because a hash nobody computed is worse than no hash at all. This file is the single definition of the shape, and it is what makes the reader invariant below checkable by anything, in any language, without rerunning the resolver. Every value here is derived from those bytes, and nothing here is read from the clock: a lock exists to be re-resolved and compared, so two runs over identical inputs have to produce identical files. When the lock was made is Git's to answer, and Git answers it about the record rather than about a process that may have run days before anyone committed it.",
   "type": "object",
   "additionalProperties": false,
   "required": ["sources"],

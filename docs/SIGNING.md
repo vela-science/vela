@@ -18,7 +18,7 @@ implies neither.
 
 ## Repository authority
 
-Every current Frontier has:
+Every current Repository has:
 
 - an append-only repository-authority history;
 - a full-root Ed25519 authority keyset;
@@ -34,7 +34,7 @@ recheck, and canonical write matched. The record attributes the human, agent,
 or workload responsible for the action.
 
 The initial local provider is the normal OpenSSH agent. Vela asks it to sign
-the exact authority record with the key selected by the Frontier keyset. Vela
+the exact authority record with the key selected by the Repository keyset. Vela
 does not create, store, reveal, or recover a human signing seed.
 
 `vela.authority-keyset.v1` deliberately fixes Ed25519. The algorithm field is
@@ -139,7 +139,7 @@ signature, retain append-only content-addressed evidence, and rebuild the
 deterministic repository projection without reading the repository-authority
 key. Only a later human Decision creates an Authority Record.
 
-## Initialize a new Frontier
+## Initialize a new Repository
 
 Load one dedicated Ed25519 repository-authority identity into the normal
 OpenSSH agent, then run:
@@ -163,7 +163,7 @@ setup ceremony is unnecessary. If signing fails, load the key and rerun the
 same `vela init` command.
 
 Distribute the returned full sequence-one authority-record root independently
-of the Frontier checkout.
+of the Repository checkout.
 
 ## Release distribution identity
 
@@ -232,15 +232,15 @@ Install the independently obtained public root:
 vela authority trust pin . --record-root sha256:... --json
 ```
 
-The anchor is a closed record binding the Frontier and first authority-record
+The anchor is a closed record binding the Repository and first authority-record
 root. That record already commits to the initial keyset, policy, principal,
 Events, and execution claim.
 
 Pinning writes only local consumer configuration. It reads no private key,
-grants no authority, and changes no Frontier byte.
+grants no authority, and changes no Repository byte.
 
 After a separately verified repository-origin transition establishes a new
-sequence-one authority record for the same Frontier, advance the local pin
+sequence-one authority record for the same Repository, advance the local pin
 with an exact compare-and-swap:
 
 ```bash
@@ -253,7 +253,7 @@ vela authority trust pin . \
 The new root must match the current repository's sequence-one record, and the
 previous root must match the installed local pin. Repeating an already applied
 pin is idempotent. This operation still reads no authority key, grants no
-authority, and changes no Frontier byte.
+authority, and changes no Repository byte.
 
 ## Failure behavior
 

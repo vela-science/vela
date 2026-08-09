@@ -1,4 +1,4 @@
-//! Producer intake for Profile v2 repositories.
+//! Producer intake for Repository Profile v1 repositories.
 //!
 //! This path consumes an authenticated Submission, creates the current Claim
 //! and Proposal, and advances the repository manifest

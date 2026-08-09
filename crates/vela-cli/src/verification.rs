@@ -1,4 +1,4 @@
-//! Verification Record intake for Profile v2 repositories.
+//! Verification Record intake for Repository Profile v1 repositories.
 //!
 //! Verification remains scoped authenticated evidence. This writer retains one
 //! exact Verification Record and advances the current repository without

@@ -1,6 +1,6 @@
-"""Producer-side source declarations and locks for Vela Frontiers.
+"""Producer-side source declarations and locks for Vela Repositories.
 
-One resolver, one pair of schemas, four Frontiers. See the package README for
+One resolver, one pair of schemas. See the package README for
 why this lives beside `crates/` rather than in it.
 """
 

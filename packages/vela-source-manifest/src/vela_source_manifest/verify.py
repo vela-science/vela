@@ -1,9 +1,9 @@
 """Check a committed ``sources.lock.json`` without writing one.
 
 This is what CI runs. It is deliberately offline by default, and that choice is
-worth stating: a lock is a record of what a Frontier acquired *at a moment*, so
+worth stating: a lock is a record of what a Repository acquired *at a moment*, so
 upstream having moved since is not by itself a defect in the lock. Some locks are
-stale on purpose — the Erdős Frontier's live-fetched pins record what was
+stale on purpose — the Erdős Repository's live-fetched pins record what was
 acquired when its Claims were accepted, and regenerating them would destroy the
 evidence rather than refresh it. A CI job that refetched on every run would go
 red for the healthiest possible reason and teach everyone to ignore it.
@@ -39,7 +39,7 @@ from .resolver import (
 
 # Fields the resolver copies from the declaration without interpreting them. If
 # one of these differs, either the lock was hand-edited or it predates a change
-# to the declaration; both mean the lock no longer describes what this Frontier
+# to the declaration; both mean the lock no longer describes what this Repository
 # says it acquires.
 VERBATIM = ("kind", "repo", "ref", "path", "paths", "home", "homepage", "url",
             "pages_commit", "pages_commit_resolved", "acquired_by")
@@ -56,7 +56,7 @@ def check(root: str | Path, refetch: bool = False, fetch: Fetch | None = None) -
     problems: list[str] = []
 
     if not (root / DECLARATION_FILE).is_file():
-        return [f"{root / DECLARATION_FILE} does not exist; this is not a Frontier root"]
+        return [f"{root / DECLARATION_FILE} does not exist; this is not a Repository root"]
     if not (root / LOCK_FILE).is_file():
         return [f"{root / LOCK_FILE} does not exist; run vela-source-lock to write it"]
 

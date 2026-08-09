@@ -54,7 +54,7 @@ fn run_in(dir: &std::path::Path, args: &[&str]) -> std::process::Output {
 fn command_errors_use_stable_exit_codes() {
     let tmp = tempfile::TempDir::new().unwrap();
     init_frontier(tmp.path());
-    // A failed signing attempt retains a resumable Profile v2 shell. Until
+    // A failed signing attempt retains a resumable Repository Profile v1 shell. Until
     // `init` is rerun with a key, `replay` rejects it as a domain error rather
     // than falling through to a retired profile loader.
     let out = run_in(tmp.path(), &["replay", "--json"]);

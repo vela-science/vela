@@ -1,6 +1,6 @@
-# Publishing a Frontier
+# Publishing a Repository
 
-A published Frontier is one independently clonable Git repository with an
+A published Repository is one independently clonable Git repository with an
 exact current Vela repository origin. Publication distributes bytes; it does
 not create scientific acceptance.
 
@@ -55,21 +55,21 @@ A consumer:
 5. runs the declared frozen reproduction.
 
 ```bash
-git clone <frontier-url>
-cd <frontier>
+git clone <repository-url>
+cd <repository>
 git checkout <full-commit>
 vela authority trust pin . --record-root sha256:... --json
 vela replay . --json
 vela reproduce .
 ```
 
-The trust pin reads no key, grants no authority, and changes no Frontier byte.
+The trust pin reads no key, grants no authority, and changes no Repository byte.
 
 ## Reader publication
 
 The Observatory and other projections must bind:
 
-- exact Frontier source URL, commit, and tree;
+- exact Repository source URL, commit, and tree;
 - repository origin and root;
 - current authority head;
 - object-set counts and roots;

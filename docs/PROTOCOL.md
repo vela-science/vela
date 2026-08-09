@@ -118,7 +118,7 @@ Proposal directory, or materialized Project snapshot.
 
 `vela.repository-origin.v1` binds:
 
-- Repository identity and Profile v2 root;
+- Repository identity and Repository Profile v1 root;
 - generation, always 1, and the empty initial object-set root;
 - the reason the lineage was opened.
 
@@ -134,7 +134,8 @@ repository rather than a permanent field on every origin.
 The readable `vro_` handle is derived from the origin's full root, not stored
 in it.
 
-`vela init` creates Profile v2, the genesis origin, repository v4 manifest,
+`vela init` creates Repository Profile v1, the genesis origin, repository v4
+manifest,
 keyset, authorization model, sequence-one authority history, local trust
 anchor, and initial Git commit in one recoverable transaction. If signing is
 unavailable, the exact Profile remains and the same `vela init` command resumes

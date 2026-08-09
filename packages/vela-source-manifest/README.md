@@ -1,14 +1,15 @@
 # vela-source-manifest
 
-One resolver and one pair of schemas for every Frontier's acquisition inventory.
+One resolver and one pair of schemas for every Repository's acquisition
+inventory.
 
-A Frontier declares what it acquires in `sources.yaml` and records what it
+A Repository declares what it acquires in `sources.yaml` and records what it
 actually got in `sources.lock.json`. This package reads the first and writes the
 second, computing every content root from bytes it fetched or read.
 
 ## Why it sits beside `crates/`, not inside it
 
-This is producer-side tooling. It describes how a Frontier acquired its inputs,
+This is producer-side tooling. It describes how a Repository acquired its inputs,
 which is a fact about an acquisition run, not a fact the protocol adjudicates:
 nothing here defines or depends on Vela authority semantics, and `vela replay`
 must never need it. A lock is evidence a reader can check; it is not Standing. If
@@ -17,20 +18,21 @@ this package disappeared, every accepted record would still replay.
 ## Use
 
 ```sh
-cd <a frontier root>
+cd <a repository root>
 uvx --from vela-source-manifest vela-source-lock            # write the lock
 uvx --from vela-source-manifest vela-source-lock --check    # verify it, offline
 ```
 
 Until the first release there is no registry version to resolve that name from,
 so run it from a checkout instead — `uvx --from ../vela/packages/vela-source-manifest
-vela-source-lock`. The four Frontiers name the released form in their
+vela-source-lock`. The Repositories using it name the released form in their
 `sources.yaml` headers with no pin, and say there that the pin arrives with the
 release.
 
 `--check` is what CI should run. It is offline by default, and that is
-deliberate: a lock records what a Frontier acquired *at a moment*, so upstream
-having moved since is not a defect in the lock. The Erdős Frontier's live-fetched
+deliberate: a lock records what a Repository acquired *at a moment*, so upstream
+having moved since is not a defect in the lock. The Erdős Repository's
+live-fetched
 pins are stale on purpose — they record what was acquired when its Claims were
 accepted. Add `--refetch` when you actually want to ask whether upstream still
 serves the same bytes.
@@ -60,8 +62,9 @@ An entry nobody could pin must never read as one nobody bothered to pin.
 
 ## One place `path` is refused rather than guessed at
 
-`path` means two things across the Frontiers. On an entry with no `url` it names
-bytes retained in the Frontier itself, hashed from disk. On a url-backed entry —
+`path` means two things across the Repositories using this package. On an entry
+with no `url` it names
+bytes retained in the Repository itself, hashed from disk. On a url-backed entry —
 the four live Erdős registries — it names the file's location in the *upstream*
 repository, and the url is the locator.
 
@@ -93,4 +96,4 @@ or, from Python, `vela_source_manifest.schema_path(name)`.
 
 Nothing writes to `records/`, `proof/`, `artifacts/`, `execution/`, `review/`,
 `targets/`, `witnesses/` or `.vela/`. The resolver reads in-repository bytes when
-a declaration names a path inside the Frontier, and reads nothing else locally.
+a declaration names a path inside the Repository, and reads nothing else locally.

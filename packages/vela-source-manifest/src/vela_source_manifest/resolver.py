@@ -1,6 +1,6 @@
 """Generate ``sources.lock.json`` from ``sources.yaml``.
 
-The lock records the exact content root of every source a Frontier acquires, so
+The lock records the exact content root of every source a Repository acquires, so
 accepted state is traceable to fixed bytes rather than to a floating `main` or to
 whatever a publisher happens to serve today.
 
@@ -130,14 +130,14 @@ class Resolution:
 
 
 def read_declaration(root: Path) -> tuple[dict[str, Any], list[str]]:
-    """Parse and validate a Frontier's `sources.yaml`.
+    """Parse and validate a Repository's `sources.yaml`.
 
     A declaration that parses but says the wrong thing fails here, at the
     producer, rather than downstream in whatever consumes the lock.
 
     `safe_load` resolves an unquoted `2026-08-05T21:22:46Z` to a datetime, which
     the declaration schema then rejects as not a string. That rejection is the
-    behavior wanted: the two timestamps a Frontier declares are quoted, and the
+    behavior wanted: the two timestamps a Repository declares are quoted, and the
     lock copies them through verbatim, so an unquoted one has to stop the run
     rather than be coerced into a value the source never wrote.
     """
@@ -228,13 +228,13 @@ def lock_entry(
     if url is not None:
         entry["url"] = url
 
-    # Cited, not acquired. Another Frontier holds the bytes; its url is a landing
+    # Cited, not acquired. Another Repository holds the bytes; its url is a landing
     # page, so the declared commit and tree are the whole of the pin.
     if spec.get("acquired_by"):
         entry["acquired_by"] = spec["acquired_by"]
         entry["unlocked"] = (
             f"cited, not acquired: the bytes are acquired by the {spec['acquired_by']} "
-            "frontier and are not retained here, so the pin is the declared commit and tree"
+            "repository and are not retained here, so the pin is the declared commit and tree"
         )
         return entry
 
@@ -243,7 +243,7 @@ def lock_entry(
     # consultation as an acquisition.
     if spec.get("kind") == "reference_only":
         entry["unlocked"] = (
-            "reference only: the frontier records that this was consulted, not what "
+            "reference only: the repository records that this was consulted, not what "
             "it said, so no bytes are retained and there is no content root to compute"
         )
         return entry
@@ -257,7 +257,7 @@ def lock_entry(
             target = root / spec["path"]
             if target.is_file():
                 if url is not None:
-                    # `path` carries two meanings across the Frontiers. On an
+                    # `path` carries two meanings across the Repositories. On an
                     # entry with no url it names bytes retained in this
                     # repository (sources/fidelity_cache.json). On a url-backed
                     # entry it names the file's location in the *upstream*
@@ -291,7 +291,7 @@ def lock_entry(
                 entry["commit"], entry["tree"] = observed_commit, observed_tree
                 entry["unlocked"] = (
                     "no content locator: the url is the repository landing page, not bytes, "
-                    "and this frontier retains no snapshot. The pin is the commit and tree "
+                    "and this repository retains no snapshot. The pin is the commit and tree "
                     "above, both read from the GitHub API at generation time"
                 )
                 return entry
@@ -326,7 +326,7 @@ def lock_entry(
 
 
 def resolve(root: str | Path, fetch: Fetch | None = None) -> Resolution:
-    """Build the lock payload for the Frontier rooted at `root`. Writes nothing.
+    """Build the lock payload for the Repository rooted at `root`. Writes nothing.
 
     `fetch` defaults to `urlopen_fetch`, resolved here rather than bound as a
     default argument so a test can substitute one without the network.

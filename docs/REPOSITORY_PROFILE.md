@@ -103,7 +103,8 @@ It binds the `repository_id`, Profile root, generation, initial object-set root,
 and full origin identity carried by `vela.repository.v4`. Unknown or
 substituted origins fail closed.
 
-A native `vela init` writes Profile v2 and scaffolding, then installs the
+A native `vela init` writes Repository Profile v1 and scaffolding, then installs
+the
 genesis, manifest, keyset, authorization model, sequence-1 authority Event and record and
 creates the initial unsigned Git commit. If signing cannot complete, the exact
 Profile remains as a resumable bootstrap and `status` reports the same

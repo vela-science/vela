@@ -31,13 +31,13 @@ Vela core does not own:
 - Web presentation or a hosted package registry;
 - source-specific Erdős, Astra, Formal Conjectures, or other domain logic.
 
-Scientific work belongs in its source-owning Frontier. Read-only product views
+Scientific work belongs in its source-owning Repository. Read-only product views
 belong in `vela-web`. Reusable machinery moves into Vela only after two real,
 maintained consumers demonstrate the same need and the extraction deletes more
 code than it adds.
 
-The Vela source repository is not a Frontier. Never run `vela init` here and
-never add a root `.vela/` directory.
+The Vela source repository is not itself a Vela Repository. Never run
+`vela init` here and never add a root `.vela/` directory.
 
 ## How to work
 

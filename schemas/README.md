@@ -86,7 +86,7 @@ repository invariants, human Decision authority, or Standing. The schemas use
 
 `status.schema.json` states one rule its consumer does not have to restate:
 every field is `required`, including the ones whose value is `null` on a
-Frontier that cannot fill them. A bootstrapping repository has a Git pointer
+repository that cannot fill them. A bootstrapping repository has a Git pointer
 with no commit behind it, not an absent Git pointer, and a schema that let the
 key vanish would let a dropped field pass as an empty one.
 

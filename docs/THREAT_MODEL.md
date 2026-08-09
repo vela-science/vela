@@ -1,7 +1,7 @@
 # Vela threat model
 
 Vela protects the integrity, attribution, authorization, and replay of one
-bounded scientific Frontier. It does not determine whether the science is
+bounded scientific Repository. It does not determine whether the science is
 true, novel, important, or ethical.
 
 ## Protected assets
@@ -30,7 +30,7 @@ authorized semantic principal
   -> repository-authority record
   -> canonical Event and Standing
 
-verified Git Frontier
+verified Git Repository
   -> disposable Observatory and indexes
 ```
 
@@ -79,7 +79,7 @@ no accepted Standing.
 
 A Verification Record binds the exact Claim, Submission id and root, Proposal,
 Artifacts, method, environment root, scoped property, outcome, nonclaims, and
-verifier identity. It names no Frontier; import resolves every reference
+verifier identity. It names no Repository; import resolves every reference
 against exact repository membership, so a record is usable only in the one
 repository that holds all of its subjects.
 
@@ -212,7 +212,7 @@ remain required.
 ## Explicitly out of scope
 
 - deciding scientific truth, novelty, importance, or ethics;
-- confidentiality for bytes committed to a public Frontier;
+- confidentiality for bytes committed to a public Repository;
 - preserving source bytes Vela never received;
 - Git-host availability and organization-account recovery;
 - automatic key recovery;
@@ -226,5 +226,5 @@ not make it true.
 
 ## Security reports
 
-Do not include keys, credentials, private Frontier data, or exploit details in
+Do not include keys, credentials, private Repository data, or exploit details in
 a public issue. Use the repository security-advisory channel.
