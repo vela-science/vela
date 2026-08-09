@@ -32,7 +32,7 @@ Use a normal Git commit and protected public ref. Record:
 - repository URL;
 - full commit and tree;
 - Vela version and binary SHA-256;
-- Frontier ID;
+- Repository UUID;
 - origin ID and root;
 - repository root;
 - authority head and Event-log root;
@@ -87,9 +87,12 @@ Publishers do not amend, force-push, or regenerate old canonical bytes.
 A correction is a new Submission, Decision, and Event. It preserves the prior
 Claim and exposes the new Standing through replay.
 
-## Predecessor origins
+## Lineage migrations
 
-The current origin binds the predecessor remote, tag, commit, tree, repository
-and authority roots, archived Event and actor roots, object manifest, archive
-digest, and equivalence report. Keep those objects reachable. Do not present
-the predecessor as a second live Frontier.
+The current origin is always a genesis and carries no predecessor block. A
+pre-1.0 wire migration instead retains a separately signed attestation naming
+the predecessor and successor Git commits, trees, Vela roots, archive digest,
+re-admission mapping, and declared losses. Keep the predecessor tag and bundle
+reachable. The attestation is continuity evidence beside the current
+Repository; it does not make predecessor bytes active state or assert that two
+different objects have the same root.

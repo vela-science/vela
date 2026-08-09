@@ -159,18 +159,19 @@ vela reproduce .
 
 Agreement among readers is corroboration, not authority.
 
-### Repository predecessor substitution
+### Repository migration substitution
 
-The current origin binds the exact predecessor remote, tag, commit, tree,
-repository and authority roots, archived Event and actor roots, Git-object
-manifest, archive digest, and equivalence report.
+The current origin is a genesis and binds no predecessor. Pre-1.0 continuity
+between two wire lineages is retained separately as a signed migration
+attestation over exact predecessor and successor commits, trees, Vela roots,
+archive digest, object mapping, declared losses, and equivalence limits.
 
-The transition is signed by repository authority with a null scientific
-before/after effect. Missing objects, changed mappings, partial archives,
-ambiguous Claims, altered Standing, or a mismatched plan fail before commit.
-
-The one-time transition tool has been removed. Current verification retains the
-signed origin boundary and rejects any reintroduced predecessor path.
+A consumer must obtain the predecessor tag or bundle and recompute those
+bindings before relying on the attestation. Missing objects, changed mappings,
+partial archives, ambiguous Claims, or altered Standing invalidate continuity;
+they do not invalidate independent replay of the current genesis. Current
+verification rejects any attempt to reintroduce a predecessor path into the
+origin itself.
 
 ## Partially mitigated risks
 
