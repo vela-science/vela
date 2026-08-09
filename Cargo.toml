@@ -19,7 +19,7 @@ resolver = "3"
 # Release numbering uses `0.RRR.P`, where RRR names the release train and P is
 # the compatible patch within that train. Older `v0.X` markers in comments and
 # research documents are historical proof-slice labels.
-version = "0.971.0"
+version = "0.972.0"
 edition = "2024"
 rust-version = "1.97.1"
 license = "Apache-2.0 OR MIT"

@@ -10,6 +10,8 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+## 0.972.0
+
 - **Repository identity is a standard RFC 9562 UUIDv4.** `vela init` now mints
   lowercase canonical UUIDv4 text from the operating system random source, and
   every protocol reader, authority boundary, schema, conformance reader, and
