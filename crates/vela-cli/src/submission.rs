@@ -653,7 +653,7 @@ mod tests {
     fn repository() -> RepositoryV4 {
         RepositoryV4 {
             schema: REPOSITORY_SCHEMA_V4.into(),
-            repository_id: "vrepo_0123456789abcdef".into(),
+            repository_id: "vrepo_0123456789abcdef0123456789abcdef".into(),
             profile_root: root('a'),
             origin_id: "vro_0123456789abcdef".into(),
             origin_root: root('b'),

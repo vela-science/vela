@@ -198,9 +198,9 @@ pub fn nullable_git_object_id(_: &mut SchemaGenerator) -> Schema {
     json_schema!({ "type": ["string", "null"], "pattern": GIT_OBJECT_ID_PATTERN })
 }
 
-/// `vrepo_` and 16 hex digits.
+/// `vrepo_` and 32 hex digits.
 pub fn repository_id(_: &mut SchemaGenerator) -> Schema {
-    json_schema!({ "type": "string", "pattern": "^vrepo_[0-9a-f]{16}$" })
+    json_schema!({ "type": "string", "pattern": "^vrepo_[0-9a-f]{32}$" })
 }
 
 /// The review lane's action, or null when no Decision is waiting.

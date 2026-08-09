@@ -288,8 +288,8 @@ fn verify_object_refs(field: &str, references: &[RepositoryObjectRefV1]) -> Resu
 }
 
 fn validate_repository_id(value: &str) -> Result<(), String> {
-    if !crate::shape::is_prefixed_lower_hex(value, "vrepo_", 16) {
-        return Err("profile.repository_id must be vrepo_<16 lowercase hex>".into());
+    if !crate::shape::is_prefixed_lower_hex(value, "vrepo_", crate::shape::REPOSITORY_ID_HEX_LEN) {
+        return Err("profile.repository_id must be vrepo_<32 lowercase hex>".into());
     }
     Ok(())
 }
@@ -400,7 +400,7 @@ mod tests {
     fn fixture() -> RepositoryV4 {
         RepositoryV4 {
             schema: REPOSITORY_SCHEMA_V4.into(),
-            repository_id: "vrepo_0123456789abcdef".into(),
+            repository_id: "vrepo_0123456789abcdef0123456789abcdef".into(),
             profile_root: root('a'),
             origin_id: "vro_0123456789abcdef".into(),
             origin_root: root('b'),
@@ -441,7 +441,7 @@ mod tests {
     fn current_profile_is_native_closed_metadata() {
         let current = RepositoryProfileV1 {
             schema: REPOSITORY_PROFILE_SCHEMA_V1.into(),
-            repository_id: "vrepo_0123456789abcdef".into(),
+            repository_id: "vrepo_0123456789abcdef0123456789abcdef".into(),
             name: "Example".into(),
             summary: "A bounded example repository.".into(),
             scope: RepositoryProfileScopeV1 {
@@ -461,7 +461,7 @@ mod tests {
         assert_eq!(parsed, current);
         assert_eq!(
             current.profile_root().unwrap(),
-            "sha256:24c698f74b7eb1c438a01968c2b21c3c165d1483a1d055f2d0a583dc2d3266be"
+            "sha256:b85e57f820a78e509b1577faff333862b9983d340a3a28132fc24856a848157e"
         );
     }
 
@@ -469,7 +469,7 @@ mod tests {
     fn current_profile_rejects_unknown_duplicate_and_oversized_toml() {
         let valid = r#"
 schema = "vela.repository-profile.v1"
-repository_id = "vrepo_0123456789abcdef"
+repository_id = "vrepo_0123456789abcdef0123456789abcdef"
 name = "Example"
 summary = "A bounded example repository."
 maintainers = []

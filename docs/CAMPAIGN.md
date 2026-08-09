@@ -33,7 +33,7 @@ problem pages, candidate profiles, source adapters, or case dossiers.
 ## Boundaries
 
 - Scientific campaigns, Target packets, proofs, computations, and local
-  Decisions belong to their source-owning Frontier repositories.
+  Decisions belong to their source-owning repositories.
 - Vela Web owns read-only projections and presentation.
 - Vela core owns protocol semantics, the CLI, schemas, conformance, and replay.
 - Verification remains evidence. Only an authorized Decision changes Standing.

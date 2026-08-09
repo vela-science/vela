@@ -316,7 +316,7 @@
     "repository": {
       "properties": {
         "id": {
-          "pattern": "^vrepo_[0-9a-f]{16}$",
+          "pattern": "^vrepo_[0-9a-f]{32}$",
           "type": "string"
         },
         "name": {

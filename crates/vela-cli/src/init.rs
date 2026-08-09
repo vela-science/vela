@@ -172,7 +172,7 @@ fn initialize_in_place(path: &Path, options: &InitOptions<'_>) -> Result<Value, 
         })?;
     let repository_id = format!(
         "vrepo_{}",
-        &hex::encode(Sha256::digest(identity_bytes))[..16]
+        &hex::encode(Sha256::digest(identity_bytes))[..vela_protocol::REPOSITORY_ID_HEX_LEN]
     );
     let profile = RepositoryProfileV1 {
         schema: REPOSITORY_PROFILE_SCHEMA_V1.into(),
@@ -384,7 +384,7 @@ mod tests {
         let id = repository_id(&payload);
 
         let suffix = id.strip_prefix("vrepo_").expect("vrepo_ prefix");
-        assert_eq!(suffix.len(), 16);
+        assert_eq!(suffix.len(), vela_protocol::REPOSITORY_ID_HEX_LEN);
         assert!(suffix.bytes().all(vela_protocol::is_lower_hex));
 
         let profile = vela_protocol::repository::RepositoryProfileV1::from_toml_str(

@@ -124,7 +124,7 @@ or Standing and are never required for Vela replay.
 Mathematics is the first complete domain proving ground, not a second Kernel.
 Lean and other proof assistants retain proof checking, native package managers
 retain dependency resolution, source communities retain their identifiers and
-review processes, and each Frontier retains bounded authority. A future Vela
+review processes, and each repository retains bounded authority. A future Vela
 Math profile must earn extraction through two maintained consumers and deleted
 duplication before it becomes a shared package.
 

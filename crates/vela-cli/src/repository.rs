@@ -272,7 +272,11 @@ pub(crate) fn cmd_status(repository_path: &Path, json_out: bool) {
         if json_out {
             crate::cli::print_json(&payload);
         } else {
-            println!("vela status · {}", payload.repository.name);
+            println!("{}", payload.repository.name);
+            if let Some(remote) = human_remote(&repository_path) {
+                println!("{remote}");
+            }
+            println!();
             println!("  replay    not initialized");
             println!("  strict    blocked · repository authority uninitialized");
             println!("  next      {}", payload.actions.work.command());
@@ -391,10 +395,26 @@ pub(crate) fn cmd_status(repository_path: &Path, json_out: bool) {
     if json_out {
         crate::cli::print_json(&payload);
     } else {
-        println!("vela status · {}", payload.repository.name);
+        /* Human identity first, machine identity underneath.
+
+        `repository_id` is what the protocol names a repository and what the
+        trust store keys on, and it is the wrong thing to lead with: nobody
+        says "open vrepo_8348fae157f9c447", they say `vela-science/math`. This
+        is the same split Git already draws between `main` and the commit it
+        points at. The id has not moved and is not less important; it is one
+        line down, where an identity, trust or debugging question finds it. */
+        println!("{}", payload.repository.name);
+        if let Some(remote) = human_remote(&repository_path) {
+            println!("{remote}");
+        }
+        println!();
         println!("  repository {}", payload.repository.id);
         println!(
-            "  commit    {}",
+            "  state      {}",
+            payload.roots.repository.as_deref().unwrap_or("unavailable")
+        );
+        println!(
+            "  commit     {}",
             payload.git.commit.as_deref().unwrap_or("unavailable")
         );
         println!("  replay    matched · signatures, roots, canonical bytes");
@@ -2540,6 +2560,33 @@ fn root_bytes(bytes: &[u8]) -> String {
     format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
 }
 
+/// The origin remote as a person refers to it: `vela-science/math`.
+///
+/// A locator, deliberately — `docs/CONTINUITY.md` §2 is explicit that a URL
+/// says where to fetch bytes and never whose bytes they are. It leads the
+/// status surface because it is how a reader navigates, not because it
+/// identifies anything; a repository reached through a mirror prints that
+/// mirror and is the same repository, which is the point being made.
+///
+/// Returns `None` rather than a placeholder when there is no origin: a
+/// repository read out of a bundle or a bare path has no locator to show, and
+/// an empty line is a truer answer than an invented one.
+fn human_remote(repository: &Path) -> Option<String> {
+    let remote = git_text(repository, &["remote", "get-url", "origin"]).ok()?;
+    let remote = remote.trim();
+    if remote.is_empty() {
+        return None;
+    }
+    let trimmed = remote
+        .strip_prefix("https://")
+        .or_else(|| remote.strip_prefix("http://"))
+        .or_else(|| remote.strip_prefix("ssh://git@"))
+        .or_else(|| remote.strip_prefix("git@"))
+        .unwrap_or(remote)
+        .replacen(':', "/", 1);
+    Some(trimmed.strip_suffix(".git").unwrap_or(&trimmed).to_string())
+}
+
 fn git_text(repository: &Path, args: &[&str]) -> Result<String, String> {
     vela_edge::git::text(repository, args)
 }
@@ -2639,6 +2686,54 @@ mod tests {
     };
 
     use super::*;
+
+    /* The four spellings a forge actually hands out, plus the case that has no
+    answer. `human_remote` leads the status surface, so a remote it mangles
+    is the first line a reader sees. */
+    #[test]
+    fn origin_renders_as_a_person_refers_to_it() {
+        let repository = tempfile::tempdir().expect("staging");
+        let path = repository.path();
+        let git = |args: &[&str]| {
+            std::process::Command::new("git")
+                .args(args)
+                .current_dir(path)
+                .output()
+                .expect("run git");
+        };
+        git(&["init", "--quiet", "."]);
+        assert_eq!(human_remote(path), None, "no origin has no locator to show");
+
+        for spelling in [
+            "https://github.com/vela-science/math.git",
+            "https://github.com/vela-science/math",
+            "git@github.com:vela-science/math.git",
+            "ssh://git@github.com/vela-science/math.git",
+        ] {
+            git(&["remote", "remove", "origin"]);
+            git(&["remote", "add", "origin", spelling]);
+            assert_eq!(
+                human_remote(path).as_deref(),
+                Some("github.com/vela-science/math"),
+                "{spelling}"
+            );
+        }
+
+        /* A mirror prints as itself. The locator is where the bytes were
+        fetched from and never whose they are, which is the whole reason it
+        is safe to lead with. */
+        git(&["remote", "remove", "origin"]);
+        git(&[
+            "remote",
+            "add",
+            "origin",
+            "https://codeberg.org/vela-science/math.git",
+        ]);
+        assert_eq!(
+            human_remote(path).as_deref(),
+            Some("codeberg.org/vela-science/math")
+        );
+    }
 
     #[test]
     fn current_repository_rejects_retired_profile_paths() {
@@ -3085,7 +3180,7 @@ mod tests {
     fn repository_fixture() -> RepositoryV4 {
         RepositoryV4 {
             schema: vela_protocol::repository::REPOSITORY_SCHEMA_V4.into(),
-            repository_id: "vrepo_0123456789abcdef".into(),
+            repository_id: "vrepo_0123456789abcdef0123456789abcdef".into(),
             profile_root: root('1'),
             origin_id: "vro_0123456789abcdef".into(),
             origin_root: root('2'),

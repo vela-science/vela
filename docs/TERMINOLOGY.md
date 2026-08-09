@@ -165,7 +165,7 @@ The Event kinds moved with the words. `finding.asserted`, `finding.noted`,
 the id of every Event that carried an old kind — which is why the repositories are
 re-issued from a fresh genesis rather than patched. `EventKind::Other`
 round-trips any unrecognized string, so a repository from an older era still
-parses; it simply is not a current Frontier.
+parses; it simply is not a current Repository.
 
 ## Research and evaluation properties
 
@@ -192,7 +192,7 @@ init status next start submit show why review replay reproduce log
 
 | Command | Meaning |
 | --- | --- |
-| `status` | Summarize Frontier identity, integrity, blockers, counts, authority readiness, and one next action |
+| `status` | Summarize Repository identity, integrity, blockers, counts, authority readiness, and one next action |
 | `next` | Return ranked Target Offers |
 | `start` | Print a write-free briefing for one exact current Target |
 | `submit` | Validate and retain a Submission, then create its Proposal |
@@ -232,7 +232,7 @@ Claim Record root. It never edits the prior Submission, Event, Claim Record, or
 Decision.
 
 An acceptance must name the exact Proposal, authorized human principal,
-Frontier repository authority, Event, and before/after state roots.
+Repository authority, Event, and before/after state roots.
 
 ## Lifecycle vocabularies
 
@@ -301,7 +301,7 @@ that answers.
 `vela claims` reports the standing axis alone. It reads the repository manifest
 and opens no Proposal, so it has no Proposal status to report — the token the
 manifest binds each claim list is a Proposal-axis word, but it records list
-membership, and on a compacted Frontier the Proposal it refers to is no longer
+membership, and on a compacted Repository the Proposal it refers to is no longer
 retained. Restating it as a Proposal's status would assert a Decision that is
 not there.
 
@@ -330,11 +330,11 @@ contradicts depends replicates supports synthesized_from
 
 **This one does match the repositories, and it is the only lifecycle
 vocabulary on this page that does.** All 1,284 relations retained across the
-four Frontiers fall in these two sets, and the split is visible in the records
+four repositories fall in these two sets, and the split is visible in the records
 themselves: every `supersedes` sits on a revision-2 Claim submitted through the
 correction path, and every descriptive relation sits on a revision-1 Claim
 imported from a corpus. The descriptive set is enumerated from those records
-rather than declared ahead of them, so it is open — a Frontier may write a kind
+rather than declared ahead of them, so it is open — a repository may write a kind
 it does not name, and that kind gains no authority by being written.
 
 One near-miss spelling is recognised on input and resolves to a canonical name:
@@ -410,7 +410,7 @@ Lower-power roles never receive higher-power verbs.
 
 Use:
 
-- “accepted within this Frontier”;
+- “accepted within this Repository”;
 - “Verification passed for the declared computational property”;
 - “Claim fidelity has not been assessed”;
 - “Proposal rejected; evidence retained”;

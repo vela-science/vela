@@ -31,13 +31,30 @@ pub fn is_lower_hex(byte: u8) -> bool {
     byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)
 }
 
+/// The hexadecimal width of a `vrepo_` repository identifier.
+///
+/// 128 bits. This was 64, truncated from the same SHA-256 digest for no reason
+/// beyond brevity, and widening it costs nothing that is worth the saving: the
+/// identifier is a routing handle, not a security root — `docs/ROOTS.md` is
+/// explicit that the cryptographic roots do the security-critical work — but it
+/// is also the durable name of an authority, expected to distinguish
+/// independently created repositories for as long as any of them exist. 64 bits
+/// is a birthday collision at ~5 billion repositories; 128 is not a number
+/// anyone has to think about again.
+///
+/// Named rather than spelled `16` at six call sites, which is what it was.
+/// Pre-1.0, so the narrow form is simply invalid rather than accepted beside
+/// this one: every identifier that carried it was minted by a genesis that has
+/// been replaced.
+pub const REPOSITORY_ID_HEX_LEN: usize = 32;
+
 /// Whether `value` is `prefix` followed by exactly `hex_len` lowercase
 /// hexadecimal characters — the shape of every Vela identifier.
 ///
-/// `vrepo_` and `vro_` take 16, `vcl_` takes 64, and `sha256:` takes 64 through
-/// [`is_full_sha256_root`]. Six implementations spelled the strip-and-measure
-/// out in full, three of them for `vrepo_` alone, across two crates and three
-/// different error sentences.
+/// `vrepo_` takes [`REPOSITORY_ID_HEX_LEN`], `vro_` takes 16, `vcl_` takes 64,
+/// and `sha256:` takes 64 through [`is_full_sha256_root`]. Six implementations
+/// spelled the strip-and-measure out in full, three of them for `vrepo_` alone,
+/// across two crates and three different error sentences.
 ///
 /// The two `require_prefixed_hex` helpers are deliberately not callers. They
 /// distinguish a missing prefix from a malformed body and say so in two

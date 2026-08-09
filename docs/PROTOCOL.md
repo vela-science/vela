@@ -56,7 +56,7 @@ shows Proposals, Verification Records, and Decisions; it is not another
 protocol object. A native run is external execution activity, and Vela
 retains no object of its own for it.
 
-The canonical closed-loop Frontier is:
+The canonical closed loop is:
 
 ```text
 Standing
@@ -76,7 +76,7 @@ Standing
 The loop is a product and operating model, not a new authority path. Targets,
 runs, indexes, search, graphs, and Web projections remain non-authoritative.
 Only the Decision admits an Event; replay deterministically derives Standing;
-the Frontier's domain adapter may then derive the next Target Index.
+the repository's domain adapter may then derive the next Target Index.
 
 Canonical user verbs follow the CLI: `init`, `next`, `start`, `submit`,
 `verification record|import`, `review show|accept|reject|withdraw`, `replay`,
@@ -87,7 +87,7 @@ must not invent substitute protocol nouns or imply authority from a grouping.
 
 ## 3. Current repository origin
 
-A current Frontier contains:
+A current Repository contains:
 
 ```text
 vela.toml
@@ -119,7 +119,7 @@ Proposal directory, or materialized Project snapshot.
 
 `vela.repository-origin.v1` binds:
 
-- Frontier identity and Profile v2 root;
+- Repository identity and Profile v2 root;
 - a content-derived `vro_` identity and full origin root;
 - generation and exact initial object-set root;
 - `kind = genesis | compaction`;
@@ -218,11 +218,11 @@ So it binds:
 - an optional rooted `execution_binding` naming the packet, profile, verifier
   capsule, and result contract the work ran against.
 
-A Submission binds no Frontier and no Target. It has carried neither since the
+A Submission binds no Repository and no Target. It has carried neither since the
 object was introduced, and both are absent from the live Submission bytes in
 all four controlled repositories. This is what portability costs: the same
 bytes are replayable into any repository by anyone holding them, and the
-Frontier association is made by the receiving repository at `vela submit`
+association is made by the receiving repository at `vela submit`
 time, not asserted by the producer. An adapter must not add `frontier` or
 `target` keys; the schema is closed and rejects them. The nearest thing to a
 Target reference the object carries is `execution_binding.packet_root`, which
@@ -247,10 +247,10 @@ Submission identity is over the exact closed canonical bytes.
 - `started_at` and `completed_at`; and
 - verifier signature.
 
-Like a Submission, a Verification Record binds no Frontier. Its subject names
-objects, and the Frontier is whichever repository holds those objects. Import
+Like a Submission, a Verification Record binds no Repository. Its subject names
+objects, and the authority is whichever repository holds those objects. Import
 resolves every reference against exact repository membership, which is what
-confines the record to one Frontier in practice.
+confines the record to one repository in practice.
 
 Artifact references use the repository object's full lowercase 64-hex content
 hash. Import resolves every non-empty reference against exact repository
@@ -353,7 +353,7 @@ vela.authority-trust-anchor.v1
 ```
 
 Repository bytes may not choose their own trust anchor. Pinning changes no
-Frontier byte and grants no authority.
+repository byte and grants no authority.
 
 ### 4.2 Principal and action
 
@@ -417,7 +417,7 @@ after signing failure and changes no scientific Standing.
 
 - repository origin and root;
 - Target Index root;
-- Target objective and Frontier scope;
+- Target objective and repository scope;
 - exact packet and packet root;
 - source Git identity;
 - declared verifier profile; and
@@ -475,7 +475,7 @@ Any drift or failure before the commit marker produces no canonical mutation.
 revalidates the selected Target and packet. A stale or invalid index grants no
 Offer.
 
-The Frontier's domain adapter writes the final tracked index directly. Vela
+The repository's domain adapter writes the final tracked index directly. Vela
 does not maintain a candidate, seal, apply, inspect, or repair lifecycle for
 this disposable projection.
 
@@ -532,8 +532,8 @@ contradicts depends replicates supports synthesized_from
 
 These are retained context: where a Claim came from, what it agrees or
 disagrees with, what it rests on. No Decision reads them and none of them moves
-Standing. The set is enumerated from what the maintained Frontiers actually
-hold rather than from intent, and it is open. A Frontier may record a kind
+Standing. The set is enumerated from what the maintained repositories actually
+hold rather than from intent, and it is open. A repository may record a kind
 this list does not name, and doing so grants that kind no authority. A derived
 reader may give a descriptive relation meaning of its own, such as a dependency
 edge or a support route, but that meaning is the reader's and is never Standing.
@@ -592,7 +592,7 @@ The public write boundaries are:
 Adapters disclose source identity, versions, exact roots, transformations,
 losses, and nonclaims. They never emit Vela authority Events or infer Standing.
 
-Domain semantics remain Frontier-local. Cross-domain bridges bind exact source
+Domain semantics remain repository-local. Cross-domain bridges bind exact source
 and target roots, assumptions, mappings, consequence tier, version, and
 correction behavior.
 
