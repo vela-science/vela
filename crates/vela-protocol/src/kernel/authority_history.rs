@@ -184,7 +184,6 @@ pub struct AuthorityHistoryInput<'a> {
     pub initial_actor_registry_root: &'a str,
     /// Compacted origins retained initial keyset and policy snapshots as
     /// canonical evidence rather than sequence-one transition deltas.
-    pub initial_snapshots_preexisting: bool,
     pub authority_keysets: &'a [AuthorityKeysetV1],
     pub policy_bundles: &'a [PolicyBundleV1],
     pub authority_events: &'a [AuthorityEventV1],
@@ -312,7 +311,6 @@ pub fn verify_authority_history(
                 initialization_event,
                 &initialization,
                 &initial_event_log_root,
-                input.initial_snapshots_preexisting,
             )?;
             covered_era_one.insert(initialization_event.id.clone());
             cumulative_era_one.push(*initialization_event);
@@ -745,7 +743,6 @@ fn verify_first_initialization_record(
     initialization_event: &AuthorityEventV1,
     initialization: &AuthorityInitializationV1,
     initial_event_log_root: &str,
-    initial_snapshots_preexisting: bool,
 ) -> Result<(), String> {
     let record = &verified.record;
     let event_root = initialization_event.root()?;
@@ -782,17 +779,9 @@ fn verify_first_initialization_record(
     if event_matches != 1 {
         return Err("authority record 1 lacks one exact fresh initialization event delta".into());
     }
-    if initial_snapshots_preexisting {
-        if record.content.authority_keyset_root != initialization.new_authority_keyset_root
-            || record.content.authorization.policy_bundle_root
-                != initialization.new_policy_bundle_root
-        {
-            return Err(
-                "current repository origin does not bind its retained authority snapshots".into(),
-            );
-        }
-        return Ok(());
-    }
+    /* A compaction origin carried its predecessor's keyset and policy
+    snapshots forward, so record 1 bound them rather than installing them.
+    Genesis is the only origin now: record 1 always installs both. */
     verify_initial_snapshot_delta(
         verified,
         &initialization.new_authority_keyset_root,
@@ -938,7 +927,6 @@ mod tests {
             repository_id: "vrepo_fixture",
             initial_event_log_root: &initial_event_root,
             initial_actor_registry_root: &initial_actor_root,
-            initial_snapshots_preexisting: true,
             authority_keysets: &[],
             policy_bundles: &[],
             authority_events: &[],

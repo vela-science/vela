@@ -64,7 +64,6 @@ pub(crate) struct AuthorityHistorySnapshot {
     pub(crate) repository_id: String,
     pub(crate) initial_event_log_root: String,
     pub(crate) initial_actor_registry_root: String,
-    pub(crate) initial_snapshots_preexisting: bool,
     pub(crate) authority_keyset: AuthorityKeysetV1,
     pub(crate) policy_bundle: PolicyBundleV1,
     pub(crate) retained_authority_keysets: Vec<AuthorityKeysetV1>,
@@ -289,7 +288,6 @@ where
         repository_id: &request.history.repository_id,
         initial_event_log_root: &request.history.initial_event_log_root,
         initial_actor_registry_root: &request.history.initial_actor_registry_root,
-        initial_snapshots_preexisting: request.history.initial_snapshots_preexisting,
         authority_keysets: &request.history.retained_authority_keysets,
         policy_bundles: &request.history.retained_policy_bundles,
         authority_events: &request.history.authority_events,
@@ -525,7 +523,6 @@ where
         repository_id: &request.history.repository_id,
         initial_event_log_root: &request.history.initial_event_log_root,
         initial_actor_registry_root: &request.history.initial_actor_registry_root,
-        initial_snapshots_preexisting: request.history.initial_snapshots_preexisting,
         authority_keysets: &candidate_keysets,
         policy_bundles: &candidate_policies,
         authority_events: &candidate_events,
@@ -2483,7 +2480,6 @@ mod tests {
                 repository_id: REPOSITORY_ID.into(),
                 initial_event_log_root,
                 initial_actor_registry_root,
-                initial_snapshots_preexisting: false,
                 authority_keyset: keyset.clone(),
                 policy_bundle: policy_bundle.clone(),
                 retained_authority_keysets: vec![keyset],
@@ -2561,7 +2557,6 @@ mod tests {
             repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &fixture.request.history.retained_authority_keysets,
             policy_bundles: &fixture.request.history.retained_policy_bundles,
             authority_events: &authority_events,
@@ -2577,7 +2572,6 @@ mod tests {
             repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &fixture.request.history.retained_authority_keysets,
             policy_bundles: &fixture.request.history.retained_policy_bundles,
             authority_events: &fixture.request.history.authority_events,
@@ -2614,13 +2608,12 @@ mod tests {
         let mut fixture = fixture();
         let archived_event_root = root('a');
         let archived_actor_root = root('b');
-        let reason = "Adopt the compacted current repository origin.";
+        let reason = "Adopt the current repository origin roots.";
         let keyset_root = fixture.request.history.authority_keyset.root().unwrap();
         let policy_root = fixture.request.history.policy_bundle.root().unwrap();
 
         fixture.request.history.initial_event_log_root = archived_event_root.clone();
         fixture.request.history.initial_actor_registry_root = archived_actor_root.clone();
-        fixture.request.history.initial_snapshots_preexisting = true;
         fixture.request.history.retained_authority_keysets.clear();
         fixture.request.history.retained_policy_bundles.clear();
         fixture.request.history.authority_events.clear();
@@ -2679,7 +2672,6 @@ mod tests {
             repository_id: &fixture.request.history.repository_id,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &fixture.request.history.retained_authority_keysets,
             policy_bundles: &fixture.request.history.retained_policy_bundles,
             authority_events: &fixture.request.history.authority_events,
@@ -2688,9 +2680,19 @@ mod tests {
         .unwrap();
         assert_eq!(history.final_event_log_root, archived_event_root);
 
-        fs::remove_dir_all(fixture.temporary.path().join(".vela/events")).unwrap();
-        fs::remove_dir_all(fixture.temporary.path().join(".vela/authority/events")).unwrap();
-        fs::remove_dir_all(fixture.temporary.path().join(".vela/authority/records")).unwrap();
+        /* An empty authority store on disk as well as in the request: with
+        compaction gone there is no origin that carries keyset and policy
+        snapshots forward, so record 1 installs both and its object delta has
+        to contain them. */
+        for directory in [
+            ".vela/events",
+            ".vela/authority/events",
+            ".vela/authority/records",
+            ".vela/authority/keysets",
+            ".vela/authority/policies",
+        ] {
+            fs::remove_dir_all(fixture.temporary.path().join(directory)).unwrap();
+        }
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
         let result = execute_authority_transaction(
@@ -3220,7 +3222,6 @@ mod tests {
             repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &keysets,
             policy_bundles: &fixture.request.history.retained_policy_bundles,
             authority_events: &events,
@@ -3319,7 +3320,6 @@ mod tests {
             repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &keysets,
             policy_bundles: &fixture.request.history.retained_policy_bundles,
             authority_events: &final_events,
@@ -3463,7 +3463,6 @@ mod tests {
             repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &fixture.request.history.retained_authority_keysets,
             policy_bundles: &policies,
             authority_events: &events,
@@ -3600,7 +3599,6 @@ mod tests {
             repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &keysets,
             policy_bundles: &fixture.request.history.retained_policy_bundles,
             authority_events: &[
@@ -3623,7 +3621,6 @@ mod tests {
             repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &keysets,
             policy_bundles: &fixture.request.history.retained_policy_bundles,
             authority_events: &[
@@ -4406,7 +4403,6 @@ mod tests {
             repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &fixture.request.history.retained_authority_keysets,
             policy_bundles: &fixture.request.history.retained_policy_bundles,
             authority_events: &fixture.request.history.authority_events,

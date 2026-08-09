@@ -491,7 +491,7 @@ pub(crate) fn initialize_repository_authority(
         schema: REPOSITORY_SCHEMA_V4.into(),
         repository_id: profile.repository_id.clone(),
         profile_root: profile_root.clone(),
-        origin_id: origin.origin_id.clone(),
+        origin_id: origin.id()?,
         origin_root: origin_root.clone(),
         accepted_claims: Vec::new(),
         pending_claims: Vec::new(),
@@ -550,7 +550,6 @@ pub(crate) fn initialize_repository_authority(
                 repository_id: profile.repository_id.clone(),
                 initial_event_log_root: empty_repository_event_log_root(),
                 initial_actor_registry_root: empty_repository_actor_registry_root(),
-                initial_snapshots_preexisting: false,
                 authority_keyset,
                 policy_bundle,
                 retained_authority_keysets: Vec::new(),
@@ -719,7 +718,7 @@ pub(crate) fn initialize_repository_authority(
         "principal_id": principal.principal_id,
         "repository_key_id": identity.key_id,
         "repository_key_fingerprint": identity.fingerprint,
-        "origin_id": origin.origin_id,
+        "origin_id": origin.id()?,
         "origin_root": origin_root,
         "repository_root": repository_root,
         "git_commit": git_commit,
@@ -753,27 +752,17 @@ pub(crate) fn load_repository_authority(
 ) -> Result<LoadedRepositoryAuthority, String> {
     if repository.repository_id != origin.repository_id
         || repository.profile_root != origin.profile_root
-        || repository.origin_id != origin.origin_id
+        || repository.origin_id != origin.id()?
         || repository.origin_root != origin.canonical_root()?
     {
         return Err(
             "current repository authority loader received a mismatched repository origin".into(),
         );
     }
-    let genesis_event_log_root = empty_repository_event_log_root();
-    let genesis_actor_registry_root = empty_repository_actor_registry_root();
-    let initial_event_log_root = origin
-        .predecessor
-        .as_ref()
-        .map_or(genesis_event_log_root.as_str(), |predecessor| {
-            predecessor.archived_event_log_root.as_str()
-        });
-    let initial_actor_registry_root = origin
-        .predecessor
-        .as_ref()
-        .map_or(genesis_actor_registry_root.as_str(), |predecessor| {
-            predecessor.archived_actor_registry_root.as_str()
-        });
+    /* Genesis is the only origin, so these are the empty roots. A compaction
+    origin used to substitute its predecessor's archived roots here. */
+    let initial_event_log_root = empty_repository_event_log_root();
+    let initial_actor_registry_root = empty_repository_actor_registry_root();
     let authority_root = repository_path.join(".vela/authority");
     let retained_authority_keysets =
         read_authority_json_directory::<AuthorityKeysetV1>(&authority_root.join("keysets"))?;
@@ -794,9 +783,8 @@ pub(crate) fn load_repository_authority(
         .collect::<Vec<_>>();
     let verification = verify_authority_history(AuthorityHistoryInput {
         repository_id: &repository.repository_id,
-        initial_event_log_root,
-        initial_actor_registry_root,
-        initial_snapshots_preexisting: origin.predecessor.is_some(),
+        initial_event_log_root: &initial_event_log_root,
+        initial_actor_registry_root: &initial_actor_registry_root,
         authority_keysets: &retained_authority_keysets,
         policy_bundles: &retained_policy_bundles,
         authority_events: &authority_events,
@@ -831,7 +819,6 @@ pub(crate) fn load_repository_authority(
             repository_id: repository.repository_id.clone(),
             initial_event_log_root: initial_event_log_root.to_string(),
             initial_actor_registry_root: initial_actor_registry_root.to_string(),
-            initial_snapshots_preexisting: origin.predecessor.is_some(),
             authority_keyset,
             policy_bundle,
             retained_authority_keysets,

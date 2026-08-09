@@ -81,7 +81,7 @@ pub(crate) fn cmd_replay_repository(repository_path: &Path, json_out: bool) {
         "repository_id": repository.repository_id,
         "git_commit": commit,
         "git_tree": tree,
-        "origin_id": origin.origin_id,
+        "origin_id": origin.id().unwrap_or_else(|error| crate::cli::fail_return(&error)),
         "origin_root": origin.canonical_root()
             .unwrap_or_else(|error| crate::cli::fail_return(&error)),
         "repository_root": repository.canonical_root().unwrap_or_else(|error| crate::cli::fail_return(&error)),
@@ -1444,7 +1444,7 @@ pub(crate) fn load_repository_at(
         || repository.repository_id != origin.repository_id
         || repository.profile_root != profile_root
         || repository.profile_root != origin.profile_root
-        || repository.origin_id != origin.origin_id
+        || repository.origin_id != origin.id()?
         || repository.origin_root != origin_root
     {
         return Err(
@@ -1840,7 +1840,7 @@ pub(crate) fn initial_repository(
     let repository = RepositoryV4::parse(&repository_bytes)?;
     if repository.repository_id != origin.repository_id
         || repository.profile_root != origin.profile_root
-        || repository.origin_id != origin.origin_id
+        || repository.origin_id != origin.id()?
         || repository.origin_root != origin.canonical_root()?
     {
         return Err("current origin commit does not bind its exact repository manifest".into());
@@ -1917,20 +1917,10 @@ fn verify_repository_authority(
     repository: &RepositoryV4,
     origin: &RepositoryOriginV1,
 ) -> Result<(), String> {
-    let genesis_event_log_root = format!("sha256:{}", vela_protocol::events::event_log_hash(&[]));
-    let genesis_actor_registry_root = format!("sha256:{}", hex::encode(Sha256::digest([])));
-    let initial_event_log_root = origin
-        .predecessor
-        .as_ref()
-        .map_or(genesis_event_log_root.as_str(), |predecessor| {
-            predecessor.archived_event_log_root.as_str()
-        });
-    let initial_actor_registry_root = origin
-        .predecessor
-        .as_ref()
-        .map_or(genesis_actor_registry_root.as_str(), |predecessor| {
-            predecessor.archived_actor_registry_root.as_str()
-        });
+    /* Genesis is the only origin, so the initial roots are the empty ones.
+    These read a predecessor's archived roots when one existed. */
+    let initial_event_log_root = format!("sha256:{}", vela_protocol::events::event_log_hash(&[]));
+    let initial_actor_registry_root = format!("sha256:{}", hex::encode(Sha256::digest([])));
     let loaded = crate::cli::load_repository_authority(root, repository, origin)?;
     validate_current_proposal_standing(root, repository, &loaded.history.authority_events)?;
     let initialization_event_id = loaded
@@ -1986,7 +1976,7 @@ fn verify_repository_authority(
         return Err("current authority record does not bind its exact event and origin".into());
     }
     let expected_after = vela_protocol::authority_history::authority_event_log_root(
-        initial_event_log_root,
+        &initial_event_log_root,
         &[event],
     )?;
     if first.content.after_event_log_root != expected_after {

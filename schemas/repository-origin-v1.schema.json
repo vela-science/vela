@@ -9,94 +9,34 @@
       "type": "integer"
     },
     "initial_object_set_root": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
       "type": "string"
-    },
-    "kind": {
-      "enum": [
-        "genesis",
-        "compaction"
-      ],
-      "type": "string"
-    },
-    "origin_id": {
-      "type": "string"
-    },
-    "predecessor": {
-      "additionalProperties": false,
-      "properties": {
-        "archive_sha256": {
-          "type": "string"
-        },
-        "archived_actor_registry_root": {
-          "type": "string"
-        },
-        "archived_event_log_root": {
-          "type": "string"
-        },
-        "authority_head_root": {
-          "type": "string"
-        },
-        "commit": {
-          "type": "string"
-        },
-        "equivalence_report_root": {
-          "type": "string"
-        },
-        "object_manifest_root": {
-          "type": "string"
-        },
-        "remote": {
-          "type": "string"
-        },
-        "repository_root": {
-          "type": "string"
-        },
-        "tag": {
-          "type": "string"
-        },
-        "tree": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "remote",
-        "tag",
-        "commit",
-        "tree",
-        "repository_root",
-        "authority_head_root",
-        "archived_event_log_root",
-        "archived_actor_registry_root",
-        "archive_sha256",
-        "object_manifest_root",
-        "equivalence_report_root"
-      ],
-      "type": [
-        "object",
-        "null"
-      ]
     },
     "profile_root": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
       "type": "string"
     },
     "reason": {
+      "maxLength": 16384,
+      "minLength": 1,
+      "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
       "type": "string"
     },
     "repository_id": {
+      "pattern": "^vrepo_[0-9a-f]{32}$",
       "type": "string"
     },
     "schema": {
+      "const": "vela.repository-origin.v1",
       "type": "string"
     }
   },
   "required": [
     "schema",
-    "origin_id",
     "repository_id",
     "generation",
     "profile_root",
     "initial_object_set_root",
-    "kind",
     "reason"
   ],
   "title": "Vela Repository Origin v1",

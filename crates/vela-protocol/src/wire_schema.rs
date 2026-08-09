@@ -33,6 +33,7 @@ use serde_json::{Map, Value};
 
 use crate::execution_binding::EXECUTION_BINDING_SCHEMA;
 use crate::proposal_withdrawal_v2::PROPOSAL_WITHDRAWAL_V2_SCHEMA;
+use crate::repository_origin::REPOSITORY_ORIGIN_V1_SCHEMA;
 use crate::signer_identity::SIGNER_IDENTITY_V1_SCHEMA;
 use crate::status_v4::{REPOSITORY_HEAD_ROLE, STATUS_V4_COMMAND, STATUS_V4_SCHEMA};
 use crate::submission_v2::{
@@ -328,6 +329,11 @@ pub fn execution_binding_schema_tag(_: &mut SchemaGenerator) -> Schema {
 /// `vela.signer-identity.v1`.
 pub fn signer_identity_schema_tag(_: &mut SchemaGenerator) -> Schema {
     tag(SIGNER_IDENTITY_V1_SCHEMA)
+}
+
+/// `vela.repository-origin.v1`.
+pub fn repository_origin_schema_tag(_: &mut SchemaGenerator) -> Schema {
+    tag(REPOSITORY_ORIGIN_V1_SCHEMA)
 }
 
 /// `vela.status.v4`.
