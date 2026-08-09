@@ -8,9 +8,13 @@ domain tools, Git, package formats, workflow engines, or scientific ontologies.
 
 ### Submission
 
-`vela.submission.v1` is the producer boundary. It carries exact:
+`vela.submission.v2`, inside a DSSE envelope of payload type
+`application/vnd.vela.submission.v2+json`, is the producer boundary. The
+envelope's signature is the Submission's only signature and the envelope's
+canonical root is its only root. The payload carries exact:
 
-- producer identity and authentication;
+- producer identity and the public key the envelope signature must verify
+  under;
 - the requested change, and for anything but `add_claim` the exact target
   Claim id and full Claim root;
 - Claim assertion, type, conditions, and caveats;
@@ -30,13 +34,17 @@ or repository implementation.
 
 ### Verification Record
 
-`vela.verification-record.v1` is the verifier boundary. It carries exact:
+`vela.verification-record.v2`, inside a DSSE envelope of payload type
+`application/vnd.vela.verification-record.v2+json`, is the verifier boundary.
+The payload carries exact:
 
 - Claim, Submission, Proposal, and Artifact subjects;
 - verifier identity and independence disclosure;
 - method, implementation, environment, and execution roots;
 - scoped property and nonclaims; and
-- outcome and signature.
+- outcome.
+
+The signature is the envelope's, not a field of the record.
 
 A verifier never emits a Vela Decision or Event.
 
@@ -142,7 +150,7 @@ the mistake this section exists to prevent; it was made, in the permissive
 direction on signed objects it would have been fatal and in the strict direction
 on read surfaces it cost three production breaks in six days.
 
-### Rule A — signed preimages and rooted objects
+### Rule A — signed and rooted objects
 
 **There is no compatible change.** The set is empty, and this is not a policy
 choice.
@@ -155,7 +163,7 @@ these is a new schema version, and the two versions name two different objects
 that happen to describe the same thing.
 
 `#[serde(deny_unknown_fields)]` on these types is the enforcement, and it stays.
-A reader that accepts an unrecognized field on a signed preimage is not being
+A reader that accepts an unrecognized field on a signed payload is not being
 lenient; it is computing a root over bytes it did not fully account for, and it
 is non-conformant. Predecessor tags and source archives preserve earlier
 contracts; the current binary does not retain their writer interfaces.

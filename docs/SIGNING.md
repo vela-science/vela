@@ -22,7 +22,7 @@ Every current Frontier has:
 
 - an append-only repository-authority history;
 - a full-root Ed25519 authority keyset;
-- a retained restricted Cedar authorization bundle;
+- a retained closed authorization model;
 - exact attributed principals;
 - one DSSE authority record covering each Decision or administrative
   transaction; and
@@ -80,9 +80,9 @@ ssh-add -t 8h ~/.ssh/vela_repository_authority_ed25519
 
 Do not add `-c` unless you deliberately want OpenSSH to prompt for every
 signature. Vela does not require that prompt. The authenticated operating-
-system session establishes the human principal; the exact CLI action, Cedar
-evaluation, compare-and-swap root, reason, read set, and signed postimage
-establish the Decision.
+system session establishes the human principal; the exact CLI action,
+authorization evaluation, compare-and-swap root, reason, read set, and signed
+postimage establish the Decision.
 
 On macOS, Vela consults launchd for the standard login-session agent when a
 long-running GUI process has no inherited `SSH_AUTH_SOCK`. An explicitly set
@@ -155,8 +155,8 @@ Vela automatically selects the key only when exactly one plain Ed25519
 identity is loaded. Otherwise, select the full OpenSSH fingerprint with
 `--key SHA256:<fingerprint>`.
 
-Initialization writes the Profile, initial keyset, Cedar bundle, exact policy
-material, initialization Event, and covering sequence-one DSSE record. It
+Initialization writes the Profile, initial keyset, authorization model,
+initialization Event, and covering sequence-one DSSE record. It
 changes no scientific Standing. The creator's matching local trust anchor is
 installed in the same operation; repeating the returned root as a second local
 setup ceremony is unnecessary. If signing fails, load the key and rerun the

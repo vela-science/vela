@@ -1,6 +1,17 @@
 # ADR 0027: Pre-release current-state compaction
 
-- Status: Accepted and implemented on `main`
+- Status: Accepted and implemented on `main`; compaction machinery retired
+  2026-08-09
+- Retirement: the compaction it performed stands, and every repository it
+  produced is still readable. What is gone is the ability to perform another
+  one: `RepositoryOriginKind`, `RepositoryOriginPredecessorV1`, the
+  `compaction()` constructor and the `pre-compaction/` tag rule were deleted in
+  the pre-1.0 standards cut, leaving genesis as the only origin. No live
+  repository needed the path — `vela-science/math` is generation 1 at a fresh
+  genesis and the epoch-1 repositories are archived — and eleven permanent
+  fields on the core origin are the wrong home for a continuity claim that any
+  future migration should make as its own signed attestation. This record is
+  history for the migration it performed.
 - Release: `v0.950.0`
 - Protocol effect: the two repository-boundary readers were replaced by one
   current `vela.repository-origin.v1` contract

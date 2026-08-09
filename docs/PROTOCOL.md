@@ -120,31 +120,33 @@ Proposal directory, or materialized Project snapshot.
 `vela.repository-origin.v1` binds:
 
 - Repository identity and Profile v2 root;
-- a content-derived `vro_` identity and full origin root;
-- generation and exact initial object-set root;
-- `kind = genesis | compaction`;
-- for a genesis, no predecessor and an empty initial object set; or
-- for a compacted pre-release repository, one exact predecessor remote, tag,
-  commit, tree, repository and authority roots, archive digest, object
-  manifest root, and equivalence-report root.
+- generation, always 1, and the empty initial object-set root;
+- the reason the lineage was opened.
+
+Genesis is the only origin. A second kind, `compaction`, opened a later
+generation over a predecessor repository and carried eleven fields naming that
+predecessor's remote, tag, commit, tree, roots, archive digest, object manifest
+and equivalence report. It was written for one pre-release repair, used once,
+and is gone with the epoch it repaired: the repositories that carried it are
+archived and read by the binaries of their era. Continuity between lineages, if
+a later migration needs it, is a separately signed attestation beside the
+repository rather than a permanent field on every origin.
+
+The readable `vro_` handle is derived from the origin's full root, not stored
+in it.
 
 `vela init` creates Profile v2, the genesis origin, repository v4 manifest,
-keyset, Cedar policy, sequence-one authority history, local trust anchor, and
-initial Git commit in one recoverable transaction. If signing is unavailable,
-the exact Profile remains and the same `vela init` command resumes the
-operation. Strict repository verification remains blocked until that operation
-completes.
+keyset, authorization model, sequence-one authority history, local trust
+anchor, and initial Git commit in one recoverable transaction. If signing is
+unavailable, the exact Profile remains and the same `vela init` command resumes
+the operation. Strict repository verification remains blocked until that
+operation completes.
 
-Cedar is confined to repository-authority Decisions and rare authority
+Authorization is confined to repository-authority Decisions and rare authority
 administration. It is not an agent permission system, campaign runtime, or
-ordinary evidence-ingest gate, and Vela exposes no additional Cedar ceremony
-in the producer workflow. The current restricted profile is frozen unless a
-reproduced authority defect requires a compatible change.
-
-The four controlled repositories use compacted origins whose predecessor
-fields are immutable provenance. The migration writer and alternate repository
-readers are not part of the current binary. Historical execution requires the
-predecessor tag or archive and its pinned historical Vela release.
+ordinary evidence-ingest gate. The action vocabulary is a closed set of six and
+the role vocabulary a closed set of two; neither is configurable, and there is
+no policy language to author.
 
 ### 3.2 Claim Record
 
@@ -186,12 +188,14 @@ fail. Section 8 declares the two vocabularies `relations[].kind` draws from.
 
 ### 3.3 Submission
 
-`vela.submission.v1` is the portable producer boundary. Its complete closed
-field set is:
+`vela.submission.v2` is the portable producer boundary. It is the payload of a
+DSSE envelope under `application/vnd.vela.submission.v2+json`, and its complete
+closed field set is:
 
 ```text
 schema
-submission_id
+identity                   `vela.signer-identity.v1`: actor_id, actor_class,
+                           public_key_hex, declared_at
 claim                      assertion, type, conditions
 artifacts[]                kind, path, digest
 caveats[]
@@ -202,8 +206,13 @@ requested_change           kind, optional target { claim_id, claim_root }
 provenance                 producer, source_system, optional source_attempt,
                            optional source_run, emitted_at
 execution_binding          optional `vela.execution-binding.v1`
-authentication             algorithm, identity_binding, signature
 ```
+
+The signature is the envelope's, over exactly these payload bytes, and it must
+verify under the key `identity` declares. There is no `submission_id` field:
+the readable `vsb_` handle is the first sixteen hexadecimal digits of the
+retained envelope's root, derived by the reader. v1 stored both, and signed a
+preimage built by clearing them.
 
 So it binds:
 
@@ -235,17 +244,22 @@ Submission identity is over the exact closed canonical bytes.
 
 ### 3.4 Verification Record
 
-`vela.verification-record.v1` binds:
+`vela.verification-record.v2` is the payload of a DSSE envelope under
+`application/vnd.vela.verification-record.v2+json`. It binds:
 
-- an exact subject: Claim, Submission id and full Submission root, Proposal,
-  and the Artifact ids under scope;
+- an exact subject: Claim, the Submission and Proposal each by full root with
+  its derived handle beside it, and the Artifact ids under scope;
 - only retained content-addressed Artifacts, including `output_artifact_ids`;
-- verifier identity and independence disclosure;
+- verifier identity, as `vela.signer-identity.v1`, and independence disclosure;
 - method profile, implementation, and one `environment_root`;
 - scoped property and explicit nonclaims (`scope.does_not_establish`);
-- outcome;
-- `started_at` and `completed_at`; and
-- verifier signature.
+- outcome; and
+- `started_at` and `completed_at`.
+
+The verifier is `identity.actor_id`. v1 carried it twice — a `verifier` field
+and the identity's actor, required to be equal — and one of the two was always
+about to be the one a reader trusted. The envelope signature is the verifier's,
+and `vvr_` is derived from the retained envelope's root.
 
 Like a Submission, a Verification Record binds no Repository. Its subject names
 objects, and the authority is whichever repository holds those objects. Import
@@ -272,15 +286,18 @@ and appends no scientific Event.
 
 ```text
 schema
-proposal_id
 action                 claim.add | claim.revise | claim.withdraw
 subject                kind (always `claim`), id, root
 actor
 created_at
 reason
-producer_package       kind (always `submission_v1`), id, root, path
+producer_package       kind (always `submission_v2`), id, root, path
 caveats[]
 ```
+
+A Proposal is minted by the repository and carries no signature and no
+envelope, but it follows the same identity rule as the objects that do: `vpr_`
+is derived from its canonical root and is not a stored field.
 
 So it binds the requested transition (`action`), the exact Claim it acts on
 (`subject`), and the signed Submission package that requested it
@@ -302,7 +319,7 @@ pending_review accepted rejected withdrawn
 ```
 
 `withdrawn` is the status of a Proposal closed by a
-`vela.proposal-withdrawal.v1` rather than by a Decision. `vela review list
+`vela.proposal-withdrawal.v2` rather than by a Decision. `vela review list
 --status` accepts all four.
 
 A terminal Proposal retains the exact Decision and authority references
@@ -322,10 +339,23 @@ reproduction does not establish scientific Standing.
 Repository authority consists of:
 
 - `vela.authority-keyset.v1`;
-- `vela.policy-bundle.v1` with exact retained Cedar schema, policy, and entity
-  roots;
+- `vela.authorization-model.v1`, the closed membership model retained under
+  `.vela/authority/models/`;
 - `vela.event.v1` semantic Events; and
 - DSSE-wrapped `vela.authority-record.v1` transaction records.
+
+The model is the whole of repository authorization: one repository, sorted
+members, and for each a principal class and one of two roles. It replaced
+`vela.policy-bundle.v1`, which named a Cedar schema, policy text and entity
+snapshot by root, plus the engine, version and profile that would evaluate
+them. Everything the bundle identified existed to express what the model says
+directly, and every published Cedar decision reproduces under it —
+`crates/vela-authority/tests/authorization_profile_parity.rs` re-decides the
+seven retained Allows and seven negative boundary cases.
+
+Each authority record retains the exact `vela.authorization-request.v1` it was
+written under, so strict replay recomputes the decision under the rooted model
+rather than trusting a retained result.
 
 Authority records form a contiguous full-root chain. Each record covers:
 
@@ -407,8 +437,8 @@ review Events.
 ### 5.1 Initialize
 
 `vela init` creates the structural repository identity and binds one loaded
-OpenSSH-agent Ed25519 identity, current keyset, Cedar bundle, authenticated OS
-principal, and reason in the sequence-one authority record. It is resumable
+OpenSSH-agent Ed25519 identity, current keyset, authorization model,
+authenticated OS principal, and reason in the sequence-one authority record. It is resumable
 after signing failure and changes no scientific Standing.
 
 ### 5.2 Start
@@ -446,7 +476,7 @@ manifest and changes no Standing.
 ### 5.5 Withdraw a pending Proposal
 
 `vela review withdraw` is producer-owned queue hygiene. It appends one
-`vela.proposal-withdrawal.v1` signed by the exact key bound in the Proposal's
+`vela.proposal-withdrawal.v2` signed by the exact key bound in the Proposal's
 retained Submission and removes only that Proposal's Claim from the pending
 projection. It reads no repository-authority key, emits no Event, and leaves
 accepted Standing unchanged. A decided Proposal cannot be withdrawn, and a
@@ -485,10 +515,11 @@ Ranking and graph position never imply authority.
 
 Strict replay verifies:
 
-1. the repository origin and any exact predecessor commitment;
+1. the repository origin;
 2. the independently pinned sequence-one authority root;
 3. contiguous authority records and valid DSSE signatures;
-4. activated keyset and Cedar material;
+4. the activated keyset and authorization model, with each record's retained
+   authorization request re-decided under that model;
 5. canonical object schemas and full roots;
 6. Proposal, Submission, Verification, Withdrawal, Claim, Artifact, and Event
    relations;
@@ -584,10 +615,15 @@ and the declared frozen verifiers.
 
 The public write boundaries are:
 
-- `vela.submission.v1` for producer input;
-- `vela.verification-record.v1` for verifier observations; and
-- `vela.proposal-withdrawal.v1` for producer-owned closure of one pending
+- `vela.submission.v2` for producer input;
+- `vela.verification-record.v2` for verifier observations; and
+- `vela.proposal-withdrawal.v2` for producer-owned closure of one pending
   Proposal.
+
+All three are DSSE payloads under their own versioned payload type, carried in
+the one envelope `schemas/dsse-envelope.schema.json` publishes. A producer
+signs the exact payload bytes; a reader verifies those bytes and parses the
+same ones.
 
 Adapters disclose source identity, versions, exact roots, transformations,
 losses, and nonclaims. They never emit Vela authority Events or infer Standing.
@@ -625,17 +661,14 @@ The current binary verifies the repository-origin boundary and current state.
 It does not retain predecessor writers or parse predecessor protocol objects
 as active state.
 
-For accepted Claims, `vela why` may follow the verified compacted-origin chain
-through exact local Git objects. It reports recovered Proposal, Verification,
-Decision, and supersession context as `compacted_origin`, and distinguishes
-`verified_local`, `origin_object_set_only`, and `predecessor_unavailable`.
-This is a read-only explanation path: it never fetches from the network,
-extracts the retained archive, or treats predecessor objects as current state.
-
-Exact historical execution uses the tagged source, commit, tree, Git-object
-manifest, archive digest, canonical roots, and pinned historical binary named
-by the compacted origin. Current verification confirms those commitments
-without reissuing old signatures under new schemas.
+A pre-release compaction once opened a repository over a predecessor lineage,
+and `vela why` followed that chain through local Git objects to report where an
+accepted Claim had been decided. Both are gone: there is one authority chain
+and it starts at this repository's genesis, so a Claim stands on the live chain
+or it does not stand. The repositories that were compacted are archived, and
+their history is read by their Git tags and the binaries of their era.
 
 See [ADR 0027](adr/0027-pre-release-current-state-compaction.md) for the
-completed transition.
+transition that machinery served, and
+[the 2026-08-08 architecture memo](history/2026-08-08-ideal-ecosystem-and-architecture-memo.md)
+§6.7 for why it did not stay.

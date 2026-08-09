@@ -18,8 +18,8 @@ map       -> product
 verified frontier movement -> outcome
 ```
 
-The protocol earns its complexity by making the current state of a Frontier exact,
-current, and actionable. The map must show what is accepted, checked,
+The protocol earns its complexity by making the current state of a Repository
+exact, current, and actionable. The map must show what is accepted, checked,
 recorded, disputed, missing, and next. A transition compounds only when it
 changes that map and improves a later valid action.
 
@@ -46,16 +46,18 @@ Submission is the portable evidence boundary; Verification reports a scoped
 check; Decision is the only authority boundary; and remapping derives the
 current territory and next valid work from the new exact root.
 
-A Frontier is **action-complete only within declared bounds** when every
+A Repository is **action-complete only within declared bounds** when every
 represented unresolved item yields either a fresh, root-bound Target with an
 exact completion contract or an explicit blocker explaining why no current
 Target can be offered. This is a product and evaluation property, not a new
 protocol object. A map, Target generator, ranking, or learning policy remains
 read-only and cannot change Standing.
 
-A Frontier is one ordinary Git repository for a bounded scientific scope.
-Vela defines the portable records, replay rules, repository authority, and
-Decision boundary. Producers and readers remain replaceable.
+A Repository is one ordinary Git repository for a bounded scientific scope, and
+it is the only authority boundary. A Frontier is a derived query over the
+unresolved state inside one or more of them: it has no identifier and owns
+nothing (ADR 0039). Vela defines the portable records, replay rules, repository
+authority, and Decision boundary. Producers and readers remain replaceable.
 
 ## Scientific-state flow
 
@@ -136,7 +138,7 @@ operations:
 ```text
 reference  preserve an exact native identity
 snapshot   retain the exact bytes and environment needed for reproduction
-admit      let one named Frontier decide a bounded proposed transition
+admit      let one named Repository decide a bounded proposed transition
 ```
 
 Reference is not snapshot. Snapshot is not Verification. Verification is not
@@ -173,21 +175,21 @@ source contracts.
 
 Adapters emit immutable rooted observations. Observation identity does not
 include a Vela Web release, so later read releases can reference the same
-observation without copying or rewriting it. Frontier bindings are separate,
-release-scoped relations that state whether one Frontier object references,
+observation without copying or rewriting it. Repository bindings are separate,
+release-scoped relations that state whether one Repository object references,
 snapshots, or admits a native record. They do not alter the observation or
 transport Standing.
 
 ## Math Atlas read boundary
 
-The existing Observatory is the first-party Math Atlas. Git Frontiers remain
-canonical. `@vela/frontier-data` acquires and validates source-native
-observations, projects exact Frontier state, and loads one disposable
-PostgreSQL read model.
+The existing Observatory is the first-party Math Atlas. The Git Repositories
+remain canonical. `@vela/frontier-data` acquires and validates source-native
+observations, projects their exact state, and loads one disposable PostgreSQL
+read model.
 
 Candidate loads use bounded 1,000-row PostgreSQL recordsets inside one
 transaction. The projector checks chunk counts, table roots, release
-membership, and Frontier bindings before moving `current_release`. It does not
+membership, and Repository bindings before moving `current_release`. It does not
 issue one insert per record or store a source as a giant JSONB document.
 
 Collection reads use keyset pagination over a stable sort key and full object
@@ -233,7 +235,7 @@ carry a copy or compatibility layer.
 The former private `vela-science/vela-internal` integration repository is
 archived at its final tombstone commit. Its load-bearing checks and current
 documents moved to their owners, and its historical Git tree remains
-reachable through `pre-decomposition/2026-07-28`. The public Erdős Frontier
+reachable through `pre-decomposition/2026-07-28`. The public Erdős repository
 contains byte-exact mirrors for every historical source object that cited the
 private repository.
 
@@ -248,14 +250,14 @@ match the source tag.
 - An independent Python reader checks the portable object waist without
   creating a second package or release surface. Two clean-room emitters,
   `conformance/emitters/javascript.mjs` and `conformance/emitters/python.py`,
-  sign and write Submission and Verification objects; neither reads the vector
-  corpus. `conformance/readers/` holds `python` alone, and
+  build DSSE envelopes from PAE, base64 and Ed25519 and write Submission and
+  Verification objects; neither reads the vector corpus. `conformance/readers/` holds `python` alone, and
   `scripts/ecosystem-status.py` declares `conformance/readers/javascript`
   absent and fails if it appears.
 - Immutable Canopus `0.8.0` remains frozen for historical Runs that bind its
   exact bytes. Current Vela contains no executor or separate runner release.
-- Each Frontier verifies and reproduces its own exact state.
-- Vela Web verifies its read projection against exact Frontier sources.
+- Each Repository verifies and reproduces its own exact state.
+- Vela Web verifies its read projection against exact Repository sources.
 - Organization workflows test the compatibility matrix without becoming a
   canonical writer or synthetic ecosystem release.
 
@@ -272,7 +274,7 @@ Package and network surfaces follow a strict maturity ladder:
 | 1 | Shared immutable package | Two maintained consumers and net deletion of maintained duplication |
 | 2 | Static read-only index | Released package reuse and measured integration benefit |
 | 3 | Hosted Registry | External publishing demand and Git-release friction |
-| 4 | Federated read-only Atlas | Exact cross-Frontier correction, independent agreement, and cold-user lift |
+| 4 | Federated read-only Atlas | Exact cross-Repository correction, independent agreement, and cold-user lift |
 
 Only level 0 of this **package** ladder is active. A package carries reusable
 language or capability but confers no Standing. A package Registry distributes
@@ -300,7 +302,7 @@ copying the repository or service count prematurely:
   advisories, and operational ownership.
 
 Package bytes, index entries, generated documentation, and discovery records
-remain replaceable distribution artifacts. None is a Frontier, Decision,
+remain replaceable distribution artifacts. None is a Repository, Decision,
 Event, or source of Standing. Until level 1 is earned, there is no new package
 repository, package command surface, index, database, or service to maintain.
 
@@ -313,7 +315,7 @@ The first-party Math Atlas is the existing Observatory over the one live
 mathematics authority, `vela-science/math`, and the registered native sources.
 It read "the four declared Frontiers" until this line was corrected, which bound
 the Atlas to the four repositories ADR 0039 archived. Level 4 means a later
-federated Atlas over independently governed external Frontiers. Both are read
+federated Atlas over independently governed external Repositories. Both are read
 projections, never canonical databases or writers.
 
 ## Non-goals
@@ -326,7 +328,7 @@ The architecture does not add:
 - a mandatory model runner;
 - preemptive partitioning, graph-database, vector, or streaming infrastructure;
 - a package Registry before reusable packages exist;
-- an Atlas service before exact cross-Frontier value is measured;
+- an Atlas service before exact cross-Repository value is measured;
 - a private meta-repository that outsiders must understand;
 - or an integration repository without an installable distribution.
 
@@ -347,6 +349,6 @@ model activity. The useful performance functions remain separate:
 
 The current read path is `status`, `show`, and `why`; the existing Observatory
 is the public map surface. A new map, diff, or comparison feature is worth
-adding only when it answers one named Frontier question and a registered
+adding only when it answers one named scientific question and a registered
 cold-use test shows that it reduces evidence-location, correction, or
 continuation time without inventing a canonical object or authority layer.

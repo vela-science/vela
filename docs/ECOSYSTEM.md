@@ -190,10 +190,14 @@ would have to become true before the question could be reopened. Levels 3
 `vela-science/math` exists and holds a signed genesis. The epoch rename this
 paragraph named as its blocker is done, so the genesis was written by a binary
 that mints `vrepo_` and writes `vela.toml`, which is what the repository
-carries. What its authority record still holds from before the rename is the
+carries. What its authority record still holds from before the rename — the
 Cedar entity `Frontier`, the `frontier_administrator` role and the StateTarget
-type `frontier`, all inside a valid signature; retiring those spellings is a
-policy-bundle rotation on a live authority rather than a wording change.
+type `frontier`, all inside a valid signature — is now unreadable by the
+current binary rather than merely stale. The pre-1.0 standards cut moved the
+signature preimage, so `math` must re-genesis under the new contract before it
+can be read again, and that re-genesis retires those spellings along with the
+engine that defined them. It is an operator ceremony with the authority key in
+a local OpenSSH agent, and it is the release blocker.
 
 ### Frozen
 
@@ -464,19 +468,16 @@ different facts.
   and the prefix cannot follow without a schema version, so the retired spelling
   is load-bearing on the wire. This is the same shape as
   `integrity.replay: "verified"`: a token a prose sweep must not take.
-- **DSSE is not the common waist.** Authority records use DSSE; Submission,
-  Verification Record and Proposal Withdrawal still sign a bespoke zeroed-field
-  preimage (`crates/vela-protocol/src/objects/submission_v1.rs`). ADR 0035
-  remains Proposed. This blocks any external producer and any 1.0 freeze. The
-  `vela-science/math` genesis was the cheapest moment to cut v2 payloads and it
-  has been written, so that window is closed: math now has one signed authority
-  record and a producer history to migrate rather than none.
-- **Cedar is not removed.** The closed evaluator exists
-  (`evaluate_authorization_v1` in `crates/vela-authority/src/lib.rs`) and the
-  parity corpus exists
-  (`conformance/fixtures/epoch1/authorization-profile-parity.json`), but the
-  evaluator is called only from tests and `cedar-policy = "=4.11.2"` is still a
-  workspace dependency of the active writer.
+- **One repository has to re-genesis before it can be read.** The two entries
+  that stood here — DSSE not being the common waist, and Cedar not being
+  removed — are resolved in the tree and unresolved on disk at
+  `vela-science/math`. `crates/vela-protocol/src/kernel/dsse.rs` is the only
+  DSSE implementation and every signed object is an envelope; `cedar-policy` is
+  out of both manifests and `evaluate_authorization_v1` is the only evaluator.
+  Both changes move what `math`'s retained records mean, so the current binary
+  refuses its current head. Nothing in this repository can fix that: the
+  re-genesis needs the authority key in a local OpenSSH agent. This is the same
+  sequencing as release 0.970.0, and it is the release blocker.
 - **`serde_yaml_ng` is a `serde_yaml` fork.** `Cargo.toml:43`. The standards
   audit named forks as the option to avoid, and a fork is what was adopted. It
   is dev-only today (`crates/vela-protocol/tests/action_contracts.rs`), which
@@ -487,7 +488,7 @@ different facts.
   SPDX expression.
 - **Four published schemas are missing.** `schemas/` holds eight: Submission,
   Verification Record, Proposal Withdrawal, Claim Record, Proposal, repository
-  origin, the DSSE authority envelope and `vela.status.v4`. Claim Record was on
+  origin, the DSSE envelope and `vela.status.v4`. Claim Record was on
   this list as unpublished after it had been published. Still unpublished: the
   authority request and decision payloads, the repository profile, and a
   `vela.error.v1` CLI error envelope. The generator already exists
@@ -497,8 +498,8 @@ different facts.
   `conformance/canonical-hashing.json` declares exactly two conforming
   implementations (Rust and Python); `conformance/readers/` contains only
   `python`. The two emitters, `conformance/emitters/javascript.mjs` and
-  `conformance/emitters/python.py`, emit submission and verification objects
-  and neither reads the vector corpus.
+  `conformance/emitters/python.py`, emit DSSE-enveloped Submissions and
+  Verification Records and neither reads the vector corpus.
 - **The portable TypeScript waist was removed, not deferred.**
   `@vela-science/protocol@0.1.0` was published (ADR 0024) and
   `packages/` now holds only `vela-source-manifest`. `docs/THEORY.md` claimed

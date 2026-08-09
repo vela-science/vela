@@ -157,8 +157,9 @@ Direct `vela review accept|reject` commands are the human Decision surface. A
 command binds one Proposal, action, reason, principal, policy, authority
 head, read set, binary identity, and exact canonical delta. The command is the
 semantic human action. The local operating-system session authenticates the
-principal, restricted Cedar authorizes the action, and the standard OpenSSH
-agent repository-authority key signs the covering DSSE record. Vela reads no
+principal, the closed authorization profile authorizes the action, and the
+standard OpenSSH agent repository-authority key signs the covering DSSE
+record. Vela reads no
 human scientific key and accepts no copied root, timestamp, batch answer, or
 custom-helper response.
 

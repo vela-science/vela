@@ -86,8 +86,8 @@ authority anchor collide with the other's.
 
 The entropy is not retained anywhere, and the derivation is deliberately not
 reproducible. A `repository_id` is asserted once and then carried: the Profile
-holds it, the origin, manifest, keyset, and Cedar policy bind it, and no reader
-recomputes it from the Profile's name and scope. Retaining the nonce would not
+holds it, the origin, manifest, keyset, and authorization model bind it, and
+no reader recomputes it from the Profile's name and scope. Retaining the nonce would not
 make the identity checkable, because whoever creates the repository chooses it.
 
 The identity is a repository handle, not a scientific commitment. It is not a
@@ -136,7 +136,7 @@ targets/                           Target packets, wherever targets.json names
 
 The repository manifest binds every active canonical object by full root.
 Claim Standing is derived from the manifest and verified Decision history.
-`records/proposal-withdrawals/sha256/` holds `vela.proposal-withdrawal.v1`
+`records/proposal-withdrawals/sha256/` holds `vela.proposal-withdrawal.v2`
 objects, the producer-owned closure of one pending Proposal; the manifest
 carries them as their own object set and `vela replay --json` reports them as
 `counts.proposal_withdrawals`. `targets.json` is a disposable, root-bound work
@@ -302,7 +302,7 @@ Verification checks:
 - every indexed canonical object exists at its exact content path;
 - repository-authority records form one valid chain;
 - every authority event is covered exactly once;
-- active keyset and Cedar policy roots match the manifest;
+- active keyset and authorization model roots match the manifest;
 - Claim and Proposal Standing is deterministic;
 - the optional Target Index, its declared inputs, and packets exactly match
   tracked `HEAD` bytes and the current repository root; and

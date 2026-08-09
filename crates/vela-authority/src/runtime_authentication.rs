@@ -68,7 +68,6 @@ impl std::error::Error for AuthenticationFailure {}
 pub enum AuthorityPreflightFailure {
     Authentication(AuthenticationFailure),
     PrincipalMismatch,
-    ReservedContext,
     AuthorizationInvalid(Vec<String>),
     AuthorizationDenied,
 }
@@ -77,11 +76,8 @@ impl fmt::Display for AuthorityPreflightFailure {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Authentication(error) => write!(formatter, "{error}"),
-            Self::PrincipalMismatch => {
-                formatter.write_str("Cedar principal differs from the authenticated principal")
-            }
-            Self::ReservedContext => formatter
-                .write_str("caller-supplied Cedar context uses the reserved authentication field"),
+            Self::PrincipalMismatch => formatter
+                .write_str("authorization principal differs from the authenticated principal"),
             Self::AuthorizationInvalid(diagnostics) => write!(
                 formatter,
                 "authorization input or evaluation is invalid: {}",

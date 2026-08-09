@@ -65,10 +65,6 @@ verification correction authority
 - `why` also resolves a retained superseded Claim through covered authority
   history and returns its exact predecessor, successor, Proposal, applied
   event, and terminal Decision bindings.
-- For an accepted Claim retained through compaction, `why` follows only exact
-  local predecessor Git objects and labels the result `verified_local`,
-  `origin_object_set_only`, or `predecessor_unavailable`. Origin-bound archive
-  roots are disclosed separately from bytes actually re-read.
 
 Advanced verification and integration:
 
@@ -100,9 +96,10 @@ Target Index maintenance command.
 
 `vela claims` pages the claim index in the verified repository manifest. It is
 the only verb that produces Claim IDs; `show` and `why` consume them. Without
-it the Claim surface is reachable only by ID, and on a compacted repository the
-rest of the read surface produces few: `review list` reaches the Claim of each
-retained Proposal, which in `erdos-frontier` is eleven of 2,782 accepted.
+it the Claim surface is reachable only by ID, and the rest of the read surface
+produces few: `review list` reaches the Claim of each retained Proposal, which
+on a repository whose origin admitted a large initial object set is a small
+fraction of what it holds.
 
 ```bash
 vela claims                        # accepted Claims, first page
@@ -115,8 +112,8 @@ vela claims --cursor <full_vcl_id> # resume after the last row of the last page
 pending is `unassessed`: no ruling stands over it.
 
 Rows answer the standing axis only. The Proposal axis is read from retained
-Proposals, which this verb does not open — on a compacted repository the
-Proposal that admitted a Claim is usually gone, so a row has nothing to report
+Proposals, which this verb does not open — a Claim bound by the origin's
+initial object set has no Proposal at all, so a row has nothing to report
 there. `vela why` and `vela show` read both and return `standing` beside
 `proposal_status`; `vela review list --status` filters the Proposal axis and
 keeps the Proposal vocabulary. Every `review` view names that axis `status`,
@@ -131,8 +128,8 @@ Rows come out in Claim ID order, which is the manifest's own order, so a cursor
 names the same boundary on every call. Each row carries the Claim ID, its
 one-line assertion and kind, its Standing, and its origin era:
 
-- `origin` — the repository's origin commit already bound this Claim. On a
-  compacted repository that means it came through the compaction.
+- `origin` — the repository's origin already bound this Claim in its initial
+  object set, so no Proposal or Decision in this repository admitted it.
 - `post_origin` — repository authority admitted it after the origin.
 
 `--json` returns `vela.claims.v1`. `total` is the number of indexed Claims

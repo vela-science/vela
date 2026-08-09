@@ -1,11 +1,12 @@
 # Portable-waist and interoperability campaign
 
-Status: **Cut A largely landed; Cut B and Cut C have not begun.** Cut B waits on
-ADR 0035, which is still Proposed. Cut C waits on recomputing historical
-authorization against the closed profile, and the evaluator is still called only
-from tests while `cedar-policy` remains a dependency of the active writer. The
-two blocked cuts are the reason this document is still open; neither is stalled
-on anything written here.
+Status: **All three cuts landed, 2026-08-09; one operator step outstanding.**
+Cut B and Cut C shipped together as one wire break, because separately each
+would have forced another `vela-science/math` re-genesis. What remains is that
+re-genesis itself, which needs the authority key in a local OpenSSH agent and
+cannot be performed from this repository or from CI. Until an operator performs
+it the binary refuses the current `math` head, which is the intended sequencing
+and the release blocker.
 
 ## Objective
 
@@ -16,15 +17,18 @@ custom and Frontier-local.
 ## Current baseline
 
 - RFC 8785 JCS and SHA-256 are current.
-- Authority records use a DSSE 1.0.2-compatible envelope.
-- Eight JSON Schema 2020-12 documents cover the authority envelope, Submission,
+- Every signed Vela object is a DSSE 1.0.2-compatible envelope, produced and
+  read by one implementation, `crates/vela-protocol/src/kernel/dsse.rs`.
+- Eight JSON Schema 2020-12 documents cover the DSSE envelope, Submission,
   Verification Record, Proposal Withdrawal, Claim Record, Proposal, repository
   origin, and `vela.status.v4`. This line said four for as long as `schemas/`
   has held eight.
-- Current v1 fixture bytes and roots are frozen.
-- The closed Vela Authorization Profile exists in shadow mode.
-- Submission, Verification, and Withdrawal still use bespoke v1 signature
-  preimages; historical authorization cannot yet be fully recomputed.
+- Current fixture bytes and roots are frozen.
+- The closed Vela Authorization Profile is the only evaluator. Nothing runs in
+  shadow.
+- Submission, Verification Record, and Proposal Withdrawal are DSSE envelopes.
+  There are no bespoke signature preimages left, and strict history recomputes
+  every authorization rather than reading a retained one.
 
 ## Cut A — documentation and conformance
 
@@ -50,10 +54,10 @@ exists in JavaScript is an emitter; `scripts/ecosystem-status.py` declares
 `conformance/readers/javascript` absent, so the old wording asked for a surface
 whose absence is checked.
 
-## Cut B — DSSE v2 protocol migration
+## Cut B — DSSE protocol migration
 
-This is a separate core-release campaign and begins only after ADR 0035 is
-accepted with:
+**Landed 2026-08-09.** ADR 0035 is Accepted; its implementation note records
+what shipped. The list below is what the cut was required to deliver:
 
 - shared DSSE envelope fixtures across authority, Submission, Verification,
   and Withdrawal;
@@ -64,23 +68,44 @@ accepted with:
 - independent Rust, Python, and JavaScript verification; and
 - an explicit current-epoch cut.
 
-No v1 object is silently reinterpreted as v2.
+No predecessor object is silently reinterpreted under the current contract:
+every payload type and schema tag moved with the signature, so an old object
+fails to parse rather than parsing differently.
+
+All of it landed except the last item, which is an operator ceremony rather
+than a repository change. Independent verification is Rust, Python, and
+JavaScript: `conformance/emitters/python.py` and
+`conformance/emitters/javascript.mjs` construct DSSE envelopes from first
+principles and reproduce the frozen fixture bytes exactly.
 
 ## Cut C — authorization history
 
-This list is about evidence, and all of it could pass while Cedar stayed
-unremovable. The blocker is a signature: `vela-science/math` retains a policy
-bundle naming the pinned evaluator, and the reader refuses any bundle that
-disagrees with the compiled-in constants. Retiring Cedar therefore needs a
-policy-bundle rotation on the live authority first, and no rotation writer
-exists. ADR 0042 states the sequence.
+**Landed 2026-08-09.** The blocker this section named was a signature:
+`vela-science/math` retained a policy bundle naming the pinned evaluator, so
+retiring Cedar appeared to need a policy-bundle rotation on the live authority
+first, and no rotation writer existed. ADR 0042 stated that sequence. Cut B
+dissolved it — a wire break re-genesises `math`, and genesis mints the
+authority chain and its model fresh, so no retained bundle survives to
+contradict a Cedar-free reader. ADR 0042 is Superseded and the rotation writer
+was never needed.
 
-Before deleting Cedar or changing the writer:
+The evidence this cut required, and where it is:
 
-- retain exact model, request, entity, engine, and profile inputs;
-- recompute every historical Allow result with the closed profile;
-- prove parity and negative boundary cases across all canonical Frontiers; and
-- replay every Frontier from a clean clone.
+- retain exact model, request, entity, engine, and profile inputs —
+  `conformance/fixtures/epoch1/authorization-profile-parity.json`;
+- recompute every historical Allow result with the closed profile —
+  `crates/vela-authority/tests/authorization_profile_parity.rs`, which drives
+  `evaluate_authorization_v1` over all seven retained transactions;
+- prove parity and negative boundary cases across all canonical Frontiers — the
+  same test checks seven negative cases for their exact fail-closed reasons;
+  and
+- replay every Frontier from a clean clone — outstanding, and part of the
+  operator re-genesis rather than of this repository.
+
+The deletion followed: `cedar-policy` is out of both manifests, `engine_pin.rs`
+is gone, `PolicyBundleV1` is `AuthorizationModelV1` naming no engine, and
+`AuthorityRecordV1` carries an `AuthorizationEvaluationV1` that strict history
+recomputes instead of trusting.
 
 ## Optional read edge
 

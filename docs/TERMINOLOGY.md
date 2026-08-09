@@ -246,7 +246,7 @@ Submission, as this vocabulary declares it:
 draft retained refused
 ```
 
-**No Submission has a status.** `vela.submission.v1` has no lifecycle field,
+**No Submission has a status.** `vela.submission.v2` has no lifecycle field,
 and none of those three words is a status value anywhere in the crates —
 `retained` appears only as a display label on the unchanged-error footer. A
 Submission is either installed in a repository or it is not. Treat the three
@@ -261,7 +261,7 @@ pending_review accepted rejected withdrawn
 
 Proposal status is derived, not stored: `vela.proposal.v1` carries no status
 field either, and the read surface computes these four from the covering
-authority Events and any `vela.proposal-withdrawal.v1`. `withdrawn` is the
+authority Events and any `vela.proposal-withdrawal.v2`. `withdrawn` is the
 fourth because PROTOCOL.md section 5.5 makes producer-owned withdrawal a real
 transition; `vela review list --status` accepts all four plus `all`, and three
 of them are live in the Erdős repository today.

@@ -23,10 +23,10 @@ complete. Answering it as a table of contract → schema → check does not.
 
 | # | Contract | Wire schema | Defined in | Held by |
 |---|---|---|---|---|
-| 1 | Producer | `vela.submission.v1` | PROTOCOL.md §3.3 | `conformance/current-objects/submission-draft.json`, `verify_current_objects.py` |
+| 1 | Producer | `vela.submission.v2` in a DSSE envelope | PROTOCOL.md §3.3 | `conformance/current-objects/submission-draft.json`, `verify_current_objects.py` |
 | 2 | Artifact | Content address only — `sha256:<64 hex>` under `records/artifacts/sha256/` | PROTOCOL.md §3.6, ROOTS.md | `verify_canonical_hashing.py` |
-| 3 | Verification | `vela.verification-record.v1` | PROTOCOL.md §3.4 | `conformance/current-objects/verification-draft.json`, `verify_current_objects.py` |
-| 4 | Authority | `vela.authority-record.v1`, `vela.policy-bundle.v1` | THREAT_MODEL.md, SIGNING.md | `crates/vela-cli/tests/review_acceptance.rs` — **no language-independent vector** |
+| 3 | Verification | `vela.verification-record.v2` in a DSSE envelope | PROTOCOL.md §3.4 | `conformance/current-objects/verification-draft.json`, `verify_current_objects.py` |
+| 4 | Authority | `vela.authority-record.v1`, `vela.authorization-model.v1` | THREAT_MODEL.md, SIGNING.md | `crates/vela-cli/tests/review_acceptance.rs` — **no language-independent vector** |
 | 5 | Correction | `vela.correction-impact-input.v1` → `vela.correction-impact-projection.v1` | ADR 0004, CLI.md § Corrections | `conformance/fixtures/correction/`, `verify_correction_impact.py` |
 | 6 | Projection | Root-bound derived rows | INTEROPERABILITY.md § Public read contracts | `conformance/readers/python/repository_root.py` |
 | 7 | Canonical bytes | RFC 8785 JCS, SHA-256 | ROOTS.md | `verify_canonical_hashing.py`, `conformance/emitters/` |
@@ -39,8 +39,11 @@ wrong fails all six without any of them looking wrong.
 
 ### 1. Producer
 
-Emit `vela.submission.v1` whose canonical root matches the one this repository
-computes over the same bytes. `conformance/current-objects/submission-draft.json`
+Emit a DSSE envelope of payload type
+`application/vnd.vela.submission.v2+json` whose canonical root matches the one
+this repository computes over the same bytes. The root is over the envelope, so
+it covers the payload, the payload type and the signatures together; there is
+no separate object root and no zeroed preimage to reconstruct. `conformance/current-objects/submission-draft.json`
 is the de facto producer contract — it is the exact draft the CLI signs — and
 naming it as such is preferable to inventing a second description of the same
 shape.
@@ -50,7 +53,8 @@ and rejects them. The receiving repository makes the association.
 
 **Not required:** importing Vela's Event, authority or repository
 implementation. `conformance/emitters/javascript.mjs` and
-`conformance/emitters/python.py` are clean-room emitters that produce
+`conformance/emitters/python.py` are clean-room emitters that build the DSSE
+envelope from first principles — PAE, base64, Ed25519 — and produce
 byte-identical Submissions without any of it, and they agree with each other:
 one independent implementation shows the specification is followable, two show
 it is followable the same way.
@@ -67,8 +71,9 @@ place where two implementations can disagree about what a Claim rests on.
 
 ### 3. Verification
 
-Emit `vela.verification-record.v1`. Three fields decide conformance and are the
-three most often filled in badly:
+Emit a DSSE envelope of payload type
+`application/vnd.vela.verification-record.v2+json`. Three payload fields decide
+conformance and are the three most often filled in badly:
 
 - `scope.property` — the single named question this record answers. Not the
   subject, not the method: the question.
@@ -102,9 +107,15 @@ executes a real authorized acceptance over a contiguous record chain, but it is
 Rust and it exercises this implementation. Contracts 1, 3 and 7 each have
 fixtures a foreign implementation can be held to; this one does not, so an
 implementation claiming to verify authority is currently taking its own word
-for it. `conformance/fixtures/epoch1/authorization-profile-parity.json` pins
-the epoch-1 repositories' commits and is a record, not a check — no code reads
-it.
+for it.
+
+`conformance/fixtures/epoch1/authorization-profile-parity.json` is now read —
+`crates/vela-authority/tests/authorization_profile_parity.rs` recomputes every
+retained epoch-1 decision under the closed profile and checks seven negative
+boundary cases. That closes the gap this paragraph used to name in its last
+sentence, but not the one it names in its first: the corpus is a fixture a
+foreign implementation *could* be held to, and the test that reads it is still
+Rust. ADR 0041 is where the language-independent vector belongs.
 
 ### 5. Correction
 
@@ -121,7 +132,7 @@ vectors.
 
 **A limit an implementer must know about, and it is a decision rather than an
 oversight.** The projection traverses `depends` and `supports` claim-to-claim
-edges. `vela.submission.v1` gives a producer no way to declare either, so the
+edges. `vela.submission.v2` gives a producer no way to declare either, so the
 current write path authors correction relations and nothing else; every
 `depends` edge in the retained corpus came from the epoch-1 ingest.
 
