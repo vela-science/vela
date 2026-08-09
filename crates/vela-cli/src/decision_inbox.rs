@@ -406,7 +406,7 @@ fn derive_entry(inputs: EntryInputs<'_>) -> Result<DecisionInboxEntry, String> {
     let claim_root = claim.canonical_root()?;
     let submission_root = submission.root.clone();
     if inputs.repository_root != actual_repository_root
-        || inputs.authority_heads.policy_bundle_root != inputs.repository.authority_policy_root
+        || inputs.authority_heads.policy_bundle_root != inputs.repository.authority_model_root
         || inputs.authority_heads.authority_keyset_root != inputs.repository.authority_keyset_root
         || inputs.proposal_reference.id != proposal.id()
         || claim_root != proposal.subject.root
@@ -587,7 +587,7 @@ pub(crate) fn project(repository_path: &Path) -> Result<DecisionInboxProjection,
     let standings =
         crate::repository::load_current_proposal_standings(repository_path, &repository)?;
     let authority_heads = DecisionInboxAuthorityHeads {
-        policy_bundle_root: repository.authority_policy_root.clone(),
+        policy_bundle_root: repository.authority_model_root.clone(),
         authority_keyset_root: repository.authority_keyset_root.clone(),
         authority_record_root: authority
             .verification
@@ -685,7 +685,7 @@ pub(crate) fn entry_for_prepared(
     prepared: &PreparedReviewDecision,
 ) -> Result<DecisionInboxEntry, String> {
     let authority_heads = DecisionInboxAuthorityHeads {
-        policy_bundle_root: prepared.repository.authority_policy_root.clone(),
+        policy_bundle_root: prepared.repository.authority_model_root.clone(),
         authority_keyset_root: prepared.repository.authority_keyset_root.clone(),
         authority_record_root: prepared
             .authority
@@ -1094,7 +1094,7 @@ mod tests {
             )],
             artifacts: Vec::new(),
             authority_keyset_root: root('3'),
-            authority_policy_root: root('4'),
+            authority_model_root: root('4'),
         }
     }
 
@@ -1566,7 +1566,7 @@ mod tests {
 
         let mut changed_entries = Vec::new();
         let mut changed_repository = repository.clone();
-        changed_repository.authority_policy_root = root('7');
+        changed_repository.authority_model_root = root('7');
         let mut changed_heads = heads();
         changed_heads.policy_bundle_root = root('7');
         changed_entries.push(derive_fixture(

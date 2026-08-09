@@ -12,9 +12,12 @@ use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
-use vela_authority::CedarEvaluationInput;
 use vela_authority::runtime_authentication::AuthenticationRequest;
 use vela_protocol::authority::{PrincipalSnapshotV1, SemanticApprovalV1};
+use vela_protocol::authorization::{
+    AUTHORIZATION_PROFILE_V1, AUTHORIZATION_REQUEST_SCHEMA_V1, AuthorityActionV1,
+    AuthorityResourceTypeV1, AuthorizationRequestV1, AuthorizationResourceV1,
+};
 use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::events::{EventKind, NULL_HASH, StateActor, StateEvent, StateTarget};
 use vela_protocol::principal::PrincipalClass;
@@ -74,7 +77,7 @@ pub(crate) struct ReviewDecisionPlan {
     pub(crate) principal_id: String,
     pub(crate) observed_at: String,
     pub(crate) authority_event_log_root: String,
-    pub(crate) policy_bundle_root: String,
+    pub(crate) model_root: String,
     pub(crate) plan_root: String,
 }
 
@@ -428,7 +431,7 @@ pub(crate) fn prepare(
         principal_id: local.principal_id,
         observed_at: observed_at.into(),
         authority_event_log_root: authority.verification.final_event_log_root.clone(),
-        policy_bundle_root: authority.history.policy_bundle.root()?,
+        model_root: authority.history.authorization_model.root()?,
         plan_root: String::new(),
     };
     plan.plan_root = plan_root(&plan)?;
@@ -714,21 +717,30 @@ pub(crate) fn execute_prepared(
     )?;
     next.verify()?;
 
-    let authorization = CedarEvaluationInput {
-        schema: prepared.authority.policy_material.schema.clone(),
-        policies: prepared.authority.policy_material.policies.clone(),
-        entities: prepared.authority.policy_material.entities.clone(),
-        principal: format!(
-            "Human::{}",
-            serde_json::to_string(&expected.principal_id).expect("principal serializes")
-        ),
+    let action = match expected.action.as_str() {
+        "review_accept" => AuthorityActionV1::ReviewAccept,
+        "review_reject" => AuthorityActionV1::ReviewReject,
+        other => return Err(format!("review Decision has no authority action `{other}`")),
+    };
+    let authorization = AuthorizationRequestV1 {
+        schema: AUTHORIZATION_REQUEST_SCHEMA_V1.into(),
+        profile: AUTHORIZATION_PROFILE_V1.into(),
+        model_root: prepared.authority.history.authorization_model.root()?,
+        repository_id: prepared.repository.repository_id.clone(),
+        principal_id: expected.principal_id.clone(),
         principal_class: PrincipalClass::Human,
-        action: expected.action.clone(),
-        resource: format!(
-            "Proposal::{}",
-            serde_json::to_string(&expected.proposal_id).expect("Proposal ID serializes")
-        ),
-        context: json!({"exact": true}),
+        action,
+        resource: AuthorizationResourceV1 {
+            repository_id: prepared.repository.repository_id.clone(),
+            resource_type: AuthorityResourceTypeV1::Proposal,
+            resource_id: expected.proposal_id.clone(),
+        },
+        /* Both come from the verified session inside the preflight; a
+        placeholder is required only because the request validates first. */
+        authentication_root: expected.repository_root.clone(),
+        transaction_read_set_root: expected.repository_root.clone(),
+        intent_digest: expected.plan_root.clone(),
+        recovery_recent: false,
     };
     let mut read_set = vec![
         InputBinding {
@@ -787,7 +799,7 @@ pub(crate) fn execute_prepared(
                 principal_class: PrincipalClass::Human,
                 transaction_at: recorded_at.clone(),
             },
-            authorization_input: authorization,
+            authorization_request: authorization,
             semantic_approvals: vec![SemanticApprovalV1 {
                 principal_id: expected.principal_id.clone(),
                 role: "repository_reviewer".into(),
@@ -805,8 +817,7 @@ pub(crate) fn execute_prepared(
             }],
             derived_drafts: derived,
             next_authority_keyset: None,
-            next_policy_bundle: None,
-            next_policy_material: None,
+            next_authorization_model: None,
             read_set,
             vela_version: env!("CARGO_PKG_VERSION").into(),
             binary_sha256,
@@ -840,7 +851,7 @@ pub(crate) fn execute_prepared(
     }
     let publication = publish_exact_delta(
         repository_path,
-        &format!("review {}", action.as_str()),
+        &format!("review {}", expected.action),
         std::slice::from_ref(&expected.proposal_id),
         &delta,
         preflight,
@@ -924,7 +935,7 @@ mod tests {
             verifications: Vec::new(),
             artifacts: Vec::new(),
             authority_keyset_root: root('c'),
-            authority_policy_root: root('d'),
+            authority_model_root: root('d'),
         }
     }
 
@@ -1103,7 +1114,7 @@ mod tests {
             principal_id: "local:fixture".into(),
             observed_at: "2026-07-27T00:00:04Z".into(),
             authority_event_log_root: root('7'),
-            policy_bundle_root: root('8'),
+            model_root: root('8'),
             plan_root: String::new(),
         };
         plan.plan_root = plan_root(&plan).unwrap();

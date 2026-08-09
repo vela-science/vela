@@ -673,7 +673,7 @@ mod tests {
             verifications: Vec::new(),
             artifacts: Vec::new(),
             authority_keyset_root: root('c'),
-            authority_policy_root: root('d'),
+            authority_model_root: root('d'),
         }
     }
 

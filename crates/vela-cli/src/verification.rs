@@ -870,7 +870,7 @@ mod tests {
                 path: format!("records/artifacts/sha256/{}", "e".repeat(64)),
             }],
             authority_keyset_root: root('3'),
-            authority_policy_root: root('4'),
+            authority_model_root: root('4'),
         };
         repository.verify().unwrap();
         Fixture {

@@ -66,6 +66,7 @@
     "epoch": {
       "repository_id_prefix": "vrepo_",
       "retired_spelling_sites": [
+        "crates/vela-authority/tests/authorization_profile_parity.rs",
         "crates/vela-cli/src/init.rs",
         "crates/vela-cli/tests/bootstrap_cli_ux.rs",
         "crates/vela-cli/tests/wording_contract.rs",

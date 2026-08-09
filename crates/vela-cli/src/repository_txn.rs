@@ -3633,7 +3633,7 @@ mod tests {
             verifications: Vec::new(),
             artifacts: Vec::new(),
             authority_keyset_root: fixture_root('a'),
-            authority_policy_root: fixture_root('b'),
+            authority_model_root: fixture_root('b'),
         }
     }
 

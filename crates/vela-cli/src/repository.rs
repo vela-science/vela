@@ -86,7 +86,7 @@ pub(crate) fn cmd_replay_repository(repository_path: &Path, json_out: bool) {
             .unwrap_or_else(|error| crate::cli::fail_return(&error)),
         "repository_root": repository.canonical_root().unwrap_or_else(|error| crate::cli::fail_return(&error)),
         "authority_keyset_root": repository.authority_keyset_root,
-        "authority_policy_root": repository.authority_policy_root,
+        "authority_model_root": repository.authority_model_root,
         "counts": {
             "accepted_claims": repository.accepted_claims.len(),
             "pending_claims": repository.pending_claims.len(),
@@ -369,7 +369,7 @@ pub(crate) fn cmd_status(repository_path: &Path, json_out: bool) {
             origin: Some(repository.origin_root.clone()),
             repository: Some(repository_root),
             authority_keyset: Some(repository.authority_keyset_root.clone()),
-            authority_policy: Some(repository.authority_policy_root.clone()),
+            authority_policy: Some(repository.authority_model_root.clone()),
         },
         StatusCounts {
             claims: (repository.accepted_claims.len() + repository.pending_claims.len()) as u64,
@@ -1944,7 +1944,7 @@ fn verify_repository_authority(
         || initialization.initial_event_log_root != initial_event_log_root
         || initialization.initial_actor_registry_root != initial_actor_registry_root
         || initialization.new_authority_keyset_root != repository.authority_keyset_root
-        || initialization.new_policy_bundle_root != repository.authority_policy_root
+        || initialization.new_authorization_model_root != repository.authority_model_root
         || initialization.new_principal_id != event.content.principal_id
         || initialization.reason != origin.reason
     {
@@ -1971,7 +1971,7 @@ fn verify_repository_authority(
         || first.content.event_ids != vec![event.id.clone()]
         || first.content.before_event_log_root != initial_event_log_root
         || first.content.principal.principal_id != event.content.principal_id
-        || first.content.authorization.policy_bundle_root != initialization.new_policy_bundle_root
+        || first.content.authorization.model_root != initialization.new_authorization_model_root
     {
         return Err("current authority record does not bind its exact event and origin".into());
     }
@@ -2393,7 +2393,7 @@ pub(crate) fn verify_routine_evidence_overlay(
         return Err("routine evidence changes repository identity".into());
     }
     if authority_checkpoint.authority_keyset_root != current.authority_keyset_root
-        || authority_checkpoint.authority_policy_root != current.authority_policy_root
+        || authority_checkpoint.authority_model_root != current.authority_model_root
     {
         return Err("routine evidence changes repository authority configuration".into());
     }
@@ -3167,7 +3167,7 @@ mod tests {
             verifications: Vec::new(),
             artifacts: Vec::new(),
             authority_keyset_root: root('3'),
-            authority_policy_root: root('4'),
+            authority_model_root: root('4'),
         }
     }
 

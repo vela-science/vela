@@ -26,88 +26,9 @@ pub const AUTHORITY_PAYLOAD_TYPE_V1: &str = "application/vnd.vela.authority-reco
 pub const AUTHORITY_KEY_ALGORITHM: &str = "ed25519";
 pub const AUTHORITY_KEY_PURPOSE: &str = "repository_authority";
 pub const AUTHORITY_MODE: &str = "repository_authority";
-pub const CEDAR_ENGINE: &str = "cedar-policy";
-pub const CEDAR_ENGINE_VERSION: &str = "4.11.2";
-pub const CEDAR_PROFILE_V1: &str = "vela.cedar-restricted.v1";
-pub const POLICY_BUNDLE_SCHEMA_V1: &str = "vela.policy-bundle.v1";
 
 fn is_false(value: &bool) -> bool {
     !*value
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum CedarDecision {
-    Allow,
-    Deny,
-}
-
-/// Canonicalizable authorization result retained by an authority record.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct CedarEvaluation {
-    pub engine: String,
-    pub engine_version: String,
-    pub profile: String,
-    pub valid: bool,
-    pub decision: CedarDecision,
-    pub automatic_permit: bool,
-    pub determining_policies: Vec<String>,
-    pub diagnostics: Vec<String>,
-}
-
-/// Closed policy-bundle manifest. Bundle files remain separate canonical
-/// bytes; this manifest binds their full roots and the exact evaluator.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct PolicyBundleV1 {
-    pub schema: String,
-    pub repository_id: String,
-    pub cedar_schema_root: String,
-    pub policies_root: String,
-    pub entities_root: String,
-    pub tests_root: String,
-    pub engine: String,
-    pub engine_version: String,
-    pub restricted_profile: String,
-    pub previous_bundle_root: Option<String>,
-    pub authority_summary: String,
-}
-
-impl PolicyBundleV1 {
-    pub fn validate(&self) -> Result<(), String> {
-        if self.schema != POLICY_BUNDLE_SCHEMA_V1 {
-            return Err(format!(
-                "policy bundle schema must be {POLICY_BUNDLE_SCHEMA_V1}"
-            ));
-        }
-        if self.engine != CEDAR_ENGINE
-            || self.engine_version != CEDAR_ENGINE_VERSION
-            || self.restricted_profile != CEDAR_PROFILE_V1
-        {
-            return Err("policy bundle evaluator identity is not the pinned Vela profile".into());
-        }
-        for (name, value) in [
-            ("cedar_schema_root", self.cedar_schema_root.as_str()),
-            ("policies_root", self.policies_root.as_str()),
-            ("entities_root", self.entities_root.as_str()),
-            ("tests_root", self.tests_root.as_str()),
-        ] {
-            crate::shape::require_sha256_root(name, value)?;
-        }
-        if let Some(root) = &self.previous_bundle_root {
-            crate::shape::require_sha256_root("previous_bundle_root", root)?;
-        }
-        if self.repository_id.trim().is_empty() || self.authority_summary.trim().is_empty() {
-            return Err("policy bundle repository and authority summary must be non-empty".into());
-        }
-        Ok(())
-    }
-
-    pub fn root(&self) -> Result<String, String> {
-        self.validate()?;
-        Ok(format!("sha256:{}", sha256_canonical(self)?))
-    }
 }
 
 /// Era-1 event content. Authority is carried by the covering transaction
@@ -372,20 +293,6 @@ pub fn verify_authority_keyset_transition(
 /// Activation is recorded by the covering authority transaction, so the
 /// bundle needs only the exact prior bundle root and introduces no record-root
 /// hash cycle.
-pub fn verify_policy_bundle_transition(
-    current: &PolicyBundleV1,
-    next: &PolicyBundleV1,
-) -> Result<(), String> {
-    current.validate()?;
-    next.validate()?;
-    if current.repository_id != next.repository_id
-        || next.previous_bundle_root.as_deref() != Some(current.root()?.as_str())
-    {
-        return Err("rotated policy bundle does not extend the exact prior bundle".into());
-    }
-    Ok(())
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrincipalSnapshotV1 {
@@ -398,13 +305,25 @@ pub struct PrincipalSnapshotV1 {
 
 pub type AuthenticationClaimV1 = AuthenticationObservationV1;
 
+/// What authorized one authority transaction, retained in full.
+///
+/// This carried a `CedarEvaluation` — an `Allow`, a diagnostics list, and the
+/// engine, version and profile that produced it — beside the roots of a policy
+/// bundle, a request and an entity snapshot. Everything was named by root and
+/// nothing could be recomputed, so strict replay could verify that a signed
+/// attestation said `Allow` and could not verify that `Allow` was the right
+/// answer. ADR 0035 §4 calls that the history gap.
+///
+/// The request is now retained whole, so replay re-decides it under the exact
+/// rooted model rather than trusting the retained result. The evaluation stays
+/// because the record is what a reader without this binary parses; it is
+/// checked against a fresh evaluation rather than believed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AuthorizationClaimV1 {
-    pub policy_bundle_root: String,
-    pub request_root: String,
-    pub entity_snapshot_root: String,
-    pub evaluation: CedarEvaluation,
+    pub model_root: String,
+    pub request: crate::authorization::AuthorizationRequestV1,
+    pub evaluation: crate::authorization::AuthorizationEvaluationV1,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -535,13 +454,8 @@ impl AuthorityRecordV1 {
                 content.authority_keyset_root.as_str(),
             ),
             (
-                "policy_bundle_root",
-                content.authorization.policy_bundle_root.as_str(),
-            ),
-            ("request_root", content.authorization.request_root.as_str()),
-            (
-                "entity_snapshot_root",
-                content.authorization.entity_snapshot_root.as_str(),
+                "authorization model_root",
+                content.authorization.model_root.as_str(),
             ),
             ("binary_sha256", content.execution.binary_sha256.as_str()),
             (
@@ -717,6 +631,51 @@ mod tests {
         format!("sha256:{}", byte.to_string().repeat(64))
     }
 
+    /// An authorization a record could actually have been written under.
+    ///
+    /// The fixture used to name three roots and a hand-built `Allow`. The
+    /// evaluation is now the evaluator's own output over the retained request,
+    /// because `verify_record_authorization` recomputes it and a fixture that
+    /// asserted its own answer would prove nothing.
+    fn authorization_claim() -> AuthorizationClaimV1 {
+        use crate::authorization::*;
+
+        let model = AuthorizationModelV1 {
+            schema: AUTHORIZATION_MODEL_SCHEMA_V1.into(),
+            profile: AUTHORIZATION_PROFILE_V1.into(),
+            repository_id: format!("vrepo_{}", "1".repeat(32)),
+            members: vec![AuthorityMemberV1 {
+                principal_id: "local:device-1|uid:501".into(),
+                principal_class: PrincipalClass::Human,
+                role: AuthorityRoleV1::Reviewer,
+            }],
+            previous_model_root: None,
+        };
+        let request = AuthorizationRequestV1 {
+            schema: AUTHORIZATION_REQUEST_SCHEMA_V1.into(),
+            profile: AUTHORIZATION_PROFILE_V1.into(),
+            model_root: model.root().unwrap(),
+            repository_id: model.repository_id.clone(),
+            principal_id: "local:device-1|uid:501".into(),
+            principal_class: PrincipalClass::Human,
+            action: AuthorityActionV1::ReviewReject,
+            resource: AuthorizationResourceV1 {
+                repository_id: model.repository_id.clone(),
+                resource_type: AuthorityResourceTypeV1::Proposal,
+                resource_id: format!("vpr_{}", "2".repeat(16)),
+            },
+            authentication_root: root('9'),
+            transaction_read_set_root: root('f'),
+            intent_digest: root('a'),
+            recovery_recent: false,
+        };
+        AuthorizationClaimV1 {
+            model_root: model.root().unwrap(),
+            evaluation: evaluate_authorization_v1(&model, &request).unwrap(),
+            request,
+        }
+    }
+
     #[test]
     fn era_one_event_is_transaction_bound_and_content_addressed() {
         let event = AuthorityEventV1::new(AuthorityEventContentV1 {
@@ -875,21 +834,7 @@ mod tests {
                 revocation_ref: None,
             },
             delegation: None,
-            authorization: AuthorizationClaimV1 {
-                policy_bundle_root: root('e'),
-                request_root: root('f'),
-                entity_snapshot_root: root('1'),
-                evaluation: CedarEvaluation {
-                    engine: CEDAR_ENGINE.into(),
-                    engine_version: CEDAR_ENGINE_VERSION.into(),
-                    profile: CEDAR_PROFILE_V1.into(),
-                    valid: true,
-                    decision: CedarDecision::Allow,
-                    automatic_permit: false,
-                    determining_policies: vec!["policy0".into()],
-                    diagnostics: Vec::new(),
-                },
-            },
+            authorization: authorization_claim(),
             semantic_approvals: vec![SemanticApprovalV1 {
                 principal_id: "local:device-1|uid:501".into(),
                 role: "reviewer".into(),
@@ -1245,38 +1190,6 @@ mod tests {
             verify_authority_keyset_transition(&closed, &next, 4, &previous_record_root)
                 .unwrap_err()
                 .contains("cannot transition again")
-        );
-    }
-
-    #[test]
-    fn policy_bundle_rotation_extends_one_exact_root() {
-        let current = PolicyBundleV1 {
-            schema: POLICY_BUNDLE_SCHEMA_V1.into(),
-            repository_id: "vrepo_fixture".into(),
-            cedar_schema_root: root('1'),
-            policies_root: root('2'),
-            entities_root: root('3'),
-            tests_root: root('4'),
-            engine: CEDAR_ENGINE.into(),
-            engine_version: CEDAR_ENGINE_VERSION.into(),
-            restricted_profile: CEDAR_PROFILE_V1.into(),
-            previous_bundle_root: None,
-            authority_summary: "Initial repository authority.".into(),
-        };
-        let mut next = PolicyBundleV1 {
-            policies_root: root('5'),
-            tests_root: root('6'),
-            previous_bundle_root: Some(current.root().unwrap()),
-            authority_summary: "Rotated repository authority.".into(),
-            ..current.clone()
-        };
-        verify_policy_bundle_transition(&current, &next).unwrap();
-
-        next.previous_bundle_root = Some(root('7'));
-        assert!(
-            verify_policy_bundle_transition(&current, &next)
-                .unwrap_err()
-                .contains("exact prior bundle")
         );
     }
 

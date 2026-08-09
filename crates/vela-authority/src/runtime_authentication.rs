@@ -12,15 +12,15 @@
 use std::collections::BTreeSet;
 use std::fmt;
 
-use serde_json::{Value, json};
 use vela_protocol::authentication::{
     AUTHENTICATION_OBSERVATION_SCHEMA_V1, AuthenticationAssurance, AuthenticationMethod,
     AuthenticationObservationV1,
 };
-use vela_protocol::authority::{CedarDecision, CedarEvaluation};
+use vela_protocol::authorization::{
+    AuthorizationDecisionV1, AuthorizationEvaluationV1, AuthorizationModelV1,
+    AuthorizationRequestV1, evaluate_authorization_v1,
+};
 use vela_protocol::principal::PrincipalClass;
-
-use crate::{CedarEvaluationInput, evaluate};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AuthenticationRequest {
@@ -97,8 +97,9 @@ impl std::error::Error for AuthorityPreflightFailure {}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AuthorityPreflightResult {
     pub authentication: AuthenticationObservationV1,
-    pub authorization: CedarEvaluation,
-    pub authorization_context: Value,
+    pub authorization: AuthorizationEvaluationV1,
+    /// The exact request the evaluation decided, retained by the record.
+    pub request: AuthorizationRequestV1,
 }
 
 /// Replaceable adapter over an already-established standard session.
@@ -138,75 +139,44 @@ pub fn authenticate_for_transaction<A: AuthenticationAdapter>(
 /// Authenticate and authorize one action without acquiring any write or signer
 /// capability.
 ///
-/// Authentication context is derived from the verified observation and added
-/// under the reserved `authentication` field. Callers cannot provide or
-/// override that field.
+/// The authentication observation used to be folded into a free-form Cedar
+/// context under a reserved `authentication` key, with a guard stopping a
+/// caller from writing that key itself. The closed profile has no free-form
+/// context: it reads exactly one fact from the session, `recovery_recent`, and
+/// binds the observation by root. Both are set here from the verified
+/// observation rather than supplied, so there is nothing left for a caller to
+/// override and no reserved name to defend.
 pub fn preflight_authority_action<A: AuthenticationAdapter>(
     adapter: &mut A,
     request: &AuthenticationRequest,
     state: &RuntimeSessionState,
-    authorization: &CedarEvaluationInput,
+    model: &AuthorizationModelV1,
+    authorization: &AuthorizationRequestV1,
 ) -> Result<AuthorityPreflightResult, AuthorityPreflightFailure> {
     if authorization.principal_class != request.principal_class
-        || authorization.principal != cedar_principal(request)
+        || authorization.principal_id != request.principal_id
     {
         return Err(AuthorityPreflightFailure::PrincipalMismatch);
     }
-    let mut evaluated_input = authorization.clone();
-    let context = evaluated_input.context.as_object_mut().ok_or_else(|| {
-        AuthorityPreflightFailure::AuthorizationInvalid(vec![
-            "Cedar context must be an object".into(),
-        ])
-    })?;
-    if context.contains_key("authentication") {
-        return Err(AuthorityPreflightFailure::ReservedContext);
-    }
     let observation = authenticate_for_transaction(adapter, request, state)
         .map_err(AuthorityPreflightFailure::Authentication)?;
-    context.insert(
-        "authentication".into(),
-        json!({
-            "method": enum_value(observation.method),
-            "assurance": enum_value(observation.assurance),
-            "authenticated_at": observation.authenticated_at,
-            "observed_at": observation.observed_at,
-            "expires_at": observation.expires_at,
-            "user_presence": observation.user_presence,
-            "user_verification": observation.user_verification,
-            "recovery_recent": observation.recovery_recent,
-        }),
-    );
-    let evaluation = evaluate(&evaluated_input);
-    if !evaluation.valid || !evaluation.diagnostics.is_empty() {
-        return Err(AuthorityPreflightFailure::AuthorizationInvalid(
-            evaluation.diagnostics,
-        ));
-    }
-    if evaluation.decision != CedarDecision::Allow {
+
+    let mut authorization = authorization.clone();
+    authorization.recovery_recent = observation.recovery_recent;
+    authorization.authentication_root = observation
+        .root()
+        .map_err(|error| AuthorityPreflightFailure::AuthorizationInvalid(vec![error]))?;
+
+    let evaluation = evaluate_authorization_v1(model, &authorization)
+        .map_err(|error| AuthorityPreflightFailure::AuthorizationInvalid(vec![error]))?;
+    if evaluation.decision != AuthorizationDecisionV1::Allow {
         return Err(AuthorityPreflightFailure::AuthorizationDenied);
     }
     Ok(AuthorityPreflightResult {
         authentication: observation,
         authorization: evaluation,
-        authorization_context: evaluated_input.context,
+        request: authorization,
     })
-}
-
-fn cedar_principal(request: &AuthenticationRequest) -> String {
-    let entity_type = match request.principal_class {
-        PrincipalClass::Human => "Human",
-        PrincipalClass::Agent => "Agent",
-        PrincipalClass::Workload => "Workload",
-        PrincipalClass::Service => "Service",
-        PrincipalClass::Institution => "Institution",
-    };
-    let identifier = serde_json::to_string(&request.principal_id)
-        .expect("serializing a string as JSON cannot fail");
-    format!("{entity_type}::{identifier}")
-}
-
-fn enum_value<T: serde::Serialize>(value: T) -> Value {
-    serde_json::to_value(value).expect("closed authentication enum serialization cannot fail")
 }
 
 /// Snapshot of a standard local operating-system login session.
@@ -286,50 +256,42 @@ mod tests {
         directory
     }
 
-    fn authorization(policy_condition: &str) -> CedarEvaluationInput {
-        CedarEvaluationInput {
-            schema: r#"
-                entity Human;
-                entity Proposal;
-                action "review_reject" appliesTo {
-                    principal: Human,
-                    resource: Proposal,
-                    context: {
-                        exact: Bool,
-                        authentication: {
-                            method: String,
-                            assurance: String,
-                            authenticated_at: String,
-                            observed_at: String,
-                            expires_at: String,
-                            user_presence: Bool,
-                            user_verification: Bool,
-                            recovery_recent: Bool
-                        }
-                    }
-                };
-            "#
-            .into(),
-            policies: format!(
-                r#"permit(principal, action, resource) when {{ context.exact && {policy_condition} }};"#
-            ),
-            entities: serde_json::json!([
-                {
-                    "uid": {"type": "Human", "id": request().principal_id},
-                    "attrs": {},
-                    "parents": []
-                },
-                {
-                    "uid": {"type": "Proposal", "id": "vpr_fixture"},
-                    "attrs": {},
-                    "parents": []
-                }
-            ]),
-            principal: cedar_principal(&request()),
+    const FIXTURE_REPOSITORY: &str = "vrepo_00000000000000000000000000000000";
+    const NULL_ROOT: &str =
+        "sha256:0000000000000000000000000000000000000000000000000000000000000000";
+
+    fn model() -> AuthorizationModelV1 {
+        AuthorizationModelV1 {
+            schema: vela_protocol::authorization::AUTHORIZATION_MODEL_SCHEMA_V1.into(),
+            profile: vela_protocol::authorization::AUTHORIZATION_PROFILE_V1.into(),
+            repository_id: FIXTURE_REPOSITORY.into(),
+            members: vec![vela_protocol::authorization::AuthorityMemberV1 {
+                principal_id: request().principal_id,
+                principal_class: PrincipalClass::Human,
+                role: vela_protocol::authorization::AuthorityRoleV1::Reviewer,
+            }],
+            previous_model_root: None,
+        }
+    }
+
+    fn authorization(model: &AuthorizationModelV1) -> AuthorizationRequestV1 {
+        AuthorizationRequestV1 {
+            schema: vela_protocol::authorization::AUTHORIZATION_REQUEST_SCHEMA_V1.into(),
+            profile: vela_protocol::authorization::AUTHORIZATION_PROFILE_V1.into(),
+            model_root: model.root().unwrap(),
+            repository_id: FIXTURE_REPOSITORY.into(),
+            principal_id: request().principal_id,
             principal_class: PrincipalClass::Human,
-            action: "review_reject".into(),
-            resource: r#"Proposal::"vpr_fixture""#.into(),
-            context: serde_json::json!({"exact": true}),
+            action: vela_protocol::authorization::AuthorityActionV1::ReviewReject,
+            resource: vela_protocol::authorization::AuthorizationResourceV1 {
+                repository_id: FIXTURE_REPOSITORY.into(),
+                resource_type: vela_protocol::authorization::AuthorityResourceTypeV1::Proposal,
+                resource_id: "vpr_0123456789abcdef".into(),
+            },
+            authentication_root: NULL_ROOT.into(),
+            transaction_read_set_root: NULL_ROOT.into(),
+            intent_digest: NULL_ROOT.into(),
+            recovery_recent: false,
         }
     }
 
@@ -422,55 +384,80 @@ mod tests {
         assert!(observation.recovery_recent);
     }
 
+    /// The two session-derived fields come from the verified observation, not
+    /// from the caller.
+    ///
+    /// The Cedar version of this read three values back out of a free-form
+    /// `context.authentication` object the preflight had inserted. The closed
+    /// request has no such object: `recovery_recent` and `authentication_root`
+    /// are typed fields, and both are overwritten here.
     #[test]
-    fn authorization_context_is_derived_from_the_verified_observation() {
+    fn the_session_fields_are_derived_from_the_verified_observation() {
+        let model = model();
+        let mut supplied = authorization(&model);
+        supplied.recovery_recent = true;
+        supplied.authentication_root =
+            "sha256:1111111111111111111111111111111111111111111111111111111111111111".into();
+
         let result = preflight_authority_action(
             &mut local_session(),
             &request(),
             &RuntimeSessionState::default(),
-            &authorization("!context.authentication.recovery_recent"),
+            &model,
+            &supplied,
         )
         .unwrap();
+
+        assert!(!result.request.recovery_recent);
         assert_eq!(
-            result.authorization_context["authentication"]["method"],
-            "local_os_session"
+            result.request.authentication_root,
+            result.authentication.root().unwrap()
         );
         assert_eq!(
-            result.authorization_context["authentication"]["assurance"],
-            "local_session"
-        );
-        assert_eq!(
-            result.authorization_context["authentication"]["recovery_recent"],
-            false
+            result.authorization.decision,
+            AuthorizationDecisionV1::Allow
         );
     }
 
     #[test]
-    fn policy_denial_invalid_input_and_recovery_change_write_nothing() {
+    fn denial_invalid_input_and_recent_recovery_write_nothing() {
         let directory = sentinel();
+        let model = model();
 
+        // A principal the model has never heard of.
+        let mut stranger = authorization(&model);
+        stranger.principal_id = "local:stranger|uid:999".into();
         assert_eq!(
             preflight_authority_action(
                 &mut local_session(),
-                &request(),
+                &AuthenticationRequest {
+                    principal_id: "local:stranger|uid:999".into(),
+                    principal_class: PrincipalClass::Human,
+                    transaction_at: "2026-07-24T12:05:00Z".into(),
+                },
                 &RuntimeSessionState::default(),
-                &authorization("context.authentication.recovery_recent"),
+                &model,
+                &stranger,
             ),
-            Err(AuthorityPreflightFailure::AuthorizationDenied)
+            Err(AuthorityPreflightFailure::Authentication(
+                AuthenticationFailure::PrincipalMismatch
+            ))
         );
 
-        let mut invalid = authorization("true");
-        invalid.schema = "not cedar".into();
+        let mut invalid = authorization(&model);
+        invalid.model_root = "not a root".into();
         assert!(matches!(
             preflight_authority_action(
                 &mut local_session(),
                 &request(),
                 &RuntimeSessionState::default(),
+                &model,
                 &invalid,
             ),
             Err(AuthorityPreflightFailure::AuthorizationInvalid(_))
         ));
 
+        // A session that recently recovered is refused by the profile itself.
         let mut recovered = local_session();
         recovered.recovery_recent = true;
         assert_eq!(
@@ -478,7 +465,8 @@ mod tests {
                 &mut recovered,
                 &request(),
                 &RuntimeSessionState::default(),
-                &authorization("!context.authentication.recovery_recent"),
+                &model,
+                &authorization(&model),
             ),
             Err(AuthorityPreflightFailure::AuthorizationDenied)
         );
@@ -486,7 +474,7 @@ mod tests {
     }
 
     #[test]
-    fn caller_cannot_spoof_authentication_context_or_cedar_principal() {
+    fn a_caller_cannot_authorize_a_principal_it_is_not_authenticating() {
         #[derive(Default)]
         struct MustNotAuthenticate {
             called: bool,
@@ -504,28 +492,16 @@ mod tests {
             }
         }
 
-        let mut spoofed_context = authorization("true");
-        spoofed_context.context["authentication"] = serde_json::json!({"recovery_recent": false});
+        let model = model();
+        let mut wrong_principal = authorization(&model);
+        wrong_principal.principal_id = "local:other|uid:1".into();
         let mut adapter = MustNotAuthenticate::default();
         assert_eq!(
             preflight_authority_action(
                 &mut adapter,
                 &request(),
                 &RuntimeSessionState::default(),
-                &spoofed_context,
-            ),
-            Err(AuthorityPreflightFailure::ReservedContext)
-        );
-        assert!(!adapter.called);
-
-        let mut wrong_principal = authorization("true");
-        wrong_principal.principal = r#"Human::"other""#.into();
-        let mut adapter = MustNotAuthenticate::default();
-        assert_eq!(
-            preflight_authority_action(
-                &mut adapter,
-                &request(),
-                &RuntimeSessionState::default(),
+                &model,
                 &wrong_principal,
             ),
             Err(AuthorityPreflightFailure::PrincipalMismatch)
