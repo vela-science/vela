@@ -65,18 +65,34 @@ REPO="$ROOT/repository"
   --json > "$ROOT/init.json"
 anchor_path="$("$python_bin" -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["authority"]["local_trust"]["anchor_path"])' "$ROOT/init.json")"
 # `vela init` installs this anchor under the invoking user's real home, not
-# under $ROOT, so the trap has to remove it by name. The old cleanup matched
-# `vfr_*.json` and kept matching nothing after repository ids became `vrepo_`,
-# which left an anchor behind on the runner every release. Check the shape here
-# instead of inside the trap: the next id rename fails the smoke loudly rather
-# than turning cleanup back into a no-op.
+# under $ROOT, so the trap has to remove it by name. Check both the directory
+# and the current RFC 9562 UUIDv4 filename before assigning the cleanup target:
+# an identity-format change must fail loudly rather than turn cleanup into a
+# no-op and leave an anchor behind on the runner.
 case "$anchor_path" in
-  */.vela/trust/authorities/vrepo_*.json) ;;
+  */.vela/trust/authorities/*.json) ;;
   *)
     echo "unexpected authority trust anchor path: $anchor_path" >&2
     exit 1
     ;;
 esac
+anchor_name="$(basename "$anchor_path" .json)"
+if ! "$python_bin" - "$anchor_name" <<'PY'
+import sys
+import uuid
+
+value = sys.argv[1]
+try:
+    parsed = uuid.UUID(value)
+except ValueError:
+    raise SystemExit(1)
+if str(parsed) != value or parsed.version != 4 or parsed.variant != uuid.RFC_4122:
+    raise SystemExit(1)
+PY
+then
+  echo "unexpected authority trust anchor filename: $anchor_name" >&2
+  exit 1
+fi
 trust_pin_path="$anchor_path"
 test -f "$trust_pin_path"
 test -f "$REPO/vela.toml"
