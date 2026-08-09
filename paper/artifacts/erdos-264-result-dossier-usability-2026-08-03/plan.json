@@ -13,12 +13,12 @@
   "arms": [
     {
       "id": "flat",
-      "input": "flat-baseline.v1.md",
+      "input": "flat-baseline.md",
       "description": "Information-matched flat repository case file."
     },
     {
       "id": "dossier",
-      "input": "dossier-view.v1.md",
+      "input": "dossier-view.md",
       "description": "Progressively disclosed Result Dossier text matching the public projection."
     }
   ],

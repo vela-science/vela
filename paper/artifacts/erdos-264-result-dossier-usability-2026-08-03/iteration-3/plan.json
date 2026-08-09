@@ -14,23 +14,23 @@
   },
   "inputs": {
     "questions": {
-      "path": "../questions.v1.md",
+      "path": "../questions.md",
       "sha256": "sha256:7ae1898a445e470832389eaebf22541d82d47d4029d40adf889c3e3482bec70f"
     },
     "answer_schema": {
-      "path": "../answer-schema.v1.json",
+      "path": "../answer-schema.json",
       "sha256": "sha256:c5564645d0f8a8cc56ac938a5aea527be894eca02a142c2498781df5c2e798ed"
     }
   },
   "arms": [
     {
       "id": "flat",
-      "input": "../flat-baseline.v1.md",
+      "input": "../flat-baseline.md",
       "sha256": "sha256:ca42f99a9470195ff1f5151385d5a3b6e14f3f4f0298d0626cb2da71871372a8"
     },
     {
       "id": "dossier",
-      "input": "dossier-view.v3.md",
+      "input": "dossier-view.md",
       "sha256": "sha256:4320347ed9b7bf8b041cd9533878f36e4c0c53c146918dab81cbe4c5f668d3c1"
     }
   ],

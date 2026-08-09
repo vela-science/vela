@@ -2,8 +2,8 @@
   "schema": "vela.scientific-change-package-interoperability-plan-amendment.v1",
   "status": "frozen_before_derived_outputs",
   "frozen_at": "2026-08-02T21:01:15Z",
-  "prior_plan_root": "sha256:72d84fd4ceeb69c170beaf2e63dc22a801db6e99b749123c87a2f42ebbf07e42",
-  "prior_amendment_root": "sha256:38d3cd699bcc4540a01852460ae218d91eb476ad40e7e2cac8886c02ff248ad8",
+  "prior_plan_root": "sha256:b719174a729fa49489705e70dc882c7be44486b61082abaaaaf9b9f77d40347f",
+  "prior_amendment_root": "sha256:6c2003fcfb65c78362b4f3bfed4407511598f1400564319319fc0690e2737898",
   "reason": "Complete the existing RO-Crate 1.3 evidence package so an offline reader can reproduce the exact retained source transition instead of verifying only the surrounding Vela Decision chain.",
   "source_transition": {
     "repository": "https://github.com/google-deepmind/formal-conjectures",

@@ -5,8 +5,18 @@ use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// The root of the package as it stands in this tree, not as it stood when the
+/// qualification record in `research/lean-replay-contract-evidence/` was taken.
+///
+/// Three of the package's ten files carried a `.v1` in their names and were
+/// renamed with the rest of the repository, and two more name those files in
+/// their bodies. A logical package root is a function of the exact paths and
+/// bytes under it, so all five edits move it. The retained qualification record
+/// is bound to the commit and tree it was computed over and keeps the root it
+/// measured; this constant tracks the working tree, which is what the reader
+/// below actually walks.
 const EXPECTED_ROOT: &str =
-    "sha256:5653a31b6b42a77cff91905ffa3086730e21eb6cc4105963d9d98cbcc2b2baae";
+    "sha256:a72d2e262785d4465e6d7b7fd7b8472107182ceaed79f17b77bb62d660a5e6f3";
 
 #[derive(Serialize)]
 struct Descriptor {

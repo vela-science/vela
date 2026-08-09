@@ -15,7 +15,7 @@ constitute scientific acceptance.
 python3 paper/artifacts/formal-505/verify_replay.py \
   --canopus-cli ~/.canopus/bin/canopus-formal-505-d0e05094.js \
   --run ~/.canopus/runs/formal-conjectures-frontier/2026-07-28-formal-505-repair-4/run/run.json \
-  --output paper/artifacts/formal-505/report.v1.json
+  --output paper/artifacts/formal-505/report.json
 ```
 
 The required replay-only CLI has SHA-256
@@ -26,7 +26,7 @@ the current product interface. Build it in a detached worktree, verify the
 digest, and install the exact file at the path above. Current source exposes
 only `vela agent`.
 
-`verification-draft.v1.json` and `verification.v1.json` bind that report to the
+`verification-draft.json` and `verification.json` bind that report to the
 exact pending Claim, Submission, and Proposal. The exact Submission root binds
 all three retained Artifact digests. The redundant Verification v1
 `artifact_ids` field is empty because that field accepts legacy `va_` object

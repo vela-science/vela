@@ -1,6 +1,6 @@
 # Protocol cost observation
 
-`plan.v1.json` freezes the first descriptive cost measurement before the
+`plan.json` freezes the first descriptive cost measurement before the
 terminal Erdős 424 Decision. `measure.py` runs read-only commands with an empty
 home and no credential environment, rejects dirty Frontiers, records every
 wall-time sample, and binds each normalized output by SHA-256.
@@ -16,12 +16,12 @@ It excludes clone, network, compilation, model execution, human review, Git
 object compression, and hosted services. The result is a local cost
 observation, not a performance claim.
 
-`result.v1.json` records the registered observation at raw byte root
+`result.json` records the registered observation at raw byte root
 `sha256:1ba33ce4387c624c7c0381091140db34bb7ff4bf933ce56d0abe5479cf495acd`.
 The run began after Proposal `vpr_23f32f95d4f073e8` reached terminal Standing.
 It retained seven warm-cache samples for each operation.
 
-`reproduction.v1.json` records a second same-machine execution from detached
+`reproduction.json` records a second same-machine execution from detached
 clean clones at raw byte root
 `sha256:8ee2588e3745324555862a14a7559d2374984661aa5ce783d6ed7c400b02599b`.
 The two executions match on the plan, binary, Frontier commits and trees,

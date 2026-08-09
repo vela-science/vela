@@ -15,12 +15,12 @@
   "arms": [
     {
       "id": "flat",
-      "input": "../flat-baseline.v1.md",
+      "input": "../flat-baseline.md",
       "sha256": "sha256:ca42f99a9470195ff1f5151385d5a3b6e14f3f4f0298d0626cb2da71871372a8"
     },
     {
       "id": "dossier",
-      "input": "dossier-view.v2.md"
+      "input": "dossier-view.md"
     }
   ],
   "sessions_per_arm": 4,
@@ -33,7 +33,7 @@
     "model": "gpt-5.6-sol",
     "reasoning_effort": "high"
   },
-  "questions_and_scoring": "Unchanged from ../plan.v1.json and ../questions.v1.md.",
+  "questions_and_scoring": "Unchanged from ../plan.json and ../questions.md.",
   "public_release_gate": {
     "dossier_authority_or_standing_errors": 0,
     "dossier_questions_correct": 8,

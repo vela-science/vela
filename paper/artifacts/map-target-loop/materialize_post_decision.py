@@ -21,10 +21,10 @@ from typing import Any
 
 
 ARTIFACT_DIR = Path(__file__).resolve().parent
-PRE_RUN = ARTIFACT_DIR / "pre-run.v1.json"
-POST_VERIFICATION = ARTIFACT_DIR / "post-verification.v1.json"
-POST_VERIFICATION_MAP = ARTIFACT_DIR / "post-verification-map.v1.json"
-DECISION_PACKET = ARTIFACT_DIR / "decision-packet.v1.json"
+PRE_RUN = ARTIFACT_DIR / "pre-run.json"
+POST_VERIFICATION = ARTIFACT_DIR / "post-verification.json"
+POST_VERIFICATION_MAP = ARTIFACT_DIR / "post-verification-map.json"
+DECISION_PACKET = ARTIFACT_DIR / "decision-packet.json"
 
 TERMINAL_STANDINGS = {"accepted", "rejected"}
 ALLOWED_EXACT_PATHS = {".vela/repository.json", "targets.json"}

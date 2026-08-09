@@ -7,7 +7,7 @@ reviewer evidence.
 
 The two case files contain the same decision-relevant facts. The `flat` arm
 uses one undifferentiated repository note; the `dossier` arm uses the public
-projection's triage and progressive case-chain structure. `result.v1.json`,
+projection's triage and progressive case-chain structure. `result.json`,
 session outputs, and a machine-readable operation log are added after the
 frozen plan is hashed and all eight sessions complete.
 

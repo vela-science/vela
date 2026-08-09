@@ -51,7 +51,7 @@
 //! 2,844, which no artifact in this repository reproduces and which disagrees
 //! with both figures that are sourced: ADR 0039 records 2,782 accepted as the
 //! Observatory reported them, and the four `counts.accepted_claims` in
-//! `paper/artifacts/action-complete-repository-2026-08-03/baseline.v1.json`
+//! `paper/artifacts/action-complete-repository-2026-08-03/baseline.json`
 //! sum to 2,834. The count is dropped rather than picked between.
 //!
 //! What still checks this verb is `crates/vela-cli/tests/claims_enumeration.rs`,

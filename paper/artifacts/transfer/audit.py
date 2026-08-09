@@ -48,7 +48,7 @@ def main() -> int:
     args = parser.parse_args()
     repo = args.repo.resolve()
     here = Path(__file__).resolve().parent
-    plan_path = here / "plan.v1.json"
+    plan_path = here / "plan.json"
     try:
         plan_bytes = plan_path.read_bytes()
         plan = json.loads(plan_bytes)

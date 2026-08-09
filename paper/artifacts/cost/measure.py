@@ -170,7 +170,7 @@ def main() -> int:
     args = parser.parse_args()
 
     here = Path(__file__).resolve().parent
-    plan = json.loads((here / "plan.v1.json").read_bytes())
+    plan = json.loads((here / "plan.json").read_bytes())
     plan_root = sha256(canonical_bytes(plan))
     vela = args.vela.expanduser().resolve()
     frontiers = parse_frontiers(args.frontier)

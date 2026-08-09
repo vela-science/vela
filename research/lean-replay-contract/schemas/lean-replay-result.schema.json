@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://app.vela.space/schemas/lean-replay-result.v1.schema.json",
+  "$id": "https://app.vela.space/schemas/lean-replay-result.schema.json",
   "title": "Exact Lean replay result",
   "type": "object",
   "additionalProperties": false,

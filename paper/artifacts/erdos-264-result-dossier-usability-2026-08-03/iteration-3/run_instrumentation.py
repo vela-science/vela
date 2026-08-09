@@ -15,8 +15,8 @@ HERE = Path(__file__).resolve().parent
 PARENT = HERE.parent
 OUTPUT = HERE / "sessions"
 CASES = {
-    "flat": PARENT / "flat-baseline.v1.md",
-    "dossier": HERE / "dossier-view.v3.md",
+    "flat": PARENT / "flat-baseline.md",
+    "dossier": HERE / "dossier-view.md",
 }
 
 
@@ -32,8 +32,8 @@ def main() -> int:
             with tempfile.TemporaryDirectory(prefix=f"vela-dossier-v3-{arm}-") as raw:
                 root = Path(raw)
                 shutil.copyfile(case_path, root / "case.md")
-                shutil.copyfile(PARENT / "questions.v1.md", root / "questions.md")
-                shutil.copyfile(PARENT / "answer-schema.v1.json", root / "schema.json")
+                shutil.copyfile(PARENT / "questions.md", root / "questions.md")
+                shutil.copyfile(PARENT / "answer-schema.json", root / "schema.json")
                 answer_path = root / "answer.json"
                 command = [
                     "codex",
@@ -84,7 +84,7 @@ def main() -> int:
                     }
                 )
                 print(f"{arm}-{index}: {elapsed:.2f}s")
-    (HERE / "observations.v3.json").write_text(
+    (HERE / "observations.json").write_text(
         json.dumps(observations, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )

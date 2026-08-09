@@ -351,7 +351,7 @@ timestamp-only duplicates. The two already retained retry records count as one
 semantic verification, not independent methods or organizations.
 
 The exact pre-Decision read-only packet is retained at
-[`decision-packet.erdos-1056.v1.json`](../paper/artifacts/action-complete-frontier-2026-08-03/decision-packet.erdos-1056.v1.json).
+[`decision-packet.erdos-1056.json`](../paper/artifacts/action-complete-frontier-2026-08-03/decision-packet.erdos-1056.json).
 The human repository authority accepted only its exact bounded Claim in
 Decision event `vev_670c0f9318e2332f`; applied event
 `vev_3269cfb46f488c82` changes Standing. The Decision explicitly treats the
@@ -924,7 +924,7 @@ export remain deferred until a real consumer earns them.
 The first local reproduction is now complete: `lake build All` passed 8,666
 jobs and the pinned Erdős #183 profile passed both Lean's default kernel and a
 pinned Nanoda build. The exact environment, byte roots, and nonclaims are in
-`paper/artifacts/astra-erdos-183/result.v1.json` (SHA-256
+`paper/artifacts/astra-erdos-183/result.json` (SHA-256
 `cd38ac37a3abd04c045e2905886fa418155a1838cb755bc351f96341a84179cd`).
 The second Linux execution passed both kernels and Comparator under real
 Landrun/Landlock with no network, no capabilities, no host checkout, and an

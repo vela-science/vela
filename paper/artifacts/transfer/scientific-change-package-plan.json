@@ -6,7 +6,7 @@
   "source": {
     "package": "paper/artifacts/transfer/erdos-424",
     "frontier_id": "vfr_0a25edabc16db143",
-    "native_manifest": "reference.v1.json",
+    "native_manifest": "reference.json",
     "native_manifest_root": "sha256:b7b330ae6ea4915d5bac218233f0a272ee961060682be6d22f6a8ea1b78c4ed6",
     "native_manifest_bytes_sha256": "sha256:b7b330ae6ea4915d5bac218233f0a272ee961060682be6d22f6a8ea1b78c4ed6",
     "object_set_root": "sha256:f9cc936b42f7ee624d98583332454dbb46b68c00fa2819d990cea4d6d7daec8a",
@@ -26,7 +26,7 @@
   "representations": {
     "native": {
       "schema": "vela.foreign-reference.v1",
-      "file": "reference.v1.json",
+      "file": "reference.json",
       "purpose": "Authoritative description of exact Vela identities, roots, source Standing, source authority evidence, completeness, and the absence of local authority."
     },
     "ro_crate": {
@@ -38,7 +38,7 @@
       "purpose": "Portable file and research-object metadata over the same exact native manifest and object files; it does not replace Vela semantics."
     },
     "loss_report": {
-      "file": "vela-loss-report.v1.json",
+      "file": "vela-loss-report.json",
       "rule": "Every native semantic plane not represented losslessly by base RO-Crate terms is named explicitly and retained by reference to the native manifest rather than approximated."
     },
     "sha256_manifest": {
@@ -90,7 +90,7 @@
     "ordering": "lexicographic by path and entity identifier",
     "serialization": "UTF-8 JSON with sorted keys, compact separators, and one final LF",
     "rebuilds": 2,
-    "requirement": "Both clean temporary rebuilds must be byte-identical for ro-crate-metadata.json, vela-loss-report.v1.json, reader-result.v1.json, result.v1.json, and SHA256SUMS."
+    "requirement": "Both clean temporary rebuilds must be byte-identical for ro-crate-metadata.json, vela-loss-report.json, reader-result.json, result.json, and SHA256SUMS."
   },
   "stop_conditions": [
     "Native manifest root, object-set root, object count, Claim root, or Decision root differs from the frozen source.",

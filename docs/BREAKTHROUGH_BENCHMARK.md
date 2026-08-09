@@ -229,7 +229,7 @@ Submission `vsb_bb9b64f5d93b8cad` and Proposal
 `sha256:5e59e05a5639ac0ec4331ec40fec9f50229b795a1a08d983ba96834d4777b58a`
 from clean remote commit `3fe6bf62afd587b9cdeac39f5eb3c62a28fbc0aa`.
 Receiver audit
-`paper/artifacts/transfer/erdos-424/receiver-publication.v1.json`, byte root
+`paper/artifacts/transfer/erdos-424/receiver-publication.json`, byte root
 `sha256:a5867554d4dc9ea4dcd6d415a2be263c84dc0f6fbbe497fb86b427104368d75c`,
 therefore passes B8 and authority non-escalation for that historical state. A
 second scoped Verification `vvr_179fb049e70ff620` then satisfied the exact

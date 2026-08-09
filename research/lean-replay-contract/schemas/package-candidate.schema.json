@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://app.vela.space/schemas/package-candidate.v1.schema.json",
+  "$id": "https://app.vela.space/schemas/package-candidate.schema.json",
   "title": "Source-local Vela package candidate",
   "type": "object",
   "additionalProperties": false,
@@ -18,7 +18,7 @@
     "limitations"
   ],
   "properties": {
-    "$schema": { "type": "string", "const": "./schemas/package-candidate.v1.schema.json" },
+    "$schema": { "type": "string", "const": "./schemas/package-candidate.schema.json" },
     "schema": { "type": "string", "const": "vela.package-candidate.v1" },
     "package": {
       "type": "object",

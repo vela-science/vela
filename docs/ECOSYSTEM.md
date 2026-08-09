@@ -154,7 +154,7 @@ notice. Each needs a schema, a lifecycle and a surface, and none of them is the
 thing Vela is for. That is why the answer is no rather than later.
 
 The experiment was actually run and it failed its own gate.
-`research/lean-replay-contract-evidence/qualification.v1.json` records the
+`research/lean-replay-contract-evidence/qualification.json` records the
 candidate consumed by two independent readers at pinned commits, with
 `"linux_network_disabled_native_replay": false`, `"net_deletion": false`,
 `"level_1_promotion": false` — 1,017 lines added and 0 deleted. Two gates
