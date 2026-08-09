@@ -509,7 +509,9 @@ different facts.
   Python, and Rust; `.github/workflows/scorecard.yml` publishes pinned OpenSSF
   Scorecard SARIF; `.github/CODEOWNERS` routes review to the one current
   maintainer; and `SECURITY.md` uses the enabled private vulnerability-reporting
-  surface instead of a personal address. `proptest` and `cargo-fuzz` are not
+  surface instead of a personal address. The conformance emitter's
+  `cryptography` pin is 50.0.0, above every version implicated by the six
+  Dependabot advisories open against 46.0.5. `proptest` and `cargo-fuzz` are not
   adopted as ornamental dependencies: exhaustive shape enumeration, negative
   wire cases, frozen corpora, strict replay fixtures, and independent readers
   already target the concrete parser and canonicalization risks. Add either

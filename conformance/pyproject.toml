@@ -8,7 +8,7 @@ dependencies = [
     # MIT; JSON Schema 2020-12 validator for the independent wire check.
     "jsonschema==4.26.0",
     # Apache-2.0 OR BSD-3-Clause; Ed25519 for the independent Python emitter.
-    "cryptography==46.0.5",
+    "cryptography==50.0.0",
 ]
 
 [dependency-groups]

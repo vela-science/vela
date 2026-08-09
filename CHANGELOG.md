@@ -47,7 +47,9 @@ not a note per commit, so they are shorter than the releases were.
   envelope. RFC 8785 vectors run independently in Rust, Python, and JavaScript,
   including a UTF-16 property-order case. CodeQL default setup, a pinned
   OpenSSF Scorecard workflow, CODEOWNERS, and GitHub private vulnerability
-  reporting complete the repository security surface.
+  reporting complete the repository security surface. The independent Python
+  emitter now pins `cryptography` 50.0.0, clearing the six open advisories that
+  affected its previous 46.0.5 pin.
 
 ## 0.971.0
 
