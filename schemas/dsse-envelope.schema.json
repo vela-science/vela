@@ -1,0 +1,44 @@
+{
+  "$id": "https://vela.science/schemas/dsse-envelope.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "payload": {
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9+/_-]+={0,2}$",
+      "type": "string"
+    },
+    "payloadType": {
+      "pattern": "^application/vnd\\.vela\\.[a-z0-9.-]+\\+json$",
+      "type": "string"
+    },
+    "signatures": {
+      "items": {
+        "additionalProperties": true,
+        "properties": {
+          "keyid": {
+            "type": "string"
+          },
+          "sig": {
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9+/_-]+={0,2}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sig"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "payloadType",
+    "payload",
+    "signatures"
+  ],
+  "title": "Vela DSSE Envelope v1",
+  "type": "object"
+}

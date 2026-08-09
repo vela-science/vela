@@ -13,16 +13,27 @@ use serde::Serialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use vela_authority::runtime_authentication::{AuthenticationRequest, LocalOsSession};
-use vela_authority::{CedarEvaluationInput, CedarPolicyMaterial};
 use vela_edge::repository_write::{
     AUTHORITY_TRUST_ANCHOR_SCHEMA_V1, AuthorityTrustAnchorV1,
     install_authority_trust_anchor_from_home, load_authority_trust_anchor_from_home,
     rebind_authority_trust_anchor_from_home,
 };
+use vela_protocol::authorization::{
+    AUTHORIZATION_MODEL_SCHEMA_V1, AUTHORIZATION_PROFILE_V1, AUTHORIZATION_REQUEST_SCHEMA_V1,
+    AuthorityActionV1, AuthorityMemberV1, AuthorityResourceTypeV1, AuthorityRoleV1,
+    AuthorizationModelV1, AuthorizationRequestV1, AuthorizationResourceV1,
+};
+
+/// A placeholder root for the two request fields the preflight overwrites.
+///
+/// The request has to validate before it reaches the evaluator, and both
+/// fields are full roots, so they cannot simply be absent.
+const NULL_AUTHENTICATION_ROOT: &str =
+    "sha256:0000000000000000000000000000000000000000000000000000000000000000";
 use vela_protocol::authority::{
     AUTHORITY_KEY_ALGORITHM, AUTHORITY_KEY_PURPOSE, AUTHORITY_KEYSET_SCHEMA_V1,
     AuthorityEnvelopeV1, AuthorityEventV1, AuthorityKeyV1, AuthorityKeysetV1, AuthorityRecordV1,
-    POLICY_BUNDLE_SCHEMA_V1, PolicyBundleV1, PrincipalSnapshotV1, SemanticApprovalV1,
+    PrincipalSnapshotV1, SemanticApprovalV1,
 };
 use vela_protocol::authority_history::{
     AUTHORITY_INITIALIZE_ACTION, AUTHORITY_INITIALIZED_EVENT_KIND, AuthorityHistoryInput,
@@ -36,8 +47,7 @@ use vela_protocol::repository_origin::RepositoryOriginV1;
 
 use crate::authority_transaction::{
     AuthorityEventDraft, AuthorityHistorySnapshot, AuthorityObjectDraft,
-    AuthorityTransactionRequest, authority_policy_material_paths, execute_authority_transaction,
-    execution_binary_sha256,
+    AuthorityTransactionRequest, execute_authority_transaction, execution_binary_sha256,
 };
 use crate::repository_authority_provider::{
     SshAgentRepositoryAuthoritySigner, select_repository_authority_identity,
@@ -49,7 +59,7 @@ use super::{fail_return, print_json};
 /// The Cedar entity is `Repository`, which is what it has always bounded.
 ///
 /// `authority_transaction.rs` hashes this exact text and refuses the write when
-/// the runtime root differs from `policy_bundle.cedar_schema_root` retained in
+/// the runtime root differs from `authorization_model.cedar_schema_root` retained in
 /// history, so changing one character here makes every subsequent authority
 /// write fail on any repository holding a bundle computed over the old bytes.
 /// It said `Frontier` until 0.970.0 for exactly that reason: ADR 0039 had
@@ -58,228 +68,49 @@ use super::{fail_return, print_json};
 /// retained bundle carrying the old spelling and the entity now names the
 /// boundary it is actually the resource of. The entities JSON and the
 /// `Repository::` resource UID below are bound by the same schema.
-const HUMAN_AUTHORITY_SCHEMA: &str = r#"
-entity Repository;
-entity Human;
-entity Proposal;
-action "authority_rotate" appliesTo {
-    principal: Human,
-    resource: Repository,
-    context: {
-        exact: Bool,
-        authentication: {
-            method: String,
-            assurance: String,
-            authenticated_at: String,
-            observed_at: String,
-            expires_at: String,
-            user_presence: Bool,
-            user_verification: Bool,
-            recovery_recent: Bool
-        }
-    }
-};
-action "authority_close" appliesTo {
-    principal: Human,
-    resource: Repository,
-    context: {
-        exact: Bool,
-        authentication: {
-            method: String,
-            assurance: String,
-            authenticated_at: String,
-            observed_at: String,
-            expires_at: String,
-            user_presence: Bool,
-            user_verification: Bool,
-            recovery_recent: Bool
-        }
-    }
-};
-action "policy_rotate" appliesTo {
-    principal: Human,
-    resource: Repository,
-    context: {
-        exact: Bool,
-        authentication: {
-            method: String,
-            assurance: String,
-            authenticated_at: String,
-            observed_at: String,
-            expires_at: String,
-            user_presence: Bool,
-            user_verification: Bool,
-            recovery_recent: Bool
-        }
-    }
-};
-action "review_accept" appliesTo {
-    principal: Human,
-    resource: Proposal,
-    context: {
-        exact: Bool,
-        authentication: {
-            method: String,
-            assurance: String,
-            authenticated_at: String,
-            observed_at: String,
-            expires_at: String,
-            user_presence: Bool,
-            user_verification: Bool,
-            recovery_recent: Bool
-        }
-    }
-};
-action "review_reject" appliesTo {
-    principal: Human,
-    resource: Proposal,
-    context: {
-        exact: Bool,
-        authentication: {
-            method: String,
-            assurance: String,
-            authenticated_at: String,
-            observed_at: String,
-            expires_at: String,
-            user_presence: Bool,
-            user_verification: Bool,
-            recovery_recent: Bool
-        }
-    }
-};
-"#;
-
-const FRESH_AUTHORITY_INITIALIZE_SCHEMA: &str = r#"
-action "authority_initialize" appliesTo {
-    principal: Human,
-    resource: Repository,
-    context: {
-        exact: Bool,
-        authentication: {
-            method: String,
-            assurance: String,
-            authenticated_at: String,
-            observed_at: String,
-            expires_at: String,
-            user_presence: Bool,
-            user_verification: Bool,
-            recovery_recent: Bool
-        }
-    }
-};"#;
-
-const AUTHORITY_POLICY_TESTS_ROOT: &str =
-    // sha256("authority-policy-tests.v1|authority_initialize,authority_rotate,\
-    // authority_close,policy_rotate,review_accept,review_reject|exact=true|\
-    // bound-human-principal|hostile:unbound-principal")
-    "sha256:33deb37ad783ce995a3d3463eea05a4d3c3f762e9a5dd46aa9ce079d41a5e56e";
-
-pub(crate) fn fresh_authority_policy_for_frontier(
-    repository_path: &Path,
+/// The authorization model a fresh repository starts with.
+///
+/// This used to mint a Cedar policy bundle: an entity snapshot, a schema
+/// declaring five actions and an authentication context record, a policy text
+/// naming the principal, a frozen tests root, and two live Cedar evaluations —
+/// one asserting the bound principal is allowed and one asserting an unbound
+/// principal is denied — before any of it could be written down. All of it
+/// said one thing, and the closed model says that thing: this principal is a
+/// human who holds both roles on this repository.
+///
+/// The two self-evaluations went with it. They were checking that a generated
+/// policy compiled to the rule its generator intended; a model that *is* the
+/// rule has nothing to check, and `authorization::tests` holds the evaluator
+/// to both answers directly.
+pub(crate) fn fresh_authority_model(
     repository_id: &str,
     principal_id: &str,
-    observed_at: &str,
-) -> Result<(PolicyBundleV1, CedarEvaluationInput), String> {
-    let _ = repository_path;
-    let _ = observed_at;
-    let entities = json!([
-        {
-            "uid": {"type": "Repository", "id": repository_id},
-            "attrs": {},
-            "parents": []
-        },
-        {
-            "uid": {"type": "Human", "id": principal_id},
-            "attrs": {},
-            "parents": []
-        }
-    ]);
-    let schema = format!("{HUMAN_AUTHORITY_SCHEMA}\n{FRESH_AUTHORITY_INITIALIZE_SCHEMA}\n");
-    let human_policy = human_authority_policy(principal_id, true)?;
-    let policies = format!("{human_policy}\n");
-    let bundle = PolicyBundleV1 {
-        schema: POLICY_BUNDLE_SCHEMA_V1.into(),
+) -> Result<AuthorizationModelV1, String> {
+    let model = AuthorizationModelV1 {
+        schema: AUTHORIZATION_MODEL_SCHEMA_V1.into(),
+        profile: AUTHORIZATION_PROFILE_V1.into(),
         repository_id: repository_id.to_string(),
-        cedar_schema_root: ContentDigest::hash(schema.as_bytes()).as_str().into(),
-        policies_root: ContentDigest::hash(policies.as_bytes()).as_str().into(),
-        entities_root: ContentDigest::hash(to_canonical_bytes(&entities)?)
-            .as_str()
-            .into(),
-        tests_root: AUTHORITY_POLICY_TESTS_ROOT.into(),
-        engine: vela_protocol::authority::CEDAR_ENGINE.into(),
-        engine_version: vela_protocol::authority::CEDAR_ENGINE_VERSION.into(),
-        restricted_profile: vela_protocol::authority::CEDAR_PROFILE_V1.into(),
-        previous_bundle_root: None,
-        authority_summary: "No automatic scientific admission; one local human principal may decide reviews and administer repository authority. Producer and verifier signatures authenticate routine evidence outside this policy.".into(),
+        members: vec![
+            AuthorityMemberV1 {
+                principal_id: principal_id.to_string(),
+                principal_class: PrincipalClass::Human,
+                role: AuthorityRoleV1::Administrator,
+            },
+            AuthorityMemberV1 {
+                principal_id: principal_id.to_string(),
+                principal_class: PrincipalClass::Human,
+                role: AuthorityRoleV1::Reviewer,
+            },
+        ],
+        previous_model_root: None,
     };
-    let authorization = CedarEvaluationInput {
-        schema,
-        policies,
-        entities,
-        principal: format!("Human::{}", serde_json::to_string(principal_id).unwrap()),
-        principal_class: PrincipalClass::Human,
-        action: AUTHORITY_INITIALIZE_ACTION.into(),
-        resource: format!(
-            "Repository::{}",
-            serde_json::to_string(repository_id).unwrap()
-        ),
-        context: json!({"exact": true}),
-    };
-    let evaluation = vela_authority::evaluate(&CedarEvaluationInput {
-        context: json!({
-            "exact": true,
-            "authentication": {
-                "method": "local_os_session",
-                "assurance": "local_session",
-                "authenticated_at": "2026-07-24T00:00:00Z",
-                "observed_at": "2026-07-24T00:00:00Z",
-                "expires_at": "2026-07-24T01:00:00Z",
-                "user_presence": false,
-                "user_verification": false,
-                "recovery_recent": false
-            }
-        }),
-        ..authorization.clone()
-    });
-    if !evaluation.valid
-        || !evaluation.diagnostics.is_empty()
-        || evaluation.decision != vela_protocol::authority::CedarDecision::Allow
-    {
-        return Err(format!(
-            "initial authority policy does not authorize exact initialization: {:?}",
-            evaluation.diagnostics
-        ));
-    }
-    let other_principal = vela_authority::evaluate(&CedarEvaluationInput {
-        principal: r#"Human::"unbound-principal""#.into(),
-        context: json!({
-            "exact": true,
-            "authentication": {
-                "method": "local_os_session",
-                "assurance": "local_session",
-                "authenticated_at": "2026-07-24T00:00:00Z",
-                "observed_at": "2026-07-24T00:00:00Z",
-                "expires_at": "2026-07-24T01:00:00Z",
-                "user_presence": false,
-                "user_verification": false,
-                "recovery_recent": false
-            }
-        }),
-        ..authorization.clone()
-    });
-    if !other_principal.valid
-        || !other_principal.diagnostics.is_empty()
-        || other_principal.decision != vela_protocol::authority::CedarDecision::Deny
-    {
-        return Err("initial authority policy does not deny an unbound human principal".into());
-    }
-    Ok((bundle, authorization))
+    model.validate()?;
+    Ok(model)
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct LoadedRepositoryAuthority {
     pub(crate) history: AuthorityHistorySnapshot,
-    pub(crate) policy_material: CedarPolicyMaterial,
     pub(crate) verification: AuthorityHistoryVerification,
 }
 
@@ -391,7 +222,7 @@ fn pin_repository_authority(
         "first_authority_record_id": first_record.record_id,
         "first_authority_record_root": observed_root,
         "initial_authority_keyset_root": first_record.content.authority_keyset_root,
-        "initial_policy_bundle_root": first_record.content.authorization.policy_bundle_root,
+        "initial_authorization_model_root": first_record.content.authorization.model_root,
         "boundary_event_id": boundary_event_id,
         "authority_trust_anchor_root": installed.root,
         "authority_trust_anchor_path": installed.path.display().to_string(),
@@ -473,14 +304,9 @@ pub(crate) fn initialize_repository_authority(
         closed: false,
     };
     authority_keyset.validate()?;
-    let (policy_bundle, authorization_input) = fresh_authority_policy_for_frontier(
-        repository_path,
-        &profile.repository_id,
-        &local.principal_id,
-        &recorded_at,
-    )?;
+    let authorization_model = fresh_authority_model(&profile.repository_id, &local.principal_id)?;
     let keyset_root = authority_keyset.root()?;
-    let policy_root = policy_bundle.root()?;
+    let model_root = authorization_model.root()?;
     let origin = RepositoryOriginV1::genesis(
         profile.repository_id.clone(),
         profile_root.clone(),
@@ -491,7 +317,7 @@ pub(crate) fn initialize_repository_authority(
         schema: REPOSITORY_SCHEMA_V4.into(),
         repository_id: profile.repository_id.clone(),
         profile_root: profile_root.clone(),
-        origin_id: origin.origin_id.clone(),
+        origin_id: origin.id()?,
         origin_root: origin_root.clone(),
         accepted_claims: Vec::new(),
         pending_claims: Vec::new(),
@@ -501,7 +327,7 @@ pub(crate) fn initialize_repository_authority(
         verifications: Vec::new(),
         artifacts: Vec::new(),
         authority_keyset_root: keyset_root.clone(),
-        authority_policy_root: policy_root.clone(),
+        authority_model_root: model_root.clone(),
     };
     repository.verify()?;
     let repository_root = repository.canonical_root()?;
@@ -511,7 +337,7 @@ pub(crate) fn initialize_repository_authority(
         initial_event_log_root: empty_repository_event_log_root(),
         initial_actor_registry_root: empty_repository_actor_registry_root(),
         new_authority_keyset_root: keyset_root.clone(),
-        new_policy_bundle_root: policy_root.clone(),
+        new_authorization_model_root: model_root.clone(),
         new_principal_id: local.principal_id.clone(),
         minimum_writer_version: env!("CARGO_PKG_VERSION").into(),
         reason: reason.into(),
@@ -550,11 +376,10 @@ pub(crate) fn initialize_repository_authority(
                 repository_id: profile.repository_id.clone(),
                 initial_event_log_root: empty_repository_event_log_root(),
                 initial_actor_registry_root: empty_repository_actor_registry_root(),
-                initial_snapshots_preexisting: false,
                 authority_keyset,
-                policy_bundle,
+                authorization_model,
                 retained_authority_keysets: Vec::new(),
-                retained_policy_bundles: Vec::new(),
+                retained_authorization_models: Vec::new(),
                 authority_events: Vec::new(),
                 authority_envelopes: Vec::new(),
             },
@@ -565,7 +390,26 @@ pub(crate) fn initialize_repository_authority(
                 principal_class: PrincipalClass::Human,
                 transaction_at: recorded_at.clone(),
             },
-            authorization_input,
+            authorization_request: AuthorizationRequestV1 {
+                schema: AUTHORIZATION_REQUEST_SCHEMA_V1.into(),
+                profile: AUTHORIZATION_PROFILE_V1.into(),
+                model_root: model_root.clone(),
+                repository_id: profile.repository_id.clone(),
+                principal_id: principal.principal_id.clone(),
+                principal_class: PrincipalClass::Human,
+                action: AuthorityActionV1::AuthorityInitialize,
+                resource: AuthorizationResourceV1 {
+                    repository_id: profile.repository_id.clone(),
+                    resource_type: AuthorityResourceTypeV1::Repository,
+                    resource_id: profile.repository_id.clone(),
+                },
+                /* Both are replaced by `preflight_authority_action` from the
+                verified session; a caller cannot decide its own recency. */
+                authentication_root: NULL_AUTHENTICATION_ROOT.into(),
+                recovery_recent: false,
+                transaction_read_set_root: NULL_AUTHENTICATION_ROOT.into(),
+                intent_digest: intent_digest.clone(),
+            },
             /* `role` and the StateTarget type below are pre-ADR-0039 wire
             spellings inside a DSSE-signed preimage. `vela-science/math` holds
             both under a valid signature at genesis. Renaming them changes the
@@ -619,8 +463,7 @@ pub(crate) fn initialize_repository_authority(
             ],
             derived_drafts: Vec::new(),
             next_authority_keyset: None,
-            next_policy_bundle: None,
-            next_policy_material: None,
+            next_authorization_model: None,
             read_set: Vec::new(),
             vela_version: env!("CARGO_PKG_VERSION").into(),
             binary_sha256,
@@ -719,13 +562,13 @@ pub(crate) fn initialize_repository_authority(
         "principal_id": principal.principal_id,
         "repository_key_id": identity.key_id,
         "repository_key_fingerprint": identity.fingerprint,
-        "origin_id": origin.origin_id,
+        "origin_id": origin.id()?,
         "origin_root": origin_root,
         "repository_root": repository_root,
         "git_commit": git_commit,
         "git_tree": git_tree,
         "authority_keyset_root": keyset_root,
-        "policy_bundle_root": policy_root,
+        "model_root": model_root,
         "authority_record_id": result.authority_record_id,
         "authority_record_root": result.authority_record_root.clone(),
         "event_ids": result.event_ids,
@@ -753,32 +596,22 @@ pub(crate) fn load_repository_authority(
 ) -> Result<LoadedRepositoryAuthority, String> {
     if repository.repository_id != origin.repository_id
         || repository.profile_root != origin.profile_root
-        || repository.origin_id != origin.origin_id
+        || repository.origin_id != origin.id()?
         || repository.origin_root != origin.canonical_root()?
     {
         return Err(
             "current repository authority loader received a mismatched repository origin".into(),
         );
     }
-    let genesis_event_log_root = empty_repository_event_log_root();
-    let genesis_actor_registry_root = empty_repository_actor_registry_root();
-    let initial_event_log_root = origin
-        .predecessor
-        .as_ref()
-        .map_or(genesis_event_log_root.as_str(), |predecessor| {
-            predecessor.archived_event_log_root.as_str()
-        });
-    let initial_actor_registry_root = origin
-        .predecessor
-        .as_ref()
-        .map_or(genesis_actor_registry_root.as_str(), |predecessor| {
-            predecessor.archived_actor_registry_root.as_str()
-        });
+    /* Genesis is the only origin, so these are the empty roots. A compaction
+    origin used to substitute its predecessor's archived roots here. */
+    let initial_event_log_root = empty_repository_event_log_root();
+    let initial_actor_registry_root = empty_repository_actor_registry_root();
     let authority_root = repository_path.join(".vela/authority");
     let retained_authority_keysets =
         read_authority_json_directory::<AuthorityKeysetV1>(&authority_root.join("keysets"))?;
-    let retained_policy_bundles =
-        read_authority_json_directory::<PolicyBundleV1>(&authority_root.join("policies"))?;
+    let retained_authorization_models =
+        read_authority_json_directory::<AuthorizationModelV1>(&authority_root.join("models"))?;
     let authority_events =
         read_authority_json_directory::<AuthorityEventV1>(&authority_root.join("events"))?;
     let authority_envelopes =
@@ -794,11 +627,10 @@ pub(crate) fn load_repository_authority(
         .collect::<Vec<_>>();
     let verification = verify_authority_history(AuthorityHistoryInput {
         repository_id: &repository.repository_id,
-        initial_event_log_root,
-        initial_actor_registry_root,
-        initial_snapshots_preexisting: origin.predecessor.is_some(),
+        initial_event_log_root: &initial_event_log_root,
+        initial_actor_registry_root: &initial_actor_registry_root,
         authority_keysets: &retained_authority_keysets,
-        policy_bundles: &retained_policy_bundles,
+        authorization_models: &retained_authorization_models,
         authority_events: &authority_events,
         authority_envelopes: &authority_envelopes,
     })?;
@@ -806,12 +638,12 @@ pub(crate) fn load_repository_authority(
         .final_authority_keyset_root
         .as_deref()
         .ok_or_else(|| "repository authority has no active keyset root".to_string())?;
-    let active_policy_root = verification
-        .final_policy_bundle_root
+    let active_model_root = verification
+        .final_authorization_model_root
         .as_deref()
         .ok_or_else(|| "repository authority has no active policy root".to_string())?;
     if active_keyset_root != repository.authority_keyset_root
-        || active_policy_root != repository.authority_policy_root
+        || active_model_root != repository.authority_model_root
     {
         return Err("repository manifest does not bind the verified authority heads".into());
     }
@@ -820,26 +652,23 @@ pub(crate) fn load_repository_authority(
         .find(|keyset| keyset.root().is_ok_and(|root| root == active_keyset_root))
         .cloned()
         .ok_or_else(|| "active repository-authority keyset is missing".to_string())?;
-    let policy_bundle = retained_policy_bundles
+    let authorization_model = retained_authorization_models
         .iter()
-        .find(|bundle| bundle.root().is_ok_and(|root| root == active_policy_root))
+        .find(|bundle| bundle.root().is_ok_and(|root| root == active_model_root))
         .cloned()
         .ok_or_else(|| "active repository policy is missing".to_string())?;
-    let policy_material = load_retained_policy_material(repository_path, &policy_bundle)?;
     Ok(LoadedRepositoryAuthority {
         history: AuthorityHistorySnapshot {
             repository_id: repository.repository_id.clone(),
             initial_event_log_root: initial_event_log_root.to_string(),
             initial_actor_registry_root: initial_actor_registry_root.to_string(),
-            initial_snapshots_preexisting: origin.predecessor.is_some(),
             authority_keyset,
-            policy_bundle,
+            authorization_model,
             retained_authority_keysets,
-            retained_policy_bundles,
+            retained_authorization_models,
             authority_events,
             authority_envelopes,
         },
-        policy_material,
         verification,
     })
 }
@@ -869,34 +698,6 @@ pub(crate) fn authority_record_from_envelope(
     }
     record.validate()?;
     Ok(record)
-}
-
-fn load_retained_policy_material(
-    repository_path: &Path,
-    bundle: &PolicyBundleV1,
-) -> Result<CedarPolicyMaterial, String> {
-    let paths = authority_policy_material_paths(bundle).map_err(|error| error.to_string())?;
-    if !paths
-        .iter()
-        .all(|path| repository_path.join(path).is_file())
-    {
-        return Err(
-            "fresh repository authority is missing its retained Cedar policy material".into(),
-        );
-    }
-    let material = CedarPolicyMaterial {
-        schema: std::fs::read_to_string(repository_path.join(&paths[0]))
-            .map_err(|error| format!("read retained Cedar schema: {error}"))?,
-        policies: std::fs::read_to_string(repository_path.join(&paths[1]))
-            .map_err(|error| format!("read retained Cedar policies: {error}"))?,
-        entities: serde_json::from_slice(
-            &std::fs::read(repository_path.join(&paths[2]))
-                .map_err(|error| format!("read retained Cedar entities: {error}"))?,
-        )
-        .map_err(|error| format!("decode retained Cedar entities: {error}"))?,
-    };
-    material.validate_against(bundle)?;
-    Ok(material)
 }
 
 fn read_authority_json_directory<T>(directory: &Path) -> Result<Vec<T>, String>
@@ -937,38 +738,6 @@ where
                 .map_err(|error| format!("decode {}: {error}", path.display()))
         })
         .collect()
-}
-
-fn human_authority_policy(
-    principal_id: &str,
-    include_initialization: bool,
-) -> Result<String, String> {
-    if principal_id.trim().is_empty() || principal_id.chars().any(char::is_control) {
-        return Err("repository administrator principal is invalid".into());
-    }
-    let principal = serde_json::to_string(principal_id)
-        .map_err(|error| format!("encode repository administrator principal: {error}"))?;
-    let initialization = if include_initialization {
-        "        Action::\"authority_initialize\",\n"
-    } else {
-        ""
-    };
-    Ok(format!(
-        r#"permit (
-    principal == Human::{principal},
-    action in [
-{initialization}        Action::"authority_rotate",
-        Action::"authority_close",
-        Action::"policy_rotate",
-        Action::"review_accept",
-        Action::"review_reject"
-    ],
-    resource
-) when {{
-    context.exact &&
-    !context.authentication.recovery_recent
-}};"#
-    ))
 }
 
 pub(crate) fn canonical_whole_second_time(name: &str, value: &str) -> Result<String, String> {
@@ -1050,7 +819,6 @@ fn canonical_root(value: &impl Serialize) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
 
     #[test]
     fn helper_approval_time_is_canonicalized() {
@@ -1062,26 +830,75 @@ mod tests {
         assert!(canonical_whole_second_time("authority approval", "not-a-time").is_err());
     }
 
+    /// The model a fresh repository starts with authorizes exactly the human
+    /// decision and administration actions, and nothing else.
+    ///
+    /// This used to read the generated Cedar schema text for the absence of
+    /// `entity Agent`, `action "work_claim"`, `action "verification_import"`
+    /// and `receipt_land` — asserting that a policy generator had not emitted
+    /// tokens nobody asked it to emit. The action vocabulary is a closed Rust
+    /// enum now, so those four cannot be named at all, and what is worth
+    /// checking is what the model decides.
     #[test]
-    fn fresh_policy_contains_only_human_decision_and_administration_actions() {
-        let temporary = TempDir::new().unwrap();
-        let (bundle, authorization) = fresh_authority_policy_for_frontier(
-            temporary.path(),
-            "vrepo_00000000000000000000000000000000",
-            "local:device-fixture|uid:501",
-            "2026-07-27T00:00:00Z",
-        )
-        .unwrap();
-        assert_eq!(bundle.tests_root, AUTHORITY_POLICY_TESTS_ROOT);
-        assert!(authorization.schema.contains("action \"review_accept\""));
-        assert!(authorization.schema.contains("action \"review_reject\""));
-        assert!(!authorization.schema.contains("entity Agent"));
-        assert!(!authorization.schema.contains("action \"work_claim\""));
-        assert!(
-            !authorization
-                .schema
-                .contains("action \"verification_import\"")
+    fn a_fresh_model_authorizes_only_human_decision_and_administration() {
+        use vela_protocol::authorization::{
+            AUTHORIZATION_REQUEST_SCHEMA_V1, AuthorizationDecisionV1, evaluate_authorization_v1,
+        };
+
+        let repository_id = "vrepo_00000000000000000000000000000000";
+        let principal = "local:device-fixture|uid:501";
+        let model = fresh_authority_model(repository_id, principal).unwrap();
+
+        let request = |action: AuthorityActionV1, principal_id: &str| AuthorizationRequestV1 {
+            schema: AUTHORIZATION_REQUEST_SCHEMA_V1.into(),
+            profile: AUTHORIZATION_PROFILE_V1.into(),
+            model_root: model.root().unwrap(),
+            repository_id: repository_id.into(),
+            principal_id: principal_id.into(),
+            principal_class: PrincipalClass::Human,
+            action,
+            resource: match action.required_resource_type() {
+                AuthorityResourceTypeV1::Repository => AuthorizationResourceV1 {
+                    repository_id: repository_id.into(),
+                    resource_type: AuthorityResourceTypeV1::Repository,
+                    resource_id: repository_id.into(),
+                },
+                AuthorityResourceTypeV1::Proposal => AuthorizationResourceV1 {
+                    repository_id: repository_id.into(),
+                    resource_type: AuthorityResourceTypeV1::Proposal,
+                    resource_id: "vpr_0123456789abcdef".into(),
+                },
+            },
+            authentication_root: NULL_AUTHENTICATION_ROOT.into(),
+            transaction_read_set_root: NULL_AUTHENTICATION_ROOT.into(),
+            intent_digest: NULL_AUTHENTICATION_ROOT.into(),
+            recovery_recent: false,
+        };
+
+        for action in [
+            AuthorityActionV1::AuthorityInitialize,
+            AuthorityActionV1::AuthorityRotate,
+            AuthorityActionV1::AuthorityClose,
+            AuthorityActionV1::AuthorityModelUpdate,
+            AuthorityActionV1::ReviewAccept,
+            AuthorityActionV1::ReviewReject,
+        ] {
+            let evaluation =
+                evaluate_authorization_v1(&model, &request(action, principal)).unwrap();
+            assert_eq!(
+                evaluation.decision,
+                AuthorizationDecisionV1::Allow,
+                "{action:?} is not authorized for the genesis principal"
+            );
+        }
+
+        // Nobody else holds either role.
+        let stranger = request(AuthorityActionV1::ReviewAccept, "local:stranger|uid:999");
+        assert_eq!(
+            evaluate_authorization_v1(&model, &stranger)
+                .unwrap()
+                .decision,
+            AuthorizationDecisionV1::Deny
         );
-        assert!(!authorization.schema.contains("receipt_land"));
     }
 }

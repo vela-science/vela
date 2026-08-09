@@ -3,7 +3,7 @@
 This artifact freezes the read-only source state for the next Vela campaign.
 It changes no Frontier, Proposal, Event, Standing, projection, or deployment.
 
-The canonical document is [`baseline.v1.json`](baseline.v1.json), rooted at:
+The canonical document is [`baseline.json`](baseline.json), rooted at:
 
 ```text
 sha256:46f931b202618ef6437a23f0c49f9172cafa739c1b1b69465f5171f1caa39a4c
@@ -33,7 +33,7 @@ product benchmark and cannot substitute for a real correction with downstream
 Frontier topology. No agent or verifier may perform a scientific Decision.
 
 The subsequent native-agent slice is frozen separately in
-[`decision-packet.erdos-1056.v1.json`](decision-packet.erdos-1056.v1.json),
+[`decision-packet.erdos-1056.json`](decision-packet.erdos-1056.json),
 rooted at:
 
 ```text

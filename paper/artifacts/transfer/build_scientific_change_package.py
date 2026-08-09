@@ -22,34 +22,34 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
-PLAN = HERE / "scientific-change-package-plan.v1.json"
-AMENDMENT = HERE / "scientific-change-package-plan-amendment-001.v1.json"
+PLAN = HERE / "scientific-change-package-plan.json"
+AMENDMENT = HERE / "scientific-change-package-plan-amendment-001.json"
 EVIDENCE_AMENDMENT = (
-    HERE / "scientific-change-package-plan-amendment-002.v1.json"
+    HERE / "scientific-change-package-plan-amendment-002.json"
 )
 READER = HERE / "read_scientific_change_package.py"
 NATIVE_VERIFIER = HERE / "verify_foreign_reference.py"
-PLAN_ROOT = "sha256:72d84fd4ceeb69c170beaf2e63dc22a801db6e99b749123c87a2f42ebbf07e42"
+PLAN_ROOT = "sha256:b719174a729fa49489705e70dc882c7be44486b61082abaaaaf9b9f77d40347f"
 PLAN_BYTES_SHA256 = (
-    "sha256:63efd8b095cce421cbbb5aab7f0e21f03deeb3322f7c7de33eb5a20cd0a32fd9"
+    "sha256:0895d59f23b5abddaeab32552f4f8d0660e72cbb7c732db6654f8260672d0a4c"
 )
 AMENDMENT_ROOT = (
-    "sha256:38d3cd699bcc4540a01852460ae218d91eb476ad40e7e2cac8886c02ff248ad8"
+    "sha256:6c2003fcfb65c78362b4f3bfed4407511598f1400564319319fc0690e2737898"
 )
 AMENDMENT_BYTES_SHA256 = (
-    "sha256:787dd740eb597f437033bb89d4a8edb1e582bcc477e1ed8c6f45335182652d04"
+    "sha256:3e28d9d621caf40249ab43c6ad4f664c1790817cff0991fe678eb474467f26f2"
 )
 EVIDENCE_AMENDMENT_ROOT = (
-    "sha256:ff22ac6c97ded34f0049fa6f75b3f6aea6e88212bfe3ef71672051f5bf26271f"
+    "sha256:3102c1dd8514d880945603d1203af43249ade240d1ce80f43b5002f7aef41b5c"
 )
 EVIDENCE_AMENDMENT_BYTES_SHA256 = (
-    "sha256:a12abeb2c2b2a2724bc3f662ea1568d5f67fd4324e3a1d71bd465a20ea7630c9"
+    "sha256:f75bccc06b14438dc31032f55dddce9794bb1a00a1d44694bcc3687bef617b23"
 )
 GENERATED = [
     "ro-crate-metadata.json",
-    "vela-loss-report.v1.json",
-    "reader-result.v1.json",
-    "result.v1.json",
+    "vela-loss-report.json",
+    "reader-result.json",
+    "result.json",
     "SHA256SUMS",
 ]
 
@@ -96,7 +96,7 @@ def load_frozen(path: Path, root: str, bytes_root: str) -> dict[str, object]:
 def load_source(package: Path, plan: dict[str, object]) -> dict[str, object]:
     source = plan["source"]
     require(isinstance(source, dict), "plan_source_invalid")
-    encoded = (package / "reference.v1.json").read_bytes()
+    encoded = (package / "reference.json").read_bytes()
     native = json.loads(encoded)
     require(isinstance(native, dict), "native_manifest_invalid")
     require(
@@ -189,7 +189,7 @@ def loss_report(
         "plan_root": PLAN_ROOT,
         "plan_amendment_root": AMENDMENT_ROOT,
         "evidence_amendment_root": EVIDENCE_AMENDMENT_ROOT,
-        "native_manifest": "reference.v1.json",
+        "native_manifest": "reference.json",
         "native_manifest_root": canonical_root(native),
         "object_set_root": native["object_set_root"],
         "ro_crate_profile": "https://w3id.org/ro/crate/1.3",
@@ -224,7 +224,7 @@ def loss_report(
             {
                 "id": "canonical_object_root_vs_file_byte_root",
                 "mapping": "not_expressible_in_base_ro_crate",
-                "preserved_in": "reference.v1.json and retained native bytes",
+                "preserved_in": "reference.json and retained native bytes",
                 "reason": (
                     "Base RO-Crate identifies files but does not distinguish a "
                     "Vela canonical object root from the SHA-256 of its stored bytes."
@@ -233,7 +233,7 @@ def loss_report(
             {
                 "id": "correction_and_supersession_semantics",
                 "mapping": "not_expressible_in_base_ro_crate",
-                "preserved_in": "reference.v1.json and retained native bytes",
+                "preserved_in": "reference.json and retained native bytes",
                 "reason": (
                     "Generic dataset provenance does not carry Vela's exact "
                     "correction, supersession, and surviving-history semantics."
@@ -242,7 +242,7 @@ def loss_report(
             {
                 "id": "deterministic_standing_replay",
                 "mapping": "not_expressible_in_base_ro_crate",
-                "preserved_in": "reference.v1.json and retained native bytes",
+                "preserved_in": "reference.json and retained native bytes",
                 "reason": (
                     "RO-Crate packages metadata and files; it does not replay a "
                     "Vela Event history into Standing."
@@ -251,7 +251,7 @@ def loss_report(
             {
                 "id": "proposal_verification_decision_distinction",
                 "mapping": "not_expressible_in_base_ro_crate",
-                "preserved_in": "reference.v1.json and retained native bytes",
+                "preserved_in": "reference.json and retained native bytes",
                 "reason": (
                     "Base RO-Crate action and provenance terms do not preserve "
                     "Vela's Proposal, Verification, Decision, and Event planes."
@@ -260,7 +260,7 @@ def loss_report(
             {
                 "id": "source_standing_vs_receiving_standing",
                 "mapping": "not_expressible_in_base_ro_crate",
-                "preserved_in": "reference.v1.json and retained native bytes",
+                "preserved_in": "reference.json and retained native bytes",
                 "reason": (
                     "RO-Crate conformance does not grant source authority or "
                     "transport accepted Standing into another Frontier."
@@ -269,7 +269,7 @@ def loss_report(
             {
                 "id": "vela_authority_signature_and_keyset_validation",
                 "mapping": "not_expressible_in_base_ro_crate",
-                "preserved_in": "reference.v1.json and retained native bytes",
+                "preserved_in": "reference.json and retained native bytes",
                 "reason": (
                     "RO-Crate records file context but does not validate the "
                     "Vela repository-authority DSSE chain or its keyset."
@@ -312,7 +312,7 @@ def crate_metadata(
             ),
             "datePublished": str(source["decision_event"]["recorded_at"])[:10],
             "license": {"@id": "https://spdx.org/licenses/MIT.html"},
-            "mainEntity": {"@id": "reference.v1.json"},
+            "mainEntity": {"@id": "reference.json"},
             "identifier": sorted(
                 {
                     str(source["frontier_id"]),
@@ -328,8 +328,8 @@ def crate_metadata(
                 {"@id": path}
                 for path in sorted(
                     [
-                        "reference.v1.json",
-                        "vela-loss-report.v1.json",
+                        "reference.json",
+                        "vela-loss-report.json",
                         *(str(item["path"]) for item in objects),
                         *(item["path"] for item in evidence),
                     ]
@@ -337,7 +337,7 @@ def crate_metadata(
             ],
         },
         {
-            "@id": "reference.v1.json",
+            "@id": "reference.json",
             "@type": ["CreativeWork", "File"],
             "name": "Rooted native Vela manifest",
             "description": (
@@ -345,7 +345,7 @@ def crate_metadata(
                 "Standing, source authority evidence, and local non-authority."
             ),
             "encodingFormat": "application/json",
-            "contentSize": str((package / "reference.v1.json").stat().st_size),
+            "contentSize": str((package / "reference.json").stat().st_size),
             "identifier": sorted(
                 {
                     "vela.foreign-reference.v1",
@@ -355,7 +355,7 @@ def crate_metadata(
             ),
         },
         {
-            "@id": "vela-loss-report.v1.json",
+            "@id": "vela-loss-report.json",
             "@type": ["CreativeWork", "File"],
             "name": "Vela to RO-Crate semantic loss report",
             "description": (
@@ -430,7 +430,7 @@ def copy_native(
     evidence: list[dict[str, str]] | None = None,
 ) -> None:
     destination.mkdir(parents=True)
-    shutil.copyfile(source / "reference.v1.json", destination / "reference.v1.json")
+    shutil.copyfile(source / "reference.json", destination / "reference.json")
     for item in native["objects"]:
         relative = Path(str(item["path"]))
         target = destination / relative
@@ -455,7 +455,7 @@ def write_core(
     )
     outputs = {
         "ro-crate-metadata.json": crate_bytes,
-        "vela-loss-report.v1.json": loss_bytes,
+        "vela-loss-report.json": loss_bytes,
     }
     for name, encoded in outputs.items():
         (package / name).write_bytes(encoded)
@@ -622,7 +622,7 @@ def mutation_results(package: Path) -> list[dict[str, object]]:
         with tempfile.TemporaryDirectory(prefix=f"vela-{mutation}-") as raw:
             candidate = Path(raw) / "package"
             shutil.copytree(package, candidate)
-            native_path = candidate / "reference.v1.json"
+            native_path = candidate / "reference.json"
             native = json.loads(native_path.read_bytes())
             if mutation == "dropped_decision":
                 decision = next(
@@ -641,7 +641,7 @@ def mutation_results(package: Path) -> list[dict[str, object]]:
                 native["authority"]["local_standing_effect"] = "accepted"
                 native_path.write_bytes(canonical_bytes(native))
             elif mutation == "missing_loss_report":
-                (candidate / "vela-loss-report.v1.json").unlink()
+                (candidate / "vela-loss-report.json").unlink()
             observed = reader_diagnostic(candidate)
             require(observed == expected, f"mutation_diagnostic_drift:{mutation}")
             results.append(
@@ -661,9 +661,9 @@ def sha256_manifest(
     evidence: list[dict[str, str]],
 ) -> bytes:
     paths = [
-        "reference.v1.json",
+        "reference.json",
         "ro-crate-metadata.json",
-        "vela-loss-report.v1.json",
+        "vela-loss-report.json",
         *(str(item["path"]) for item in native["objects"]),
         *(item["path"] for item in evidence),
     ]
@@ -755,7 +755,7 @@ def build(
         }
         reader_bytes = encoded_json(reader_suite)
         for package in (first, second):
-            (package / "reader-result.v1.json").write_bytes(reader_bytes)
+            (package / "reader-result.json").write_bytes(reader_bytes)
 
         result = {
             "schema": "vela.scientific-change-package-interoperability-result.v1",
@@ -776,7 +776,7 @@ def build(
             },
             "representations": {
                 "native": {
-                    "file": "reference.v1.json",
+                    "file": "reference.json",
                     "schema": "vela.foreign-reference.v1",
                     "root": canonical_root(native),
                     "object_set_root": native["object_set_root"],
@@ -789,9 +789,9 @@ def build(
                     "same_native_object_set": True,
                 },
                 "loss_report": {
-                    "file": "vela-loss-report.v1.json",
+                    "file": "vela-loss-report.json",
                     "bytes_sha256": sha256_bytes(
-                        first_core["vela-loss-report.v1.json"]
+                        first_core["vela-loss-report.json"]
                     ),
                     "semantic_loss_count": 6,
                     "unreported_fields": 0,
@@ -803,7 +803,7 @@ def build(
                 },
             },
             "readers": {
-                "suite_file": "reader-result.v1.json",
+                "suite_file": "reader-result.json",
                 "suite_root": canonical_root(reader_suite),
                 "native": "pass",
                 "ro_crate_clean_room": "pass",
@@ -829,7 +829,7 @@ def build(
         }
         result_bytes = encoded_json(result)
         for package in (first, second):
-            (package / "result.v1.json").write_bytes(result_bytes)
+            (package / "result.json").write_bytes(result_bytes)
             (package / "SHA256SUMS").write_bytes(
                 sha256_manifest(package, native, evidence)
             )
@@ -861,12 +861,12 @@ def build(
                 (first / "ro-crate-metadata.json").read_bytes()
             ),
             "loss_report_sha256": sha256_bytes(
-                (first / "vela-loss-report.v1.json").read_bytes()
+                (first / "vela-loss-report.json").read_bytes()
             ),
             "reader_result_sha256": sha256_bytes(
-                (first / "reader-result.v1.json").read_bytes()
+                (first / "reader-result.json").read_bytes()
             ),
-            "result_sha256": sha256_bytes((first / "result.v1.json").read_bytes()),
+            "result_sha256": sha256_bytes((first / "result.json").read_bytes()),
             "sha256_manifest_sha256": sha256_bytes(
                 (first / "SHA256SUMS").read_bytes()
             ),

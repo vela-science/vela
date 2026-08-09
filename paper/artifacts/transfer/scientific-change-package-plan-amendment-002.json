@@ -1,0 +1,50 @@
+{
+  "schema": "vela.scientific-change-package-interoperability-plan-amendment.v1",
+  "status": "frozen_before_derived_outputs",
+  "frozen_at": "2026-08-02T21:01:15Z",
+  "prior_plan_root": "sha256:b719174a729fa49489705e70dc882c7be44486b61082abaaaaf9b9f77d40347f",
+  "prior_amendment_root": "sha256:6c2003fcfb65c78362b4f3bfed4407511598f1400564319319fc0690e2737898",
+  "reason": "Complete the existing RO-Crate 1.3 evidence package so an offline reader can reproduce the exact retained source transition instead of verifying only the surrounding Vela Decision chain.",
+  "source_transition": {
+    "repository": "https://github.com/google-deepmind/formal-conjectures",
+    "path": "FormalConjectures/ErdosProblems/424.lean",
+    "predecessor": {
+      "commit": "e751934294a381afd2d5fc1124c5953c8e25f9fa",
+      "tree": "571f59471e87f66e33dd734eb6794125b0c1f8c8",
+      "file": "evidence/predecessor-424.lean",
+      "file_sha256": "sha256:05876ee2a0d7e75f72af414dbb6c415212cfa04ef3941dfbd5d9f7c87e6a30d9",
+      "git_blob_sha1": "2d30dd4fcfe7b5af34b055e1b8f25d9a39d8bb9d",
+      "statement": "theorem erdos_424 : answer(sorry) ↔ generatedSet.HasPosDensity := by"
+    },
+    "successor": {
+      "commit": "8046fbff7b6c801d8debd4a85bf67a0541b78dda",
+      "tree": "774933a12da7926492e0e08cbd46ccbf99178cf8",
+      "file": "evidence/successor-424.lean",
+      "file_sha256": "sha256:6b425608614ac52f32a09bfa2a8ad989edef9fb21bbd599ef7bdcc2814b373a2",
+      "git_blob_sha1": "5a1d4fc0a50d6554f33dfb5d0de00b4630ea5ae9",
+      "statement": "theorem erdos_424 : answer(sorry) ↔ generatedSet.HasPosLowerDensity := by"
+    },
+    "source_diff": {
+      "file": "evidence/source-diff.json",
+      "sha256": "sha256:d18024c4333f77144955adf0036ce831e71b331ea7d9cc9cb69958f960f56d6c"
+    },
+    "full_index_patch": {
+      "file": "evidence/source-transition.patch",
+      "sha256": "sha256:c5d5648c81b42e9284b2c5feb7e8273bf9c204a3ad8f196c30051eb889500e77",
+      "encoding_format": "text/plain"
+    }
+  },
+  "archive": {
+    "format": "deterministic_tar_gzip",
+    "fixity_manifest": "SHA256SUMS",
+    "allowlist_only": true,
+    "manifest_excludes_itself": true,
+    "verification": "Verify archive structure and every payload digest before invoking the native and RO-Crate readers."
+  },
+  "unchanged": [
+    "The native manifest, its 11-object set, every Vela object root, and the source authority chain.",
+    "RO-Crate remains a base 1.3 evidence-package adapter rather than a Vela protocol representation.",
+    "Source Standing is accepted, receiving Standing effect is none, and a local Decision remains required.",
+    "No profile, importer, registry, service, protocol object, PROV model, or hosted resolver is introduced."
+  ]
+}

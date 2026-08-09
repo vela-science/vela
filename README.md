@@ -23,7 +23,7 @@
 Research already has tools for code, papers, data, proofs, and computation.
 Vela turns the state between them into a living map: what is known, contested,
 missing, and ready to attempt next; what exact evidence bears on each Claim;
-what was independently checked; what a named Frontier decided; and what a
+what was independently checked; what a named Repository decided; and what a
 later researcher can safely inherit.
 
 Vela is a Git-native protocol and CLI for governed, replayable
@@ -52,15 +52,15 @@ map          user-facing product
 movement     measurable outcome
 ```
 
-The protocol is useful when it makes a Frontier legible and helps the next
-valid scientific action improve after a result, correction, or useful
-failure. Record count, graph size, workflow completion, and model activity are
+The protocol is useful when it makes a Frontier legible — the derived boundary
+of what is still unresolved — and helps the next valid scientific action
+improve after a result, correction, or useful failure. Record count, graph size, workflow completion, and model activity are
 not product success.
 
 Its long-range direction is a federated inheritance layer for science:
 different workbenches can produce evidence, different verifiers can report
-scoped checks, and each Frontier can decide and replay its own state without a
-hosted authority or universal ontology.
+scoped checks, and each Repository can decide and replay its own state without
+a hosted authority or universal ontology.
 
 Native systems remain sovereign. Lean checks Lean proofs, Lake resolves Lean
 packages, Git preserves bytes and ancestry, and external activity recorders
@@ -129,20 +129,20 @@ cargo build --release
 ./target/release/vela --help
 ```
 
-Create and inspect a bounded Frontier:
+Create and inspect a bounded Repository:
 
 ```bash
-./target/release/vela init ../my-frontier \
+./target/release/vela init ../my-repository \
   --name "Bounded question" \
   --scope "Does X hold under Y?"
 
-./target/release/vela status ../my-frontier --json
-./target/release/vela replay ../my-frontier --json
+./target/release/vela status ../my-repository --json
+./target/release/vela replay ../my-repository --json
 ```
 
 `init` creates the Profile, signs the repository origin with one Ed25519
 identity from the normal OpenSSH agent, installs local trust, and commits the
-replayable Frontier. It creates no scientific Claim or Standing. When the
+replayable Repository. It creates no scientific Claim or Standing. When the
 agent exposes multiple Ed25519 identities, pass `--key SHA256:<fingerprint>`.
 If signing is unavailable, the Profile is retained safely; load the key and
 rerun the same `vela init` command.
@@ -214,19 +214,22 @@ verification authority
 
 Run `vela help advanced` for the grouped contract.
 
-Frontier domain adapters write the optional tracked Target Index directly;
+Domain adapters write the optional tracked Target Index directly;
 `replay`, `next`, and `start` validate it without a maintenance subcommand.
 
 ## Repository model
 
-A Frontier is an ordinary Git repository. Its canonical state is composed from
-typed, content-addressed objects and an append-only repository-authority
-history. Generated indexes, Web pages, databases, graphs, and materialized
-views are disposable readers.
+A Repository is an ordinary Git repository, and it is the only authority
+boundary. Its canonical state is composed from typed, content-addressed objects
+and an append-only repository-authority history. Generated indexes, Web pages,
+databases, graphs, and materialized views are disposable readers. A Frontier is
+none of those things: it is a derived query over unresolved state, it has no
+identifier, and it owns nothing (ADR 0039).
 
-The Vela source repository is not itself a Frontier: do not run `vela init`
-here and do not add a root `.vela/` directory. A project-local `.vela/` belongs
-only to a real Frontier and contains that Frontier's repository-control state.
+The Vela source repository is not itself a Vela Repository: do not run
+`vela init` here and do not add a root `.vela/` directory. A project-local
+`.vela/` belongs only to a real Repository and contains that Repository's
+repository-control state.
 User-local `~/.vela/` contains private configuration and runtime data; it is
 never scientific Standing and must not be copied into Git.
 
@@ -253,7 +256,7 @@ The immutable public `@vela-science/canopus@0.8.0` and its Git tag remain
 historical replay evidence. Current Vela ships no agent runner. Codex, Claude,
 OpenCode, laboratory software, and other native tools work from a Target
 packet and register ordinary Submissions or Verification Records. Vela Web and
-canonical Frontier repositories remain separate because they have independent
+the canonical Repositories remain separate because they have independent
 deployment and scientific-history lifecycles.
 
 Package-local tooling stays with its package. The top-level `scripts/` holds
@@ -331,11 +334,18 @@ only on a machine you are willing to treat the same way.
 
 ## Project status
 
-Vela is pre-1.0. All controlled public Frontiers use the current repository
-object model. Existing signed predecessor origins remain exact read-only
-origins; newly created Frontiers use native current genesis. Historical Git
-revisions preserve earlier contracts, and the current binary exposes no
-migration writer.
+Vela is pre-1.0. All controlled public Repositories use the current repository
+object model. Archived predecessors remain readable through their tags and the
+binaries of their era; every Repository the current binary writes starts at a
+native genesis. Historical Git revisions preserve earlier contracts, and the
+current binary exposes no migration writer.
+
+The final pre-1.0 standards cut has landed in this repository and has not yet
+reached `vela-science/math`, which must re-genesis under the new signed
+contract before the current binary can read it. That is an operator step, and
+until it happens the binary refuses the current `math` head. See
+[the 2026-08-08 architecture memo](docs/history/2026-08-08-ideal-ecosystem-and-architecture-memo.md)
+and [ADR 0035](docs/adr/0035-commodity-encoding-signing-and-wire-contracts.md).
 
 ## License
 

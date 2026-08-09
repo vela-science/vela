@@ -1,0 +1,91 @@
+{
+  "schema": "vela.lean-replay-package-qualification.v1",
+  "self_root_rule": "sha256 of RFC 8785 JCS with self_root omitted",
+  "self_root": "sha256:e54fe2252523fecd71fca82f2aebc9c80d9de07015207d98f021b6d23ad805d6",
+  "authority_effect": "none",
+  "status": "level_0_integrity_pass_level_1_promotion_no_go_consumer_gate_unrepeatable",
+  "package": {
+    "id": "vela-science/lean-replay-contract",
+    "version": "0.0.0-source-local",
+    "root": "sha256:a72d2e262785d4465e6d7b7fd7b8472107182ceaed79f17b77bb62d660a5e6f3",
+    "source_commit": "0ffcc35df983b63e78e5ae39316d6f378e684b73",
+    "source_tree": "6d67bdcd3b40b204b71379ea15305411355b4782",
+    "source_path": "research/lean-replay-contract"
+  },
+  "predecessor": {
+    "root": "sha256:5653a31b6b42a77cff91905ffa3086730e21eb6cc4105963d9d98cbcc2b2baae",
+    "source_commit": "051b4d5123dad53aaf49e1123cef61f433551fbf",
+    "source_tree": "4bd5b06c3450b4226593f76982911409399e6880",
+    "why_the_root_moved": "The repository-wide rename to unversioned filenames moved three of the package's ten paths and the bodies of two files that name them. A logical package root is a function of exactly those paths and bytes."
+  },
+  "root_readers": [
+    {
+      "implementation": "Python rfc8785 0.1.4",
+      "result": "pass",
+      "scope": "logical descriptor and all ten package files"
+    },
+    {
+      "implementation": "Rust serde_json_canonicalizer 0.3.2",
+      "result": "pass",
+      "scope": "independent file traversal, descriptor construction, RFC 8785 encoding, and SHA-256 root"
+    }
+  ],
+  "consumers": [
+    {
+      "repository": "https://github.com/vela-science/formal-conjectures-frontier.git",
+      "commit": "9c3bd6c44f8947d007239b35ae3cd210d7b93bbc",
+      "case": "retained Erdős 835 exact replay",
+      "ci_run": "https://github.com/vela-science/formal-conjectures-frontier/actions/runs/30865607435",
+      "result": "same_root_pass_against_predecessor_root",
+      "repository_state": "archived_read_only",
+      "historical_implementation_changed": false
+    },
+    {
+      "repository": "https://github.com/vela-science/erdos-frontier.git",
+      "commit": "c82bb1546f521cf6f15f48ba80414330980de4ac",
+      "case": "accepted Erdős 264 part-i repair replay",
+      "ci_run": "https://github.com/vela-science/erdos-frontier/actions/runs/30865608747",
+      "result": "same_root_pass_against_predecessor_root",
+      "repository_state": "archived_read_only",
+      "historical_implementation_changed": false
+    }
+  ],
+  "maintained_diff": {
+    "package_candidate": {
+      "added": 723,
+      "deleted": 0
+    },
+    "independent_reader": {
+      "added": 97,
+      "deleted": 0
+    },
+    "formal_consumer": {
+      "added": 89,
+      "deleted": 0
+    },
+    "erdos_consumer": {
+      "added": 108,
+      "deleted": 0
+    },
+    "total_added": 1017,
+    "total_deleted": 0,
+    "net_deletion_gate_passed": false
+  },
+  "gates": {
+    "same_root_two_consumers": false,
+    "independent_root_agreement": true,
+    "historical_authority_unchanged": true,
+    "macos_focused_checks": true,
+    "linux_network_disabled_native_replay": false,
+    "net_deletion": false,
+    "level_1_promotion": false
+  },
+  "interpretation": "Both root readers agree on the current package root, which is what the independent-agreement gate asks. The two-consumer gate is not merely unpassed at this root: ADR 0039 archived both consumers, so the runs recorded above cannot be repeated and no live repository consumes this package. The first extraction also added maintained code around immutable historical verifier bytes and deleted no maintained duplication. It cannot be promoted, released, indexed, or described as integration simplification.",
+  "next_valid_action": "Earn the consumer gate again on a live repository under the current contract, on a non-frozen Lean replay recurrence where shared mechanics replace duplicated maintained code; separately qualify a fail-closed Linux network sandbox. Recompute this record once against real consumers rather than editing it toward a pass.",
+  "nonclaims": [
+    "No Level 1 package or shared package repository.",
+    "No package CLI, Frontier lock, Web index, OCI distribution, or hosted registry.",
+    "No cross-platform native Lean replay result.",
+    "No productivity, adoption, scientific, Verification, Decision, or Standing claim."
+  ]
+}

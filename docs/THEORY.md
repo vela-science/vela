@@ -44,7 +44,7 @@ root_τ(x) = H(C_τ(x))
 ```
 
 The type subscript matters. Each schema defines its own closed projection,
-canonical bytes, identity preimage, and size bounds. A readable `vcl_`, `vsb_`,
+canonical bytes, and size bounds. A readable `vcl_`, `vsb_`,
 `vvr_`, or `vpr_` handle is not a security digest. Security-sensitive bindings
 use the full `sha256:` root and retained bytes.
 

@@ -1,5 +1,5 @@
 {
-  "$schema": "./schemas/package-candidate.v1.schema.json",
+  "$schema": "./schemas/package-candidate.schema.json",
   "schema": "vela.package-candidate.v1",
   "package": {
     "id": "vela-science/lean-replay-contract",
@@ -50,11 +50,11 @@
   "exports": [
     {
       "id": "space.vela/lean-replay-request/v1",
-      "path": "schemas/lean-replay-request.v1.schema.json"
+      "path": "schemas/lean-replay-request.schema.json"
     },
     {
       "id": "space.vela/lean-replay-result/v1",
-      "path": "schemas/lean-replay-result.v1.schema.json"
+      "path": "schemas/lean-replay-result.schema.json"
     }
   ],
   "limitations": [

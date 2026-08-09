@@ -21,13 +21,15 @@ dependencies. The JavaScript emitter uses Node's `crypto`, so neither borrows
 the other's signing stack.
 
 Usage:
-  python conformance/emitters/python.py submission --draft <json> --seed-file <path> --output <json>
-  python conformance/emitters/python.py verification --draft <json> --seed-file <path> --output <json>
+  python conformance/emitters/python.py <submission|verification> \\
+    --draft <json> --seed-file <path> --actor <id> --actor-class <human|agent|org> \\
+    --declared-at <rfc3339> --output <json>
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import stat
@@ -38,6 +40,20 @@ import rfc8785
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 MAX_DRAFT_BYTES = 8 * 1024 * 1024
+
+# schema tag, DSSE payload type, and handle prefix, per object kind.
+KINDS = {
+    "submission": (
+        "vela.submission.v2",
+        "application/vnd.vela.submission.v2+json",
+        "vsb",
+    ),
+    "verification": (
+        "vela.verification-record.v2",
+        "application/vnd.vela.verification-record.v2+json",
+        "vvr",
+    ),
+}
 
 
 def canonical(value: object) -> bytes:
@@ -84,123 +100,79 @@ def public_key_hex(key: Ed25519PrivateKey) -> str:
     return raw.hex()
 
 
-def identity_binding(actor_id: str, created_at: str, key: Ed25519PrivateKey) -> dict:
-    """The binding signs its own preimage, with id and signature blank.
+def pae(payload_type: str, payload: bytes) -> bytes:
+    """DSSE Pre-Authentication Encoding.
 
-    Both fields are outputs of the hash, so they cannot be inputs to it. Every
-    signed object here follows the same two-pass shape.
+    `DSSEv1 SP LEN(payloadType) SP payloadType SP LEN(payload) SP payload`.
+    The signature covers this and only this, so a payload cannot be lifted into
+    an envelope claiming a different type.
     """
-    binding = {
-        "schema": "vela.identity_binding.v0.1",
-        "binding_id": "",
-        "actor_id": actor_id,
-        "actor_class": "agent",
-        "public_key_hex": public_key_hex(key),
-        "created_at": created_at,
-        "signature": "",
-    }
-    preimage = canonical(binding)
-    signature = key.sign(preimage)
-    key.public_key().verify(signature, preimage)
-    return {
-        **binding,
-        "binding_id": f"vib_{sha256_hex(preimage)[:16]}",
-        "signature": signature.hex(),
-    }
+    encoded_type = payload_type.encode("utf-8")
+    return b" ".join(
+        [
+            b"DSSEv1",
+            str(len(encoded_type)).encode("ascii"),
+            encoded_type,
+            str(len(payload)).encode("ascii"),
+            payload,
+        ]
+    )
 
 
-def sign_object(
-    *,
-    schema: str,
-    id_field: str,
-    id_prefix: str,
-    draft: dict,
-    actor_id: str,
-    created_at: str,
-    key: Ed25519PrivateKey,
-) -> dict:
-    """Sign a draft. The draft may not supply anything signing produces.
+def build(kind: str, draft: dict, key: Ed25519PrivateKey, options: argparse.Namespace) -> dict:
+    """Seal a draft into its DSSE envelope.
 
-    `{**draft}` is spread after `schema` and the blanked id, so a draft key
-    wins — which quietly breaks the invariant the identity binding above states:
-    that both are outputs of the hash and cannot be inputs to it. A draft still
-    carrying `submission_id` from a previous emission is hashed with that id
-    inside the preimage; the emitter exits 0 and prints a result, and the Rust
-    verifier rejects the object for a mismatched id and an invalid signature,
-    because it recomputes with both fields cleared. The same shape would let a
-    draft set `schema` and be signed under a type its caller never asked for.
-
-    A draft that supplies them is a mistake, not an override.
+    A draft may not supply `schema` or `identity`: both are the emitter's, and
+    the spread below would let a draft carrying either be signed under a type
+    or an actor its caller never asked for. `javascript.mjs` refuses
+    identically.
     """
-    supplied = [field for field in ("schema", id_field, "authentication") if field in draft]
+    supplied = [field for field in ("schema", "identity") if field in draft]
     if supplied:
         raise SystemExit(
-            f"draft supplies {', '.join(supplied)}, which signing produces. Pass a draft, not a signed object."
+            f"draft supplies {', '.join(supplied)}, which the emitter produces. "
+            "Pass a draft, not a signed object."
         )
-    binding = identity_binding(actor_id, created_at, key)
-    unsigned = {
+    schema, payload_type, _ = KINDS[kind]
+    if kind == "submission" and (draft.get("provenance") or {}).get("producer") != options.actor:
+        raise SystemExit("submission provenance.producer must be the declared signer")
+
+    obj = {
         "schema": schema,
-        id_field: "",
+        "identity": {
+            "schema": "vela.signer-identity.v1",
+            "actor_id": options.actor,
+            "actor_class": options.actor_class,
+            "public_key_hex": public_key_hex(key),
+            "declared_at": options.declared_at,
+        },
         **draft,
-        "authentication": {
-            "algorithm": "ed25519",
-            "identity_binding": binding,
-            "signature": "",
-        },
     }
-    preimage = canonical(unsigned)
+    payload = canonical(obj)
+    signature = key.sign(pae(payload_type, payload))
+    key.public_key().verify(signature, pae(payload_type, payload))
     return {
-        **unsigned,
-        id_field: f"{id_prefix}_{sha256_hex(preimage)[:16]}",
-        "authentication": {
-            **unsigned["authentication"],
-            "signature": key.sign(preimage).hex(),
-        },
+        "payloadType": payload_type,
+        "payload": base64.b64encode(payload).decode("ascii"),
+        "signatures": [
+            {
+                "keyid": public_key_hex(key),
+                "sig": base64.b64encode(signature).decode("ascii"),
+            }
+        ],
     }
-
-
-def build_submission(draft: dict, key: Ed25519PrivateKey) -> dict:
-    provenance = draft.get("provenance") or {}
-    producer = provenance.get("producer")
-    emitted_at = provenance.get("emitted_at")
-    if not isinstance(producer, str) or not producer.startswith("agent:"):
-        raise SystemExit("submission provenance.producer must start with agent:")
-    if not isinstance(emitted_at, str) or not emitted_at:
-        raise SystemExit("submission provenance.emitted_at is required")
-    return sign_object(
-        schema="vela.submission.v1",
-        id_field="submission_id",
-        id_prefix="vsb",
-        draft=draft,
-        actor_id=producer,
-        created_at=emitted_at,
-        key=key,
-    )
-
-
-def build_verification(draft: dict, key: Ed25519PrivateKey) -> dict:
-    verifier = draft.get("verifier")
-    started_at = draft.get("started_at")
-    if not isinstance(verifier, str) or not verifier:
-        raise SystemExit("verification verifier is required")
-    if not isinstance(started_at, str) or not started_at:
-        raise SystemExit("verification started_at is required")
-    return sign_object(
-        schema="vela.verification-record.v1",
-        id_field="verification_record_id",
-        id_prefix="vvr",
-        draft=draft,
-        actor_id=verifier,
-        created_at=started_at,
-        key=key,
-    )
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(add_help=True)
-    parser.add_argument("kind", choices=("submission", "verification"))
+    parser.add_argument("kind", choices=tuple(KINDS))
     parser.add_argument("--draft", required=True, type=Path)
     parser.add_argument("--seed-file", required=True, type=Path, dest="seed_file")
+    parser.add_argument("--actor", required=True)
+    parser.add_argument(
+        "--actor-class", required=True, choices=("human", "agent", "org"), dest="actor_class"
+    )
+    parser.add_argument("--declared-at", required=True, dest="declared_at")
     parser.add_argument("--output", required=True, type=Path)
     options = parser.parse_args()
 
@@ -209,27 +181,25 @@ def main() -> int:
     # emitter resolves and then lstats too — and rejects symlinks — so this
     # keeps the two saying the same thing.
     key = read_seed(options.seed_file)
-    draft = read_draft(options.draft)
-    builder = build_submission if options.kind == "submission" else build_verification
-    obj = builder(draft, key)
+    envelope = build(options.kind, read_draft(options.draft), key, options)
 
-    # The retained bytes are the canonical encoding plus one newline; the root
-    # is over the canonical bytes alone. Writing exclusively and read-only
-    # matches the JavaScript emitter, so neither can quietly overwrite a
-    # fixture it was meant to be compared against.
-    payload = canonical(obj)
+    # The retained bytes are the canonical envelope exactly, with no trailing
+    # newline: the published root is over the file a reader is handed. Writing
+    # exclusively and read-only matches the JavaScript emitter, so neither can
+    # quietly overwrite a fixture it was meant to be compared against.
+    payload = canonical(envelope)
     with open(options.output, "xb") as handle:
-        handle.write(payload + b"\n")
+        handle.write(payload)
     options.output.chmod(0o444)
 
-    identifier = obj["submission_id" if options.kind == "submission" else "verification_record_id"]
+    root = f"sha256:{sha256_hex(payload)}"
     sys.stdout.buffer.write(
         canonical(
             {
                 "schema": "vela.reference-emission-result.v1",
                 "kind": options.kind,
-                "id": identifier,
-                "root": f"sha256:{sha256_hex(payload)}",
+                "id": f"{KINDS[options.kind][2]}_{root[len('sha256:'):][:16]}",
+                "root": root,
                 "output": str(options.output.resolve()),
             }
         )

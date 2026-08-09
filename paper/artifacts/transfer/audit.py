@@ -48,7 +48,7 @@ def main() -> int:
     args = parser.parse_args()
     repo = args.repo.resolve()
     here = Path(__file__).resolve().parent
-    plan_path = here / "plan.v1.json"
+    plan_path = here / "plan.json"
     try:
         plan_bytes = plan_path.read_bytes()
         plan = json.loads(plan_bytes)
@@ -68,7 +68,7 @@ def main() -> int:
             "ImportedClaimSource",
         )
         proposal_fields = struct_fields(
-            sources["crates/vela-protocol/src/objects/proposal_v1.rs"],
+            sources["crates/vela-protocol/src/objects/proposal.rs"],
             "ImportedProposalSource",
         )
         cli = sources["crates/vela-cli/src/server/cli_commands.rs"]

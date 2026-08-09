@@ -155,7 +155,7 @@ def build(args: argparse.Namespace) -> int:
     require(not output.exists(), "output archive already exists")
     require(not git(vela, "status", "--porcelain=v1"), "Vela worktree must be clean")
 
-    sources_path = vela / "paper" / "artifact-sources.v1.json"
+    sources_path = vela / "paper" / "artifact-sources.json"
     sources_bytes = sources_path.read_bytes()
     sources = json.loads(sources_bytes)
     require(sources["schema"] == "vela.paper-artifact-sources.v1", "artifact source schema mismatch")

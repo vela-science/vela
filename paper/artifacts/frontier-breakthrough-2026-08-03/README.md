@@ -3,14 +3,14 @@
 This directory freezes the source and repository identities used to select the
 next Vela campaign. It is research-control evidence, not scientific Standing.
 
-`baseline.v1.json` records the exact local Git heads, released Vela binary,
+`baseline.json` records the exact local Git heads, released Vela binary,
 Harbor version, retained Astra source identity, and rooted Erdős source files.
-`candidate-screen.v1.json` records the preliminary scientific work selection.
-`erdos-647-discovery-plan.v1.json` freezes the scientific question, inherited
+`candidate-screen.json` records the preliminary scientific work selection.
+`erdos-647-discovery-plan.json` freezes the scientific question, inherited
 negative state, success and nonclaim rules, wall-clock execution envelope, and
 Decision boundary. It remains a draft until the exact model, Harbor task,
 machine, verifier bytes, and final plan root are recorded before model output.
-`source-campaign-inventory.v1.json` separates merged Formal Conjectures source,
+`source-campaign-inventory.json` separates merged Formal Conjectures source,
 fork and pull-request candidates, the curated `lean-proofs` solved shelf, and
 exploratory campaign branches. `MANIFEST.sha256` binds all JSON artifacts
 exactly.

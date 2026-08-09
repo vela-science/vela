@@ -5,9 +5,9 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Restricted standards-based authorization evaluation for Vela repository authority."
+description = "Runtime authentication boundary for Vela repository authority."
 readme = "../../README.md"
-keywords = ["science", "authorization", "cedar", "policy", "provenance"]
+keywords = ["science", "authorization", "authentication", "provenance"]
 categories = ["authentication", "science"]
 publish = false
 
@@ -16,7 +16,6 @@ name = "vela_authority"
 path = "src/lib.rs"
 
 [dependencies]
-cedar-policy.workspace = true
 hex.workspace = true
 serde.workspace = true
 serde_json.workspace = true

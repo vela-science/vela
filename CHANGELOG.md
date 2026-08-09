@@ -10,6 +10,132 @@ not a note per commit, so they are shorter than the releases were.
 
 ## 0.971.0
 
+- **One DSSE implementation, and every signed Vela object uses it.**
+  Repository-authority records already used a DSSE 1.0.2 envelope. Submission,
+  Verification Record and Proposal Withdrawal signed a bespoke preimage
+  instead: the canonical object with its own identifier and signature fields
+  cleared to a fixed value, hashed, signed, and then reassembled — a convention
+  a foreign implementation had to reproduce exactly and could get subtly wrong
+  in silence. All three are now DSSE payloads under their own versioned payload
+  types, carried in the envelope `crates/vela-protocol/src/kernel/dsse.rs`
+  produces and reads, and the zeroed-field convention is gone from the
+  protocol.
+
+  This is a wire break, and every payload type and schema tag moved with it, so
+  a predecessor object fails to parse rather than parsing differently:
+
+  ```text
+  application/vnd.vela.submission.v2+json            vela.submission.v2
+  application/vnd.vela.verification-record.v2+json   vela.verification-record.v2
+  application/vnd.vela.proposal-withdrawal.v2+json   vela.proposal-withdrawal.v2
+  ```
+
+  Each parser verifies the exact payload bytes once and hands those same bytes
+  to the strict payload parser, so there is no window in which a reader has
+  checked one serialization and parsed another. The accepted cost is that a
+  retained Submission is base64 in a Git diff rather than readable JSON, which
+  is the shape authority records have always had; `vela show`, `vela why` and
+  `vela review show` decode it.
+
+  `IdentityBinding` became `SignerIdentityV1` and lost its ceremony — no
+  `binding_id`, no nested signature, no `vib_` prefix. The outer signature
+  proves possession of the key the payload declares, and a second raw signature
+  repeating the same fact is a second thing to keep in agreement.
+
+- **Full roots are canonical; short handles are derived.** No object stores its
+  own short identity any more: `proposal_id` is gone from `ProposalV1` and
+  `origin_id` from `RepositoryOriginV1`, and `vpr_` and `vro_` come from
+  `derive_handle` over the object's own root. A handle stored as a *reference*
+  is now checked by re-deriving it from a full root in the same object, which
+  is why `VerificationSubject` gained `proposal_root`: naming a Proposal by
+  handle alone left a reference no reader could check. `vcl_` keeps its 64 hex
+  characters — it is content-derived over an intentional scientific subset, not
+  a truncation.
+
+- **A repository origin is a genesis, and nothing else.**
+  `RepositoryOriginKind`, `RepositoryOriginPredecessorV1` and the `compaction()`
+  constructor are deleted, along with the eleven predecessor fields and the
+  `pre-compaction/` tag rule. The path was written for one pre-release repair
+  (ADR 0027), used once, and no repository the current binary can read needs
+  it. Continuity across a future lineage change belongs in a separately signed
+  attestation over exact commits, trees and roots — not as eleven permanent
+  fields on every origin that will never be a compaction.
+
+- **Cedar is retired, and the parity corpus that nothing read now decides it.**
+  `conformance/fixtures/epoch1/authorization-profile-parity.json` held every
+  retained epoch-1 authorization request and was, by `AGENTS.md`'s own account,
+  read by no code. `crates/vela-authority/tests/authorization_profile_parity.rs`
+  reads it: it recomputes all seven historical Allows under the closed Vela
+  Authorization Profile and checks seven negative boundary cases for their exact
+  fail-closed reasons. The test was written before the deletions, so a
+  disagreement would have stopped the cut with Cedar still in the tree.
+
+  Then the deletions. `cedar-policy` is out of both manifests,
+  `crates/vela-protocol/tests/engine_pin.rs` is gone, and `PolicyBundleV1` is
+  `AuthorizationModelV1` — sorted members, each with a principal class and one
+  of two roles, and no engine, version or profile to pin. `crates/vela-authority`
+  went from 738 lines to a module doc and its re-exports.
+
+  ADR 0035 §4's history gap closed with it. An authority record retains the
+  exact `vela.authorization-request.v1` it was written under, so strict replay
+  recomputes the decision under the rooted model instead of trusting a retained
+  `Allow`.
+
+  ADR 0042 said this was unreachable, and it was right about the mechanism: a
+  reader that refuses `vela-science/math`'s retained bundle turns a live
+  authority read-only, and no rotation writer exists. What dissolves it is the
+  wire break above. `math` must re-genesis, genesis mints the authority chain
+  and its model fresh, and there is no retained bundle left to contradict a
+  Cedar-free reader. The rotation writer was never needed. ADR 0042 is
+  Superseded; ADR 0035 is Accepted.
+
+- **`vela-science/math` must be re-genesised to load under this release.**
+  This is the second such requirement in one version and it is the same
+  ceremony, which is the point: `AGENTS.md` and the 2026-08-08 architecture
+  memo both say to bundle breaking changes into one cut so an operator performs
+  one re-genesis rather than one per change. Until it happens the binary
+  refuses the current `math` head with a schema error, exactly as 0.970.0 did.
+  It needs the authority key in a local OpenSSH agent and cannot be done from
+  CI.
+
+- **Every file has its plain name.** A version suffix on a filename is a
+  promise the repository does not keep — `submission_v2.rs` reads as though
+  `submission_v1.rs` sits beside it, and it does not, because a superseded
+  surface is deleted rather than kept as a second mode. Sources, schemas,
+  fixtures, docs, paper artifacts and the Lean replay package all dropped
+  theirs. The version stays where it is load-bearing, which is the wire:
+  `schema` tags still read `vela.submission.v2`, payload types still read
+  `application/vnd.vela.submission.v2+json`, and each published schema's `$id`
+  still names the file it is published as.
+
+  Two frozen roots moved as a result, and both were re-taken by the readers
+  that own them rather than edited to match:
+  `research/lean-replay-contract` from `sha256:5653a31b…` to `sha256:a72d2e26…`,
+  agreed by `build_root.py` and the independent Rust reader, and the
+  scientific-change-package plan from `sha256:72d84fd4…` to `sha256:b719174a…`,
+  which the builder cascaded through its amendments and generated outputs.
+
+  `research/lean-replay-contract-evidence/qualification.json` was recomputed to
+  the package's current identity, with the superseded root kept under
+  `predecessor`. Its two-consumer gate went to `false` in the same edit, and
+  that is the substantive change rather than the root: Formal and Erdős agreed
+  on the predecessor root at the commits the record names, and ADR 0039 has
+  since archived both repositories read-only, so those runs cannot be repeated
+  and no live repository consumes the package. The gate is unrepeatable against
+  those consumers rather than merely unpassed, and Level 1 promotion needs it
+  earned again on a live one. A new test holds the record's `package.root` to
+  the root the Rust reader measures, because `conformance/repository_lint.py`
+  reads that field to qualify a repository's dependency on this unreleased path
+  and a record naming a stale root qualifies nothing, silently.
+
+- **`vela why` explained every Claim as having no Verification.** It filtered
+  the stored Verification Record JSON on `/subject/claim_id`, which the DSSE cut
+  moved inside the envelope, so the pointer matched nothing and every record was
+  dropped. Nothing caught it because an empty list is what a Claim with no
+  Verification legitimately looks like — the failure had no shape of its own.
+  `review show` also grew `verification_record_id` beside the root it derives
+  from, which the payload no longer carries.
+
 - **`repository_id` is 128 bits.** It was 64 — `vrepo_` and sixteen hex
   characters truncated from a SHA-256 digest for no reason beyond brevity. The
   identifier is a routing handle rather than a security root, which `docs/ROOTS.md`
@@ -176,7 +302,7 @@ not a note per commit, so they are shorter than the releases were.
   the JavaScript emitter sorts keys by UTF-16 code unit, this one calls
   `rfc8785`, which sorts by code point as JCS specifies.
 
-- **`docs/interop/scientific-state-profile-v1.md`.** The seven contracts an
+- **`docs/interop/scientific-state-profile.md`.** The seven contracts an
   external implementation must satisfy, each paired with the conformance check
   that decides whether it does. It names existing schemas and creates no
   parallel object model.

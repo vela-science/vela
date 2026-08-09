@@ -35,9 +35,9 @@ class ScientificChangePackageTest(unittest.TestCase):
     def test_checked_in_package_has_exact_native_and_ro_crate_parity(self) -> None:
         result = reader.assess(
             PACKAGE,
-            HERE / "scientific-change-package-plan.v1.json",
-            HERE / "scientific-change-package-plan-amendment-001.v1.json",
-            HERE / "scientific-change-package-plan-amendment-002.v1.json",
+            HERE / "scientific-change-package-plan.json",
+            HERE / "scientific-change-package-plan-amendment-001.json",
+            HERE / "scientific-change-package-plan-amendment-002.json",
         )
         self.assertTrue(result["ok"])
         self.assertEqual(result["object_count"], 11)
@@ -52,13 +52,13 @@ class ScientificChangePackageTest(unittest.TestCase):
 
     def test_generated_core_is_reproducible_from_native_files(self) -> None:
         plan = builder.load_frozen(
-            HERE / "scientific-change-package-plan.v1.json",
+            HERE / "scientific-change-package-plan.json",
             builder.PLAN_ROOT,
             builder.PLAN_BYTES_SHA256,
         )
         native = builder.load_source(PACKAGE, plan)
         evidence_amendment = builder.load_frozen(
-            HERE / "scientific-change-package-plan-amendment-002.v1.json",
+            HERE / "scientific-change-package-plan-amendment-002.json",
             builder.EVIDENCE_AMENDMENT_ROOT,
             builder.EVIDENCE_AMENDMENT_BYTES_SHA256,
         )
@@ -94,7 +94,7 @@ class ScientificChangePackageTest(unittest.TestCase):
         native = builder.load_source(
             PACKAGE,
             builder.load_frozen(
-                HERE / "scientific-change-package-plan.v1.json",
+                HERE / "scientific-change-package-plan.json",
                 builder.PLAN_ROOT,
                 builder.PLAN_BYTES_SHA256,
             ),
@@ -102,7 +102,7 @@ class ScientificChangePackageTest(unittest.TestCase):
         evidence = builder.load_evidence(
             PACKAGE,
             builder.load_frozen(
-                HERE / "scientific-change-package-plan-amendment-002.v1.json",
+                HERE / "scientific-change-package-plan-amendment-002.json",
                 builder.EVIDENCE_AMENDMENT_ROOT,
                 builder.EVIDENCE_AMENDMENT_BYTES_SHA256,
             ),
@@ -112,13 +112,13 @@ class ScientificChangePackageTest(unittest.TestCase):
         self.assertEqual(observed, expected)
         self.assertEqual(
             f"sha256:{hashlib.sha256(observed).hexdigest()}",
-            "sha256:344c4c06b6bedfd33e669c67a6309d"
-            "b3ce8584ba187aacc46a72b59426ccb51d",
+            "sha256:cdbc07fa1df9afebf654b6cdb748745a"
+            "20662dfc4295c64c32352383b6010d03",
         )
 
     def test_result_records_external_profile_gap_without_substitution(self) -> None:
-        result = json.loads((PACKAGE / "result.v1.json").read_bytes())
-        readers = json.loads((PACKAGE / "reader-result.v1.json").read_bytes())
+        result = json.loads((PACKAGE / "result.json").read_bytes())
+        readers = json.loads((PACKAGE / "reader-result.json").read_bytes())
         self.assertEqual(
             result["outcome"], "baseline_complete_with_external_validator_gap"
         )
@@ -144,15 +144,15 @@ class ScientificChangePackageTest(unittest.TestCase):
                     Path("/not/reached"),
                 )
 
-            stale = unrelated / "result.v1.json"
+            stale = unrelated / "result.json"
             stale.write_bytes(b"stale")
             with self.assertRaisesRegex(
                 builder.BuildError,
-                "stale_generated_output:result.v1.json",
+                "stale_generated_output:result.json",
             ):
                 builder.publish_outputs(
                     unrelated,
-                    {"result.v1.json": b"expected"},
+                    {"result.json": b"expected"},
                 )
 
 

@@ -1,7 +1,8 @@
 # ADR 0035: Commodity encoding, signing, and wire contracts
 
-- Status: Proposed
+- Status: Accepted
 - Proposed: 2026-08-02
+- Accepted: 2026-08-09
 - Protocol effect: pre-1.0 canonical-byte and signed-record reset
 - Scientific effect: none; no Verification becomes acceptance and no Standing
   changes without an attributed Decision
@@ -87,7 +88,7 @@ protocol objects:
 All 17 integers outside the interoperable IEEE-754 safe-integer range occur in
 the Erdős 1093 raw evidence artifact. Those values must remain exact raw bytes
 or use strings in any future portable Vela object; JCS must never round them
-silently. `conformance/jcs-shadow-audit.v1.json` binds the exact repository
+silently. `conformance/jcs-shadow-audit.json` binds the exact repository
 commits and trees, counts, seven authority payloads, raw exception byte hashes
 and Git blobs, first-difference offsets, unsafe-integer counts, and canonical
 result root. The result supports a root-preserving canonicalizer switch only
@@ -108,8 +109,8 @@ The dependency-free Vela Authorization Profile evaluator now exists in shadow
 mode. It has two human roles, six closed actions, explicit Frontier-owned
 resource identity, exact authentication/read-set/intent bindings, and stable
 fail-closed reason codes. The frozen
-`conformance/fixtures/authorization-profile-parity-v1.json` corpus binds the
-current four Frontier heads and all seven retained authority transactions. It
+`conformance/fixtures/epoch1/authorization-profile-parity.json` corpus binds the
+epoch-1 Frontier heads and all seven retained authority transactions. It
 independently reproduces every legacy Cedar request root, golden-locks the four
 candidate model roots and seven candidate request roots, and proves Allow
 parity plus seven negative boundary cases. No denied Cedar evaluation was ever
@@ -120,6 +121,67 @@ Verification, portable JSON Schema 2020-12 contracts, retained model/request
 history, and the explicit current-epoch cut have not shipped. Cedar must not be
 deleted until strict history recomputes the closed evaluation and all four
 replacement Frontiers replay from clean clones.
+
+### Implementation note: 2026-08-09
+
+Accepted. The remaining four items shipped together, as one wire break, because
+each of them separately would have forced another `vela-science/math`
+re-genesis.
+
+§2 is implemented as written. `crates/vela-protocol/src/kernel/dsse.rs` is the
+only DSSE implementation in the tree; `EnvelopeV1` carries PAE, both base64
+alphabets, tolerant parsing and the threshold loop, and authority records,
+Submissions, Verification Records and Proposal Withdrawals are all typed users
+of it. The zeroed-field preimage convention is gone: no `signed_preimage`, no
+`derive_id` that hashes one, and no nested second signature anywhere. Each
+parser verifies the exact payload bytes once and hands those same bytes to the
+strict payload parser. `IdentityBinding` lost its ceremony and became
+`SignerIdentityV1` — a declaration of who is signing and under which key,
+proved by the envelope signature rather than by a signature of its own.
+
+§3 shipped as `crates/vela-protocol/src/wire_schema.rs`, generating the eight
+published schemas under `schemas/` with a drift gate, and two independent
+emitters that reproduce the fixtures byte for byte.
+
+§4's history gap is closed. `AuthorityRecordV1` retains the exact authorization
+request, and `verify_record_authorization` recomputes the decision under the
+rooted model instead of trusting a retained `Allow`. `PolicyBundleV1` is
+`AuthorizationModelV1`, which names no engine and no engine version, so a
+future evaluator change is a code change rather than a signature problem.
+Before any of that was deleted, the epoch-1 parity corpus that ADR 0042 noted
+"is read by nothing" was wired into
+`crates/vela-authority/tests/authorization_profile_parity.rs`, which recomputes
+all seven retained Cedar Allows under the closed profile and checks seven
+negative boundary cases for their exact reasons.
+
+This ADR also supersedes ADR 0042, and it is worth saying why, because 0042
+asked the right question and this cut answered it by accident. 0042 holds that
+Cedar cannot be deleted while `vela-science/math` retains a signed
+`PolicyBundleV1` naming the pinned evaluator: the reader refuses any bundle
+that disagrees, so the live repository must be rotated to new policy material
+*before* the reader stops accepting the old, and no rotation writer exists. All
+of that is accurate. What it does not consider is that a wire break removes the
+repository the bundle is retained on. §2 moves the signature preimage for
+Submission and Verification Record, `math` must re-genesis, and genesis mints a
+fresh authority chain and a fresh model from the binary performing it. There is
+then no retained bundle left to contradict a Cedar-free reader, and no rotation
+to sequence. 0042's own §"Sequencing against ADR 0035" gets within one step of
+this — it observes that doing both in one cut costs "one operator ceremony
+instead of two" — without noticing that the second ceremony has nothing left to
+do.
+
+This is not 0042's rejected alternative of archiving `math` to avoid writing a
+verb. There the objection was that discarding signed history to save a feature
+leaves the next rotation in the same position; here the re-genesis is forced by
+the wire contract and would happen whether or not Cedar were involved, and it
+is paid once for the whole pre-1.0 cut rather than once per retirement. The
+rotation writer remains unwritten and is not owed.
+
+The current-epoch cut is the one thing that did not ship, and cannot from here.
+`vela-science/math` must re-genesis under the new contract, which needs the
+authority key in a local OpenSSH agent. Until an operator performs it, the
+binary refuses the current `math` head with a schema error — the same
+sequencing as release 0.970.0.
 
 ## Decision
 

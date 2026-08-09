@@ -35,4 +35,4 @@ delimiter. The result is therefore a hardened offline Docker+Landrun
 reproduction, not the literal pre-Linux-7.1 native `systemd-run` guarantee in
 Comparator's documentation and not an independent scientific Decision.
 
-The exact result and all nonclaims are in `result.v1.json`.
+The exact result and all nonclaims are in `result.json`.

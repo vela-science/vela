@@ -150,7 +150,7 @@ fn every_subtree_index_lists_its_own_directory() {
 ///
 /// `docs/adr/` and `docs/history/` keep their own indexes and are excluded; no
 /// other subdirectory is. Scoping this to the top level was the same mistake
-/// one indirection down: `docs/interop/scientific-state-profile-v1.md` and
+/// one indirection down: `docs/interop/scientific-state-profile.md` and
 /// `docs/integrations/genesis-open-models.md` were both published in 0.969.0
 /// into directories the index could not see, and no page in the repository
 /// linked either one.

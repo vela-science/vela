@@ -28,7 +28,7 @@ classifiable from their retained native Lean traces, while the Harbor trial
 status remains an infrastructure error. The study does not turn either error
 into a verifier score.
 
-[`result.v1.json`](result.v1.json) binds the frozen plan, fixture, Harbor job,
+[`result.json`](result.json) binds the frozen plan, fixture, Harbor job,
 trial results, trajectories, artifacts, timings, token counts, model costs,
 failure classifications, and claim limits. Raw Harbor outputs remain in the
 user-local cache named by the study; they are not copied into Git.

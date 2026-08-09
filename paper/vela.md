@@ -574,7 +574,7 @@ transition after the baselines: the Erdős 424 writer-qualification case. That
 case is excluded from held-out use and has no hard dependent, support diamond,
 or non-consequential incoming relation. No other Frontier supplied a candidate.
 The deterministic result at
-`paper/artifacts/heldout-selection/result.v1.json`, byte root
+`paper/artifacts/heldout-selection/result.json`, byte root
 `sha256:f80cf6b81c9b056535ccf17a24b1631d8f3e57d3bc3ecea65d7516c1b831be5b`,
 therefore records `no_qualifying_candidate`. The held-out entry gate failed;
 the experiment did not substitute a synthetic case.
@@ -622,7 +622,7 @@ graph source
 `sha256:51e69b4d883f89c38b590ac8750753834f96f5abd073cba8ca87bddad7dbb659`,
 4,032 nodes, and 2,528 edges. It was inserted and verified in the normalized
 read projection but not activated. The exact checkpoint bytes are retained at
-`paper/artifacts/map-target-loop/post-verification-map.v1.json`, root
+`paper/artifacts/map-target-loop/post-verification-map.json`, root
 `sha256:439a804908890e4029922cc91cdd0a79122187d573530fc760a419d90786be21`.
 
 The human accepted the exact bounded Claim. Decision Event
@@ -645,7 +645,7 @@ fresh-clone replay, and a dry-run remap. It produced candidate release
 graph source
 `sha256:d22eddc7b486907204fc8197c4861e089808523c2993f3864ea1a46f8465cfcc`,
 4,032 nodes, and 2,528 edges. Exact terminal evidence is retained at
-`paper/artifacts/map-target-loop/post-decision.v1.json`, root
+`paper/artifacts/map-target-loop/post-decision.json`, root
 `sha256:b29e8cbb50aff3cc81a4ac6f4cf261b9a3ca9d80dbe69614d9a771116d80151c`.
 The materializer cannot invoke a Decision, push Git, activate the read model,
 read a human key, or mutate a Frontier.

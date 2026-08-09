@@ -20,6 +20,6 @@ repository-specific abbreviation length. A passing report is scoped
 mechanical evidence. It is not organizational independence, a proof of the
 theorem, or a scientific Decision.
 
-`diff-abbreviation-defect.v1.json` records the first prepared verifier's
+`diff-abbreviation-defect.json` records the first prepared verifier's
 pre-import failure and the exact replacement binding. The failed record is
 evidence of a verifier defect, not a Verification result.

@@ -8,14 +8,14 @@ use std::process::{Command, Output};
 use ed25519_dalek::SigningKey;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
-use vela_protocol::submission_v1::{
+use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
+use vela_protocol::submission::{
     RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
-    SubmissionV1,
+    SubmissionRecordV2,
 };
 use vela_protocol::verification_record::{
-    IndependenceDisclosure, VerificationMethod, VerificationRecordDraft, VerificationRecordV1,
-    VerificationScope, VerificationSubject,
+    IndependenceDisclosure, VerificationMethod, VerificationRecordDraft,
+    VerificationRecordEnvelopeV2, VerificationScope, VerificationSubject,
 };
 
 mod support;
@@ -565,16 +565,10 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     std::fs::write(&transport_artifact, artifact).expect("artifact bytes");
     let emitted_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     let producer_key = SigningKey::from_bytes(&[57_u8; 32]);
-    let identity = IdentityBinding::build(
-        IdentityBindingDraft {
-            actor_id: actor.into(),
-            actor_class: ActorClass::Agent,
-            created_at: emitted_at.clone(),
-        },
-        &producer_key,
-    )
-    .expect("identity binding");
-    let submission = SubmissionV1::build(
+    let identity =
+        SignerIdentityV1::new(actor, ActorClass::Agent, &producer_key, emitted_at.clone())
+            .expect("identity binding");
+    let submission = SubmissionRecordV2::seal(
         SubmissionDraft {
             claim: SubmissionClaim {
                 assertion: "The disposable fixture artifact contains bounded JSON evidence.".into(),
@@ -608,11 +602,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     )
     .expect("Submission");
     let submission_path = bundle.join("submission.json");
-    std::fs::write(
-        &submission_path,
-        submission.canonical_bytes().expect("Submission bytes"),
-    )
-    .expect("write Submission");
+    std::fs::write(&submission_path, &submission.bytes).expect("write Submission");
     let before = Command::new("git")
         .current_dir(&repository_path)
         .args(["rev-parse", "HEAD^{commit}"])
@@ -782,13 +772,11 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
 
     let observed_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     let verifier_key = SigningKey::from_bytes(&[58_u8; 32]);
-    let verifier_identity = IdentityBinding::build(
-        IdentityBindingDraft {
-            actor_id: verifier.clone(),
-            actor_class: ActorClass::Agent,
-            created_at: observed_at.clone(),
-        },
+    let verifier_identity = SignerIdentityV1::new(
+        verifier.clone(),
+        ActorClass::Agent,
         &verifier_key,
+        observed_at.clone(),
     )
     .expect("Verifier identity");
     let method_root = format!(
@@ -797,7 +785,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             std::fs::read(repository_path.join(method_path)).expect("method bytes")
         ))
     );
-    let verification_record = VerificationRecordV1::build(
+    let verification_record = VerificationRecordEnvelopeV2::seal(
         VerificationRecordDraft {
             subject: VerificationSubject {
                 claim_id: submitted["claim_id"]
@@ -817,6 +805,10 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
                     .as_str()
                     .expect("proposal id")
                     .to_string(),
+                proposal_root: submitted["proposal_root"]
+                    .as_str()
+                    .expect("proposal root")
+                    .to_string(),
             },
             method: VerificationMethod {
                 profile: "exact-replay-v1".into(),
@@ -828,7 +820,6 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
                 does_not_establish: vec!["Scientific acceptance.".into()],
             },
             outcome: "pass".into(),
-            verifier: verifier.clone(),
             independence: IndependenceDisclosure {
                 declared_independent_of: vec![actor.into()],
                 shared_dependencies: Vec::new(),
@@ -842,13 +833,8 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     )
     .expect("Verification Record");
     let verification_inbox_path = bundle.join("verification.json");
-    std::fs::write(
-        &verification_inbox_path,
-        verification_record
-            .canonical_bytes()
-            .expect("Verification Record bytes"),
-    )
-    .expect("write Verification Record");
+    std::fs::write(&verification_inbox_path, &verification_record.bytes)
+        .expect("write Verification Record");
     let verification_path_text = verification_inbox_path.to_string_lossy().into_owned();
     let verified = success_json(&run(
         &repository_path,

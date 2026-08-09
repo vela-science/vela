@@ -93,7 +93,7 @@ with no producer-reachable input. ADR 0004's gates stay open on the same
 evidence they have now.
 
 This is the current state, and the documentation half of it has already landed —
-`docs/interop/scientific-state-profile-v1.md` states the limit and this
+`docs/interop/scientific-state-profile.md` states the limit and this
 repository's `CHANGELOG.md` records it as known and unclosed. Choosing A means
 accepting that as the end state rather than as a way-point.
 

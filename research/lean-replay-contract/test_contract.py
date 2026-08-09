@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parent
 
 class LeanReplayContractTests(unittest.TestCase):
     def test_axiom_vectors(self) -> None:
-        fixture = json.loads((ROOT / "fixtures/axiom-reports.v1.json").read_bytes())
+        fixture = json.loads((ROOT / "fixtures/axiom-reports.json").read_bytes())
         for vector in fixture["vectors"]:
             with self.subTest(vector=vector["name"]):
                 if vector["outcome"] == "pass":
@@ -77,7 +77,7 @@ class LeanReplayContractTests(unittest.TestCase):
             self.fail(f"jsonschema is required by the focused conformance environment: {error}")
         manifest = json.loads((ROOT / "package.json").read_bytes())
         schema = json.loads(
-            (ROOT / "schemas/package-candidate.v1.schema.json").read_bytes()
+            (ROOT / "schemas/package-candidate.schema.json").read_bytes()
         )
         jsonschema.Draft202012Validator(schema).validate(manifest)
 

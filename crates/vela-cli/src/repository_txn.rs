@@ -1203,7 +1203,7 @@ fn verify_routine_evidence_write_era(
     })?)?;
     Ok(RoutineEvidenceWriteAuthorization {
         repository_id: repository.repository_id,
-        origin_id: origin.origin_id,
+        origin_id: origin.id().map_err(RepositoryTxnError::CorruptPlan)?,
         repository_root,
         authority_record_root: ContentDigest::parse(authority_record_root.to_string())?,
         authority_event_log_root: ContentDigest::parse(
@@ -1465,15 +1465,14 @@ fn verify_fresh_repository_delta(
         .map_err(RepositoryTxnError::CorruptPlan)?;
     if repository.repository_id != origin.repository_id
         || repository.profile_root != origin.profile_root
-        || repository.origin_id != origin.origin_id
+        || repository.origin_id != origin.id().map_err(deny)?
         || repository.origin_root != origin_root
     {
         return Err(deny(
             "repository origin and manifest do not bind the same exact identity".into(),
         ));
     }
-    if origin.kind != vela_protocol::repository_origin::RepositoryOriginKind::Genesis
-        || !repository.accepted_claims.is_empty()
+    if !repository.accepted_claims.is_empty()
         || !repository.pending_claims.is_empty()
         || !repository.proposals.is_empty()
         || !repository.submissions.is_empty()
@@ -1995,88 +1994,6 @@ fn completed_postimage_is_rematerializable(write: &StagedWrite) -> bool {
         || write.path.as_str() == ".vela/repository.json"
 }
 
-fn current_compaction_predecessor_repository_root(
-    root: &Path,
-) -> Result<Option<ContentDigest>, RepositoryTxnError> {
-    let path = root.join(".vela/origin.json");
-    let bytes = match fs::read(&path) {
-        Ok(bytes) => bytes,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(error) => {
-            return Err(RepositoryTxnError::Io(format!(
-                "read current repository origin {}: {error}",
-                path.display()
-            )));
-        }
-    };
-    let origin =
-        vela_protocol::repository_origin::RepositoryOriginV1::parse(&bytes).map_err(|error| {
-            RepositoryTxnError::CorruptPlan(format!(
-                "repository origin is invalid while checking completed history: {error}"
-            ))
-        })?;
-    origin
-        .predecessor
-        .map(|predecessor| ContentDigest::parse(predecessor.repository_root))
-        .transpose()
-}
-
-fn compacted_predecessor_operation_ids(
-    completed: &[(RepositoryTxnPaths, RepositoryTxnJournal)],
-    predecessor_repository_root: Option<&ContentDigest>,
-) -> BTreeSet<String> {
-    let Some(predecessor_repository_root) = predecessor_repository_root else {
-        return BTreeSet::new();
-    };
-
-    // The compaction origin binds the final predecessor repository manifest.
-    // Walk the exact completed manifest transition chain backwards from that
-    // digest so every transaction in the archived generation is recognized,
-    // not only the final transaction that happened to install the bound head.
-    // Current-generation journals cannot join this set unless their exact
-    // manifest bytes are part of that predecessor chain.
-    let mut predecessor_manifest_roots = BTreeSet::from([predecessor_repository_root.clone()]);
-    let mut operation_ids = BTreeSet::new();
-    let mut changed = true;
-    while changed {
-        changed = false;
-        for (_, journal) in completed {
-            if operation_ids.contains(journal.plan.operation_id.as_str()) {
-                continue;
-            }
-            let Some(write) = journal
-                .plan
-                .canonical_delta
-                .writes()
-                .iter()
-                .find(|write| write.path.as_str() == ".vela/repository.json")
-            else {
-                continue;
-            };
-            let FileState::File {
-                digest: postimage_root,
-                ..
-            } = &write.postimage
-            else {
-                continue;
-            };
-            if !predecessor_manifest_roots.contains(postimage_root) {
-                continue;
-            }
-            operation_ids.insert(journal.plan.operation_id.as_str().to_string());
-            if let FileState::File {
-                digest: preimage_root,
-                ..
-            } = &write.preimage
-            {
-                predecessor_manifest_roots.insert(preimage_root.clone());
-            }
-            changed = true;
-        }
-    }
-    operation_ids
-}
-
 fn verify_completed_history(
     root: &Path,
     completed: &[(RepositoryTxnPaths, RepositoryTxnJournal)],
@@ -2088,21 +2005,12 @@ fn verify_completed_history(
         verify_completed_marker_and_blobs(paths, journal)?;
     }
 
-    let predecessor_repository_root = current_compaction_predecessor_repository_root(root)?;
-    let compacted_predecessor_operations =
-        compacted_predecessor_operation_ids(completed, predecessor_repository_root.as_ref());
-    // A valid compaction origin archives the exact predecessor repository
-    // root and intentionally removes its object records from the current
-    // generation. Every other completed journal belongs to the current
-    // postimage transition graph. The retired `.vela/events` set no longer
-    // participates in private crash recovery or completed-history checks.
-    let current_head = completed
-        .iter()
-        .filter(|(_, journal)| {
-            !compacted_predecessor_operations.contains(journal.plan.operation_id.as_str())
-        })
-        .cloned()
-        .collect::<Vec<_>>();
+    /* Every completed journal belongs to the current postimage transition
+    graph. A compaction origin used to archive a predecessor repository root
+    and take its journals out of this set; there is one generation now, so
+    there is nothing to exclude. The retired `.vela/events` set no longer
+    participates in private crash recovery or completed-history checks. */
+    let current_head = completed.to_vec();
 
     // Validate that each durable postimage is either still current or is
     // connected to the current bytes by another completed transaction's exact
@@ -3715,7 +3623,7 @@ mod tests {
             schema: vela_protocol::repository::REPOSITORY_SCHEMA_V4.into(),
             repository_id: origin.repository_id.clone(),
             profile_root: origin.profile_root.clone(),
-            origin_id: origin.origin_id.clone(),
+            origin_id: origin.id().unwrap(),
             origin_root: origin.canonical_root().unwrap(),
             accepted_claims: Vec::new(),
             pending_claims: Vec::new(),
@@ -3725,7 +3633,7 @@ mod tests {
             verifications: Vec::new(),
             artifacts: Vec::new(),
             authority_keyset_root: fixture_root('a'),
-            authority_policy_root: fixture_root('b'),
+            authority_model_root: fixture_root('b'),
         }
     }
 
@@ -3773,31 +3681,12 @@ mod tests {
         .unwrap();
         verify_fresh_fixture(root, &genesis).unwrap();
 
-        let compaction = vela_protocol::repository_origin::RepositoryOriginV1::compaction(
-            repository_id.into(),
-            2,
-            profile_root,
-            genesis.initial_object_set_root.clone(),
-            vela_protocol::repository_origin::RepositoryOriginPredecessorV1 {
-                remote: "https://github.com/vela-science/fixture.git".into(),
-                tag: "pre-compaction/111111111111".into(),
-                commit: "1".repeat(40),
-                tree: "2".repeat(40),
-                repository_root: fixture_root('3'),
-                authority_head_root: fixture_root('4'),
-                archived_event_log_root: fixture_root('5'),
-                archived_actor_registry_root: fixture_root('6'),
-                archive_sha256: fixture_root('7'),
-                object_manifest_root: fixture_root('8'),
-                equivalence_report_root: fixture_root('9'),
-            },
-            "Historical compaction fixture.".into(),
-        )
-        .unwrap();
-        assert!(matches!(
-            verify_fresh_fixture(root, &compaction),
-            Err(RepositoryTxnError::RepositoryWriteIntentDenied { .. })
-        ));
+        /* Compaction is gone, so an origin claiming a generation beyond the
+        first is an object this runtime does not define. It fails at the
+        origin's own reader rather than at the fresh-repository check. */
+        let mut beyond_genesis = genesis.clone();
+        beyond_genesis.generation = 2;
+        assert!(beyond_genesis.verify().is_err());
     }
 
     fn fixture_plan(root: &Path, draft: &DeltaDraft, identity: &[u8]) -> RepositoryTxnPlan {
@@ -4904,176 +4793,6 @@ mod tests {
             RepositoryTxn::acquire_recovery_barrier(&root, &journals),
             Err(RepositoryTxnError::CompletedPostimageMismatch { path, .. })
                 if path.as_str() == "records/receipt.json"
-        ));
-    }
-
-    #[test]
-    fn completed_predecessor_journal_is_archived_only_by_the_exact_compaction_root() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("repository");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(root.join(".vela")).unwrap();
-
-        let predecessor_origin = vela_protocol::repository_origin::RepositoryOriginV1::genesis(
-            "vrepo_0123456789abcdef0123456789abcdef".into(),
-            fixture_root('1'),
-            "Predecessor generation fixture.".into(),
-        )
-        .unwrap();
-        let predecessor_repository = fixture_repository(&predecessor_origin);
-        let predecessor_repository_bytes = predecessor_repository.canonical_bytes().unwrap();
-        let earlier_archived_path =
-            RepoPath::parse("records/verifications/sha256/earlier-archived.json").unwrap();
-        let earlier_draft = DeltaDraft::prepare(
-            &root,
-            vec![
-                PlannedWrite::write(
-                    RepoPath::parse(".vela/repository.json").unwrap(),
-                    WriteClass::CanonicalEvidence,
-                    predecessor_repository_bytes,
-                ),
-                PlannedWrite::write(
-                    earlier_archived_path.clone(),
-                    WriteClass::CanonicalEvidence,
-                    b"earlier archived verification".to_vec(),
-                ),
-            ],
-        )
-        .unwrap();
-        let earlier_plan = fixture_plan(&root, &earlier_draft, b"earlier predecessor journal");
-        let mut earlier =
-            RepositoryTxn::prepare(&root, &journals, earlier_plan, earlier_draft).unwrap();
-        earlier.mark_committed().unwrap();
-        earlier.install().unwrap();
-        earlier.complete().unwrap();
-        drop(earlier);
-
-        let mut final_predecessor_repository = predecessor_repository.clone();
-        final_predecessor_repository.verifications.push(
-            vela_protocol::repository::RepositoryObjectRefV1 {
-                id: "vvr_finalpredecessor".into(),
-                root: fixture_root('c'),
-                path: "records/verifications/sha256/final-predecessor.json".into(),
-                schema: "vela.repository-object-ref.v1".into(),
-            },
-        );
-        let final_predecessor_repository_bytes =
-            final_predecessor_repository.canonical_bytes().unwrap();
-        let archived_path = RepoPath::parse("records/verifications/sha256/archived.json").unwrap();
-        let predecessor_draft = DeltaDraft::prepare(
-            &root,
-            vec![
-                PlannedWrite::write(
-                    RepoPath::parse(".vela/repository.json").unwrap(),
-                    WriteClass::CanonicalEvidence,
-                    final_predecessor_repository_bytes.clone(),
-                ),
-                PlannedWrite::write(
-                    archived_path.clone(),
-                    WriteClass::CanonicalEvidence,
-                    b"archived verification".to_vec(),
-                ),
-            ],
-        )
-        .unwrap();
-        let predecessor_plan =
-            fixture_plan(&root, &predecessor_draft, b"predecessor completed journal");
-        let predecessor_operation = predecessor_plan.operation_id.clone();
-        let mut predecessor =
-            RepositoryTxn::prepare(&root, &journals, predecessor_plan, predecessor_draft).unwrap();
-        predecessor.mark_committed().unwrap();
-        predecessor.install().unwrap();
-        predecessor.complete().unwrap();
-        drop(predecessor);
-        let predecessor_repository_root = ContentDigest::hash(&final_predecessor_repository_bytes)
-            .as_str()
-            .to_string();
-
-        let compaction_origin = |repository_root: String| {
-            vela_protocol::repository_origin::RepositoryOriginV1::compaction(
-                predecessor_origin.repository_id.clone(),
-                2,
-                predecessor_origin.profile_root.clone(),
-                predecessor_origin.initial_object_set_root.clone(),
-                vela_protocol::repository_origin::RepositoryOriginPredecessorV1 {
-                    remote: "https://github.com/vela-science/fixture.git".into(),
-                    tag: "pre-compaction/111111111111".into(),
-                    commit: "1".repeat(40),
-                    tree: "2".repeat(40),
-                    repository_root,
-                    authority_head_root: fixture_root('3'),
-                    archived_event_log_root: fixture_root('4'),
-                    archived_actor_registry_root: fixture_root('5'),
-                    archive_sha256: fixture_root('6'),
-                    object_manifest_root: fixture_root('7'),
-                    equivalence_report_root: fixture_root('8'),
-                },
-                "Compact the exact predecessor fixture.".into(),
-            )
-            .unwrap()
-        };
-
-        let wrong_origin = compaction_origin(fixture_root('9'));
-        fs::write(
-            root.join(".vela/origin.json"),
-            wrong_origin.canonical_bytes().unwrap(),
-        )
-        .unwrap();
-        fs::write(
-            root.join(".vela/repository.json"),
-            fixture_repository(&wrong_origin).canonical_bytes().unwrap(),
-        )
-        .unwrap();
-        fs::remove_file(root.join(earlier_archived_path.as_str())).unwrap();
-        fs::remove_file(root.join(archived_path.as_str())).unwrap();
-        assert!(matches!(
-            RepositoryTxn::acquire_recovery_barrier(&root, &journals),
-            Err(RepositoryTxnError::CompletedPostimageMismatch {
-                operation_id,
-                path,
-                ..
-            }) if operation_id == predecessor_operation.as_str() && path == archived_path
-        ));
-
-        let exact_origin = compaction_origin(predecessor_repository_root);
-        fs::write(
-            root.join(".vela/origin.json"),
-            exact_origin.canonical_bytes().unwrap(),
-        )
-        .unwrap();
-        fs::write(
-            root.join(".vela/repository.json"),
-            fixture_repository(&exact_origin).canonical_bytes().unwrap(),
-        )
-        .unwrap();
-        drop(RepositoryTxn::acquire_recovery_barrier(&root, &journals).unwrap());
-
-        let current_path = RepoPath::parse("records/verifications/sha256/current.json").unwrap();
-        let current_draft = DeltaDraft::prepare(
-            &root,
-            vec![PlannedWrite::write(
-                current_path.clone(),
-                WriteClass::CanonicalEvidence,
-                b"current verification".to_vec(),
-            )],
-        )
-        .unwrap();
-        let current_plan = fixture_plan(&root, &current_draft, b"current completed journal");
-        let current_operation = current_plan.operation_id.clone();
-        let mut current =
-            RepositoryTxn::prepare(&root, &journals, current_plan, current_draft).unwrap();
-        current.mark_committed().unwrap();
-        current.install().unwrap();
-        current.complete().unwrap();
-        drop(current);
-        fs::remove_file(root.join(current_path.as_str())).unwrap();
-        assert!(matches!(
-            RepositoryTxn::acquire_recovery_barrier(&root, &journals),
-            Err(RepositoryTxnError::CompletedPostimageMismatch {
-                operation_id,
-                path,
-                ..
-            }) if operation_id == current_operation.as_str() && path == current_path
         ));
     }
 

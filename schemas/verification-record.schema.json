@@ -1,0 +1,210 @@
+{
+  "$id": "https://vela.science/schemas/verification-record.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "completed_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "identity": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_class": {
+          "enum": [
+            "human",
+            "agent",
+            "org"
+          ],
+          "type": "string"
+        },
+        "actor_id": {
+          "maxLength": 16384,
+          "minLength": 1,
+          "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+          "type": "string"
+        },
+        "declared_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "public_key_hex": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "schema": {
+          "const": "vela.signer-identity.v1",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema",
+        "actor_id",
+        "actor_class",
+        "public_key_hex",
+        "declared_at"
+      ],
+      "type": "object"
+    },
+    "independence": {
+      "additionalProperties": false,
+      "properties": {
+        "declared_independent_of": {
+          "items": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "shared_dependencies": {
+          "items": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "declared_independent_of",
+        "shared_dependencies"
+      ],
+      "type": "object"
+    },
+    "method": {
+      "additionalProperties": false,
+      "properties": {
+        "environment_root": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "implementation": {
+          "maxLength": 16384,
+          "minLength": 1,
+          "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+          "type": "string"
+        },
+        "profile": {
+          "maxLength": 16384,
+          "minLength": 1,
+          "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile",
+        "implementation",
+        "environment_root"
+      ],
+      "type": "object"
+    },
+    "outcome": {
+      "enum": [
+        "pass",
+        "fail",
+        "error",
+        "inconclusive"
+      ],
+      "type": "string"
+    },
+    "output_artifact_ids": {
+      "items": {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "schema": {
+      "const": "vela.verification-record.v2",
+      "type": "string"
+    },
+    "scope": {
+      "additionalProperties": false,
+      "properties": {
+        "does_not_establish": {
+          "items": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "property": {
+          "maxLength": 16384,
+          "minLength": 1,
+          "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "property",
+        "does_not_establish"
+      ],
+      "type": "object"
+    },
+    "started_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "subject": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_ids": {
+          "items": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "claim_id": {
+          "pattern": "^vcl_[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "proposal_id": {
+          "pattern": "^vpr_[0-9a-f]{16}$",
+          "type": "string"
+        },
+        "proposal_root": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "submission_id": {
+          "pattern": "^vsb_[0-9a-f]{16}$",
+          "type": "string"
+        },
+        "submission_root": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "claim_id",
+        "artifact_ids",
+        "submission_id",
+        "submission_root",
+        "proposal_id",
+        "proposal_root"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "identity",
+    "subject",
+    "method",
+    "scope",
+    "outcome",
+    "independence",
+    "output_artifact_ids",
+    "started_at",
+    "completed_at"
+  ],
+  "title": "Vela Verification Record v2",
+  "type": "object"
+}

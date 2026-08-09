@@ -1,11 +1,22 @@
 # Vela JSON Schemas
 
-These JSON Schema 2020-12 documents describe Vela's current portable
-producer, verifier, and authority-envelope structure:
+One of these documents describes the transport, and the rest describe what it
+carries. `dsse-envelope.schema.json` is the DSSE envelope every signed Vela
+object is stored in — Submissions, Verification Records, producer Withdrawals
+and repository-authority records alike. In accordance with DSSE, the envelope
+and its signature entries permit unknown fields; each closed payload beneath
+them is a document of its own:
 
-- `vela.submission.v1`;
-- `vela.verification-record.v1`; and
-- `vela.proposal-withdrawal.v1`.
+- `vela.submission.v2`;
+- `vela.verification-record.v2`; and
+- `vela.proposal-withdrawal.v2`.
+
+The envelope schema cannot pin `payloadType` to one value the way the payload
+schemas each pin their `schema` tag, because one envelope serves four payload
+types. It constrains the value to the `application/vnd.vela.*+json` namespace;
+requiring the exact type belongs to — and has always been enforced by — the
+reader for each object, which refuses a foreign type before it verifies a
+signature.
 
 And the three objects that carry the science:
 
@@ -18,13 +29,9 @@ for a Claim Record could not be generated at all — the contract a reader most
 needs to check a Claim without this implementation was the one contract the
 repository did not state.
 
-`authority-envelope-v1.schema.json` describes the current DSSE authority
-envelope. In accordance with DSSE, the envelope and signature entries permit
-unknown fields; the decoded Vela authority payload remains closed.
-
 ## One of these is a read surface
 
-`status-v4.schema.json` describes `vela.status.v4`, the document
+`status.schema.json` describes `vela.status.v4`, the document
 `vela status --json` answers with. It signs nothing and roots nothing. It is
 published because a second implementation parses it: the Observatory in
 `vela-web` builds its whole projection from this document, and until this file
@@ -60,7 +67,7 @@ identifiers, Ed25519 signatures, referenced objects, actor relationships,
 repository invariants, human Decision authority, or Standing. The schemas use
 `format: date-time` as an assertion in Vela's conformance check.
 
-`status-v4.schema.json` states one rule its consumer does not have to restate:
+`status.schema.json` states one rule its consumer does not have to restate:
 every field is `required`, including the ones whose value is `null` on a
 Frontier that cannot fill them. A bootstrapping repository has a Git pointer
 with no commit behind it, not an absent Git pointer, and a schema that let the
@@ -83,7 +90,7 @@ them with a finite-automaton engine that has no backtracking at all.
 `verify_patterns_are_portable` in `conformance/verify_wire_schemas.py` reads
 every pattern in every published document and holds them to that.
 
-The Artifact-path rule in `submission-v1.schema.json` used to be the exception.
+The Artifact-path rule in `submission.schema.json` used to be the exception.
 It rejected paths that escape the tree with two negative lookaheads, which
 ECMA-262 and Python provide and Rust's `regex` does not, so the one published
 pattern guarding path traversal was the one a Rust consumer could not compile.
@@ -93,7 +100,7 @@ The rule is now spelled as the structure it describes: components joined by
 The two spellings agree on every string with no line terminator in it, and
 there the current one is exactly the rule the readers apply:
 `safe_path_pattern_agrees_with_the_reader` in
-`crates/vela-protocol/src/objects/submission_v1.rs` settles that against
+`crates/vela-protocol/src/objects/submission.rs` settles that against
 `require_safe_relative_path` over all 21845 strings of up to seven dots,
 slashes, spaces and other characters, rather than over a sample of them. Where
 a line terminator is present the two part, and it was the lookahead that was
@@ -101,9 +108,13 @@ wrong: `.` stops at a line terminator, so in `a\n/..` the `..` was never read
 before the negative lookahead ran out, in ECMA-262 and in Python alike. The
 current pattern rejects that path, as the readers always have.
 
-The current objects still use their v1 signed-preimage contracts. A future
-common DSSE transport is a separate v2 protocol cut under ADR 0035; these files
-do not imply that migration has occurred.
+No published object carries its own identifier. `vsb_`, `vvr_`, `vpr_`, `vpw_`
+and `vro_` are the first sixteen hexadecimal digits of the object's full root,
+derived by the reader; where one appears in a reference it sits beside the root
+it came from and must re-derive from it. That is why the reference patterns
+here are `^vsb_[0-9a-f]{16}$` rather than `^vsb_.+$`: a handle has exactly one
+right value, and a truncated identifier that cannot be checked is the kind that
+resolves to the wrong object.
 
 Run the independent checks with:
 

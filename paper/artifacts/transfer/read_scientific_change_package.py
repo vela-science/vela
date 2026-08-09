@@ -18,18 +18,18 @@ import tempfile
 from pathlib import Path, PurePosixPath
 
 
-PLAN_ROOT = "sha256:72d84fd4ceeb69c170beaf2e63dc22a801db6e99b749123c87a2f42ebbf07e42"
+PLAN_ROOT = "sha256:b719174a729fa49489705e70dc882c7be44486b61082abaaaaf9b9f77d40347f"
 AMENDMENT_ROOT = (
-    "sha256:38d3cd699bcc4540a01852460ae218d91eb476ad40e7e2cac8886c02ff248ad8"
+    "sha256:6c2003fcfb65c78362b4f3bfed4407511598f1400564319319fc0690e2737898"
 )
 EVIDENCE_AMENDMENT_ROOT = (
-    "sha256:ff22ac6c97ded34f0049fa6f75b3f6aea6e88212bfe3ef71672051f5bf26271f"
+    "sha256:3102c1dd8514d880945603d1203af43249ade240d1ce80f43b5002f7aef41b5c"
 )
 RO_CRATE_CONTEXT = "https://w3id.org/ro/crate/1.3/context"
 RO_CRATE_PROFILE = "https://w3id.org/ro/crate/1.3"
-NATIVE_MANIFEST = "reference.v1.json"
+NATIVE_MANIFEST = "reference.json"
 RO_CRATE_METADATA = "ro-crate-metadata.json"
-LOSS_REPORT = "vela-loss-report.v1.json"
+LOSS_REPORT = "vela-loss-report.json"
 REQUIRED_LOSSES = {
     "canonical_object_root_vs_file_byte_root",
     "correction_and_supersession_semantics",
@@ -444,7 +444,7 @@ def read_loss_report(
         for item in losses
         if isinstance(item, dict)
         and item.get("mapping") == "not_expressible_in_base_ro_crate"
-        and item.get("preserved_in") == "reference.v1.json and retained native bytes"
+        and item.get("preserved_in") == "reference.json and retained native bytes"
         and isinstance(item.get("reason"), str)
         and bool(item["reason"])
     }

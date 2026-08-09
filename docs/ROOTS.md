@@ -51,7 +51,7 @@ inputs. These profiles are not interchangeable.
 | Repository ID `vrepo_…` | Stable bounded repository identity | Git commit, repository root, or Standing |
 | Git commit | Exact commit object and ancestry | Tree, valid Vela state, or acceptance |
 | Git tree | Exact tracked paths and bytes | Commit ancestry or authority |
-| Origin ID/root | Immutable repository origin and optional predecessor provenance | Repository root or authority head |
+| Origin ID/root `vro_…` | Immutable repository genesis | Repository root or authority head |
 | Repository root | Canonical current object-set commitment | Git commit, authority record, or Claim Standing |
 | Authority-record root | Full DSSE transaction record commitment | Trust-anchor choice or scientific truth |
 | Authority trust-anchor root | Local closed record selecting sequence one | Secret key, later freshness, or Standing |
@@ -59,7 +59,7 @@ inputs. These profiles are not interchangeable.
 | Authority Event-log root | Ordered current authority Event set | Repository root or accepted Claim set |
 | Claim ID `vcl_…` | Full content-derived current Claim identity | Standing or Proposal |
 | Claim Record root | Complete canonical Claim Record | Claim ID alone or acceptance |
-| Submission ID/root `vsb_…` | Authenticated producer input retained by an exact Proposal reference | Verification or Decision |
+| Submission ID/root `vsb_…` | Signed producer input retained by an exact Proposal reference | Verification or Decision |
 | Verification ID/root `vvr_…` | Signed scoped verifier observation | Broader truth or authority |
 | Proposal ID/root `vpr_…` | Candidate transition | Decision or Event |
 | Artifact digest | Exact retained evidence bytes | Scientific meaning or availability elsewhere |
@@ -75,23 +75,26 @@ The current Claim identity is content-derived from its version, assertion,
 conditions, evidence, and provenance. Relations use full Claim identities.
 The full Claim Record root also covers relation metadata and source provenance.
 
-### Submission
+### Submission, Verification Record, Proposal Withdrawal
 
-The readable Submission handle derives from the canonical signed preimage with
-the self-ID and authentication signature cleared. The full root covers the
-complete authenticated object.
+These three are DSSE envelopes and share one rule. The full root is `sha256:`
+over the canonical envelope bytes exactly as retained — payload type, payload
+and signatures together — and the readable handle is the prefix plus the first
+sixteen hexadecimal characters of that root. Nothing is cleared and nothing is
+reconstructed: the bytes that were signed and the bytes that were hashed are
+the bytes on disk.
 
-### Verification Record
-
-The readable Verification handle derives from its canonical signed preimage
-with self-ID and signature cleared. The full root covers the complete
-authenticated record.
+No object stores its own handle. A handle appearing in one object as a
+reference to another is checked by re-deriving it from a full root present in
+the same object, so `subject.submission_id` is only readable beside
+`subject.submission_root`. A handle with nothing to re-derive from is a value
+no reader can check, and the protocol does not carry one.
 
 ### Proposal
 
 The Proposal identity commits to the logical requested transition and exact
 subject objects. The full Proposal root covers the complete current canonical
-record and status.
+record and status, and `vpr_` derives from it.
 
 ### Authority Event
 
@@ -101,15 +104,17 @@ record signature remains a separate check.
 
 ## Repository origin commitments
 
-`vela.repository-origin.v1` binds a native genesis or one exact compacted
-pre-release predecessor. A compacted origin commits to the predecessor remote,
-tag, commit, tree, repository and authority roots, archive digest, Git-object
-manifest root, and equivalence-report root.
+`vela.repository-origin.v1` binds a native genesis. It commits to the
+repository identity, the Profile root, the generation, the initial object-set
+root and the reason the lineage was opened, and `vro_` derives from the origin
+root. It has no predecessor fields: a pre-release compaction once carried
+eleven of them, and continuity across a future lineage change belongs in a
+separately signed attestation over exact commits, trees and roots rather than
+as permanent fields on every repository's origin.
 
 The current `vela.repository.v4` root commits to that origin and every active
-canonical object set. Current bytes do not substitute for predecessor
-signatures; the predecessor remains independently inspectable through its tag,
-archive, and pinned historical release.
+canonical object set. An archived predecessor remains independently
+inspectable through its tag, archive, and pinned historical release.
 
 ## Comparison contract
 

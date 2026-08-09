@@ -92,8 +92,8 @@ class CostMeasurementTests(unittest.TestCase):
                 MODULE.parse_frontiers(list(reversed(values)))
 
     def test_registered_result_retains_the_frozen_plan_and_all_samples(self) -> None:
-        plan = json.loads((HERE / "plan.v1.json").read_bytes())
-        result_path = HERE / "result.v1.json"
+        plan = json.loads((HERE / "plan.json").read_bytes())
+        result_path = HERE / "result.json"
         result = json.loads(result_path.read_bytes())
 
         self.assertEqual(
@@ -138,8 +138,8 @@ class CostMeasurementTests(unittest.TestCase):
                 )
 
     def test_isolated_reproduction_matches_every_deterministic_field(self) -> None:
-        registered = json.loads((HERE / "result.v1.json").read_bytes())
-        reproduction_path = HERE / "reproduction.v1.json"
+        registered = json.loads((HERE / "result.json").read_bytes())
+        reproduction_path = HERE / "reproduction.json"
         reproduction = json.loads(reproduction_path.read_bytes())
 
         self.assertEqual(

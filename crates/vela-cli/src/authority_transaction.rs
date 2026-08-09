@@ -20,21 +20,23 @@ use vela_authority::runtime_authentication::{
     AuthenticationAdapter, AuthenticationRequest, AuthorityPreflightFailure, RuntimeSessionState,
     preflight_authority_action,
 };
-use vela_authority::{CedarEvaluationInput, CedarPolicyMaterial};
 use vela_protocol::authentication::AuthenticationObservationV1;
 use vela_protocol::authority::{
     AUTHORITY_MODE, AUTHORITY_PAYLOAD_TYPE_V1, AuthorityEnvelopeV1, AuthorityEventContentV1,
     AuthorityEventV1, AuthorityKeysetV1, AuthorityRecordContentV1, AuthorityRecordV1,
-    AuthorizationClaimV1, DsseSignatureV1, ExecutionClaimV1, ObjectDeltaV1, PolicyBundleV1,
-    PrincipalSnapshotV1, SemanticApprovalV1, verify_authority_envelope,
-    verify_authority_keyset_transition, verify_policy_bundle_transition,
+    AuthorizationClaimV1, DsseSignatureV1, ExecutionClaimV1, ObjectDeltaV1, PrincipalSnapshotV1,
+    SemanticApprovalV1, authority_envelope, verify_authority_envelope,
+    verify_authority_keyset_transition,
 };
 use vela_protocol::authority_history::{
     AUTHORITY_CLOSE_ACTION, AUTHORITY_CLOSED_EVENT_KIND, AUTHORITY_INITIALIZE_ACTION,
-    AUTHORITY_INITIALIZED_EVENT_KIND, AUTHORITY_ROTATE_ACTION, AuthorityCloseV1,
-    AuthorityHistoryEra, AuthorityHistoryInput, AuthorityHistoryVerification,
-    AuthorityInitializationV1, POLICY_ROTATE_ACTION, authority_event_log_root,
-    verify_authority_history,
+    AUTHORITY_INITIALIZED_EVENT_KIND, AUTHORITY_MODEL_UPDATE_ACTION, AUTHORITY_ROTATE_ACTION,
+    AuthorityCloseV1, AuthorityHistoryEra, AuthorityHistoryInput, AuthorityHistoryVerification,
+    AuthorityInitializationV1, authority_event_log_root, verify_authority_history,
+};
+use vela_protocol::authorization::{
+    AuthorityActionV1, AuthorizationModelV1, AuthorizationRequestV1,
+    verify_authorization_model_transition,
 };
 use vela_protocol::canonical::to_canonical_bytes;
 #[cfg(test)]
@@ -64,11 +66,10 @@ pub(crate) struct AuthorityHistorySnapshot {
     pub(crate) repository_id: String,
     pub(crate) initial_event_log_root: String,
     pub(crate) initial_actor_registry_root: String,
-    pub(crate) initial_snapshots_preexisting: bool,
     pub(crate) authority_keyset: AuthorityKeysetV1,
-    pub(crate) policy_bundle: PolicyBundleV1,
+    pub(crate) authorization_model: AuthorizationModelV1,
     pub(crate) retained_authority_keysets: Vec<AuthorityKeysetV1>,
-    pub(crate) retained_policy_bundles: Vec<PolicyBundleV1>,
+    pub(crate) retained_authorization_models: Vec<AuthorizationModelV1>,
     pub(crate) authority_events: Vec<AuthorityEventV1>,
     pub(crate) authority_envelopes: Vec<AuthorityEnvelopeV1>,
 }
@@ -119,14 +120,16 @@ pub(crate) struct AuthorityTransactionRequest {
     pub(crate) intent_digest: String,
     pub(crate) principal: PrincipalSnapshotV1,
     pub(crate) authentication_request: AuthenticationRequest,
-    pub(crate) authorization_input: CedarEvaluationInput,
+    /// The request the closed evaluator decides, minus the two fields the
+    /// preflight fills from the verified session: `recovery_recent` and
+    /// `authentication_root`.
+    pub(crate) authorization_request: AuthorizationRequestV1,
     pub(crate) semantic_approvals: Vec<SemanticApprovalV1>,
     pub(crate) event_drafts: Vec<AuthorityEventDraft>,
     pub(crate) object_drafts: Vec<AuthorityObjectDraft>,
     pub(crate) derived_drafts: Vec<AuthorityDerivedDraft>,
     pub(crate) next_authority_keyset: Option<AuthorityKeysetV1>,
-    pub(crate) next_policy_bundle: Option<PolicyBundleV1>,
-    pub(crate) next_policy_material: Option<CedarPolicyMaterial>,
+    pub(crate) next_authorization_model: Option<AuthorizationModelV1>,
     pub(crate) read_set: Vec<InputBinding>,
     pub(crate) vela_version: String,
     pub(crate) binary_sha256: String,
@@ -264,7 +267,7 @@ where
     if request.event_drafts.is_empty()
         && request.object_drafts.is_empty()
         && request.next_authority_keyset.is_none()
-        && request.next_policy_bundle.is_none()
+        && request.next_authorization_model.is_none()
     {
         return Err(AuthorityTransactionError::Invalid(
             "authority transaction intent changes no event, object, keyset, or policy bundle"
@@ -289,9 +292,8 @@ where
         repository_id: &request.history.repository_id,
         initial_event_log_root: &request.history.initial_event_log_root,
         initial_actor_registry_root: &request.history.initial_actor_registry_root,
-        initial_snapshots_preexisting: request.history.initial_snapshots_preexisting,
         authority_keysets: &request.history.retained_authority_keysets,
-        policy_bundles: &request.history.retained_policy_bundles,
+        authorization_models: &request.history.retained_authorization_models,
         authority_events: &request.history.authority_events,
         authority_envelopes: &request.history.authority_envelopes,
     })
@@ -330,30 +332,30 @@ where
         authentication_adapter,
         &request.authentication_request,
         &RuntimeSessionState::default(),
-        &request.authorization_input,
+        &request.history.authorization_model,
+        &request.authorization_request,
     )
     .map_err(AuthorityTransactionError::Authentication)?;
 
     validate_preflight_attribution(&request, &preflight.authentication)?;
     validate_semantic_approvals(&request)?;
 
-    let request_root = authorization_request_root(
-        &request.authorization_input,
-        &preflight.authorization_context,
-    )?;
-    let entity_snapshot_root = domain_root(
-        b"vela.authority-entity-snapshot.internal.v1\0",
-        &request.authorization_input.entities,
-    )?;
+    /* The request has its own root. It used to be a Cedar principal, action,
+    resource and free-form context hashed under an internal domain tag,
+    because there was no typed request to take a root over. */
+    let request_root = preflight
+        .request
+        .root()
+        .map_err(AuthorityTransactionError::Invalid)?;
     normalize_read_set(&mut request.read_set)?;
     let authority_keyset_root = request
         .history
         .authority_keyset
         .root()
         .map_err(AuthorityTransactionError::Invalid)?;
-    let policy_bundle_root = request
+    let model_root = request
         .history
-        .policy_bundle
+        .authorization_model
         .root()
         .map_err(AuthorityTransactionError::Invalid)?;
 
@@ -362,9 +364,8 @@ where
         &history.final_event_log_root,
         previous_authority_record_root.as_deref(),
         &request_root,
-        &entity_snapshot_root,
         &authority_keyset_root,
-        &policy_bundle_root,
+        &model_root,
     )?;
     let mut events = request
         .event_drafts
@@ -440,7 +441,7 @@ where
         &history.final_event_log_root,
         previous_authority_record_root.as_deref(),
         &authority_keyset_root,
-        &policy_bundle_root,
+        &model_root,
     )?;
     let write_set_root = write_set_root(
         &transaction_id,
@@ -466,9 +467,8 @@ where
         authentication: preflight.authentication,
         delegation: None,
         authorization: AuthorizationClaimV1 {
-            policy_bundle_root: policy_bundle_root.clone(),
-            request_root: request_root.clone(),
-            entity_snapshot_root,
+            model_root: model_root.clone(),
+            request: preflight.request,
             evaluation: preflight.authorization,
         },
         semantic_approvals: request.semantic_approvals.clone(),
@@ -488,8 +488,8 @@ where
     let signatures = signer
         .sign(AUTHORITY_PAYLOAD_TYPE_V1, &canonical_record)
         .map_err(AuthorityTransactionError::Signing)?;
-    let envelope = AuthorityEnvelopeV1::from_record(&record, signatures)
-        .map_err(AuthorityTransactionError::Invalid)?;
+    let envelope =
+        authority_envelope(&record, signatures).map_err(AuthorityTransactionError::Invalid)?;
     let verified = verify_authority_envelope(
         &envelope,
         &request.history.authority_keyset,
@@ -510,11 +510,11 @@ where
     if let Some(next) = &request.next_authority_keyset {
         candidate_keysets.push(next.clone());
     }
-    let mut candidate_policies = request.history.retained_policy_bundles.clone();
+    let mut candidate_policies = request.history.retained_authorization_models.clone();
     if fresh_initialization {
-        candidate_policies.push(request.history.policy_bundle.clone());
+        candidate_policies.push(request.history.authorization_model.clone());
     }
-    if let Some(next) = &request.next_policy_bundle {
+    if let Some(next) = &request.next_authorization_model {
         candidate_policies.push(next.clone());
     }
     let mut candidate_events = request.history.authority_events.clone();
@@ -525,9 +525,8 @@ where
         repository_id: &request.history.repository_id,
         initial_event_log_root: &request.history.initial_event_log_root,
         initial_actor_registry_root: &request.history.initial_actor_registry_root,
-        initial_snapshots_preexisting: request.history.initial_snapshots_preexisting,
         authority_keysets: &candidate_keysets,
-        policy_bundles: &candidate_policies,
+        authorization_models: &candidate_policies,
         authority_events: &candidate_events,
         authority_envelopes: &candidate_envelopes,
     })
@@ -539,16 +538,16 @@ where
         .root()
         .map_err(AuthorityTransactionError::Invalid)?;
     let expected_policy_root = request
-        .next_policy_bundle
+        .next_authorization_model
         .as_ref()
-        .unwrap_or(&request.history.policy_bundle)
+        .unwrap_or(&request.history.authorization_model)
         .root()
         .map_err(AuthorityTransactionError::Invalid)?;
     if candidate_history.final_authority_record_root.as_deref()
         != Some(verified.record_root.as_str())
         || candidate_history.final_authority_keyset_root.as_deref()
             != Some(expected_keyset_root.as_str())
-        || candidate_history.final_policy_bundle_root.as_deref()
+        || candidate_history.final_authorization_model_root.as_deref()
             != Some(expected_policy_root.as_str())
     {
         return Err(AuthorityTransactionError::History(
@@ -806,10 +805,9 @@ fn validate_fresh_initialization_request(
     if !request.history.authority_events.is_empty()
         || !request.history.authority_envelopes.is_empty()
         || !request.history.retained_authority_keysets.is_empty()
-        || !request.history.retained_policy_bundles.is_empty()
+        || !request.history.retained_authorization_models.is_empty()
         || request.next_authority_keyset.is_some()
-        || request.next_policy_bundle.is_some()
-        || request.next_policy_material.is_some()
+        || request.next_authorization_model.is_some()
         || request.event_drafts.len() != 1
     {
         return Err(AuthorityTransactionError::History(
@@ -834,7 +832,7 @@ fn validate_fresh_initialization_request(
         .map_err(AuthorityTransactionError::Invalid)?;
     let policy_root = request
         .history
-        .policy_bundle
+        .authorization_model
         .root()
         .map_err(AuthorityTransactionError::Invalid)?;
     let mut mismatches = Vec::new();
@@ -873,8 +871,8 @@ fn validate_fresh_initialization_request(
             "authority_keyset_root",
         ),
         (
-            payload.new_policy_bundle_root == policy_root,
-            "policy_bundle_root",
+            payload.new_authorization_model_root == policy_root,
+            "model_root",
         ),
         (
             payload.initial_event_log_root == request.history.initial_event_log_root,
@@ -886,7 +884,7 @@ fn validate_fresh_initialization_request(
         ),
         (payload.reason == draft.reason, "reason"),
         (
-            request.authorization_input.action == AUTHORITY_INITIALIZE_ACTION,
+            request.authorization_request.action == AuthorityActionV1::AuthorityInitialize,
             "authorization_action",
         ),
         (
@@ -923,11 +921,11 @@ fn validate_active_authority_snapshots(
         .map_err(AuthorityTransactionError::Invalid)?;
     let policy_root = request
         .history
-        .policy_bundle
+        .authorization_model
         .root()
         .map_err(AuthorityTransactionError::Invalid)?;
     if history.final_authority_keyset_root.as_deref() != Some(keyset_root.as_str())
-        || history.final_policy_bundle_root.as_deref() != Some(policy_root.as_str())
+        || history.final_authorization_model_root.as_deref() != Some(policy_root.as_str())
     {
         return Err(AuthorityTransactionError::History(
             "caller active authority snapshots differ from the verified history head".into(),
@@ -941,7 +939,7 @@ fn validate_requested_rotation(
     record_sequence: u64,
     previous_authority_record_root: &str,
 ) -> Result<(), AuthorityTransactionError> {
-    if request.next_authority_keyset.is_some() && request.next_policy_bundle.is_some() {
+    if request.next_authority_keyset.is_some() && request.next_authorization_model.is_some() {
         return Err(AuthorityTransactionError::Invalid(
             "one authority transaction may rotate either the keyset or the policy, not both".into(),
         ));
@@ -980,16 +978,17 @@ fn validate_requested_rotation(
             )?;
         }
     }
-    if let Some(next) = &request.next_policy_bundle {
-        verify_policy_bundle_transition(&request.history.policy_bundle, next)
+    if let Some(next) = &request.next_authorization_model {
+        verify_authorization_model_transition(&request.history.authorization_model, next)
             .map_err(AuthorityTransactionError::Invalid)?;
         if !request
             .semantic_approvals
             .iter()
-            .any(|approval| approval.action == POLICY_ROTATE_ACTION)
+            .any(|approval| approval.action == AUTHORITY_MODEL_UPDATE_ACTION)
         {
             return Err(AuthorityTransactionError::Invalid(
-                "policy rotation lacks policy_rotate semantic approval".into(),
+                "an authorization-model rotation lacks its authority_model_update semantic approval"
+                    .into(),
             ));
         }
     }
@@ -1036,7 +1035,7 @@ fn validate_requested_close(
         .map_err(AuthorityTransactionError::Invalid)?;
     let current_policy_root = request
         .history
-        .policy_bundle
+        .authorization_model
         .root()
         .map_err(AuthorityTransactionError::Invalid)?;
     if payload.repository_id != request.history.repository_id
@@ -1044,7 +1043,7 @@ fn validate_requested_close(
         || payload.last_trusted_authority_record_root != previous_authority_record_root
         || payload.previous_authority_keyset_root != current_keyset_root
         || payload.closed_authority_keyset_root != closed_root
-        || payload.policy_bundle_root != current_policy_root
+        || payload.authorization_model_root != current_policy_root
         || payload.reason != draft.reason
     {
         return Err(AuthorityTransactionError::Invalid(
@@ -1060,17 +1059,10 @@ fn normalize_authority_snapshots(
 ) -> Result<(), AuthorityTransactionError> {
     if request.object_drafts.iter().any(|draft| {
         draft.path.starts_with(".vela/authority/keysets/")
-            || draft.path.starts_with(".vela/authority/policies/")
-            || draft.path.starts_with(".vela/authority/policy-material/")
+            || draft.path.starts_with(".vela/authority/models/")
     }) {
         return Err(AuthorityTransactionError::Invalid(
-            "authority keyset, policy, and policy-material snapshots are derived from the verified history, not caller object drafts"
-                .into(),
-        ));
-    }
-    if request.next_policy_bundle.is_some() != request.next_policy_material.is_some() {
-        return Err(AuthorityTransactionError::Invalid(
-            "a policy rotation requires both the next bundle manifest and its exact Cedar material"
+            "authority keyset and authorization-model snapshots are derived from the verified history, not caller object drafts"
                 .into(),
         ));
     }
@@ -1094,53 +1086,35 @@ fn normalize_authority_snapshots(
     }
     for bundle in request
         .history
-        .retained_policy_bundles
+        .retained_authorization_models
         .iter()
-        .chain(std::iter::once(&request.history.policy_bundle))
-        .chain(request.next_policy_bundle.iter())
+        .chain(std::iter::once(&request.history.authorization_model))
+        .chain(request.next_authorization_model.iter())
     {
         let root = bundle.root().map_err(AuthorityTransactionError::Invalid)?;
         snapshots.insert(
-            authority_policy_path(&root)?,
+            authority_model_path(&root)?,
             (
-                "policy_bundle",
+                "authorization_model",
                 to_canonical_bytes(bundle).map_err(AuthorityTransactionError::Invalid)?,
             ),
         );
     }
-    let current_material = CedarPolicyMaterial::from_evaluation(&request.authorization_input);
-    current_material
-        .validate_against(&request.history.policy_bundle)
-        .map_err(AuthorityTransactionError::Invalid)?;
     let terminal_close = request
         .next_authority_keyset
         .as_ref()
         .is_some_and(|keyset| keyset.closed);
-    // The terminal close contract intentionally permits only the close event
-    // and closed-keyset snapshot. A closed repository needs no later policy
-    // execution, so do not opportunistically backfill policy material there.
-    if !terminal_close {
-        for (path, object_kind, bytes) in
-            authority_policy_material_snapshots(&request.history.policy_bundle, &current_material)?
-        {
-            insert_authority_snapshot(&mut snapshots, path, object_kind, bytes)?;
-        }
-    }
-    if let (Some(bundle), Some(material)) = (
-        request.next_policy_bundle.as_ref(),
-        request.next_policy_material.as_ref(),
-    ) {
-        material
-            .validate_against(bundle)
-            .map_err(AuthorityTransactionError::Invalid)?;
-        for (path, object_kind, bytes) in authority_policy_material_snapshots(bundle, material)? {
-            insert_authority_snapshot(&mut snapshots, path, object_kind, bytes)?;
-        }
-    }
+    /* The Cedar schema, policy text and entity snapshot were written into
+    `.vela/authority/policy-material/` alongside every model, because a bundle
+    named them by root and a replaying reader had to re-run them. The model is
+    the policy now: it is one canonical object, retained above with the
+    keysets, and there is nothing else to snapshot. `terminal_close` is still
+    read below. */
+    let _ = terminal_close;
 
     for directory in [
         ".vela/authority/keysets",
-        ".vela/authority/policies",
+        ".vela/authority/models",
         ".vela/authority/policy-material/schema",
         ".vela/authority/policy-material/policies",
         ".vela/authority/policy-material/entities",
@@ -1219,24 +1193,6 @@ fn authority_history_retains_path(
         }
     }
     Ok(retained)
-}
-
-fn insert_authority_snapshot(
-    snapshots: &mut BTreeMap<String, (&'static str, Vec<u8>)>,
-    path: String,
-    object_kind: &'static str,
-    bytes: Vec<u8>,
-) -> Result<(), AuthorityTransactionError> {
-    if let Some((existing_kind, existing_bytes)) = snapshots.get(&path) {
-        if *existing_kind != object_kind || *existing_bytes != bytes {
-            return Err(AuthorityTransactionError::Invalid(format!(
-                "authority snapshot path {path} has conflicting canonical bytes"
-            )));
-        }
-        return Ok(());
-    }
-    snapshots.insert(path, (object_kind, bytes));
-    Ok(())
 }
 
 fn normalize_object_drafts(
@@ -1609,30 +1565,36 @@ fn validate_request_shape(
         .map_err(AuthorityTransactionError::Invalid)?;
     request
         .history
-        .policy_bundle
+        .authorization_model
         .validate()
         .map_err(AuthorityTransactionError::Invalid)?;
     if request.history.repository_id != request.history.authority_keyset.repository_id
-        || request.history.repository_id != request.history.policy_bundle.repository_id
+        || request.history.repository_id != request.history.authorization_model.repository_id
     {
         return Err(AuthorityTransactionError::Invalid(
-            "history, keyset, and policy bundle name different repositories".into(),
+            "history, keyset, and authorization model name different repositories".into(),
         ));
     }
-    let authorization_schema_root =
-        ContentDigest::hash(request.authorization_input.schema.as_bytes());
-    let authorization_policies_root =
-        ContentDigest::hash(request.authorization_input.policies.as_bytes());
-    let authorization_entities = to_canonical_bytes(&request.authorization_input.entities)
+    /* The binary used to carry its own copy of the Cedar schema, policy text
+    and entity snapshot, and this compared their roots against the retained
+    bundle — the pin that made editing one character of `entity Frontier`
+    fail every later authority write on that repository. There is no runtime
+    policy text to drift now: the request names the model root it was decided
+    under, and the request is checked against it. */
+    request
+        .authorization_request
+        .validate()
         .map_err(AuthorityTransactionError::Invalid)?;
-    let authorization_entities_root = ContentDigest::hash(authorization_entities);
-    if request.history.policy_bundle.cedar_schema_root != authorization_schema_root.as_str()
-        || request.history.policy_bundle.policies_root != authorization_policies_root.as_str()
-        || request.history.policy_bundle.entities_root != authorization_entities_root.as_str()
+    let retained_model_root = request
+        .history
+        .authorization_model
+        .root()
+        .map_err(AuthorityTransactionError::Invalid)?;
+    if request.authorization_request.model_root != retained_model_root
+        || request.authorization_request.repository_id != request.history.repository_id
     {
         return Err(AuthorityTransactionError::Invalid(
-            "runtime Cedar schema, policies, or entities differ from the retained policy bundle"
-                .into(),
+            "the authorization request does not bind the retained authorization model".into(),
         ));
     }
     ContentDigest::parse(request.intent_digest.clone())
@@ -1682,8 +1644,13 @@ fn validate_preflight_attribution(
 fn validate_semantic_approvals(
     request: &AuthorityTransactionRequest,
 ) -> Result<(), AuthorityTransactionError> {
-    let requires_human_approval =
-        HUMAN_ONLY_AUTHORITY_ACTIONS_V1.contains(&request.authorization_input.action.as_str());
+    let action = serde_json::to_value(request.authorization_request.action)
+        .ok()
+        .and_then(|value| value.as_str().map(str::to_string))
+        .ok_or_else(|| {
+            AuthorityTransactionError::Invalid("authorization action does not name itself".into())
+        })?;
+    let requires_human_approval = HUMAN_ONLY_AUTHORITY_ACTIONS_V1.contains(&action.as_str());
     if requires_human_approval && request.semantic_approvals.is_empty() {
         return Err(AuthorityTransactionError::Invalid(
             "human-only authority action lacks a semantic approval".into(),
@@ -1692,7 +1659,7 @@ fn validate_semantic_approvals(
     for approval in &request.semantic_approvals {
         if approval.principal_id.trim().is_empty()
             || approval.role.trim().is_empty()
-            || approval.action != request.authorization_input.action
+            || approval.action != action
             || approval.reason.trim().is_empty()
             || approval.approved_at != request.recorded_at
             || approval.intent_digest != request.intent_digest
@@ -1724,9 +1691,8 @@ fn transaction_id(
     before_event_log_root: &str,
     previous_authority_record_root: Option<&str>,
     authorization_request_root: &str,
-    entity_snapshot_root: &str,
     authority_keyset_root: &str,
-    policy_bundle_root: &str,
+    model_root: &str,
 ) -> Result<String, AuthorityTransactionError> {
     let root = domain_root(
         b"vela.authority-transaction-id.internal.v1\0",
@@ -1738,9 +1704,8 @@ fn transaction_id(
             previous_authority_record_root,
             principal_id: &request.principal.principal_id,
             authorization_request_root,
-            entity_snapshot_root,
             authority_keyset_root,
-            policy_bundle_root,
+            model_root,
             delegation: None,
             semantic_approvals: &request.semantic_approvals,
             event_drafts: &request.event_drafts,
@@ -1758,29 +1723,12 @@ fn transaction_id(
     ))
 }
 
-fn authorization_request_root(
-    input: &CedarEvaluationInput,
-    verified_context: &Value,
-) -> Result<String, AuthorityTransactionError> {
-    domain_root(
-        b"vela.authority-authorization-request.internal.v1\0",
-        &AuthorizationRequestCommitment {
-            schema: "vela.authority-authorization-request.internal.v1",
-            principal: &input.principal,
-            principal_class: input.principal_class,
-            action: &input.action,
-            resource: &input.resource,
-            context: verified_context,
-        },
-    )
-}
-
 fn read_set_root(
     request: &AuthorityTransactionRequest,
     current_event_log_root: &str,
     previous_authority_record_root: Option<&str>,
     authority_keyset_root: &str,
-    policy_bundle_root: &str,
+    model_root: &str,
 ) -> Result<String, AuthorityTransactionError> {
     domain_root(
         b"vela.authority-read-set.internal.v1\0",
@@ -1790,7 +1738,7 @@ fn read_set_root(
             current_event_log_root,
             previous_authority_record_root,
             authority_keyset_root,
-            policy_bundle_root,
+            model_root,
             inputs: &request.read_set,
         },
     )
@@ -1839,58 +1787,11 @@ pub(crate) fn authority_keyset_path(root: &str) -> Result<String, AuthorityTrans
     ))
 }
 
-pub(crate) fn authority_policy_path(root: &str) -> Result<String, AuthorityTransactionError> {
+pub(crate) fn authority_model_path(root: &str) -> Result<String, AuthorityTransactionError> {
     Ok(format!(
-        ".vela/authority/policies/{}.json",
+        ".vela/authority/models/{}.json",
         authority_snapshot_stem(root)?
     ))
-}
-
-pub(crate) type AuthorityPolicyMaterialSnapshot = (String, &'static str, Vec<u8>);
-
-pub(crate) fn authority_policy_material_snapshots(
-    bundle: &PolicyBundleV1,
-    material: &CedarPolicyMaterial,
-) -> Result<Vec<AuthorityPolicyMaterialSnapshot>, AuthorityTransactionError> {
-    material
-        .validate_against(bundle)
-        .map_err(AuthorityTransactionError::Invalid)?;
-    let entities = material
-        .canonical_entities()
-        .map_err(AuthorityTransactionError::Invalid)?;
-    let [schema_path, policies_path, entities_path] = authority_policy_material_paths(bundle)?;
-    Ok(vec![
-        (
-            schema_path,
-            "cedar_schema",
-            material.schema.as_bytes().to_vec(),
-        ),
-        (
-            policies_path,
-            "cedar_policies",
-            material.policies.as_bytes().to_vec(),
-        ),
-        (entities_path, "cedar_entities", entities),
-    ])
-}
-
-pub(crate) fn authority_policy_material_paths(
-    bundle: &PolicyBundleV1,
-) -> Result<[String; 3], AuthorityTransactionError> {
-    Ok([
-        format!(
-            ".vela/authority/policy-material/schema/{}.cedarschema",
-            authority_snapshot_stem(&bundle.cedar_schema_root)?
-        ),
-        format!(
-            ".vela/authority/policy-material/policies/{}.cedar",
-            authority_snapshot_stem(&bundle.policies_root)?
-        ),
-        format!(
-            ".vela/authority/policy-material/entities/{}.json",
-            authority_snapshot_stem(&bundle.entities_root)?
-        ),
-    ])
 }
 
 fn authority_snapshot_stem(root: &str) -> Result<&str, AuthorityTransactionError> {
@@ -1908,9 +1809,8 @@ struct TransactionIdCommitment<'a> {
     previous_authority_record_root: Option<&'a str>,
     principal_id: &'a str,
     authorization_request_root: &'a str,
-    entity_snapshot_root: &'a str,
     authority_keyset_root: &'a str,
-    policy_bundle_root: &'a str,
+    model_root: &'a str,
     delegation: Option<&'a Value>,
     semantic_approvals: &'a [SemanticApprovalV1],
     event_drafts: &'a [AuthorityEventDraft],
@@ -1922,23 +1822,13 @@ struct TransactionIdCommitment<'a> {
 }
 
 #[derive(Serialize)]
-struct AuthorizationRequestCommitment<'a> {
-    schema: &'static str,
-    principal: &'a str,
-    principal_class: vela_protocol::principal::PrincipalClass,
-    action: &'a str,
-    resource: &'a str,
-    context: &'a Value,
-}
-
-#[derive(Serialize)]
 struct ReadSetCommitment<'a> {
     schema: &'static str,
     repository_id: &'a str,
     current_event_log_root: &'a str,
     previous_authority_record_root: Option<&'a str>,
     authority_keyset_root: &'a str,
-    policy_bundle_root: &'a str,
+    model_root: &'a str,
     inputs: &'a [InputBinding],
 }
 
@@ -1983,9 +1873,14 @@ mod tests {
     };
     use vela_protocol::authority::{
         AUTHORITY_KEY_ALGORITHM, AUTHORITY_KEY_PURPOSE, AUTHORITY_KEYSET_SCHEMA_V1, AuthorityKeyV1,
-        CEDAR_ENGINE, CEDAR_ENGINE_VERSION, CEDAR_PROFILE_V1, CedarDecision, CedarEvaluation,
-        DsseSignatureV1, POLICY_BUNDLE_SCHEMA_V1, SemanticApprovalV1, dsse_pae,
+        DsseSignatureV1, SemanticApprovalV1,
     };
+    use vela_protocol::authorization::{
+        AUTHORIZATION_MODEL_SCHEMA_V1, AUTHORIZATION_PROFILE_V1, AUTHORIZATION_REQUEST_SCHEMA_V1,
+        AuthorityMemberV1, AuthorityResourceTypeV1, AuthorityRoleV1, AuthorizationResourceV1,
+    };
+    use vela_protocol::dsse::pae;
+
     use vela_protocol::authority_history::{
         AUTHORITY_INITIALIZATION_SCHEMA_V1, AUTHORITY_INITIALIZE_ACTION,
         AUTHORITY_INITIALIZED_EVENT_KIND, AuthorityInitializationV1, authority_event_log_root,
@@ -2024,143 +1919,64 @@ mod tests {
         .unwrap()
     }
 
-    fn fixture_authorization_input() -> CedarEvaluationInput {
-        CedarEvaluationInput {
-            schema: r#"
-                entity Human;
-                entity Proposal;
-                entity Repository;
-                action "review_reject" appliesTo {
-                    principal: Human,
-                    resource: Proposal,
-                    context: {
-                        exact: Bool,
-                        authentication: {
-                            method: String,
-                            assurance: String,
-                            authenticated_at: String,
-                            observed_at: String,
-                            expires_at: String,
-                            user_presence: Bool,
-                            user_verification: Bool,
-                            recovery_recent: Bool
-                        }
-                    }
-                };
-                action "review_accept" appliesTo {
-                    principal: Human,
-                    resource: Proposal,
-                    context: {
-                        exact: Bool,
-                        authentication: {
-                            method: String,
-                            assurance: String,
-                            authenticated_at: String,
-                            observed_at: String,
-                            expires_at: String,
-                            user_presence: Bool,
-                            user_verification: Bool,
-                            recovery_recent: Bool
-                        }
-                    }
-                };
-                action "authority_initialize" appliesTo {
-                    principal: Human,
-                    resource: Repository,
-                    context: {
-                        exact: Bool,
-                        authentication: {
-                            method: String,
-                            assurance: String,
-                            authenticated_at: String,
-                            observed_at: String,
-                            expires_at: String,
-                            user_presence: Bool,
-                            user_verification: Bool,
-                            recovery_recent: Bool
-                        }
-                    }
-                };
-                action "authority_rotate" appliesTo {
-                    principal: Human,
-                    resource: Repository,
-                    context: {
-                        exact: Bool,
-                        authentication: {
-                            method: String,
-                            assurance: String,
-                            authenticated_at: String,
-                            observed_at: String,
-                            expires_at: String,
-                            user_presence: Bool,
-                            user_verification: Bool,
-                            recovery_recent: Bool
-                        }
-                    }
-                };
-                action "authority_close" appliesTo {
-                    principal: Human,
-                    resource: Repository,
-                    context: {
-                        exact: Bool,
-                        authentication: {
-                            method: String,
-                            assurance: String,
-                            authenticated_at: String,
-                            observed_at: String,
-                            expires_at: String,
-                            user_presence: Bool,
-                            user_verification: Bool,
-                            recovery_recent: Bool
-                        }
-                    }
-                };
-                action "policy_rotate" appliesTo {
-                    principal: Human,
-                    resource: Repository,
-                    context: {
-                        exact: Bool,
-                        authentication: {
-                            method: String,
-                            assurance: String,
-                            authenticated_at: String,
-                            observed_at: String,
-                            expires_at: String,
-                            user_presence: Bool,
-                            user_verification: Bool,
-                            recovery_recent: Bool
-                        }
-                    }
-                };
-            "#
-            .into(),
-            policies: r#"
-                permit(principal, action, resource)
-                when { context.exact };
-            "#
-            .into(),
-            entities: json!([
-                {
-                    "uid": {"type": "Human", "id": REPOSITORY_PRINCIPAL},
-                    "attrs": {},
-                    "parents": []
+    /// The proposal a review fixture decides.
+    const FIXTURE_PROPOSAL: &str = "vpr_0123456789abcdef";
+
+    /// The model a fixture repository is initialized with: one human holding
+    /// both roles. This was a Cedar schema declaring six actions and their
+    /// authentication context, a policy text, an entity snapshot, and a
+    /// hand-written bundle binding all three by root — about a hundred and
+    /// eighty lines saying what these six say.
+    fn fixture_authorization_model() -> AuthorizationModelV1 {
+        AuthorizationModelV1 {
+            schema: AUTHORIZATION_MODEL_SCHEMA_V1.into(),
+            profile: AUTHORIZATION_PROFILE_V1.into(),
+            repository_id: REPOSITORY_ID.into(),
+            members: vec![
+                AuthorityMemberV1 {
+                    principal_id: REPOSITORY_PRINCIPAL.into(),
+                    principal_class: PrincipalClass::Human,
+                    role: AuthorityRoleV1::Administrator,
                 },
-                {
-                    "uid": {"type": "Proposal", "id": "vpr_0123456789abcdef"},
-                    "attrs": {},
-                    "parents": []
+                AuthorityMemberV1 {
+                    principal_id: REPOSITORY_PRINCIPAL.into(),
+                    principal_class: PrincipalClass::Human,
+                    role: AuthorityRoleV1::Reviewer,
                 },
-                {
-                    "uid": {"type": "Repository", "id": REPOSITORY_ID},
-                    "attrs": {},
-                    "parents": []
-                }
-            ]),
-            principal: format!(r#"Human::"{REPOSITORY_PRINCIPAL}""#),
+            ],
+            previous_model_root: None,
+        }
+    }
+
+    fn fixture_authorization_request(
+        model: &AuthorizationModelV1,
+        action: AuthorityActionV1,
+    ) -> AuthorizationRequestV1 {
+        let resource = match action.required_resource_type() {
+            AuthorityResourceTypeV1::Repository => AuthorizationResourceV1 {
+                repository_id: REPOSITORY_ID.into(),
+                resource_type: AuthorityResourceTypeV1::Repository,
+                resource_id: REPOSITORY_ID.into(),
+            },
+            AuthorityResourceTypeV1::Proposal => AuthorizationResourceV1 {
+                repository_id: REPOSITORY_ID.into(),
+                resource_type: AuthorityResourceTypeV1::Proposal,
+                resource_id: FIXTURE_PROPOSAL.into(),
+            },
+        };
+        AuthorizationRequestV1 {
+            schema: AUTHORIZATION_REQUEST_SCHEMA_V1.into(),
+            profile: AUTHORIZATION_PROFILE_V1.into(),
+            model_root: model.root().unwrap(),
+            repository_id: REPOSITORY_ID.into(),
+            principal_id: REPOSITORY_PRINCIPAL.into(),
             principal_class: PrincipalClass::Human,
-            action: "review_reject".into(),
-            resource: r#"Proposal::"vpr_0123456789abcdef""#.into(),
-            context: json!({"exact": true}),
+            action,
+            resource,
+            authentication_root: root('9'),
+            transaction_read_set_root: root('e'),
+            intent_digest: root('a'),
+            recovery_recent: false,
         }
     }
 
@@ -2181,7 +1997,7 @@ mod tests {
             if self.fail {
                 return Err("injected signer refusal".into());
             }
-            let signature = self.key.sign(&dsse_pae(payload_type, canonical_payload));
+            let signature = self.key.sign(&pae(payload_type, canonical_payload));
             Ok(vec![DsseSignatureV1 {
                 keyid: self.key_id.clone(),
                 sig: BASE64_STANDARD.encode(signature.to_bytes()),
@@ -2249,7 +2065,9 @@ mod tests {
         let repository_key = SigningKey::from_bytes(&[12; 32]);
         fs::write(root_path.join(".vela/input.json"), b"{\"fixture\":true}\n").unwrap();
 
-        let authorization_input = fixture_authorization_input();
+        let authorization_model = fixture_authorization_model();
+        let authorization_request =
+            fixture_authorization_request(&authorization_model, AuthorityActionV1::ReviewReject);
         let keyset = AuthorityKeysetV1 {
             schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
             repository_id: REPOSITORY_ID.into(),
@@ -2267,39 +2085,17 @@ mod tests {
             activation_record_root: None,
             closed: false,
         };
-        let policy_bundle = PolicyBundleV1 {
-            schema: POLICY_BUNDLE_SCHEMA_V1.into(),
-            repository_id: REPOSITORY_ID.into(),
-            cedar_schema_root: ContentDigest::hash(authorization_input.schema.as_bytes())
-                .as_str()
-                .into(),
-            policies_root: ContentDigest::hash(authorization_input.policies.as_bytes())
-                .as_str()
-                .into(),
-            entities_root: ContentDigest::hash(
-                to_canonical_bytes(&authorization_input.entities).unwrap(),
-            )
-            .as_str()
-            .into(),
-            tests_root: root('d'),
-            engine: CEDAR_ENGINE.into(),
-            engine_version: CEDAR_ENGINE_VERSION.into(),
-            restricted_profile: CEDAR_PROFILE_V1.into(),
-            previous_bundle_root: None,
-            authority_summary: "Repository authority may reject one exact proposal.".into(),
-        };
-
         let initial_event_log_root = format!("sha256:{}", event_log_hash(&[]));
         let initial_actor_registry_root = format!("sha256:{}", hex::encode(Sha256::digest([])));
         let keyset_root = keyset.root().unwrap();
-        let policy_bundle_root = policy_bundle.root().unwrap();
+        let model_root = authorization_model.root().unwrap();
         let initialization = AuthorityInitializationV1 {
             schema: AUTHORITY_INITIALIZATION_SCHEMA_V1.into(),
             repository_id: REPOSITORY_ID.into(),
             initial_event_log_root: initial_event_log_root.clone(),
             initial_actor_registry_root: initial_actor_registry_root.clone(),
             new_authority_keyset_root: keyset.root().unwrap(),
-            new_policy_bundle_root: policy_bundle.root().unwrap(),
+            new_authorization_model_root: authorization_model.root().unwrap(),
             new_principal_id: REPOSITORY_PRINCIPAL.into(),
             minimum_writer_version: "0.930.0".into(),
             reason: "Initialize the disposable repository authority fixture.".into(),
@@ -2354,10 +2150,10 @@ mod tests {
                     object_kind: "authority_keyset".into(),
                 },
                 ObjectDeltaV1 {
-                    path: authority_policy_path(&policy_bundle_root).unwrap(),
+                    path: authority_model_path(&model_root).unwrap(),
                     before_root: None,
-                    after_root: Some(policy_bundle_root.clone()),
-                    object_kind: "policy_bundle".into(),
+                    after_root: Some(model_root.clone()),
+                    object_kind: "authorization_model".into(),
                 },
             ],
             principal: PrincipalSnapshotV1 {
@@ -2385,20 +2181,23 @@ mod tests {
                 revocation_ref: None,
             },
             delegation: None,
-            authorization: AuthorizationClaimV1 {
-                policy_bundle_root: policy_bundle.root().unwrap(),
-                request_root: root('5'),
-                entity_snapshot_root: root('6'),
-                evaluation: CedarEvaluation {
-                    engine: CEDAR_ENGINE.into(),
-                    engine_version: CEDAR_ENGINE_VERSION.into(),
-                    profile: CEDAR_PROFILE_V1.into(),
-                    valid: true,
-                    decision: CedarDecision::Allow,
-                    automatic_permit: false,
-                    determining_policies: vec!["permit_repository_admin".into()],
-                    diagnostics: Vec::new(),
-                },
+            authorization: {
+                /* The evaluation is the evaluator's own output over the
+                retained request. Replay recomputes it, so a fixture that
+                asserted its own answer would prove nothing. */
+                let initialize_request = fixture_authorization_request(
+                    &authorization_model,
+                    AuthorityActionV1::AuthorityInitialize,
+                );
+                AuthorizationClaimV1 {
+                    model_root: authorization_model.root().unwrap(),
+                    evaluation: vela_protocol::authorization::evaluate_authorization_v1(
+                        &authorization_model,
+                        &initialize_request,
+                    )
+                    .unwrap(),
+                    request: initialize_request,
+                }
             },
             semantic_approvals: vec![SemanticApprovalV1 {
                 principal_id: REPOSITORY_PRINCIPAL.into(),
@@ -2427,7 +2226,7 @@ mod tests {
                 keyid: "repository-key-1".into(),
                 sig: BASE64_STANDARD.encode(
                     repository_key
-                        .sign(&dsse_pae(AUTHORITY_PAYLOAD_TYPE_V1, &first_payload))
+                        .sign(&pae(AUTHORITY_PAYLOAD_TYPE_V1, &first_payload))
                         .to_bytes(),
                 ),
             }],
@@ -2445,7 +2244,7 @@ mod tests {
         )
         .unwrap();
         let keyset_path = authority_keyset_path(&keyset_root).unwrap();
-        let policy_path = authority_policy_path(&policy_bundle_root).unwrap();
+        let policy_path = authority_model_path(&model_root).unwrap();
         fs::create_dir_all(
             root_path
                 .join(&keyset_path)
@@ -2467,7 +2266,7 @@ mod tests {
         .unwrap();
         fs::write(
             root_path.join(policy_path),
-            to_canonical_bytes(&policy_bundle).unwrap(),
+            to_canonical_bytes(&authorization_model).unwrap(),
         )
         .unwrap();
 
@@ -2481,11 +2280,10 @@ mod tests {
                 repository_id: REPOSITORY_ID.into(),
                 initial_event_log_root,
                 initial_actor_registry_root,
-                initial_snapshots_preexisting: false,
                 authority_keyset: keyset.clone(),
-                policy_bundle: policy_bundle.clone(),
+                authorization_model: authorization_model.clone(),
                 retained_authority_keysets: vec![keyset],
-                retained_policy_bundles: vec![policy_bundle],
+                retained_authorization_models: vec![authorization_model],
                 authority_events: vec![initialization_event],
                 authority_envelopes: vec![first_envelope],
             },
@@ -2502,7 +2300,7 @@ mod tests {
                 principal_class: PrincipalClass::Human,
                 transaction_at: RECORDED_AT.into(),
             },
-            authorization_input,
+            authorization_request,
             semantic_approvals: vec![SemanticApprovalV1 {
                 principal_id: REPOSITORY_PRINCIPAL.into(),
                 role: "repository_administrator".into(),
@@ -2531,8 +2329,7 @@ mod tests {
             object_drafts: Vec::new(),
             derived_drafts: Vec::new(),
             next_authority_keyset: None,
-            next_policy_bundle: None,
-            next_policy_material: None,
+            next_authorization_model: None,
             read_set: vec![fixture_input],
             vela_version: "0.930.0-rc.1".into(),
             binary_sha256: root('1'),
@@ -2559,9 +2356,8 @@ mod tests {
             repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &fixture.request.history.retained_authority_keysets,
-            policy_bundles: &fixture.request.history.retained_policy_bundles,
+            authorization_models: &fixture.request.history.retained_authorization_models,
             authority_events: &authority_events,
             authority_envelopes: &envelopes,
         })
@@ -2575,9 +2371,8 @@ mod tests {
             repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &fixture.request.history.retained_authority_keysets,
-            policy_bundles: &fixture.request.history.retained_policy_bundles,
+            authorization_models: &fixture.request.history.retained_authorization_models,
             authority_events: &fixture.request.history.authority_events,
             authority_envelopes: &fixture.request.history.authority_envelopes,
         })
@@ -2595,14 +2390,15 @@ mod tests {
             authority_keyset_path(&fixture.request.history.authority_keyset.root().unwrap())
                 .unwrap();
         let policy_path =
-            authority_policy_path(&fixture.request.history.policy_bundle.root().unwrap()).unwrap();
+            authority_model_path(&fixture.request.history.authorization_model.root().unwrap())
+                .unwrap();
         let keyset_unchanged =
             fs::read(fixture.temporary.path().join(keyset_path)).is_ok_and(|bytes| {
                 bytes == to_canonical_bytes(&fixture.request.history.authority_keyset).unwrap()
             });
         let policy_unchanged =
             fs::read(fixture.temporary.path().join(policy_path)).is_ok_and(|bytes| {
-                bytes == to_canonical_bytes(&fixture.request.history.policy_bundle).unwrap()
+                bytes == to_canonical_bytes(&fixture.request.history.authorization_model).unwrap()
             });
         event_count == 1 && record_count == 1 && keyset_unchanged && policy_unchanged
     }
@@ -2612,21 +2408,23 @@ mod tests {
         let mut fixture = fixture();
         let archived_event_root = root('a');
         let archived_actor_root = root('b');
-        let reason = "Adopt the compacted current repository origin.";
+        let reason = "Adopt the current repository origin roots.";
         let keyset_root = fixture.request.history.authority_keyset.root().unwrap();
-        let policy_root = fixture.request.history.policy_bundle.root().unwrap();
+        let policy_root = fixture.request.history.authorization_model.root().unwrap();
 
         fixture.request.history.initial_event_log_root = archived_event_root.clone();
         fixture.request.history.initial_actor_registry_root = archived_actor_root.clone();
-        fixture.request.history.initial_snapshots_preexisting = true;
         fixture.request.history.retained_authority_keysets.clear();
-        fixture.request.history.retained_policy_bundles.clear();
+        fixture
+            .request
+            .history
+            .retained_authorization_models
+            .clear();
         fixture.request.history.authority_events.clear();
         fixture.request.history.authority_envelopes.clear();
-        fixture.request.authorization_input.action = AUTHORITY_INITIALIZE_ACTION.into();
-        fixture.request.authorization_input.resource = format!(
-            "Repository::{}",
-            serde_json::to_string(REPOSITORY_ID).unwrap()
+        fixture.request.authorization_request = fixture_authorization_request(
+            &fixture.request.history.authorization_model,
+            AuthorityActionV1::AuthorityInitialize,
         );
         fixture.request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
@@ -2642,7 +2440,7 @@ mod tests {
             initial_event_log_root: archived_event_root.clone(),
             initial_actor_registry_root: archived_actor_root,
             new_authority_keyset_root: keyset_root,
-            new_policy_bundle_root: policy_root,
+            new_authorization_model_root: policy_root,
             new_principal_id: REPOSITORY_PRINCIPAL.into(),
             minimum_writer_version: "0.940.9".into(),
             reason: reason.into(),
@@ -2677,18 +2475,27 @@ mod tests {
             repository_id: &fixture.request.history.repository_id,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &fixture.request.history.retained_authority_keysets,
-            policy_bundles: &fixture.request.history.retained_policy_bundles,
+            authorization_models: &fixture.request.history.retained_authorization_models,
             authority_events: &fixture.request.history.authority_events,
             authority_envelopes: &fixture.request.history.authority_envelopes,
         })
         .unwrap();
         assert_eq!(history.final_event_log_root, archived_event_root);
 
-        fs::remove_dir_all(fixture.temporary.path().join(".vela/events")).unwrap();
-        fs::remove_dir_all(fixture.temporary.path().join(".vela/authority/events")).unwrap();
-        fs::remove_dir_all(fixture.temporary.path().join(".vela/authority/records")).unwrap();
+        /* An empty authority store on disk as well as in the request: with
+        compaction gone there is no origin that carries keyset and policy
+        snapshots forward, so record 1 installs both and its object delta has
+        to contain them. */
+        for directory in [
+            ".vela/events",
+            ".vela/authority/events",
+            ".vela/authority/records",
+            ".vela/authority/keysets",
+            ".vela/authority/models",
+        ] {
+            fs::remove_dir_all(fixture.temporary.path().join(directory)).unwrap();
+        }
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
         let result = execute_authority_transaction(
@@ -2765,26 +2572,16 @@ mod tests {
             authority_keyset_path(&fixture.request.history.authority_keyset.root().unwrap())
                 .unwrap();
         let policy_path =
-            authority_policy_path(&fixture.request.history.policy_bundle.root().unwrap()).unwrap();
+            authority_model_path(&fixture.request.history.authorization_model.root().unwrap())
+                .unwrap();
         assert_eq!(
             fs::read(fixture.temporary.path().join(keyset_path)).unwrap(),
             to_canonical_bytes(&fixture.request.history.authority_keyset).unwrap()
         );
         assert_eq!(
             fs::read(fixture.temporary.path().join(policy_path)).unwrap(),
-            to_canonical_bytes(&fixture.request.history.policy_bundle).unwrap()
+            to_canonical_bytes(&fixture.request.history.authorization_model).unwrap()
         );
-        let material = CedarPolicyMaterial::from_evaluation(&fixture.request.authorization_input);
-        for (path, _, expected) in
-            authority_policy_material_snapshots(&fixture.request.history.policy_bundle, &material)
-                .unwrap()
-        {
-            assert_eq!(
-                fs::read(fixture.temporary.path().join(path)).unwrap(),
-                expected
-            );
-        }
-
         verify_installed_history(&fixture, &[event], &envelope);
     }
 
@@ -2822,7 +2619,10 @@ mod tests {
 
         let mut request = fixture.request.clone();
         request.intent_digest = root('e');
-        request.authorization_input.action = "review_accept".into();
+        request.authorization_request = fixture_authorization_request(
+            &request.history.authorization_model,
+            AuthorityActionV1::ReviewAccept,
+        );
         request.semantic_approvals[0].action = "review_accept".into();
         request.semantic_approvals[0].reason = reason.into();
         request.semantic_approvals[0].intent_digest = root('e');
@@ -3011,7 +2811,7 @@ mod tests {
     }
 
     #[test]
-    fn retained_policy_material_cannot_disappear_or_change_after_backfill() {
+    fn the_retained_authorization_model_cannot_disappear_or_change() {
         for mutation in ["delete", "alter"] {
             let fixture = fixture();
             let mut adapter = fixture.adapter();
@@ -3053,17 +2853,16 @@ mod tests {
             let mut request = fixture.request.clone();
             request.history.authority_events.push(event);
             request.history.authority_envelopes.push(envelope);
-            let material = CedarPolicyMaterial::from_evaluation(&request.authorization_input);
-            let material_path =
-                authority_policy_material_snapshots(&request.history.policy_bundle, &material)
-                    .unwrap()
-                    .remove(0)
-                    .0;
-            let absolute = fixture.temporary.path().join(&material_path);
+            /* The Cedar schema, policy text and entity snapshot used to be
+            the retained material this protects. The model is the only policy
+            object now, and losing or editing it has to fail the same way. */
+            let model_path =
+                authority_model_path(&request.history.authorization_model.root().unwrap()).unwrap();
+            let absolute = fixture.temporary.path().join(&model_path);
             if mutation == "delete" {
                 fs::remove_file(&absolute).unwrap();
             } else {
-                fs::write(&absolute, b"tampered Cedar schema").unwrap();
+                fs::write(&absolute, b"a tampered authorization model").unwrap();
             }
 
             let mut adapter = fixture.adapter();
@@ -3122,8 +2921,10 @@ mod tests {
         let reason = "Rotate the disposable repository authority.";
         let mut request = fixture.request.clone();
         request.intent_digest = intent.clone();
-        request.authorization_input.action = AUTHORITY_ROTATE_ACTION.into();
-        request.authorization_input.resource = format!(r#"Repository::"{REPOSITORY_ID}""#);
+        request.authorization_request = fixture_authorization_request(
+            &request.history.authorization_model,
+            AuthorityActionV1::AuthorityRotate,
+        );
         request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
             role: "repository_administrator".into(),
@@ -3218,9 +3019,8 @@ mod tests {
             repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &keysets,
-            policy_bundles: &fixture.request.history.retained_policy_bundles,
+            authorization_models: &fixture.request.history.retained_authorization_models,
             authority_events: &events,
             authority_envelopes: &envelopes,
         })
@@ -3230,8 +3030,8 @@ mod tests {
             Some(next_keyset.root().unwrap())
         );
         assert_eq!(
-            replay.final_policy_bundle_root,
-            Some(fixture.request.history.policy_bundle.root().unwrap())
+            replay.final_authorization_model_root,
+            Some(fixture.request.history.authorization_model.root().unwrap())
         );
 
         followup_request.history.authority_keyset = next_keyset.clone();
@@ -3243,7 +3043,10 @@ mod tests {
         followup_request.history.authority_envelopes = envelopes.clone();
         followup_request.intent_digest = root('c');
         followup_request.authentication_request.transaction_at = "2026-07-24T12:06:00Z".into();
-        followup_request.authorization_input = fixture_authorization_input();
+        followup_request.authorization_request = fixture_authorization_request(
+            &followup_request.history.authorization_model,
+            AuthorityActionV1::ReviewReject,
+        );
         followup_request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
             role: "repository_administrator".into(),
@@ -3317,9 +3120,8 @@ mod tests {
             repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &keysets,
-            policy_bundles: &fixture.request.history.retained_policy_bundles,
+            authorization_models: &fixture.request.history.retained_authorization_models,
             authority_events: &final_events,
             authority_envelopes: &final_envelopes,
         })
@@ -3335,22 +3137,25 @@ mod tests {
     #[test]
     fn policy_rotation_writer_installs_one_exact_snapshot_and_replays_offline() {
         let fixture = fixture();
-        let next_policy = PolicyBundleV1 {
-            tests_root: root('e'),
-            previous_bundle_root: Some(fixture.request.history.policy_bundle.root().unwrap()),
-            authority_summary: "Rotated disposable repository policy.".into(),
-            ..fixture.request.history.policy_bundle.clone()
-        };
+        /* A rotation that actually changes something: the reviewer role
+        moves to a second principal. The bundle this replaced could only
+        rotate by swapping opaque Cedar roots. */
+        let mut next_policy = fixture.request.history.authorization_model.clone();
+        next_policy.members[1].principal_id = "local:device-2|uid:502".into();
+        next_policy.previous_model_root =
+            Some(fixture.request.history.authorization_model.root().unwrap());
         let intent = root('b');
         let reason = "Rotate the disposable repository policy.";
         let mut request = fixture.request.clone();
         request.intent_digest = intent.clone();
-        request.authorization_input.action = POLICY_ROTATE_ACTION.into();
-        request.authorization_input.resource = format!(r#"Repository::"{REPOSITORY_ID}""#);
+        request.authorization_request = fixture_authorization_request(
+            &request.history.authorization_model,
+            AuthorityActionV1::AuthorityModelUpdate,
+        );
         request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
             role: "repository_administrator".into(),
-            action: POLICY_ROTATE_ACTION.into(),
+            action: "authority_model_update".into(),
             reason: reason.into(),
             approved_at: RECORDED_AT.into(),
             intent_digest: intent,
@@ -3369,13 +3174,10 @@ mod tests {
             reason: reason.into(),
             before_hash: root('f'),
             after_hash: root('f'),
-            payload: json!({"policy_bundle_root": next_policy.root().unwrap()}),
+            payload: json!({"model_root": next_policy.root().unwrap()}),
             caveats: Vec::new(),
         }];
-        request.next_policy_bundle = Some(next_policy.clone());
-        request.next_policy_material = Some(CedarPolicyMaterial::from_evaluation(
-            &request.authorization_input,
-        ));
+        request.next_authorization_model = Some(next_policy.clone());
 
         let mut both = request.clone();
         let current = verified_fixture_history(&fixture);
@@ -3426,7 +3228,7 @@ mod tests {
         .unwrap();
         assert_eq!(signer.calls, 1);
 
-        let next_path = authority_policy_path(&next_policy.root().unwrap()).unwrap();
+        let next_path = authority_model_path(&next_policy.root().unwrap()).unwrap();
         assert_eq!(
             fs::read(fixture.temporary.path().join(next_path)).unwrap(),
             to_canonical_bytes(&next_policy).unwrap()
@@ -3451,7 +3253,11 @@ mod tests {
             .unwrap(),
         )
         .unwrap();
-        let mut policies = fixture.request.history.retained_policy_bundles.clone();
+        let mut policies = fixture
+            .request
+            .history
+            .retained_authorization_models
+            .clone();
         policies.push(next_policy.clone());
         let mut events = fixture.request.history.authority_events.clone();
         events.push(event);
@@ -3461,9 +3267,8 @@ mod tests {
             repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &fixture.request.history.retained_authority_keysets,
-            policy_bundles: &policies,
+            authorization_models: &policies,
             authority_events: &events,
             authority_envelopes: &envelopes,
         })
@@ -3473,7 +3278,7 @@ mod tests {
             Some(fixture.request.history.authority_keyset.root().unwrap())
         );
         assert_eq!(
-            replay.final_policy_bundle_root,
+            replay.final_authorization_model_root,
             Some(next_policy.root().unwrap())
         );
     }
@@ -3484,7 +3289,7 @@ mod tests {
         let current = verified_fixture_history(&fixture);
         let current_record_root = current.final_authority_record_root.clone().unwrap();
         let current_keyset_root = fixture.request.history.authority_keyset.root().unwrap();
-        let current_policy_root = fixture.request.history.policy_bundle.root().unwrap();
+        let current_policy_root = fixture.request.history.authorization_model.root().unwrap();
         let closed_keyset = AuthorityKeysetV1 {
             schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
             repository_id: REPOSITORY_ID.into(),
@@ -3503,15 +3308,17 @@ mod tests {
             last_trusted_authority_record_root: current_record_root,
             previous_authority_keyset_root: current_keyset_root,
             closed_authority_keyset_root: closed_keyset.root().unwrap(),
-            policy_bundle_root: current_policy_root.clone(),
+            authorization_model_root: current_policy_root.clone(),
             incident_id: "incident:disposable-close-1".into(),
             reason: reason.into(),
         };
         let intent = root('d');
         let mut request = fixture.request.clone();
         request.intent_digest = intent.clone();
-        request.authorization_input.action = AUTHORITY_CLOSE_ACTION.into();
-        request.authorization_input.resource = format!(r#"Repository::"{REPOSITORY_ID}""#);
+        request.authorization_request = fixture_authorization_request(
+            &request.history.authorization_model,
+            AuthorityActionV1::AuthorityClose,
+        );
         request.semantic_approvals = vec![SemanticApprovalV1 {
             principal_id: REPOSITORY_PRINCIPAL.into(),
             role: "repository_administrator".into(),
@@ -3598,9 +3405,8 @@ mod tests {
             repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &keysets,
-            policy_bundles: &fixture.request.history.retained_policy_bundles,
+            authorization_models: &fixture.request.history.retained_authorization_models,
             authority_events: &[
                 fixture.request.history.authority_events[0].clone(),
                 event.clone(),
@@ -3614,16 +3420,18 @@ mod tests {
             replay.final_authority_keyset_root,
             Some(closed_keyset.root().unwrap())
         );
-        assert_eq!(replay.final_policy_bundle_root, Some(current_policy_root));
+        assert_eq!(
+            replay.final_authorization_model_root,
+            Some(current_policy_root)
+        );
 
         envelopes.push(envelope);
         let error = verify_authority_history(AuthorityHistoryInput {
             repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &keysets,
-            policy_bundles: &fixture.request.history.retained_policy_bundles,
+            authorization_models: &fixture.request.history.retained_authorization_models,
             authority_events: &[
                 fixture.request.history.authority_events[0].clone(),
                 event.clone(),
@@ -3761,10 +3569,11 @@ mod tests {
             1
         );
         let policy_path =
-            authority_policy_path(&fixture.request.history.policy_bundle.root().unwrap()).unwrap();
+            authority_model_path(&fixture.request.history.authorization_model.root().unwrap())
+                .unwrap();
         assert_eq!(
             fs::read(fixture.temporary.path().join(policy_path)).unwrap(),
-            to_canonical_bytes(&fixture.request.history.policy_bundle).unwrap()
+            to_canonical_bytes(&fixture.request.history.authorization_model).unwrap()
         );
     }
 
@@ -3831,7 +3640,11 @@ mod tests {
 
         let fixture_two = fixture();
         let mut request = fixture_two.request.clone();
-        request.authorization_input.policies = "forbid(principal, action, resource);".into();
+        /* A request the model does not authorize. Cedar's version of this
+        was a `forbid` policy overriding the permit; the closed profile has
+        no policy text, so the request simply names a principal the model has
+        never heard of. */
+        request.authorization_request.model_root = root('7');
         let mut adapter = fixture_two.adapter();
         let mut signer = fixture_two.signer();
         let error = prepare_authority_transaction(
@@ -3842,7 +3655,10 @@ mod tests {
             &mut signer,
         )
         .unwrap_err();
-        assert!(matches!(error, AuthorityTransactionError::Invalid(_)));
+        assert!(
+            matches!(error, AuthorityTransactionError::Invalid(_)),
+            "{error:?}"
+        );
         assert_eq!(signer.calls, 0);
         assert!(authority_transaction_postimages_absent(&fixture_two));
         assert!(prepared_journal_absent(&fixture_two));
@@ -4298,24 +4114,12 @@ mod tests {
         .unwrap();
         let payload = BASE64_STANDARD.decode(&prepared.envelope.payload).unwrap();
         let record: AuthorityRecordV1 = serde_json::from_slice(&payload).unwrap();
-        assert_eq!(record.content.object_delta.len(), 8);
+        /* Five, not eight: the three Cedar policy-material snapshots that
+        every transaction used to backfill are gone with the policy text. */
+        assert_eq!(record.content.object_delta.len(), 5);
         assert!(!record.content.object_delta.iter().any(|delta| {
-            delta.object_kind == "authority_keyset" || delta.object_kind == "policy_bundle"
+            delta.object_kind == "authority_keyset" || delta.object_kind == "authorization_model"
         }));
-        assert_eq!(
-            record
-                .content
-                .object_delta
-                .iter()
-                .filter(|delta| {
-                    matches!(
-                        delta.object_kind.as_str(),
-                        "cedar_schema" | "cedar_policies" | "cedar_entities"
-                    )
-                })
-                .count(),
-            3
-        );
         assert!(record.content.object_delta.iter().any(|delta| {
             delta.path == ".vela/evidence/update.json"
                 && delta.before_root == Some(ContentDigest::hash(&old_update).as_str().to_string())
@@ -4404,9 +4208,8 @@ mod tests {
             repository_id: REPOSITORY_ID,
             initial_event_log_root: &fixture.request.history.initial_event_log_root,
             initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            initial_snapshots_preexisting: fixture.request.history.initial_snapshots_preexisting,
             authority_keysets: &fixture.request.history.retained_authority_keysets,
-            policy_bundles: &fixture.request.history.retained_policy_bundles,
+            authorization_models: &fixture.request.history.retained_authorization_models,
             authority_events: &fixture.request.history.authority_events,
             authority_envelopes: &envelopes,
         })

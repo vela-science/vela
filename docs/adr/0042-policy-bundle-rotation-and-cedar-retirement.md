@@ -1,6 +1,15 @@
 # ADR 0042: Policy-bundle rotation, and what it takes to retire Cedar
 
-- Status: Proposed
+- Status: Superseded by ADR 0035, 2026-08-09
+- Supersession: none of the three options was taken and the rotation writer was
+  never written, because ADR 0035's wire break re-genesises `vela-science/math`
+  and genesis mints the authority chain fresh. There is no retained bundle left
+  to contradict a Cedar-free reader, so the reader could change first and step 3
+  of the sequence below had nothing to wait for. The mechanism this record
+  describes is accurate and the ordering constraint still holds for any live
+  repository inside an epoch; what changed is that the epoch does not survive.
+  ADR 0035's implementation note for 2026-08-09 carries the reasoning. This
+  record is historical.
 - Protocol effect: none as written. Implementing it adds a rotation writer and,
   later, changes what `PolicyBundleV1` may declare
 - Product effect: `vela authority` would gain its second subcommand
@@ -126,7 +135,7 @@ argues for deciding this ADR and 0035 together rather than in either order.
 - **Whether Cut C's parity work is reachable.** Cedar's removal additionally
   needs every historical Allow recomputed against the closed profile.
   `evaluate_authorization_v1` exists and has no production caller;
-  `conformance/fixtures/epoch1/authorization-profile-parity-v1.json` holds the
+  `conformance/fixtures/epoch1/authorization-profile-parity.json` holds the
   epoch-1 corpus and is read by nothing, and its own README says the replacement
   is "measured against `vela-science/math` once that repository has a genesis" —
   which it now has. That fixture is the cheapest available test of whether the

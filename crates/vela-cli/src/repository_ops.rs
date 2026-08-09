@@ -5,9 +5,9 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use vela_protocol::submission_v1::{
+use vela_protocol::submission::{
     ProducerCheck, RequestedChange, RequestedChangeTarget, SubmissionArtifact, SubmissionClaim,
-    SubmissionDraft, SubmissionProvenance, SubmissionV1,
+    SubmissionDraft, SubmissionProvenance, SubmissionRecordV2,
 };
 
 pub(crate) fn submission_requested_change(
@@ -93,8 +93,8 @@ pub(crate) fn author_submission(
     requested_change: RequestedChange,
     execution_binding: Option<vela_protocol::execution_binding::ExecutionBindingV1>,
     source_attempt: Option<String>,
-) -> Result<SubmissionV1, String> {
-    use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
+) -> Result<SubmissionRecordV2, String> {
+    use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
 
     if !(actor.starts_with("agent:") || actor.starts_with("ci:")) {
         return Err("Submission authoring requires an agent: or ci: producer".to_string());
@@ -156,15 +156,13 @@ pub(crate) fn author_submission(
         })
         .collect::<Result<Vec<_>, _>>()?;
     let key = vela_edge::agent_identity::agent_signing_key(actor)?;
-    let identity = IdentityBinding::build(
-        IdentityBindingDraft {
-            actor_id: actor.to_string(),
-            actor_class: ActorClass::Agent,
-            created_at: emitted_at.clone(),
-        },
+    let identity = SignerIdentityV1::new(
+        actor.to_string(),
+        ActorClass::Agent,
         &key,
+        emitted_at.clone(),
     )?;
-    SubmissionV1::build(
+    SubmissionRecordV2::seal(
         SubmissionDraft {
             claim: SubmissionClaim {
                 assertion,
@@ -198,6 +196,12 @@ pub(crate) struct SubmitOutcome {
     pub submission_id: String,
     pub submission_root: String,
     pub proposal_id: String,
+    /// The full root `proposal_id` derives from.
+    ///
+    /// A verifier's subject now names both, so a submit result that reported
+    /// only the handle left the next command in the loop without the value it
+    /// has to bind.
+    pub proposal_root: String,
     pub claim_id: String,
     pub route: &'static str,
     pub accepted_event_count_before: usize,
@@ -229,7 +233,7 @@ pub(crate) struct PreparedSubmissionArtifacts {
 
 pub(crate) fn prepare_submission_artifacts(
     repository_path: &Path,
-    submission: &SubmissionV1,
+    submission: &SubmissionRecordV2,
     bundle_root: Option<&Path>,
 ) -> Result<PreparedSubmissionArtifacts, String> {
     use crate::repository_txn::{ContentDigest, InputBinding, PlannedWrite, RepoPath, WriteClass};
@@ -237,7 +241,7 @@ pub(crate) fn prepare_submission_artifacts(
     let mut blobs = BTreeMap::<String, Vec<u8>>::new();
     let mut read_set = Vec::new();
     let mut total = 0_u64;
-    for (index, artifact) in submission.artifacts.iter().enumerate() {
+    for (index, artifact) in submission.submission.artifacts.iter().enumerate() {
         let relative = Path::new(&artifact.path);
         if relative.is_absolute()
             || !relative
@@ -350,12 +354,13 @@ pub(crate) fn prepare_submission_artifacts(
 
 pub(crate) fn submission_publication_inputs(
     repository_path: &Path,
-    submission: &SubmissionV1,
+    submission: &SubmissionRecordV2,
 ) -> Result<Vec<PathBuf>, String> {
     let canonical_frontier = repository_path
         .canonicalize()
         .map_err(|error| format!("canonicalize repository: {error}"))?;
     let mut inputs = submission
+        .submission
         .artifacts
         .iter()
         .map(|artifact| PathBuf::from(&artifact.path))
@@ -387,7 +392,7 @@ fn canonical_submission_input(repository_path: &Path, relative: &Path) -> Option
 
 pub(crate) fn submit(
     repository_path: &Path,
-    submission: &SubmissionV1,
+    submission: &SubmissionRecordV2,
     executor: &str,
     bundle_root: Option<&Path>,
 ) -> Result<SubmitOutcome, String> {
@@ -396,7 +401,7 @@ pub(crate) fn submit(
 
 pub(crate) fn import_verification(
     repository_path: &Path,
-    record: &vela_protocol::verification_record::VerificationRecordV1,
+    record: &vela_protocol::verification_record::VerificationRecordEnvelopeV2,
     executor: &str,
 ) -> Result<VerificationImportOutcome, String> {
     crate::verification::import(repository_path, record, executor)

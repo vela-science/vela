@@ -355,7 +355,7 @@ def main() -> int:
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     here = Path(__file__).resolve().parent
-    plan_path = here / "plan.v1.json"
+    plan_path = here / "plan.json"
     try:
         plan_bytes = plan_path.read_bytes()
         require(digest(plan_bytes) == PLAN_BYTES_SHA256, "frozen plan bytes changed")

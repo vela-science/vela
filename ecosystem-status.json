@@ -66,6 +66,7 @@
     "epoch": {
       "repository_id_prefix": "vrepo_",
       "retired_spelling_sites": [
+        "crates/vela-authority/tests/authorization_profile_parity.rs",
         "crates/vela-cli/src/init.rs",
         "crates/vela-cli/tests/bootstrap_cli_ux.rs",
         "crates/vela-cli/tests/wording_contract.rs",
@@ -83,14 +84,14 @@
       ]
     },
     "published_schemas": [
-      "authority-envelope-v1.schema.json",
-      "claim-record-v1.schema.json",
-      "proposal-v1.schema.json",
-      "proposal-withdrawal-v1.schema.json",
-      "repository-origin-v1.schema.json",
-      "status-v4.schema.json",
-      "submission-v1.schema.json",
-      "verification-record-v1.schema.json"
+      "claim-record.schema.json",
+      "dsse-envelope.schema.json",
+      "proposal-withdrawal.schema.json",
+      "proposal.schema.json",
+      "repository-origin.schema.json",
+      "status.schema.json",
+      "submission.schema.json",
+      "verification-record.schema.json"
     ],
     "release": {
       "toolchain_channel": "1.97.1",

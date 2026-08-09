@@ -6,8 +6,8 @@ use crate::cli::{
 use crate::command_spec::*;
 use serde_json::{Value, json};
 use std::path::{Component, Path, PathBuf};
-use vela_protocol::proposal_v1::ProposalV1;
-use vela_protocol::submission_v1::SubmissionV1;
+use vela_protocol::proposal::ProposalV1;
+use vela_protocol::submission::SubmissionRecordV2;
 
 const REPLAY_CAPSULE_MAX_BYTES: u64 = 1024 * 1024;
 const WITNESS_MAX_BYTES: u64 = 64 * 1024 * 1024;
@@ -96,13 +96,14 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                 "Verification Record v1",
             )
             .unwrap_or_else(|error| fail_return(&error.to_string()));
-            let record = vela_protocol::verification_record::VerificationRecordV1::parse(&bytes)
-                .unwrap_or_else(|error| {
-                    fail_return(&format!(
-                        "parse {} as Verification Record v1: {error}",
-                        record.display()
-                    ))
-                });
+            let record =
+                vela_protocol::verification_record::VerificationRecordEnvelopeV2::parse(&bytes)
+                    .unwrap_or_else(|error| {
+                        fail_return(&format!(
+                            "parse {} as Verification Record v1: {error}",
+                            record.display()
+                        ))
+                    });
             let result = crate::repository_ops::import_verification(&repository, &record, &actor)
                 .unwrap_or_else(|error| fail_return(&error));
             print_verification_result(&result, "verification import", json);
@@ -348,7 +349,7 @@ pub(crate) fn proposal_reproduction_files(
         &std::fs::read(&proposal_file)
             .map_err(|error| format!("read current Proposal: {error}"))?,
     )?;
-    if proposal.proposal_id != proposal_reference.id {
+    if proposal.id() != proposal_reference.id {
         return Err(format!(
             "current Proposal {} does not match its repository reference",
             proposal_reference.id
@@ -381,11 +382,11 @@ pub(crate) fn proposal_reproduction_files(
         &submission_reference.path,
         &submission_reference.root,
     )?;
-    let submission = SubmissionV1::parse(
+    let submission = SubmissionRecordV2::parse(
         &std::fs::read(&submission_file)
             .map_err(|error| format!("read current Submission: {error}"))?,
     )?;
-    if submission.submission_id != submission_reference.id {
+    if submission.id != submission_reference.id {
         return Err(format!(
             "current Submission {} does not match its repository reference",
             submission_reference.id
@@ -393,6 +394,7 @@ pub(crate) fn proposal_reproduction_files(
     }
 
     submission
+        .submission
         .artifacts
         .iter()
         .filter(|artifact| {

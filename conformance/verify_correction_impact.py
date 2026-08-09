@@ -14,9 +14,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "conformance" / "fixtures" / "correction"
-INPUT_PATH = FIXTURES / "diamond-input.v1.json"
-EXPECTED_PATH = FIXTURES / "diamond-expected.v1.json"
-ADVERSARIAL_PATH = FIXTURES / "diamond-adversarial.v1.json"
+INPUT_PATH = FIXTURES / "diamond-input.json"
+EXPECTED_PATH = FIXTURES / "diamond-expected.json"
+ADVERSARIAL_PATH = FIXTURES / "diamond-adversarial.json"
 SHA256 = re.compile(r"^sha256:[0-9a-f]{64}$")
 CLAIM_ID = re.compile(r"^vcl_[0-9a-f]{64}$")
 EXPECTED_RULES = {

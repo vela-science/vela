@@ -351,7 +351,7 @@ def materialize(
             "First-party transfer does not establish independent adoption, a Registry, or an Atlas.",
         ],
     }
-    (output / "reference.v1.json").write_bytes(canonical_bytes(reference))
+    (output / "reference.json").write_bytes(canonical_bytes(reference))
     return {
         "schema": "vela.foreign-reference-materialization.v1",
         "source_repository": git_text(source, "remote", "get-url", "origin"),
@@ -388,7 +388,7 @@ def main() -> int:
     output.mkdir(parents=True)
     try:
         result = materialize(source, output, args.source_ref)
-        (output / "materialization.v1.json").write_bytes(canonical_bytes(result) + b"\n")
+        (output / "materialization.json").write_bytes(canonical_bytes(result) + b"\n")
         print(json.dumps(result, indent=2))
         return 0
     except (OSError, ValueError, subprocess.CalledProcessError) as error:

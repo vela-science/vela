@@ -19,9 +19,9 @@ dedicated Ed25519 identity into the standard OpenSSH agent, then run:
 vela init ./my-repository --name "<name>" --scope "<bounded question>" --json
 ```
 
-`vela init` creates the Profile, repository origin, initial keyset and Cedar
-bundle, sequence-one authority record, local trust anchor, and initial Git
-commit. It creates no MCP configuration, verifier, Claim, Decision, or
+`vela init` creates the Profile, repository origin, initial keyset and
+authorization model, sequence-one authority record, local trust anchor, and
+initial Git commit. It creates no MCP configuration, verifier, Claim, Decision, or
 scientific Standing. If signing is unavailable, load the key and rerun the
 same command; the retained Profile makes that retry safe. When more than one
 Ed25519 identity is loaded, select the intended full fingerprint with

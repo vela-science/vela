@@ -5,11 +5,11 @@ This directory retains the reproducible environment for the complete
 evidence, not a Vela protocol object, an Astra Frontier, or a scientific
 Decision.
 
-The rooted result is `result.v1.json`:
+The rooted result is `result.json`:
 
 `sha256:5a60c3be27036c65a6a37bf55dce71abcb024cfecece92b8e7dcaf1324b095d0`
 
-The consequence-aware ten-family read model is `consequence-map.v1.json`:
+The consequence-aware ten-family read model is `consequence-map.json`:
 
 `sha256:f219d4a1fe8ab71e516012fc8bd60a06db863e56be2c2be3920104b7472282dc`
 

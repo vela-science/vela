@@ -7,6 +7,7 @@ pub mod authority;
 pub mod authority_history;
 pub mod authorization;
 pub mod canonical;
+pub mod dsse;
 pub mod events;
 pub mod principal;
 pub mod sign;

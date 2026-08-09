@@ -1,46 +1,49 @@
-//! Single current repository origin used after the pre-release compaction.
+//! Where one repository's canonical history begins: `vela.repository-origin.v1`.
+//!
+//! ## What is no longer here
+//!
+//! This modelled two kinds of beginning. A genesis opened a fresh lineage at
+//! generation 1; a *compaction* opened generation N over a predecessor repository,
+//! and carried an eleven-field block binding that predecessor's remote, tag,
+//! commit, tree, four roots, an archive digest, an object manifest and an
+//! equivalence report. It was written for one pre-release repair and used for
+//! it once.
+//!
+//! No live repository needs it. `vela-science/math` is generation 1 at a fresh
+//! genesis, and the epoch-1 repositories that were compacted are archived and
+//! unreadable by the current binary — their history is preserved by their Git
+//! tags and the binaries of their era, which is where a historical epoch
+//! belongs.
+//!
+//! Continuity between lineages, if some future migration needs it, is a
+//! separately signed attestation over exact commits, trees, roots and an
+//! equivalence report — evidence beside the repository rather than a permanent
+//! field on the object every repository must carry. Keeping the machinery for a
+//! repair that has already happened is the ceremony this cut removes.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 pub const REPOSITORY_ORIGIN_V1_SCHEMA: &str = "vela.repository-origin.v1";
+pub const ORIGIN_HANDLE_PREFIX: &str = "vro_";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum RepositoryOriginKind {
-    Genesis,
-    Compaction,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct RepositoryOriginPredecessorV1 {
-    pub remote: String,
-    pub tag: String,
-    pub commit: String,
-    pub tree: String,
-    pub repository_root: String,
-    pub authority_head_root: String,
-    pub archived_event_log_root: String,
-    pub archived_actor_registry_root: String,
-    pub archive_sha256: String,
-    pub object_manifest_root: String,
-    pub equivalence_report_root: String,
-}
-
+/// The genesis of one repository lineage.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RepositoryOriginV1 {
+    #[schemars(schema_with = "crate::wire_schema::repository_origin_schema_tag")]
     pub schema: String,
-    pub origin_id: String,
+    #[schemars(schema_with = "crate::wire_schema::repository_id")]
     pub repository_id: String,
+    /// Always 1. Retained because a reader that finds any other value is
+    /// looking at an object this runtime does not define, and should say so
+    /// rather than silently treat it as a genesis.
     pub generation: u64,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub profile_root: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub initial_object_set_root: String,
-    pub kind: RepositoryOriginKind,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub predecessor: Option<RepositoryOriginPredecessorV1>,
+    #[schemars(schema_with = "crate::wire_schema::text")]
     pub reason: String,
 }
 
@@ -50,58 +53,14 @@ impl RepositoryOriginV1 {
         profile_root: String,
         reason: String,
     ) -> Result<Self, String> {
-        Self::build(
-            repository_id,
-            1,
-            profile_root,
-            empty_object_set_root()?,
-            RepositoryOriginKind::Genesis,
-            None,
-            reason,
-        )
-    }
-
-    pub fn compaction(
-        repository_id: String,
-        generation: u64,
-        profile_root: String,
-        initial_object_set_root: String,
-        predecessor: RepositoryOriginPredecessorV1,
-        reason: String,
-    ) -> Result<Self, String> {
-        Self::build(
-            repository_id,
-            generation,
-            profile_root,
-            initial_object_set_root,
-            RepositoryOriginKind::Compaction,
-            Some(predecessor),
-            reason,
-        )
-    }
-
-    fn build(
-        repository_id: String,
-        generation: u64,
-        profile_root: String,
-        initial_object_set_root: String,
-        kind: RepositoryOriginKind,
-        predecessor: Option<RepositoryOriginPredecessorV1>,
-        reason: String,
-    ) -> Result<Self, String> {
-        let mut value = Self {
+        let value = Self {
             schema: REPOSITORY_ORIGIN_V1_SCHEMA.into(),
-            origin_id: String::new(),
             repository_id,
-            generation,
+            generation: 1,
             profile_root,
-            initial_object_set_root,
-            kind,
-            predecessor,
+            initial_object_set_root: empty_object_set_root()?,
             reason,
         };
-        value.validate_semantics()?;
-        value.origin_id = value.derive_id()?;
         value.verify()?;
         Ok(value)
     }
@@ -120,15 +79,7 @@ impl RepositoryOriginV1 {
     }
 
     pub fn verify(&self) -> Result<(), String> {
-        self.validate_semantics()?;
-        let expected = self.derive_id()?;
-        if self.origin_id != expected {
-            return Err(format!(
-                "repository origin id mismatch: declared {}, rebuilt {expected}",
-                self.origin_id
-            ));
-        }
-        Ok(())
+        self.validate_semantics()
     }
 
     pub fn canonical_bytes(&self) -> Result<Vec<u8>, String> {
@@ -140,11 +91,12 @@ impl RepositoryOriginV1 {
         Ok(crate::canonical::sha256_root(&self.canonical_bytes()?))
     }
 
-    fn derive_id(&self) -> Result<String, String> {
-        let mut body = self.clone();
-        body.origin_id.clear();
-        let bytes = crate::canonical::to_canonical_bytes(&body)?;
-        Ok(format!("vro_{}", &hex::encode(Sha256::digest(bytes))[..16]))
+    /// The readable `vro_` handle for this origin's canonical root.
+    ///
+    /// Stored beside the full root until this cut, over a preimage built by
+    /// clearing itself — the same convention the signed objects shed.
+    pub fn id(&self) -> Result<String, String> {
+        crate::shape::derive_handle(ORIGIN_HANDLE_PREFIX, &self.canonical_root()?)
     }
 
     fn validate_semantics(&self) -> Result<(), String> {
@@ -157,68 +109,11 @@ impl RepositoryOriginV1 {
         require_sha256("profile_root", &self.profile_root)?;
         require_sha256("initial_object_set_root", &self.initial_object_set_root)?;
         require_text("reason", &self.reason)?;
-        match (&self.kind, &self.predecessor) {
-            (RepositoryOriginKind::Genesis, None) => {
-                if self.generation != 1 {
-                    return Err("repository genesis origin generation must be exactly 1".into());
-                }
-                if self.initial_object_set_root != empty_object_set_root()? {
-                    return Err(
-                        "repository genesis origin must bind the empty initial object set".into(),
-                    );
-                }
-            }
-            (RepositoryOriginKind::Compaction, Some(predecessor)) => {
-                if self.generation <= 1 {
-                    return Err("repository compaction origin generation must exceed 1".into());
-                }
-                predecessor.validate()?;
-            }
-            (RepositoryOriginKind::Genesis, Some(_)) => {
-                return Err("repository genesis origin cannot carry a predecessor".into());
-            }
-            (RepositoryOriginKind::Compaction, None) => {
-                return Err("repository compaction origin requires a predecessor".into());
-            }
+        if self.generation != 1 {
+            return Err("repository origin generation must be exactly 1".into());
         }
-        Ok(())
-    }
-}
-
-impl RepositoryOriginPredecessorV1 {
-    fn validate(&self) -> Result<(), String> {
-        if !self.remote.starts_with("https://github.com/") || !self.remote.ends_with(".git") {
-            return Err(
-                "repository origin predecessor remote must be canonical GitHub HTTPS".into(),
-            );
-        }
-        if !self.tag.starts_with("pre-compaction/") {
-            return Err("repository origin predecessor tag must use `pre-compaction/`".into());
-        }
-        require_git_oid("predecessor.commit", &self.commit)?;
-        require_git_oid("predecessor.tree", &self.tree)?;
-        for (field, value) in [
-            ("predecessor.repository_root", &self.repository_root),
-            ("predecessor.authority_head_root", &self.authority_head_root),
-            (
-                "predecessor.archived_event_log_root",
-                &self.archived_event_log_root,
-            ),
-            (
-                "predecessor.archived_actor_registry_root",
-                &self.archived_actor_registry_root,
-            ),
-            ("predecessor.archive_sha256", &self.archive_sha256),
-            (
-                "predecessor.object_manifest_root",
-                &self.object_manifest_root,
-            ),
-            (
-                "predecessor.equivalence_report_root",
-                &self.equivalence_report_root,
-            ),
-        ] {
-            require_sha256(field, value)?;
+        if self.initial_object_set_root != empty_object_set_root()? {
+            return Err("repository origin must bind the empty initial object set".into());
         }
         Ok(())
     }
@@ -260,15 +155,6 @@ fn require_sha256(field: &str, value: &str) -> Result<(), String> {
     }
 }
 
-fn require_git_oid(field: &str, value: &str) -> Result<(), String> {
-    if !matches!(value.len(), 40 | 64) || !value.bytes().all(crate::shape::is_lower_hex) {
-        return Err(format!(
-            "repository origin {field} must be a full Git object id"
-        ));
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -277,78 +163,50 @@ mod tests {
         format!("sha256:{}", byte.to_string().repeat(64))
     }
 
-    fn predecessor() -> RepositoryOriginPredecessorV1 {
-        RepositoryOriginPredecessorV1 {
-            remote: "https://github.com/vela-science/fixture-repository.git".into(),
-            tag: "pre-compaction/2026-07-29".into(),
-            commit: "a".repeat(40),
-            tree: "b".repeat(40),
-            repository_root: root('1'),
-            authority_head_root: root('2'),
-            archived_event_log_root: root('3'),
-            archived_actor_registry_root: root('4'),
-            archive_sha256: root('5'),
-            object_manifest_root: root('6'),
-            equivalence_report_root: root('7'),
-        }
+    fn genesis() -> RepositoryOriginV1 {
+        RepositoryOriginV1::genesis(
+            format!("vrepo_{}", "a".repeat(32)),
+            root('a'),
+            "Create one current repository.".into(),
+        )
+        .unwrap()
     }
 
     #[test]
     fn genesis_is_one_closed_current_origin() {
-        let origin = RepositoryOriginV1::genesis(
-            "vrepo_fixture".into(),
-            root('a'),
-            "Create one current repository.".into(),
-        )
-        .unwrap();
-        assert_eq!(origin.kind, RepositoryOriginKind::Genesis);
-        assert!(origin.predecessor.is_none());
+        let origin = genesis();
+        assert_eq!(origin.generation, 1);
+        assert_eq!(
+            origin.id().unwrap(),
+            crate::shape::derive_handle("vro_", &origin.canonical_root().unwrap()).unwrap()
+        );
         RepositoryOriginV1::parse(&origin.canonical_bytes().unwrap()).unwrap();
     }
 
+    /// An origin does not carry its own handle, so it cannot disagree with its
+    /// own bytes and cannot be carried across an edit.
     #[test]
-    fn compaction_binds_exact_predecessor_and_equivalence() {
-        let origin = RepositoryOriginV1::compaction(
-            "vrepo_fixture".into(),
-            2,
-            root('a'),
-            root('b'),
-            predecessor(),
-            "Compact pre-release state without changing Standing.".into(),
-        )
-        .unwrap();
-        assert_eq!(origin.kind, RepositoryOriginKind::Compaction);
-        assert!(origin.predecessor.is_some());
-        RepositoryOriginV1::parse(&origin.canonical_bytes().unwrap()).unwrap();
+    fn the_handle_is_derived_and_not_a_field() {
+        let mut value = serde_json::to_value(genesis()).unwrap();
+        assert!(value.get("origin_id").is_none());
+        value["origin_id"] = serde_json::json!("vro_0000000000000000");
+        assert!(RepositoryOriginV1::parse(&serde_json::to_vec(&value).unwrap()).is_err());
+    }
+
+    /// The compaction fields are gone, and an object still carrying them is a
+    /// generation this runtime does not read rather than one it tolerates.
+    #[test]
+    fn a_predecessor_block_is_no_longer_a_field_this_runtime_reads() {
+        let mut value = serde_json::to_value(genesis()).unwrap();
+        value["kind"] = serde_json::json!("compaction");
+        value["predecessor"] = serde_json::json!({"remote": "https://example.invalid/x.git"});
+        assert!(RepositoryOriginV1::parse(&serde_json::to_vec(&value).unwrap()).is_err());
     }
 
     #[test]
-    fn origin_kind_and_predecessor_cannot_be_substituted() {
-        let mut origin = RepositoryOriginV1::compaction(
-            "vrepo_fixture".into(),
-            2,
-            root('a'),
-            root('b'),
-            predecessor(),
-            "Compact pre-release state without changing Standing.".into(),
-        )
-        .unwrap();
-        origin.kind = RepositoryOriginKind::Genesis;
-        assert!(origin.verify().is_err());
-    }
-
-    #[test]
-    fn compaction_equivalence_root_is_load_bearing() {
-        let mut origin = RepositoryOriginV1::compaction(
-            "vrepo_fixture".into(),
-            2,
-            root('a'),
-            root('b'),
-            predecessor(),
-            "Compact pre-release state without changing Standing.".into(),
-        )
-        .unwrap();
-        origin.predecessor.as_mut().unwrap().equivalence_report_root = root('f');
+    fn a_generation_beyond_the_first_fails_closed() {
+        let mut origin = genesis();
+        origin.generation = 2;
         assert!(origin.verify().is_err());
     }
 }

@@ -1,0 +1,331 @@
+{
+  "$id": "https://vela.science/schemas/submission.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifacts": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "digest": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "kind": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          },
+          "path": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^(?:[^\\s/]|[^\\s./][^/]*[^\\s/]|\\.[^\\s./]|\\.[^/][^/]*[^\\s/]|(?:[^\\s/]|[^\\s./][^/]+|\\.[^./]|\\.[^/][^/]+)(?:/(?:[^/]?|[^./][^/]+|\\.[^./]|\\.[^/][^/]+))*/(?:[^\\s/]|[^./][^/]*[^\\s/]|\\.[^\\s./]|\\.[^/][^/]*[^\\s/])?)$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "path",
+          "digest"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "caveats": {
+      "items": {
+        "maxLength": 16384,
+        "minLength": 1,
+        "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "claim": {
+      "additionalProperties": false,
+      "properties": {
+        "assertion": {
+          "maxLength": 16384,
+          "minLength": 1,
+          "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+          "type": "string"
+        },
+        "conditions": {
+          "items": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "type": {
+          "enum": [
+            "computational",
+            "theoretical",
+            "empirical",
+            "negative",
+            "contradiction"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "assertion",
+        "type",
+        "conditions"
+      ],
+      "type": "object"
+    },
+    "execution_binding": {
+      "additionalProperties": false,
+      "properties": {
+        "packet_root": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "profile_root": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "result_contract_root": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "schema": {
+          "const": "vela.execution-binding.v1",
+          "type": "string"
+        },
+        "verifier_capsule_root": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema",
+        "packet_root",
+        "profile_root",
+        "verifier_capsule_root",
+        "result_contract_root"
+      ],
+      "type": "object"
+    },
+    "identity": {
+      "additionalProperties": false,
+      "properties": {
+        "actor_class": {
+          "enum": [
+            "human",
+            "agent",
+            "org"
+          ],
+          "type": "string"
+        },
+        "actor_id": {
+          "maxLength": 16384,
+          "minLength": 1,
+          "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+          "type": "string"
+        },
+        "declared_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "public_key_hex": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "schema": {
+          "const": "vela.signer-identity.v1",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema",
+        "actor_id",
+        "actor_class",
+        "public_key_hex",
+        "declared_at"
+      ],
+      "type": "object"
+    },
+    "producer_checks": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "authority": {
+            "const": "producer_reported",
+            "type": "string"
+          },
+          "method": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "pass",
+              "fail",
+              "error",
+              "skipped",
+              "unknown"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "method",
+          "outcome",
+          "authority"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "emitted_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "producer": {
+          "maxLength": 16384,
+          "pattern": "^(agent|ci):[^\\s]+$",
+          "type": "string"
+        },
+        "source_attempt": {
+          "pattern": "^vat_[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "source_run": {
+          "maxLength": 16384,
+          "minLength": 1,
+          "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+          "type": "string"
+        },
+        "source_system": {
+          "maxLength": 16384,
+          "minLength": 1,
+          "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "producer",
+        "source_system",
+        "emitted_at"
+      ],
+      "type": "object"
+    },
+    "replayability": {
+      "enum": [
+        "exact",
+        "bounded",
+        "approximate",
+        "unavailable",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "requested_change": {
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "not": {
+            "required": [
+              "target"
+            ]
+          },
+          "properties": {
+            "kind": {
+              "const": "add_claim"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "correct_claim",
+                "supersede_claim",
+                "retract_claim"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "target"
+          ]
+        }
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "add_claim",
+            "correct_claim",
+            "supersede_claim",
+            "retract_claim"
+          ],
+          "type": "string"
+        },
+        "target": {
+          "additionalProperties": false,
+          "properties": {
+            "claim_id": {
+              "pattern": "^vcl_[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "claim_root": {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "claim_id",
+            "claim_root"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "schema": {
+      "const": "vela.submission.v2",
+      "type": "string"
+    },
+    "verification_requirements": {
+      "items": {
+        "maxLength": 16384,
+        "minLength": 1,
+        "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "identity",
+    "claim",
+    "artifacts",
+    "caveats",
+    "replayability",
+    "producer_checks",
+    "verification_requirements",
+    "requested_change",
+    "provenance"
+  ],
+  "title": "Vela Submission v2",
+  "type": "object"
+}

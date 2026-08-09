@@ -1,0 +1,44 @@
+{
+  "$id": "https://vela.science/schemas/repository-origin.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "generation": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "initial_object_set_root": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "profile_root": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "reason": {
+      "maxLength": 16384,
+      "minLength": 1,
+      "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+      "type": "string"
+    },
+    "repository_id": {
+      "pattern": "^vrepo_[0-9a-f]{32}$",
+      "type": "string"
+    },
+    "schema": {
+      "const": "vela.repository-origin.v1",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "repository_id",
+    "generation",
+    "profile_root",
+    "initial_object_set_root",
+    "reason"
+  ],
+  "title": "Vela Repository Origin v1",
+  "type": "object"
+}

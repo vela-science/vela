@@ -6,13 +6,6 @@
 
 use std::collections::BTreeSet;
 
-use base64::Engine as _;
-use base64::engine::general_purpose::{
-    STANDARD as BASE64_STANDARD, STANDARD_NO_PAD as BASE64_STANDARD_NO_PAD,
-    URL_SAFE as BASE64_URL_SAFE, URL_SAFE_NO_PAD as BASE64_URL_SAFE_NO_PAD,
-};
-use ed25519_dalek::{Signature, Verifier, VerifyingKey};
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -20,6 +13,7 @@ pub use crate::authentication::{
     AuthenticationAssurance, AuthenticationMethod, AuthenticationObservationV1,
 };
 use crate::canonical::{from_json_slice_strict, sha256_canonical, to_canonical_bytes};
+use crate::dsse::CandidateKey;
 use crate::events::{
     EVENT_SCHEMA, EventKind, NULL_HASH, StateActor, StateEvent, StateTarget, compute_event_id,
 };
@@ -32,88 +26,9 @@ pub const AUTHORITY_PAYLOAD_TYPE_V1: &str = "application/vnd.vela.authority-reco
 pub const AUTHORITY_KEY_ALGORITHM: &str = "ed25519";
 pub const AUTHORITY_KEY_PURPOSE: &str = "repository_authority";
 pub const AUTHORITY_MODE: &str = "repository_authority";
-pub const CEDAR_ENGINE: &str = "cedar-policy";
-pub const CEDAR_ENGINE_VERSION: &str = "4.11.2";
-pub const CEDAR_PROFILE_V1: &str = "vela.cedar-restricted.v1";
-pub const POLICY_BUNDLE_SCHEMA_V1: &str = "vela.policy-bundle.v1";
 
 fn is_false(value: &bool) -> bool {
     !*value
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum CedarDecision {
-    Allow,
-    Deny,
-}
-
-/// Canonicalizable authorization result retained by an authority record.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct CedarEvaluation {
-    pub engine: String,
-    pub engine_version: String,
-    pub profile: String,
-    pub valid: bool,
-    pub decision: CedarDecision,
-    pub automatic_permit: bool,
-    pub determining_policies: Vec<String>,
-    pub diagnostics: Vec<String>,
-}
-
-/// Closed policy-bundle manifest. Bundle files remain separate canonical
-/// bytes; this manifest binds their full roots and the exact evaluator.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct PolicyBundleV1 {
-    pub schema: String,
-    pub repository_id: String,
-    pub cedar_schema_root: String,
-    pub policies_root: String,
-    pub entities_root: String,
-    pub tests_root: String,
-    pub engine: String,
-    pub engine_version: String,
-    pub restricted_profile: String,
-    pub previous_bundle_root: Option<String>,
-    pub authority_summary: String,
-}
-
-impl PolicyBundleV1 {
-    pub fn validate(&self) -> Result<(), String> {
-        if self.schema != POLICY_BUNDLE_SCHEMA_V1 {
-            return Err(format!(
-                "policy bundle schema must be {POLICY_BUNDLE_SCHEMA_V1}"
-            ));
-        }
-        if self.engine != CEDAR_ENGINE
-            || self.engine_version != CEDAR_ENGINE_VERSION
-            || self.restricted_profile != CEDAR_PROFILE_V1
-        {
-            return Err("policy bundle evaluator identity is not the pinned Vela profile".into());
-        }
-        for (name, value) in [
-            ("cedar_schema_root", self.cedar_schema_root.as_str()),
-            ("policies_root", self.policies_root.as_str()),
-            ("entities_root", self.entities_root.as_str()),
-            ("tests_root", self.tests_root.as_str()),
-        ] {
-            crate::shape::require_sha256_root(name, value)?;
-        }
-        if let Some(root) = &self.previous_bundle_root {
-            crate::shape::require_sha256_root("previous_bundle_root", root)?;
-        }
-        if self.repository_id.trim().is_empty() || self.authority_summary.trim().is_empty() {
-            return Err("policy bundle repository and authority summary must be non-empty".into());
-        }
-        Ok(())
-    }
-
-    pub fn root(&self) -> Result<String, String> {
-        self.validate()?;
-        Ok(format!("sha256:{}", sha256_canonical(self)?))
-    }
 }
 
 /// Era-1 event content. Authority is carried by the covering transaction
@@ -378,20 +293,6 @@ pub fn verify_authority_keyset_transition(
 /// Activation is recorded by the covering authority transaction, so the
 /// bundle needs only the exact prior bundle root and introduces no record-root
 /// hash cycle.
-pub fn verify_policy_bundle_transition(
-    current: &PolicyBundleV1,
-    next: &PolicyBundleV1,
-) -> Result<(), String> {
-    current.validate()?;
-    next.validate()?;
-    if current.repository_id != next.repository_id
-        || next.previous_bundle_root.as_deref() != Some(current.root()?.as_str())
-    {
-        return Err("rotated policy bundle does not extend the exact prior bundle".into());
-    }
-    Ok(())
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrincipalSnapshotV1 {
@@ -404,13 +305,25 @@ pub struct PrincipalSnapshotV1 {
 
 pub type AuthenticationClaimV1 = AuthenticationObservationV1;
 
+/// What authorized one authority transaction, retained in full.
+///
+/// This carried a `CedarEvaluation` — an `Allow`, a diagnostics list, and the
+/// engine, version and profile that produced it — beside the roots of a policy
+/// bundle, a request and an entity snapshot. Everything was named by root and
+/// nothing could be recomputed, so strict replay could verify that a signed
+/// attestation said `Allow` and could not verify that `Allow` was the right
+/// answer. ADR 0035 §4 calls that the history gap.
+///
+/// The request is now retained whole, so replay re-decides it under the exact
+/// rooted model rather than trusting the retained result. The evaluation stays
+/// because the record is what a reader without this binary parses; it is
+/// checked against a fresh evaluation rather than believed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AuthorizationClaimV1 {
-    pub policy_bundle_root: String,
-    pub request_root: String,
-    pub entity_snapshot_root: String,
-    pub evaluation: CedarEvaluation,
+    pub model_root: String,
+    pub request: crate::authorization::AuthorizationRequestV1,
+    pub evaluation: crate::authorization::AuthorizationEvaluationV1,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -541,13 +454,8 @@ impl AuthorityRecordV1 {
                 content.authority_keyset_root.as_str(),
             ),
             (
-                "policy_bundle_root",
-                content.authorization.policy_bundle_root.as_str(),
-            ),
-            ("request_root", content.authorization.request_root.as_str()),
-            (
-                "entity_snapshot_root",
-                content.authorization.entity_snapshot_root.as_str(),
+                "authorization model_root",
+                content.authorization.model_root.as_str(),
             ),
             ("binary_sha256", content.execution.binary_sha256.as_str()),
             (
@@ -606,47 +514,28 @@ impl AuthorityRecordV1 {
     }
 }
 
-/// One DSSE signature entry.
+/// One DSSE signature entry, shared with every other signed Vela object.
+pub use crate::dsse::SignatureV1 as DsseSignatureV1;
+
+/// The authority envelope is the shared envelope.
 ///
-/// Neither this type nor [`AuthorityEnvelopeV1`] closes its field set. DSSE
-/// requires the transport to tolerate entries it does not understand, so the
-/// absent `deny_unknown_fields` is the rule, not an oversight, and the wire
-/// schema generated from these types stays open for the same reason. The
-/// decoded Vela authority payload underneath remains closed.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[schemars(extend("additionalProperties" = true))]
-pub struct DsseSignatureV1 {
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub keyid: String,
-    #[schemars(schema_with = "crate::wire_schema::base64_body")]
-    pub sig: String,
-}
+/// It was a separate type whose only difference was a wire schema pinning
+/// `payloadType` to the authority constant — a constraint the reader below has
+/// always enforced anyway, and one no envelope schema can express now that a
+/// single schema serves four payload types.
+pub use crate::dsse::EnvelopeV1 as AuthorityEnvelopeV1;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[schemars(extend("additionalProperties" = true))]
-pub struct AuthorityEnvelopeV1 {
-    #[serde(rename = "payloadType")]
-    #[schemars(schema_with = "crate::wire_schema::authority_payload_type_tag")]
-    pub payload_type: String,
-    #[schemars(schema_with = "crate::wire_schema::base64_body")]
-    pub payload: String,
-    // `verify_authority_envelope` refuses an empty list before it reads a key.
-    #[schemars(length(min = 1))]
-    pub signatures: Vec<DsseSignatureV1>,
-}
-
-impl AuthorityEnvelopeV1 {
-    pub fn from_record(
-        record: &AuthorityRecordV1,
-        signatures: Vec<DsseSignatureV1>,
-    ) -> Result<Self, String> {
-        record.validate()?;
-        Ok(Self {
-            payload_type: AUTHORITY_PAYLOAD_TYPE_V1.into(),
-            payload: BASE64_STANDARD.encode(to_canonical_bytes(record)?),
-            signatures,
-        })
-    }
+/// Seal an authority record into its envelope.
+pub fn authority_envelope(
+    record: &AuthorityRecordV1,
+    signatures: Vec<DsseSignatureV1>,
+) -> Result<AuthorityEnvelopeV1, String> {
+    record.validate()?;
+    Ok(AuthorityEnvelopeV1::seal(
+        AUTHORITY_PAYLOAD_TYPE_V1,
+        &to_canonical_bytes(record)?,
+        signatures,
+    ))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -667,52 +556,29 @@ pub fn verify_authority_envelope(
     if envelope.payload_type != AUTHORITY_PAYLOAD_TYPE_V1 {
         return Err("authority envelope payload type is invalid".into());
     }
-    if envelope.signatures.is_empty() {
-        return Err("authority envelope has no signatures".into());
-    }
-    let payload = decode_dsse_base64("authority envelope payload", &envelope.payload)?;
 
-    let pae = dsse_pae(&envelope.payload_type, &payload);
-    let mut verified = BTreeSet::new();
-    'signatures: for signed in &envelope.signatures {
-        let Ok(signature_bytes) = decode_dsse_base64("authority signature", &signed.sig) else {
-            continue;
-        };
-        let Ok(signature_bytes) = <[u8; 64]>::try_from(signature_bytes.as_slice()) else {
-            continue;
-        };
-        let signature = Signature::from_bytes(&signature_bytes);
-
-        for key in &keyset.keys {
-            if (!signed.keyid.is_empty() && signed.keyid != key.key_id)
-                || verified.contains(&key.key_id)
-                || expected_sequence < key.valid_from_sequence
-                || key
+    // Key selection is authority policy, so it happens here: only keys whose
+    // validity window covers this record's sequence are offered to DSSE.
+    let candidates: Vec<CandidateKey> = keyset
+        .keys
+        .iter()
+        .filter(|key| {
+            expected_sequence >= key.valid_from_sequence
+                && !key
                     .valid_through_sequence
                     .is_some_and(|through| expected_sequence > through)
-            {
-                continue;
-            }
-            let Ok(public_key_bytes) =
-                decode_fixed_hex::<32>("authority public key", &key.public_key)
-            else {
-                continue;
-            };
-            let Ok(public_key) = VerifyingKey::from_bytes(&public_key_bytes) else {
-                continue;
-            };
-            if public_key.verify(&pae, &signature).is_ok() {
-                verified.insert(key.key_id.clone());
-                if verified.len() >= usize::try_from(keyset.threshold).unwrap_or(usize::MAX) {
-                    break 'signatures;
-                }
-                break;
-            }
-        }
-    }
-    if verified.len() < usize::try_from(keyset.threshold).unwrap_or(usize::MAX) {
-        return Err("authority signature threshold was not met".into());
-    }
+        })
+        .filter_map(|key| CandidateKey::from_hex(&key.key_id, &key.public_key))
+        .collect();
+    let verified = crate::dsse::verify(
+        "authority envelope",
+        &envelope.payload_type,
+        &envelope.payload,
+        &envelope.signatures,
+        &candidates,
+        usize::try_from(keyset.threshold).unwrap_or(usize::MAX),
+    )?;
+    let payload = verified.payload;
 
     let record: AuthorityRecordV1 = from_json_slice_strict(&payload)
         .map_err(|error| format!("authority record JSON is invalid: {error}"))?;
@@ -734,32 +600,8 @@ pub fn verify_authority_envelope(
     Ok(VerifiedAuthorityRecord {
         record_root: record.root()?,
         record,
-        verified_key_ids: verified.into_iter().collect(),
+        verified_key_ids: verified.verified_key_ids,
     })
-}
-
-/// DSSE Pre-Authentication Encoding:
-/// `DSSEv1 SP LEN(payloadType) SP payloadType SP LEN(payload) SP payload`.
-pub fn dsse_pae(payload_type: &str, payload: &[u8]) -> Vec<u8> {
-    let mut output = Vec::with_capacity(payload_type.len() + payload.len() + 32);
-    output.extend_from_slice(b"DSSEv1 ");
-    output.extend_from_slice(payload_type.len().to_string().as_bytes());
-    output.push(b' ');
-    output.extend_from_slice(payload_type.as_bytes());
-    output.push(b' ');
-    output.extend_from_slice(payload.len().to_string().as_bytes());
-    output.push(b' ');
-    output.extend_from_slice(payload);
-    output
-}
-
-fn decode_dsse_base64(name: &str, value: &str) -> Result<Vec<u8>, String> {
-    BASE64_STANDARD
-        .decode(value)
-        .or_else(|_| BASE64_URL_SAFE.decode(value))
-        .or_else(|_| BASE64_STANDARD_NO_PAD.decode(value))
-        .or_else(|_| BASE64_URL_SAFE_NO_PAD.decode(value))
-        .map_err(|error| format!("{name} is not base64: {error}"))
 }
 
 fn require_state_root(name: &str, value: &str) -> Result<(), String> {
@@ -779,10 +621,59 @@ fn decode_fixed_hex<const N: usize>(name: &str, value: &str) -> Result<[u8; N], 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use base64::Engine as _;
+    use base64::engine::general_purpose::{
+        STANDARD as BASE64_STANDARD, URL_SAFE_NO_PAD as BASE64_URL_SAFE_NO_PAD,
+    };
     use ed25519_dalek::{Signer, SigningKey};
 
     fn root(byte: char) -> String {
         format!("sha256:{}", byte.to_string().repeat(64))
+    }
+
+    /// An authorization a record could actually have been written under.
+    ///
+    /// The fixture used to name three roots and a hand-built `Allow`. The
+    /// evaluation is now the evaluator's own output over the retained request,
+    /// because `verify_record_authorization` recomputes it and a fixture that
+    /// asserted its own answer would prove nothing.
+    fn authorization_claim() -> AuthorizationClaimV1 {
+        use crate::authorization::*;
+
+        let model = AuthorizationModelV1 {
+            schema: AUTHORIZATION_MODEL_SCHEMA_V1.into(),
+            profile: AUTHORIZATION_PROFILE_V1.into(),
+            repository_id: format!("vrepo_{}", "1".repeat(32)),
+            members: vec![AuthorityMemberV1 {
+                principal_id: "local:device-1|uid:501".into(),
+                principal_class: PrincipalClass::Human,
+                role: AuthorityRoleV1::Reviewer,
+            }],
+            previous_model_root: None,
+        };
+        let request = AuthorizationRequestV1 {
+            schema: AUTHORIZATION_REQUEST_SCHEMA_V1.into(),
+            profile: AUTHORIZATION_PROFILE_V1.into(),
+            model_root: model.root().unwrap(),
+            repository_id: model.repository_id.clone(),
+            principal_id: "local:device-1|uid:501".into(),
+            principal_class: PrincipalClass::Human,
+            action: AuthorityActionV1::ReviewReject,
+            resource: AuthorizationResourceV1 {
+                repository_id: model.repository_id.clone(),
+                resource_type: AuthorityResourceTypeV1::Proposal,
+                resource_id: format!("vpr_{}", "2".repeat(16)),
+            },
+            authentication_root: root('9'),
+            transaction_read_set_root: root('f'),
+            intent_digest: root('a'),
+            recovery_recent: false,
+        };
+        AuthorizationClaimV1 {
+            model_root: model.root().unwrap(),
+            evaluation: evaluate_authorization_v1(&model, &request).unwrap(),
+            request,
+        }
     }
 
     #[test]
@@ -943,21 +834,7 @@ mod tests {
                 revocation_ref: None,
             },
             delegation: None,
-            authorization: AuthorizationClaimV1 {
-                policy_bundle_root: root('e'),
-                request_root: root('f'),
-                entity_snapshot_root: root('1'),
-                evaluation: CedarEvaluation {
-                    engine: CEDAR_ENGINE.into(),
-                    engine_version: CEDAR_ENGINE_VERSION.into(),
-                    profile: CEDAR_PROFILE_V1.into(),
-                    valid: true,
-                    decision: CedarDecision::Allow,
-                    automatic_permit: false,
-                    determining_policies: vec!["policy0".into()],
-                    diagnostics: Vec::new(),
-                },
-            },
+            authorization: authorization_claim(),
             semantic_approvals: vec![SemanticApprovalV1 {
                 principal_id: "local:device-1|uid:501".into(),
                 role: "reviewer".into(),
@@ -987,9 +864,9 @@ mod tests {
     }
 
     fn signed_envelope(record: &AuthorityRecordV1, key: &SigningKey) -> AuthorityEnvelopeV1 {
-        let mut envelope = AuthorityEnvelopeV1::from_record(record, Vec::new()).unwrap();
+        let mut envelope = authority_envelope(record, Vec::new()).unwrap();
         let payload = BASE64_STANDARD.decode(&envelope.payload).unwrap();
-        let signature = key.sign(&dsse_pae(&envelope.payload_type, &payload));
+        let signature = key.sign(&crate::dsse::pae(&envelope.payload_type, &payload));
         envelope.signatures.push(DsseSignatureV1 {
             keyid: "repo-key-1".into(),
             sig: BASE64_STANDARD.encode(signature.to_bytes()),
@@ -1022,7 +899,7 @@ mod tests {
             )
             .into_bytes();
         assert_ne!(payload, canonical.as_bytes());
-        let signature = key.sign(&dsse_pae(AUTHORITY_PAYLOAD_TYPE_V1, &payload));
+        let signature = key.sign(&crate::dsse::pae(AUTHORITY_PAYLOAD_TYPE_V1, &payload));
         let envelope = AuthorityEnvelopeV1 {
             payload_type: AUTHORITY_PAYLOAD_TYPE_V1.into(),
             payload: BASE64_STANDARD.encode(&payload),
@@ -1317,38 +1194,6 @@ mod tests {
     }
 
     #[test]
-    fn policy_bundle_rotation_extends_one_exact_root() {
-        let current = PolicyBundleV1 {
-            schema: POLICY_BUNDLE_SCHEMA_V1.into(),
-            repository_id: "vrepo_fixture".into(),
-            cedar_schema_root: root('1'),
-            policies_root: root('2'),
-            entities_root: root('3'),
-            tests_root: root('4'),
-            engine: CEDAR_ENGINE.into(),
-            engine_version: CEDAR_ENGINE_VERSION.into(),
-            restricted_profile: CEDAR_PROFILE_V1.into(),
-            previous_bundle_root: None,
-            authority_summary: "Initial repository authority.".into(),
-        };
-        let mut next = PolicyBundleV1 {
-            policies_root: root('5'),
-            tests_root: root('6'),
-            previous_bundle_root: Some(current.root().unwrap()),
-            authority_summary: "Rotated repository authority.".into(),
-            ..current.clone()
-        };
-        verify_policy_bundle_transition(&current, &next).unwrap();
-
-        next.previous_bundle_root = Some(root('7'));
-        assert!(
-            verify_policy_bundle_transition(&current, &next)
-                .unwrap_err()
-                .contains("exact prior bundle")
-        );
-    }
-
-    #[test]
     fn authority_record_unknown_fields_fail_to_decode() {
         let value = serde_json::json!({
             "schema": AUTHORITY_RECORD_SCHEMA_V1,
@@ -1362,7 +1207,7 @@ mod tests {
     #[test]
     fn dsse_pae_matches_the_spec_shape() {
         assert_eq!(
-            dsse_pae("text/plain", b"hello"),
+            crate::dsse::pae("text/plain", b"hello"),
             b"DSSEv1 10 text/plain 5 hello"
         );
     }

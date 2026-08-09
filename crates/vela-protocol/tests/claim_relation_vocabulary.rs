@@ -14,8 +14,7 @@ use vela_protocol::claim_record::{
     DESCRIPTIVE_RELATION_KINDS, canonical_relation_kind, claim_relation_class,
 };
 
-const FIXTURE: &str =
-    include_str!("../../../conformance/fixtures/claim-relation-vocabulary-v1.json");
+const FIXTURE: &str = include_str!("../../../conformance/fixtures/claim-relation-vocabulary.json");
 
 fn fixture() -> Value {
     serde_json::from_str(FIXTURE).expect("fixture parses")

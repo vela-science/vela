@@ -1,7 +1,7 @@
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-const FIXTURE: &str = include_str!("../../../conformance/fixtures/exact-witness-floor-v1.json");
+const FIXTURE: &str = include_str!("../../../conformance/fixtures/exact-witness-floor.json");
 
 #[test]
 fn rust_reference_rederives_the_exact_witness_floor_fixture() {

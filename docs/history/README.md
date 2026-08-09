@@ -14,3 +14,4 @@ Current documentation starts at [`../README.md`](../README.md).
 - [`POSI_SELF_ASSESSMENT.md`](POSI_SELF_ASSESSMENT.md) — dated infrastructure assessment
 - [`RECEIPTS.md`](RECEIPTS.md) — retired Receipt writer contract
 - [`2026-08-03-action-complete-frontier-campaign.md`](2026-08-03-action-complete-frontier-campaign.md) — predecessor action-complete campaign and exact evidence ledger
+- [`2026-08-08-ideal-ecosystem-and-architecture-memo.md`](2026-08-08-ideal-ecosystem-and-architecture-memo.md) — the memo that governed the final pre-1.0 standards cut

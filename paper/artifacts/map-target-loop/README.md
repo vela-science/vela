@@ -1,6 +1,6 @@
 # Live map-to-target loop
 
-`pre-run.v1.json` freezes the exact current inputs before the next producer
+`pre-run.json` freezes the exact current inputs before the next producer
 Run. It binds the released Vela binary, compact Erdős repository, derived
 scientific map, first ranked Target, accepted predecessor range, current
 packet, Canopus profile, and both verifier capsules.
@@ -30,7 +30,7 @@ VELA_PROJECTION_DRY_RUN=1 \
 bun packages/frontier-data/scripts/refresh-neon-projection.mjs
 ```
 
-`post-verification.v1.json` records the completed producer and Verification
+`post-verification.json` records the completed producer and Verification
 half of the loop. Released Vela `0.950.1` imported
 `vvr_eb80b766c730513b` at Erdős commit
 `606f2f4b50193b1feccf1df4e1f31d50d3a8dd99`; strict and clean-clone replay
@@ -38,7 +38,7 @@ agree on repository root
 `sha256:8b1c2bbc99b9e9aade2bfb56d3493be02cdad954eefa3cd98a14ac41128ae0d4`.
 Accepted-event delta remains zero.
 
-`post-verification-map.v1.json`, byte root
+`post-verification-map.json`, byte root
 `sha256:439a804908890e4029922cc91cdd0a79122187d573530fc760a419d90786be21`,
 freezes the exact read-only projection after the producer and Verification
 half of the loop. Candidate release
@@ -48,7 +48,7 @@ was built with Vela `0.950.1` and `vela-web` commit
 not activated. This checkpoint lets the eventual report isolate the semantic
 effect of the Decision from the earlier producer and Verification writes.
 
-`decision-packet.v1.json` is a key-free inspection packet. It contains a
+`decision-packet.json` is a key-free inspection packet. It contains a
 suggested bounded reason, but neither selects nor invokes the human Decision.
 The post-Decision and remap comparison belongs beside this frozen baseline
 only after the human independently accepts, rejects, or cancels. It must
@@ -64,7 +64,7 @@ python3 paper/artifacts/map-target-loop/materialize_post_decision.py \
   --vela "$HOME/.canopus/bin/vela-0.950.1-e9bc81e1" \
   --vela-web "$HOME/personal/vela-web" \
   --frontiers-root "$HOME/personal" \
-  --output paper/artifacts/map-target-loop/post-decision.v1.json
+  --output paper/artifacts/map-target-loop/post-decision.json
 ```
 
 The materializer refuses a pending Proposal, dirty or unsynchronized source,

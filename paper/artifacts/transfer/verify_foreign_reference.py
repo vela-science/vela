@@ -606,8 +606,8 @@ def main() -> int:
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     package = args.package_root.resolve()
-    reference_path = (args.reference or package / "reference.v1.json").resolve()
-    expected_path = (args.expected or package / "assessment.v1.json").resolve()
+    reference_path = (args.reference or package / "reference.json").resolve()
+    expected_path = (args.expected or package / "assessment.json").resolve()
     try:
         reference = json.loads(reference_path.read_text(encoding="utf-8"))
         observed = verify_package(reference, package)

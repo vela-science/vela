@@ -278,7 +278,7 @@ mod tests {
             (
                 "policy",
                 WriteClass::CanonicalEvidence,
-                ".vela/authority/policies/forbidden.json",
+                ".vela/authority/models/forbidden.json",
             ),
         ] {
             let draft = AuthorityObjectDraft {

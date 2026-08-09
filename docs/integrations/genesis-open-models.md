@@ -162,7 +162,7 @@ which survive.
 
 **What this environment does not yet contain, and why that is stated here.**
 The derivation traverses `depends` and `supports` claim-to-claim edges, and
-`vela.submission.v1` gives a producer no way to declare one. Every such edge in
+`vela.submission.v2` gives a producer no way to declare one. Every such edge in
 the retained corpus was written by an earlier bulk ingest. A repository built
 with today's CLI therefore records corrections and cannot record a cascade, and
 the verb reports the empty cascade truthfully rather than inferring one.
@@ -196,14 +196,15 @@ found in the first week of using it.
 
 ## Interoperability
 
-`docs/interop/scientific-state-profile-v1.md` states the seven contracts an
+`docs/interop/scientific-state-profile.md` states the seven contracts an
 external implementation must satisfy, each paired with the conformance check
 that decides whether it does. No parallel object model: the profile names the
 schemas that already exist.
 
 Two independent clean-room emitters — `conformance/emitters/javascript.mjs` and
-`conformance/emitters/python.py` — produce byte-identical signed Submissions
-and Verification Records without importing any Vela implementation, and CI holds
+`conformance/emitters/python.py` — produce byte-identical DSSE-enveloped
+Submissions and Verification Records without importing any Vela
+implementation, and CI holds
 both to the same fixtures. `conformance/readers/python/repository_root.py`
 recomputes a repository's root from a clean clone with no network and no Vela
 code.

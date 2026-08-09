@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://app.vela.space/schemas/lean-replay-result.schema.json",
+  "title": "Exact Lean replay result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "outcome", "authority_effect", "standing_effect", "declaration"],
+  "properties": {
+    "schema": { "type": "string", "const": "vela.lean-replay-result.v1" },
+    "outcome": { "type": "string", "enum": ["pass", "fail", "unsupported", "environment-failure", "timeout"] },
+    "authority_effect": { "type": "string", "const": "none" },
+    "standing_effect": { "type": "string", "const": "none" },
+    "declaration": { "type": "string", "minLength": 1 },
+    "source_root": { "$ref": "#/$defs/root" },
+    "candidate_root": { "$ref": "#/$defs/root" },
+    "axioms": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+    "checks": { "type": "object" },
+    "error": { "type": "string", "minLength": 1 },
+    "limitations": { "type": "array", "items": { "type": "string" } }
+  },
+  "$defs": {
+    "root": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}
+

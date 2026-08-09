@@ -12,17 +12,20 @@ use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
-use vela_authority::CedarEvaluationInput;
 use vela_authority::runtime_authentication::AuthenticationRequest;
 use vela_protocol::authority::{PrincipalSnapshotV1, SemanticApprovalV1};
+use vela_protocol::authorization::{
+    AUTHORIZATION_PROFILE_V1, AUTHORIZATION_REQUEST_SCHEMA_V1, AuthorityActionV1,
+    AuthorityResourceTypeV1, AuthorizationRequestV1, AuthorizationResourceV1,
+};
 use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::events::{EventKind, NULL_HASH, StateActor, StateEvent, StateTarget};
 use vela_protocol::principal::PrincipalClass;
-use vela_protocol::proposal_v1::ProposalV1;
+use vela_protocol::proposal::ProposalV1;
 use vela_protocol::repository::{ClaimStandingRefV1, RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::repository_origin::RepositoryOriginV1;
-use vela_protocol::submission_v1::SubmissionV1;
-use vela_protocol::verification_record::VerificationRecordV1;
+use vela_protocol::submission::SubmissionRecordV2;
+use vela_protocol::verification_record::VerificationRecordEnvelopeV2;
 
 use crate::authority_transaction::{
     AuthorityEventDraft, AuthorityObjectDraft, AuthorityTransactionRequest,
@@ -74,7 +77,7 @@ pub(crate) struct ReviewDecisionPlan {
     pub(crate) principal_id: String,
     pub(crate) observed_at: String,
     pub(crate) authority_event_log_root: String,
-    pub(crate) policy_bundle_root: String,
+    pub(crate) model_root: String,
     pub(crate) plan_root: String,
 }
 
@@ -85,8 +88,8 @@ pub(crate) struct PreparedReviewDecision {
     pub(crate) proposal_reference: RepositoryObjectRefV1,
     pub(crate) proposal: ProposalV1,
     pub(crate) claim: ClaimRecordV1,
-    pub(crate) submission: SubmissionV1,
-    pub(crate) verifications: Vec<(String, VerificationRecordV1)>,
+    pub(crate) submission: SubmissionRecordV2,
+    pub(crate) verifications: Vec<(String, VerificationRecordEnvelopeV2)>,
     pub(crate) pending_conflicts: Vec<String>,
 }
 
@@ -124,7 +127,7 @@ pub(crate) fn claim_for_proposal(
         .ok_or_else(|| {
             format!(
                 "Proposal {} has no exact current Claim subject",
-                proposal.proposal_id
+                proposal.id()
             )
         })?;
     let claim = read_exact(
@@ -144,7 +147,7 @@ pub(crate) fn submission_for_proposal(
     repository_path: &Path,
     repository: &RepositoryV4,
     proposal: &ProposalV1,
-) -> Result<SubmissionV1, String> {
+) -> Result<SubmissionRecordV2, String> {
     let reference = repository
         .submissions
         .iter()
@@ -153,20 +156,15 @@ pub(crate) fn submission_for_proposal(
                 && submission.root == proposal.producer_package.root
                 && submission.path == proposal.producer_package.path
         })
-        .ok_or_else(|| {
-            format!(
-                "Proposal {} has no exact current Submission",
-                proposal.proposal_id
-            )
-        })?;
+        .ok_or_else(|| format!("Proposal {} has no exact current Submission", proposal.id()))?;
     let submission = read_exact(
         repository_path,
         &reference.path,
         &reference.root,
-        SubmissionV1::parse,
-        SubmissionV1::canonical_bytes,
+        SubmissionRecordV2::parse,
+        |value: &SubmissionRecordV2| Ok(value.bytes.clone()),
     )?;
-    if submission.submission_id != reference.id {
+    if submission.id != reference.id {
         return Err("Proposal Submission identity differs from the current repository".into());
     }
     Ok(submission)
@@ -177,19 +175,19 @@ pub(crate) fn exact_verifications(
     repository: &RepositoryV4,
     proposal: &ProposalV1,
     claim: &ClaimRecordV1,
-    submission: &SubmissionV1,
-) -> Result<Vec<(String, VerificationRecordV1)>, String> {
+    submission: &SubmissionRecordV2,
+) -> Result<Vec<(String, VerificationRecordEnvelopeV2)>, String> {
     let mut records = Vec::new();
     for reference in &repository.verifications {
         let record = read_exact(
             repository_path,
             &reference.path,
             &reference.root,
-            VerificationRecordV1::parse,
-            VerificationRecordV1::canonical_bytes,
+            VerificationRecordEnvelopeV2::parse,
+            |value: &VerificationRecordEnvelopeV2| Ok(value.bytes.clone()),
         )?;
         if crate::repository::verification_targets_proposal(proposal, claim, &record)
-            && record.subject.submission_id == submission.submission_id
+            && record.record.subject.submission_id == submission.id
         {
             records.push((reference.root.clone(), record));
         }
@@ -199,14 +197,14 @@ pub(crate) fn exact_verifications(
 }
 
 pub(crate) fn verification_set_root(
-    records: &[(String, VerificationRecordV1)],
+    records: &[(String, VerificationRecordEnvelopeV2)],
 ) -> Result<String, String> {
     Ok(format!(
         "sha256:{}",
         vela_protocol::canonical::sha256_canonical(&json!({
             "schema": "vela.verification-set.v1",
             "records": records.iter().map(|(root, record)| json!({
-                "verification_record_id": record.verification_record_id,
+                "verification_record_id": record.id,
                 "verification_record_root": root,
             })).collect::<Vec<_>>(),
         }))?
@@ -214,30 +212,31 @@ pub(crate) fn verification_set_root(
 }
 
 pub(crate) fn verification_satisfies_requirement(
-    submission: &SubmissionV1,
+    submission: &SubmissionRecordV2,
     requirement: &str,
-    record: &VerificationRecordV1,
+    record: &VerificationRecordEnvelopeV2,
 ) -> bool {
-    record.scope.property == requirement
-        && record.outcome == "pass"
-        && record.verifier != submission.provenance.producer
+    record.record.scope.property == requirement
+        && record.record.outcome == "pass"
+        && record.record.verifier() != submission.submission.provenance.producer
         && record
+            .record
             .independence
             .declared_independent_of
-            .contains(&submission.provenance.producer)
+            .contains(&submission.submission.provenance.producer)
 }
 
 pub(crate) fn require_acceptance_evidence(
-    submission: &SubmissionV1,
-    records: &[(String, VerificationRecordV1)],
+    submission: &SubmissionRecordV2,
+    records: &[(String, VerificationRecordEnvelopeV2)],
 ) -> Result<(), String> {
     if records
         .iter()
-        .any(|(_, record)| matches!(record.outcome.as_str(), "fail" | "error"))
+        .any(|(_, record)| matches!(record.record.outcome.as_str(), "fail" | "error"))
     {
         return Err("current acceptance is blocked by a failing Verification Record".into());
     }
-    for requirement in &submission.verification_requirements {
+    for requirement in &submission.submission.verification_requirements {
         let satisfying = records.iter().filter(|(_, record)| {
             verification_satisfies_requirement(submission, requirement, record)
         });
@@ -258,17 +257,20 @@ pub(crate) fn require_acceptance_evidence(
 /// attempt, requested change, scoped conditions, artifacts, and verifier
 /// contract. The assertion may differ because corrected wording is the common
 /// reason the same execution is submitted twice.
-pub(crate) fn same_exact_producer_execution(left: &SubmissionV1, right: &SubmissionV1) -> bool {
-    let Some(left_run) = left.provenance.source_run.as_deref() else {
+pub(crate) fn same_exact_producer_execution(
+    left: &SubmissionRecordV2,
+    right: &SubmissionRecordV2,
+) -> bool {
+    let Some(left_run) = left.submission.provenance.source_run.as_deref() else {
         return false;
     };
-    let Some(right_run) = right.provenance.source_run.as_deref() else {
+    let Some(right_run) = right.submission.provenance.source_run.as_deref() else {
         return false;
     };
-    let Some(left_attempt) = left.provenance.source_attempt.as_deref() else {
+    let Some(left_attempt) = left.submission.provenance.source_attempt.as_deref() else {
         return false;
     };
-    let Some(right_attempt) = right.provenance.source_attempt.as_deref() else {
+    let Some(right_attempt) = right.submission.provenance.source_attempt.as_deref() else {
         return false;
     };
     if left_run.is_empty()
@@ -280,11 +282,13 @@ pub(crate) fn same_exact_producer_execution(left: &SubmissionV1, right: &Submiss
     }
 
     let mut left_artifacts = left
+        .submission
         .artifacts
         .iter()
         .map(|artifact| (&artifact.kind, &artifact.digest))
         .collect::<Vec<_>>();
     let mut right_artifacts = right
+        .submission
         .artifacts
         .iter()
         .map(|artifact| (&artifact.kind, &artifact.digest))
@@ -293,14 +297,14 @@ pub(crate) fn same_exact_producer_execution(left: &SubmissionV1, right: &Submiss
     right_artifacts.sort();
 
     !left_artifacts.is_empty()
-        && left.provenance.producer == right.provenance.producer
-        && left.provenance.source_system == right.provenance.source_system
-        && left.requested_change == right.requested_change
-        && left.claim.claim_type == right.claim.claim_type
-        && left.claim.conditions == right.claim.conditions
+        && left.submission.provenance.producer == right.submission.provenance.producer
+        && left.submission.provenance.source_system == right.submission.provenance.source_system
+        && left.submission.requested_change == right.submission.requested_change
+        && left.submission.claim.claim_type == right.submission.claim.claim_type
+        && left.submission.claim.conditions == right.submission.claim.conditions
         && left_artifacts == right_artifacts
-        && left.verification_requirements == right.verification_requirements
-        && left.execution_binding == right.execution_binding
+        && left.submission.verification_requirements == right.submission.verification_requirements
+        && left.submission.execution_binding == right.submission.execution_binding
 }
 
 /// Find unresolved sibling Proposals that bind the same exact producer
@@ -310,13 +314,13 @@ pub(crate) fn pending_submission_conflicts(
     repository_path: &Path,
     repository: &RepositoryV4,
     proposal: &ProposalV1,
-    submission: &SubmissionV1,
+    submission: &SubmissionRecordV2,
 ) -> Result<Vec<String>, String> {
     let standings =
         crate::repository::load_current_proposal_standings(repository_path, repository)?;
     let mut conflicts = Vec::new();
     for reference in &repository.proposals {
-        if reference.id == proposal.proposal_id || standings.contains_key(&reference.id) {
+        if reference.id == proposal.id() || standings.contains_key(&reference.id) {
             continue;
         }
         let sibling = read_exact(
@@ -331,7 +335,7 @@ pub(crate) fn pending_submission_conflicts(
         }
         let sibling_submission = submission_for_proposal(repository_path, repository, &sibling)?;
         if same_exact_producer_execution(submission, &sibling_submission) {
-            conflicts.push(sibling.proposal_id);
+            conflicts.push(sibling.id());
         }
     }
     conflicts.sort();
@@ -412,11 +416,11 @@ pub(crate) fn prepare(
         repository_id: repository.repository_id.clone(),
         repository_name: profile.name,
         repository_root,
-        proposal_id: proposal.proposal_id.clone(),
+        proposal_id: proposal.id(),
         proposal_root: proposal_reference.root.clone(),
         claim_id: claim.claim_id.clone(),
         claim_root: claim.canonical_root()?,
-        submission_root: submission.canonical_root()?,
+        submission_root: submission.root.clone(),
         verification_set_root: verification_set_root(&verifications)?,
         action: match action {
             DecisionAction::Accept => "review_accept",
@@ -427,7 +431,7 @@ pub(crate) fn prepare(
         principal_id: local.principal_id,
         observed_at: observed_at.into(),
         authority_event_log_root: authority.verification.final_event_log_root.clone(),
-        policy_bundle_root: authority.history.policy_bundle.root()?,
+        model_root: authority.history.authorization_model.root()?,
         plan_root: String::new(),
     };
     plan.plan_root = plan_root(&plan)?;
@@ -570,7 +574,7 @@ fn decision_events(
             kind: EventKind::ReviewRejected,
             target: StateTarget {
                 r#type: "proposal".into(),
-                id: proposal.proposal_id.clone(),
+                id: proposal.id(),
             },
             actor,
             timestamp: recorded_at.into(),
@@ -578,7 +582,7 @@ fn decision_events(
             before_hash: NULL_HASH.into(),
             after_hash: NULL_HASH.into(),
             payload: json!({
-                "proposal_id": proposal.proposal_id,
+                "proposal_id": proposal.id(),
                 "proposal_kind": proposal.action,
                 "verdict": "rejected",
                 "repository_before": plan.repository_root,
@@ -639,7 +643,7 @@ fn decision_events(
         payload: json!({
             "claim_id": claim.claim_id,
             "claim_root": plan.claim_root,
-            "proposal_id": proposal.proposal_id,
+            "proposal_id": proposal.id(),
             "repository_before": plan.repository_root,
             "repository_after": next_repository_root,
         }),
@@ -650,7 +654,7 @@ fn decision_events(
         kind: EventKind::ReviewAccepted,
         target: StateTarget {
             r#type: "proposal".into(),
-            id: proposal.proposal_id.clone(),
+            id: proposal.id(),
         },
         actor,
         timestamp: recorded_at.into(),
@@ -658,7 +662,7 @@ fn decision_events(
         before_hash: NULL_HASH.into(),
         after_hash: NULL_HASH.into(),
         payload: json!({
-            "proposal_id": proposal.proposal_id,
+            "proposal_id": proposal.id(),
             "proposal_kind": proposal.action,
             "verdict": "accepted",
             "applied_event_id": applied_event_id,
@@ -713,21 +717,30 @@ pub(crate) fn execute_prepared(
     )?;
     next.verify()?;
 
-    let authorization = CedarEvaluationInput {
-        schema: prepared.authority.policy_material.schema.clone(),
-        policies: prepared.authority.policy_material.policies.clone(),
-        entities: prepared.authority.policy_material.entities.clone(),
-        principal: format!(
-            "Human::{}",
-            serde_json::to_string(&expected.principal_id).expect("principal serializes")
-        ),
+    let action = match expected.action.as_str() {
+        "review_accept" => AuthorityActionV1::ReviewAccept,
+        "review_reject" => AuthorityActionV1::ReviewReject,
+        other => return Err(format!("review Decision has no authority action `{other}`")),
+    };
+    let authorization = AuthorizationRequestV1 {
+        schema: AUTHORIZATION_REQUEST_SCHEMA_V1.into(),
+        profile: AUTHORIZATION_PROFILE_V1.into(),
+        model_root: prepared.authority.history.authorization_model.root()?,
+        repository_id: prepared.repository.repository_id.clone(),
+        principal_id: expected.principal_id.clone(),
         principal_class: PrincipalClass::Human,
-        action: expected.action.clone(),
-        resource: format!(
-            "Proposal::{}",
-            serde_json::to_string(&expected.proposal_id).expect("Proposal ID serializes")
-        ),
-        context: json!({"exact": true}),
+        action,
+        resource: AuthorizationResourceV1 {
+            repository_id: prepared.repository.repository_id.clone(),
+            resource_type: AuthorityResourceTypeV1::Proposal,
+            resource_id: expected.proposal_id.clone(),
+        },
+        /* Both come from the verified session inside the preflight; a
+        placeholder is required only because the request validates first. */
+        authentication_root: expected.repository_root.clone(),
+        transaction_read_set_root: expected.repository_root.clone(),
+        intent_digest: expected.plan_root.clone(),
+        recovery_recent: false,
     };
     let mut read_set = vec![
         InputBinding {
@@ -786,7 +799,7 @@ pub(crate) fn execute_prepared(
                 principal_class: PrincipalClass::Human,
                 transaction_at: recorded_at.clone(),
             },
-            authorization_input: authorization,
+            authorization_request: authorization,
             semantic_approvals: vec![SemanticApprovalV1 {
                 principal_id: expected.principal_id.clone(),
                 role: "repository_reviewer".into(),
@@ -804,8 +817,7 @@ pub(crate) fn execute_prepared(
             }],
             derived_drafts: derived,
             next_authority_keyset: None,
-            next_policy_bundle: None,
-            next_policy_material: None,
+            next_authorization_model: None,
             read_set,
             vela_version: env!("CARGO_PKG_VERSION").into(),
             binary_sha256,
@@ -839,7 +851,7 @@ pub(crate) fn execute_prepared(
     }
     let publication = publish_exact_delta(
         repository_path,
-        &format!("review {}", action.as_str()),
+        &format!("review {}", expected.action),
         std::slice::from_ref(&expected.proposal_id),
         &delta,
         preflight,
@@ -891,10 +903,10 @@ mod tests {
 
     use ed25519_dalek::SigningKey;
     use vela_protocol::claim_record::{ClaimAssertion, ClaimRelation, ClaimSource};
-    use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
-    use vela_protocol::proposal_v1::{ProposalProducerPackage, ProposalSubject};
+    use vela_protocol::proposal::{ProposalProducerPackage, ProposalSubject};
     use vela_protocol::repository::REPOSITORY_SCHEMA_V4;
-    use vela_protocol::submission_v1::{
+    use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
+    use vela_protocol::submission::{
         RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
     };
     use vela_protocol::verification_record::{
@@ -923,7 +935,7 @@ mod tests {
             verifications: Vec::new(),
             artifacts: Vec::new(),
             authority_keyset_root: root('c'),
-            authority_policy_root: root('d'),
+            authority_model_root: root('d'),
         }
     }
 
@@ -977,8 +989,8 @@ mod tests {
             "2026-07-27T00:00:01Z".into(),
             "Request the exact fixture transition.".into(),
             ProposalProducerPackage {
-                kind: "submission_v1".into(),
-                id: "vsb_fixture".into(),
+                kind: "submission".into(),
+                id: vela_protocol::derive_handle("vsb_", &root('e')).unwrap(),
                 root: root('e'),
                 path: format!("records/submissions/sha256/{}.json", "e".repeat(64)),
             },
@@ -987,77 +999,75 @@ mod tests {
         .unwrap()
     }
 
-    fn submission() -> SubmissionV1 {
+    fn submission() -> SubmissionRecordV2 {
+        sealed_submission(|_| {})
+    }
+
+    /// Seal a fixture Submission after letting the caller edit its draft.
+    ///
+    /// A v2 Submission cannot be mutated after sealing — the signature covers
+    /// the payload — so a test that wants a different producer execution asks
+    /// for a different draft rather than reaching into a signed object.
+    fn sealed_submission(edit: impl FnOnce(&mut SubmissionDraft)) -> SubmissionRecordV2 {
         let key = SigningKey::from_bytes(&[61_u8; 32]);
-        let identity = IdentityBinding::build(
-            IdentityBindingDraft {
-                actor_id: "agent:producer-fixture".into(),
-                actor_class: ActorClass::Agent,
-                created_at: "2026-07-27T00:00:00Z".into(),
-            },
+        let identity = SignerIdentityV1::new(
+            "agent:producer-fixture",
+            ActorClass::Agent,
             &key,
+            "2026-07-27T00:00:00Z",
         )
         .unwrap();
-        SubmissionV1::build(
-            SubmissionDraft {
-                claim: SubmissionClaim {
-                    assertion: "The fixture has a bounded witness.".into(),
-                    claim_type: "computational".into(),
-                    conditions: vec!["Fixture domain.".into()],
-                },
-                artifacts: vec![SubmissionArtifact {
-                    kind: "witness".into(),
-                    path: "witness.json".into(),
-                    digest: root('f'),
-                }],
-                caveats: vec!["Not an unrestricted result.".into()],
-                replayability: "exact".into(),
-                producer_checks: Vec::new(),
-                verification_requirements: vec!["Replay the frozen verifier.".into()],
-                requested_change: RequestedChange {
-                    kind: "add_claim".into(),
-                    target: None,
-                },
-                provenance: SubmissionProvenance {
-                    producer: "agent:producer-fixture".into(),
-                    source_system: "fixture".into(),
-                    source_attempt: None,
-                    source_run: Some("run_fixture".into()),
-                    emitted_at: "2026-07-27T00:00:00Z".into(),
-                },
-                execution_binding: None,
+        let mut draft = SubmissionDraft {
+            claim: SubmissionClaim {
+                assertion: "The fixture has a bounded witness.".into(),
+                claim_type: "computational".into(),
+                conditions: vec!["Fixture domain.".into()],
             },
-            identity,
-            &key,
-        )
-        .unwrap()
+            artifacts: vec![SubmissionArtifact {
+                kind: "witness".into(),
+                path: "witness.json".into(),
+                digest: root('f'),
+            }],
+            caveats: vec!["Not an unrestricted result.".into()],
+            replayability: "exact".into(),
+            producer_checks: Vec::new(),
+            verification_requirements: vec!["Replay the frozen verifier.".into()],
+            requested_change: RequestedChange {
+                kind: "add_claim".into(),
+                target: None,
+            },
+            provenance: SubmissionProvenance {
+                producer: "agent:producer-fixture".into(),
+                source_system: "fixture".into(),
+                source_attempt: None,
+                source_run: Some("run_fixture".into()),
+                emitted_at: "2026-07-27T00:00:00Z".into(),
+            },
+            execution_binding: None,
+        };
+        edit(&mut draft);
+        SubmissionRecordV2::seal(draft, identity, &key).unwrap()
     }
 
     fn verification(
-        submission: &SubmissionV1,
+        submission: &SubmissionRecordV2,
         property: &str,
         outcome: &str,
         verifier: &str,
         declared_independent: bool,
-    ) -> VerificationRecordV1 {
+    ) -> VerificationRecordEnvelopeV2 {
         let key = SigningKey::from_bytes(&[62_u8; 32]);
-        let identity = IdentityBinding::build(
-            IdentityBindingDraft {
-                actor_id: verifier.into(),
-                actor_class: ActorClass::Org,
-                created_at: "2026-07-27T00:00:00Z".into(),
-            },
-            &key,
-        )
-        .unwrap();
-        VerificationRecordV1::build(
+        let identity =
+            SignerIdentityV1::new(verifier, ActorClass::Org, &key, "2026-07-27T00:00:00Z").unwrap();
+        VerificationRecordEnvelopeV2::seal(
             VerificationRecordDraft {
                 subject: VerificationSubject {
                     claim_id: format!("vcl_{}", "a".repeat(64)),
                     artifact_ids: vec!["a".repeat(64)],
-                    submission_id: submission.submission_id.clone(),
-                    submission_root: submission.canonical_root().unwrap(),
-                    proposal_id: "vpr_fixture".into(),
+                    submission_id: submission.id.clone(),
+                    submission_root: submission.root.clone(),
+                    proposal_id: vela_protocol::derive_handle("vpr_", &root('7')).unwrap(),
+                    proposal_root: root('7'),
                 },
                 method: VerificationMethod {
                     profile: "fixture-v1".into(),
@@ -1069,10 +1079,9 @@ mod tests {
                     does_not_establish: vec!["Scientific acceptance.".into()],
                 },
                 outcome: outcome.into(),
-                verifier: verifier.into(),
                 independence: IndependenceDisclosure {
                     declared_independent_of: if declared_independent {
-                        vec![submission.provenance.producer.clone()]
+                        vec![submission.submission.provenance.producer.clone()]
                     } else {
                         Vec::new()
                     },
@@ -1105,7 +1114,7 @@ mod tests {
             principal_id: "local:fixture".into(),
             observed_at: "2026-07-27T00:00:04Z".into(),
             authority_event_log_root: root('7'),
-            policy_bundle_root: root('8'),
+            model_root: root('8'),
             plan_root: String::new(),
         };
         plan.plan_root = plan_root(&plan).unwrap();
@@ -1146,7 +1155,7 @@ mod tests {
             &submission,
             "Replay the frozen verifier.",
             "pass",
-            &submission.provenance.producer,
+            &submission.submission.provenance.producer,
             false,
         );
         assert!(!verification_satisfies_requirement(
@@ -1183,18 +1192,27 @@ mod tests {
 
     #[test]
     fn execution_collision_requires_the_complete_exact_attempt_identity() {
-        let mut original = submission();
-        original.provenance.source_attempt = Some("attempt_fixture".into());
-        let mut refined_wording = original.clone();
-        refined_wording.claim.assertion = "A more precise bounded fixture result.".into();
+        // `vat_` and sixty-four hexadecimal digits: an Attempt id, not a label.
+        let attempt = |value: char| {
+            let value = format!("vat_{}", value.to_string().repeat(64));
+            move |draft: &mut SubmissionDraft| {
+                draft.provenance.source_attempt = Some(value.clone());
+            }
+        };
+        let original = sealed_submission(attempt('a'));
+        let refined_wording = sealed_submission(|draft| {
+            attempt('a')(draft);
+            draft.claim.assertion = "A more precise bounded fixture result.".into();
+        });
         assert!(same_exact_producer_execution(&original, &refined_wording));
 
-        let mut another_attempt = refined_wording.clone();
-        another_attempt.provenance.source_attempt = Some("attempt_other".into());
+        let another_attempt = sealed_submission(attempt('b'));
         assert!(!same_exact_producer_execution(&original, &another_attempt));
 
-        let mut another_artifact = refined_wording;
-        another_artifact.artifacts[0].digest = root('b');
+        let another_artifact = sealed_submission(|draft| {
+            attempt('a')(draft);
+            draft.artifacts[0].digest = root('b');
+        });
         assert!(!same_exact_producer_execution(&original, &another_artifact));
     }
 
@@ -1313,7 +1331,7 @@ mod tests {
         let plan = ReviewDecisionPlan {
             claim_id: subject.claim_id.clone(),
             claim_root: subject.canonical_root().unwrap(),
-            proposal_id: proposal.proposal_id.clone(),
+            proposal_id: proposal.id(),
             ..plan()
         };
         let events = decision_events(

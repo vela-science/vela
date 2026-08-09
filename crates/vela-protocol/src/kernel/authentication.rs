@@ -61,6 +61,19 @@ pub struct AuthenticationObservationV1 {
 }
 
 impl AuthenticationObservationV1 {
+    /// The observation's own full root.
+    ///
+    /// An authorization request binds the session it was decided under by
+    /// root; the record retains the observation itself, so the two can be
+    /// compared rather than trusted separately.
+    pub fn root(&self) -> Result<String, String> {
+        self.validate()?;
+        Ok(format!(
+            "sha256:{}",
+            crate::canonical::sha256_canonical(self)?
+        ))
+    }
+
     pub fn validate(&self) -> Result<(), String> {
         if self.schema != AUTHENTICATION_OBSERVATION_SCHEMA_V1 {
             return Err(format!(

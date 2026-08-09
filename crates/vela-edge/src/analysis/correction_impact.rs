@@ -506,7 +506,7 @@ fn validate_claim_ref(reference: &ClaimRef) -> Result<(), String> {
 
 /* Both of these took a field name and discarded it, at five call sites. They
 cannot use one: the error is a fixed wire token that
-`conformance/fixtures/correction/diamond-adversarial.v1.json` pins and
+`conformance/fixtures/correction/diamond-adversarial.json` pins and
 `verify_correction_impact.py` checks, so it is the same string whichever field
 failed. A parameter every caller supplies and no body reads is a claim that the
 error is specific when it is not. */

@@ -160,7 +160,7 @@ pub struct RepositoryV4 {
     pub verifications: Vec<RepositoryObjectRefV1>,
     pub artifacts: Vec<RepositoryObjectRefV1>,
     pub authority_keyset_root: String,
-    pub authority_policy_root: String,
+    pub authority_model_root: String,
 }
 
 impl RepositoryV4 {
@@ -188,7 +188,7 @@ impl RepositoryV4 {
         require_prefixed("origin_id", &self.origin_id, "vro_")?;
         require_sha256("origin_root", &self.origin_root)?;
         require_sha256("authority_keyset_root", &self.authority_keyset_root)?;
-        require_sha256("authority_policy_root", &self.authority_policy_root)?;
+        require_sha256("authority_model_root", &self.authority_model_root)?;
 
         verify_claim_refs("accepted_claims", &self.accepted_claims, "accepted")?;
         verify_claim_refs("pending_claims", &self.pending_claims, "pending_review")?;
@@ -412,7 +412,7 @@ mod tests {
             verifications: vec![],
             artifacts: vec![],
             authority_keyset_root: root('e'),
-            authority_policy_root: root('f'),
+            authority_model_root: root('f'),
         }
     }
 

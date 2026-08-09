@@ -1,5 +1,17 @@
 #!/usr/bin/env node
 
+/* An independent emitter for the current signed Vela objects.
+ *
+ * Nothing here imports the Rust implementation. It reads the published
+ * contract — RFC 8785 canonical JSON, SHA-256 roots, DSSE envelopes over
+ * versioned payload types — and must land on the same bytes.
+ *
+ * The object is a DSSE envelope: the payload is the canonical scientific
+ * content, the signature covers the DSSE pre-authentication encoding of those
+ * exact bytes, and the identifier is derived from the envelope's own root
+ * rather than stored inside it.
+ */
+
 import {
   createHash,
   createPrivateKey,
@@ -13,19 +25,33 @@ import { basename, resolve } from "node:path";
 const PKCS8_PREFIX = Buffer.from("302e020100300506032b657004220420", "hex");
 const SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
 
+const KINDS = {
+  submission: {
+    schema: "vela.submission.v2",
+    payloadType: "application/vnd.vela.submission.v2+json",
+    prefix: "vsb",
+  },
+  verification: {
+    schema: "vela.verification-record.v2",
+    payloadType: "application/vnd.vela.verification-record.v2+json",
+    prefix: "vvr",
+  },
+};
+
 function usage(message) {
   if (message) process.stderr.write(`${message}\n\n`);
   process.stderr.write(
     "Usage:\n" +
-      "  node conformance/emitters/javascript.mjs submission --draft <json> --seed-file <path> --output <json>\n" +
-      "  node conformance/emitters/javascript.mjs verification --draft <json> --seed-file <path> --output <json>\n",
+      "  node conformance/emitters/javascript.mjs <submission|verification> \\\n" +
+      "    --draft <json> --seed-file <path> --actor <id> --actor-class <human|agent|org> \\\n" +
+      "    --declared-at <rfc3339> --output <json>\n",
   );
   process.exit(message ? 2 : 0);
 }
 
 function parseArgs(argv) {
   const kind = argv[2];
-  if (!["submission", "verification"].includes(kind)) usage("object kind is required");
+  if (!Object.hasOwn(KINDS, kind)) usage("object kind is required");
   const options = {};
   for (let index = 3; index < argv.length; index += 2) {
     const flag = argv[index];
@@ -33,8 +59,11 @@ function parseArgs(argv) {
     if (!flag?.startsWith("--") || value === undefined) usage(`invalid argument ${flag ?? ""}`);
     options[flag.slice(2)] = value;
   }
-  for (const required of ["draft", "seed-file", "output"]) {
+  for (const required of ["draft", "seed-file", "actor", "actor-class", "declared-at", "output"]) {
     if (!options[required]) usage(`--${required} is required`);
+  }
+  if (!["human", "agent", "org"].includes(options["actor-class"])) {
+    usage("--actor-class must be human, agent or org");
   }
   return { kind, options };
 }
@@ -93,123 +122,83 @@ function keyPair(seed) {
   return { privateKey, publicKey, publicBytes: spki.subarray(SPKI_PREFIX.length) };
 }
 
-function buildBinding(actorId, createdAt, keys) {
-  let binding = {
-    schema: "vela.identity_binding.v0.1",
-    binding_id: "",
-    actor_id: actorId,
-    actor_class: "agent",
-    public_key_hex: keys.publicBytes.toString("hex"),
-    created_at: createdAt,
-    signature: "",
-  };
-  const preimage = canonical(binding);
-  binding = {
-    ...binding,
-    binding_id: `vib_${sha256(preimage).slice(0, 16)}`,
-    signature: sign(null, Buffer.from(preimage), keys.privateKey).toString("hex"),
-  };
-  if (!verify(null, Buffer.from(preimage), keys.publicKey, Buffer.from(binding.signature, "hex"))) {
-    throw new Error("identity binding self-check failed");
-  }
-  return binding;
+/* DSSE Pre-Authentication Encoding:
+   `DSSEv1 SP LEN(payloadType) SP payloadType SP LEN(payload) SP payload`. */
+function pae(payloadType, payload) {
+  const type = Buffer.from(payloadType, "utf8");
+  return Buffer.concat([
+    Buffer.from("DSSEv1 ", "utf8"),
+    Buffer.from(String(type.length), "utf8"),
+    Buffer.from(" ", "utf8"),
+    type,
+    Buffer.from(" ", "utf8"),
+    Buffer.from(String(payload.length), "utf8"),
+    Buffer.from(" ", "utf8"),
+    payload,
+  ]);
 }
 
-/* A draft may not supply anything signing produces.
-
-   The spread below puts draft keys after `schema` and the blanked id, so a
-   draft carrying `submission_id` from a previous emission is hashed with that
-   id inside the preimage. This emitter exits 0; the Rust verifier then rejects
-   the object, because it recomputes with the id and signature cleared. Same
-   shape lets a draft set `schema` and be signed under a type nobody asked for.
-   `python.py` refuses identically. */
-function refuseSignedFields(draft, idField) {
-  const supplied = ["schema", idField, "authentication"].filter((field) => field in draft);
+/* A draft may not supply anything the emitter produces.
+ *
+ * The spread below puts draft keys after `schema` and `identity`, so a draft
+ * carrying either would sign a payload under a type or an actor nobody asked
+ * for. `python.py` refuses identically. */
+function refuseSignedFields(draft) {
+  const supplied = ["schema", "identity"].filter((field) => field in draft);
   if (supplied.length) {
     throw new Error(
-      `draft supplies ${supplied.join(", ")}, which signing produces. Pass a draft, not a signed object.`,
+      `draft supplies ${supplied.join(", ")}, which the emitter produces. Pass a draft, not a signed object.`,
     );
   }
 }
 
-function buildSubmission(draft, keys) {
-  const producer = draft?.provenance?.producer;
-  const emittedAt = draft?.provenance?.emitted_at;
-  if (typeof producer !== "string" || !producer.startsWith("agent:")) {
-    throw new Error("submission provenance.producer must start with agent:");
+function build(kind, draft, keys, options) {
+  const { schema, payloadType } = KINDS[kind];
+  refuseSignedFields(draft);
+  if (kind === "submission" && draft?.provenance?.producer !== options.actor) {
+    throw new Error("submission provenance.producer must be the declared signer");
   }
-  if (typeof emittedAt !== "string" || emittedAt.length === 0) {
-    throw new Error("submission provenance.emitted_at is required");
-  }
-  refuseSignedFields(draft, "submission_id");
-  const binding = buildBinding(producer, emittedAt, keys);
-  let object = {
-    schema: "vela.submission.v1",
-    submission_id: "",
+  const object = {
+    schema,
+    identity: {
+      schema: "vela.signer-identity.v1",
+      actor_id: options.actor,
+      actor_class: options["actor-class"],
+      public_key_hex: keys.publicBytes.toString("hex"),
+      declared_at: options["declared-at"],
+    },
     ...draft,
-    authentication: {
-      algorithm: "ed25519",
-      identity_binding: binding,
-      signature: "",
-    },
   };
-  const preimage = canonical(object);
-  object = {
-    ...object,
-    submission_id: `vsb_${sha256(preimage).slice(0, 16)}`,
-    authentication: {
-      ...object.authentication,
-      signature: sign(null, Buffer.from(preimage), keys.privateKey).toString("hex"),
-    },
-  };
-  return object;
-}
-
-function buildVerification(draft, keys) {
-  const verifier = draft?.verifier;
-  const createdAt = draft?.started_at;
-  if (typeof verifier !== "string" || verifier.length === 0) {
-    throw new Error("verification verifier is required");
+  const payload = Buffer.from(canonical(object), "utf8");
+  const signature = sign(null, pae(payloadType, payload), keys.privateKey);
+  if (!verify(null, pae(payloadType, payload), keys.publicKey, signature)) {
+    throw new Error("envelope self-check failed");
   }
-  if (typeof createdAt !== "string" || createdAt.length === 0) {
-    throw new Error("verification started_at is required");
-  }
-  refuseSignedFields(draft, "verification_record_id");
-  const binding = buildBinding(verifier, createdAt, keys);
-  let object = {
-    schema: "vela.verification-record.v1",
-    verification_record_id: "",
-    ...draft,
-    authentication: {
-      algorithm: "ed25519",
-      identity_binding: binding,
-      signature: "",
-    },
+  return {
+    payloadType,
+    payload: payload.toString("base64"),
+    signatures: [
+      { keyid: keys.publicBytes.toString("hex"), sig: signature.toString("base64") },
+    ],
   };
-  const preimage = canonical(object);
-  object = {
-    ...object,
-    verification_record_id: `vvr_${sha256(preimage).slice(0, 16)}`,
-    authentication: {
-      ...object.authentication,
-      signature: sign(null, Buffer.from(preimage), keys.privateKey).toString("hex"),
-    },
-  };
-  return object;
 }
 
 const { kind, options } = parseArgs(process.argv);
 const keys = keyPair(readSeed(options["seed-file"]));
-const draft = readJson(options.draft);
-const object = kind === "submission" ? buildSubmission(draft, keys) : buildVerification(draft, keys);
-const bytes = `${canonical(object)}\n`;
-writeFileSync(options.output, bytes, { encoding: "utf8", flag: "wx", mode: 0o444 });
+const envelope = build(kind, readJson(options.draft), keys, options);
+
+/* The retained bytes are the canonical envelope exactly, with no trailing
+   newline: the published root is over the file a reader is handed, and a byte
+   the root does not cover would make the two disagree. */
+const bytes = Buffer.from(canonical(envelope), "utf8");
+writeFileSync(options.output, bytes, { flag: "wx", mode: 0o444 });
+const root = `sha256:${sha256(bytes)}`;
 process.stdout.write(
   `${canonical({
     schema: "vela.reference-emission-result.v1",
     kind,
-    id: kind === "submission" ? object.submission_id : object.verification_record_id,
-    root: `sha256:${sha256(bytes.slice(0, -1))}`,
+    id: `${KINDS[kind].prefix}_${root.slice("sha256:".length, "sha256:".length + 16)}`,
+    root,
     output: resolve(options.output),
   })}\n`,
 );

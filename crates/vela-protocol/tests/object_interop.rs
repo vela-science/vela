@@ -1,8 +1,19 @@
+//! The independently emitted current objects, read by the Rust contract.
+//!
+//! `conformance/emitters/javascript.mjs` writes these files without importing
+//! anything from this crate. Agreement on the exact roots below is the whole
+//! point: two implementations independently canonicalize, sign and address the
+//! same scientific content, and land on the same bytes.
+
 use std::path::PathBuf;
 
-use vela_protocol::submission_v1::RequestedChange;
-use vela_protocol::submission_v1::SubmissionV1;
-use vela_protocol::verification_record::VerificationRecordV1;
+use vela_protocol::submission::{RequestedChange, SubmissionRecordV2};
+use vela_protocol::verification_record::VerificationRecordEnvelopeV2;
+
+const SUBMISSION_ROOT: &str =
+    "sha256:8779dcb8999d6030c234a14fe3af0e3745b84e513c9791913c128d0750c86830";
+const VERIFICATION_ROOT: &str =
+    "sha256:e03b1f71c12d79489025dd846aa92a60673a8f7fcf6703935c838d1681b14ba8";
 
 fn fixture(name: &str) -> Vec<u8> {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -13,52 +24,71 @@ fn fixture(name: &str) -> Vec<u8> {
 
 #[test]
 fn independent_javascript_submission_matches_rust_contract() {
-    let submission = SubmissionV1::parse(&fixture("submission.json"))
+    let record = SubmissionRecordV2::parse(&fixture("submission.json"))
         .expect("JavaScript Submission must satisfy the Rust parser");
-    assert_eq!(submission.submission_id, "vsb_8a36cdb336823499");
+    assert_eq!(record.root, SUBMISSION_ROOT);
     assert_eq!(
-        submission.canonical_root().unwrap(),
-        "sha256:81fd3abb891383dfc985d213b01b779f2edd51e6da23a68d3f85e0c8f6c41b82"
+        record.id,
+        vela_protocol::derive_handle("vsb_", SUBMISSION_ROOT).unwrap()
     );
-    assert_eq!(
-        submission.authentication.identity_binding.binding_id,
-        "vib_2e85aeb82ac75615"
-    );
+    assert_eq!(record.submission.identity.actor_id, "agent:independent-js");
 }
 
 #[test]
 fn independent_javascript_verification_matches_rust_contract() {
-    let record = VerificationRecordV1::parse(&fixture("verification.json"))
+    let sealed = VerificationRecordEnvelopeV2::parse(&fixture("verification.json"))
         .expect("JavaScript Verification Record must satisfy the Rust parser");
-    assert_eq!(record.verification_record_id, "vvr_eaea136b1e91be61");
-    assert_eq!(record.subject.submission_id, "vsb_8a36cdb336823499");
+    assert_eq!(sealed.root, VERIFICATION_ROOT);
     assert_eq!(
-        record.subject.submission_root,
-        "sha256:81fd3abb891383dfc985d213b01b779f2edd51e6da23a68d3f85e0c8f6c41b82"
+        sealed.id,
+        vela_protocol::derive_handle("vvr_", VERIFICATION_ROOT).unwrap()
     );
+    assert_eq!(sealed.record.subject.submission_root, SUBMISSION_ROOT);
     assert_eq!(
-        record.authentication.identity_binding.binding_id,
-        "vib_ddd94f07e1afcd52"
+        sealed.record.subject.submission_id,
+        vela_protocol::derive_handle("vsb_", SUBMISSION_ROOT).unwrap()
     );
-    assert_eq!(
-        record.canonical_root().unwrap(),
-        "sha256:e115767057a2d249d6e9bd710eeffe12bd48887310db567acd82f7af0a014382"
-    );
+    assert_eq!(sealed.record.verifier(), "verifier:independent-js");
 }
 
+/// Editing the payload of a signed envelope breaks it, in either direction.
 #[test]
 fn signed_current_objects_fail_closed_after_subject_drift() {
-    let mut submission: serde_json::Value =
-        serde_json::from_slice(&fixture("submission.json")).unwrap();
-    submission["claim"]["assertion"] = serde_json::json!("drifted assertion");
-    assert!(SubmissionV1::parse(&serde_json::to_vec(&submission).unwrap()).is_err());
+    for (name, pointer, replacement) in [
+        (
+            "submission.json",
+            ["claim", "assertion"].as_slice(),
+            "drifted assertion",
+        ),
+        (
+            "verification.json",
+            ["subject", "submission_root"].as_slice(),
+            "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        ),
+    ] {
+        let mut envelope: serde_json::Value = serde_json::from_slice(&fixture(name)).unwrap();
+        let encoded = envelope["payload"].as_str().unwrap();
+        let mut payload: serde_json::Value = serde_json::from_slice(
+            &vela_protocol::dsse::decode_base64("payload", encoded).unwrap(),
+        )
+        .unwrap();
+        let mut cursor = &mut payload;
+        for step in &pointer[..pointer.len() - 1] {
+            cursor = &mut cursor[*step];
+        }
+        cursor[pointer[pointer.len() - 1]] = serde_json::json!(replacement);
+        envelope["payload"] = serde_json::json!(vela_protocol::dsse::encode_base64(
+            &serde_json::to_vec(&payload).unwrap()
+        ));
 
-    let mut verification: serde_json::Value =
-        serde_json::from_slice(&fixture("verification.json")).unwrap();
-    verification["subject"]["submission_root"] = serde_json::json!(
-        "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-    );
-    assert!(VerificationRecordV1::parse(&serde_json::to_vec(&verification).unwrap()).is_err());
+        let bytes = serde_json::to_vec(&envelope).unwrap();
+        let parsed = if name == "submission.json" {
+            SubmissionRecordV2::parse(&bytes).err()
+        } else {
+            VerificationRecordEnvelopeV2::parse(&bytes).err()
+        };
+        assert!(parsed.is_some(), "{name} accepted a payload nobody signed");
+    }
 }
 
 #[test]

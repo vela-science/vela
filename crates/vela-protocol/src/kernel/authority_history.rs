@@ -10,9 +10,11 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 
 use crate::authority::{
-    AuthorityEnvelopeV1, AuthorityEventV1, AuthorityKeysetV1, CedarDecision, PolicyBundleV1,
-    VerifiedAuthorityRecord, verify_authority_envelope, verify_authority_keyset_transition,
-    verify_policy_bundle_transition,
+    AuthorityEnvelopeV1, AuthorityEventV1, AuthorityKeysetV1, VerifiedAuthorityRecord,
+    verify_authority_envelope, verify_authority_keyset_transition,
+};
+use crate::authorization::{
+    AuthorizationDecisionV1, AuthorizationModelV1, evaluate_authorization_v1,
 };
 use crate::canonical::sha256_canonical;
 use crate::events::NULL_HASH;
@@ -23,7 +25,7 @@ pub const AUTHORITY_INITIALIZE_ACTION: &str = "authority_initialize";
 pub const AUTHORITY_INITIALIZED_EVENT_KIND: &str = "authority.initialized";
 pub const AUTHORITY_ROTATE_ACTION: &str = "authority_rotate";
 pub const AUTHORITY_CLOSE_ACTION: &str = "authority_close";
-pub const POLICY_ROTATE_ACTION: &str = "policy_rotate";
+pub const AUTHORITY_MODEL_UPDATE_ACTION: &str = "authority_model_update";
 pub const AUTHORITY_CLOSE_SCHEMA_V1: &str = "vela.authority-close.v1";
 pub const AUTHORITY_CLOSED_EVENT_KIND: &str = "authority.closed";
 
@@ -50,7 +52,7 @@ pub struct AuthorityCloseV1 {
     pub last_trusted_authority_record_root: String,
     pub previous_authority_keyset_root: String,
     pub closed_authority_keyset_root: String,
-    pub policy_bundle_root: String,
+    pub authorization_model_root: String,
     pub incident_id: String,
     pub reason: String,
 }
@@ -76,7 +78,10 @@ impl AuthorityCloseV1 {
                 "closed_authority_keyset_root",
                 self.closed_authority_keyset_root.as_str(),
             ),
-            ("policy_bundle_root", self.policy_bundle_root.as_str()),
+            (
+                "authorization_model_root",
+                self.authorization_model_root.as_str(),
+            ),
         ] {
             require_sha256_root(name, root)?;
         }
@@ -103,7 +108,7 @@ pub struct AuthorityInitializationV1 {
     pub initial_event_log_root: String,
     pub initial_actor_registry_root: String,
     pub new_authority_keyset_root: String,
-    pub new_policy_bundle_root: String,
+    pub new_authorization_model_root: String,
     pub new_principal_id: String,
     pub minimum_writer_version: String,
     pub reason: String,
@@ -131,8 +136,8 @@ impl AuthorityInitializationV1 {
                 self.new_authority_keyset_root.as_str(),
             ),
             (
-                "new_policy_bundle_root",
-                self.new_policy_bundle_root.as_str(),
+                "new_authorization_model_root",
+                self.new_authorization_model_root.as_str(),
             ),
         ] {
             require_sha256_root(name, root)?;
@@ -170,7 +175,7 @@ pub struct AuthorityHistoryVerification {
     pub first_authority_record_root: Option<String>,
     pub final_authority_record_root: Option<String>,
     pub final_authority_keyset_root: Option<String>,
-    pub final_policy_bundle_root: Option<String>,
+    pub final_authorization_model_root: Option<String>,
     #[serde(default, skip_serializing_if = "is_false")]
     pub closed: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -184,9 +189,8 @@ pub struct AuthorityHistoryInput<'a> {
     pub initial_actor_registry_root: &'a str,
     /// Compacted origins retained initial keyset and policy snapshots as
     /// canonical evidence rather than sequence-one transition deltas.
-    pub initial_snapshots_preexisting: bool,
     pub authority_keysets: &'a [AuthorityKeysetV1],
-    pub policy_bundles: &'a [PolicyBundleV1],
+    pub authorization_models: &'a [AuthorizationModelV1],
     pub authority_events: &'a [AuthorityEventV1],
     pub authority_envelopes: &'a [AuthorityEnvelopeV1],
 }
@@ -212,7 +216,7 @@ pub fn verify_authority_history(
             first_authority_record_root: None,
             final_authority_record_root: None,
             final_authority_keyset_root: None,
-            final_policy_bundle_root: None,
+            final_authorization_model_root: None,
             closed: false,
             closure_event_id: None,
         });
@@ -222,7 +226,8 @@ pub fn verify_authority_history(
     }
 
     let authority_keysets = index_authority_keysets(input.repository_id, input.authority_keysets)?;
-    let policy_bundles = index_policy_bundles(input.repository_id, input.policy_bundles)?;
+    let authorization_models =
+        index_authorization_models(input.repository_id, input.authorization_models)?;
     let initializations = input
         .authority_events
         .iter()
@@ -235,13 +240,13 @@ pub fn verify_authority_history(
     };
     let initialization = initialization_payload_from_event(initialization_event)?;
     let mut active_keyset_root = initialization.new_authority_keyset_root.clone();
-    let mut active_policy_root = initialization.new_policy_bundle_root.clone();
+    let mut active_model_root = initialization.new_authorization_model_root.clone();
     let mut active_keyset = authority_keysets
         .get(&active_keyset_root)
         .copied()
         .ok_or_else(|| "initial authority keyset is not retained".to_string())?;
-    let mut active_policy = policy_bundles
-        .get(&active_policy_root)
+    let mut active_model = authorization_models
+        .get(&active_model_root)
         .copied()
         .ok_or_else(|| "initial policy bundle is not retained".to_string())?;
     verify_origin_authority_initialization(
@@ -249,20 +254,20 @@ pub fn verify_authority_history(
         input.initial_event_log_root,
         input.initial_actor_registry_root,
         active_keyset,
-        active_policy,
+        active_model,
         initialization_event,
     )?;
     if active_keyset.generation != 1
         || active_keyset.previous_keyset_root.is_some()
         || active_keyset.activation_record_root.is_some()
-        || active_policy.previous_bundle_root.is_some()
+        || active_model.previous_model_root.is_some()
     {
         return Err(
             "authority boundary must activate initial keyset and policy generations".into(),
         );
     }
     let mut activated_keysets = BTreeSet::from([active_keyset_root.clone()]);
-    let mut activated_policies = BTreeSet::from([active_policy_root.clone()]);
+    let mut activated_models = BTreeSet::from([active_model_root.clone()]);
 
     let mut era_one_by_id = BTreeMap::new();
     let mut era_one_by_transaction: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
@@ -299,7 +304,7 @@ pub fn verify_authority_history(
             sequence,
             previous_record_root.as_deref(),
         )?;
-        verify_record_authorization(&verified, active_policy)?;
+        verify_record_authorization(&verified, active_model)?;
         if verified.record.content.before_event_log_root != current_event_root {
             return Err(format!(
                 "authority record {sequence} has the wrong before-event root"
@@ -312,7 +317,6 @@ pub fn verify_authority_history(
                 initialization_event,
                 &initialization,
                 &initial_event_log_root,
-                input.initial_snapshots_preexisting,
             )?;
             covered_era_one.insert(initialization_event.id.clone());
             cumulative_era_one.push(*initialization_event);
@@ -373,7 +377,7 @@ pub fn verify_authority_history(
             current_event_root = expected_after;
 
             let previous_keyset_root = active_keyset_root.clone();
-            let previous_policy_root = active_policy_root.clone();
+            let previous_policy_root = active_model_root.clone();
             let next_keyset = keyset_transition_for_record(
                 &verified,
                 active_keyset,
@@ -383,7 +387,7 @@ pub fn verify_authority_history(
                     .ok_or_else(|| "authority keyset activation sequence overflows".to_string())?,
             )?;
             let next_policy =
-                policy_transition_for_record(&verified, active_policy, &policy_bundles)?;
+                model_transition_for_record(&verified, active_model, &authorization_models)?;
             if next_keyset.is_some_and(|next| next.closed) && next_policy.is_some() {
                 return Err("terminal authority close cannot also activate a policy bundle".into());
             }
@@ -395,11 +399,11 @@ pub fn verify_authority_history(
                 active_keyset = next;
             }
             if let Some(next) = next_policy {
-                active_policy_root = next.root()?;
-                if !activated_policies.insert(active_policy_root.clone()) {
+                active_model_root = next.root()?;
+                if !activated_models.insert(active_model_root.clone()) {
                     return Err("policy bundle generation was activated more than once".into());
                 }
-                active_policy = next;
+                active_model = next;
             }
             if active_keyset.closed {
                 let event_id = verify_authority_close_record(
@@ -437,7 +441,12 @@ pub fn verify_authority_history(
     {
         return Err("retained authority keyset store contains an unactivated generation".into());
     }
-    if activated_policies != policy_bundles.keys().cloned().collect::<BTreeSet<String>>() {
+    if activated_models
+        != authorization_models
+            .keys()
+            .cloned()
+            .collect::<BTreeSet<String>>()
+    {
         return Err("retained policy store contains an unactivated generation".into());
     }
 
@@ -453,7 +462,7 @@ pub fn verify_authority_history(
             .map(|record| record.record_root.clone()),
         final_authority_record_root: previous_record_root,
         final_authority_keyset_root: Some(active_keyset_root),
-        final_policy_bundle_root: Some(active_policy_root),
+        final_authorization_model_root: Some(active_model_root),
         closed,
         closure_event_id,
     })
@@ -477,10 +486,10 @@ fn index_authority_keysets<'a>(
     Ok(indexed)
 }
 
-fn index_policy_bundles<'a>(
+fn index_authorization_models<'a>(
     repository_id: &str,
-    bundles: &'a [PolicyBundleV1],
-) -> Result<BTreeMap<String, &'a PolicyBundleV1>, String> {
+    bundles: &'a [AuthorizationModelV1],
+) -> Result<BTreeMap<String, &'a AuthorizationModelV1>, String> {
     let mut indexed = BTreeMap::new();
     for bundle in bundles {
         bundle.validate()?;
@@ -558,17 +567,17 @@ fn keyset_transition_for_record<'a>(
     Ok(Some(next))
 }
 
-fn policy_transition_for_record<'a>(
+fn model_transition_for_record<'a>(
     verified: &VerifiedAuthorityRecord,
-    current: &PolicyBundleV1,
-    retained: &BTreeMap<String, &'a PolicyBundleV1>,
-) -> Result<Option<&'a PolicyBundleV1>, String> {
+    current: &AuthorizationModelV1,
+    retained: &BTreeMap<String, &'a AuthorizationModelV1>,
+) -> Result<Option<&'a AuthorizationModelV1>, String> {
     let deltas = verified
         .record
         .content
         .object_delta
         .iter()
-        .filter(|delta| delta.object_kind == "policy_bundle")
+        .filter(|delta| delta.object_kind == "authorization_model")
         .collect::<Vec<_>>();
     if deltas.is_empty() {
         return Ok(None);
@@ -581,7 +590,7 @@ fn policy_transition_for_record<'a>(
         .content
         .semantic_approvals
         .iter()
-        .any(|approval| approval.action == POLICY_ROTATE_ACTION)
+        .any(|approval| approval.action == AUTHORITY_MODEL_UPDATE_ACTION)
     {
         return Err("policy bundle transition lacks policy_rotate approval".into());
     }
@@ -596,14 +605,14 @@ fn policy_transition_for_record<'a>(
     let stem = root
         .strip_prefix("sha256:")
         .ok_or_else(|| "policy bundle transition root lacks sha256 tag".to_string())?;
-    if delta.path != format!(".vela/authority/policies/{stem}.json") {
+    if delta.path != format!(".vela/authority/models/{stem}.json") {
         return Err("policy bundle transition path does not match its full root".into());
     }
     let next = retained
         .get(root)
         .copied()
         .ok_or_else(|| "policy bundle transition snapshot is not retained".to_string())?;
-    verify_policy_bundle_transition(current, next)?;
+    crate::authorization::verify_authorization_model_transition(current, next)?;
     Ok(Some(next))
 }
 
@@ -613,7 +622,7 @@ fn verify_authority_close_record(
     sequence: u64,
     previous_keyset_root: &str,
     closed_keyset_root: &str,
-    policy_bundle_root: &str,
+    authorization_model_root: &str,
 ) -> Result<String, String> {
     if transaction_events.len() != 1 || verified.record.content.object_delta.len() != 2 {
         return Err(
@@ -645,7 +654,7 @@ fn verify_authority_close_record(
         || payload.last_trusted_authority_record_root != previous_record_root
         || payload.previous_authority_keyset_root != previous_keyset_root
         || payload.closed_authority_keyset_root != closed_keyset_root
-        || payload.policy_bundle_root != policy_bundle_root
+        || payload.authorization_model_root != authorization_model_root
         || payload.reason != event.content.reason
     {
         return Err("authority close payload does not match its exact terminal transition".into());
@@ -659,7 +668,7 @@ pub fn verify_origin_authority_initialization(
     initial_event_log_root: &str,
     initial_actor_registry_root: &str,
     authority_keyset: &AuthorityKeysetV1,
-    policy_bundle: &PolicyBundleV1,
+    authorization_model: &AuthorizationModelV1,
     initialization_event: &AuthorityEventV1,
 ) -> Result<AuthorityInitializationV1, String> {
     require_repository(repository_id)?;
@@ -673,11 +682,11 @@ pub fn verify_origin_authority_initialization(
         return Err("current authority initialization does not bind its exact origin roots".into());
     }
     authority_keyset.validate()?;
-    policy_bundle.validate()?;
+    authorization_model.validate()?;
     if authority_keyset.repository_id != repository_id
-        || policy_bundle.repository_id != repository_id
+        || authorization_model.repository_id != repository_id
         || payload.new_authority_keyset_root != authority_keyset.root()?
-        || payload.new_policy_bundle_root != policy_bundle.root()?
+        || payload.new_authorization_model_root != authorization_model.root()?
     {
         return Err(
             "current authority initialization does not bind its initial authority inputs".into(),
@@ -745,7 +754,6 @@ fn verify_first_initialization_record(
     initialization_event: &AuthorityEventV1,
     initialization: &AuthorityInitializationV1,
     initial_event_log_root: &str,
-    initial_snapshots_preexisting: bool,
 ) -> Result<(), String> {
     let record = &verified.record;
     let event_root = initialization_event.root()?;
@@ -782,33 +790,25 @@ fn verify_first_initialization_record(
     if event_matches != 1 {
         return Err("authority record 1 lacks one exact fresh initialization event delta".into());
     }
-    if initial_snapshots_preexisting {
-        if record.content.authority_keyset_root != initialization.new_authority_keyset_root
-            || record.content.authorization.policy_bundle_root
-                != initialization.new_policy_bundle_root
-        {
-            return Err(
-                "current repository origin does not bind its retained authority snapshots".into(),
-            );
-        }
-        return Ok(());
-    }
+    /* A compaction origin carried its predecessor's keyset and policy
+    snapshots forward, so record 1 bound them rather than installing them.
+    Genesis is the only origin now: record 1 always installs both. */
     verify_initial_snapshot_delta(
         verified,
         &initialization.new_authority_keyset_root,
-        &initialization.new_policy_bundle_root,
+        &initialization.new_authorization_model_root,
     )
 }
 
 fn verify_initial_snapshot_delta(
     verified: &VerifiedAuthorityRecord,
     authority_keyset_root: &str,
-    policy_bundle_root: &str,
+    authorization_model_root: &str,
 ) -> Result<(), String> {
     let keyset_stem = authority_keyset_root
         .strip_prefix("sha256:")
         .ok_or_else(|| "initial authority keyset root lacks sha256 tag".to_string())?;
-    let policy_stem = policy_bundle_root
+    let policy_stem = authorization_model_root
         .strip_prefix("sha256:")
         .ok_or_else(|| "initial policy bundle root lacks sha256 tag".to_string())?;
     let expected = [
@@ -818,9 +818,9 @@ fn verify_initial_snapshot_delta(
             "authority_keyset",
         ),
         (
-            format!(".vela/authority/policies/{policy_stem}.json"),
-            policy_bundle_root,
-            "policy_bundle",
+            format!(".vela/authority/models/{policy_stem}.json"),
+            authorization_model_root,
+            "authorization_model",
         ),
     ];
     for (path, root, kind) in expected {
@@ -845,23 +845,42 @@ fn verify_initial_snapshot_delta(
     Ok(())
 }
 
+/// Re-decide the authorization this record was written under.
+///
+/// This used to check that a retained attestation said `Allow` and that it
+/// named the pinned engine, version and profile. It could do no more: the
+/// request and the entity snapshot were named by root only, so nothing in the
+/// record could be evaluated again. Replay verified that someone had recorded
+/// an `Allow`, not that `Allow` was the right answer — ADR 0035 §4's history
+/// gap, in one function.
+///
+/// The record now retains the exact request, and the model it was decided
+/// under is the one this repository retains at that root, so the decision is
+/// recomputed here and compared. An authority record whose evaluation does not
+/// follow from its own inputs fails replay.
 fn verify_record_authorization(
     verified: &VerifiedAuthorityRecord,
-    policy_bundle: &PolicyBundleV1,
+    authorization_model: &AuthorizationModelV1,
 ) -> Result<(), String> {
     let authorization = &verified.record.content.authorization;
-    let evaluation = &authorization.evaluation;
-    if authorization.policy_bundle_root != policy_bundle.root()?
-        || !evaluation.valid
-        || evaluation.decision != CedarDecision::Allow
-        || evaluation.engine != crate::authority::CEDAR_ENGINE
-        || evaluation.engine_version != crate::authority::CEDAR_ENGINE_VERSION
-        || evaluation.profile != crate::authority::CEDAR_PROFILE_V1
-        || !evaluation.diagnostics.is_empty()
-    {
+    let sequence = verified.record.content.sequence;
+    if authorization.model_root != authorization_model.root()? {
         return Err(format!(
-            "authority record {} lacks a valid pinned Cedar authorization",
-            verified.record.content.sequence
+            "authority record {sequence} does not bind the active authorization model"
+        ));
+    }
+    let recomputed = evaluate_authorization_v1(authorization_model, &authorization.request)
+        .map_err(|error| {
+            format!("authority record {sequence} authorization is invalid: {error}")
+        })?;
+    if recomputed != authorization.evaluation {
+        return Err(format!(
+            "authority record {sequence} retains an authorization its own inputs do not produce"
+        ));
+    }
+    if recomputed.decision != AuthorizationDecisionV1::Allow {
+        return Err(format!(
+            "authority record {sequence} was written under a denied authorization"
         ));
     }
     Ok(())
@@ -918,7 +937,7 @@ mod tests {
             initial_event_log_root: root('1'),
             initial_actor_registry_root: root('2'),
             new_authority_keyset_root: root('3'),
-            new_policy_bundle_root: root('4'),
+            new_authorization_model_root: root('4'),
             new_principal_id: "local:fixture|uid:501".into(),
             minimum_writer_version: "0.930.0".into(),
             reason: "Initialize the exact current repository authority.".into(),
@@ -938,9 +957,8 @@ mod tests {
             repository_id: "vrepo_fixture",
             initial_event_log_root: &initial_event_root,
             initial_actor_registry_root: &initial_actor_root,
-            initial_snapshots_preexisting: true,
             authority_keysets: &[],
-            policy_bundles: &[],
+            authorization_models: &[],
             authority_events: &[],
             authority_envelopes: &[],
         })

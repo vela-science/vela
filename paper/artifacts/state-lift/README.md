@@ -19,7 +19,7 @@ advantage in one invalidated first-party pair and motivated a smaller task.
 
 ## Retained evidence
 
-The active tree keeps only `result.v2.json`. It binds the frozen protocol and
+The active tree keeps only `result.json`. It binds the frozen protocol and
 task roots, both completed session records, answers, scores, event streams, the
 stop condition, and every unrun session. The complete historical harness and
 evidence remain recoverable from Git at

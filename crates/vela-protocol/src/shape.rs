@@ -65,6 +65,53 @@ pub fn is_prefixed_lower_hex(value: &str, prefix: &str, hex_len: usize) -> bool 
         .is_some_and(|hex| hex.len() == hex_len && hex.bytes().all(is_lower_hex))
 }
 
+/// The hexadecimal width of a derived display handle.
+pub const HANDLE_HEX_LEN: usize = 16;
+
+/// Derive the readable handle for an object from its full root.
+///
+/// A handle is a prefix of a root and nothing else. It is not stored inside
+/// the object it names — an object cannot contain its own content address —
+/// and where one appears in a reference it sits beside the root it came from,
+/// so a reader re-derives it rather than trusting it. That is the rule that
+/// makes a truncated identifier safe to print: it is a rendering of an exact
+/// value, never the value itself, and it can always be checked.
+///
+/// The `vsb_`, `vvr_`, `vpr_`, `vpw_` and `vro_` handles were each stored in
+/// their own object, over a preimage that had to be reconstructed by clearing
+/// the very field being derived. Deriving them here removes both the stored
+/// field and the clearing convention.
+pub fn derive_handle(prefix: &str, root: &str) -> Result<String, String> {
+    let Some(hex) = root.strip_prefix("sha256:") else {
+        return Err(format!("cannot derive `{prefix}` handle from {root}"));
+    };
+    if !is_lower_hex_64(hex) {
+        return Err(format!("cannot derive `{prefix}` handle from {root}"));
+    }
+    Ok(format!("{prefix}{}", &hex[..HANDLE_HEX_LEN]))
+}
+
+/// Require a stored reference handle to be the one its root derives.
+///
+/// A handle that disagrees with the root beside it is the ambiguity a
+/// truncated identifier invites, and it fails here rather than resolving to
+/// whichever object a scan happens to reach first.
+pub(crate) fn require_derived_handle(
+    name: &str,
+    value: &str,
+    prefix: &str,
+    root: &str,
+) -> Result<(), String> {
+    let expected = derive_handle(prefix, root)
+        .map_err(|_| format!("{name} cannot be checked against a malformed root"))?;
+    if value != expected {
+        return Err(format!(
+            "{name} must be {expected}, the handle its root derives, not {value}"
+        ));
+    }
+    Ok(())
+}
+
 /// A full `sha256:` root, named for the caller's field.
 ///
 /// Three kernel modules carried this character for character — body and error

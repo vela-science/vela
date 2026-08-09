@@ -177,9 +177,9 @@ signed origin boundary and rejects any reintroduced predecessor path.
 ### Key compromise
 
 A stolen repository-authority key can sign within the policy and principal
-context available to the attacker. Restricted Cedar actions and exact read-set
-binding reduce substitution and accidental misuse but cannot make a stolen key
-safe.
+context available to the attacker. The closed action vocabulary and exact
+read-set binding reduce substitution and accidental misuse but cannot make a
+stolen key safe.
 
 Rotation, revocation, and incident response must be explicit authority
 transitions. Deleting local key material cannot rewrite historical signatures.
