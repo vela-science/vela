@@ -16,8 +16,8 @@ TREE = "b" * 40
 WITNESS = b'{"witness": true}\n'
 
 
-def build(frontier):
-    return frontier(
+def build(repository):
+    return repository(
         {
             "quantum_retained_certificate": {
                 "source_id": "source:quantum-retained-certificate",
@@ -34,22 +34,22 @@ def build(frontier):
     )
 
 
-def test_a_freshly_written_lock_checks_out_offline(frontier, offline):
-    root = build(frontier)
+def test_a_freshly_written_lock_checks_out_offline(repository, offline):
+    root = build(repository)
     assert write_sources_lock(root).ok
     assert check(root) == []
     assert main([str(root), "--check"]) == 0
 
 
-def test_a_missing_lock_is_reported_rather_than_written(frontier, offline):
-    root = build(frontier)
+def test_a_missing_lock_is_reported_rather_than_written(repository, offline):
+    root = build(repository)
     assert main([str(root), "--check"]) == 1
     assert not (root / "sources.lock.json").exists()
 
 
-def test_an_edited_in_repository_artifact_leaves_its_lock_behind(frontier, offline):
+def test_an_edited_in_repository_artifact_leaves_its_lock_behind(repository, offline):
     """The one content root a check can settle without the network, settled."""
-    root = build(frontier)
+    root = build(repository)
     write_sources_lock(root)
     (root / "artifacts" / "quantum-10-1-4.witness.json").write_bytes(b'{"witness": false}\n')
 
@@ -58,8 +58,8 @@ def test_an_edited_in_repository_artifact_leaves_its_lock_behind(frontier, offli
     assert any(root_of(WITNESS) in p and "hashes to" in p for p in problems)
 
 
-def test_a_source_added_to_the_declaration_is_not_silently_uncovered(frontier, offline):
-    root = build(frontier)
+def test_a_source_added_to_the_declaration_is_not_silently_uncovered(repository, offline):
+    root = build(repository)
     write_sources_lock(root)
     declaration = yaml.safe_load((root / "sources.yaml").read_text())
     declaration["sources"]["oeis"] = {
@@ -73,8 +73,8 @@ def test_a_source_added_to_the_declaration_is_not_silently_uncovered(frontier, o
                for p in check(root))
 
 
-def test_a_hand_edited_locator_is_caught(frontier, offline):
-    root = build(frontier)
+def test_a_hand_edited_locator_is_caught(repository, offline):
+    root = build(repository)
     write_sources_lock(root)
     lock = json.loads((root / "sources.lock.json").read_text())
     lock["sources"]["codetables"]["url"] = "https://example.invalid/"
@@ -83,8 +83,8 @@ def test_a_hand_edited_locator_is_caught(frontier, offline):
     assert any("codetables: sources.yaml declares url=" in p for p in check(root))
 
 
-def test_a_lock_carrying_an_error_never_checks_out(frontier):
-    root = frontier(
+def test_a_lock_carrying_an_error_never_checks_out(repository):
+    root = repository(
         {
             "jayyhk": {
                 "source_id": "source:jayyhk-erdos-lean",
@@ -98,12 +98,12 @@ def test_a_lock_carrying_an_error_never_checks_out(frontier):
     assert any("the lock records a gap" in p for p in check(root))
 
 
-def test_the_default_check_does_not_reach_upstream(frontier, offline):
+def test_the_default_check_does_not_reach_upstream(repository, offline):
     """A lock records what was acquired at a moment. Some are stale on purpose,
     so asking upstream is opt-in; the `offline` fixture proves the default does
     not ask. Erdős's live-fetched pins are the reason this matters.
     """
-    root = frontier(
+    root = repository(
         {
             "erdos": {
                 "source_id": "source:erdos-problems",

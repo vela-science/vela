@@ -388,7 +388,8 @@ vela init ./my-repository \
   --scope "Does X hold?"
 ```
 
-Initialization writes Profile v2, binds one Ed25519 identity from the normal
+Initialization writes Repository Profile v1, binds one Ed25519 identity from the
+normal
 OpenSSH agent, installs the repository origin and local trust anchor, and
 commits the verified initial state. If signing fails, the Profile is retained;
 load the key and rerun the same `vela init` command. Use `--key` when the agent

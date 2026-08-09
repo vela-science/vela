@@ -1,4 +1,4 @@
-//! Verification Record intake for Profile v2 repositories.
+//! Verification Record intake for Repository Profile v1 repositories.
 //!
 //! Verification remains scoped authenticated evidence. This writer retains one
 //! exact Verification Record and advances the current repository without
@@ -188,7 +188,7 @@ fn method_manifest_binding(
     {
         return Err("Verification method path must be normalized printable text".into());
     }
-    let bytes = crate::bounded_file::read_bounded_frontier_file(
+    let bytes = crate::bounded_file::read_bounded_repository_file(
         repository_path,
         method_path,
         METHOD_MANIFEST_MAX_BYTES,
@@ -844,7 +844,7 @@ mod tests {
             schema: REPOSITORY_SCHEMA_V4.into(),
             repository_id: "01234567-89ab-4def-8123-456789abcdef".into(),
             profile_root: root('1'),
-            origin_id: "vro_0123456789abcdef".into(),
+            origin_id: vela_protocol::derive_handle("vro_", &root('2')).unwrap(),
             origin_root: root('2'),
             accepted_claims: Vec::new(),
             pending_claims: Vec::new(),

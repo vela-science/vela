@@ -20,12 +20,16 @@ does not retroactively broaden what a verifier checked.
 
 ## Frozen reproduction
 
-`vela reproduce <frontier>` re-runs the frontier's frozen verifiers against the
-stored witness bytes and environment pins. It must not consult an unpinned
+`vela reproduce [<path>]` re-runs the stored frozen verifiers against the
+stored witness bytes and environment pins. `<path>` is a reproduction scope — a
+witness file, a directory of witnesses, or a repository — and defaults to the
+current directory; it is never discovered upward. It must not consult an unpinned
 network resource or model judgment. The command reports the property each
 verifier checked and refuses malformed or mismatched inputs.
 
-`vela replay <frontier> --json` validates the current repository origin:
+`vela replay [<repo>] --json` validates the current repository origin, taking
+the repository as a positional or `--repo` and discovering it upward when
+omitted:
 content addresses, authority-history continuity, admitted-event replay,
 required Artifacts, exact Git ancestry, retained canonical objects, derived
 parity, and the independently installed sequence-one authority trust root. It
@@ -43,7 +47,7 @@ defects and keeps that context invalid. It is diagnostic, not a bypass:
 invalid authority or repository context grants no identity, signature, or
 historical exemption, and canonical writers fail before journaling.
 
-When a pending proposal retains a frontier-local frozen witness, `review show`
+When a pending proposal retains a repository-local frozen witness, `review show`
 advertises proposal-scoped reproduction:
 
 ```bash
@@ -57,7 +61,7 @@ Some domains retain a rooted source-local replay capsule rather than a Vela
 witness. In that case the same command validates the capsule's exact Proposal
 and implementation bindings, refuses to execute repository code, and returns
 the native validation command as its structured error hint. For example, a
-Lean Frontier may point to a retained Python replay that prepares the exact
+Lean Repository may point to a retained Python replay that prepares the exact
 source revision and invokes Lean. Vela remains the state and handoff layer;
 the domain-native tool remains the verifier. A digest, historical pass record,
 or source-local script is never silently treated as executable verification.
@@ -91,7 +95,7 @@ vela verification record . <vpr_id> \
   --json
 ```
 
-The method manifest is one bounded, regular, frontier-relative file retained
+The method manifest is one bounded, regular, repository-relative file retained
 unchanged in the current Git commit. Its exact bytes become the record's
 environment root. Vela resolves the current Claim, Submission, Proposal, and
 Submission Artifacts before it loads or creates the verifier's local agent key,

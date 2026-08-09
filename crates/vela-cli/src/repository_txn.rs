@@ -3746,7 +3746,7 @@ mod tests {
         );
     }
 
-    fn initialize_failpoint_frontier(root: &Path) {
+    fn initialize_failpoint_repository(root: &Path) {
         fs::create_dir_all(root).unwrap();
         fs::write(root.join("keep.txt"), b"unchanged").unwrap();
         fs::write(root.join("obsolete.json"), b"remove me").unwrap();
@@ -3867,7 +3867,7 @@ mod tests {
     }
 
     #[test]
-    fn frontier_txn_rejects_unsafe_paths_and_symlink_ancestors() {
+    fn repository_txn_rejects_unsafe_paths_and_symlink_ancestors() {
         for path in [
             "",
             "/absolute",
@@ -4075,7 +4075,7 @@ mod tests {
     }
 
     #[test]
-    fn pre_marker_failpoints_leave_zero_frontier_delta_and_retry_exactly() {
+    fn pre_marker_failpoints_leave_zero_repository_delta_and_retry_exactly() {
         let blob_count = 5;
         let mut prepare_failpoints = Vec::new();
         for index in 0..blob_count {
@@ -4091,7 +4091,7 @@ mod tests {
             let temp = tempfile::tempdir().unwrap();
             let root = temp.path().join("repository");
             let journals = temp.path().join("journals");
-            initialize_failpoint_frontier(&root);
+            initialize_failpoint_repository(&root);
             let before = snapshot_files(&root);
             let draft = DeltaDraft::prepare(&root, failpoint_writes()).unwrap();
             assert_eq!(draft.blobs.len(), blob_count);
@@ -4150,7 +4150,7 @@ mod tests {
             let temp = tempfile::tempdir().unwrap();
             let root = temp.path().join("repository");
             let journals = temp.path().join("journals");
-            initialize_failpoint_frontier(&root);
+            initialize_failpoint_repository(&root);
             let before = snapshot_files(&root);
             let identity = format!("abort {step:?}");
             let draft = DeltaDraft::prepare(&root, failpoint_writes()).unwrap();
@@ -4201,7 +4201,7 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
-        initialize_failpoint_frontier(&root);
+        initialize_failpoint_repository(&root);
         let before = snapshot_files(&root);
         let draft = DeltaDraft::prepare(&root, failpoint_writes()).unwrap();
         let plan = fixture_plan(&root, &draft, b"marker write failure");
@@ -4304,7 +4304,7 @@ mod tests {
             let temp = tempfile::tempdir().unwrap();
             let root = temp.path().join("repository");
             let journals = temp.path().join("journals");
-            initialize_failpoint_frontier(&root);
+            initialize_failpoint_repository(&root);
             let draft = DeltaDraft::prepare(&root, failpoint_writes()).unwrap();
             assert!(
                 draft
@@ -4364,7 +4364,7 @@ mod tests {
                 let temp = tempfile::tempdir().unwrap();
                 let root = temp.path().join("repository");
                 let journals = temp.path().join("journals");
-                initialize_failpoint_frontier(&root);
+                initialize_failpoint_repository(&root);
                 let draft = DeltaDraft::prepare(&root, failpoint_writes()).unwrap();
                 let conflicted_write = draft.delta.writes()[index].clone();
                 let conflicted_target = conflicted_write.path.target(&root).unwrap();
@@ -4634,7 +4634,7 @@ mod tests {
     }
 
     #[test]
-    fn incomplete_journal_is_a_frontier_wide_recovery_barrier() {
+    fn incomplete_journal_is_a_repository_wide_recovery_barrier() {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
@@ -4936,7 +4936,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn observed_parent_symlink_swap_after_marker_never_writes_outside_the_frontier() {
+    fn observed_parent_symlink_swap_after_marker_never_writes_outside_the_repository() {
         use std::os::unix::fs::symlink;
 
         let temp = tempfile::tempdir().unwrap();
@@ -4986,7 +4986,7 @@ mod tests {
     }
 
     #[test]
-    fn recovery_before_marker_has_zero_frontier_delta() {
+    fn recovery_before_marker_has_zero_repository_delta() {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().join("repository");
         let journals = temp.path().join("journals");

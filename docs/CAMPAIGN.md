@@ -1,7 +1,7 @@
 # Current Vela work
 
 Vela now has a complete local operator loop. The active programme is to turn
-the exact state already held in Frontiers into a useful public problem map and
+the exact state already held in Repositories into a useful public problem map and
 reviewer-ready contributions to native scientific commons.
 
 ## Active product loop
@@ -16,7 +16,7 @@ The current tranche is successful when:
 1. `problems.science` serves a useful Erdős-first map from the existing Vela
    Web release and read model;
 2. every consequential status is qualified by its native source or named
-   Frontier;
+   Repository;
 3. deep problem pages show what stands, what is contested, what is missing,
    and the next valid action;
 4. three Formal Conjectures or Erdős artifacts receive explicit extraction
@@ -26,7 +26,7 @@ The current tranche is successful when:
 6. one correction or dependency change remains traceable through the public
    map without rewriting scientific history.
 
-Vela core remains on defect-driven maintenance. Real Frontier use may expose a
+Vela core remains on defect-driven maintenance. Real Repository use may expose a
 CLI or replay defect worth fixing, but the core repository will not absorb
 problem pages, candidate profiles, source adapters, or case dossiers.
 

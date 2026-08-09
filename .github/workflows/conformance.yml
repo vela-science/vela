@@ -85,7 +85,7 @@ jobs:
       # makes about itself.
       - name: Provider-independent install path
         run: uv run --project conformance --locked python conformance/test_release_install.py
-      # The resolver four Repositories lock their sources with. It has its own
+      # The resolver each Repository locks its sources with. It has its own
       # project and its own lock, so it runs as its own step rather than being
       # folded into the conformance environment, which would give one of them
       # an opinion about the other's dependencies.

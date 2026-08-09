@@ -128,7 +128,7 @@ fn print_verification_result(
     }
 }
 
-fn verified_frontier_file(
+fn verified_repository_file(
     repository: &Path,
     label: &str,
     locator: &str,
@@ -262,7 +262,7 @@ fn proposal_native_replay_hint(
                 "source-local replay capsule for proposal {proposal_id} does not bind the exact current Proposal"
             ));
         }
-        verified_frontier_file(
+        verified_repository_file(
             repository,
             "source-local replay Proposal",
             retained_proposal_path,
@@ -281,7 +281,7 @@ fn proposal_native_replay_hint(
             .ok_or_else(|| {
                 format!("source-local replay capsule for proposal {proposal_id} has no implementation root")
             })?;
-        let implementation = verified_frontier_file(
+        let implementation = verified_repository_file(
             repository,
             "source-local replay implementation",
             implementation_path,
@@ -339,7 +339,7 @@ pub(crate) fn proposal_reproduction_files(
                 &format!("proposal {proposal_id} does not exist"),
             )
         });
-    let proposal_file = verified_frontier_file(
+    let proposal_file = verified_repository_file(
         path,
         "current Proposal",
         &proposal_reference.path,
@@ -376,7 +376,7 @@ pub(crate) fn proposal_reproduction_files(
         .ok_or_else(|| {
             format!("proposal {proposal_id} does not bind one exact current Submission")
         })?;
-    let submission_file = verified_frontier_file(
+    let submission_file = verified_repository_file(
         path,
         "current Submission",
         &submission_reference.path,
@@ -420,7 +420,7 @@ pub(crate) fn proposal_reproduction_files(
                         artifact.digest
                     )
                 })?;
-            let file = verified_frontier_file(
+            let file = verified_repository_file(
                 path,
                 "current proposal witness",
                 &reference.path,
@@ -657,13 +657,13 @@ mod gate_tests {
     // lane on the un-forgeable FLOOR alone.
 
     #[test]
-    fn proposal_reproduction_reads_only_rooted_frontier_files() {
+    fn proposal_reproduction_reads_only_rooted_repository_files() {
         let repository = tempfile::tempdir().unwrap();
         std::fs::create_dir(repository.path().join("records")).unwrap();
         let bytes = br#"{"schema":"fixture"}"#;
         std::fs::write(repository.path().join("records/witness.json"), bytes).unwrap();
         let root = format!("sha256:{}", hex::encode(Sha256::digest(bytes)));
-        let resolved = verified_frontier_file(
+        let resolved = verified_repository_file(
             repository.path(),
             "fixture witness",
             "records/witness.json",
@@ -676,7 +676,7 @@ mod gate_tests {
             "records/witness.json"
         );
 
-        let traversal = verified_frontier_file(
+        let traversal = verified_repository_file(
             repository.path(),
             "fixture witness",
             "../secret.json",
@@ -685,7 +685,7 @@ mod gate_tests {
         .unwrap_err();
         assert!(traversal.contains("repository-relative"));
 
-        let tampered = verified_frontier_file(
+        let tampered = verified_repository_file(
             repository.path(),
             "fixture witness",
             "records/witness.json",

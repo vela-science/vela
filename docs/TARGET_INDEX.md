@@ -47,7 +47,7 @@ repository transaction, and the runtime `replay`, `next`, and `start` gates.
 ## Producer flow
 
 ```bash
-# The Frontier's domain adapter updates and commits targets.json and packets.
+# The Repository's domain adapter updates and commits targets.json and packets.
 vela replay . --json
 vela next . --json
 vela start <full-target-id> --repo . --json
@@ -69,7 +69,7 @@ scientific source inputs.
 ## Failure behavior
 
 Vela fails closed when the index is untracked, non-canonical, bound to another
-Frontier or repository root, based on unavailable or changed source/input
+Repository or repository root, based on unavailable or changed source/input
 bytes, or names a packet whose tracked bytes, schema, size, or digest differ.
 The repair is deliberately ordinary: fix the domain adapter or source data,
 regenerate `targets.json`, review the Git diff, and commit it.

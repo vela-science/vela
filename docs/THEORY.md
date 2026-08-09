@@ -58,7 +58,7 @@ The current implementations are:
 
 ## 3. Repository state
 
-A current Frontier is one Git repository whose active scientific index is the
+A current Repository is one Git repository whose active scientific index is the
 closed `vela.repository.v4` manifest.
 
 Let:
@@ -123,8 +123,8 @@ write a Decision, Event, policy, authority state, or accepted Standing.
 
 A Verification Record binds the exact Claim, Submission id and root, Proposal,
 Artifacts, verifier, method, environment root, scoped property, outcome, and
-explicit nonclaims. The Frontier is not a field; it is the repository that
-holds those subjects:
+explicit nonclaims. The Repository is not a field; it is the thing that holds
+those subjects:
 
 ```text
 Verify(v, s) -> observation

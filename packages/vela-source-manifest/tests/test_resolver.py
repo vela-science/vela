@@ -1,4 +1,4 @@
-"""What the resolver must do for the four Frontiers that use it."""
+"""What the resolver must do for the four Repositories that use it."""
 
 from __future__ import annotations
 
@@ -17,8 +17,8 @@ TREE = "b" * 40
 MOVED = "c" * 40
 
 
-def test_url_source_locks_a_root_computed_from_the_bytes(frontier):
-    root = frontier(
+def test_url_source_locks_a_root_computed_from_the_bytes(repository):
+    root = repository(
         {
             "oeis_a309370": {
                 "source_id": "source:oeis-a309370",
@@ -40,8 +40,8 @@ def test_url_source_locks_a_root_computed_from_the_bytes(frontier):
     assert entry["homepage"] == "https://oeis.org/A309370"
 
 
-def test_ref_backed_url_records_the_commit_the_ref_pointed_at(frontier):
-    root = frontier(
+def test_ref_backed_url_records_the_commit_the_ref_pointed_at(repository):
+    root = repository(
         {
             "erdos": {
                 "source_id": "source:erdos-problems",
@@ -70,12 +70,12 @@ def test_ref_backed_url_records_the_commit_the_ref_pointed_at(frontier):
     assert entry["path"] == "data/problems.yaml"
 
 
-def test_a_failed_ref_resolution_does_not_discard_a_computed_root(frontier):
+def test_a_failed_ref_resolution_does_not_discard_a_computed_root(repository):
     """The content root is the durable pin; the commit only says which revision
     the ref pointed at. Losing a hash computed from bytes we hold to an unrelated
     API failure would be the worse outcome, so the run fails and keeps the root.
     """
-    root = frontier(
+    root = repository(
         {
             "plby": {
                 "source_id": "source:plby-lean-proofs",
@@ -99,9 +99,9 @@ def test_a_failed_ref_resolution_does_not_discard_a_computed_root(frontier):
     assert any("could not resolve plby/lean-proofs@main" in p for p in resolution.problems)
 
 
-def test_in_repository_bytes_are_hashed_from_disk(frontier, offline):
+def test_in_repository_bytes_are_hashed_from_disk(repository, offline):
     body = b'{"witness": true}\n'
-    root = frontier(
+    root = repository(
         {
             "quantum_retained_certificate": {
                 "source_id": "source:quantum-retained-certificate",
@@ -118,8 +118,8 @@ def test_in_repository_bytes_are_hashed_from_disk(frontier, offline):
     assert resolution.payload["sources"]["quantum_retained_certificate"]["sha256"] == root_of(body)
 
 
-def test_a_declared_path_that_is_not_there_is_a_recorded_gap(frontier, offline):
-    root = frontier(
+def test_a_declared_path_that_is_not_there_is_a_recorded_gap(repository, offline):
+    root = repository(
         {
             "fidelity": {
                 "source_id": None,
@@ -138,7 +138,7 @@ def test_a_declared_path_that_is_not_there_is_a_recorded_gap(frontier, offline):
 
 def _upstream_path_and_url() -> dict:
     # The shape four Erdős entries have: `path` is where the file lives in the
-    # *upstream* repository, and the url is the locator. Every other Frontier
+    # *upstream* repository, and the url is the locator. Every other Repository
     # uses `path` for bytes retained locally.
     return {
         "erdos": {
@@ -152,9 +152,9 @@ def _upstream_path_and_url() -> dict:
     }
 
 
-def test_an_upstream_path_alongside_a_url_locks_the_url(frontier):
+def test_an_upstream_path_alongside_a_url_locks_the_url(repository):
     body = b"problems: []\n"
-    root = frontier(_upstream_path_and_url())
+    root = repository(_upstream_path_and_url())
     github = FakeGitHub(
         blobs={
             "https://raw.githubusercontent.com/teorth/erdosproblems/main/data/problems.yaml": body
@@ -170,11 +170,11 @@ def test_an_upstream_path_alongside_a_url_locks_the_url(frontier):
     assert entry["path"] == "data/problems.yaml"  # kept as provenance, not used as a locator
 
 
-def test_a_local_file_at_a_declared_upstream_path_is_refused_not_guessed(frontier, offline):
-    # If this Frontier ever vendored a file at the upstream path, hashing it
+def test_a_local_file_at_a_declared_upstream_path_is_refused_not_guessed(repository, offline):
+    # If this Repository ever vendored a file at the upstream path, hashing it
     # would switch the pin from upstream bytes to local bytes under an entry
     # that still names the url, and the lock would look exactly as it does now.
-    root = frontier(_upstream_path_and_url(), {"data/problems.yaml": b"a vendored copy\n"})
+    root = repository(_upstream_path_and_url(), {"data/problems.yaml": b"a vendored copy\n"})
 
     resolution = resolve(root)
 
@@ -184,8 +184,8 @@ def test_a_local_file_at_a_declared_upstream_path_is_refused_not_guessed(frontie
     assert resolution.problems
 
 
-def test_the_checker_refuses_the_same_ambiguity(frontier, offline):
-    root = frontier(_upstream_path_and_url())
+def test_the_checker_refuses_the_same_ambiguity(repository, offline):
+    root = repository(_upstream_path_and_url())
     (root / "sources.lock.json").write_text(
         json.dumps(
             {
@@ -214,12 +214,12 @@ def test_the_checker_refuses_the_same_ambiguity(frontier, offline):
     assert "ambiguous declaration" in problems[0]
 
 
-def test_reference_only_is_never_fetched(frontier, offline):
-    """Hashing the page would record a content root for something this Frontier
+def test_reference_only_is_never_fetched(repository, offline):
+    """Hashing the page would record a content root for something this Repository
     does not retain, and a false pin is indistinguishable from a real one once it
     is in the lock. The `offline` fixture turns any fetch into a failure.
     """
-    root = frontier(
+    root = repository(
         {
             "codetables": {
                 "source_id": "source:codetables-stabilizer",
@@ -237,8 +237,8 @@ def test_reference_only_is_never_fetched(frontier, offline):
     assert "sha256" not in entry
 
 
-def test_cited_not_acquired_is_never_fetched(frontier, offline):
-    root = frontier(
+def test_cited_not_acquired_is_never_fetched(repository, offline):
+    root = repository(
         {
             "openai_ten_proofs": {
                 "source_id": "source:openai-ten-proofs",
@@ -259,8 +259,8 @@ def test_cited_not_acquired_is_never_fetched(frontier, offline):
     assert entry["acquired_by"] == "formal-conjectures"
 
 
-def test_a_repository_landing_page_is_pinned_by_commit_not_by_html(frontier):
-    root = frontier(
+def test_a_repository_landing_page_is_pinned_by_commit_not_by_html(repository):
+    root = repository(
         {
             "openai_ten_proofs": {
                 "source_id": "source:openai-ten-proofs",
@@ -286,8 +286,8 @@ def test_a_repository_landing_page_is_pinned_by_commit_not_by_html(frontier):
     assert "https://github.com/openai/ten-proofs" not in github.requested
 
 
-def test_a_moved_commit_fails_the_run(frontier):
-    root = frontier(
+def test_a_moved_commit_fails_the_run(repository):
+    root = repository(
         {
             "openai_ten_proofs": {
                 "source_id": "source:openai-ten-proofs",
@@ -335,9 +335,9 @@ def _physlib_github(license_bytes: bytes, toolchain_bytes: bytes) -> FakeGitHub:
     return github
 
 
-def test_exact_roots_are_recomputed_and_the_declared_one_is_only_an_assertion(frontier):
+def test_exact_roots_are_recomputed_and_the_declared_one_is_only_an_assertion(repository):
     license_bytes, toolchain_bytes = b"Apache 2.0\n", b"leanprover/lean4:v4.30.0\n"
-    root = frontier(_physlib(root_of(license_bytes)))
+    root = repository(_physlib(root_of(license_bytes)))
 
     resolution = resolve(root, _physlib_github(license_bytes, toolchain_bytes))
     roots = resolution.payload["sources"]["physlib"]["exact_roots"]
@@ -350,7 +350,7 @@ def test_exact_roots_are_recomputed_and_the_declared_one_is_only_an_assertion(fr
     assert roots["license"]["url"].endswith(f"/{COMMIT}/LICENSE")
 
 
-def test_a_tampered_declared_exact_root_writes_the_lock_and_then_fails(frontier, capsys):
+def test_a_tampered_declared_exact_root_writes_the_lock_and_then_fails(repository, capsys):
     """First of the two negative cases this resolver was built against.
 
     `sources.yaml` declares a root the pinned commit does not serve. The run must
@@ -360,7 +360,7 @@ def test_a_tampered_declared_exact_root_writes_the_lock_and_then_fails(frontier,
     """
     license_bytes, toolchain_bytes = b"Apache 2.0\n", b"leanprover/lean4:v4.30.0\n"
     tampered = "sha256:" + "0" * 64
-    root = frontier(_physlib(tampered))
+    root = repository(_physlib(tampered))
     github = _physlib_github(license_bytes, toolchain_bytes)
 
     resolution = write_sources_lock(root, github)
@@ -375,14 +375,14 @@ def test_a_tampered_declared_exact_root_writes_the_lock_and_then_fails(frontier,
     assert tampered in capsys.readouterr().err
 
 
-def test_an_unreachable_url_writes_the_lock_and_then_fails(frontier):
+def test_an_unreachable_url_writes_the_lock_and_then_fails(repository):
     """Second of the two negative cases.
 
     A source that should have been lockable and was not leaves an `error` in the
     lock, where the next reader sees it, rather than vanishing from the inventory
     or being retained at whatever it hashed to last time.
     """
-    root = frontier(
+    root = repository(
         {
             "jayyhk": {
                 "source_id": "source:jayyhk-erdos-lean",
@@ -404,13 +404,13 @@ def test_an_unreachable_url_writes_the_lock_and_then_fails(frontier):
 
 
 @pytest.mark.parametrize("case", ["tampered", "unreachable"])
-def test_both_negative_cases_exit_one_through_the_cli(frontier, monkeypatch, case):
+def test_both_negative_cases_exit_one_through_the_cli(repository, monkeypatch, case):
     if case == "tampered":
         license_bytes = b"Apache 2.0\n"
-        root = frontier(_physlib("sha256:" + "0" * 64))
+        root = repository(_physlib("sha256:" + "0" * 64))
         github = _physlib_github(license_bytes, b"leanprover/lean4:v4.30.0\n")
     else:
-        root = frontier(
+        root = repository(
             {
                 "jayyhk": {
                     "source_id": "source:jayyhk-erdos-lean",
@@ -426,8 +426,8 @@ def test_both_negative_cases_exit_one_through_the_cli(frontier, monkeypatch, cas
     assert (root / "sources.lock.json").is_file()
 
 
-def test_a_pages_backed_source_keeps_its_deployment_provenance(frontier):
-    root = frontier(
+def test_a_pages_backed_source_keeps_its_deployment_provenance(repository):
+    root = repository(
         {
             "formal_conjectures": {
                 "source_id": "source:formal-conjectures",
@@ -454,10 +454,10 @@ def test_a_pages_backed_source_keeps_its_deployment_provenance(frontier):
     assert entry["pages_commit_resolved"] == "2026-08-05T21:22:46Z"
 
 
-def test_an_unquoted_timestamp_stops_the_run_instead_of_being_reformatted(frontier):
+def test_an_unquoted_timestamp_stops_the_run_instead_of_being_reformatted(repository):
     # Written as raw text because `yaml.safe_dump` quotes a string that would
     # otherwise resolve to a timestamp, so the fixture cannot produce this file.
-    root = frontier({})
+    root = repository({})
     (root / "sources.yaml").write_text(
         "sources:\n"
         "  formal_conjectures:\n"
@@ -495,13 +495,13 @@ def test_an_unquoted_timestamp_stops_the_run_instead_of_being_reformatted(fronti
     ]
 
 
-def test_two_runs_over_the_same_inputs_write_the_same_bytes(frontier):
+def test_two_runs_over_the_same_inputs_write_the_same_bytes(repository):
     # The property the lock is for. A reader audits it by re-resolving and
     # diffing; if a rerun over an unchanged inventory produced a different file,
     # every real diff would arrive buried in a false one and readers would stop
     # looking. This is what removing `generated_at` bought, and it is the only
     # thing holding the file to it.
-    root = frontier(
+    root = repository(
         {
             "oeis_a309370": {
                 "source_id": "source:oeis-a309370",
@@ -518,15 +518,15 @@ def test_two_runs_over_the_same_inputs_write_the_same_bytes(frontier):
     assert first == second
 
 
-def test_a_declaration_with_no_sources_fails(frontier, offline):
-    root = frontier({})
+def test_a_declaration_with_no_sources_fails(repository, offline):
+    root = repository({})
     assert not resolve(root).ok
 
 
-def test_an_unusable_declaration_leaves_the_committed_lock_alone(frontier, offline):
+def test_an_unusable_declaration_leaves_the_committed_lock_alone(repository, offline):
     # The failure mode this guards is a refresh run against a broken
     # declaration replacing a lock full of computed roots with an empty one.
-    root = frontier({})
+    root = repository({})
     kept = '{\n  "sources": {}\n}\n'
     (root / "sources.lock.json").write_text(kept, encoding="utf-8")
 

@@ -45,13 +45,13 @@ Everything above is about protocol bytes. `repository_lint.py` is about
 repository shape, and it is the one thing here that takes an argument:
 
 ```bash
-uv run --project conformance --locked python conformance/repository_lint.py /path/to/a-frontier
-uv run --project conformance --locked python conformance/repository_lint.py /path/to/a-frontier --json
+uv run --project conformance --locked python conformance/repository_lint.py /path/to/a-repository
+uv run --project conformance --locked python conformance/repository_lint.py /path/to/a-repository --json
 ```
 
 It exits 1 on findings, 2 when a declaration it reads has gone missing, and 0
 otherwise. It changes nothing and reads nothing outside the two roots it is
-given: the Vela checkout it ships in, and the Frontier named on the command
+given: the Vela checkout it ships in, and the Repository named on the command
 line. `../vela` is never consulted, because in the CI job that matters most
 there is no `../vela` to consult.
 
@@ -61,20 +61,20 @@ none of them can go stale on its own:
 | Rule | Reads |
 | --- | --- |
 | `shared-package-copy` | the real file list, `__all__`, and module symbols of every package under `packages/` |
-| `non-production-dependency` | each `vela.package-consumer-reference.v1` in the Frontier, and `subdirectory =` in its `pyproject.toml` |
-| `generator-pin` | every `git+` reference to a package under `packages/`, checked for a 40-character commit and for agreement between a Frontier's own restatements of it |
+| `non-production-dependency` | each `vela.package-consumer-reference.v1` in the Repository, and `subdirectory =` in its `pyproject.toml` |
+| `generator-pin` | every `git+` reference to a package under `packages/`, checked for a 40-character commit and for agreement between a Repository's own restatements of it |
 | `retired-path` | the fenced list under `<!-- repository-lint:retired-paths -->` in `docs/REPOSITORY_PROFILE.md` |
 | `generated-file` | the lock and declaration filenames and the console-script name published by the package that generates the lock |
 
-`generator-pin` deliberately does not check *which* commit a Frontier names.
+`generator-pin` deliberately does not check *which* commit a Repository names.
 Which one is right is not a fact this checkout can settle for a repository it
 was not shipped with, and a rule that compared the value would go red for a
-Frontier whose pin is correct and simply newer. Shape and self-agreement only.
+Repository whose pin is correct and simply newer. Shape and self-agreement only.
 
 Two rules used to live here and no longer do, both because something upstream
 of the linter already owned the same bytes. `unpinned-action` matched every
 `uses:` in `.github/` against a 40-character SHA; `zizmor` now audits the whole
-Frontier a step earlier in `action.yml`, under a blanket policy that requires a
+Repository a step earlier in `action.yml`, under a blanket policy that requires a
 hash with no configuration file, and it parses the workflow rather than the
 line. And `generated-file` used to validate the lock against the generator's
 schema; `vela-source-lock --check` does that a step earlier still, from the same

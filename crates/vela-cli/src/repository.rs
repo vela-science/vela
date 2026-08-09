@@ -3163,7 +3163,7 @@ mod tests {
             schema: vela_protocol::repository::REPOSITORY_SCHEMA_V4.into(),
             repository_id: "01234567-89ab-4def-8123-456789abcdef".into(),
             profile_root: root('1'),
-            origin_id: "vro_0123456789abcdef".into(),
+            origin_id: vela_protocol::derive_handle("vro_", &root('2')).unwrap(),
             origin_root: root('2'),
             accepted_claims: Vec::new(),
             pending_claims: Vec::new(),

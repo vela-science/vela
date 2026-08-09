@@ -34,10 +34,10 @@ cleanup() {
 trap cleanup EXIT
 
 home="$root/home"
-frontier="$root/frontier"
+repository="$root/repository"
 remote="$root/remote.git"
 replay="$root/replay"
-mkdir -p "$home" "$frontier"
+mkdir -p "$home" "$repository"
 ssh-keygen -q -t ed25519 -N '' -C 'vela disposable authority' -f "$root/authority"
 eval "$(ssh-agent -s)" >/dev/null
 agent_started=true
@@ -49,11 +49,11 @@ export VELA_ADVICE=0
 git config --global user.name 'Vela Interop Fixture'
 git config --global user.email 'fixture@vela.invalid'
 publish_fixture_delta() {
-  git -C "$frontier" add --all
-  if ! git -C "$frontier" diff --cached --quiet; then
-    git -C "$frontier" commit -q -m "$1"
+  git -C "$repository" add --all
+  if ! git -C "$repository" diff --cached --quiet; then
+    git -C "$repository" commit -q -m "$1"
   fi
-  git -C "$frontier" push -q origin main
+  git -C "$repository" push -q origin main
 }
 
 run_json() {
@@ -65,21 +65,21 @@ run_json() {
   fi
 }
 
-"$vela" init "$frontier" \
-  --name 'Interop Frontier' \
+"$vela" init "$repository" \
+  --name 'Interop Repository' \
   --scope 'Exercise current Submission and Verification Record interoperability.' \
   --json >"$root/init.json"
 trust_pin_path="$(jq -er '.authority.local_trust.anchor_path' "$root/init.json")"
 git init -q --bare "$remote"
-git -C "$frontier" remote add origin "$remote"
-git -C "$frontier" push -q -u origin main
+git -C "$repository" remote add origin "$remote"
+git -C "$repository" push -q -u origin main
 git --git-dir="$remote" symbolic-ref HEAD refs/heads/main
 
-"$vela" status "$frontier" --json >"$root/status-before.json"
+"$vela" status "$repository" --json >"$root/status-before.json"
 accepted_claims_before="$(jq -r '.counts.accepted_claims' "$root/status-before.json")"
 run_json "$root/submit.json" \
   "$vela" submit "$repo/conformance/current-objects/submission.json" \
-  --repo "$frontier" \
+  --repo "$repository" \
   --as agent:independent-js \
   --json
 publish_fixture_delta 'Register independent Submission'
@@ -116,14 +116,14 @@ node "$repo/conformance/emitters/javascript.mjs" verification \
   --declared-at 2026-07-27T12:05:00Z \
   --output "$root/verification.json" \
   >"$root/emission.json"
-"$vela" verification import "$frontier" "$root/verification.json" \
+"$vela" verification import "$repository" "$root/verification.json" \
   --as verifier:independent-js \
   --json >"$root/import.json"
 publish_fixture_delta 'Retain independent Verification Record'
 
-"$vela" review show "$frontier" "$proposal_id" --json >"$root/review.json"
-"$vela" review inbox "$frontier" --json >"$root/inbox.json"
-"$vela" status "$frontier" --json >"$root/status.json"
+"$vela" review show "$repository" "$proposal_id" --json >"$root/review.json"
+"$vela" review inbox "$repository" --json >"$root/inbox.json"
+"$vela" status "$repository" --json >"$root/status.json"
 repository_root_after="$(jq -r '.roots.repository' "$root/status.json")"
 
 [[ "$(jq -r '.counts.accepted_claims' "$root/status.json")" == "$accepted_claims_before" ]]
@@ -150,7 +150,7 @@ repository_root_after="$(jq -r '.roots.repository' "$root/status.json")"
 [[ "$(jq -r '.entries[0].standing_delta.counts.global_accepted_claims.before' "$root/inbox.json")" == "$accepted_claims_before" ]]
 [[ "$(jq -r '.entries[0].standing_delta.counts.global_accepted_claims.if_accept' "$root/inbox.json")" == "$((accepted_claims_before + 1))" ]]
 [[ "$(jq -r '.entries[0].standing_delta.counts.global_accepted_claims.if_reject' "$root/inbox.json")" == "$accepted_claims_before" ]]
-[[ -z "$(git -C "$frontier" status --porcelain=v1 --untracked-files=all)" ]]
+[[ -z "$(git -C "$repository" status --porcelain=v1 --untracked-files=all)" ]]
 
 git clone -q --no-hardlinks "$remote" "$replay"
 "$vela" status "$replay" --json >"$root/replay-status.json"

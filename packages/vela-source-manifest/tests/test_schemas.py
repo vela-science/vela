@@ -110,7 +110,7 @@ def test_the_reader_invariant_is_enforced_by_the_lock_schema(entry):
 def test_a_hand_written_root_of_the_wrong_shape_is_rejected():
     """The abbreviation a person types when they edit a lock instead of running
     the generator. Held here because this schema is the only place that decides
-    what a content root looks like: the Frontier linter used to validate locks
+    what a content root looks like: the repository linter used to validate locks
     against this same file a second time, and no longer does.
     """
     lock = {
@@ -129,18 +129,22 @@ def test_a_well_formed_lock_entry_passes():
     assert validate(lock, LOCK_SCHEMA, "sources.lock.json") == []
 
 
-# Optional, and pointed at the real thing: set VELA_FRONTIER_ROOTS to a
-# colon-separated list of Frontier checkouts to hold the schemas to every
+# Optional, and pointed at the real thing: set VELA_REPOSITORY_ROOTS to a
+# colon-separated list of Repository checkouts to hold the schemas to every
 # declaration and lock actually in use. Off by default so the suite stays
-# hermetic, on in an environment that has the Frontiers checked out.
-ROOTS = [Path(p) for p in os.environ.get("VELA_FRONTIER_ROOTS", "").split(":") if p]
+# hermetic, on in an environment that has the Repositories checked out.
+#
+# This gates a skip, not a failure. An environment still exporting the retired
+# VELA_FRONTIER_ROOTS gets a silent skip rather than an error, so the rename has
+# to reach the caller as well as this file.
+ROOTS = [Path(p) for p in os.environ.get("VELA_REPOSITORY_ROOTS", "").split(":") if p]
 
 
-@pytest.mark.skipif(not ROOTS, reason="set VELA_FRONTIER_ROOTS to check real Frontiers")
+@pytest.mark.skipif(not ROOTS, reason="set VELA_REPOSITORY_ROOTS to check real Repositories")
 @pytest.mark.parametrize("root", ROOTS, ids=lambda p: p.name)
-def test_the_real_frontiers_match_the_schemas(root):
+def test_the_real_repositories_match_the_schemas(root):
     # Read through the package's own loader: `yaml.safe_load` turns an unquoted
     # `2026-08-05T21:22:46Z` into a datetime, which is not the string the
-    # Frontier wrote and not what the schema describes.
+    # Repository wrote and not what the schema describes.
     assert read_declaration(root)[1] == []
     assert read_lock(root)[1] == []

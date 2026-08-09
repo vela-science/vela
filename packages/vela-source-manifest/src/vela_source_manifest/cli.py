@@ -1,6 +1,6 @@
-"""``vela-source-lock`` — write or check a Frontier's ``sources.lock.json``.
+"""``vela-source-lock`` — write or check a Repository's ``sources.lock.json``.
 
-Run it from a Frontier's root:
+Run it from a Repository's root:
 
     vela-source-lock                # write sources.lock.json
     vela-source-lock --check        # verify the committed one, offline
@@ -40,12 +40,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="vela-source-lock",
         description=(
-            f"Read a Frontier's {DECLARATION_FILE} and write its {LOCK_FILE}, "
+            f"Read a Repository's {DECLARATION_FILE} and write its {LOCK_FILE}, "
             "computing every content root from bytes actually fetched or read."
         ),
     )
     parser.add_argument(
-        "root", nargs="?", default=".", type=Path, help="the Frontier root (default: .)"
+        "root", nargs="?", default=".", type=Path, help="the Repository root (default: .)"
     )
     parser.add_argument(
         "--check",

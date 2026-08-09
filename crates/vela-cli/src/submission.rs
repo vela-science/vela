@@ -1,4 +1,4 @@
-//! Producer intake for Profile v2 repositories.
+//! Producer intake for Repository Profile v1 repositories.
 //!
 //! This path consumes an authenticated Submission, creates the current Claim
 //! and Proposal, and advances the repository manifest
@@ -663,7 +663,7 @@ mod tests {
             schema: REPOSITORY_SCHEMA_V4.into(),
             repository_id: "01234567-89ab-4def-8123-456789abcdef".into(),
             profile_root: root('a'),
-            origin_id: "vro_0123456789abcdef".into(),
+            origin_id: vela_protocol::derive_handle("vro_", &root('b')).unwrap(),
             origin_root: root('b'),
             accepted_claims: Vec::new(),
             pending_claims: Vec::new(),

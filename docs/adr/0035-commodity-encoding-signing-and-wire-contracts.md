@@ -1,6 +1,6 @@
 # ADR 0035: Commodity encoding, signing, and wire contracts
 
-- Status: Accepted
+- Status: Accepted and implemented; the current-epoch cut completed 2026-08-09
 - Proposed: 2026-08-02
 - Accepted: 2026-08-09
 - Protocol effect: pre-1.0 canonical-byte and signed-record reset
@@ -182,6 +182,17 @@ The current-epoch cut is the one thing that did not ship, and cannot from here.
 authority key in a local OpenSSH agent. Until an operator performs it, the
 binary refuses the current `math` head with a schema error — the same
 sequencing as release 0.970.0.
+
+**Closed 2026-08-09.** The operator performed the re-genesis under Vela
+0.972.1, so the paragraph above describes a state that no longer exists.
+`vela-science/math` is generation 1 at repository UUID
+`8115c538-7688-40b7-ab75-3c4765bf3c19` with origin root
+`sha256:229ce0a08217da5e8bad2059c35070989652ca546ab45b8e699922ba182e8a69`, and
+it strictly replays: the observation is recorded in `ecosystem-status.json`,
+which `conformance/verify.py` holds to the checkout on every run. Its signed
+0.971.0 predecessor is retained as continuity evidence and carries no Standing
+forward. Nothing in this ADR is now waiting on an operator, and the sequencing
+note is kept as written because it is why the cut was ordered the way it was.
 
 ## Decision
 

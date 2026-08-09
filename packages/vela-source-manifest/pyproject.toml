@@ -1,12 +1,12 @@
 [project]
 name = "vela-source-manifest"
 version = "1.0.0"
-description = "Producer-side source declarations and locks for Vela Frontiers."
+description = "Producer-side source declarations and locks for Vela Repositories."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT OR Apache-2.0" }
 # PyYAML parses the declaration; jsonschema enforces the two normative schemas
-# this package ships. Nothing else: this runs in four Frontier CI jobs and in
+# this package ships. Nothing else: this runs in Repository CI jobs and in
 # whatever shell an acquisition happens in, and every dependency is one more
 # thing that can be unavailable on the day a lock needs regenerating.
 dependencies = [

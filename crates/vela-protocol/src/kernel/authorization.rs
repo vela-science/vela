@@ -685,20 +685,20 @@ mod tests {
             AuthorizationReasonV1::ModelRootMismatch
         );
 
-        let mut wrong_frontier = closed_request(&model);
-        wrong_frontier.repository_id = "22222222-2222-4222-8222-222222222222".into();
+        let mut wrong_repository = closed_request(&model);
+        wrong_repository.repository_id = "22222222-2222-4222-8222-222222222222".into();
         assert_eq!(
-            evaluate_authorization_v1(&model, &wrong_frontier)
+            evaluate_authorization_v1(&model, &wrong_repository)
                 .unwrap()
                 .reason,
             AuthorizationReasonV1::RepositoryMismatch
         );
 
-        let mut wrong_resource_frontier = closed_request(&model);
-        wrong_resource_frontier.resource.repository_id =
+        let mut wrong_resource_repository = closed_request(&model);
+        wrong_resource_repository.resource.repository_id =
             "22222222-2222-4222-8222-222222222222".into();
         assert_eq!(
-            evaluate_authorization_v1(&model, &wrong_resource_frontier)
+            evaluate_authorization_v1(&model, &wrong_resource_repository)
                 .unwrap()
                 .reason,
             AuthorizationReasonV1::ResourceRepositoryMismatch

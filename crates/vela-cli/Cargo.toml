@@ -7,7 +7,7 @@ repository.workspace = true
 homepage.workspace = true
 description = "The Vela command-line tool: inspect, submit, verify, decide, and replay scientific state."
 readme = "../../README.md"
-keywords = ["science", "frontier", "protocol", "cli", "replay"]
+keywords = ["science", "repository", "protocol", "cli", "replay"]
 categories = ["science", "command-line-utilities"]
 publish = false
 

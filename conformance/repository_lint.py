@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-"""Hold one Frontier checkout to the consolidations that already happened.
+"""Hold one Repository checkout to the consolidations that already happened.
 
 This is not a protocol check. `vela replay` decides whether a repository's
-scientific state reproduces; nothing here can change Standing, and a Frontier
+scientific state reproduces; nothing here can change Standing, and a Repository
 that fails every rule below still replays. What this checks is the *shape* a
-Frontier has after machinery moved out of it — one shared package where there
+Repository has after machinery moved out of it — one shared package where there
 were four copies of a resolver, a list of retired paths, a lock with a
 generator that owns it — because that shape has no other guard and copy-paste
 restores it in one commit.
 
 Two roots, and only two. `VELA_ROOT` is the checkout this file ships in.
-`frontier_root` is the argument. A Frontier CI job checks out one repository:
+`repository_root` is the argument. A Repository CI job checks out one repository:
 `../vela` is not beside it, and nothing below may assume it is. Everything the
 linter needs from Vela it reads through `vela_file`, everything it inspects it
-reads through `Frontier.file` or `Frontier.walk`, and each refuses a path that
+reads through `Repository.file` or `Repository.walk`, and each refuses a path that
 escapes its base.
 
 Every rule reads the fact it needs from whatever declares it. The alternative
@@ -90,8 +90,8 @@ NON_PRODUCTION_DIRECTORIES = frozenset(
 
 # Directories the walk never descends into. Dot-directories are excluded as a
 # class except `.github` and `.vela`, which is what keeps `.contract-source/`
-# out — a Frontier CI job checks a slice of *this* repository out in there, and
-# a linter that read it would report Vela's own files as a Frontier's copies.
+# out — a Repository CI job checks a slice of *this* repository out in there, and
+# a linter that read it would report Vela's own files as a Repository's copies.
 PRUNED_DIRECTORIES = frozenset({"__pycache__", "node_modules", "venv"})
 KEPT_DOT_DIRECTORIES = frozenset({".github", ".vela"})
 
@@ -102,18 +102,18 @@ RETIRED_PATHS_MARKER = "<!-- repository-lint:retired-paths -->"
 PROFILE_CONTRACT = "docs/REPOSITORY_PROFILE.md"
 
 # A line that resolves something from git, in any of the three spellings a
-# Frontier uses: the `uvx --from git+…` invocation a declaration carries, the
+# Repository uses: the `uvx --from git+…` invocation a declaration carries, the
 # `git = …` table in a pyproject, and the `rev=` query `uv.lock` writes. Prose
 # that merely names a package's path is not one of them, which is what keeps
 # this off the sentence explaining where the generator lives.
 GIT_DEPENDENCY = re.compile(r"git\+|(?<![\w-])git\s*=|(?<![\w-])rev\s*=")
 FULL_SHA_IN_TEXT = re.compile(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])")
 
-# How much of a shared module has to reappear in one Frontier file before it is
+# How much of a shared module has to reappear in one Repository file before it is
 # a copy rather than a coincidence. Calibrated against the real bytes, not
-# guessed: the `scripts/write_sources_lock.py` that three Frontiers carried
+# guessed: the `scripts/write_sources_lock.py` that three epoch-1 Repositories carried
 # until today redefines 11 of `resolver.py`'s 20 top-level names (55%), while
-# the highest-scoring innocent file in any Frontier today reaches 3 names and
+# the highest-scoring innocent file in any Repository today reaches 3 names and
 # 15% on the strength of `main`, `sha256` and `UA`. Anything between those is
 # arbitrary; these two numbers are where the gap is.
 COPY_MIN_SYMBOLS = 4
@@ -160,7 +160,7 @@ def vela_file(relative: str) -> Path:
 def _parse(source: str) -> ast.Module:
     """Parse without relaying the parsed file's warnings as this tool's output.
 
-    A Frontier script with a stale escape sequence has a problem, but not one
+    A Repository script with a stale escape sequence has a problem, but not one
     this linter was asked about, and a `SyntaxWarning` on stderr next to a clean
     run reads as a finding.
     """
@@ -217,7 +217,7 @@ def _dunder_all(tree: ast.Module) -> set[str]:
 def _distinctive(name: str) -> bool:
     """Whether redefining this name anywhere else is evidence of anything.
 
-    `check` and `resolve` are English verbs and one Frontier already defines the
+    `check` and `resolve` are English verbs and one Repository already defines the
     first for its own reasons; `write_sources_lock` and `read_declaration` are
     not words anyone reaches for by accident. The test is syntactic — compound
     or not all-lowercase — so it needs no list of blessed words to maintain.
@@ -341,7 +341,7 @@ class QualifiedCandidate:
 def qualified_candidates() -> list[QualifiedCandidate]:
     """Candidate packages Vela has qualified, read from the records that qualify them.
 
-    The dependency rule below cannot ask a Frontier to stop depending on a
+    The dependency rule below cannot ask a Repository to stop depending on a
     candidate that Vela's own retained evidence says is a promotion no-go: that
     demand is unsatisfiable from either side, and a rule nobody can satisfy is
     one everybody learns to ignore. What the rule can ask is that the
@@ -400,11 +400,11 @@ def qualified_candidates() -> list[QualifiedCandidate]:
 
 
 # ---------------------------------------------------------------------------
-# What one Frontier has
+# What one Repository has
 # ---------------------------------------------------------------------------
 
 
-class Frontier:
+class Repository:
     def __init__(self, root: Path) -> None:
         self.root = root.resolve()
         if not self.root.is_dir():
@@ -445,16 +445,16 @@ class Frontier:
 # ---------------------------------------------------------------------------
 
 
-def rule_shared_package_copy(frontier: Frontier, packages: list[SharedPackage]) -> list[Finding]:
-    """A Frontier must not carry machinery that now lives in a shared package.
+def rule_shared_package_copy(repository: Repository, packages: list[SharedPackage]) -> list[Finding]:
+    """A Repository must not carry machinery that now lives in a shared package.
 
     Three independent signals, because the two copies removed today failed
-    differently: three Frontiers held byte-identical files, and the fourth held
+    differently: three epoch-1 Repositories held byte-identical files, and the fourth held
     a resolver of its own that shared only the entry point's name.
     """
     findings: list[Finding] = []
-    for path in frontier.walk():
-        relative = frontier.relative(path)
+    for path in repository.walk():
+        relative = repository.relative(path)
         data = path.read_bytes()
         digest = hashlib.sha256(data).hexdigest()
         for package in packages:
@@ -532,12 +532,12 @@ def _qualifies(
 
 
 def rule_non_production_dependency(
-    frontier: Frontier, candidates: list[QualifiedCandidate]
+    repository: Repository, candidates: list[QualifiedCandidate]
 ) -> list[Finding]:
     """No dependency may resolve into a non-released tree unqualified.
 
     A consumer reference names the exact commit and path it binds. When that
-    path opens on `research/` or `examples/`, the Frontier is depending on a
+    path opens on `research/` or `examples/`, the Repository is depending on a
     candidate: nothing promises it will be there next release, and the package
     under it usually says so itself.
 
@@ -548,8 +548,8 @@ def rule_non_production_dependency(
     """
     findings: list[Finding] = []
     needle = CONSUMER_REFERENCE_SCHEMA.encode("utf-8")
-    for path in frontier.walk():
-        relative = frontier.relative(path)
+    for path in repository.walk():
+        relative = repository.relative(path)
         if path.suffix == ".json":
             data = path.read_bytes()
             if needle not in data:
@@ -600,11 +600,11 @@ def rule_non_production_dependency(
     return findings
 
 
-def rule_generator_pin(frontier: Frontier, packages: list[SharedPackage]) -> list[Finding]:
-    """A shared package a Frontier depends on is named at one immutable commit.
+def rule_generator_pin(repository: Repository, packages: list[SharedPackage]) -> list[Finding]:
+    """A shared package a Repository depends on is named at one immutable commit.
 
     The lock is only as reproducible as the generator that writes it, and the
-    generator is not on an index: a Frontier reaches it as a git dependency.
+    generator is not on an index: a Repository reaches it as a git dependency.
     One of the four declared that dependency in a manifest, where `uv` resolves
     and locks the rev; the other three carry the same `uvx --from git+…@rev`
     invocation in the declaration and nothing at all read it, so `@main` there
@@ -612,10 +612,10 @@ def rule_generator_pin(frontier: Frontier, packages: list[SharedPackage]) -> lis
     the branch held that morning.
 
     Shape and agreement, offline, and nothing else. Which commit is right is not
-    a fact this checkout can settle for a Frontier it was not shipped with — the
+    a fact this checkout can settle for a Repository it was not shipped with — the
     rule that compared a value would go red for a repository whose pin is
     correct and simply newer. What it can settle is that the reference names a
-    40-character commit rather than a moving ref, and that a Frontier restating
+    40-character commit rather than a moving ref, and that a Repository restating
     it does not restate it differently: erdos-frontier names the same rev in a
     declaration comment, a manifest, a lock and a module docstring, and four
     copies of one commit is four things that can disagree.
@@ -626,14 +626,14 @@ def rule_generator_pin(frontier: Frontier, packages: list[SharedPackage]) -> lis
         relative = package.root.relative_to(VELA_ROOT).as_posix()
         locators[package.name] = (relative, relative.replace("/", "%2F"))
     seen: dict[str, dict[str, list[str]]] = {name: {} for name in locators}
-    for path in frontier.walk():
+    for path in repository.walk():
         if path.suffix in {".png", ".jpg", ".webp", ".woff2", ".zip", ".gz"}:
             continue
         try:
             text = path.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
             continue
-        relative_path = frontier.relative(path)
+        relative_path = repository.relative(path)
         for number, line in enumerate(text.splitlines(), start=1):
             if not GIT_DEPENDENCY.search(line):
                 continue
@@ -663,7 +663,7 @@ def rule_generator_pin(frontier: Frontier, packages: list[SharedPackage]) -> lis
             findings.append(
                 Finding(
                     "generator-pin",
-                    frontier.relative(frontier.root),
+                    repository.relative(repository.root),
                     0,
                     f"pins {name} at {len(revisions)} different commits: {where}",
                 )
@@ -671,7 +671,7 @@ def rule_generator_pin(frontier: Frontier, packages: list[SharedPackage]) -> lis
     return findings
 
 
-def rule_retired_paths(frontier: Frontier, retired: list[str]) -> list[Finding]:
+def rule_retired_paths(repository: Repository, retired: list[str]) -> list[Finding]:
     """Retired paths must be absent.
 
     A directory entry fires only when it holds a file, which is what a worktree
@@ -680,7 +680,7 @@ def rule_retired_paths(frontier: Frontier, retired: list[str]) -> list[Finding]:
     """
     findings: list[Finding] = []
     for entry in retired:
-        target = frontier.file(entry.rstrip("/"))
+        target = repository.file(entry.rstrip("/"))
         if entry.endswith("/"):
             if target.is_dir() and any(item.is_file() for item in target.rglob("*")):
                 findings.append(
@@ -691,7 +691,7 @@ def rule_retired_paths(frontier: Frontier, retired: list[str]) -> list[Finding]:
     return findings
 
 
-def rule_generated_files(frontier: Frontier, packages: list[SharedPackage]) -> list[Finding]:
+def rule_generated_files(repository: Repository, packages: list[SharedPackage]) -> list[Finding]:
     """A generated file has a declaration behind it, and that declaration says
     what to re-run.
 
@@ -712,10 +712,10 @@ def rule_generated_files(frontier: Frontier, packages: list[SharedPackage]) -> l
         declaration_name = package.constants.get("DECLARATION_FILE")
         if not lock_name or not declaration_name:
             continue
-        lock_path = frontier.file(lock_name)
+        lock_path = repository.file(lock_name)
         if not lock_path.is_file():
             continue
-        declaration_path = frontier.file(declaration_name)
+        declaration_path = repository.file(declaration_name)
         if not declaration_path.is_file():
             findings.append(
                 Finding(
@@ -751,15 +751,15 @@ RULES = (
 )
 
 
-def lint(frontier_root: Path) -> list[Finding]:
-    frontier = Frontier(frontier_root)
+def lint(repository_root: Path) -> list[Finding]:
+    repository = Repository(repository_root)
     packages = shared_packages()
     findings = [
-        *rule_shared_package_copy(frontier, packages),
-        *rule_non_production_dependency(frontier, qualified_candidates()),
-        *rule_generator_pin(frontier, packages),
-        *rule_retired_paths(frontier, retired_paths()),
-        *rule_generated_files(frontier, packages),
+        *rule_shared_package_copy(repository, packages),
+        *rule_non_production_dependency(repository, qualified_candidates()),
+        *rule_generator_pin(repository, packages),
+        *rule_retired_paths(repository, retired_paths()),
+        *rule_generated_files(repository, packages),
     ]
     return sorted(findings)
 
@@ -767,17 +767,19 @@ def lint(frontier_root: Path) -> list[Finding]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="repository_lint",
-        description="Check one Frontier checkout against the shape consolidation left it in.",
+        description="Check one Repository checkout against the shape consolidation left it in.",
     )
-    parser.add_argument("frontier", nargs="?", default=".", help="path to one Frontier checkout")
+    parser.add_argument(
+        "repository", nargs="?", default=".", help="path to one Repository checkout"
+    )
     parser.add_argument("--json", action="store_true", help="emit findings as JSON")
     arguments = parser.parse_args(argv)
 
-    root = Path(arguments.frontier)
+    root = Path(arguments.repository)
     try:
         findings = lint(root)
     except ConfigurationError as error:
-        print(f"frontier-lint: {error}", file=sys.stderr)
+        print(f"repository-lint: {error}", file=sys.stderr)
         return 2
 
     if arguments.json:
@@ -785,7 +787,7 @@ def main(argv: list[str] | None = None) -> int:
             json.dumps(
                 {
                     "schema": "vela.repository-lint.v1",
-                    "frontier": str(root.resolve()),
+                    "repository": str(root.resolve()),
                     "rules": list(RULES),
                     "ok": not findings,
                     "findings": [
@@ -807,9 +809,9 @@ def main(argv: list[str] | None = None) -> int:
             print(finding.render())
         name = root.resolve().name
         if findings:
-            print(f"frontier-lint: {name}: {len(findings)} finding(s) across {len(RULES)} rules")
+            print(f"repository-lint: {name}: {len(findings)} finding(s) across {len(RULES)} rules")
         else:
-            print(f"frontier-lint: {name}: ok ({len(RULES)} rules)")
+            print(f"repository-lint: {name}: ok ({len(RULES)} rules)")
     return 1 if findings else 0
 
 

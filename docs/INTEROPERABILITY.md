@@ -1,7 +1,7 @@
 # Interoperability
 
 Vela standardizes the narrow transition boundary between scientific
-workbenches, verifiers, canonical Frontiers, and readers. It does not replace
+workbenches, verifiers, canonical Repositories, and readers. It does not replace
 domain tools, Git, package formats, workflow engines, or scientific ontologies.
 
 ## Public write contracts
@@ -24,8 +24,8 @@ canonical root is its only root. The payload carries exact:
 - source workbench/version metadata; and
 - an optional rooted execution binding.
 
-It carries no Frontier and no Target field. The receiving repository makes the
-Frontier association at submit time; a Submission is portable bytes, and the
+It carries no Repository and no Target field. The receiving repository makes
+that association at submit time; a Submission is portable bytes, and the
 schema is closed, so an adapter that writes `frontier` or `target` keys is
 rejected outright. PROTOCOL.md section 3.3 lists the complete field set.
 
@@ -118,7 +118,7 @@ empirical_transport
 ```
 
 The default is `discovery`. Transport of scientific Standing requires a
-separate exact governed transition in the target Frontier.
+separate exact governed transition in the target Repository.
 
 ## Distribution
 

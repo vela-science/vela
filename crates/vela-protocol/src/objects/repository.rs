@@ -45,7 +45,7 @@ pub struct RepositoryProfileLicenseV1 {
 
 /// Repository metadata.
 ///
-/// Profile v2 deliberately keeps a small, human-editable field set. Repository
+/// Profile v1 deliberately keeps a small, human-editable field set. Repository
 /// identity and standing come from `.vela/origin.json` and
 /// `.vela/repository.json`, never from a generated compatibility view.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -206,8 +206,13 @@ impl RepositoryV4 {
         }
         validate_repository_id("repository_id", &self.repository_id)?;
         require_sha256("profile_root", &self.profile_root)?;
-        require_prefixed("origin_id", &self.origin_id, "vro_")?;
         require_sha256("origin_root", &self.origin_root)?;
+        crate::shape::require_derived_handle(
+            "current repository origin_id",
+            &self.origin_id,
+            "vro_",
+            &self.origin_root,
+        )?;
         require_sha256("authority_keyset_root", &self.authority_keyset_root)?;
         require_sha256("authority_model_root", &self.authority_model_root)?;
 
@@ -360,16 +365,6 @@ fn require_text(field: &str, value: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn require_prefixed(field: &str, value: &str, prefix: &str) -> Result<(), String> {
-    require_text(field, value)?;
-    if !value.starts_with(prefix) {
-        return Err(format!(
-            "current repository {field} must start with `{prefix}`"
-        ));
-    }
-    Ok(())
-}
-
 fn require_full_claim_id(field: &str, value: &str) -> Result<(), String> {
     if !crate::shape::is_prefixed_lower_hex(value, "vcl_", 64) {
         return Err(format!(
@@ -425,7 +420,7 @@ mod tests {
             schema: REPOSITORY_SCHEMA_V4.into(),
             repository_id: "01234567-89ab-4def-8123-456789abcdef".into(),
             profile_root: root('a'),
-            origin_id: "vro_0123456789abcdef".into(),
+            origin_id: crate::shape::derive_handle("vro_", &root('b')).unwrap(),
             origin_root: root('b'),
             accepted_claims: vec![claim('c', "accepted")],
             pending_claims: vec![claim('d', "pending_review")],
@@ -458,6 +453,28 @@ mod tests {
         let mut tampered = repository;
         tampered.origin_id = "vre_0123456789abcdef".into();
         assert!(tampered.verify().is_err());
+    }
+
+    /// A handle that is well formed but names a different origin must fail.
+    ///
+    /// The manifest was the one object that checked `origin_id` for its `vro_`
+    /// prefix and stopped, so any sixteen hex characters passed beside any
+    /// root. Every other stored handle re-derives from the root beside it; this
+    /// is that rule, and the prefix-only case above cannot reach it.
+    #[test]
+    fn an_origin_handle_that_names_another_root_is_refused() {
+        let mut repository = fixture();
+        repository.origin_id = crate::shape::derive_handle("vro_", &root('9')).unwrap();
+
+        let error = repository.verify().unwrap_err();
+        assert!(
+            error.contains("the handle its root derives"),
+            "expected a derivation mismatch, got: {error}"
+        );
+
+        repository.origin_id =
+            crate::shape::derive_handle("vro_", &repository.origin_root).unwrap();
+        repository.verify().unwrap();
     }
 
     #[test]

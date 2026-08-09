@@ -1,14 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vela.science/schemas/sources.schema.json",
-  "title": "Frontier source declaration",
-  "description": "The shape of a Frontier's `sources.yaml`: the inventory of everything that Frontier acquires or consults, declared in the Frontier that acquires it. This file is the single definition of the shape. Producers validate against it before locking; consumers in any language should read it rather than restate it, because a restated schema is a second opinion that can disagree in silence.",
+  "title": "Repository source declaration",
+  "description": "The shape of a repository's `sources.yaml`: the inventory of everything that repository acquires or consults, declared in the repository that acquires it. This file is the single definition of the shape. Producers validate against it before locking; consumers in any language should read it rather than restate it, because a restated schema is a second opinion that can disagree in silence.",
   "type": "object",
   "additionalProperties": false,
   "required": ["sources"],
   "properties": {
     "sources": {
-      "description": "Keyed by the Frontier's own name for the source. The same keys appear in `sources.lock.json`, so a reader can join the two without a mapping table.",
+      "description": "Keyed by the repository's own name for the source. The same keys appear in `sources.lock.json`, so a reader can join the two without a mapping table.",
       "type": "object",
       "minProperties": 1,
       "propertyNames": { "pattern": "^[a-z][a-z0-9_]*$" },
@@ -35,12 +35,12 @@
       "required": ["source_id", "kind"],
       "properties": {
         "source_id": {
-          "description": "The identifier the release-scoped source registry publishes this entry under, or null where the entry is Frontier-derived and publishes under none. It lives here rather than in a mapping table downstream: a consumer that has to be told which of its own ids matches which of our keys is a consumer that can disagree with us silently.",
+          "description": "The identifier the release-scoped source registry publishes this entry under, or null where the entry is Repository-derived and publishes under none. It lives here rather than in a mapping table downstream: a consumer that has to be told which of its own ids matches which of our keys is a consumer that can disagree with us silently.",
           "type": ["string", "null"],
           "pattern": "^source:[a-z0-9]+(-[a-z0-9]+)*$"
         },
         "kind": {
-          "description": "What sort of thing this is, in the Frontier's own vocabulary. `reference_only` is the one value the resolver acts on: it means no bytes are retained, so nothing is fetched and nothing is hashed.",
+          "description": "What sort of thing this is, in the repository's own vocabulary. `reference_only` is the one value the resolver acts on: it means no bytes are retained, so nothing is fetched and nothing is hashed.",
           "type": "string",
           "minLength": 1
         },
@@ -90,7 +90,7 @@
           "$ref": "#/$defs/timestamp"
         },
         "acquired_by": {
-          "description": "The slug of the sibling Frontier that acquires these bytes. Cited, not acquired: nothing is retained here, so the pin is the declared commit and tree.",
+          "description": "The slug of the sibling Repository that acquires these bytes. Cited, not acquired: nothing is retained here, so the pin is the declared commit and tree.",
           "type": "string",
           "pattern": "^[a-z][a-z0-9-]*$"
         },
@@ -129,7 +129,7 @@
           "then": { "required": ["pages_commit_resolved"] }
         },
         {
-          "$comment": "A reference is consulted, not retained. Declaring a path or per-file roots for one would promise bytes this Frontier does not hold.",
+          "$comment": "A reference is consulted, not retained. Declaring a path or per-file roots for one would promise bytes this repository does not hold.",
           "if": {
             "properties": { "kind": { "const": "reference_only" } },
             "required": ["kind"]
