@@ -318,7 +318,7 @@ action installs the pinned release and runs `vela replay <path> --json`. An
 archived repository takes no push and no pull request, so none of that runs
 again.
 
-The one live repository, `vela-science/math` (`vrepo_56d3fdfcd34ff5c3`), carries
+The one live repository, `vela-science/math` (`vrepo_8b32ff6fa11cdb5fa0bb8a043c7d6941`), carries
 no `.github/` at all. `vela init` scaffolds no workflow, and each of the four
 wrote its own copy, so a repository gets this gate only by writing one, and
 `math` has not.

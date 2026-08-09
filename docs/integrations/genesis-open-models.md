@@ -7,9 +7,9 @@ faithfulness corpus counts are in `williamjblair/lean-proofs` at the commit
 named below, and the formal statements in `google-deepmind/formal-conjectures`
 at the pages commit named below. Three clones, each pinned.
 
-- **Protocol:** Vela `v0.969.0` released, which is the release carrying the correction work below
-- **Live authority:** `vela-science/math`, repository `vrepo_56d3fdfcd34ff5c3`
-- **Repository root at time of writing:** `sha256:83e430583f49a8ecbec3989a1aae71831b7d0165c807fd8c7815ac9a32750b3d`
+- **Protocol:** Vela `v0.971.0` released, which is the release carrying the correction work below
+- **Live authority:** `vela-science/math`, repository `vrepo_8b32ff6fa11cdb5fa0bb8a043c7d6941`
+- **Repository root at time of writing:** `sha256:fc53ce1e2accd3e5243887ea2db1104f480d7e6b7823ac3e1c0a1c01e1067fcc`
 - **Target submission date:** 24 August 2026
 
 Every claim below is reproducible with:

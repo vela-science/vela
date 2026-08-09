@@ -64,12 +64,14 @@ This paragraph described the defect in the present tense for as long as §6
 described its replacement, and this paragraph is the one a reader reaches first.
 
 **Frontier.** Derived, and no longer minted in the protocol. In `vela-web`,
-`registry.ts` now pins one slug, `math`, against `repository_id`
-`vrepo_56d3fdfcd34ff5c3` and validates it as `^vrepo_[0-9a-f]{32}$`; no `vfr_`
-identity survives there. What remains is the keying: twelve projection tables
-still carry `frontier_slug` in their primary key. That is the remaining epoch
-work, and it is a root migration rather than a rename: `rooted()` hashes
-`canonicalJson(row)` including keys, so every renamed column moves a `row_root`.
+`registry.ts` pins one slug, `math`, against `repository_id`
+`vrepo_8b32ff6fa11cdb5fa0bb8a043c7d6941` and validates it as `^vrepo_[0-9a-f]{32}$`; no `vfr_`
+identity survives there. The keying is finished too: all thirteen projection
+tables key on `repository_id`, and the slug is a presentation fact that lives
+only in the registry, where a URL handle meets a protocol identity. It was a
+root migration rather than a rename — `rooted()` hashes `canonicalJson(row)`
+including keys, so every renamed column moved a `row_root` — and the release it
+produced was rebuilt from an empty database and compared root for root.
 
 **Atlas.** The Observatory, `apps/observatory/` in `vela-web`. There is no
 separate Atlas application, no Atlas compiler, no per-view ontology. Every
@@ -90,11 +92,10 @@ stated as one number here, which made the bookkeeping tables look like state.
 library, not a package namespace, not an index of other people's mathematics,
 and not a second Mathlib. Nothing in it is a hub for anything outside it.
 
-It exists as of 2026-08-07: `vrepo_56d3fdfcd34ff5c3`, origin
-`vro_2e75a5b77102842f`, genesis generation 1, signed, and it replays from a
-clean clone. It declares thirteen Sources and holds zero Claims, which is the
-intended starting state — the corpus returns as observations, and a Claim
-enters only through a Decision.
+It exists as of 2026-08-09: `vrepo_8b32ff6fa11cdb5fa0bb8a043c7d6941`, origin
+`vro_3cfb63bdb525a407`, genesis generation 1, signed, and it replays from a
+clean clone. It declares thirteen Sources and holds one accepted Claim, which
+entered the only way a Claim can — through a Decision.
 
 **New nouns added: zero.** `vela-science/math` is an instance of Repository,
 which already exists.

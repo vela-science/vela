@@ -14,10 +14,10 @@ specified elsewhere; where that is true it cites rather than restates.
 
 Four bindings, jointly. Any one of them alone identifies nothing.
 
-| Binding | Where it is retained | Example (`vela-science/math`, 2026-08-07) |
+| Binding | Where it is retained | Example (`vela-science/math`, 2026-08-09) |
 | --- | --- | --- |
-| `repository_id` | `vela.toml`, `vela.repository-profile.v1` | `vrepo_56d3fdfcd34ff5c3` |
-| Origin ID and origin root | `.vela/origin.json`, `.vela/repository.json` | `vro_2e75a5b77102842f` |
+| `repository_id` | `vela.toml`, `vela.repository-profile.v1` | `vrepo_8b32ff6fa11cdb5fa0bb8a043c7d6941` |
+| Origin ID and origin root | `.vela/origin.json`, `.vela/repository.json` | `vro_3cfb63bdb525a407` |
 | Current repository root | derived by replay over the canonical object set | `vela.repository.v4` |
 | Sequence-one authority-record root | distributed independently of the checkout | installed by `vela authority trust pin` |
 
