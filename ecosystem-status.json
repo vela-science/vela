@@ -84,11 +84,15 @@
       ]
     },
     "published_schemas": [
+      "authorization-evaluation.schema.json",
+      "authorization-request.schema.json",
       "claim-record.schema.json",
       "dsse-envelope.schema.json",
+      "error.schema.json",
       "proposal-withdrawal.schema.json",
       "proposal.schema.json",
       "repository-origin.schema.json",
+      "repository-profile.schema.json",
       "status.schema.json",
       "submission.schema.json",
       "verification-record.schema.json"
@@ -119,6 +123,10 @@
         "declared": true,
         "present": true
       },
+      ".github/workflows/scorecard.yml": {
+        "declared": true,
+        "present": true
+      },
       "action.yml": {
         "declared": true,
         "present": true
@@ -140,8 +148,8 @@
         "present": true
       },
       "conformance/readers/javascript": {
-        "declared": false,
-        "present": false
+        "declared": true,
+        "present": true
       },
       "conformance/readers/python": {
         "declared": true,
@@ -215,7 +223,8 @@
     "workflows": [
       "conformance.yml",
       "ecosystem-status.yml",
-      "release.yml"
+      "release.yml",
+      "scorecard.yml"
     ],
     "workspace_crates": [
       "vela-authority",

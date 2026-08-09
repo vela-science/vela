@@ -42,17 +42,16 @@ This cut may proceed without a core release:
 
 What landed: `docs/interop/scientific-state-profile.md` states the seven
 contracts an outside implementation must satisfy and pairs each with its check.
-`conformance/readers/python` and the two emitters,
+`conformance/readers/python`, `conformance/readers/javascript`, and the two emitters,
 `conformance/emitters/javascript.mjs` and `conformance/emitters/python.py`, are
-frozen and run on every CI run. The reader half is still one language: the
-canonicalization vectors run in Rust and Python, and the emitters do not read
-the vector corpus at all. Contract 4, authority, still has no
-language-independent vector, which the profile states about itself.
+frozen and run on every CI run. Canonicalization vectors run in Rust, Python,
+and JavaScript. Contract 4, authority, is held by the generated request and
+evaluation schemas plus the language-independent authorization parity corpus.
 
-The fourth item read "freeze independent JavaScript and Python readers". What
-exists in JavaScript is an emitter; `scripts/ecosystem-status.py` declares
-`conformance/readers/javascript` absent, so the old wording asked for a surface
-whose absence is checked.
+The JavaScript reader is deliberately narrower than Python: it independently
+checks RFC 8785 bytes and SHA-256 roots, while repository reconstruction stays
+in the Python reader. The emitters remain separate implementations that build
+DSSE objects rather than importing either reader.
 
 ## Cut B — DSSE protocol migration
 

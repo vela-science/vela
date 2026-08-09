@@ -146,7 +146,7 @@ fn initialize_in_place(path: &Path, options: &InitOptions<'_>) -> Result<Value, 
         license: RepositoryProfileLicenseV1 {
             content: "CC-BY-4.0".into(),
             code: "Apache-2.0".into(),
-            data: "varies".into(),
+            data: "NOASSERTION".into(),
         },
     };
     profile.validate()?;

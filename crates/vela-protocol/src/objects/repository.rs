@@ -7,6 +7,7 @@
 
 use std::collections::BTreeSet;
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use unicode_normalization::UnicodeNormalization;
 
@@ -20,19 +21,25 @@ const PROFILE_MAINTAINER_MAX_BYTES: usize = 256;
 const PROFILE_LICENSE_MAX_BYTES: usize = 256;
 const PROFILE_ENCODED_MAX_BYTES: usize = 64 * 1024;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RepositoryProfileScopeV1 {
+    #[schemars(schema_with = "crate::wire_schema::profile_question")]
     pub question: String,
+    #[schemars(schema_with = "crate::wire_schema::profile_scope_array")]
     pub includes: Vec<String>,
+    #[schemars(schema_with = "crate::wire_schema::profile_scope_array")]
     pub excludes: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RepositoryProfileLicenseV1 {
+    #[schemars(schema_with = "crate::wire_schema::spdx_expression")]
     pub content: String,
+    #[schemars(schema_with = "crate::wire_schema::spdx_expression")]
     pub code: String,
+    #[schemars(schema_with = "crate::wire_schema::spdx_expression")]
     pub data: String,
 }
 
@@ -41,14 +48,19 @@ pub struct RepositoryProfileLicenseV1 {
 /// Profile v2 deliberately keeps a small, human-editable field set. Repository
 /// identity and standing come from `.vela/origin.json` and
 /// `.vela/repository.json`, never from a generated compatibility view.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RepositoryProfileV1 {
+    #[schemars(schema_with = "crate::wire_schema::repository_profile_schema_tag")]
     pub schema: String,
+    #[schemars(schema_with = "crate::wire_schema::repository_id")]
     pub repository_id: String,
+    #[schemars(schema_with = "crate::wire_schema::profile_name")]
     pub name: String,
+    #[schemars(schema_with = "crate::wire_schema::profile_summary")]
     pub summary: String,
     pub scope: RepositoryProfileScopeV1,
+    #[schemars(schema_with = "crate::wire_schema::profile_maintainers")]
     pub maintainers: Vec<String>,
     pub license: RepositoryProfileLicenseV1,
 }
@@ -105,22 +117,31 @@ impl RepositoryProfileV1 {
             &self.license.content,
             PROFILE_LICENSE_MAX_BYTES,
         )?;
+        validate_spdx_expression("profile.license.content", &self.license.content)?;
         validate_profile_text(
             "profile.license.code",
             &self.license.code,
             PROFILE_LICENSE_MAX_BYTES,
         )?;
+        validate_spdx_expression("profile.license.code", &self.license.code)?;
         validate_profile_text(
             "profile.license.data",
             &self.license.data,
             PROFILE_LICENSE_MAX_BYTES,
-        )
+        )?;
+        validate_spdx_expression("profile.license.data", &self.license.data)
     }
 
     pub fn profile_root(&self) -> Result<String, String> {
         self.validate()?;
         crate::canonical::sha256_canonical(self).map(|digest| format!("sha256:{digest}"))
     }
+}
+
+fn validate_spdx_expression(name: &str, value: &str) -> Result<(), String> {
+    spdx::Expression::parse(value)
+        .map(|_| ())
+        .map_err(|error| format!("{name} must be an SPDX license expression: {error}"))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -497,5 +518,31 @@ data = "CC0-1.0"
         assert!(
             RepositoryProfileV1::from_toml_str(&"x".repeat(PROFILE_ENCODED_MAX_BYTES + 1)).is_err()
         );
+    }
+
+    #[test]
+    fn current_profile_requires_spdx_license_expressions() {
+        let valid = r#"
+schema = "vela.repository-profile.v1"
+repository_id = "01234567-89ab-4def-8123-456789abcdef"
+name = "Example"
+summary = "A bounded example repository."
+maintainers = []
+
+[scope]
+question = "What is true?"
+includes = []
+excludes = []
+
+[license]
+content = "CC-BY-4.0"
+code = "Apache-2.0 OR MIT"
+data = "NOASSERTION"
+"#;
+        RepositoryProfileV1::from_toml_str(valid).unwrap();
+
+        let invalid = valid.replace("NOASSERTION", "varies");
+        let error = RepositoryProfileV1::from_toml_str(&invalid).unwrap_err();
+        assert!(error.contains("profile.license.data must be an SPDX license expression"));
     }
 }

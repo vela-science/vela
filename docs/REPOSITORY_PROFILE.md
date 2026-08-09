@@ -31,7 +31,7 @@ User-local `~/.vela/` is private machine state: configuration, identity
 custody, and local execution output. Nothing there is canonical scientific
 state. Repositories and readers must not depend on it for replay.
 
-## Profile v2
+## Current profile
 
 `vela.toml` is closed, human-readable metadata:
 
@@ -50,11 +50,14 @@ excludes = []
 [license]
 content = "CC-BY-4.0"
 code = "Apache-2.0"
-data = "varies"
+data = "NOASSERTION"
 ```
 
 The schema rejects unknown fields, duplicate keys, oversized input, non-NFC
-text, and disallowed control characters.
+text, disallowed control characters, and license values that are not SPDX
+license expressions. Use SPDX's `NOASSERTION` value when the profile cannot
+make a more specific license assertion; free-form placeholders such as
+`"varies"` are invalid.
 
 ```text
 profile_root = sha256(canonical_json(profile))

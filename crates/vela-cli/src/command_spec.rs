@@ -246,7 +246,7 @@ pub(crate) enum Commands {
     ))]
     #[command(after_long_help = crate::cli::help_text::SUBMIT)]
     Submit {
-        /// Path to a signed Submission v1. Or author a new Claim directly.
+        /// Path to a signed Submission v2 envelope. Or author a new Claim directly.
         /// This slot is the Submission, never the repository: use --repo.
         submission: Option<PathBuf>,
         #[arg(long = "repo", value_name = "PATH", help = HELP_REPO)]

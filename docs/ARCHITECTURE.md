@@ -247,13 +247,13 @@ and supported interface versions; unchanged components do not churn merely to
 match the source tag.
 
 - Vela releases the protocol implementation and CLI.
-- An independent Python reader checks the portable object waist without
-  creating a second package or release surface. Two clean-room emitters,
+- Independent Python and JavaScript readers check the canonical-byte boundary
+  without creating another package or release surface. Two clean-room emitters,
   `conformance/emitters/javascript.mjs` and `conformance/emitters/python.py`,
   build DSSE envelopes from PAE, base64 and Ed25519 and write Submission and
-  Verification objects; neither reads the vector corpus. `conformance/readers/` holds `python` alone, and
-  `scripts/ecosystem-status.py` declares `conformance/readers/javascript`
-  absent and fails if it appears.
+  Verification objects. The readers in `conformance/readers/python` and
+  `conformance/readers/javascript` independently check the RFC 8785 vector
+  corpus; the Python reader also reconstructs repository roots.
 - Immutable Canopus `0.8.0` remains frozen for historical Runs that bind its
   exact bytes. Current Vela contains no executor or separate runner release.
 - Each Repository verifies and reproduces its own exact state.

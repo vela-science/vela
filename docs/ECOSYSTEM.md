@@ -460,6 +460,15 @@ different facts.
   optional external workbench-run identity, `--source-run` authors it, and the
   duplicate-execution guards compare it. Vela neither mints a run identity nor
   owns the workbench runtime.
+- ~~The authority architecture has not been challenged against gittuf.~~
+  Resolved by `docs/GITTUF_AUTHORITY_DELETION_SPIKE.md`: gittuf v0.15.0
+  protected and independently verified the same fixture's Git ref transitions,
+  including rejection of an unauthorized RSL signer, while Vela independently
+  completed Submission → Verification → Decision → replay. The combined path
+  deleted zero Vela lines, added a second root/policy lifecycle and custom-ref
+  fetch, and could not replace any scientific authority check. The selected
+  current architecture remains the one closed native evaluator; gittuf stays an
+  optional external publication check.
 - **One repository has to re-genesis before it can be read.** The two entries
   that stood here — DSSE not being the common waist, and Cedar not being
   removed — are resolved in the tree and unresolved on disk at
@@ -470,39 +479,41 @@ different facts.
   refuses its current head. Nothing in this repository can fix that: the
   re-genesis needs the authority key in a local OpenSSH agent. This is the same
   sequencing as release 0.970.0, and it is the release blocker.
-- **`serde_yaml_ng` is a `serde_yaml` fork.** `Cargo.toml:43`. The standards
-  audit named forks as the option to avoid, and a fork is what was adopted. It
-  is dev-only today (`crates/vela-protocol/tests/action_contracts.rs`), which
-  bounds the exposure but does not resolve the decision.
-- **License fields are not SPDX.** `repository.rs:105-119` validates
-  the three license fields as bounded NFC text only. The documented example in
-  `docs/REPOSITORY_PROFILE.md:52` is `data = "varies"`, which is not an
-  SPDX expression.
-- **Four published schemas are missing.** `schemas/` holds eight: Submission,
-  Verification Record, Proposal Withdrawal, Claim Record, Proposal, repository
-  origin, the DSSE envelope and `vela.status.v4`. Claim Record was on
-  this list as unpublished after it had been published. Still unpublished: the
-  authority request and decision payloads, the repository profile, and a
-  `vela.error.v1` CLI error envelope. The generator already exists
-  (`crates/vela-protocol/src/wire_schema.rs` with a blessing test), so this is
-  scope, not mechanism.
-- **Canonicalization vectors run in two languages, not three.**
-  `conformance/canonical-hashing.json` declares exactly two conforming
-  implementations (Rust and Python); `conformance/readers/` contains only
-  `python`. The two emitters, `conformance/emitters/javascript.mjs` and
-  `conformance/emitters/python.py`, emit DSSE-enveloped Submissions and
-  Verification Records and neither reads the vector corpus.
+- ~~`serde_yaml_ng` is a `serde_yaml` fork.~~ Resolved: the sole YAML consumer,
+  the dev-only GitHub Action contract test, now uses maintained pure-Rust
+  `serde-saphyr` 1.0.1. No runtime protocol path parses YAML.
+- ~~License fields are not SPDX.~~ Resolved: all three Repository Profile
+  license values are parsed as SPDX license expressions by `spdx` 0.13.5.
+  Initialization and the documented example use SPDX's `NOASSERTION` value
+  where the data license is not known; free-form `"varies"` fails closed.
+- ~~Four published schemas are missing.~~ Resolved: `schemas/` holds twelve
+  generated documents. Repository Profile, authorization request,
+  authorization evaluation, and `vela.error.v1` now come from the live Rust
+  types, participate in the drift gate, and have positive and negative
+  independent conformance cases.
+- ~~Canonicalization vectors run in two languages, not three.~~ Resolved:
+  `conformance/canonical-hashing.json` declares Rust, Python, and JavaScript.
+  The clean-room JavaScript reader independently checks RFC 8785 UTF-16 key
+  ordering, ECMAScript number serialization, canonical UTF-8 bytes, and exact
+  SHA-256 roots.
 - **The portable TypeScript waist was removed, not deferred.**
   `@vela-science/protocol@0.1.0` was published (ADR 0024) and
   `packages/` now holds only `vela-source-manifest`. `docs/THEORY.md` claimed
   "The TypeScript package and language-neutral vectors check the portable
   producer boundary" and, in a second place this list never named, "independent
-  Python and JavaScript readers". Both now say what is there: one Python reader,
-  two clean-room emitters, and vectors that run in Rust and Python.
-- **No proptest, no cargo-fuzz, no CodeQL, no Scorecard, no CODEOWNERS.**
-  `.github/workflows/` holds `conformance.yml`, `release.yml` and
-  `ecosystem-status.yml` only.
-  `SECURITY.md:5` routes disclosure to a personal Gmail address.
+  Python and JavaScript readers". The deletion decision still stands: there is
+  no portable TypeScript package. The current conformance surface is two
+  readers, two clean-room emitters, and language-neutral vectors.
+- ~~No CodeQL, Scorecard, CODEOWNERS, or private disclosure route.~~ Resolved.
+  GitHub CodeQL default setup is configured for Actions, JavaScript/TypeScript,
+  Python, and Rust; `.github/workflows/scorecard.yml` publishes pinned OpenSSF
+  Scorecard SARIF; `.github/CODEOWNERS` routes review to the one current
+  maintainer; and `SECURITY.md` uses the enabled private vulnerability-reporting
+  surface instead of a personal address. `proptest` and `cargo-fuzz` are not
+  adopted as ornamental dependencies: exhaustive shape enumeration, negative
+  wire cases, frozen corpora, strict replay fixtures, and independent readers
+  already target the concrete parser and canonicalization risks. Add either
+  only with a failing property or fuzz corpus it uniquely owns.
 
 ### Documentation contradictions to resolve
 
@@ -653,8 +664,8 @@ Packet, Frontier map, Attempt (ADR 0039 §5), and Registration Record (ADR
                   ↑ 16 verbs: replay status claims log verification reproduce
                     correction authority init review show why next start submit
                     completions
-  readers       conformance/readers/python, conformance/emitters/javascript.mjs,
-                conformance/emitters/python.py
+  readers       conformance/readers/python, conformance/readers/javascript,
+                conformance/emitters/javascript.mjs, conformance/emitters/python.py
                   ↑ independent implementations of the same bytes
   analysis      crates/vela-edge
                   ↑ correction impact, target index; read-only, never required

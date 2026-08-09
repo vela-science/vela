@@ -7,4 +7,5 @@
 //! they are stated as types here for the same reason the signed objects are —
 //! a shape restated in two places is a shape that drifts.
 
+pub mod error;
 pub mod status;

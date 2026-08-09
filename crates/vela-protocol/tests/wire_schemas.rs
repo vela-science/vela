@@ -102,9 +102,8 @@ fn every_schema_file_is_generated_by_a_live_type() {
 /// The rendered bytes must be a function of the types alone.
 ///
 /// `serde_json::Map` preserves insertion order when anything in the build turns
-/// on `serde_json/preserve_order` — Cedar does, so `cargo test -p vela-protocol`
-/// and `cargo test --workspace` resolve that feature differently and would
-/// otherwise render the same schema in two key orders. The drift gate compares
+/// on `serde_json/preserve_order`, so different feature-unified cargo
+/// invocations may otherwise render the same schema in two key orders. The drift gate compares
 /// bytes, so it would then fail in one invocation and pass in the other.
 /// Sorted keys at every depth is the property that makes it invocation-blind.
 #[test]

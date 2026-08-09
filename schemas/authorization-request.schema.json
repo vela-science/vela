@@ -1,0 +1,142 @@
+{
+  "$id": "https://vela.science/schemas/authorization-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "enum": [
+        "authority_initialize",
+        "authority_rotate",
+        "authority_close",
+        "authority_model_update",
+        "review_accept",
+        "review_reject"
+      ],
+      "type": "string"
+    },
+    "authentication_root": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "intent_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "model_root": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "principal_class": {
+      "enum": [
+        "human",
+        "agent",
+        "workload",
+        "service",
+        "institution"
+      ],
+      "type": "string"
+    },
+    "principal_id": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+      "type": "string"
+    },
+    "profile": {
+      "const": "vela.repository-authorization.v1",
+      "type": "string"
+    },
+    "recovery_recent": {
+      "type": "boolean"
+    },
+    "repository_id": {
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "resource": {
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "properties": {
+            "resource_id": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "resource_type": {
+              "const": "repository"
+            }
+          },
+          "required": [
+            "resource_type",
+            "resource_id"
+          ]
+        },
+        {
+          "properties": {
+            "resource_id": {
+              "pattern": "^vpr_.+$"
+            },
+            "resource_type": {
+              "const": "proposal"
+            }
+          },
+          "required": [
+            "resource_type",
+            "resource_id"
+          ]
+        }
+      ],
+      "properties": {
+        "repository_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "resource_id": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+          "type": "string"
+        },
+        "resource_type": {
+          "enum": [
+            "repository",
+            "proposal"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "repository_id",
+        "resource_type",
+        "resource_id"
+      ],
+      "type": "object"
+    },
+    "schema": {
+      "const": "vela.authorization-request.v1",
+      "type": "string"
+    },
+    "transaction_read_set_root": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "profile",
+    "model_root",
+    "repository_id",
+    "principal_id",
+    "principal_class",
+    "action",
+    "resource",
+    "authentication_root",
+    "transaction_read_set_root",
+    "intent_digest",
+    "recovery_recent"
+  ],
+  "title": "Vela Authorization Request v1",
+  "type": "object"
+}

@@ -6,6 +6,7 @@
 
 use std::collections::BTreeMap;
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::canonical::sha256_canonical;
@@ -16,7 +17,9 @@ pub const AUTHORIZATION_MODEL_SCHEMA_V1: &str = "vela.authorization-model.v1";
 pub const AUTHORIZATION_REQUEST_SCHEMA_V1: &str = "vela.authorization-request.v1";
 pub const AUTHORIZATION_EVALUATION_SCHEMA_V1: &str = "vela.authorization-evaluation.v1";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorityRoleV1 {
     Administrator,
@@ -26,7 +29,7 @@ pub enum AuthorityRoleV1 {
 /// The complete current repository-authority action vocabulary. Routine
 /// evidence production, Submission registration, and Verification import are
 /// intentionally absent.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorityActionV1 {
     AuthorityInitialize,
@@ -69,7 +72,7 @@ impl AuthorityActionV1 {
 /// while a live genesis held the old token inside
 /// `AuthorizationRequestV1::root()`. The 0.970.0 re-genesis of
 /// `vela-science/math` removed that constraint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorityResourceTypeV1 {
     Repository,
@@ -143,11 +146,32 @@ impl AuthorizationModelV1 {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[schemars(extend("oneOf" = [
+    {
+        "properties": {
+            "resource_type": {"const": "repository"},
+            "resource_id": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            }
+        },
+        "required": ["resource_type", "resource_id"],
+    },
+    {
+        "properties": {
+            "resource_type": {"const": "proposal"},
+            "resource_id": {"pattern": "^vpr_.+$"}
+        },
+        "required": ["resource_type", "resource_id"],
+    },
+]))]
 pub struct AuthorizationResourceV1 {
+    #[schemars(schema_with = "crate::wire_schema::repository_id")]
     pub repository_id: String,
     pub resource_type: AuthorityResourceTypeV1,
+    #[schemars(schema_with = "crate::wire_schema::authorization_text")]
     pub resource_id: String,
 }
 
@@ -166,19 +190,27 @@ impl AuthorizationResourceV1 {
 }
 
 /// Fully bound request evaluated before a repository-authority transaction.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AuthorizationRequestV1 {
+    #[schemars(schema_with = "crate::wire_schema::authorization_request_schema_tag")]
     pub schema: String,
+    #[schemars(schema_with = "crate::wire_schema::authorization_profile_tag")]
     pub profile: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub model_root: String,
+    #[schemars(schema_with = "crate::wire_schema::repository_id")]
     pub repository_id: String,
+    #[schemars(schema_with = "crate::wire_schema::authorization_text")]
     pub principal_id: String,
     pub principal_class: PrincipalClass,
     pub action: AuthorityActionV1,
     pub resource: AuthorizationResourceV1,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub authentication_root: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub transaction_read_set_root: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub intent_digest: String,
     pub recovery_recent: bool,
 }
@@ -219,7 +251,7 @@ impl AuthorizationRequestV1 {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorizationDecisionV1 {
     Allow,
@@ -230,7 +262,7 @@ pub enum AuthorizationDecisionV1 {
 /// `"repository_mismatch"` and `"resource_repository_mismatch"` into
 /// `AuthorityEvaluationV1`, which is hashed into the authority record. Same
 /// migration as `AuthorityResourceTypeV1::Repository` above.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorizationReasonV1 {
     MemberRoleAuthorized,
@@ -244,15 +276,48 @@ pub enum AuthorizationReasonV1 {
     RecoverySessionForbidden,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[schemars(extend("oneOf" = [
+    {
+        "properties": {
+            "decision": {"const": "allow"},
+            "reason": {"const": "member_role_authorized"},
+            "matched_role": {"enum": ["administrator", "reviewer"]}
+        },
+        "required": ["decision", "reason", "matched_role"],
+    },
+    {
+        "properties": {
+            "decision": {"const": "deny"},
+            "reason": {"enum": [
+                "model_root_mismatch",
+                "repository_mismatch",
+                "resource_repository_mismatch",
+                "principal_class_mismatch",
+                "unknown_member",
+                "role_action_mismatch",
+                "resource_type_mismatch",
+                "recovery_session_forbidden"
+            ]},
+            "matched_role": {"type": "null"}
+        },
+        "required": ["decision", "reason", "matched_role"],
+    },
+]))]
 pub struct AuthorizationEvaluationV1 {
+    #[schemars(schema_with = "crate::wire_schema::authorization_evaluation_schema_tag")]
     pub schema: String,
+    #[schemars(schema_with = "crate::wire_schema::authorization_profile_tag")]
     pub profile: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub model_root: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub request_root: String,
     pub decision: AuthorizationDecisionV1,
     pub reason: AuthorizationReasonV1,
+    #[schemars(required)]
+    #[schemars(schema_with = "crate::wire_schema::nullable_authority_role")]
     pub matched_role: Option<AuthorityRoleV1>,
 }
 

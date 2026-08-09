@@ -292,7 +292,7 @@ pub fn run_command() {
                 let raw = crate::bounded_file::read_bounded_file(
                     &path,
                     vela_protocol::submission::SUBMISSION_MAX_BYTES as u64,
-                    "Submission v1",
+                    "Submission v2 envelope",
                 )
                 .unwrap_or_else(|error| {
                     /* `bounded_file` distinguishes twelve reasons a named file

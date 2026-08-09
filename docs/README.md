@@ -22,6 +22,7 @@
 - [ADR 0034: Direct Target Index generation](adr/0034-direct-target-index-generation.md)
 - [Threat model](THREAT_MODEL.md)
 - [Continuity](CONTINUITY.md)
+- [Gittuf authority deletion spike](GITTUF_AUTHORITY_DELETION_SPIKE.md)
 - [Current repository origin ADR](adr/0027-pre-release-current-state-compaction.md)
 - [Math-first compounding product architecture ADR](adr/0025-math-first-compounding-product-architecture.md)
 - [Proposed correction benchmark and whitepaper evidence contract ADR](adr/0026-correction-benchmark-and-whitepaper-evidence-contract.md)

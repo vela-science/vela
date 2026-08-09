@@ -9,7 +9,7 @@ and presentation. Conflating them is the central failure this gate prevents.
 2. **Verifier outcome:** a named, pinned method returned an outcome for those
    bytes and inputs.
 3. **Claim binding:** the checked property matches the scoped claim recorded in
-   Submission v1.
+   Submission v2 envelope.
 4. **Admission:** an attributed, authorized human Decision admitted the exact
    state transition. Historical signed-policy outcomes remain replay facts,
    not a current writer.
@@ -64,7 +64,7 @@ or source-local script is never silently treated as executable verification.
 
 ## Verifier evidence
 
-Submission v1 may record producer checks as attributed evidence:
+Submission v2 may record producer checks as attributed evidence:
 
 - method and implementation identity;
 - exact inputs and artifact digests;
@@ -203,7 +203,7 @@ frozen authority-path verifier.
 
 External Lean reproduction is an optional producer adapter. It pins the source
 commit, Lean and Mathlib environment, declaration, axiom policy, and retained
-logs, then emits an authenticated Submission v1. A kernel pass
+logs, then emits an authenticated Submission v2 envelope. A kernel pass
 establishes that the named declaration checks under that environment. It does
 not establish that the declaration faithfully formalizes the intended theorem
 or that the result is novel and important.

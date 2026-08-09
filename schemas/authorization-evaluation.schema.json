@@ -1,0 +1,119 @@
+{
+  "$id": "https://vela.science/schemas/authorization-evaluation.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "oneOf": [
+    {
+      "properties": {
+        "decision": {
+          "const": "allow"
+        },
+        "matched_role": {
+          "enum": [
+            "administrator",
+            "reviewer"
+          ]
+        },
+        "reason": {
+          "const": "member_role_authorized"
+        }
+      },
+      "required": [
+        "decision",
+        "reason",
+        "matched_role"
+      ]
+    },
+    {
+      "properties": {
+        "decision": {
+          "const": "deny"
+        },
+        "matched_role": {
+          "type": "null"
+        },
+        "reason": {
+          "enum": [
+            "model_root_mismatch",
+            "repository_mismatch",
+            "resource_repository_mismatch",
+            "principal_class_mismatch",
+            "unknown_member",
+            "role_action_mismatch",
+            "resource_type_mismatch",
+            "recovery_session_forbidden"
+          ]
+        }
+      },
+      "required": [
+        "decision",
+        "reason",
+        "matched_role"
+      ]
+    }
+  ],
+  "properties": {
+    "decision": {
+      "enum": [
+        "allow",
+        "deny"
+      ],
+      "type": "string"
+    },
+    "matched_role": {
+      "anyOf": [
+        {
+          "enum": [
+            "administrator",
+            "reviewer"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "model_root": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "profile": {
+      "const": "vela.repository-authorization.v1",
+      "type": "string"
+    },
+    "reason": {
+      "enum": [
+        "member_role_authorized",
+        "model_root_mismatch",
+        "repository_mismatch",
+        "resource_repository_mismatch",
+        "principal_class_mismatch",
+        "unknown_member",
+        "role_action_mismatch",
+        "resource_type_mismatch",
+        "recovery_session_forbidden"
+      ],
+      "type": "string"
+    },
+    "request_root": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "schema": {
+      "const": "vela.authorization-evaluation.v1",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "profile",
+    "model_root",
+    "request_root",
+    "decision",
+    "reason",
+    "matched_role"
+  ],
+  "title": "Vela Authorization Evaluation v1",
+  "type": "object"
+}

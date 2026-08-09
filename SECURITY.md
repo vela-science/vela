@@ -2,10 +2,10 @@
 
 ## Reporting a vulnerability
 
-Email the maintainer (Will Blair, william.blair0708@gmail.com); do not
-open a public issue. Include reproduction steps and the affected
-component. You will get an acknowledgment, and a fix or an honest
-assessment before any public disclosure.
+Use [GitHub private vulnerability reporting](https://github.com/vela-science/vela/security/advisories/new);
+do not open a public issue. Include reproduction steps and the affected
+component. The repository has private reporting enabled, so the report stays
+inside a draft security advisory until disclosure is coordinated.
 
 ## What to read first
 
@@ -26,7 +26,7 @@ deferred rather than defended.
   refusal is a vulnerability — report it.
 - Private keys never belong in a repo. `vela init` scaffolds a
   `.gitignore` that covers `/.vela/keys/` and nothing else
-  (`crates/vela-cli/src/current_init.rs`), so a key kept anywhere but
+  (`crates/vela-cli/src/init.rs`), so a key kept anywhere but
   that directory is yours to ignore. This line used to promise `keys/`
   and `*.key` as well; neither rule has ever been written by the
   scaffold, and a reader who trusted it would have committed the key

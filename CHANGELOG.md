@@ -29,6 +29,26 @@ not a note per commit, so they are shorter than the releases were.
   standards-neutral `provenance.source_run` value; Vela records that external
   identity but does not mint or govern workbench runs.
 
+- **The required gittuf deletion spike selects the native authority path.** An
+  isolated gittuf v0.15.0 policy protected the same Repository in which Vela
+  completed Submission, independent Verification, an authorized Decision, and
+  strict replay. Gittuf correctly rejected an unauthorized RSL signer, but the
+  combined design deleted zero Vela code, added a second root and policy
+  lifecycle, and still required every scientific authority check. The evidence
+  and measurements are retained in `docs/GITTUF_AUTHORITY_DELETION_SPIKE.md`;
+  gittuf remains an optional external publication-integrity layer.
+
+- **The public contract closes its remaining standards gaps.** Repository
+  Profile licenses are parsed as SPDX expressions and initialization uses
+  `NOASSERTION` instead of free-form `varies`; the dev-only Action test uses
+  maintained `serde-saphyr` rather than the `serde_yaml` fork. Generated JSON
+  Schema 2020-12 documents now cover Repository Profile, authorization request,
+  authorization evaluation, and the stable `vela.error.v1` CLI failure
+  envelope. RFC 8785 vectors run independently in Rust, Python, and JavaScript,
+  including a UTF-16 property-order case. CodeQL default setup, a pinned
+  OpenSSF Scorecard workflow, CODEOWNERS, and GitHub private vulnerability
+  reporting complete the repository security surface.
+
 ## 0.971.0
 
 - **One DSSE implementation, and every signed Vela object uses it.**

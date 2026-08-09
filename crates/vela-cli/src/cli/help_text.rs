@@ -34,7 +34,7 @@ SEE ALSO
 
 pub const SUBMIT: &str = "\
 EXAMPLES
-  vela submit submission.json                  retain a signed Submission v1
+  vela submit submission.json                  retain a signed Submission v2 envelope
   vela submit --claim \"a(7) >= 22\" --type computational \
     --replayability exact --artifact w.json:witness --caveat \"bounded search\"
                                                author one signed Submission

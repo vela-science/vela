@@ -207,7 +207,8 @@ Submissions and Verification Records without importing any Vela
 implementation, and CI holds
 both to the same fixtures. `conformance/readers/python/repository_root.py`
 recomputes a repository's root from a clean clone with no network and no Vela
-code.
+code, while `conformance/readers/javascript/canonical.mjs` independently checks
+the RFC 8785 canonical-byte and SHA-256 vector corpus.
 
 An open-model lab can therefore emit into this protocol from Python or
 JavaScript today, with no dependency on Rust, on this repository, or on any

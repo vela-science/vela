@@ -1,12 +1,10 @@
 //! The published wire JSON Schemas, generated from the types on the wire.
 //!
-//! Four of these describe objects that sign. The fifth, `status-v4`, does not:
-//! it is a read surface, a document `vela status` answers with and another
-//! repository parses. It is here because the question this module answers is
-//! not "does this object carry a signature" but "does a second implementation
-//! read these bytes", and for the status document that second implementation
-//! is `vela-web`, across a repository boundary, with nothing but a JSON Schema
-//! able to reach it. `crate::read_surface` states which types are which.
+//! The set includes signed payloads, rooted repository and authorization
+//! values, and two unsigned CLI read surfaces: status and error. The question
+//! this module answers is not only "does this object carry a signature" but
+//! "does an implementation outside this type definition read these bytes".
+//! `crate::read_surface` states which types are read surfaces.
 //!
 //! `schemas/*.schema.json` used to be written by hand beside the Rust. Both
 //! documents described the same wire bytes, but only the Rust builds canonical
@@ -31,8 +29,13 @@
 use schemars::{JsonSchema, Schema, SchemaGenerator, generate::SchemaSettings, json_schema};
 use serde_json::{Map, Value};
 
+use crate::authorization::{
+    AUTHORIZATION_EVALUATION_SCHEMA_V1, AUTHORIZATION_PROFILE_V1, AUTHORIZATION_REQUEST_SCHEMA_V1,
+};
+use crate::error::{ERROR_CODES, ERROR_KINDS, ERROR_V1_SCHEMA};
 use crate::execution_binding::EXECUTION_BINDING_SCHEMA;
 use crate::proposal_withdrawal::PROPOSAL_WITHDRAWAL_V2_SCHEMA;
+use crate::repository::REPOSITORY_PROFILE_SCHEMA_V1;
 use crate::repository_origin::REPOSITORY_ORIGIN_V1_SCHEMA;
 use crate::signer_identity::SIGNER_IDENTITY_V1_SCHEMA;
 use crate::status::{REPOSITORY_HEAD_ROLE, STATUS_V4_COMMAND, STATUS_V4_SCHEMA};
@@ -137,6 +140,43 @@ pub fn unbounded_text(_: &mut SchemaGenerator) -> Schema {
     json_schema!({ "type": "string", "minLength": 1, "pattern": TRIMMED_TEXT_PATTERN })
 }
 
+/// Arbitrary JSON error prose.
+///
+/// Failure messages may quote external tool diagnostics. The stable contract
+/// is their JSON string type; callers branch on `kind` and `code`, not prose.
+pub fn error_text(_: &mut SchemaGenerator) -> Schema {
+    json_schema!({ "type": "string" })
+}
+
+/// Arbitrary JSON error prose, or null where no value is available.
+pub fn nullable_error_text(_: &mut SchemaGenerator) -> Schema {
+    json_schema!({ "type": ["string", "null"] })
+}
+
+/// The constant false flag carried by failure-only shapes.
+pub fn false_value(_: &mut SchemaGenerator) -> Schema {
+    json_schema!({ "type": "boolean", "const": false })
+}
+
+/// The stable exit-code class vocabulary.
+pub fn error_kind(_: &mut SchemaGenerator) -> Schema {
+    vocabulary(ERROR_KINDS)
+}
+
+/// A stable machine-readable error code, or null when the class is enough.
+pub fn nullable_error_code(_: &mut SchemaGenerator) -> Schema {
+    let mut members: Vec<Value> = ERROR_CODES
+        .iter()
+        .map(|value| Value::String((*value).into()))
+        .collect();
+    members.push(Value::Null);
+    Schema::try_from(serde_json::json!({
+        "type": ["string", "null"],
+        "enum": members,
+    }))
+    .expect("nullable error code is an object schema")
+}
+
 /// An array of bounded text.
 pub fn text_array(_: &mut SchemaGenerator) -> Schema {
     json_schema!({ "type": "array", "items": text_fragment() })
@@ -194,6 +234,15 @@ pub fn nullable_git_object_id(_: &mut SchemaGenerator) -> Schema {
     json_schema!({ "type": ["string", "null"], "pattern": GIT_OBJECT_ID_PATTERN })
 }
 
+/// An authorization role, or null on a denied evaluation.
+pub fn nullable_authority_role(generator: &mut SchemaGenerator) -> Schema {
+    let role =
+        serde_json::to_value(generator.subschema_for::<crate::authorization::AuthorityRoleV1>())
+            .expect("an authorization role subschema serializes");
+    Schema::try_from(serde_json::json!({ "anyOf": [role, { "type": "null" }] }))
+        .expect("the nullable authorization role is an object schema")
+}
+
 /// Lowercase canonical RFC 9562 UUIDv4 text.
 pub fn repository_id(_: &mut SchemaGenerator) -> Schema {
     json_schema!({
@@ -201,6 +250,71 @@ pub fn repository_id(_: &mut SchemaGenerator) -> Schema {
         "format": "uuid",
         "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
     })
+}
+
+/// Text carried by an authorization request, bounded at 2 KiB.
+pub fn authorization_text(_: &mut SchemaGenerator) -> Schema {
+    json_schema!({
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048,
+        "pattern": TRIMMED_TEXT_PATTERN,
+    })
+}
+
+fn bounded_profile_text(max_length: usize) -> Schema {
+    json_schema!({
+        "type": "string",
+        "minLength": 1,
+        "maxLength": max_length,
+        "pattern": TRIMMED_TEXT_PATTERN,
+    })
+}
+
+/// Repository Profile name text.
+pub fn profile_name(_: &mut SchemaGenerator) -> Schema {
+    bounded_profile_text(256)
+}
+
+/// Repository Profile summary text.
+pub fn profile_summary(_: &mut SchemaGenerator) -> Schema {
+    bounded_profile_text(2 * 1024)
+}
+
+/// Repository Profile bounded scientific question.
+pub fn profile_question(_: &mut SchemaGenerator) -> Schema {
+    bounded_profile_text(4 * 1024)
+}
+
+/// A unique set of Repository Profile scope statements.
+pub fn profile_scope_array(_: &mut SchemaGenerator) -> Schema {
+    let item = serde_json::to_value(bounded_profile_text(2 * 1024))
+        .expect("profile scope item schema serializes");
+    json_schema!({
+        "type": "array",
+        "uniqueItems": true,
+        "items": item,
+    })
+}
+
+/// A unique set of descriptive Repository Profile maintainers.
+pub fn profile_maintainers(_: &mut SchemaGenerator) -> Schema {
+    let item = serde_json::to_value(bounded_profile_text(256))
+        .expect("profile maintainer schema serializes");
+    json_schema!({
+        "type": "array",
+        "uniqueItems": true,
+        "items": item,
+    })
+}
+
+/// A bounded SPDX license expression.
+///
+/// JSON Schema has no standard SPDX expression format. The generated schema
+/// therefore publishes the structural text boundary; the protocol reader
+/// parses the complete expression with the SPDX license-list grammar.
+pub fn spdx_expression(_: &mut SchemaGenerator) -> Schema {
+    bounded_profile_text(256)
 }
 
 /// The review lane's action, or null when no Decision is waiting.
@@ -335,6 +449,31 @@ pub fn repository_origin_schema_tag(_: &mut SchemaGenerator) -> Schema {
     tag(REPOSITORY_ORIGIN_V1_SCHEMA)
 }
 
+/// `vela.repository-profile.v1`.
+pub fn repository_profile_schema_tag(_: &mut SchemaGenerator) -> Schema {
+    tag(REPOSITORY_PROFILE_SCHEMA_V1)
+}
+
+/// `vela.authorization-request.v1`.
+pub fn authorization_request_schema_tag(_: &mut SchemaGenerator) -> Schema {
+    tag(AUTHORIZATION_REQUEST_SCHEMA_V1)
+}
+
+/// `vela.authorization-evaluation.v1`.
+pub fn authorization_evaluation_schema_tag(_: &mut SchemaGenerator) -> Schema {
+    tag(AUTHORIZATION_EVALUATION_SCHEMA_V1)
+}
+
+/// `vela.repository-authorization.v1`.
+pub fn authorization_profile_tag(_: &mut SchemaGenerator) -> Schema {
+    tag(AUTHORIZATION_PROFILE_V1)
+}
+
+/// `vela.error.v1`.
+pub fn error_schema_tag(_: &mut SchemaGenerator) -> Schema {
+    tag(ERROR_V1_SCHEMA)
+}
+
 /// `vela.status.v4`.
 pub fn status_schema_tag(_: &mut SchemaGenerator) -> Schema {
     tag(STATUS_V4_SCHEMA)
@@ -409,9 +548,9 @@ fn strip_descriptions(node: &mut Value) {
 /// Rebuild every object with its keys in sorted order.
 ///
 /// `serde_json::Map` is a `BTreeMap` normally and an `IndexMap` when something
-/// in the build enables `serde_json/preserve_order`, which Cedar does — so the
-/// same types serialize in two different key orders depending on whether this
-/// crate is built alone or alongside `vela-cli`. The generated file is compared
+/// in the build enables `serde_json/preserve_order`, so the same types may
+/// serialize in two different key orders under different feature-unified cargo
+/// invocations. The generated file is compared
 /// byte for byte against the checked-in one, so an order that depends on which
 /// cargo invocation ran would make the drift gate report drift that is not
 /// there. Sorting on the way out makes the output a function of the types only.
@@ -534,6 +673,31 @@ pub fn published() -> Vec<(&'static str, Value)> {
                 "repository-origin.schema.json",
                 "Vela Repository Origin v1",
             ),
+        ),
+        (
+            "repository-profile.schema.json",
+            document::<crate::repository::RepositoryProfileV1>(
+                "repository-profile.schema.json",
+                "Vela Repository Profile v1",
+            ),
+        ),
+        (
+            "authorization-request.schema.json",
+            document::<crate::authorization::AuthorizationRequestV1>(
+                "authorization-request.schema.json",
+                "Vela Authorization Request v1",
+            ),
+        ),
+        (
+            "authorization-evaluation.schema.json",
+            document::<crate::authorization::AuthorizationEvaluationV1>(
+                "authorization-evaluation.schema.json",
+                "Vela Authorization Evaluation v1",
+            ),
+        ),
+        (
+            "error.schema.json",
+            document::<crate::error::ErrorEnvelopeV1>("error.schema.json", "Vela CLI Error v1"),
         ),
     ]
 }

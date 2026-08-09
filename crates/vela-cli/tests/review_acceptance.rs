@@ -602,7 +602,10 @@ fn review_accept_admits_the_event_that_moves_standing() {
     assert_eq!(why_after["standing"], "accepted");
     assert_eq!(why_after["proposal_status"], "accepted");
     assert_eq!(why_after["claim_root"], accepted["claim_root"]);
-    assert_eq!(why_after["chain"]["standing_basis"], "current_authority");
+    assert!(
+        why_after["chain"].get("standing_basis").is_none(),
+        "the one current authority chain needs no compaction-era basis label"
+    );
     let explained = why_after["chain"]["authority_events"]
         .as_array()
         .expect("explained authority events");

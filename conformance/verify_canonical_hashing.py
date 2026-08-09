@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -61,7 +63,26 @@ def main() -> int:
               "matches RFC 8785 (Rust will mint "
               "different ids than Python re-verifies).")
         return 1
-    print("Python content-address path conforms to RFC 8785: OK")
+    print("Python content-address path conforms to RFC 8785: OK", flush=True)
+
+    node = shutil.which("node")
+    if node is None:
+        print("node is required for the independent JavaScript reader", file=sys.stderr)
+        return 2
+    javascript = subprocess.run(
+        [
+            node,
+            str(HERE / "readers" / "javascript" / "canonical.mjs"),
+            str(vectors_path),
+        ],
+        cwd=HERE.parent,
+        check=False,
+        timeout=30,
+    )
+    if javascript.returncode != 0:
+        print("JavaScript content-address path diverged", file=sys.stderr)
+        return javascript.returncode
+    print("Three content-address paths conform to RFC 8785: OK")
     return 0
 
 

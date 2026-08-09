@@ -147,11 +147,13 @@ DECLARED_SURFACES: dict[str, bool] = {
     ".github/release/smoke-bundle.sh": True,
     ".github/workflows/conformance.yml": True,
     ".github/workflows/release.yml": True,
+    ".github/workflows/scorecard.yml": True,
     "action.yml": True,
     "conformance/canonical-hashing.json": True,
     "conformance/emitters/javascript.mjs": True,
     "conformance/emitters/python.py": True,
     "conformance/fixtures/correction": True,
+    "conformance/readers/javascript": True,
     "conformance/readers/python": True,
     "conformance/verify.py": True,
     "crates/vela-edge/src/analysis/correction_impact.rs": True,
@@ -174,12 +176,11 @@ DECLARED_SURFACES: dict[str, bool] = {
     # Declared absent. A declared-absent surface is worth as much as a
     # declared-present one: it is how "not built" stops being a claim nobody
     # rechecks. The two are absent for different reasons, and the reason is the
-    # part worth writing down. No JavaScript reader has been built. `epoch1/`
-    # was built, verified against all four checkouts, and then deleted when ADR
+    # part worth writing down. `epoch1/` was built, verified against all four
+    # checkouts, and then deleted when ADR
     # 0039's same-day amendment withdrew §8 — so this row guards a decision
     # rather than tracking a gap, and a directory reappearing here is the
     # epoch-1 branch coming back.
-    "conformance/readers/javascript": False,
     "crates/vela-protocol/src/epoch1": False,
 }
 

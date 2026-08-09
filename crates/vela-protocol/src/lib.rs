@@ -31,4 +31,4 @@ pub use objects::{
     repository_origin, signer_identity, submission, verification_record,
 };
 mod read_surface;
-pub use read_surface::status;
+pub use read_surface::{error, status};
