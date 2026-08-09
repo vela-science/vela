@@ -189,7 +189,7 @@ retained saying `accepted`. The loader read those two facts as a contradiction:
 `status`, `claims`, `replay`, `why` and `review list` all failed on a
 repository that had done nothing but accept a correction. A protocol whose
 central move is correction could not be read after making one. Fixed on
-`main`, unreleased; held shut by
+the current Vela 0.972.1 release; held shut by
 `crates/vela-cli/tests/correction_impact.rs`.
 
 **The assurance vector had no queryable home.** `scope.property` and

@@ -23,6 +23,7 @@
 - [Threat model](THREAT_MODEL.md)
 - [Continuity](CONTINUITY.md)
 - [Provider-loss qualification, 2026-08-09](PROVIDER_LOSS_QUALIFICATION_2026-08-09.md)
+- [Ecosystem completion ledger, 2026-08-09](ECOSYSTEM_COMPLETION_2026-08-09.md)
 - [Gittuf authority deletion spike](GITTUF_AUTHORITY_DELETION_SPIKE.md)
 - [Current repository origin ADR](adr/0027-pre-release-current-state-compaction.md)
 - [Math-first compounding product architecture ADR](adr/0025-math-first-compounding-product-architecture.md)

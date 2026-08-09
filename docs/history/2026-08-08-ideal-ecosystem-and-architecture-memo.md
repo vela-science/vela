@@ -48,10 +48,14 @@ authority_effect: "None. This memo proposes architecture and migration decisions
 > Repository strictly replays; its signed 0.971.0 predecessor remains continuity
 > evidence and carries no Standing forward.
 >
-> Everything else the memo proposes — the §12 crate consolidation, the §13
-> conformance and interoperability program, the §16 external validation
-> sequence — remains a proposal. Read the ADRs under `../adr/` for what is
-> decided.
+> Later work also completed the current conformance program, projection
+> vocabulary migration, first science-translation Dossier, live deployment, and
+> provider-loss reconstruction. The external part of §16 remains deliberately
+> open: no external workbench producer, separately governed authority,
+> cross-Repository transfer, consequential correction cascade, or measured cold
+> successor exists yet. See
+> `../ECOSYSTEM_COMPLETION_2026-08-09.md` for the evidence ledger and the exact
+> promotion gates. Read the ADRs under `../adr/` for what is decided.
 >
 > One formatting change was made and no other. The prior Vela memos §A lists
 > were inputs to the session that produced this one and are not in this
