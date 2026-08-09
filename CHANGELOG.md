@@ -10,6 +10,15 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+## 0.972.1
+
+- **Release smoke accepts the UUID authority trust-pin layout.** The `v0.972.0`
+  workflow built the macOS archive, SBOM, and checksums, then correctly stopped
+  before creating a draft release because its smoke test still expected the
+  retired `vrepo_` filename. The smoke test now requires a canonical lowercase
+  RFC 9562 UUIDv4 filename and cleans up that exact trust pin. The failed tag
+  remains historical evidence; `0.972.1` is the replacement release.
+
 ## 0.972.0
 
 - **Repository identity is a standard RFC 9562 UUIDv4.** `vela init` now mints
