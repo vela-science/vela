@@ -3763,7 +3763,7 @@ mod tests {
     fn fresh_repository_delta_accepts_only_empty_genesis_origin() {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path();
-        let repository_id = "vrepo_0123456789abcdef";
+        let repository_id = "vrepo_0123456789abcdef0123456789abcdef";
         let profile_root = fixture_root('c');
         let genesis = vela_protocol::repository_origin::RepositoryOriginV1::genesis(
             repository_id.into(),
@@ -4915,7 +4915,7 @@ mod tests {
         fs::create_dir_all(root.join(".vela")).unwrap();
 
         let predecessor_origin = vela_protocol::repository_origin::RepositoryOriginV1::genesis(
-            "vrepo_0123456789abcdef".into(),
+            "vrepo_0123456789abcdef0123456789abcdef".into(),
             fixture_root('1'),
             "Predecessor generation fixture.".into(),
         )

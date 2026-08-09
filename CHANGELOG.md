@@ -8,6 +8,48 @@ is `0.967.0`, what `5cd6f01`, `b478530` and `f9c127c` added is `0.968.0`, and
 `0.968.1` is `6c500dc`. Those sections carry what was written at the time and
 not a note per commit, so they are shorter than the releases were.
 
+## 0.971.0
+
+- **`repository_id` is 128 bits.** It was 64 — `vrepo_` and sixteen hex
+  characters truncated from a SHA-256 digest for no reason beyond brevity. The
+  identifier is a routing handle rather than a security root, which `docs/ROOTS.md`
+  states plainly and this release does not change: the cryptographic roots still
+  do every security-critical job. But it is also the durable name of an
+  authority, expected to distinguish independently created repositories for as
+  long as any of them exist, and 64 bits puts a birthday collision at roughly
+  five billion repositories. Widening it costs nothing that was worth saving.
+
+  Pre-1.0, so there is no compatibility branch: `vrepo_<16 hex>` is now invalid
+  rather than accepted beside the wide form. Every identifier that carried the
+  narrow shape was minted by a genesis that has since been replaced. The width
+  is one named constant, `REPOSITORY_ID_HEX_LEN`, where it was the literal `16`
+  at six call sites across two crates.
+
+  **`vela-science/math` must be re-genesised to load under this release**, the
+  same way 0.970.0 required it: `vela status` on the 0.970.0 checkout answers
+  `profile.repository_id must be vrepo_<32 lowercase hex>` and refuses. Nothing
+  already signed is invalidated — the accepted Claim keeps its `claim_id`,
+  which is derived from the bytes of the record and not from the repository.
+
+- **`vela status` leads with the repository, not with its identifier.** The
+  first two lines are now the name and the origin remote as a person refers to
+  it — `Vela Mathematics`, `github.com/vela-science/math` — with `repository`,
+  `state` and `commit` underneath. `repository_id` has not moved and is no less
+  load-bearing; it is machine identity, and it sits where an identity, trust or
+  debugging question finds it. This is the split Git already draws between
+  `main` and the commit it points at. `state` is new to the human surface: the
+  exact repository root was in `--json` and nowhere a reader could see it.
+
+  `vela.status.v4` is unchanged. Only the rendering moved.
+
+- **The protocol docs stop calling a Frontier a container.** ADR 0039 settled
+  that a Repository is the authority boundary that holds canonical state and a
+  Frontier is a derived query that owns nothing — and `docs/PROTOCOL.md` still
+  opened §3 with "A current Frontier contains:" above a directory listing.
+  `docs/TERMINOLOGY.md` had already defined the word correctly two sections
+  above the places that used it the old way. Twelve sentences across six
+  documents now say Repository where they mean the thing with the bytes.
+
 ## 0.970.0
 
 - **The retired vocabulary is gone from the code, not just from the wire.**

@@ -16,7 +16,7 @@ ADR 0039 split one overloaded word into four boundaries and one projection.
 
 | Boundary | What it bounds | Identifier |
 | --- | --- | --- |
-| Repository | authority: Git repository, trust root, canonical history, Standing | `repository_id`, `^vrepo_[0-9a-f]{16}$` |
+| Repository | authority: Git repository, trust root, canonical history, Standing | `repository_id`, `^vrepo_[0-9a-f]{32}$` |
 | Source | provenance: exact observations of external systems, never governed | `source_id`, prefixed `source:` |
 | Problem | one bounded scientific question | native source identifier |
 | Frontier | derived: the unresolved state around one or more Problems; owns nothing | none, by design |
@@ -31,7 +31,7 @@ authority, never because there is a new topic.**
 (`RepositoryV4`), the authority history in `crates/vela-authority/`,
 replay in `crates/vela-verify/`. The rename landed in v0.967.0: `vfr_` and
 `frontier_id` are at zero in `crates/`, against 76 `vrepo_` and 392
-`repository_id`. The type parses `vela.toml`, mints `vrepo_<16 hex>`, and
+`repository_id`. The type parses `vela.toml`, mints `vrepo_<32 hex>`, and
 answers `vela.status.v4`.
 
 **Source.** Declared per repository in `sources.yaml` and locked in
@@ -65,7 +65,7 @@ described its replacement, and this paragraph is the one a reader reaches first.
 
 **Frontier.** Derived, and no longer minted in the protocol. In `vela-web`,
 `registry.ts` now pins one slug, `math`, against `repository_id`
-`vrepo_56d3fdfcd34ff5c3` and validates it as `^vrepo_[0-9a-f]{16}$`; no `vfr_`
+`vrepo_56d3fdfcd34ff5c3` and validates it as `^vrepo_[0-9a-f]{32}$`; no `vfr_`
 identity survives there. What remains is the keying: twelve projection tables
 still carry `frontier_slug` in their primary key. That is the remaining epoch
 work, and it is a root migration rather than a rename: `rooted()` hashes
@@ -265,7 +265,7 @@ Vela-format distribution channel.
 | Rust toolchain | rustup | `rust-toolchain.toml` | yes |
 | Python tools | PyPI | `uv.lock`, `uv run --locked` | `packages/vela-source-manifest/` (pyproject.toml + uv.lock) |
 | TypeScript | npm, `@vela-science/*` | `bun.lock` (`vela-web` uses `bun@1.3.12`) | none currently published; `@vela-science/protocol@0.1.0` was published and then removed |
-| Lean | Lake, pinned to an immutable Git revision | `lake-manifest.json` | in Frontier repositories only |
+| Lean | Lake, pinned to an immutable Git revision | `lake-manifest.json` | in authority repositories only |
 | Binaries | GitHub Releases | SHA-256 checksums, SPDX SBOM, release manifest (signed out of band before publication), build provenance attestation | `scripts/release.sh`, called by `.github/workflows/release.yml`; two targets, `vela-linux-x86_64` and `vela-macos-aarch64` |
 | Containers | GHCR | image digest | none |
 | Vela-format contracts | none | none | empty set |

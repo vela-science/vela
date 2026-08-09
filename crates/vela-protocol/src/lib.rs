@@ -14,7 +14,10 @@ mod shape;
 /// `execution_binding` that existed for no other purpose — so the rule
 /// `shape.rs` was written to write down once was written down eleven more
 /// times, in two different spellings, in `vela-edge` and `vela-cli`.
-pub use shape::{is_full_sha256_root, is_lower_hex, is_lower_hex_64, is_prefixed_lower_hex};
+pub use shape::{
+    REPOSITORY_ID_HEX_LEN, is_full_sha256_root, is_lower_hex, is_lower_hex_64,
+    is_prefixed_lower_hex,
+};
 pub mod wire_schema;
 
 mod kernel;

@@ -911,7 +911,7 @@ mod tests {
     fn repository() -> RepositoryV4 {
         RepositoryV4 {
             schema: REPOSITORY_SCHEMA_V4.into(),
-            repository_id: "vrepo_0123456789abcdef".into(),
+            repository_id: "vrepo_0123456789abcdef0123456789abcdef".into(),
             profile_root: root('a'),
             origin_id: "vro_0123456789abcdef".into(),
             origin_root: root('b'),
@@ -1091,7 +1091,7 @@ mod tests {
     fn plan() -> ReviewDecisionPlan {
         let mut plan = ReviewDecisionPlan {
             schema: PLAN_SCHEMA.into(),
-            repository_id: "vrepo_0123456789abcdef".into(),
+            repository_id: "vrepo_0123456789abcdef0123456789abcdef".into(),
             repository_name: "Fixture repository".into(),
             repository_root: root('1'),
             proposal_id: "vpr_fixture".into(),

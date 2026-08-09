@@ -37,7 +37,7 @@ state. Repositories and readers must not depend on it for replay.
 
 ```toml
 schema = "vela.repository-profile.v1"
-repository_id = "vrepo_0123456789abcdef"
+repository_id = "vrepo_0123456789abcdef0123456789abcdef"
 name = "Bounded human-readable name"
 summary = "One concise description"
 maintainers = []

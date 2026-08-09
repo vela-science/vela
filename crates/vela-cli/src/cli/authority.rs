@@ -1067,7 +1067,7 @@ mod tests {
         let temporary = TempDir::new().unwrap();
         let (bundle, authorization) = fresh_authority_policy_for_frontier(
             temporary.path(),
-            "vrepo_0000000000000000",
+            "vrepo_00000000000000000000000000000000",
             "local:device-fixture|uid:501",
             "2026-07-27T00:00:00Z",
         )
