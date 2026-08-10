@@ -63,6 +63,26 @@ both old and new formats indefinitely.
 Do not add abstract extension points for hypothetical consumers. A second
 implementation is evidence for an abstraction; a memo is not.
 
+### Removing something does not create a permanent guard
+
+Deleting a command, spelling, path or object name must not leave behind a test
+whose only assertion is that the deleted thing is still absent. Git history
+already records what was removed, and `conformance/check-core.sh` says the same
+thing: routine CI does not spend time proving that deleted source is still
+absent.
+
+A guard against reintroduction earns its place only when reintroduction would
+corrupt accepted data or create a security downgrade — a retired path a replay
+must refuse, a wire field that would be read as valid, a published JSON key a
+consumer contracts on, an installer that must not ship a signer. Those are
+protocol checks that happen to be phrased as absence.
+
+Everything else is a sunset. A vocabulary sweep is finished when the word is
+gone, and a detector that matches only itself and its own allowlist is not
+coverage — it is the last thing keeping the word in the tree. Prefer guarding a
+live surface a user meets, such as the binary's help and error output, over
+sweeping prose that ordinary review already reads.
+
 ## Authority and scientific meaning
 
 Keep these distinctions exact:
