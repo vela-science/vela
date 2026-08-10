@@ -3698,6 +3698,163 @@ mod tests {
     }
 
     #[test]
+    fn post_phase_one_transaction_wire_fixture_is_byte_exact() {
+        let temporary = tempfile::tempdir().unwrap();
+        let repository = temporary.path().join("repository");
+        fs::create_dir_all(repository.join(".vela")).unwrap();
+        fs::write(
+            repository.join(".vela/repository.json"),
+            b"{\"schema\":\"fixture.before\"}\n",
+        )
+        .unwrap();
+
+        let draft = DeltaDraft::prepare(
+            &repository,
+            vec![
+                PlannedWrite::write(
+                    RepoPath::parse(".vela/repository.json").unwrap(),
+                    WriteClass::CanonicalEvidence,
+                    b"{\"schema\":\"fixture.after\"}\n".to_vec(),
+                ),
+                PlannedWrite::write(
+                    RepoPath::parse(concat!(
+                        "records/proposals/sha256/",
+                        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.json"
+                    ))
+                    .unwrap(),
+                    WriteClass::PublicReview,
+                    b"{\"schema\":\"vela.proposal.v1\",\"id\":\"vpr_fixture\"}\n".to_vec(),
+                ),
+            ],
+        )
+        .unwrap();
+
+        // RepositoryBinding normally retains the canonical absolute checkout
+        // path. That fact intentionally varies between machines and belongs in
+        // the live binding check, not a wire golden. This sentinel exercises
+        // the exact current serialization without goldening a temporary path.
+        let plan = RepositoryTxnPlan::new(
+            RepositoryTxnPlanSpec {
+                kind: OperationKind::Submission,
+                operation_id: OperationId::derive(
+                    "submission",
+                    b"post-phase-one-transaction-wire-fixture",
+                ),
+                request_root: ContentDigest::hash(
+                    b"post-phase-one-transaction-wire-fixture-request",
+                ),
+                repository: RepositoryBinding {
+                    canonical_root: "/__vela_repository_txn_wire_fixture__/repository".into(),
+                    repository_id: "33333333-3333-4333-8333-333333333333".into(),
+                },
+                fixed_time: "2026-08-10T00:00:00Z".into(),
+                read_set: vec![
+                    InputBinding {
+                        name: "current_repository_before".into(),
+                        digest: ContentDigest::hash(b"fixture repository input"),
+                    },
+                    InputBinding {
+                        name: "submission".into(),
+                        digest: ContentDigest::hash(b"fixture submission input"),
+                    },
+                ],
+                result: json!({
+                    "accepted_event_delta": 0,
+                    "proposal_id": "vpr_fixture",
+                    "schema": "vela.routine-evidence-transaction-result.internal.v1"
+                }),
+            },
+            draft.delta.clone(),
+        )
+        .unwrap();
+        let marker = CommitMarker::from_plan(&plan);
+        let journal = RepositoryTxnJournal {
+            schema: REPOSITORY_TXN_SCHEMA.into(),
+            plan: plan.clone(),
+            recovery: RecoveryState::Prepared,
+            blob_retention: BlobRetention::Retained,
+        };
+        draft.delta.verify().unwrap();
+        plan.verify().unwrap();
+        journal.verify().unwrap();
+
+        let delta_bytes = vela_protocol::canonical::to_canonical_bytes(&draft.delta).unwrap();
+        let decoded_delta: CanonicalDelta = serde_json::from_slice(&delta_bytes).unwrap();
+        assert_eq!(decoded_delta, draft.delta);
+        assert_eq!(
+            vela_protocol::canonical::to_canonical_bytes(&decoded_delta).unwrap(),
+            delta_bytes
+        );
+        assert_eq!(
+            draft.delta.root().as_str(),
+            "sha256:f08a454ab496dbea12f8e3b2e2ab2a69a08ef06b0f8f502f517922ebe418e276"
+        );
+        assert_eq!(delta_bytes.len(), 981);
+        assert_eq!(
+            ContentDigest::hash(&delta_bytes).as_str(),
+            "sha256:2abe20d66a345c8516d26663b7022c052e02e9f5041c1c1a6e1363412710a8e7"
+        );
+
+        let plan_bytes = vela_protocol::canonical::to_canonical_bytes(&plan).unwrap();
+        let decoded_plan: RepositoryTxnPlan = serde_json::from_slice(&plan_bytes).unwrap();
+        assert_eq!(decoded_plan, plan);
+        assert_eq!(
+            vela_protocol::canonical::to_canonical_bytes(&decoded_plan).unwrap(),
+            plan_bytes
+        );
+        assert_eq!(
+            plan.root().as_str(),
+            "sha256:e5a1739a0912088d305bdae68a02f04163d649c7b2dd5ddbe801a4f91c4649f4"
+        );
+        assert_eq!(plan_bytes.len(), 1860);
+        assert_eq!(
+            ContentDigest::hash(&plan_bytes).as_str(),
+            "sha256:8e42a1618f3a4cc3e6ca077def97574d7c6aa8f06bfdfe7872269d112f5a08e6"
+        );
+
+        let marker_bytes = vela_protocol::canonical::to_canonical_bytes(&marker).unwrap();
+        let decoded_marker: CommitMarker = serde_json::from_slice(&marker_bytes).unwrap();
+        assert_eq!(decoded_marker, marker);
+        assert_eq!(
+            vela_protocol::canonical::to_canonical_bytes(&decoded_marker).unwrap(),
+            marker_bytes
+        );
+        assert_eq!(marker_bytes.len(), 310);
+        assert_eq!(
+            ContentDigest::hash(&marker_bytes).as_str(),
+            "sha256:651e993f33a99a7759357e975507d297b4ec7520575892c79ed17eb4abd71259"
+        );
+
+        let marker_path = temporary.path().join("wire/marker.json");
+        operation_journal::write_json(&marker_path, &marker).unwrap();
+        let marker_file_bytes = fs::read(&marker_path).unwrap();
+        let decoded_marker_file: CommitMarker = operation_journal::read_json(&marker_path).unwrap();
+        assert_eq!(decoded_marker_file, marker);
+        operation_journal::write_json(&marker_path, &decoded_marker_file).unwrap();
+        assert_eq!(fs::read(&marker_path).unwrap(), marker_file_bytes);
+
+        let journal_path = temporary.path().join("wire/journal.json");
+        operation_journal::write_json(&journal_path, &journal).unwrap();
+        let journal_bytes = fs::read(&journal_path).unwrap();
+        let decoded_journal: RepositoryTxnJournal =
+            operation_journal::read_json(&journal_path).unwrap();
+        assert_eq!(decoded_journal, journal);
+        operation_journal::write_json(&journal_path, &decoded_journal).unwrap();
+        assert_eq!(fs::read(&journal_path).unwrap(), journal_bytes);
+        assert_eq!(journal_bytes.len(), 2681);
+        assert_eq!(
+            ContentDigest::hash(&journal_bytes).as_str(),
+            "sha256:d86b51edbcfcd592e449536e159e121b4de52729a427194cb27c6df8035f91e3"
+        );
+
+        assert_eq!(marker_file_bytes.len(), 328);
+        assert_eq!(
+            ContentDigest::hash(&marker_file_bytes).as_str(),
+            "sha256:743789adb9484685ee197f8da04e06a36d475c69b6b21f30d2f7dbcf6479e390"
+        );
+    }
+
+    #[test]
     fn operating_system_account_home_ignores_hostile_home_environment() {
         const CHILD: &str = "VELA_OS_ACCOUNT_HOME_REDIRECTION_CHILD";
         if std::env::var_os(CHILD).is_some() {
