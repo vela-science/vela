@@ -1,6 +1,9 @@
 //! Cold-start CLI contract for a native repository before repository authority.
 
+use std::collections::BTreeMap;
 use std::path::Path;
+#[cfg(feature = "test-support")]
+use std::path::PathBuf;
 use std::process::{Command, Output};
 
 use serde_json::Value;
@@ -42,18 +45,127 @@ fn run_with_advice_setting(
     args: &[&str],
     advice: &str,
 ) -> Output {
+    let mut command = vela_command(cwd, socket, args);
+    command.env("VELA_ADVICE", advice);
+    command.output().expect("run vela")
+}
+
+fn vela_command(cwd: &Path, socket: Option<&Path>, args: &[&str]) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_vela"));
     command
         .current_dir(cwd)
         .args(args)
         .env("NO_COLOR", "1")
-        .env("VELA_ADVICE", advice);
+        .env("VELA_ADVICE", "0");
     if let Some(socket) = socket {
         command.env("SSH_AUTH_SOCK", socket);
     } else {
         command.env("SSH_AUTH_SOCK", cwd.join("missing-ssh-agent.sock"));
     }
-    command.output().expect("run vela")
+    command
+}
+
+#[cfg(feature = "test-support")]
+fn run_with_test_failpoint(
+    cwd: &Path,
+    socket: Option<&Path>,
+    args: &[&str],
+    failpoint: &str,
+) -> Output {
+    vela_command(cwd, socket, args)
+        .env(failpoint, "1")
+        .output()
+        .expect("run failpoint-injected vela")
+}
+
+#[cfg(feature = "test-support")]
+fn git_output(root: &Path, args: &[&str]) -> Output {
+    Command::new("git")
+        .current_dir(root)
+        .args(args)
+        .output()
+        .expect("run fixture Git")
+}
+
+#[cfg(feature = "test-support")]
+fn git_text(root: &Path, args: &[&str]) -> String {
+    let output = git_output(root, args);
+    assert!(
+        output.status.success(),
+        "git {:?}: {}",
+        args,
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout)
+        .expect("Git text is UTF-8")
+        .trim()
+        .to_string()
+}
+
+#[cfg(feature = "test-support")]
+fn operation_id(repository: &Path) -> String {
+    let journals = repository.join(".vela/operation-journals/repository");
+    let mut operations = std::fs::read_dir(journals)
+        .expect("read operation journals")
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let metadata = entry.metadata().ok()?;
+            let name = entry.file_name().into_string().ok()?;
+            (metadata.is_file() && name.starts_with("vop_") && name.ends_with(".json"))
+                .then(|| name.trim_end_matches(".json").to_string())
+        })
+        .collect::<Vec<_>>();
+    operations.sort();
+    assert_eq!(operations.len(), 1, "one exact native genesis operation");
+    operations.remove(0)
+}
+
+#[cfg(feature = "test-support")]
+fn agent_fingerprint(agent_root: &Path) -> String {
+    let output = Command::new("ssh-keygen")
+        .args(["-lf", "-", "-E", "sha256"])
+        .stdin(std::fs::File::open(agent_root.join("repository_authority.pub")).unwrap())
+        .output()
+        .expect("fingerprint disposable authority key");
+    assert!(output.status.success());
+    String::from_utf8(output.stdout)
+        .unwrap()
+        .split_whitespace()
+        .nth(1)
+        .expect("ssh-keygen fingerprint")
+        .to_string()
+}
+
+#[cfg(feature = "test-support")]
+fn arm_anchor(payload: &Value) -> RemoveOnDrop {
+    RemoveOnDrop(PathBuf::from(
+        payload["authority"]["local_trust"]["anchor_path"]
+            .as_str()
+            .expect("local trust anchor path"),
+    ))
+}
+
+#[cfg(feature = "test-support")]
+fn expected_anchor_path(repository: &Path) -> PathBuf {
+    let profile = vela_protocol::repository::RepositoryProfileV1::from_toml_str(
+        &std::fs::read_to_string(repository.join("vela.toml")).unwrap(),
+    )
+    .unwrap();
+    vela_edge::repository_write::authority_trust_anchor_path(
+        &PathBuf::from(std::env::var_os("HOME").expect("test HOME")),
+        &profile.repository_id,
+    )
+    .unwrap()
+}
+
+#[cfg(all(feature = "test-support", unix))]
+fn write_executable(path: &Path, contents: &str) {
+    use std::os::unix::fs::PermissionsExt;
+
+    std::fs::write(path, contents).unwrap();
+    let mut permissions = std::fs::metadata(path).unwrap().permissions();
+    permissions.set_mode(0o755);
+    std::fs::set_permissions(path, permissions).unwrap();
 }
 
 fn json(output: &Output) -> Value {
@@ -65,6 +177,34 @@ fn json(output: &Output) -> Value {
             String::from_utf8_lossy(&output.stderr)
         )
     })
+}
+
+fn directory_snapshot(root: &Path) -> BTreeMap<String, Vec<u8>> {
+    fn visit(base: &Path, directory: &Path, files: &mut BTreeMap<String, Vec<u8>>) {
+        let mut entries = std::fs::read_dir(directory)
+            .unwrap_or_else(|error| panic!("read {}: {error}", directory.display()))
+            .collect::<Result<Vec<_>, _>>()
+            .expect("read snapshot entries");
+        entries.sort_by_key(std::fs::DirEntry::file_name);
+        for entry in entries {
+            let path = entry.path();
+            let metadata = std::fs::symlink_metadata(&path).expect("snapshot metadata");
+            if metadata.is_dir() {
+                visit(base, &path, files);
+            } else if metadata.is_file() {
+                files.insert(
+                    path.strip_prefix(base)
+                        .expect("snapshot path under root")
+                        .to_string_lossy()
+                        .into_owned(),
+                    std::fs::read(path).expect("snapshot file"),
+                );
+            }
+        }
+    }
+    let mut files = BTreeMap::new();
+    visit(root, root, &mut files);
+    files
 }
 
 #[test]
@@ -171,6 +311,8 @@ fn bootstrap_discovery_and_blocked_commands_name_the_one_valid_next_action() {
         );
     }
 
+    std::fs::remove_dir_all(repository_path.join("notes"))
+        .expect("remove nested read-only discovery fixture before exact genesis publication");
     let agent = EphemeralAgent::start(temporary.path(), "vela resumable init test");
     let resumed = run(
         temporary.path(),
@@ -278,6 +420,925 @@ fn init_creates_a_signed_ready_repository_in_one_command() {
         status["actions"]["work"]["command"]
             .as_str()
             .is_some_and(|command| command.starts_with("vela submit "))
+    );
+}
+
+#[test]
+fn completed_native_genesis_finishes_git_and_trust_without_a_signer() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let agent = EphemeralAgent::start(temporary.path(), "vela completed genesis continuation");
+    let repository_path = temporary.path().join("repository_path");
+    let repository_path_text = repository_path.to_string_lossy().into_owned();
+    let reason = "Establish one resumable native genesis.";
+    let first = run(
+        temporary.path(),
+        Some(agent.socket()),
+        &[
+            "init",
+            &repository_path_text,
+            "--name",
+            &unique_name("Resumable genesis", &temporary),
+            "--scope",
+            "Finish only the post-transaction Git and trust tail.",
+            "--reason",
+            reason,
+            "--json",
+        ],
+    );
+    assert!(
+        first.status.success(),
+        "initial init: stdout={} stderr={}",
+        String::from_utf8_lossy(&first.stdout),
+        String::from_utf8_lossy(&first.stderr)
+    );
+    let first = json(&first);
+    let operation_id = first["operation_id"]
+        .as_str()
+        .expect("native genesis operation id")
+        .to_string();
+    assert!(operation_id.starts_with("vop_"));
+    let fingerprint = first["authority"]["key_fingerprint"]
+        .as_str()
+        .expect("repository key fingerprint")
+        .to_string();
+    let anchor_path = std::path::PathBuf::from(
+        first["authority"]["local_trust"]["anchor_path"]
+            .as_str()
+            .expect("local trust anchor path"),
+    );
+    let _anchor = RemoveOnDrop(anchor_path.clone());
+    let authority_before = directory_snapshot(&repository_path.join(".vela/authority"));
+    let journals_before = directory_snapshot(&repository_path.join(".vela/operation-journals"));
+    let initial_commit = first["repository"]["git_commit"]
+        .as_str()
+        .expect("genesis commit")
+        .to_string();
+
+    std::fs::remove_file(&anchor_path).expect("remove post-genesis trust anchor");
+    let deleted = Command::new("git")
+        .current_dir(&repository_path)
+        .args(["update-ref", "-d", "refs/heads/main"])
+        .output()
+        .expect("remove genesis ref");
+    assert!(deleted.status.success());
+    let continued = run(
+        temporary.path(),
+        None,
+        &[
+            "init",
+            &repository_path_text,
+            "--key",
+            &fingerprint,
+            "--reason",
+            reason,
+            "--json",
+        ],
+    );
+    assert!(
+        continued.status.success(),
+        "continued init: stdout={} stderr={}",
+        String::from_utf8_lossy(&continued.stdout),
+        String::from_utf8_lossy(&continued.stderr)
+    );
+    let continued = json(&continued);
+    assert_eq!(continued["schema"], "vela.repository-init.v1");
+    assert_eq!(continued["resumed"], true);
+    assert_eq!(continued["operation_id"], operation_id);
+    assert_eq!(continued["repository"]["git_commit"], initial_commit);
+    assert_eq!(
+        continued["repository"]["repository_root"],
+        first["repository"]["repository_root"]
+    );
+    assert_eq!(
+        directory_snapshot(&repository_path.join(".vela/authority")),
+        authority_before,
+        "continuation must not sign or rewrite authority"
+    );
+    assert_eq!(
+        directory_snapshot(&repository_path.join(".vela/operation-journals")),
+        journals_before,
+        "continuation must not create or rewrite a transaction"
+    );
+
+    // Crash after the exact commit but before trust: only the pin is missing.
+    std::fs::remove_file(&anchor_path).expect("remove trust anchor after exact commit");
+    let trust_only = run(
+        temporary.path(),
+        None,
+        &[
+            "init",
+            &repository_path_text,
+            "--key",
+            &fingerprint,
+            "--reason",
+            reason,
+            "--json",
+        ],
+    );
+    assert!(trust_only.status.success());
+    let trust_only = json(&trust_only);
+    assert_eq!(trust_only["operation_id"], operation_id);
+    assert_eq!(trust_only["repository"]["git_commit"], initial_commit);
+
+    // Crash after trust (or a lost response): the exact command is idempotent.
+    let idempotent = run(
+        temporary.path(),
+        None,
+        &[
+            "init",
+            &repository_path_text,
+            "--key",
+            &fingerprint,
+            "--reason",
+            reason,
+            "--json",
+        ],
+    );
+    assert!(idempotent.status.success());
+    let idempotent = json(&idempotent);
+    assert_eq!(idempotent["operation_id"], operation_id);
+    assert_eq!(idempotent["repository"]["git_commit"], initial_commit);
+    assert_eq!(
+        directory_snapshot(&repository_path.join(".vela/authority")),
+        authority_before
+    );
+    assert_eq!(
+        directory_snapshot(&repository_path.join(".vela/operation-journals")),
+        journals_before
+    );
+
+    let git_before_wrong_key = directory_snapshot(&repository_path.join(".git"));
+    let anchor_before_wrong_key = std::fs::read(&anchor_path).expect("read exact trust anchor");
+    let wrong_key = run(
+        temporary.path(),
+        None,
+        &[
+            "init",
+            &repository_path_text,
+            "--key",
+            "SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "--reason",
+            reason,
+            "--json",
+        ],
+    );
+    assert_eq!(wrong_key.status.code(), Some(1));
+    assert!(
+        json(&wrong_key)["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("--key does not match"))
+    );
+    assert_eq!(
+        directory_snapshot(&repository_path.join(".git")),
+        git_before_wrong_key,
+        "a mismatched retained key must not rewrite Git"
+    );
+    assert_eq!(
+        std::fs::read(&anchor_path).expect("reread exact trust anchor"),
+        anchor_before_wrong_key,
+        "a mismatched retained key must not rewrite trust"
+    );
+
+    let removed_ref = Command::new("git")
+        .current_dir(&repository_path)
+        .args(["update-ref", "-d", "refs/heads/main"])
+        .output()
+        .expect("remove genesis ref with exact trust retained");
+    assert!(removed_ref.status.success());
+    let git_without_ref = directory_snapshot(&repository_path.join(".git"));
+    let exact_pin_without_ref = std::fs::read(&anchor_path).expect("read exact retained pin");
+    let inconsistent_tail = run(
+        temporary.path(),
+        None,
+        &[
+            "init",
+            &repository_path_text,
+            "--key",
+            &fingerprint,
+            "--reason",
+            reason,
+            "--json",
+        ],
+    );
+    assert_eq!(inconsistent_tail.status.code(), Some(1));
+    assert_eq!(
+        directory_snapshot(&repository_path.join(".git")),
+        git_without_ref,
+        "an installed exact pin must not authorize recreating a missing Git ref"
+    );
+    assert_eq!(
+        std::fs::read(&anchor_path).expect("reread exact retained pin"),
+        exact_pin_without_ref,
+        "an inconsistent Git tail must not rewrite the exact pin"
+    );
+    let restored_ref = Command::new("git")
+        .current_dir(&repository_path)
+        .args(["update-ref", "refs/heads/main", &initial_commit])
+        .output()
+        .expect("restore exact genesis ref for remaining assertions");
+    assert!(restored_ref.status.success());
+
+    let wrong_reason = run(
+        temporary.path(),
+        None,
+        &[
+            "init",
+            &repository_path_text,
+            "--key",
+            &fingerprint,
+            "--reason",
+            "Different reason.",
+            "--json",
+        ],
+    );
+    assert_eq!(wrong_reason.status.code(), Some(1));
+    assert!(
+        json(&wrong_reason)["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("--reason does not match"))
+    );
+}
+
+#[cfg(feature = "test-support")]
+#[test]
+fn hard_exit_before_git_init_resumes_the_retained_profile_and_repository_identity() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let agent_root = temporary.path().join("agent");
+    std::fs::create_dir(&agent_root).unwrap();
+    let agent = EphemeralAgent::start(&agent_root, "vela staged bootstrap hard exit");
+    let repository = temporary.path().join("repository");
+    let repository_text = repository.to_string_lossy().into_owned();
+    let name = unique_name("Retained staged identity", &temporary);
+    let scope = "Resume one exact crash-retained bootstrap Profile.";
+    let reason = "Establish the retained staged repository.";
+    let args = [
+        "init",
+        &repository_text,
+        "--name",
+        &name,
+        "--scope",
+        scope,
+        "--reason",
+        reason,
+        "--json",
+    ];
+    let interrupted = run_with_test_failpoint(
+        temporary.path(),
+        Some(agent.socket()),
+        &args,
+        "VELA_TEST_INTERRUPT_INIT_BEFORE_GIT",
+    );
+    assert_eq!(interrupted.status.code(), Some(86));
+    assert!(!repository.join(".git").exists());
+    let mut staging = std::fs::read_dir(&repository)
+        .unwrap()
+        .filter_map(Result::ok)
+        .filter(|entry| {
+            entry
+                .file_name()
+                .to_str()
+                .is_some_and(|name| name.starts_with(".vela-init-"))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(staging.len(), 1);
+    let profile = vela_protocol::repository::RepositoryProfileV1::from_toml_str(
+        &std::fs::read_to_string(staging.remove(0).path().join("vela.toml")).unwrap(),
+    )
+    .unwrap();
+    let retained_repository_id = profile.repository_id;
+
+    let resumed = run(temporary.path(), Some(agent.socket()), &args);
+    assert!(
+        resumed.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&resumed.stdout),
+        String::from_utf8_lossy(&resumed.stderr)
+    );
+    let resumed_json = json(&resumed);
+    let _anchor = arm_anchor(&resumed_json);
+    assert_eq!(resumed_json["repository_id"], retained_repository_id);
+    assert_eq!(resumed_json["resumed"], true);
+    let first_commit = resumed_json["repository"]["git_commit"].clone();
+    let first_operation = resumed_json["operation_id"].clone();
+
+    let idempotent = run(temporary.path(), None, &args);
+    assert!(idempotent.status.success());
+    let idempotent = json(&idempotent);
+    assert_eq!(idempotent["repository_id"], retained_repository_id);
+    assert_eq!(idempotent["repository"]["git_commit"], first_commit);
+    assert_eq!(idempotent["operation_id"], first_operation);
+}
+
+#[cfg(feature = "test-support")]
+#[test]
+fn hard_exit_before_genesis_ref_rejects_private_residue_then_converges_exactly() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let agent_root = temporary.path().join("agent");
+    std::fs::create_dir(&agent_root).unwrap();
+    let agent = EphemeralAgent::start(&agent_root, "vela pre-ref genesis hard exit");
+    let fingerprint = agent_fingerprint(&agent_root);
+    let repository = temporary.path().join("repository");
+    let repository_text = repository.to_string_lossy().into_owned();
+    let name = unique_name("Pre-ref genesis", &temporary);
+    let scope = "Converge from unreferenced exact native-genesis objects.";
+    let reason = "Establish one pre-ref crash fixture.";
+    let args = [
+        "init",
+        &repository_text,
+        "--name",
+        &name,
+        "--scope",
+        scope,
+        "--key",
+        &fingerprint,
+        "--reason",
+        reason,
+        "--json",
+    ];
+    let interrupted = run_with_test_failpoint(
+        temporary.path(),
+        Some(agent.socket()),
+        &args,
+        "VELA_TEST_INTERRUPT_INIT_BEFORE_GENESIS_REF",
+    );
+    assert_eq!(interrupted.status.code(), Some(86));
+    let operation = operation_id(&repository);
+    assert!(git_text(&repository, &["for-each-ref", "--format=%(refname)"]).is_empty());
+    assert!(git_text(&repository, &["ls-files", "--stage"]).is_empty());
+    let fsck = git_output(
+        &repository,
+        &["fsck", "--no-reflogs", "--unreachable", "--no-progress"],
+    );
+    assert!(fsck.status.success());
+    let fsck = format!(
+        "{}{}",
+        String::from_utf8_lossy(&fsck.stdout),
+        String::from_utf8_lossy(&fsck.stderr)
+    );
+    let candidate = fsck
+        .lines()
+        .find_map(|line| {
+            line.strip_prefix("unreachable commit ")
+                .or_else(|| line.strip_prefix("dangling commit "))
+        })
+        .unwrap_or_else(|| panic!("pre-ref crash retained no unreferenced commit:\n{fsck}"))
+        .to_string();
+    let candidate_bytes = git_output(&repository, &["cat-file", "commit", &candidate]).stdout;
+    let authority_before = directory_snapshot(&repository.join(".vela/authority"));
+    let journals_before = directory_snapshot(&repository.join(".vela/operation-journals"));
+
+    let profile = vela_protocol::repository::RepositoryProfileV1::from_toml_str(
+        &std::fs::read_to_string(repository.join("vela.toml")).unwrap(),
+    )
+    .unwrap();
+    let conflicting = vela_edge::repository_write::AuthorityTrustAnchorV1 {
+        schema: vela_edge::repository_write::AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.into(),
+        repository_id: profile.repository_id,
+        first_authority_record_root:
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+    };
+    let conflicting = vela_edge::repository_write::install_authority_trust_anchor_from_home(
+        &PathBuf::from(std::env::var_os("HOME").expect("test HOME")),
+        &conflicting,
+    )
+    .unwrap();
+    let conflicting_pin_before = std::fs::read(&conflicting.path).unwrap();
+    let git_before_collision = directory_snapshot(&repository.join(".git"));
+    let collision = run(temporary.path(), None, &args);
+    assert_eq!(collision.status.code(), Some(1));
+    assert!(
+        json(&collision)["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("local trust pin"))
+    );
+    assert_eq!(
+        directory_snapshot(&repository.join(".git")),
+        git_before_collision
+    );
+    assert_eq!(
+        std::fs::read(&conflicting.path).unwrap(),
+        conflicting_pin_before
+    );
+    std::fs::remove_file(&conflicting.path).unwrap();
+
+    let evil = repository.join(".vela/operation-journals/evil");
+    std::fs::write(&evil, b"not runtime-owned\n").unwrap();
+    let git_before_rejection = directory_snapshot(&repository.join(".git"));
+    let rejected = run(temporary.path(), None, &args);
+    assert_eq!(rejected.status.code(), Some(1));
+    assert!(
+        json(&rejected)["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("journal-root entry"))
+    );
+    assert_eq!(
+        directory_snapshot(&repository.join(".git")),
+        git_before_rejection
+    );
+    assert!(git_text(&repository, &["for-each-ref", "--format=%(refname)"]).is_empty());
+    std::fs::remove_file(&evil).unwrap();
+
+    let resumed = run(temporary.path(), None, &args);
+    assert!(
+        resumed.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&resumed.stdout),
+        String::from_utf8_lossy(&resumed.stderr)
+    );
+    let resumed_json = json(&resumed);
+    let _anchor = arm_anchor(&resumed_json);
+    assert_eq!(resumed_json["operation_id"], operation);
+    assert_eq!(resumed_json["repository"]["git_commit"], candidate);
+    assert_eq!(
+        git_output(&repository, &["cat-file", "commit", &candidate]).stdout,
+        candidate_bytes
+    );
+    assert_eq!(
+        directory_snapshot(&repository.join(".vela/authority")),
+        authority_before
+    );
+    assert_eq!(
+        directory_snapshot(&repository.join(".vela/operation-journals")),
+        journals_before
+    );
+    let idempotent = run(temporary.path(), None, &args);
+    assert!(idempotent.status.success());
+    assert_eq!(idempotent.stdout, resumed.stdout);
+}
+
+#[cfg(all(feature = "test-support", unix))]
+#[test]
+fn completed_genesis_rejects_missing_ambiguous_and_aliased_state_before_git_or_pin() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let agent_root = temporary.path().join("agent");
+    std::fs::create_dir(&agent_root).unwrap();
+    let agent = EphemeralAgent::start(&agent_root, "vela pre-object closed-state test");
+    let fingerprint = agent_fingerprint(&agent_root);
+    let repository = temporary.path().join("repository");
+    let repository_text = repository.to_string_lossy().into_owned();
+    let name = unique_name("Closed completed genesis", &temporary);
+    let reason = "Reject every non-native byte before Git or trust.";
+    let args = [
+        "init",
+        &repository_text,
+        "--name",
+        &name,
+        "--scope",
+        "Close the native genesis public and private path census.",
+        "--key",
+        &fingerprint,
+        "--reason",
+        reason,
+        "--json",
+    ];
+    let interrupted = run_with_test_failpoint(
+        temporary.path(),
+        Some(agent.socket()),
+        &args,
+        "VELA_TEST_INTERRUPT_INIT_AFTER_COMPLETED",
+    );
+    assert_eq!(interrupted.status.code(), Some(86));
+    let anchor = expected_anchor_path(&repository);
+    assert!(!anchor.exists());
+    let git_before = directory_snapshot(&repository.join(".git"));
+    assert!(git_text(&repository, &["for-each-ref", "--format=%(refname)"]).is_empty());
+    assert!(
+        git_text(&repository, &["count-objects", "-v"])
+            .lines()
+            .all(|line| !line.starts_with("count: ") || line == "count: 0")
+    );
+    let operation = operation_id(&repository);
+    let journal = repository
+        .join(".vela/operation-journals/repository")
+        .join(format!("{operation}.json"));
+
+    let sentinel = temporary.path().join("trust-pin-symlink-sentinel");
+    std::fs::write(&sentinel, b"must remain untouched\n").unwrap();
+    std::fs::create_dir_all(anchor.parent().expect("trust pin parent")).unwrap();
+    std::os::unix::fs::symlink(&sentinel, &anchor).unwrap();
+    let _anchor_cleanup = RemoveOnDrop(anchor.clone());
+    let nonregular_pin = run(temporary.path(), None, &args);
+    assert_eq!(nonregular_pin.status.code(), Some(1));
+    let nonregular_message = json(&nonregular_pin)["error"]["message"]
+        .as_str()
+        .expect("nonregular trust-pin error")
+        .to_string();
+    assert!(
+        nonregular_message.contains("Completed native genesis")
+            && nonregular_message.contains("symlink")
+            && !nonregular_message.contains("signing could not complete"),
+        "{nonregular_message}"
+    );
+    assert_eq!(directory_snapshot(&repository.join(".git")), git_before);
+    assert_eq!(
+        std::fs::read(&sentinel).unwrap(),
+        b"must remain untouched\n"
+    );
+    assert!(
+        std::fs::symlink_metadata(&anchor)
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+    std::fs::remove_file(&anchor).unwrap();
+
+    let detached = temporary.path().join("detached-journal.json");
+    std::fs::rename(&journal, &detached).unwrap();
+    let missing = run(temporary.path(), None, &args);
+    assert_eq!(missing.status.code(), Some(1));
+    assert!(
+        json(&missing)["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("Completed native genesis"))
+    );
+    assert_eq!(directory_snapshot(&repository.join(".git")), git_before);
+    assert!(!anchor.exists());
+    std::fs::rename(&detached, &journal).unwrap();
+
+    let duplicate = repository
+        .join(".vela/operation-journals/repository")
+        .join("vop_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.json");
+    std::fs::copy(&journal, &duplicate).unwrap();
+    let ambiguous = run(temporary.path(), None, &args);
+    assert_eq!(ambiguous.status.code(), Some(1));
+    assert_eq!(directory_snapshot(&repository.join(".git")), git_before);
+    assert!(!anchor.exists());
+    std::fs::remove_file(&duplicate).unwrap();
+
+    let readme = repository.join("README.md");
+    let temporary_case = repository.join("README.case-transition");
+    let lower = repository.join("readme.md");
+    std::fs::rename(&readme, &temporary_case).unwrap();
+    std::fs::rename(&temporary_case, &lower).unwrap();
+    let case_alias = run(temporary.path(), None, &args);
+    assert_eq!(case_alias.status.code(), Some(1));
+    assert_eq!(directory_snapshot(&repository.join(".git")), git_before);
+    assert!(!anchor.exists());
+    std::fs::rename(&lower, &temporary_case).unwrap();
+    std::fs::rename(&temporary_case, &readme).unwrap();
+
+    let unicode_extra = repository.join("e\u{301}.txt");
+    std::fs::write(&unicode_extra, b"normalization alias residue\n").unwrap();
+    let unicode = run(temporary.path(), None, &args);
+    assert_eq!(unicode.status.code(), Some(1));
+    assert_eq!(directory_snapshot(&repository.join(".git")), git_before);
+    assert!(!anchor.exists());
+    std::fs::remove_file(&unicode_extra).unwrap();
+
+    let readme_bytes = std::fs::read(&readme).unwrap();
+    std::fs::write(&readme, b"drifted expected scaffold bytes\n").unwrap();
+    let scaffold_drift = run(temporary.path(), None, &args);
+    assert_eq!(scaffold_drift.status.code(), Some(1));
+    assert_eq!(directory_snapshot(&repository.join(".git")), git_before);
+    assert!(!anchor.exists());
+
+    let journals_before_recover_error =
+        directory_snapshot(&repository.join(".vela/operation-journals"));
+    let recover_with_invalid_continuation = run(
+        temporary.path(),
+        None,
+        &["recover", "--repo", &repository_text, &operation, "--json"],
+    );
+    assert_eq!(recover_with_invalid_continuation.status.code(), Some(1));
+    let recovery_error = json(&recover_with_invalid_continuation);
+    assert_eq!(recovery_error["schema"], "vela.error.v1");
+    assert_eq!(recovery_error["error"]["kind"], "domain");
+    assert_eq!(recovery_error["error"]["code"], "repository_incomplete");
+    assert!(
+        recovery_error["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("native-genesis continuation"))
+    );
+    assert!(
+        recovery_error["error"]["hint"]
+            .as_str()
+            .is_some_and(|hint| hint.contains("Completed journal") && hint.contains("vela init"))
+    );
+    assert_eq!(directory_snapshot(&repository.join(".git")), git_before);
+    assert_eq!(
+        directory_snapshot(&repository.join(".vela/operation-journals")),
+        journals_before_recover_error,
+        "renderer proof failure must not mutate the Completed journal inventory"
+    );
+    assert!(!anchor.exists());
+    std::fs::write(&readme, readme_bytes).unwrap();
+
+    let resumed = run(temporary.path(), None, &args);
+    assert!(
+        resumed.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&resumed.stdout),
+        String::from_utf8_lossy(&resumed.stderr)
+    );
+    let resumed = json(&resumed);
+    let _anchor = arm_anchor(&resumed);
+}
+
+#[cfg(feature = "test-support")]
+#[test]
+fn post_ref_and_post_pin_hard_exits_return_the_same_init_result_without_a_signer() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let mut anchors = Vec::new();
+    for (label, failpoint) in [
+        ("post-ref", "VELA_TEST_INTERRUPT_INIT_AFTER_GIT"),
+        ("post-pin", "VELA_TEST_INTERRUPT_INIT_AFTER_TRUST"),
+    ] {
+        let agent_root = temporary.path().join(format!("{label}-agent"));
+        std::fs::create_dir(&agent_root).unwrap();
+        let agent = EphemeralAgent::start(&agent_root, &format!("vela {label} hard exit"));
+        let fingerprint = agent_fingerprint(&agent_root);
+        let repository = temporary.path().join(format!("{label}-repository"));
+        let repository_text = repository.to_string_lossy().into_owned();
+        let name = unique_name(&format!("{label} native genesis"), &temporary);
+        let reason = format!("Establish the {label} hard-exit fixture.");
+        let args = [
+            "init",
+            &repository_text,
+            "--name",
+            &name,
+            "--scope",
+            "Resume the exact deterministic Git and trust tail.",
+            "--key",
+            &fingerprint,
+            "--reason",
+            &reason,
+            "--json",
+        ];
+        let interrupted =
+            run_with_test_failpoint(temporary.path(), Some(agent.socket()), &args, failpoint);
+        assert_eq!(interrupted.status.code(), Some(86), "{label}");
+        let commit = git_text(&repository, &["rev-parse", "HEAD^{commit}"]);
+        let operation = operation_id(&repository);
+        let resumed = run(temporary.path(), None, &args);
+        assert!(
+            resumed.status.success(),
+            "{label}: stdout={} stderr={}",
+            String::from_utf8_lossy(&resumed.stdout),
+            String::from_utf8_lossy(&resumed.stderr)
+        );
+        let resumed_json = json(&resumed);
+        anchors.push(arm_anchor(&resumed_json));
+        assert_eq!(resumed_json["operation_id"], operation);
+        assert_eq!(resumed_json["repository"]["git_commit"], commit);
+        let idempotent = run(temporary.path(), None, &args);
+        assert!(idempotent.status.success());
+        assert_eq!(idempotent.stdout, resumed.stdout, "{label}");
+    }
+}
+
+#[cfg(feature = "test-support")]
+#[test]
+fn installed_native_genesis_requires_explicit_recovery_then_policy_free_init_tail() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let agent_root = temporary.path().join("agent");
+    std::fs::create_dir(&agent_root).unwrap();
+    let agent = EphemeralAgent::start(&agent_root, "vela installed recovery hard exit");
+    let fingerprint = agent_fingerprint(&agent_root);
+    let repository = temporary.path().join("repository");
+    let repository_text = repository.to_string_lossy().into_owned();
+    let name = unique_name("Installed recovery genesis", &temporary);
+    let reason = "Recover Installed genesis before its Git and trust tail.";
+    let args = [
+        "init",
+        &repository_text,
+        "--name",
+        &name,
+        "--scope",
+        "Prove recovery stops before post-transaction publication.",
+        "--key",
+        &fingerprint,
+        "--reason",
+        reason,
+        "--json",
+    ];
+    let interrupted = run_with_test_failpoint(
+        temporary.path(),
+        Some(agent.socket()),
+        &args,
+        "VELA_TEST_INTERRUPT_INIT_AFTER_INSTALLED",
+    );
+    assert_eq!(interrupted.status.code(), Some(86));
+    let operation = operation_id(&repository);
+    assert!(git_text(&repository, &["for-each-ref", "--format=%(refname)"]).is_empty());
+
+    let blocked = run(temporary.path(), None, &args);
+    assert_eq!(blocked.status.code(), Some(1));
+    let blocked = json(&blocked);
+    assert_eq!(blocked["error"]["code"], "repository_incomplete");
+    assert!(
+        blocked["error"]["hint"]
+            .as_str()
+            .is_some_and(|hint| hint.contains(&operation) && hint.contains("vela recover"))
+    );
+
+    let recovered = run(
+        temporary.path(),
+        None,
+        &["recover", "--repo", &repository_text, &operation, "--json"],
+    );
+    assert!(
+        recovered.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&recovered.stdout),
+        String::from_utf8_lossy(&recovered.stderr)
+    );
+    let recovered = json(&recovered);
+    assert_eq!(recovered["outcome"], "completed");
+    let next = recovered["next_command"]
+        .as_str()
+        .expect("exact init continuation");
+    assert!(next.contains("vela init"));
+    assert!(next.contains(&fingerprint));
+    assert!(next.contains(reason));
+    assert!(git_text(&repository, &["for-each-ref", "--format=%(refname)"]).is_empty());
+    let authority_after_recovery = directory_snapshot(&repository.join(".vela/authority"));
+    let journals_after_recovery = directory_snapshot(&repository.join(".vela/operation-journals"));
+
+    let recovered_human = run(
+        temporary.path(),
+        None,
+        &["recover", "--repo", &repository_text, &operation],
+    );
+    assert!(recovered_human.status.success());
+    assert!(
+        String::from_utf8_lossy(&recovered_human.stdout).contains(next),
+        "human recovery must render the same exact continuation: {}",
+        String::from_utf8_lossy(&recovered_human.stdout)
+    );
+
+    let resumed = run(temporary.path(), None, &args);
+    assert!(resumed.status.success());
+    let resumed_json = json(&resumed);
+    let _anchor = arm_anchor(&resumed_json);
+    assert_eq!(resumed_json["operation_id"], operation);
+    assert_eq!(
+        directory_snapshot(&repository.join(".vela/authority")),
+        authority_after_recovery
+    );
+    assert_eq!(
+        directory_snapshot(&repository.join(".vela/operation-journals")),
+        journals_after_recovery
+    );
+    let idempotent = run(temporary.path(), None, &args);
+    assert!(idempotent.status.success());
+    assert_eq!(idempotent.stdout, resumed.stdout);
+}
+
+#[cfg(all(feature = "test-support", unix))]
+#[test]
+fn real_init_ignores_hostile_ambient_git_and_leaves_every_sentinel_untouched() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let agent_root = temporary.path().join("agent");
+    std::fs::create_dir(&agent_root).unwrap();
+    let agent = EphemeralAgent::start(&agent_root, "vela hostile product init");
+    let sentinel = temporary.path().join("sentinel");
+    std::fs::create_dir(&sentinel).unwrap();
+    assert!(
+        git_output(&sentinel, &["init", "-b", "main"])
+            .status
+            .success()
+    );
+    assert!(
+        git_output(&sentinel, &["config", "user.name", "Sentinel"])
+            .status
+            .success()
+    );
+    assert!(
+        git_output(
+            &sentinel,
+            &["config", "user.email", "sentinel@example.invalid"]
+        )
+        .status
+        .success()
+    );
+    std::fs::write(sentinel.join("sentinel.txt"), b"untouched\n").unwrap();
+    assert!(
+        git_output(&sentinel, &["add", "sentinel.txt"])
+            .status
+            .success()
+    );
+    assert!(
+        git_output(&sentinel, &["commit", "-m", "sentinel"])
+            .status
+            .success()
+    );
+
+    let hostile = temporary.path().join("hostile");
+    std::fs::create_dir(&hostile).unwrap();
+    let sentinel_index = hostile.join("sentinel-index");
+    assert!(
+        Command::new("git")
+            .current_dir(&sentinel)
+            .args(["read-tree", "HEAD"])
+            .env("GIT_INDEX_FILE", &sentinel_index)
+            .output()
+            .unwrap()
+            .status
+            .success()
+    );
+    let side_effect = hostile.join("side-effect");
+    let helper = hostile.join("helper");
+    write_executable(
+        &helper,
+        &format!("#!/bin/sh\n: > '{}'\ncat\n", side_effect.display()),
+    );
+    let hooks = hostile.join("hooks");
+    let templates = hostile.join("templates");
+    std::fs::create_dir(&hooks).unwrap();
+    std::fs::create_dir_all(templates.join("hooks")).unwrap();
+    write_executable(&hooks.join("reference-transaction"), "#!/bin/sh\nexit 97\n");
+    write_executable(
+        &templates.join("hooks/post-checkout"),
+        "#!/bin/sh\nexit 98\n",
+    );
+    std::fs::write(templates.join("hostile-template-byte"), b"must not copy\n").unwrap();
+    let global = hostile.join("global.gitconfig");
+    let system = hostile.join("system.gitconfig");
+    let config = format!(
+        "[core]\n\tworktree = {}\n\thooksPath = {}\n[filter \"hostile\"]\n\tclean = {}\n[init]\n\ttemplateDir = {}\n",
+        sentinel.display(),
+        hooks.display(),
+        helper.display(),
+        templates.display()
+    );
+    std::fs::write(&global, &config).unwrap();
+    std::fs::write(&system, &config).unwrap();
+    let hostile_home = hostile.join("home");
+    std::fs::create_dir(&hostile_home).unwrap();
+    std::fs::write(hostile_home.join(".gitconfig"), &config).unwrap();
+    let sentinel_before = directory_snapshot(&sentinel);
+    let sentinel_index_before = std::fs::read(&sentinel_index).unwrap();
+
+    let repository = temporary.path().join("repository");
+    let repository_text = repository.to_string_lossy().into_owned();
+    let name = unique_name("Hostile Git product init", &temporary);
+    let args = [
+        "init",
+        &repository_text,
+        "--name",
+        &name,
+        "--scope",
+        "Bind every Git byte to the intended native repository.",
+        "--json",
+    ];
+    let injected = [
+        ("core.worktree", sentinel.as_os_str()),
+        ("core.hooksPath", hooks.as_os_str()),
+        ("filter.hostile.clean", helper.as_os_str()),
+        ("init.templateDir", templates.as_os_str()),
+        ("extensions.objectFormat", std::ffi::OsStr::new("sha256")),
+    ];
+    let mut command = vela_command(temporary.path(), Some(agent.socket()), &args);
+    command
+        .env("HOME", &hostile_home)
+        .env("GIT_DIR", sentinel.join(".git"))
+        .env("GIT_WORK_TREE", &sentinel)
+        .env("GIT_COMMON_DIR", sentinel.join(".git"))
+        .env("GIT_INDEX_FILE", &sentinel_index)
+        .env("GIT_OBJECT_DIRECTORY", sentinel.join(".git/objects"))
+        .env(
+            "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+            repository.join("objects"),
+        )
+        .env("GIT_NAMESPACE", "hostile")
+        .env("GIT_DEFAULT_HASH", "sha256")
+        .env("GIT_TEMPLATE_DIR", &templates)
+        .env("GIT_CONFIG_GLOBAL", &global)
+        .env("GIT_CONFIG_SYSTEM", &system)
+        .env("GIT_CONFIG_NOSYSTEM", "0")
+        .env("GIT_ATTR_NOSYSTEM", "0")
+        .env("GIT_ALLOW_PROTOCOL", "file")
+        .env("GIT_PROTOCOL_FROM_USER", "1")
+        .env("GIT_TERMINAL_PROMPT", "1")
+        .env("GIT_ASKPASS", &helper)
+        .env("GIT_PAGER", &helper)
+        .env("GIT_EDITOR", &helper)
+        .env("GIT_TRACE", &side_effect)
+        .env("GIT_CONFIG_COUNT", injected.len().to_string());
+    for (index, (key, value)) in injected.into_iter().enumerate() {
+        command
+            .env(format!("GIT_CONFIG_KEY_{index}"), key)
+            .env(format!("GIT_CONFIG_VALUE_{index}"), value);
+    }
+    let initialized = command.output().expect("run hostile product init");
+    assert!(
+        initialized.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&initialized.stdout),
+        String::from_utf8_lossy(&initialized.stderr)
+    );
+    let initialized = json(&initialized);
+    let _anchor = arm_anchor(&initialized);
+    assert!(repository.join(".git").is_dir());
+    assert!(!repository.join(".git/hostile-template-byte").exists());
+    assert_eq!(directory_snapshot(&sentinel), sentinel_before);
+    assert_eq!(
+        std::fs::read(&sentinel_index).unwrap(),
+        sentinel_index_before
+    );
+    assert!(
+        !side_effect.exists(),
+        "hostile Git helper or tracing executed"
     );
 }
 
@@ -397,6 +1458,13 @@ fn a_colliding_trust_pin_is_not_reported_as_a_signing_failure() {
         "{}",
         String::from_utf8_lossy(&git.stderr)
     );
+    let pin_path = std::path::PathBuf::from(
+        established["authority"]["local_trust"]["anchor_path"]
+            .as_str()
+            .expect("first trust pin path"),
+    );
+    let pin_before = std::fs::read(&pin_path).expect("read established trust pin");
+    let git_and_bootstrap_before = directory_snapshot(&second_repository);
     let collided = run(
         temporary.path(),
         None,
@@ -414,6 +1482,21 @@ fn a_colliding_trust_pin_is_not_reported_as_a_signing_failure() {
     let hint = collided["error"]["hint"].as_str().expect("collision hint");
     assert!(!hint.contains("ssh-add"), "{hint}");
     assert!(hint.contains("--previous-record-root"), "{hint}");
+    assert!(hint.contains("retained Profile UUID"), "{hint}");
+    assert!(
+        hint.contains("changing --name or --scope never changes"),
+        "{hint}"
+    );
+    assert_eq!(
+        directory_snapshot(&second_repository),
+        git_and_bootstrap_before,
+        "a blocking trust pin must leave Git and bootstrap bytes exact"
+    );
+    assert_eq!(
+        std::fs::read(&pin_path).expect("reread blocking trust pin"),
+        pin_before,
+        "a blocking trust pin must not rewrite itself"
+    );
     assert!(!second_repository.join(".vela/origin.json").exists());
     assert!(!second_repository.join(".vela/repository.json").exists());
     assert!(!second_repository.join(".vela/authority").exists());

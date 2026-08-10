@@ -163,6 +163,19 @@ semantic command, begin another write, or create, move, or publish a Git ref.
 Terminal Completed and Aborted journals are safe to name again without
 rewriting semantic state.
 
+Native genesis has a separate post-transaction Git/trust tail. A retry accepts
+only one exact Completed sequence-one operation whose signed request, result,
+read set, canonical delta, repository/account context, scaffold bytes, and
+runtime-validated private residue all agree. Git initialization and publication
+strip ambient `GIT_*` redirection and disable inherited configuration, hooks,
+filters, attributes, alternates, replacement refs, prompts, pagers, signing,
+and transports. The parentless commit uses the recorded transaction time and
+fixed Vela identity, not the retry clock. Unexpected public paths (including
+case or Unicode aliases), mutable ignore-based residue, dirty index/ref state,
+or a colliding trust pin fail before publication; every fallible repository and
+Git verification runs before pin installation. Recovery itself never enters
+this tail and never needs a signer or trust credential.
+
 ### Reader compromise
 
 Readers receive only exact rooted repository projections and no writer

@@ -202,10 +202,23 @@ fn render_recovery(repository: &Path, result: &RepositoryRecoveryResult, json: b
         result.outcome,
         RecoveryOutcome::Completed | RecoveryOutcome::AlreadyCompleted
     ) {
-        Some(format!(
-            "git -C {} status --short",
-            super::shell_arg(repository_path)
-        ))
+        match super::completed_native_genesis_init_command(repository, &result.operation_id) {
+            Ok(Some(command)) => Some(command),
+            Ok(None) => Some(format!(
+                "git -C {} status --short",
+                super::shell_arg(repository_path)
+            )),
+            Err(error) => ui::fail_coded(
+                ErrorKind::Domain,
+                Some("repository_incomplete"),
+                &format!(
+                    "recovery completed the exact filesystem transaction, but its native-genesis continuation could not be verified: {error}"
+                ),
+                Some(
+                    "preserve the Completed journal and exact repository bytes; repair the native-genesis proof before rerunning the exact `vela init`; recovery never publishes Git or installs trust",
+                ),
+            ),
+        }
     } else {
         None
     };

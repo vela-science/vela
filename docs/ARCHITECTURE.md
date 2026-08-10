@@ -152,6 +152,15 @@ marker is definitely absent, or completes the exact marker-authorized
 installation without Vela policy. The action is terminal and idempotent: it
 does not resume a semantic command, start another write, or publish Git state.
 
+Fresh initialization has one CLI-owned post-transaction continuation, not a
+runtime policy. After the runtime proves the exact named operation Completed
+and returns only its root-validated delta, read set, and closed private-residue
+census, the CLI matches those facts to the signed sequence-one authority
+record, reconstructs every retained scaffold byte, revalidates the local
+account/key/reason, and creates the one deterministic parentless Git commit and
+trust pin. No signer or write authorization participates. `vela recover`
+merely names that later exact `vela init` action and never performs the tail.
+
 The three `WriteClass` spellings remain frozen journal vocabulary because
 renaming them would change durable roots. The runtime orders those labels but
 does not attach Vela authority or scientific meaning to them.

@@ -53,9 +53,9 @@ use vela_repository::{
 const TRANSACTION_ID_SCHEMA: &str = "vela.authority-transaction-id.internal.v1";
 const READ_SET_SCHEMA: &str = "vela.authority-read-set.internal.v1";
 const WRITE_SET_SCHEMA: &str = "vela.authority-write-set.internal.v1";
-const RESULT_SCHEMA: &str = "vela.authority-transaction-result.internal.v1";
-const OPERATION_DOMAIN: &str = "authority_transaction";
-const REPOSITORY_OPERATION_KIND: &str = "decision";
+pub(crate) const RESULT_SCHEMA: &str = "vela.authority-transaction-result.internal.v1";
+pub(crate) const OPERATION_DOMAIN: &str = "authority_transaction";
+pub(crate) const REPOSITORY_OPERATION_KIND: &str = "decision";
 
 /// Complete verified-history input for the next transaction.
 ///
@@ -641,6 +641,10 @@ where
     )?;
     prepared.mark_committed()?;
     prepared.install()?;
+    #[cfg(feature = "test-support")]
+    if std::env::var_os("VELA_TEST_INTERRUPT_INIT_AFTER_INSTALLED").is_some() {
+        std::process::exit(86);
+    }
     prepared.complete()?;
     Ok(prepared.result)
 }
@@ -1573,16 +1577,34 @@ fn read_set_root(
     authority_keyset_root: &str,
     model_root: &str,
 ) -> Result<String, AuthorityTransactionError> {
+    authority_read_set_root_for_inputs(
+        &request.history.repository_id,
+        current_event_log_root,
+        previous_authority_record_root,
+        authority_keyset_root,
+        model_root,
+        &request.read_set,
+    )
+}
+
+pub(crate) fn authority_read_set_root_for_inputs(
+    repository_id: &str,
+    current_event_log_root: &str,
+    previous_authority_record_root: Option<&str>,
+    authority_keyset_root: &str,
+    model_root: &str,
+    inputs: &[InputBinding],
+) -> Result<String, AuthorityTransactionError> {
     domain_root(
         b"vela.authority-read-set.internal.v1\0",
         &ReadSetCommitment {
             schema: READ_SET_SCHEMA,
-            repository_id: &request.history.repository_id,
+            repository_id,
             current_event_log_root,
             previous_authority_record_root,
             authority_keyset_root,
             model_root,
-            inputs: &request.read_set,
+            inputs,
         },
     )
 }

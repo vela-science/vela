@@ -15,13 +15,12 @@ pub(crate) fn cmd_init(
     let store = path.join(".vela");
     let initialized =
         store.join("origin.json").is_file() || store.join("repository.json").is_file();
-    if initialized {
-        crate::ui::fail_with(
-            crate::ui::ErrorKind::Exists,
-            &format!("repository is already initialized at {}", path.display()),
-            Some("run `vela status` to see the repository that already lives here"),
-        );
-    }
+    let staged = if initialized {
+        None
+    } else {
+        crate::init::resume_staged_minimal(path, name, scope, true)
+            .unwrap_or_else(|error| fail_return(&error))
+    };
     let resolve = |label: &str, supplied: Option<&str>| -> String {
         if let Some(value) = supplied.map(str::trim).filter(|value| !value.is_empty()) {
             return value.to_string();
@@ -50,109 +49,63 @@ pub(crate) fn cmd_init(
         }
         value.to_string()
     };
-    let mut payload = if store.exists() {
-        let profile = crate::repository::verify_bootstrap_at(path)
-            .unwrap_or_else(|error| fail_return(&error));
-        if let Some(supplied) = name.map(str::trim).filter(|value| !value.is_empty())
-            && supplied != profile.name
-        {
+    let (mut payload, authority) = if let Some(payload) = staged {
+        let authority =
+            initialize_repository_authority(path, key_selector, reason).unwrap_or_else(|error| {
+                fail_authority_initialization(path, key_selector, reason, json_output, error)
+            });
+        (payload, authority)
+    } else if initialized {
+        crate::ui::fail_if_recovery_required(path);
+        let profile =
+            crate::repository::verify_profile_at(path).unwrap_or_else(|error| fail_return(&error));
+        validate_retained_profile(&profile, name, scope);
+        let authority =
+            resume_completed_native_genesis(path, key_selector, reason).unwrap_or_else(|error| {
+                fail_authority_initialization(path, key_selector, reason, json_output, error)
+            });
+        let Some(authority) = authority else {
             crate::ui::fail_with(
-                crate::ui::ErrorKind::Usage,
-                "--name does not match the retained repository profile",
-                Some("omit --name when resuming `vela init`, or pass the exact retained value"),
+                crate::ui::ErrorKind::Exists,
+                &format!("repository is already initialized at {}", path.display()),
+                Some("run `vela status` to see the repository that already lives here"),
             );
-        }
-        if let Some(supplied) = scope.map(str::trim).filter(|value| !value.is_empty())
-            && supplied != profile.scope.question
-        {
-            crate::ui::fail_with(
-                crate::ui::ErrorKind::Usage,
-                "--scope does not match the retained repository profile",
-                Some("omit --scope when resuming `vela init`, or pass the exact retained value"),
-            );
-        }
-        json!({
-            "schema": "vela.repository-init-draft.v1",
-            "ok": true,
-            "layout": "vela.repository-bootstrap.v1",
-            "path": path.display().to_string(),
-            "name": profile.name,
-            "scope": profile.scope.question,
-            "repository_id": profile.repository_id,
-            "profile_root": profile.profile_root()
-                .unwrap_or_else(|error| fail_return(&error)),
-            "authority": "uninitialized",
-            "scientific_object_count": 0,
-            "wrote": [],
-            "resumed": true,
-        })
+        };
+        (retained_profile_payload(path, &profile), authority)
     } else {
-        let name = resolve("name", name);
-        let scope = resolve("scope", scope);
-        let mut initialized = crate::init::initialize_minimal(
-            path,
-            crate::init::InitOptions {
-                name: &name,
-                scope: &scope,
-                initialize_git: true,
-            },
-        )
-        .unwrap_or_else(|error| fail_return(&error));
-        initialized["resumed"] = json!(false);
-        initialized
+        let mut payload = if store.exists() {
+            let profile = crate::repository::verify_bootstrap_at(path).unwrap_or_else(|error| {
+                crate::ui::fail_if_recovery_required(path);
+                fail_return(&error)
+            });
+            validate_retained_profile(&profile, name, scope);
+            retained_profile_payload(path, &profile)
+        } else {
+            let name = resolve("name", name);
+            let scope = resolve("scope", scope);
+            let mut initialized = crate::init::initialize_minimal(
+                path,
+                crate::init::InitOptions {
+                    name: &name,
+                    scope: &scope,
+                    initialize_git: true,
+                },
+            )
+            .unwrap_or_else(|error| fail_return(&error));
+            initialized["resumed"] = json!(false);
+            initialized
+        };
+        let authority =
+            initialize_repository_authority(path, key_selector, reason).unwrap_or_else(|error| {
+                fail_authority_initialization(path, key_selector, reason, json_output, error)
+            });
+        if payload["resumed"].is_null() {
+            payload["resumed"] = json!(true);
+        }
+        (payload, authority)
     };
-    let authority = initialize_repository_authority(path, key_selector, reason)
-        .unwrap_or_else(|error| match error {
-            RepositoryAuthorityInitError::Signing(error) => {
-                let recovery =
-                    authority_recovery_hint(path, key_selector, reason, json_output, &error);
-                crate::ui::fail_with(
-                    crate::ui::ErrorKind::Domain,
-                    &format!(
-                        "repository profile retained at {}, but signing could not complete: {error}",
-                        path.display()
-                    ),
-                    Some(&recovery),
-                )
-            }
-            RepositoryAuthorityInitError::TrustPinBlocksInitialization {
-                repository_id,
-                pin_path,
-                pinned_root,
-            } => crate::ui::fail_with(
-                crate::ui::ErrorKind::Domain,
-                &format!(
-                    "repository authority initialization was not attempted because the local trust pin for {repository_id} at {pin_path} already selects {pinned_root}"
-                ),
-                Some(&blocking_trust_pin_hint(
-                    path,
-                    &repository_id,
-                    &pin_path,
-                    &pinned_root,
-                    json_output,
-                )),
-            ),
-            RepositoryAuthorityInitError::TrustPinCollision {
-                repository_id,
-                record_root,
-                pin_path,
-                pinned_root,
-            } => crate::ui::fail_with(
-                crate::ui::ErrorKind::Domain,
-                &format!(
-                    "repository authority initialized at {record_root}, but the local trust pin for {repository_id} at {pin_path} already selects {pinned_root}"
-                ),
-                Some(&trust_pin_collision_hint(
-                    path,
-                    &repository_id,
-                    &record_root,
-                    &pin_path,
-                    &pinned_root,
-                    json_output,
-                )),
-            ),
-        });
     payload["schema"] = json!("vela.repository-init.v1");
+    payload["operation_id"] = authority["operation_id"].clone();
     payload["authority"] = json!({
         "state": "initialized",
         "principal_id": authority["principal_id"],
@@ -161,7 +114,7 @@ pub(crate) fn cmd_init(
         "record_id": authority["authority_record_id"],
         "record_root": authority["authority_record_root"],
         "keyset_root": authority["authority_keyset_root"],
-        "policy_root": authority["policy_bundle_root"],
+        "policy_root": authority["model_root"],
         "local_trust": authority["local_trust"],
     });
     payload["repository"] = json!({
@@ -196,6 +149,10 @@ pub(crate) fn cmd_init(
                 .unwrap_or("unavailable")
         );
         println!(
+            "  operation {}",
+            payload["operation_id"].as_str().unwrap_or("unavailable")
+        );
+        println!(
             "  commit    {}",
             payload["repository"]["git_commit"]
                 .as_str()
@@ -208,7 +165,122 @@ pub(crate) fn cmd_init(
     }
 }
 
-fn shell_arg(value: &str) -> String {
+fn validate_retained_profile(
+    profile: &vela_protocol::repository::RepositoryProfileV1,
+    name: Option<&str>,
+    scope: Option<&str>,
+) {
+    if let Some(supplied) = name.map(str::trim).filter(|value| !value.is_empty())
+        && supplied != profile.name
+    {
+        crate::ui::fail_with(
+            crate::ui::ErrorKind::Usage,
+            "--name does not match the retained repository profile",
+            Some("omit --name when resuming `vela init`, or pass the exact retained value"),
+        );
+    }
+    if let Some(supplied) = scope.map(str::trim).filter(|value| !value.is_empty())
+        && supplied != profile.scope.question
+    {
+        crate::ui::fail_with(
+            crate::ui::ErrorKind::Usage,
+            "--scope does not match the retained repository profile",
+            Some("omit --scope when resuming `vela init`, or pass the exact retained value"),
+        );
+    }
+}
+
+fn retained_profile_payload(
+    path: &Path,
+    profile: &vela_protocol::repository::RepositoryProfileV1,
+) -> serde_json::Value {
+    json!({
+        "schema": "vela.repository-init-draft.v1",
+        "ok": true,
+        "layout": "vela.repository-bootstrap.v1",
+        "path": path.display().to_string(),
+        "name": profile.name,
+        "scope": profile.scope.question,
+        "repository_id": profile.repository_id,
+        "profile_root": profile.profile_root()
+            .unwrap_or_else(|error| fail_return(&error)),
+        "authority": "uninitialized",
+        "scientific_object_count": 0,
+        "wrote": [],
+        "resumed": true,
+    })
+}
+
+fn fail_authority_initialization(
+    path: &Path,
+    key_selector: Option<&str>,
+    reason: &str,
+    json_output: bool,
+    error: RepositoryAuthorityInitError,
+) -> ! {
+    match error {
+        RepositoryAuthorityInitError::Signing(error) => {
+            crate::ui::fail_if_recovery_required(path);
+            let recovery = authority_recovery_hint(path, key_selector, reason, json_output, &error);
+            crate::ui::fail_with(
+                crate::ui::ErrorKind::Domain,
+                &format!(
+                    "repository profile retained at {}, but signing could not complete: {error}",
+                    path.display()
+                ),
+                Some(&recovery),
+            )
+        }
+        RepositoryAuthorityInitError::Continuation(error) => crate::ui::fail_with(
+            crate::ui::ErrorKind::Domain,
+            &format!(
+                "the Completed native genesis at {} could not finish initialization: {error}",
+                path.display()
+            ),
+            Some(
+                "restore the exact genesis Git/index/ref or operating-system-account trust state, then rerun the same `vela init`; `vela recover` never publishes Git or installs trust",
+            ),
+        ),
+        RepositoryAuthorityInitError::TrustPinBlocksInitialization {
+            repository_id,
+            pin_path,
+            pinned_root,
+        } => crate::ui::fail_with(
+            crate::ui::ErrorKind::Domain,
+            &format!(
+                "repository authority initialization was not attempted because the local trust pin for {repository_id} at {pin_path} already selects {pinned_root}"
+            ),
+            Some(&blocking_trust_pin_hint(
+                path,
+                &repository_id,
+                &pin_path,
+                &pinned_root,
+                json_output,
+            )),
+        ),
+        RepositoryAuthorityInitError::TrustPinCollision {
+            repository_id,
+            record_root,
+            pin_path,
+            pinned_root,
+        } => crate::ui::fail_with(
+            crate::ui::ErrorKind::Domain,
+            &format!(
+                "repository authority initialized at {record_root}, but the local trust pin for {repository_id} at {pin_path} already selects {pinned_root}"
+            ),
+            Some(&trust_pin_collision_hint(
+                path,
+                &repository_id,
+                &record_root,
+                &pin_path,
+                &pinned_root,
+                json_output,
+            )),
+        ),
+    }
+}
+
+pub(crate) fn shell_arg(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\"'\"'"))
 }
 
@@ -231,8 +303,8 @@ fn resume_command(
 
 /// The remedy for a pin collision is never a key operation: a new key produces
 /// a new record root, hence the same collision. It is also not automatically a
-/// rebind — repository_id is derived from name and scope, so the installed pin
-/// may belong to a different repository that chose the same two.
+/// rebind: repository_id is the retained UUIDv4 Profile identity, and the
+/// installed pin may belong to a different copy or lineage of that identity.
 fn trust_pin_collision_hint(
     path: &Path,
     repository_id: &str,
@@ -249,7 +321,7 @@ fn trust_pin_collision_hint(
         rebind.push_str(" --json");
     }
     format!(
-        "the pin is a write gate, so this repository cannot take an authority write until it is reconciled; read {pin_path} first. If it pins a different repository, rerun `vela init` with a --name or --scope that does not derive {repository_id}. If it is a stale pin for this repository and you have independently verified the new root, advance it with: {rebind}"
+        "the pin is a write gate, so this repository cannot take an authority write until it is reconciled; read {pin_path} first and preserve the retained Profile UUID {repository_id}. If the pin belongs to a different repository, create a genuinely new bootstrap with a fresh Profile identity; changing --name or --scope never changes this retained UUID. If it is a stale pin for this repository and you have independently verified the new root, advance it with: {rebind}"
     )
 }
 
@@ -268,7 +340,7 @@ fn blocking_trust_pin_hint(
         rebind.push_str(" --json");
     }
     format!(
-        "the pin is a write gate, so fresh initialization cannot sign or install an authority record while it exists; read {pin_path} first. If it pins a different repository, rerun `vela init` with a --name or --scope that does not derive {repository_id}. If it is stale for this repository, reconcile or archive it only after independently checking its provenance; any later verified replacement must name both roots, for example: {rebind}"
+        "the pin is a write gate, so fresh initialization cannot sign or install an authority record while it exists; read {pin_path} first and preserve the retained Profile UUID {repository_id}. If the pin belongs to a different repository, create a genuinely new bootstrap with a fresh Profile identity; changing --name or --scope never changes this retained UUID. If it is stale for this repository, reconcile or archive it only after independently checking its provenance; any later verified replacement must name both roots, for example: {rebind}"
     )
 }
 

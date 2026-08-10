@@ -224,8 +224,11 @@ journal: an exactly Prepared transaction with a definitely absent commit marker
 is aborted, while a valid marker authorizes policy-free exact completion.
 Completed and Aborted journals are idempotent. Recovery stops after the
 repository filesystem transaction; it neither continues the semantic command
-nor publishes Git state. A Completed result names Git status as the next
-inspection.
+nor publishes Git state. A routine completion names Git status as the next
+inspection. If the exact operation is a verified native genesis, it instead
+names the retained `vela init --key ... --reason ...` continuation; that later
+command verifies and creates or idempotently confirms only the deterministic
+Git/trust tail without a signer or another authority transaction.
 
 Source-owning repositories and read products may expose exact next obligations
 under their own rooted contracts. They are replaceable orientation surfaces,

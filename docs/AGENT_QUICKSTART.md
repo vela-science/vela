@@ -13,8 +13,10 @@ A separately declared verifier may report its scoped check. Only a human
 authority may decide whether the proposed change enters Standing; no agent
 receives that authority from a producer or verifier role.
 
-For a new repository, initialization is one recoverable operation. Load a
-dedicated Ed25519 identity into the standard OpenSSH agent, then run:
+For a new repository, initialization installs its repository filesystem state
+through one recoverable transaction. Its Git commit and local trust anchor are
+separate post-transaction steps and are never performed by `vela recover`.
+Load a dedicated Ed25519 identity into the standard OpenSSH agent, then run:
 
 ```bash
 vela init ./my-repository --name "<name>" --scope "<bounded question>" --json

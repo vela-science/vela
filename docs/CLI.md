@@ -384,6 +384,16 @@ commits the verified initial state. If signing fails, the Profile is retained;
 load the key and rerun the same `vela init` command. Use `--key` when the agent
 contains more than one Ed25519 identity.
 
+If the recoverable genesis transaction completed but the process stopped before
+its parentless Git commit or local trust pin, rerun the exact `vela init` with
+the retained `--key` fingerprint and `--reason`. Vela verifies the complete
+sequence-one record, signed read-set commitment, exact Completed journal delta,
+deterministic scaffold, operating-system account, and private journal census,
+then performs only the missing deterministic Git and trust tail. It does not
+contact a signer, create another authority record, or rerun the transaction.
+An interrupted nonterminal transaction still requires the explicit `vela
+recover` action first; `init` never auto-recovers it.
+
 Independent consumers install the returned sequence-one authority-record root after
 obtaining it through a separate channel:
 
@@ -451,11 +461,23 @@ identity, operation ID, prior recovery state, closed outcome,
 `repository_blocked_after`, and `next_command` only when one exact action is
 available. It stops after that one recovery outcome: it does not run a new
 scientific operation or create, move, or publish a Git ref. Completed and
-Aborted journals can be named again without changing semantic state. A
-Completed result names `git -C <PATH> status --short` as the next inspection;
-any needed publication remains a separate operator step. Read-only commands
-such as `status`, `show`, `why`, `log`, `replay`, and `reproduce` remain
-read-only even while recovery is required.
+Aborted journals can be named again without changing semantic state. A routine
+completed result names `git -C <PATH> status --short` as the next inspection.
+When the exact Completed operation is a fully verified native genesis whose
+deterministic Git/trust tail can be continued or confirmed idempotently, the
+result instead names the executable continuation, including the retained key
+fingerprint and exact reason:
+
+```bash
+vela init <PATH> --key <FINGERPRINT> --reason <EXACT_REASON> --json
+```
+
+That later `init` invocation verifies and publishes the deterministic genesis
+tail; recovery itself never does. A native-genesis-shaped repository whose
+Completed proof is missing, ambiguous, or inconsistent fails closed rather
+than falling back to the routine Git-status hint. Read-only commands such as
+`status`, `show`, `why`, `log`, `replay`, and `reproduce` remain read-only even
+while recovery is required.
 
 ## Machine contracts
 

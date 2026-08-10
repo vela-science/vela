@@ -3,9 +3,9 @@
 //! Filesystem setup belongs to the CLI edge. The protocol crate supplies only
 //! closed values and validators.
 
+use std::collections::BTreeMap;
 use std::fs;
-use std::path::Path;
-use std::process::Command;
+use std::path::{Path, PathBuf};
 
 use serde_json::{Value, json};
 use vela_protocol::repository::{
@@ -38,9 +38,8 @@ pub(crate) fn initialize_minimal(path: &Path, options: InitOptions<'_>) -> Resul
             ));
         }
         Ok(_) => {
-            let mut entries = fs::read_dir(path)
-                .map_err(|error| format!("inspect init target '{}': {error}", path.display()))?;
-            if entries
+            if fs::read_dir(path)
+                .map_err(|error| format!("inspect init target '{}': {error}", path.display()))?
                 .next()
                 .transpose()
                 .map_err(|error| format!("inspect init target '{}': {error}", path.display()))?
@@ -80,37 +79,12 @@ pub(crate) fn initialize_minimal(path: &Path, options: InitOptions<'_>) -> Resul
         }
     };
 
-    let mut entries = fs::read_dir(staging.path())
-        .map_err(|error| format!("read initialization staging directory: {error}"))?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|error| format!("read initialization staging entry: {error}"))?;
-    entries.sort_by_key(fs::DirEntry::file_name);
-    let mut installed = Vec::new();
-    for entry in entries {
-        let destination = path.join(entry.file_name());
-        if fs::symlink_metadata(&destination).is_ok() {
-            rollback_install(&installed);
-            drop(staging);
-            if !target_existed {
-                let _ = fs::remove_dir(path);
-            }
-            return Err(format!(
-                "initialization target changed while staging: {}",
-                destination.display()
-            ));
+    if let Err(error) = install_staged_entries(path, staging.path()) {
+        drop(staging);
+        if !target_existed {
+            let _ = fs::remove_dir(path);
         }
-        if let Err(error) = fs::rename(entry.path(), &destination) {
-            rollback_install(&installed);
-            drop(staging);
-            if !target_existed {
-                let _ = fs::remove_dir(path);
-            }
-            return Err(format!(
-                "install initialized repository entry '{}': {error}",
-                destination.display()
-            ));
-        }
-        installed.push((entry.path(), destination));
+        return Err(error);
     }
     drop(staging);
 
@@ -120,6 +94,251 @@ pub(crate) fn initialize_minimal(path: &Path, options: InitOptions<'_>) -> Resul
         shell_arg(&path.display().to_string())
     ));
     Ok(payload)
+}
+
+/// Resume exactly one crash-retained bootstrap staging directory.
+///
+/// The staging directory is CLI-owned private state, not a serialized write
+/// permission. It contains only a retained Profile, its deterministic
+/// scaffold, an empty `.vela` directory, and optionally the exact unborn Git
+/// repository created by the isolated initializer. Every byte and filesystem
+/// kind is revalidated before any remaining top-level entry is installed.
+pub(crate) fn resume_staged_minimal(
+    path: &Path,
+    name: Option<&str>,
+    scope: Option<&str>,
+    initialize_git: bool,
+) -> Result<Option<Value>, String> {
+    let Some(staging) = find_initialization_staging(path)? else {
+        return Ok(None);
+    };
+    let profile = validate_staged_bootstrap(path, &staging, name, scope, initialize_git)?;
+    if initialize_git {
+        let git = distributed_entry(path, &staging, ".git")?;
+        match git {
+            Some(git) => crate::config::git_publish::verify_empty_native_git_repository(
+                git.parent()
+                    .ok_or_else(|| "staged Git repository has no parent".to_string())?,
+            )?,
+            None => crate::config::git_publish::initialize_native_git_repository(&staging)?,
+        }
+    }
+    // Re-run the complete proof after Git initialization, before moving a byte.
+    validate_staged_bootstrap(path, &staging, name, scope, initialize_git)?;
+    install_staged_entries(path, &staging)?;
+    fs::remove_dir(&staging).map_err(|error| {
+        format!(
+            "remove completed initialization staging directory '{}': {error}",
+            staging.display()
+        )
+    })?;
+    let mut payload = bootstrap_payload(path, &profile)?;
+    payload["resumed"] = json!(true);
+    Ok(Some(payload))
+}
+
+fn find_initialization_staging(path: &Path) -> Result<Option<PathBuf>, String> {
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(format!("inspect init target '{}': {error}", path.display())),
+    };
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Ok(None);
+    }
+    let mut staging = None;
+    for entry in fs::read_dir(path)
+        .map_err(|error| format!("inspect init target '{}': {error}", path.display()))?
+    {
+        let entry = entry.map_err(|error| format!("inspect init target entry: {error}"))?;
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else {
+            continue;
+        };
+        if !name.starts_with(".vela-init-") {
+            continue;
+        }
+        let suffix = &name[".vela-init-".len()..];
+        if suffix.len() != 6 || !suffix.bytes().all(|byte| byte.is_ascii_alphanumeric()) {
+            return Err(format!(
+                "initialization target contains an invalid staging entry {name}"
+            ));
+        }
+        let metadata = fs::symlink_metadata(entry.path())
+            .map_err(|error| format!("inspect initialization staging entry {name}: {error}"))?;
+        if metadata.file_type().is_symlink() || !metadata.is_dir() {
+            return Err(format!(
+                "initialization staging entry {name} must be a real directory"
+            ));
+        }
+        if staging.replace(entry.path()).is_some() {
+            return Err("initialization target contains multiple staging directories".into());
+        }
+    }
+    Ok(staging)
+}
+
+fn distributed_entry(root: &Path, staging: &Path, name: &str) -> Result<Option<PathBuf>, String> {
+    let installed = root.join(name);
+    let staged = staging.join(name);
+    let exists = |path: &Path| match fs::symlink_metadata(path) {
+        Ok(_) => Ok(true),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(format!(
+            "inspect distributed initialization entry '{}': {error}",
+            path.display()
+        )),
+    };
+    let installed_exists = exists(&installed)?;
+    let staged_exists = exists(&staged)?;
+    match (installed_exists, staged_exists) {
+        (true, false) => Ok(Some(installed)),
+        (false, true) => Ok(Some(staged)),
+        (false, false) => Ok(None),
+        (true, true) => Err(format!(
+            "initialization entry {name} exists in both staging and target"
+        )),
+    }
+}
+
+fn validate_staged_bootstrap(
+    root: &Path,
+    staging: &Path,
+    name: Option<&str>,
+    scope: Option<&str>,
+    initialize_git: bool,
+) -> Result<RepositoryProfileV1, String> {
+    let known = [
+        ".git",
+        ".gitattributes",
+        ".gitignore",
+        ".vela",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "README.md",
+        "vela.toml",
+    ];
+    for directory in [root, staging] {
+        for entry in fs::read_dir(directory).map_err(|error| {
+            format!(
+                "read initialization directory '{}': {error}",
+                directory.display()
+            )
+        })? {
+            let entry = entry.map_err(|error| format!("read initialization entry: {error}"))?;
+            if directory == root && entry.path() == staging {
+                continue;
+            }
+            let entry_name = entry.file_name();
+            let entry_name = entry_name.to_str().ok_or_else(|| {
+                "initialization state contains a non-UTF-8 top-level entry".to_string()
+            })?;
+            if !known.contains(&entry_name) {
+                return Err(format!(
+                    "initialization state contains unexpected top-level entry {entry_name}"
+                ));
+            }
+        }
+    }
+    let profile_path = distributed_entry(root, staging, "vela.toml")?
+        .ok_or_else(|| "initialization staging has no retained vela.toml".to_string())?;
+    let profile = RepositoryProfileV1::from_toml_str(
+        &fs::read_to_string(&profile_path)
+            .map_err(|error| format!("read retained staged Profile: {error}"))?,
+    )?;
+    if name
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .is_some_and(|value| value != profile.name)
+        || scope
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .is_some_and(|value| value != profile.scope.question)
+    {
+        return Err("retry inputs do not match the retained initialization Profile".into());
+    }
+    for (relative, expected) in expected_scaffold(&profile)? {
+        let path = distributed_entry(root, staging, &relative)?.ok_or_else(|| {
+            format!("initialization staging is missing deterministic scaffold {relative}")
+        })?;
+        let metadata = fs::symlink_metadata(&path)
+            .map_err(|error| format!("inspect staged scaffold {relative}: {error}"))?;
+        if metadata.file_type().is_symlink()
+            || !metadata.is_file()
+            || fs::read(&path).map_err(|error| format!("read staged scaffold: {error}"))?
+                != expected
+        {
+            return Err(format!(
+                "initialization scaffold {relative} differs from its retained Profile"
+            ));
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if metadata.permissions().mode() & 0o111 != 0 {
+                return Err(format!(
+                    "initialization scaffold {relative} must have Git mode 100644"
+                ));
+            }
+        }
+    }
+    let private = distributed_entry(root, staging, ".vela")?.ok_or_else(|| {
+        "initialization staging is missing its private bootstrap directory".to_string()
+    })?;
+    let metadata = fs::symlink_metadata(&private)
+        .map_err(|error| format!("inspect staged private bootstrap: {error}"))?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err("initialization private bootstrap must be a real directory".into());
+    }
+    if fs::read_dir(&private)
+        .map_err(|error| format!("read staged private bootstrap: {error}"))?
+        .next()
+        .transpose()
+        .map_err(|error| format!("read staged private bootstrap entry: {error}"))?
+        .is_some()
+    {
+        return Err("initialization private bootstrap contains unexpected state".into());
+    }
+    match distributed_entry(root, staging, ".git")? {
+        Some(git) if initialize_git => {
+            crate::config::git_publish::verify_empty_native_git_repository(
+                git.parent()
+                    .ok_or_else(|| "staged Git repository has no parent".to_string())?,
+            )?;
+        }
+        Some(_) => return Err("initialization staging unexpectedly contains Git state".into()),
+        None if initialize_git => {}
+        None => {}
+    }
+    Ok(profile)
+}
+
+fn install_staged_entries(root: &Path, staging: &Path) -> Result<(), String> {
+    let mut entries = fs::read_dir(staging)
+        .map_err(|error| format!("read initialization staging directory: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("read initialization staging entry: {error}"))?;
+    entries.sort_by_key(fs::DirEntry::file_name);
+    let mut installed = Vec::new();
+    for entry in entries {
+        let destination = root.join(entry.file_name());
+        if fs::symlink_metadata(&destination).is_ok() {
+            rollback_install(&installed);
+            return Err(format!(
+                "initialization target changed while staging: {}",
+                destination.display()
+            ));
+        }
+        if let Err(error) = fs::rename(entry.path(), &destination) {
+            rollback_install(&installed);
+            return Err(format!(
+                "install initialized repository entry '{}': {error}",
+                destination.display()
+            ));
+        }
+        installed.push((entry.path(), destination));
+    }
+    Ok(())
 }
 
 fn rollback_install(installed: &[(std::path::PathBuf, std::path::PathBuf)]) {
@@ -150,27 +369,28 @@ fn initialize_in_place(path: &Path, options: &InitOptions<'_>) -> Result<Value, 
         },
     };
     profile.validate()?;
-    let profile_root = profile.profile_root()?;
 
-    fs::write(
-        path.join("vela.toml"),
-        toml::to_string_pretty(&profile)
-            .map_err(|error| format!("serialize current Profile: {error}"))?,
-    )
-    .map_err(|error| format!("write vela.toml: {error}"))?;
     fs::create_dir_all(path.join(".vela")).map_err(|error| format!("create .vela: {error}"))?;
-    write_scaffold(path, name, scope)?;
+    write_scaffold(path, &profile)?;
+    #[cfg(feature = "test-support")]
+    if std::env::var_os("VELA_TEST_INTERRUPT_INIT_BEFORE_GIT").is_some() {
+        std::process::exit(86);
+    }
     initialize_git(path, options.initialize_git)?;
 
+    bootstrap_payload(path, &profile)
+}
+
+fn bootstrap_payload(path: &Path, profile: &RepositoryProfileV1) -> Result<Value, String> {
     Ok(json!({
         "schema": "vela.repository-init-draft.v1",
         "ok": true,
         "layout": "vela.repository-bootstrap.v1",
         "path": path.display().to_string(),
-        "name": name,
-        "scope": scope,
-        "repository_id": repository_id,
-        "profile_root": profile_root,
+        "name": profile.name,
+        "scope": profile.scope.question,
+        "repository_id": profile.repository_id,
+        "profile_root": profile.profile_root()?,
         "authority": "uninitialized",
         "scientific_object_count": 0,
         "wrote": [
@@ -188,17 +408,28 @@ fn initialize_in_place(path: &Path, options: &InitOptions<'_>) -> Result<Value, 
     }))
 }
 
-fn write_scaffold(path: &Path, name: &str, scope: &str) -> Result<(), String> {
-    let write = |relative: &str, contents: &str| -> Result<(), String> {
-        fs::write(path.join(relative), contents)
-            .map_err(|error| format!("write {relative}: {error}"))
-    };
-    write(
-        "README.md",
-        &format!(
+fn write_scaffold(path: &Path, profile: &RepositoryProfileV1) -> Result<(), String> {
+    for (relative, bytes) in expected_scaffold(profile)? {
+        fs::write(path.join(&relative), bytes)
+            .map_err(|error| format!("write {relative}: {error}"))?;
+    }
+    Ok(())
+}
+
+pub(crate) fn expected_scaffold(
+    profile: &RepositoryProfileV1,
+) -> Result<BTreeMap<String, Vec<u8>>, String> {
+    profile.validate()?;
+    let name = &profile.name;
+    let scope = &profile.scope.question;
+    let mut files = BTreeMap::new();
+    files.insert(
+        "README.md".into(),
+        format!(
             "# {name}\n\n{scope}\n\nThis is a Vela repository. Git stores exact Claims, Submissions, Verification Records, Decisions, and authority history. Derived views are rebuildable.\n\n## Operator loop\n\n```bash\nvela status . --json\nvela submit --repo . --claim \"<bounded result>\" --type computational --replayability exact --artifact <path>:<kind> --caveat \"<limit>\" --as agent:<name> --json\n\n# Verification binds method bytes already retained at the current Git commit.\ngit add -- verification/method.json\ngit commit -m \"Retain verification method\"\nvela verification record . <vpr_id> --profile <profile> --method verification/method.json --outcome pass --does-not-establish \"Scientific acceptance.\" --as verifier:<name> --json\n\nvela review inbox . --json\n# Only an authorized operator may make the exact accept or reject Decision.\nvela review accept . <vpr_id> --reason \"<reason>\" --if-entry-root sha256:... --json\nvela replay . --json\n```\n"
-        ),
-    )?;
+        )
+        .into_bytes(),
+    );
     /* No SCOPE.md. It restated the scope already in `vela.toml`, which
     `profile_root` commits to, and the scaffold could only fill its Includes and
     Excludes with "none are declared" — so the file arrived saying nothing and
@@ -211,8 +442,8 @@ fn write_scaffold(path: &Path, name: &str, scope: &str) -> Result<(), String> {
     key material into Git. Three of the four published repositories hand-patched
     exactly these entries; the fourth patched them incompletely and still
     carries unignored runtime directories. */
-    write(
-        ".gitignore",
+    files.insert(
+        ".gitignore".into(),
         concat!(
             "/.vela/operation-journals/\n",
             "/.vela/tmp/\n",
@@ -226,10 +457,12 @@ fn write_scaffold(path: &Path, name: &str, scope: &str) -> Result<(), String> {
             "/target/\n",
             "node_modules/\n",
             ".DS_Store\n",
-        ),
-    )?;
-    write(
-        ".gitattributes",
+        )
+        .as_bytes()
+        .to_vec(),
+    );
+    files.insert(
+        ".gitattributes".into(),
         // The record path family is `-text`, not `text eol=lf`.
         //
         // A record is content addressed: its root is sha256 over the exact bytes
@@ -245,40 +478,39 @@ fn write_scaffold(path: &Path, name: &str, scope: &str) -> Result<(), String> {
         // as the paragraph above always said. The rule therefore matched
         // nothing, and the one file here a human is expected to edit was left
         // to `* text=auto`. Live repositories carry the dead line too.
-        "* text=auto eol=lf\n.vela/** -filter -ident -working-tree-encoding -merge -text\nrecords/** -filter -ident -working-tree-encoding -merge -text\nartifacts/** -filter -ident -working-tree-encoding -merge -text\nvela.toml -filter -ident -working-tree-encoding -merge diff text eol=lf\n",
-    )?;
+        "* text=auto eol=lf\n.vela/** -filter -ident -working-tree-encoding -merge -text\nrecords/** -filter -ident -working-tree-encoding -merge -text\nartifacts/** -filter -ident -working-tree-encoding -merge -text\nvela.toml -filter -ident -working-tree-encoding -merge diff text eol=lf\n"
+            .as_bytes()
+            .to_vec(),
+    );
     /* AGENTS.md, not VELA.md. REPOSITORY_PROFILE.md names README.md
     and AGENTS.md as the guidance set, and all four published repositories carry
     AGENTS.md; none has ever had a VELA.md. A scaffold that writes a filename no
     repository uses guarantees the first act after `vela init` is renaming it. */
-    write(
-        "AGENTS.md",
-        &format!(
+    files.insert(
+        "AGENTS.md".into(),
+        format!(
             "# {name} — agent charter\n\nCanonical state is Git history plus the current `.vela/repository.json` manifest. Producers may submit signed evidence directly and record scoped Verification. Only an authorized human Decision changes scientific standing.\n\nAgents must not invoke `vela review accept` or `vela review reject`, access repository-authority credentials, hand-edit canonical records, or describe Verification as acceptance. A Verification method manifest must be tracked, clean, and retained in the current Git commit before `vela verification record`.\n\n```bash\nvela status . --json\nvela submit --repo . --claim <bounded-claim> --type computational --replayability exact --artifact <path>:<kind> --caveat <limit> --as agent:<name> --json\nvela verification record . <vpr_id> --profile <profile> --method <committed-method> --outcome <outcome> --does-not-establish <limit> --as verifier:<name> --json\nvela review inbox . --json\nvela replay . --json\n```\n\nHand the rooted Decision Inbox entry to the authorized operator; do not decide it yourself.\n"
-        ),
-    )?;
+        )
+        .into_bytes(),
+    );
     /* One line pointing at the charter. All four published repositories carry
     exactly this file with exactly this content, so the convention is
     unanimous and was simply never scaffolded. */
-    write("CLAUDE.md", "@AGENTS.md\n")
+    files.insert("CLAUDE.md".into(), b"@AGENTS.md\n".to_vec());
+    files.insert(
+        "vela.toml".into(),
+        toml::to_string_pretty(profile)
+            .map_err(|error| format!("serialize current Profile: {error}"))?
+            .into_bytes(),
+    );
+    Ok(files)
 }
 
 fn initialize_git(path: &Path, requested: bool) -> Result<(), String> {
     if !requested || path.join(".git").exists() {
         return Ok(());
     }
-    let output = Command::new("git")
-        .args(["init", "--quiet", "-b", "main"])
-        .arg(path)
-        .output()
-        .map_err(|error| format!("run git init: {error}"))?;
-    if !output.status.success() {
-        return Err(format!(
-            "git init failed: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        ));
-    }
-    Ok(())
+    crate::config::git_publish::initialize_native_git_repository(path)
 }
 
 fn shell_arg(value: &str) -> String {

@@ -3,7 +3,8 @@
 //! Predecessor writers are absent from the current product. Current decisions
 //! use the repository authority already retained on disk.
 
-use std::path::Path;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use base64::Engine as _;
@@ -12,7 +13,9 @@ use chrono::{DateTime, Duration, SecondsFormat, Utc};
 use serde::Serialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use vela_authority::runtime_authentication::{AuthenticationRequest, LocalOsSession};
+use vela_authority::runtime_authentication::{
+    AuthenticationAdapter, AuthenticationRequest, LocalOsSession,
+};
 use vela_edge::repository_write::{
     AUTHORITY_TRUST_ANCHOR_SCHEMA_V1, AuthorityTrustAnchorV1,
     install_authority_trust_anchor_from_home, load_authority_trust_anchor_from_home,
@@ -42,17 +45,23 @@ use vela_protocol::authority_history::{
 use vela_protocol::canonical::to_canonical_bytes;
 use vela_protocol::events::{EventKind, NULL_HASH, StateActor, StateTarget};
 use vela_protocol::principal::PrincipalClass;
-use vela_protocol::repository::{REPOSITORY_SCHEMA_V4, RepositoryV4};
+use vela_protocol::repository::{REPOSITORY_SCHEMA_V4, RepositoryProfileV1, RepositoryV4};
 use vela_protocol::repository_origin::RepositoryOriginV1;
 
 use crate::authority_transaction::{
     AuthorityEventDraft, AuthorityHistorySnapshot, AuthorityObjectDraft,
-    AuthorityTransactionRequest, execute_authority_transaction, execution_binary_sha256,
+    AuthorityTransactionRequest, OPERATION_DOMAIN, REPOSITORY_OPERATION_KIND, RESULT_SCHEMA,
+    authority_event_path, authority_keyset_path, authority_model_path,
+    authority_read_set_root_for_inputs, authority_record_path, execute_authority_transaction,
+    execution_binary_sha256,
 };
 use crate::repository_authority_provider::{
     SshAgentRepositoryAuthoritySigner, select_repository_authority_identity,
 };
-use vela_repository::{ContentDigest, WriteClass};
+use vela_repository::{
+    CompletedOperationExpectation, ContentDigest, FileMode, FileState, OperationId, OperationKind,
+    ValidatedPrivateResidue, WriteClass,
+};
 
 use super::{fail_return, print_json};
 
@@ -230,6 +239,9 @@ fn pin_repository_authority(
 pub(crate) enum RepositoryAuthorityInitError {
     /// Identity selection, signing, or repository genesis failed.
     Signing(String),
+    /// A signed, Completed native genesis exists, but its exact Git/trust
+    /// post-transaction state cannot be continued safely.
+    Continuation(String),
     /// A pre-existing local pin makes fresh initialization inapplicable. No
     /// authority record has been signed or installed yet.
     TrustPinBlocksInitialization {
@@ -248,6 +260,31 @@ pub(crate) enum RepositoryAuthorityInitError {
     },
 }
 
+impl std::fmt::Display for RepositoryAuthorityInitError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Signing(error) | Self::Continuation(error) => formatter.write_str(error),
+            Self::TrustPinBlocksInitialization {
+                repository_id,
+                pin_path,
+                pinned_root,
+            } => write!(
+                formatter,
+                "local trust pin for {repository_id} at {pin_path} already selects {pinned_root}"
+            ),
+            Self::TrustPinCollision {
+                repository_id,
+                record_root,
+                pin_path,
+                pinned_root,
+            } => write!(
+                formatter,
+                "native genesis {record_root} conflicts with the local trust pin for {repository_id} at {pin_path}, which selects {pinned_root}"
+            ),
+        }
+    }
+}
+
 impl From<String> for RepositoryAuthorityInitError {
     fn from(error: String) -> Self {
         Self::Signing(error)
@@ -258,6 +295,691 @@ impl From<&str> for RepositoryAuthorityInitError {
     fn from(error: &str) -> Self {
         Self::Signing(error.to_string())
     }
+}
+
+#[derive(Debug)]
+struct CompletedNativeGenesis {
+    repository_path: PathBuf,
+    profile: RepositoryProfileV1,
+    origin: RepositoryOriginV1,
+    repository: RepositoryV4,
+    authority: LoadedRepositoryAuthority,
+    record: AuthorityRecordV1,
+    record_root: String,
+    operation_id: OperationId,
+    git_paths: Vec<String>,
+    private_residue: Vec<ValidatedPrivateResidue>,
+}
+
+struct ExpectedNativeGenesisWrite {
+    class: WriteClass,
+    object_kind: Option<&'static str>,
+    bytes: Vec<u8>,
+}
+
+/// Finish only the exact post-transaction tail of a native genesis.
+///
+/// This path never obtains a signer or reconstructs authorization. It accepts
+/// one already-Completed transaction only after the runtime has verified its
+/// private plan, marker, blobs, history, and exact caller-owned facts. The
+/// signed object delta plus covering DSSE envelope must then equal the complete
+/// canonical delta byte-for-byte before Git or local trust can change.
+pub(crate) fn resume_completed_native_genesis(
+    repository_path: &Path,
+    key_selector: Option<&str>,
+    reason: &str,
+) -> Result<Option<Value>, RepositoryAuthorityInitError> {
+    let completed = match load_completed_native_genesis(repository_path)? {
+        Some(completed) => completed,
+        None => return Ok(None),
+    };
+    if reason != completed.origin.reason {
+        return Err(RepositoryAuthorityInitError::Continuation(
+            "--reason does not match the signed native genesis".into(),
+        ));
+    }
+    let fingerprint = native_genesis_key_fingerprint(&completed.authority, key_selector)?;
+    verify_native_genesis_account(&completed.record)?;
+    finish_completed_native_genesis(completed, &fingerprint).map(Some)
+}
+
+pub(crate) fn completed_native_genesis_init_command(
+    repository_path: &Path,
+    operation_id: &OperationId,
+) -> Result<Option<String>, RepositoryAuthorityInitError> {
+    let Some(completed) = load_completed_native_genesis(repository_path)? else {
+        return Ok(None);
+    };
+    if &completed.operation_id != operation_id {
+        return Ok(None);
+    }
+    verify_native_genesis_account(&completed.record)?;
+    let fingerprint = native_genesis_key_fingerprint(&completed.authority, None)?;
+    Ok(Some(format!(
+        "vela init {} --key {} --reason {} --json",
+        super::shell_arg(&repository_path.display().to_string()),
+        super::shell_arg(&fingerprint),
+        super::shell_arg(&completed.origin.reason),
+    )))
+}
+
+fn native_genesis_key_fingerprint(
+    authority: &LoadedRepositoryAuthority,
+    selector: Option<&str>,
+) -> Result<String, RepositoryAuthorityInitError> {
+    let [key] = authority.history.authority_keyset.keys.as_slice() else {
+        return Err(RepositoryAuthorityInitError::Continuation(
+            "native genesis does not retain exactly one repository key".into(),
+        ));
+    };
+    let fingerprint = key.key_id.strip_prefix("ssh-ed25519:").ok_or_else(|| {
+        RepositoryAuthorityInitError::Continuation(
+            "native genesis repository key has an unexpected key ID".into(),
+        )
+    })?;
+    if let Some(selector) = selector
+        && selector != key.key_id
+        && selector != fingerprint
+        && selector != key.public_key
+    {
+        return Err(RepositoryAuthorityInitError::Continuation(
+            "--key does not match the repository key retained by the signed native genesis".into(),
+        ));
+    }
+    Ok(fingerprint.to_string())
+}
+
+fn load_completed_native_genesis(
+    repository_path: &Path,
+) -> Result<Option<CompletedNativeGenesis>, RepositoryAuthorityInitError> {
+    let profile = crate::repository::verify_profile_at(repository_path)
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    let origin_path = repository_path.join(".vela/origin.json");
+    let manifest_path = repository_path.join(".vela/repository.json");
+    let present = |path: &Path| -> Result<bool, RepositoryAuthorityInitError> {
+        match std::fs::symlink_metadata(path) {
+            Ok(metadata) if !metadata.file_type().is_symlink() && metadata.is_file() => Ok(true),
+            Ok(_) => Err(RepositoryAuthorityInitError::Continuation(format!(
+                "native genesis state path {} is not a regular file",
+                path.display()
+            ))),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+            Err(error) => Err(RepositoryAuthorityInitError::Continuation(format!(
+                "inspect native genesis state path {}: {error}",
+                path.display()
+            ))),
+        }
+    };
+    match (present(&origin_path)?, present(&manifest_path)?) {
+        (false, false) => return Ok(None),
+        (true, true) => {}
+        _ => {
+            return Err(RepositoryAuthorityInitError::Continuation(
+                "native genesis retains only part of its origin and repository state".into(),
+            ));
+        }
+    }
+    let origin = RepositoryOriginV1::parse(&std::fs::read(&origin_path).map_err(|error| {
+        RepositoryAuthorityInitError::Continuation(format!(
+            "read current repository origin: {error}"
+        ))
+    })?)
+    .map_err(RepositoryAuthorityInitError::Continuation)?;
+    let repository = crate::repository::load_repository_at(repository_path, true)
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    let has_scientific_state = !repository.accepted_claims.is_empty()
+        || !repository.pending_claims.is_empty()
+        || !repository.proposals.is_empty()
+        || !repository.proposal_withdrawals.is_empty()
+        || !repository.submissions.is_empty()
+        || !repository.verifications.is_empty()
+        || !repository.artifacts.is_empty();
+    // Scientific repositories are ordinary initialized repositories, not
+    // incomplete native-genesis candidates. Classify that product state before
+    // asking the stricter sequence-one loader to interpret authority history;
+    // a routine Completed operation must retain its ordinary recovery hint.
+    if has_scientific_state {
+        return Ok(None);
+    }
+    let authority = load_repository_authority(repository_path, &repository, &origin)
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    if authority.verification.authority_record_count > 1
+        && authority.verification.authority_event_count > 1
+    {
+        return Ok(None);
+    }
+    if authority.verification.authority_record_count != 1
+        || authority.verification.authority_event_count != 1
+    {
+        return Err(RepositoryAuthorityInitError::Continuation(
+            "empty native repository does not retain exactly one genesis authority record and event"
+                .into(),
+        ));
+    }
+    if authority.history.authority_envelopes.len() != 1
+        || authority.history.authority_events.len() != 1
+        || authority.history.retained_authority_keysets.len() != 1
+        || authority.history.retained_authorization_models.len() != 1
+    {
+        return Err(RepositoryAuthorityInitError::Continuation(
+            "single-record native genesis retains an unexpected authority object set".into(),
+        ));
+    }
+    let record = authority_record_from_envelope(&authority.history.authority_envelopes[0])
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    let record_root = record
+        .root()
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    let principal_id = &record.content.principal.principal_id;
+    let keyset = &authority.history.authority_keyset;
+    let expected_model = fresh_authority_model(&profile.repository_id, principal_id)
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    if record.content.sequence != 1
+        || record.content.previous_authority_record_root.is_some()
+        || record.content.authorization.request.action != AuthorityActionV1::AuthorityInitialize
+        || record.content.recorded_at != record.content.execution.completed_at
+        || keyset.generation != 1
+        || keyset.threshold != 1
+        || keyset.keys.len() != 1
+        || keyset.previous_keyset_root.is_some()
+        || keyset.activation_record_root.is_some()
+        || keyset.closed
+        || authority.history.authorization_model != expected_model
+    {
+        return Err(RepositoryAuthorityInitError::Continuation(
+            "single-record native genesis has mismatched authority, key, model, or time facts"
+                .into(),
+        ));
+    }
+    let operation_id =
+        OperationId::derive(OPERATION_DOMAIN, record.content.transaction_id.as_bytes());
+    if record.content.operation_id != operation_id.as_str() {
+        return Err(RepositoryAuthorityInitError::Continuation(
+            "single-record native genesis operation ID is not derived from its transaction".into(),
+        ));
+    }
+    let profile_root = profile
+        .profile_root()
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    let origin_root = origin
+        .canonical_root()
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    let repository_root = repository
+        .canonical_root()
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    let expected_intent = ContentDigest::hash(
+        to_canonical_bytes(&json!({
+            "schema": "vela.repository-origin-intent.v1",
+            "repository_id": profile.repository_id,
+            "profile_root": profile_root,
+            "origin_root": origin_root,
+            "repository_root": repository_root,
+            "principal_id": principal_id,
+            "reason": origin.reason,
+        }))
+        .map_err(RepositoryAuthorityInitError::Continuation)?,
+    );
+    if record.content.intent_digest != expected_intent.as_str() {
+        return Err(RepositoryAuthorityInitError::Continuation(
+            "single-record native genesis intent does not bind its exact Profile and origin".into(),
+        ));
+    }
+    let result = json!({
+        "schema": RESULT_SCHEMA,
+        "result": {
+            "operation_id": record.content.operation_id,
+            "transaction_id": record.content.transaction_id,
+            "event_ids": record.content.event_ids,
+            "authority_record_id": record.record_id,
+            "authority_record_root": record_root,
+            "before_event_log_root": record.content.before_event_log_root,
+            "after_event_log_root": record.content.after_event_log_root,
+            "read_set_root": record.content.execution.transaction_read_set_root,
+            "write_set_root": record.content.execution.transaction_write_set_root,
+        }
+    });
+    let kind = OperationKind::new(REPOSITORY_OPERATION_KIND)
+        .map_err(|error| RepositoryAuthorityInitError::Continuation(error.to_string()))?;
+    let journal_dir = crate::repository_ops::repository_transaction_journal_dir(repository_path)
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    let proof = match vela_repository::RepositoryTxn::verify_completed_operation(
+        repository_path,
+        &journal_dir,
+        &operation_id,
+        &CompletedOperationExpectation {
+            repository_id: &profile.repository_id,
+            kind: &kind,
+            request_root: &expected_intent,
+            fixed_time: &record.content.recorded_at,
+            result: &result,
+        },
+    ) {
+        Ok(proof) => proof,
+        Err(error) => {
+            return Err(RepositoryAuthorityInitError::Continuation(format!(
+                "verify Completed native genesis transaction: {error}"
+            )));
+        }
+    };
+    if proof
+        .read_set()
+        .windows(2)
+        .any(|pair| pair[0].name >= pair[1].name)
+    {
+        return Err(RepositoryAuthorityInitError::Continuation(
+            "Completed native genesis read set is not in exact unique canonical order".into(),
+        ));
+    }
+    let keyset_root = authority
+        .history
+        .authority_keyset
+        .root()
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    let model_root = authority
+        .history
+        .authorization_model
+        .root()
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    let read_set_root = authority_read_set_root_for_inputs(
+        &profile.repository_id,
+        &record.content.before_event_log_root,
+        None,
+        &keyset_root,
+        &model_root,
+        proof.read_set(),
+    )
+    .map_err(|error| RepositoryAuthorityInitError::Continuation(error.to_string()))?;
+    if read_set_root != record.content.execution.transaction_read_set_root {
+        return Err(RepositoryAuthorityInitError::Continuation(
+            "Completed native genesis read set does not match its signed authority commitment"
+                .into(),
+        ));
+    }
+    let git_paths = verify_native_genesis_delta(
+        repository_path,
+        &profile,
+        &origin,
+        &repository,
+        &authority,
+        &record,
+        proof.canonical_delta(),
+    )?;
+    Ok(Some(CompletedNativeGenesis {
+        repository_path: repository_path.to_path_buf(),
+        profile,
+        origin,
+        repository,
+        authority,
+        record,
+        record_root,
+        operation_id,
+        git_paths,
+        private_residue: proof.private_residue().to_vec(),
+    }))
+}
+
+fn verify_native_genesis_delta(
+    repository_path: &Path,
+    profile: &RepositoryProfileV1,
+    origin: &RepositoryOriginV1,
+    repository: &RepositoryV4,
+    authority: &LoadedRepositoryAuthority,
+    record: &AuthorityRecordV1,
+    delta: &vela_repository::CanonicalDelta,
+) -> Result<Vec<String>, RepositoryAuthorityInitError> {
+    let event = &authority.history.authority_events[0];
+    let envelope = &authority.history.authority_envelopes[0];
+    let keyset_root = authority
+        .history
+        .authority_keyset
+        .root()
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    let model_root = authority
+        .history
+        .authorization_model
+        .root()
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    let expected = [
+        (
+            ".vela/origin.json".to_string(),
+            ExpectedNativeGenesisWrite {
+                class: WriteClass::CanonicalEvidence,
+                object_kind: Some("repository_origin"),
+                bytes: origin
+                    .canonical_bytes()
+                    .map_err(RepositoryAuthorityInitError::Continuation)?,
+            },
+        ),
+        (
+            ".vela/repository.json".to_string(),
+            ExpectedNativeGenesisWrite {
+                class: WriteClass::CanonicalEvidence,
+                object_kind: Some("repository_manifest"),
+                bytes: repository
+                    .canonical_bytes()
+                    .map_err(RepositoryAuthorityInitError::Continuation)?,
+            },
+        ),
+        (
+            authority_event_path(&event.id),
+            ExpectedNativeGenesisWrite {
+                class: WriteClass::Authority,
+                object_kind: Some("event"),
+                bytes: to_canonical_bytes(event)
+                    .map_err(RepositoryAuthorityInitError::Continuation)?,
+            },
+        ),
+        (
+            authority_keyset_path(&keyset_root)
+                .map_err(|error| RepositoryAuthorityInitError::Continuation(error.to_string()))?,
+            ExpectedNativeGenesisWrite {
+                class: WriteClass::Authority,
+                object_kind: Some("authority_keyset"),
+                bytes: to_canonical_bytes(&authority.history.authority_keyset)
+                    .map_err(RepositoryAuthorityInitError::Continuation)?,
+            },
+        ),
+        (
+            authority_model_path(&model_root)
+                .map_err(|error| RepositoryAuthorityInitError::Continuation(error.to_string()))?,
+            ExpectedNativeGenesisWrite {
+                class: WriteClass::Authority,
+                object_kind: Some("authorization_model"),
+                bytes: to_canonical_bytes(&authority.history.authorization_model)
+                    .map_err(RepositoryAuthorityInitError::Continuation)?,
+            },
+        ),
+    ];
+    let mut expected = expected.into_iter().collect::<BTreeMap<_, _>>();
+    if record.content.object_delta.len() != expected.len() {
+        return Err(RepositoryAuthorityInitError::Continuation(
+            "native genesis signed object delta has an unexpected write count".into(),
+        ));
+    }
+    for signed in &record.content.object_delta {
+        let Some(write) = expected.get(&signed.path) else {
+            return Err(RepositoryAuthorityInitError::Continuation(format!(
+                "native genesis signed unexpected path {}",
+                signed.path
+            )));
+        };
+        let digest = ContentDigest::hash(&write.bytes);
+        if signed.before_root.is_some()
+            || signed.after_root.as_deref() != Some(digest.as_str())
+            || signed.object_kind != write.object_kind.expect("signed genesis object kind")
+        {
+            return Err(RepositoryAuthorityInitError::Continuation(format!(
+                "native genesis signed delta does not bind exact new bytes at {}",
+                signed.path
+            )));
+        }
+    }
+    expected.insert(
+        authority_record_path(&record.record_id),
+        ExpectedNativeGenesisWrite {
+            class: WriteClass::Authority,
+            object_kind: None,
+            bytes: to_canonical_bytes(envelope)
+                .map_err(RepositoryAuthorityInitError::Continuation)?,
+        },
+    );
+    if delta.writes().len() != expected.len() {
+        return Err(RepositoryAuthorityInitError::Continuation(
+            "Completed native genesis journal contains an extra or missing write".into(),
+        ));
+    }
+    for write in delta.writes() {
+        let expected_write = expected.remove(write.path.as_str()).ok_or_else(|| {
+            RepositoryAuthorityInitError::Continuation(format!(
+                "Completed native genesis journal contains unexpected path {}",
+                write.path.as_str()
+            ))
+        })?;
+        let absolute = repository_path.join(write.path.as_str());
+        let metadata = std::fs::symlink_metadata(&absolute).map_err(|error| {
+            RepositoryAuthorityInitError::Continuation(format!(
+                "inspect native genesis postimage {}: {error}",
+                write.path.as_str()
+            ))
+        })?;
+        let bytes = std::fs::read(&absolute).map_err(|error| {
+            RepositoryAuthorityInitError::Continuation(format!(
+                "read native genesis postimage {}: {error}",
+                write.path.as_str()
+            ))
+        })?;
+        let expected_state = FileState::File {
+            digest: ContentDigest::hash(&expected_write.bytes),
+            size: u64::try_from(expected_write.bytes.len()).map_err(|_| {
+                RepositoryAuthorityInitError::Continuation(
+                    "native genesis postimage length exceeds u64".into(),
+                )
+            })?,
+            mode: FileMode::Regular,
+        };
+        if metadata.file_type().is_symlink()
+            || !metadata.is_file()
+            || bytes != expected_write.bytes
+            || write.class != expected_write.class
+            || write.preimage != FileState::Absent
+            || write.postimage != expected_state
+        {
+            return Err(RepositoryAuthorityInitError::Continuation(format!(
+                "Completed native genesis journal disagrees with exact signed postimage {}",
+                write.path.as_str()
+            )));
+        }
+    }
+    let scaffold = crate::init::expected_scaffold(profile)
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    for (path, expected_bytes) in &scaffold {
+        let absolute = repository_path.join(path);
+        let metadata = std::fs::symlink_metadata(&absolute).map_err(|error| {
+            RepositoryAuthorityInitError::Continuation(format!(
+                "inspect native genesis scaffold {path}: {error}"
+            ))
+        })?;
+        let observed = std::fs::read(&absolute).map_err(|error| {
+            RepositoryAuthorityInitError::Continuation(format!(
+                "read native genesis scaffold {path}: {error}"
+            ))
+        })?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() || observed != *expected_bytes {
+            return Err(RepositoryAuthorityInitError::Continuation(format!(
+                "native genesis scaffold {path} differs from the retained Profile template"
+            )));
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if metadata.permissions().mode() & 0o111 != 0 {
+                return Err(RepositoryAuthorityInitError::Continuation(format!(
+                    "native genesis scaffold {path} must have regular mode 100644"
+                )));
+            }
+        }
+    }
+    let mut paths = scaffold.into_keys().collect::<Vec<_>>();
+    paths.extend(
+        delta
+            .writes()
+            .iter()
+            .map(|write| write.path.as_str().to_string()),
+    );
+    paths.sort();
+    paths.dedup();
+    Ok(paths)
+}
+
+fn verify_native_genesis_account(
+    record: &AuthorityRecordV1,
+) -> Result<(), RepositoryAuthorityInitError> {
+    let mut local = local_session(&record.content.recorded_at)
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    let observed = local
+        .observe(&AuthenticationRequest {
+            principal_id: local.principal_id.clone(),
+            principal_class: PrincipalClass::Human,
+            transaction_at: record.content.recorded_at.clone(),
+        })
+        .map_err(|error| RepositoryAuthorityInitError::Continuation(error.to_string()))?;
+    verify_native_genesis_account_context(
+        &record.content.principal.principal_id,
+        &record.content.authentication,
+        &local.principal_id,
+        &observed,
+    )
+}
+
+fn verify_native_genesis_account_context(
+    recorded_principal_id: &str,
+    recorded_authentication: &vela_protocol::authentication::AuthenticationObservationV1,
+    local_principal_id: &str,
+    observed_authentication: &vela_protocol::authentication::AuthenticationObservationV1,
+) -> Result<(), RepositoryAuthorityInitError> {
+    if recorded_principal_id != local_principal_id
+        || recorded_authentication != observed_authentication
+    {
+        return Err(RepositoryAuthorityInitError::Continuation(
+            "native genesis belongs to a different operating-system account or device context"
+                .into(),
+        ));
+    }
+    Ok(())
+}
+
+fn finish_completed_native_genesis(
+    completed: CompletedNativeGenesis,
+    fingerprint: &str,
+) -> Result<Value, RepositoryAuthorityInitError> {
+    let local_anchor = AuthorityTrustAnchorV1 {
+        schema: AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.to_string(),
+        repository_id: completed.profile.repository_id.clone(),
+        first_authority_record_root: completed.record_root.clone(),
+    };
+    let user_home = crate::repository_write_policy::operating_system_account_home()
+        .map_err(|error| RepositoryAuthorityInitError::Continuation(error.to_string()))?;
+    let existing =
+        load_authority_trust_anchor_from_home(&user_home, &completed.profile.repository_id)
+            .map_err(RepositoryAuthorityInitError::Continuation)?;
+    if let Some(existing) = &existing
+        && existing.anchor != local_anchor
+    {
+        return Err(RepositoryAuthorityInitError::TrustPinCollision {
+            repository_id: completed.profile.repository_id,
+            record_root: completed.record_root,
+            pin_path: existing.path.display().to_string(),
+            pinned_root: existing.anchor.first_authority_record_root.clone(),
+        });
+    }
+    let publication = crate::config::git_publish::publish_native_genesis(
+        &completed.repository_path,
+        &completed.git_paths,
+        &completed.private_residue,
+        &completed.record.content.recorded_at,
+        existing.is_none(),
+    )
+    .map_err(RepositoryAuthorityInitError::Continuation)?;
+    let verified = crate::repository::verify_repository_at(&completed.repository_path, true)
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    let repository_root = completed
+        .repository
+        .canonical_root()
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    if verified
+        .canonical_root()
+        .map_err(RepositoryAuthorityInitError::Continuation)?
+        != repository_root
+    {
+        return Err(RepositoryAuthorityInitError::Continuation(
+            "native repository genesis replay produced a different manifest".into(),
+        ));
+    }
+    #[cfg(feature = "test-support")]
+    if std::env::var_os("VELA_TEST_INTERRUPT_INIT_AFTER_GIT").is_some() {
+        std::process::exit(86);
+    }
+    let (installed_anchor, installed_now) = match existing {
+        Some(existing) => (existing, false),
+        None => match install_authority_trust_anchor_from_home(&user_home, &local_anchor) {
+            Ok(installed) => (installed, true),
+            Err(error) => match load_authority_trust_anchor_from_home(
+                &user_home,
+                &completed.profile.repository_id,
+            ) {
+                Ok(Some(existing)) if existing.anchor == local_anchor => (existing, false),
+                Ok(Some(existing)) => {
+                    return Err(RepositoryAuthorityInitError::TrustPinCollision {
+                        repository_id: completed.profile.repository_id,
+                        record_root: completed.record_root,
+                        pin_path: existing.path.display().to_string(),
+                        pinned_root: existing.anchor.first_authority_record_root,
+                    });
+                }
+                _ => {
+                    return Err(RepositoryAuthorityInitError::Continuation(format!(
+                        "repository genesis is committed but its exact local trust anchor could not be installed: {error}"
+                    )));
+                }
+            },
+        },
+    };
+    let repository_path = completed.repository_path;
+    #[cfg(feature = "test-support")]
+    if std::env::var_os("VELA_TEST_INTERRUPT_INIT_AFTER_TRUST").is_some() {
+        std::process::exit(86);
+    }
+    let key = &completed.authority.history.authority_keyset.keys[0];
+    let origin_id = completed
+        .origin
+        .id()
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    let origin_root = completed
+        .origin
+        .canonical_root()
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    let authority_keyset_root = completed
+        .authority
+        .history
+        .authority_keyset
+        .root()
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    let model_root = completed
+        .authority
+        .history
+        .authorization_model
+        .root()
+        .map_err(RepositoryAuthorityInitError::Continuation)?;
+    Ok(json!({
+        "schema": "vela.authority-initialization-result.v3",
+        "ok": true,
+        "repository_path": repository_path.display().to_string(),
+        "repository_id": completed.profile.repository_id,
+        "operation_id": completed.operation_id.as_str(),
+        "principal_id": completed.record.content.principal.principal_id,
+        "repository_key_id": key.key_id,
+        "repository_key_fingerprint": fingerprint,
+        "origin_id": origin_id,
+        "origin_root": origin_root,
+        "repository_root": repository_root,
+        "git_commit": publication.commit,
+        "git_tree": publication.tree,
+        "authority_keyset_root": authority_keyset_root,
+        "model_root": model_root,
+        "authority_record_id": completed.record.record_id,
+        "authority_record_root": completed.record_root,
+        "event_ids": completed.record.content.event_ids,
+        "after_event_log_root": completed.record.content.after_event_log_root,
+        "local_trust": {
+            "schema": AUTHORITY_TRUST_ANCHOR_SCHEMA_V1,
+            "repository_id": installed_anchor.anchor.repository_id,
+            "first_authority_record_root": installed_anchor.anchor.first_authority_record_root,
+            "anchor_root": installed_anchor.root,
+            "anchor_path": installed_anchor.path,
+            "installed": true
+        },
+        "writes_now": publication.created || installed_now
+    }))
 }
 
 pub(crate) fn initialize_repository_authority(
@@ -389,7 +1111,7 @@ pub(crate) fn initialize_repository_authority(
         identity.key_id.clone(),
         &identity.public_key,
     )?;
-    let result = execute_authority_transaction(
+    execute_authority_transaction(
         barrier,
         repository_path,
         AuthorityTransactionRequest {
@@ -493,116 +1215,15 @@ pub(crate) fn initialize_repository_authority(
         &mut signer,
     )
     .map_err(|error| error.to_string())?;
-    let verified = crate::repository::load_repository_at(repository_path, true)?;
-    if verified.canonical_root()? != repository_root {
-        return Err("native repository genesis replay produced a different manifest".into());
+    #[cfg(feature = "test-support")]
+    if std::env::var_os("VELA_TEST_INTERRUPT_INIT_AFTER_COMPLETED").is_some() {
+        std::process::exit(86);
     }
-    let add = Command::new("git")
-        .current_dir(repository_path)
-        .args([
-            "add",
-            "--",
-            "README.md",
-            "AGENTS.md",
-            "CLAUDE.md",
-            "vela.toml",
-            ".gitignore",
-            ".gitattributes",
-            ".vela/origin.json",
-            ".vela/repository.json",
-            ".vela/authority",
-        ])
-        .output()
-        .map_err(|error| format!("stage native repository genesis: {error}"))?;
-    if !add.status.success() {
-        return Err(format!(
-            "native repository genesis is signed but staging failed: {}",
-            String::from_utf8_lossy(&add.stderr).trim()
+    resume_completed_native_genesis(repository_path, key_selector, reason)?.ok_or_else(|| {
+        RepositoryAuthorityInitError::Continuation(
+            "new native genesis transaction did not remain exactly Completed".into(),
         )
-        .into());
-    }
-    let commit = Command::new("git")
-        .current_dir(repository_path)
-        .args([
-            "-c",
-            "commit.gpgsign=false",
-            "-c",
-            "user.name=Vela Agent",
-            "-c",
-            "user.email=agent@vela.space",
-            "commit",
-            "-m",
-            "Initialize current Vela repository",
-        ])
-        .output()
-        .map_err(|error| format!("commit native repository genesis: {error}"))?;
-    if !commit.status.success() {
-        return Err(format!(
-            "native repository genesis is signed and staged but commit failed: {}",
-            String::from_utf8_lossy(&commit.stderr).trim()
-        )
-        .into());
-    }
-    let verified = crate::repository::verify_repository_at(repository_path, true)?;
-    if verified.canonical_root()? != repository_root {
-        return Err("native repository genesis replay produced a different manifest".into());
-    }
-    let git_commit = vela_edge::git::text(repository_path, &["rev-parse", "HEAD^{commit}"])?;
-    let git_tree = vela_edge::git::text(repository_path, &["rev-parse", "HEAD^{tree}"])?;
-    let local_anchor = AuthorityTrustAnchorV1 {
-        schema: AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.to_string(),
-        repository_id: profile.repository_id.clone(),
-        first_authority_record_root: result.authority_record_root.clone(),
-    };
-    let user_home = crate::repository_write_policy::operating_system_account_home()
-        .map_err(|error| error.to_string())?;
-    let installed_anchor = install_authority_trust_anchor_from_home(&user_home, &local_anchor)
-        .map_err(|error| match load_authority_trust_anchor_from_home(
-            &user_home,
-            &profile.repository_id,
-        ) {
-            Ok(Some(existing)) if existing.anchor != local_anchor => {
-                RepositoryAuthorityInitError::TrustPinCollision {
-                    repository_id: profile.repository_id.clone(),
-                    record_root: result.authority_record_root.clone(),
-                    pin_path: existing.path.display().to_string(),
-                    pinned_root: existing.anchor.first_authority_record_root.clone(),
-                }
-            }
-            _ => RepositoryAuthorityInitError::Signing(format!(
-                "repository authority initialized at {} but its local trust anchor could not be installed: {error}",
-                result.authority_record_root
-            )),
-        })?;
-    Ok(json!({
-        "schema": "vela.authority-initialization-result.v3",
-        "ok": true,
-        "repository_path": repository_path.display().to_string(),
-        "repository_id": profile.repository_id,
-        "principal_id": principal.principal_id,
-        "repository_key_id": identity.key_id,
-        "repository_key_fingerprint": identity.fingerprint,
-        "origin_id": origin.id()?,
-        "origin_root": origin_root,
-        "repository_root": repository_root,
-        "git_commit": git_commit,
-        "git_tree": git_tree,
-        "authority_keyset_root": keyset_root,
-        "model_root": model_root,
-        "authority_record_id": result.authority_record_id,
-        "authority_record_root": result.authority_record_root.clone(),
-        "event_ids": result.event_ids,
-        "after_event_log_root": result.after_event_log_root,
-        "local_trust": {
-            "schema": AUTHORITY_TRUST_ANCHOR_SCHEMA_V1,
-            "repository_id": profile.repository_id,
-            "first_authority_record_root": result.authority_record_root,
-            "anchor_root": installed_anchor.root,
-            "anchor_path": installed_anchor.path,
-            "installed": true
-        },
-        "writes_now": true
-    }))
+    })
 }
 
 /// Load repository authority for the current-origin repository.
@@ -848,6 +1469,41 @@ mod tests {
             "2026-07-25T15:42:06Z"
         );
         assert!(canonical_whole_second_time("authority approval", "not-a-time").is_err());
+    }
+
+    #[test]
+    fn native_genesis_account_context_rejects_another_account_or_device() {
+        let recorded_at = "2026-07-25T15:42:06Z";
+        let mut local = local_session(recorded_at).unwrap();
+        let observed = local
+            .observe(&AuthenticationRequest {
+                principal_id: local.principal_id.clone(),
+                principal_class: PrincipalClass::Human,
+                transaction_at: recorded_at.into(),
+            })
+            .unwrap();
+
+        let principal_error = verify_native_genesis_account_context(
+            "local:device-sha256:other|uid:999",
+            &observed,
+            &local.principal_id,
+            &observed,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(principal_error.contains("different operating-system account"));
+
+        let mut other_device = observed.clone();
+        other_device.session_root = format!("sha256:{}", "a".repeat(64));
+        let device_error = verify_native_genesis_account_context(
+            &local.principal_id,
+            &other_device,
+            &local.principal_id,
+            &observed,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(device_error.contains("different operating-system account"));
     }
 
     /// The model a fresh repository starts with authorizes exactly the human

@@ -19,7 +19,7 @@
 //! ref compare-and-swap for concurrent drift. This local publisher performs no
 //! network operation and grants no scientific authority.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsString;
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
@@ -27,6 +27,7 @@ use std::process::{Command, Stdio};
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use vela_repository::{ValidatedPrivateResidue, ValidatedPrivateResidueKind};
 
 const NULL_DEVICE: &str = "/dev/null";
 
@@ -175,6 +176,557 @@ pub(crate) fn publish_exact_delta(
         publish(repository_path, summary, object_ids, delta, &preflight)
             .unwrap_or_else(PublicationOutcome::uncommitted),
     )
+}
+
+pub(crate) fn initialize_native_git_repository(path: &Path) -> Result<(), String> {
+    let root = path
+        .canonicalize()
+        .map_err(|error| format!("canonicalize native Git target: {error}"))?;
+    if !root.is_dir() || root.join(".git").exists() {
+        return Err("native Git initialization requires a real uninitialized directory".into());
+    }
+    let templates = tempfile::tempdir()
+        .map_err(|error| format!("create empty trusted Git template directory: {error}"))?;
+    let mut command = Command::new("git");
+    remove_inherited_git_environment(&mut command, std::env::vars_os().map(|(name, _)| name));
+    command
+        .current_dir(&root)
+        .arg("--no-pager")
+        .arg("--no-optional-locks")
+        .arg("--no-replace-objects")
+        .arg("--literal-pathspecs")
+        .arg("-c")
+        .arg("core.bare=false")
+        .arg("-c")
+        .arg("core.fsmonitor=false")
+        .arg("-c")
+        .arg(format!("core.hooksPath={NULL_DEVICE}"))
+        .arg("-c")
+        .arg(format!("core.attributesFile={NULL_DEVICE}"))
+        .arg("-c")
+        .arg(format!("core.excludesFile={NULL_DEVICE}"))
+        .arg("-c")
+        .arg("diff.external=")
+        .arg("-c")
+        .arg("submodule.recurse=false")
+        .arg("-c")
+        .arg("protocol.file.allow=never")
+        .arg("-c")
+        .arg("commit.gpgSign=false")
+        .arg("-c")
+        .arg(format!("init.templateDir={}", templates.path().display()))
+        .args(["init", "--quiet", "--object-format=sha1", "--template"])
+        .arg(templates.path())
+        .args(["-b", "main", "--"])
+        .arg(&root);
+    set_owned_git_environment(&mut command);
+    command.env("GIT_CEILING_DIRECTORIES", &root);
+    let output = command
+        .output()
+        .map_err(|error| format!("run isolated git init: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "isolated git init failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    verify_empty_native_git_repository(&root)
+}
+
+pub(crate) fn verify_empty_native_git_repository(path: &Path) -> Result<(), String> {
+    let root = path
+        .canonicalize()
+        .map_err(|error| format!("canonicalize native Git target: {error}"))?;
+    let metadata = std::fs::symlink_metadata(root.join(".git"))
+        .map_err(|error| format!("inspect initialized Git directory: {error}"))?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err("isolated git init did not create one ordinary .git directory".into());
+    }
+    let repository = resolve_git_repository(&root)?;
+    if repository.worktree != root
+        || repository.git_dir != root.join(".git")
+        || repository.git_common_dir != repository.git_dir
+        || repository.object_dir != repository.git_dir.join("objects")
+        || repository.object_format != "sha1"
+        || git_text_in(&repository, &["symbolic-ref", "-q", "HEAD"])? != "refs/heads/main"
+        || !git_text_in(
+            &repository,
+            &["for-each-ref", "--format=%(refname)%00%(objectname)"],
+        )?
+        .is_empty()
+        || !git_output_in(&repository, &["ls-files", "--stage", "-z"], None)?
+            .stdout
+            .is_empty()
+    {
+        return Err("isolated git init produced an unexpected repository shape".into());
+    }
+    let config = git_text_in(
+        &repository,
+        &["config", "--local", "--no-includes", "--list"],
+    )?;
+    for entry in config.lines() {
+        let Some((name, value)) = entry.split_once('=') else {
+            return Err("isolated git init produced malformed local configuration".into());
+        };
+        let valid = match name.to_ascii_lowercase().as_str() {
+            "core.repositoryformatversion" => value == "0",
+            "core.filemode" => value == "true",
+            "core.bare" => value == "false",
+            "core.logallrefupdates" => value == "true",
+            "core.ignorecase" | "core.precomposeunicode" => value == "true" || value == "false",
+            _ => false,
+        };
+        if !valid {
+            return Err(format!(
+                "isolated git init produced unexpected local configuration {name}={value}"
+            ));
+        }
+    }
+    for relative in ["HEAD", "config"] {
+        let metadata = std::fs::symlink_metadata(repository.git_dir.join(relative))
+            .map_err(|error| format!("inspect initialized Git {relative}: {error}"))?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            return Err(format!(
+                "isolated git init {relative} must be a regular non-symlink file"
+            ));
+        }
+    }
+    let count = git_text_in(&repository, &["count-objects", "-v"])?;
+    let no_objects = count.lines().all(|line| {
+        let Some((name, value)) = line.split_once(": ") else {
+            return false;
+        };
+        matches!(
+            name,
+            "count"
+                | "size"
+                | "in-pack"
+                | "packs"
+                | "size-pack"
+                | "prune-packable"
+                | "garbage"
+                | "size-garbage"
+        ) && value == "0"
+    });
+    if !no_objects {
+        return Err("isolated git init contains unexpected Git objects or garbage".into());
+    }
+    Ok(())
+}
+
+/// Exact local publication of the one parentless native-repository genesis.
+///
+/// Unlike an ordinary repository transaction, genesis has no parent commit to
+/// preflight. The caller supplies the complete closed path set retained by the
+/// recovered sequence-one record. This function builds the tree through raw
+/// Git plumbing, so checkout attributes, filters, hooks, and ambient Git
+/// configuration never get to rewrite canonical bytes or redirect the ref.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct NativeGenesisPublication {
+    pub(crate) commit: String,
+    pub(crate) tree: String,
+    pub(crate) created: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct NativeGenesisFile {
+    path: String,
+    bytes: Vec<u8>,
+}
+
+fn validate_native_genesis_files(
+    root: &Path,
+    paths: &[String],
+) -> Result<Vec<NativeGenesisFile>, String> {
+    let mut previous: Option<&str> = None;
+    let mut files = Vec::with_capacity(paths.len());
+    for path in paths {
+        validate_relative_path(path)?;
+        if previous.is_some_and(|previous| previous >= path.as_str()) {
+            return Err("native genesis paths must be strictly sorted and unique".into());
+        }
+        previous = Some(path);
+        let absolute = root.join(path);
+        let metadata = std::fs::symlink_metadata(&absolute)
+            .map_err(|error| format!("inspect native genesis path {path}: {error}"))?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            return Err(format!(
+                "native genesis path {path} must be a regular non-symlink file"
+            ));
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if metadata.permissions().mode() & 0o111 != 0 {
+                return Err(format!(
+                    "native genesis path {path} must have regular mode 100644"
+                ));
+            }
+        }
+        files.push(NativeGenesisFile {
+            path: path.clone(),
+            bytes: std::fs::read(&absolute)
+                .map_err(|error| format!("read native genesis path {path}: {error}"))?,
+        });
+    }
+    Ok(files)
+}
+
+fn build_native_genesis_tree(
+    repository: &GitRepository,
+    index: &Path,
+    object_directory: Option<&Path>,
+    files: &[NativeGenesisFile],
+) -> Result<(String, Vec<u8>), String> {
+    git_with_index_and_objects(
+        repository,
+        index,
+        object_directory,
+        &["read-tree", "--empty"],
+        None,
+    )?;
+    for file in files {
+        let blob = git_with_index_and_objects(
+            repository,
+            index,
+            object_directory,
+            &["hash-object", "-w", "--stdin"],
+            Some(&file.bytes),
+        )?;
+        git_with_index_and_objects(
+            repository,
+            index,
+            object_directory,
+            &[
+                "update-index",
+                "--add",
+                "--cacheinfo",
+                "100644",
+                &blob,
+                &file.path,
+            ],
+            None,
+        )?;
+    }
+    let tree =
+        git_with_index_and_objects(repository, index, object_directory, &["write-tree"], None)?;
+    let expected_index = git_output_with_index_and_objects(
+        repository,
+        index,
+        object_directory,
+        &["ls-files", "--stage", "-z"],
+        None,
+    )?;
+    if !expected_index.status.success() {
+        return Err("read exact native genesis temporary index failed".into());
+    }
+    Ok((tree, expected_index.stdout))
+}
+
+pub(crate) fn publish_native_genesis(
+    repository_path: &Path,
+    paths: &[String],
+    private_residue: &[ValidatedPrivateResidue],
+    recorded_at: &str,
+    create_if_missing: bool,
+) -> Result<NativeGenesisPublication, String> {
+    let supplied_time = recorded_at;
+    let recorded_at = chrono::DateTime::parse_from_rfc3339(supplied_time)
+        .map_err(|error| format!("native genesis time is invalid: {error}"))?
+        .with_timezone(&chrono::Utc);
+    let canonical_time = recorded_at.to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    if canonical_time != supplied_time {
+        return Err("native genesis time is not canonical to whole seconds".into());
+    }
+    let repository = resolve_git_repository(repository_path)?;
+    let requested_root = repository_path
+        .canonicalize()
+        .map_err(|error| format!("canonicalize native genesis repository: {error}"))?;
+    if repository.worktree != requested_root
+        || repository.git_dir != requested_root.join(".git")
+        || repository.git_common_dir != repository.git_dir
+    {
+        return Err(
+            "native genesis requires one ordinary Git worktree rooted at the repository".into(),
+        );
+    }
+    if git_text_in(&repository, &["symbolic-ref", "-q", "HEAD"])? != "refs/heads/main" {
+        return Err("native genesis requires the unborn or exact checked-out main branch".into());
+    }
+
+    ensure_closed_native_genesis_worktree(&requested_root, paths, private_residue)?;
+    let files = validate_native_genesis_files(&requested_root, paths)?;
+    let temporary =
+        tempfile::tempdir().map_err(|error| format!("Git preflight tempdir: {error}"))?;
+    let object_directory = temporary.path().join("objects");
+    std::fs::create_dir_all(object_directory.join("info"))
+        .and_then(|_| std::fs::create_dir_all(object_directory.join("pack")))
+        .map_err(|error| format!("create isolated Git object preflight: {error}"))?;
+    let expected_index_path = temporary.path().join("native-genesis-expected-index");
+    let (tree, expected_index) = build_native_genesis_tree(
+        &repository,
+        &expected_index_path,
+        Some(&object_directory),
+        &files,
+    )?;
+
+    let timestamp = recorded_at.timestamp();
+    let commit_bytes = format!(
+        "tree {tree}\nauthor Vela Agent <agent@vela.space> {timestamp} +0000\ncommitter Vela Agent <agent@vela.space> {timestamp} +0000\n\nInitialize current Vela repository\n"
+    );
+    let expected_commit = git_text_in_with_input_and_objects(
+        &repository,
+        Some(&object_directory),
+        &["hash-object", "-t", "commit", "--stdin"],
+        commit_bytes.as_bytes(),
+    )?;
+    let refs = git_text_in(
+        &repository,
+        &["for-each-ref", "--format=%(refname)%00%(objectname)"],
+    )?;
+    let expected_ref = format!("refs/heads/main\0{expected_commit}");
+    let current_index = git_output_in(&repository, &["ls-files", "--stage", "-z"], None)?;
+    if !current_index.status.success() {
+        return Err("native genesis Git index contains conflicting staged state".into());
+    }
+    let created = if refs.is_empty() {
+        if !create_if_missing {
+            return Err("native genesis trust exists but its exact Git commit is absent".into());
+        }
+        if !current_index.stdout.is_empty()
+            && current_index.stdout.as_slice() != expected_index.as_slice()
+        {
+            return Err("native genesis Git index contains conflicting staged state".into());
+        }
+        if validate_native_genesis_files(&requested_root, paths)? != files {
+            return Err("native genesis file bytes changed during preflight".into());
+        }
+        ensure_closed_native_genesis_worktree(&requested_root, paths, private_residue)?;
+        if !git_text_in(
+            &repository,
+            &["for-each-ref", "--format=%(refname)%00%(objectname)"],
+        )?
+        .is_empty()
+        {
+            return Err("native genesis Git refs changed during publication".into());
+        }
+        let actual_index_path = temporary.path().join("native-genesis-write-index");
+        let (written_tree, written_index) =
+            build_native_genesis_tree(&repository, &actual_index_path, None, &files)?;
+        if written_tree != tree || written_index != expected_index {
+            return Err("native genesis Git objects changed while writing".into());
+        }
+        let written = git_text_in_with_input(
+            &repository,
+            &["hash-object", "-w", "-t", "commit", "--stdin"],
+            commit_bytes.as_bytes(),
+        )?;
+        if written != expected_commit {
+            return Err("native genesis commit object changed while writing".into());
+        }
+        if validate_native_genesis_files(&requested_root, paths)? != files {
+            return Err("native genesis file bytes changed before ref publication".into());
+        }
+        ensure_closed_native_genesis_worktree(&requested_root, paths, private_residue)?;
+        let observed_index = git_output_in(&repository, &["ls-files", "--stage", "-z"], None)?;
+        if !git_text_in(
+            &repository,
+            &["for-each-ref", "--format=%(refname)%00%(objectname)"],
+        )?
+        .is_empty()
+            || !observed_index.status.success()
+            || observed_index.stdout.as_slice() != current_index.stdout.as_slice()
+        {
+            return Err("native genesis Git ref or index changed before publication".into());
+        }
+        #[cfg(feature = "test-support")]
+        if std::env::var_os("VELA_TEST_INTERRUPT_INIT_BEFORE_GENESIS_REF").is_some() {
+            std::process::exit(86);
+        }
+        let zero = "0".repeat(expected_commit.len());
+        git_text_in(
+            &repository,
+            &[
+                "update-ref",
+                "-m",
+                "Initialize current Vela repository",
+                "refs/heads/main",
+                &expected_commit,
+                &zero,
+            ],
+        )?;
+        if current_index.stdout.is_empty() {
+            git_text_in(&repository, &["read-tree", &tree])?;
+        }
+        true
+    } else if refs == expected_ref {
+        if !current_index.stdout.is_empty() && current_index.stdout != expected_index {
+            return Err("native genesis Git index contains conflicting staged state".into());
+        }
+        if current_index.stdout.is_empty() {
+            if !create_if_missing {
+                return Err("native genesis trust exists but its exact Git index is absent".into());
+            }
+            git_text_in(&repository, &["read-tree", &tree])?;
+        }
+        false
+    } else {
+        return Err("native genesis Git refs do not equal the one exact main-branch commit".into());
+    };
+
+    verify_native_genesis_git_state(
+        &repository,
+        &tree,
+        &expected_commit,
+        commit_bytes.as_bytes(),
+        &expected_index,
+        paths,
+        private_residue,
+    )?;
+    Ok(NativeGenesisPublication {
+        commit: expected_commit,
+        tree,
+        created,
+    })
+}
+
+fn verify_native_genesis_git_state(
+    repository: &GitRepository,
+    expected_tree: &str,
+    expected_commit: &str,
+    expected_commit_bytes: &[u8],
+    expected_index: &[u8],
+    expected_paths: &[String],
+    private_residue: &[ValidatedPrivateResidue],
+) -> Result<(), String> {
+    if git_text_in(repository, &["symbolic-ref", "-q", "HEAD"])? != "refs/heads/main"
+        || git_text_in(repository, &["rev-parse", "HEAD^{commit}"])? != expected_commit
+        || git_text_in(repository, &["rev-parse", "HEAD^{tree}"])? != expected_tree
+    {
+        return Err("native genesis Git HEAD, tree, or index is not exact".into());
+    }
+    let index = git_output_in(repository, &["ls-files", "--stage", "-z"], None)?;
+    if !index.status.success() || index.stdout != expected_index {
+        return Err("native genesis Git index is not exact".into());
+    }
+    let commit = git_output_in(repository, &["cat-file", "commit", expected_commit], None)?;
+    if !commit.status.success() || commit.stdout != expected_commit_bytes {
+        return Err("native genesis commit parents or metadata are not exact".into());
+    }
+    let refs = git_text_in(
+        repository,
+        &["for-each-ref", "--format=%(refname)%00%(objectname)"],
+    )?;
+    if refs != format!("refs/heads/main\0{expected_commit}") {
+        return Err("native genesis Git refs do not equal the one exact main-branch commit".into());
+    }
+    ensure_closed_native_genesis_worktree(&repository.worktree, expected_paths, private_residue)
+}
+
+fn ensure_closed_native_genesis_worktree(
+    root: &Path,
+    paths: &[String],
+    private_residue: &[ValidatedPrivateResidue],
+) -> Result<(), String> {
+    let expected = paths.iter().map(String::as_str).collect::<BTreeSet<_>>();
+    let mut expected_private = BTreeMap::new();
+    for residue in private_residue {
+        let relative = format!(".vela/operation-journals/{}", residue.path().as_str());
+        if expected.contains(relative.as_str())
+            || expected_private
+                .insert(relative.clone(), residue.kind())
+                .is_some()
+        {
+            return Err(format!(
+                "native genesis private recovery census repeats or overlaps {relative}"
+            ));
+        }
+    }
+    let mut seen_private = BTreeSet::new();
+    fn visit(
+        root: &Path,
+        directory: &Path,
+        expected: &BTreeSet<&str>,
+        expected_private: &BTreeMap<String, ValidatedPrivateResidueKind>,
+        seen_private: &mut BTreeSet<String>,
+    ) -> Result<(), String> {
+        let mut entries = std::fs::read_dir(directory)
+            .map_err(|error| {
+                format!(
+                    "read native genesis directory {}: {error}",
+                    directory.display()
+                )
+            })?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| format!("read native genesis directory entry: {error}"))?;
+        entries.sort_by_key(std::fs::DirEntry::file_name);
+        for entry in entries {
+            let path = entry.path();
+            let relative = path
+                .strip_prefix(root)
+                .map_err(|_| "native genesis path escaped its repository".to_string())?
+                .to_str()
+                .ok_or_else(|| "native genesis contains a non-UTF-8 path".to_string())?
+                .replace(std::path::MAIN_SEPARATOR, "/");
+            let metadata = std::fs::symlink_metadata(&path)
+                .map_err(|error| format!("inspect native genesis path {relative}: {error}"))?;
+            if metadata.file_type().is_symlink() {
+                return Err(format!(
+                    "native genesis path {relative} must not be a symlink"
+                ));
+            }
+            if relative == ".git" {
+                if !metadata.is_dir() {
+                    return Err("native genesis .git must be a real directory".into());
+                }
+                continue;
+            }
+            let private_kind = expected_private.get(&relative).copied();
+            let private_root = relative == ".vela/operation-journals";
+            if metadata.is_dir() {
+                let prefix = format!("{relative}/");
+                if matches!(private_kind, Some(ValidatedPrivateResidueKind::RegularFile)) {
+                    return Err(format!(
+                        "native genesis private recovery path {relative} changed filesystem kind"
+                    ));
+                }
+                if private_kind == Some(ValidatedPrivateResidueKind::Directory) {
+                    seen_private.insert(relative.clone());
+                } else if !private_root
+                    && !expected.iter().any(|path| path.starts_with(&prefix))
+                    && !expected_private
+                        .keys()
+                        .any(|path| path.starts_with(&prefix))
+                {
+                    return Err(format!(
+                        "native genesis contains unexpected directory {relative}"
+                    ));
+                }
+                visit(root, &path, expected, expected_private, seen_private)?;
+            } else if !metadata.is_file() {
+                return Err(format!(
+                    "native genesis path {relative} must be a regular file"
+                ));
+            } else if matches!(private_kind, Some(ValidatedPrivateResidueKind::Directory)) {
+                return Err(format!(
+                    "native genesis private recovery path {relative} changed filesystem kind"
+                ));
+            } else if private_kind == Some(ValidatedPrivateResidueKind::RegularFile) {
+                seen_private.insert(relative.clone());
+            } else if !expected.contains(relative.as_str()) {
+                return Err(format!(
+                    "native genesis contains unexpected file {relative}"
+                ));
+            }
+        }
+        Ok(())
+    }
+    visit(root, root, &expected, &expected_private, &mut seen_private)?;
+    let expected_private_paths = expected_private.keys().cloned().collect::<BTreeSet<_>>();
+    if seen_private != expected_private_paths {
+        return Err("native genesis private recovery census changed after validation".into());
+    }
+    Ok(())
 }
 
 fn preflight(
@@ -661,6 +1213,25 @@ fn git_text_in(repository: &GitRepository, args: &[&str]) -> Result<String, Stri
     successful_git_text(output, args)
 }
 
+fn git_text_in_with_input(
+    repository: &GitRepository,
+    args: &[&str],
+    input: &[u8],
+) -> Result<String, String> {
+    let output = git_output_in(repository, args, Some(input))?;
+    successful_git_text(output, args)
+}
+
+fn git_text_in_with_input_and_objects(
+    repository: &GitRepository,
+    object_directory: Option<&Path>,
+    args: &[&str],
+    input: &[u8],
+) -> Result<String, String> {
+    let output = run_git_owned(repository, None, object_directory, args, Some(input))?;
+    successful_git_text(output, args)
+}
+
 fn successful_git_text(output: std::process::Output, args: &[&str]) -> Result<String, String> {
     if !output.status.success() {
         return Err(format!(
@@ -701,14 +1272,49 @@ fn git_output_with_index(
     run_git(repository, Some(index), args, stdin)
 }
 
+fn git_with_index_and_objects(
+    repository: &GitRepository,
+    index: &Path,
+    object_directory: Option<&Path>,
+    args: &[&str],
+    stdin: Option<&[u8]>,
+) -> Result<String, String> {
+    let output =
+        git_output_with_index_and_objects(repository, index, object_directory, args, stdin)?;
+    successful_git_text(output, args)
+}
+
+fn git_output_with_index_and_objects(
+    repository: &GitRepository,
+    index: &Path,
+    object_directory: Option<&Path>,
+    args: &[&str],
+    stdin: Option<&[u8]>,
+) -> Result<std::process::Output, String> {
+    run_git_owned(repository, Some(index), object_directory, args, stdin)
+}
+
 fn run_git(
     repository: &GitRepository,
     index: Option<&Path>,
     args: &[&str],
     stdin: Option<&[u8]>,
 ) -> Result<std::process::Output, String> {
+    run_git_owned(repository, index, None, args, stdin)
+}
+
+fn run_git_owned(
+    repository: &GitRepository,
+    index: Option<&Path>,
+    object_directory: Option<&Path>,
+    args: &[&str],
+    stdin: Option<&[u8]>,
+) -> Result<std::process::Output, String> {
     let mut command =
         isolated_git_command(repository, index, std::env::vars_os().map(|(name, _)| name));
+    if let Some(object_directory) = object_directory {
+        command.env("GIT_OBJECT_DIRECTORY", object_directory);
+    }
     command
         .args(args)
         .stdin(if stdin.is_some() {
@@ -759,15 +1365,7 @@ fn isolated_git_command(
     inherited_environment: impl IntoIterator<Item = OsString>,
 ) -> Command {
     let mut command = Command::new("git");
-
-    // Git grows new repository and configuration environment variables over
-    // time. Remove the namespace rather than trying to maintain a denylist;
-    // this also covers indexed GIT_CONFIG_KEY_n / GIT_CONFIG_VALUE_n entries.
-    for name in inherited_environment {
-        if name.as_encoded_bytes().starts_with(b"GIT_") {
-            command.env_remove(name);
-        }
-    }
+    remove_inherited_git_environment(&mut command, inherited_environment);
 
     command
         .current_dir(&repository.worktree)
@@ -800,7 +1398,17 @@ fn isolated_git_command(
         .arg("-c")
         .arg("commit.gpgSign=false")
         .arg("-C")
-        .arg(&repository.worktree)
+        .arg(&repository.worktree);
+    set_owned_git_environment(&mut command);
+    command.env("GIT_CEILING_DIRECTORIES", &repository.worktree);
+    if let Some(index) = index {
+        command.env("GIT_INDEX_FILE", index);
+    }
+    command
+}
+
+fn set_owned_git_environment(command: &mut Command) {
+    command
         .env("GIT_CONFIG_NOSYSTEM", "1")
         .env("GIT_CONFIG_SYSTEM", NULL_DEVICE)
         .env("GIT_CONFIG_GLOBAL", NULL_DEVICE)
@@ -811,15 +1419,24 @@ fn isolated_git_command(
         .env("GIT_ATTR_NOSYSTEM", "1")
         .env("GIT_TERMINAL_PROMPT", "0")
         .env("GIT_PAGER", "cat")
+        .env("GIT_EDITOR", "true")
+        .env("GIT_SEQUENCE_EDITOR", "true")
         .env("PAGER", "cat")
         .env("LC_ALL", "C");
-    if repository.git_dir == repository.worktree.join(".git") && !repository.git_dir.is_dir() {
-        command.env("GIT_CEILING_DIRECTORIES", &repository.worktree);
+}
+
+fn remove_inherited_git_environment(
+    command: &mut Command,
+    inherited_environment: impl IntoIterator<Item = OsString>,
+) {
+    // Git grows new repository and configuration environment variables over
+    // time. Remove the namespace rather than trying to maintain a denylist;
+    // this also covers indexed GIT_CONFIG_KEY_n / GIT_CONFIG_VALUE_n entries.
+    for name in inherited_environment {
+        if name.as_encoded_bytes().starts_with(b"GIT_") {
+            command.env_remove(name);
+        }
     }
-    if let Some(index) = index {
-        command.env("GIT_INDEX_FILE", index);
-    }
-    command
 }
 
 #[cfg(test)]
@@ -864,6 +1481,23 @@ mod tests {
         git(root, &["config", "user.email", "vela@example.invalid"]);
     }
 
+    fn setup_native_genesis(root: &Path) -> Vec<String> {
+        initialize_native_git_repository(root).unwrap();
+        std::fs::write(root.join(".gitignore"), b"ignored\n").unwrap();
+        std::fs::write(root.join("a.txt"), b"exact native genesis\n").unwrap();
+        vec![".gitignore".into(), "a.txt".into()]
+    }
+
+    fn native_state(root: &Path) -> (String, Option<Vec<u8>>, BTreeMap<PathBuf, Vec<u8>>) {
+        let refs = fixture_git_text(
+            root,
+            &["for-each-ref", "--format=%(refname)%00%(objectname)"],
+        );
+        let index = std::fs::read(root.join(".git/index")).ok();
+        let files = snapshot_files(root);
+        (refs, index, files)
+    }
+
     fn one_file_delta(path: &str) -> PublicationDelta {
         PublicationDelta {
             root: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
@@ -895,6 +1529,140 @@ mod tests {
         let mut files = BTreeMap::new();
         visit(root, root, &mut files);
         files
+    }
+
+    #[test]
+    fn native_genesis_commit_is_parentless_deterministic_and_idempotent() {
+        let temporary = tempfile::tempdir().unwrap();
+        let paths = setup_native_genesis(temporary.path());
+        let first =
+            publish_native_genesis(temporary.path(), &paths, &[], "2026-08-10T12:34:56Z", true)
+                .unwrap();
+        assert!(first.created);
+        assert_eq!(
+            fixture_git_text(temporary.path(), &["rev-parse", "HEAD"]),
+            first.commit
+        );
+        assert_eq!(
+            fixture_git_text(temporary.path(), &["rev-parse", "HEAD^{tree}"]),
+            first.tree
+        );
+        let parents = fixture_git_text(temporary.path(), &["show", "-s", "--format=%P", "HEAD"]);
+        assert!(parents.is_empty());
+        let raw = Command::new("git")
+            .current_dir(temporary.path())
+            .args(["cat-file", "commit", "HEAD"])
+            .output()
+            .unwrap();
+        assert!(raw.status.success());
+        assert_eq!(
+            raw.stdout,
+            format!(
+                "tree {}\nauthor Vela Agent <agent@vela.space> 1786365296 +0000\ncommitter Vela Agent <agent@vela.space> 1786365296 +0000\n\nInitialize current Vela repository\n",
+                first.tree
+            )
+            .into_bytes()
+        );
+        let before = snapshot_files(temporary.path());
+        let second =
+            publish_native_genesis(temporary.path(), &paths, &[], "2026-08-10T12:34:56Z", false)
+                .unwrap();
+        assert_eq!(
+            second,
+            NativeGenesisPublication {
+                commit: first.commit,
+                tree: first.tree,
+                created: false,
+            }
+        );
+        assert_eq!(snapshot_files(temporary.path()), before);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn native_genesis_refuses_mode_index_ref_and_closed_tree_drift_before_publication() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let executable = tempfile::tempdir().unwrap();
+        let paths = setup_native_genesis(executable.path());
+        let mut permissions = std::fs::metadata(executable.path().join("a.txt"))
+            .unwrap()
+            .permissions();
+        permissions.set_mode(0o755);
+        std::fs::set_permissions(executable.path().join("a.txt"), permissions).unwrap();
+        let before = native_state(executable.path());
+        assert!(
+            publish_native_genesis(executable.path(), &paths, &[], "2026-08-10T12:34:56Z", true,)
+                .unwrap_err()
+                .contains("100644")
+        );
+        assert_eq!(native_state(executable.path()), before);
+
+        let ignored_extra = tempfile::tempdir().unwrap();
+        let paths = setup_native_genesis(ignored_extra.path());
+        std::fs::write(ignored_extra.path().join(".gitignore"), b"*\n").unwrap();
+        std::fs::write(ignored_extra.path().join("hidden.txt"), b"must fail\n").unwrap();
+        let before = native_state(ignored_extra.path());
+        assert!(
+            publish_native_genesis(
+                ignored_extra.path(),
+                &paths,
+                &[],
+                "2026-08-10T12:34:56Z",
+                true,
+            )
+            .unwrap_err()
+            .contains("unexpected file")
+        );
+        assert_eq!(native_state(ignored_extra.path()), before);
+
+        let index_conflict = tempfile::tempdir().unwrap();
+        let paths = setup_native_genesis(index_conflict.path());
+        std::fs::write(index_conflict.path().join("a.txt"), b"staged conflict\n").unwrap();
+        git(index_conflict.path(), &["add", "a.txt"]);
+        std::fs::write(
+            index_conflict.path().join("a.txt"),
+            b"exact native genesis\n",
+        )
+        .unwrap();
+        let before = native_state(index_conflict.path());
+        assert!(
+            publish_native_genesis(
+                index_conflict.path(),
+                &paths,
+                &[],
+                "2026-08-10T12:34:56Z",
+                true,
+            )
+            .unwrap_err()
+            .contains("conflicting staged state")
+        );
+        assert_eq!(native_state(index_conflict.path()), before);
+
+        let ref_conflict = tempfile::tempdir().unwrap();
+        let paths = setup_native_genesis(ref_conflict.path());
+        git(ref_conflict.path(), &["config", "user.name", "Hostile"]);
+        git(
+            ref_conflict.path(),
+            &["config", "user.email", "hostile@example.invalid"],
+        );
+        git(
+            ref_conflict.path(),
+            &["commit", "--allow-empty", "-m", "hostile"],
+        );
+        let before = native_state(ref_conflict.path());
+        assert!(
+            publish_native_genesis(
+                ref_conflict.path(),
+                &paths,
+                &[],
+                "2026-08-10T12:34:56Z",
+                true,
+            )
+            .unwrap_err()
+            .contains("refs do not equal")
+        );
+        assert_eq!(native_state(ref_conflict.path()), before);
     }
 
     #[cfg(unix)]
@@ -951,11 +1719,13 @@ mod tests {
             ("GIT_CONFIG_GLOBAL", NULL_DEVICE),
             ("GIT_CONFIG_NOSYSTEM", "1"),
             ("GIT_CONFIG_SYSTEM", NULL_DEVICE),
+            ("GIT_EDITOR", "true"),
             ("GIT_LITERAL_PATHSPECS", "1"),
             ("GIT_NO_LAZY_FETCH", "1"),
             ("GIT_NO_REPLACE_OBJECTS", "1"),
             ("GIT_OPTIONAL_LOCKS", "0"),
             ("GIT_PAGER", "cat"),
+            ("GIT_SEQUENCE_EDITOR", "true"),
             ("GIT_TERMINAL_PROMPT", "0"),
         ];
         for (name, value) in &environment {
@@ -1113,6 +1883,12 @@ mod tests {
                 outcome.state,
                 PublicationState::CommittedLocal { .. }
             ));
+            let hostile_init = root.join("hostile-init");
+            initialize_native_git_repository(&hostile_init).unwrap();
+            verify_empty_native_git_repository(&hostile_init).unwrap();
+            let native = root.join("native-genesis");
+            let paths = vec![".gitignore".into(), "a.txt".into()];
+            publish_native_genesis(&native, &paths, &[], "2026-08-10T12:34:56Z", true).unwrap();
             return;
         }
 
@@ -1124,6 +1900,7 @@ mod tests {
         std::fs::create_dir(intended.path().join("repository")).unwrap();
         std::fs::write(intended.path().join("repository/a.txt"), b"before").unwrap();
         std::fs::write(intended.path().join("unrelated.txt"), b"clean").unwrap();
+        std::fs::create_dir(intended.path().join("hostile-init")).unwrap();
         std::fs::write(sentinel.path().join("sentinel.txt"), b"untouched").unwrap();
         git(intended.path(), &["add", "."]);
         git(intended.path(), &["commit", "-m", "initial"]);
@@ -1178,6 +1955,34 @@ mod tests {
         );
         git(
             intended.path(),
+            &["config", "core.worktree", sentinel.path().to_str().unwrap()],
+        );
+
+        let native = intended.path().join("native-genesis");
+        std::fs::create_dir(&native).unwrap();
+        let native_paths = setup_native_genesis(&native);
+        assert_eq!(native_paths, vec![".gitignore", "a.txt"]);
+        std::fs::create_dir_all(native.join(".git/info")).unwrap();
+        std::fs::create_dir_all(native.join(".git/hooks")).unwrap();
+        std::fs::write(
+            native.join(".git/info/attributes"),
+            b"a.txt filter=hostile\n",
+        )
+        .unwrap();
+        write_executable(
+            &native.join(".git/hooks/reference-transaction"),
+            &helper_source,
+        );
+        git(
+            &native,
+            &["config", "filter.hostile.clean", helper.to_str().unwrap()],
+        );
+        git(
+            &native,
+            &["config", "core.hooksPath", hooks.to_str().unwrap()],
+        );
+        git(
+            &native,
             &["config", "core.worktree", sentinel.path().to_str().unwrap()],
         );
 
@@ -1326,6 +2131,12 @@ mod tests {
             !side_effect.exists(),
             "hostile Git helper or tracing executed"
         );
+        verify_empty_native_git_repository(&intended.path().join("hostile-init")).unwrap();
+        assert_eq!(
+            fixture_git_text(&native, &["show", "HEAD:a.txt"]),
+            "exact native genesis"
+        );
+        assert!(fixture_git_text(&native, &["show", "-s", "--format=%P", "HEAD"]).is_empty());
     }
 
     #[test]

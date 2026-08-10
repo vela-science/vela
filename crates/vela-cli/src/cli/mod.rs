@@ -34,11 +34,6 @@ pub(crate) use lifecycle::*;
 pub(crate) use output::*;
 pub(crate) use records::*;
 pub(crate) use surface::*;
-
-pub(crate) fn shell_arg(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "'\"'\"'"))
-}
-
 pub fn run_command() {
     // Deliberately NO dotenv here. `dotenvy::dotenv()` walks the working
     // tree upward, and vela runs inside CLONED repository repos — a

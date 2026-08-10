@@ -131,13 +131,22 @@ repository rather than a permanent field on every origin.
 The readable `vro_` handle is derived from the origin's full root, not stored
 in it.
 
-`vela init` creates Repository Profile v1, the genesis origin, repository v4
-manifest,
-keyset, authorization model, sequence-one authority history, local trust
-anchor, and initial Git commit in one recoverable transaction. If signing is
-unavailable, the exact Profile remains and the same `vela init` command resumes
-the operation. Strict repository verification remains blocked until that
-operation completes.
+`vela init` creates Repository Profile v1, then installs the genesis origin,
+repository v4 manifest, keyset, authorization model, and sequence-one authority
+history through one recoverable filesystem transaction. The initial Git commit
+and operating-system-account trust anchor are separate post-transaction steps.
+If signing is unavailable, the exact Profile remains and the same `vela init`
+command resumes the operation. Strict repository verification remains blocked
+until initialization completes.
+
+Once that transaction is exactly Completed, a repeated exact `vela init` may
+finish only its deterministic parentless Git commit and sequence-one local trust
+pin. The continuation revalidates the complete signed genesis, its authority
+read-set commitment, exact durable delta and private residue, retained Profile
+scaffold, key selector, reason, fixed time, and operating-system account. It
+never reacquires a signer, creates a second transaction or authority record, or
+changes the recorded time. A nonterminal journal must first be handled by the
+explicit recovery action below; initialization never recovers it implicitly.
 
 Authorization is confined to repository-authority Decisions and rare authority
 administration. It is not an agent permission system, campaign runtime, or
@@ -493,9 +502,14 @@ publish Git state. Read-only operations never invoke it. When one valid
 unfinished transaction exists, ordinary writes stop with its exact recovery
 action rather than recovering implicitly.
 
-For a Completed transaction, the recovery result may name ordinary Git status
-as the next inspection. This is only a next action: recovery itself remains
-policy-free and performs no Git publication.
+For a routine Completed transaction, the recovery result may name ordinary Git
+status as the next inspection. For an exact verified native genesis whose
+deterministic Git/trust tail can be continued or confirmed idempotently, it
+instead names the exact `vela init --key ... --reason ...` continuation.
+This is only a next action: recovery itself remains policy-free and performs no
+Git publication or trust installation. A genesis-shaped repository with a
+missing, ambiguous, or mismatched Completed proof fails closed rather than
+receiving a generic publication hint.
 
 ## 6. Source-local next obligations
 
