@@ -1,0 +1,164 @@
+{
+  "schema": "vela.claim-dependency-experiment-preregistration.v0",
+  "experiment_id": "synthetic-counterfactual-erdos-321-v0",
+  "frozen_before_observation": true,
+  "case_basis": {
+    "math_commit": "a6a31a528ee86ab79c2aaf4e71e43fc63f4a4e98",
+    "standingbench_case_raw_root": "sha256:b34d5df2876fe6d0ecf86bd7ee19da1b89c88c0df72c6f214ce4cd958320548d",
+    "current_math_claim_relations": "empty",
+    "classification": "synthetic_counterfactual_not_class_E"
+  },
+  "shared": {
+    "facts_root": "sha256:43485e0849af2d31d2957c81995cc6f7d459319d28c661b1f8ac25c187c51f9e",
+    "participant_task_root": "sha256:0d8aaef24c8b8d47dcd5d31cc9b47443e0245ea90786c7c51314a688bb42b543",
+    "semantics_root": "sha256:e137c50dc47a9421eb56944e58924ff25aacc6d2a7f11d2922d1e94f54595fbb",
+    "success_criteria": {
+      "review_required": [
+        "B",
+        "E"
+      ],
+      "unaffected": [
+        "D"
+      ],
+      "incomplete": [],
+      "stale_verifications": [
+        "fixture:V_B",
+        "fixture:V_E"
+      ],
+      "repair_required": [
+        "B",
+        "E"
+      ],
+      "repair_batches": [
+        [
+          "B"
+        ],
+        [
+          "E"
+        ]
+      ],
+      "false_authority_inferences": 0
+    }
+  },
+  "common_context": [
+    "baseline/raw-source.json",
+    "state.json",
+    "participant-task.json",
+    "dependency-semantics.json",
+    "baseline/ro-crate-metadata.json",
+    "baseline/review-record.json"
+  ],
+  "arms": [
+    {
+      "id": "disciplined-git-ro-crate",
+      "supplemental_context": [],
+      "uses_vela_objects_or_authority_replay": false
+    },
+    {
+      "id": "rooted-source-plus-profile",
+      "supplemental_context": [
+        "profile.json"
+      ],
+      "uses_vela_objects_or_authority_replay": false
+    }
+  ],
+  "only_intended_difference": "The frozen dependency representation and reader context; rooted scientific facts, task, environment, success criteria, and future observation protocol are identical.",
+  "observations": {
+    "affected_set_precision": {
+      "status": "not_measured",
+      "value": null,
+      "unit": "ratio",
+      "denominator": null,
+      "source_run_ids": []
+    },
+    "affected_set_recall": {
+      "status": "not_measured",
+      "value": null,
+      "unit": "ratio",
+      "denominator": null,
+      "source_run_ids": []
+    },
+    "exact_projection_root_agreement": {
+      "status": "not_measured",
+      "value": null,
+      "unit": "boolean",
+      "denominator": null,
+      "source_run_ids": []
+    },
+    "stale_verification_classification": {
+      "status": "not_measured",
+      "value": null,
+      "unit": "boolean",
+      "denominator": null,
+      "source_run_ids": []
+    },
+    "time_to_identify_correction": {
+      "status": "not_measured",
+      "value": null,
+      "unit": "seconds",
+      "denominator": null,
+      "source_run_ids": []
+    },
+    "time_to_identify_affected_and_unaffected": {
+      "status": "not_measured",
+      "value": null,
+      "unit": "seconds",
+      "denominator": null,
+      "source_run_ids": []
+    },
+    "time_to_locate_decisive_evidence": {
+      "status": "not_measured",
+      "value": null,
+      "unit": "seconds",
+      "denominator": null,
+      "source_run_ids": []
+    },
+    "time_to_state_next_valid_repair": {
+      "status": "not_measured",
+      "value": null,
+      "unit": "seconds",
+      "denominator": null,
+      "source_run_ids": []
+    },
+    "false_authority_or_acceptance_inferences": {
+      "status": "not_measured",
+      "value": null,
+      "unit": "count",
+      "denominator": null,
+      "source_run_ids": []
+    },
+    "hidden_maintainer_interventions": {
+      "status": "not_measured",
+      "value": null,
+      "unit": "count",
+      "denominator": null,
+      "source_run_ids": []
+    },
+    "cold_successor_correctness": {
+      "status": "not_measured",
+      "value": null,
+      "unit": "boolean",
+      "denominator": null,
+      "source_run_ids": []
+    },
+    "cold_successor_time_to_valid_action": {
+      "status": "not_measured",
+      "value": null,
+      "unit": "seconds",
+      "denominator": null,
+      "source_run_ids": []
+    },
+    "correct_reusable_scientific_state_transitions_per_expert_minute": {
+      "status": "not_computable",
+      "value": null,
+      "unit": "transitions_per_expert_minute",
+      "denominator": null,
+      "source_run_ids": []
+    }
+  },
+  "nonclaims": [
+    "No human or Vela Decision occurs in this fixture.",
+    "No actual accepted-state correction, rooted dependent, external verifier, or Class E case exists here.",
+    "Null observations are not zero-valued results."
+  ]
+}

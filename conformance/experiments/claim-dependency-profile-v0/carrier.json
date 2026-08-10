@@ -1,0 +1,10 @@
+{
+  "schema": "vela.claim-dependency-profile-carrier.v0",
+  "entry": {
+    "path": "profile.json",
+    "mode": "100644",
+    "size_bytes": 4585,
+    "max_bytes": 65536,
+    "sha256": "sha256:5a437888787777cd8cebc4d7506e82ce972ea7d0ccb218b9b869c0c111cbaaa1"
+  }
+}

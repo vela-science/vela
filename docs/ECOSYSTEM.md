@@ -631,9 +631,10 @@ The three mechanisms that are built and are the defensible part:
    `supports` claim-to-claim edges, and **the write path authors neither**.
    Every such edge in the corpus was written by the epoch-1 ingest. A
    repository built with today's CLI therefore has no edge to traverse and
-   correctly reports an empty cascade. Closing that means giving the signed
-   Submission schema a place to declare dependencies, which is a protocol
-   change with an ADR, not a CLI change.
+   correctly reports an empty cascade. ADR 0043 freezes a noncanonical,
+   source-owned `requires` profile and matched baseline before considering a
+   signed field. The synthetic experiment is not a producer-authored
+   Repository cascade and moves no Standing.
 3. **Projections cannot silently go stale.** Every projection row is
    root-bound. The disclosure contract is partial: `projector_version`, lens
    identity and truncation rules are not built.

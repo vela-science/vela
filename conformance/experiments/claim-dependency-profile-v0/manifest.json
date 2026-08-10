@@ -1,0 +1,71 @@
+{
+  "schema": "vela.claim-dependency-profile-fixture-manifest.v0",
+  "files": [
+    {
+      "path": "baseline/raw-source.json",
+      "mode": "100644",
+      "size_bytes": 1819,
+      "sha256": "sha256:1fcb4c94a69455bc42a8b18b1103d7c5f76029aa4eda238e5292c0718c072198"
+    },
+    {
+      "path": "baseline/review-record.json",
+      "mode": "100644",
+      "size_bytes": 1304,
+      "sha256": "sha256:101a73d28c9927d854d5d97c24fa2ca66066f5e52fd7db081975638f2b0826cd"
+    },
+    {
+      "path": "baseline/ro-crate-metadata.json",
+      "mode": "100644",
+      "size_bytes": 2097,
+      "sha256": "sha256:1652b2e05908f04e4465897e134dc1a0907323602af369bed8cc6a3d6db4b19a"
+    },
+    {
+      "path": "carrier.json",
+      "mode": "100644",
+      "size_bytes": 263,
+      "sha256": "sha256:c1f0f2a206201d0fb698c9dc4ae49a390330e547c75718a856657b62727560ed"
+    },
+    {
+      "path": "dependency-semantics.json",
+      "mode": "100644",
+      "size_bytes": 861,
+      "sha256": "sha256:357a99cd5251db786f01aeaf42b046ec1252706ad7fac3d25d837cc5628319ea"
+    },
+    {
+      "path": "expected.json",
+      "mode": "100644",
+      "size_bytes": 4407,
+      "sha256": "sha256:a6ff8d4dbf90b637063f3623987d28c4ca7ca8157cb005d52b23231bfdb0f6a9"
+    },
+    {
+      "path": "negative-vectors.json",
+      "mode": "100644",
+      "size_bytes": 8563,
+      "sha256": "sha256:d741052907a0828e48f01a6d3a1c9f8370747cbbd905f71c8ec15ae0e011a114"
+    },
+    {
+      "path": "participant-task.json",
+      "mode": "100644",
+      "size_bytes": 794,
+      "sha256": "sha256:a2cdc41ee5b91701cec19c55309ad34f006e2981639c94ac3c9da1575f3af72a"
+    },
+    {
+      "path": "preregistration.json",
+      "mode": "100644",
+      "size_bytes": 4618,
+      "sha256": "sha256:9f364acd37dec8d1419866546beda26c012f24626ea30686b247d154c101049e"
+    },
+    {
+      "path": "profile.json",
+      "mode": "100644",
+      "size_bytes": 4585,
+      "sha256": "sha256:5a437888787777cd8cebc4d7506e82ce972ea7d0ccb218b9b869c0c111cbaaa1"
+    },
+    {
+      "path": "state.json",
+      "mode": "100644",
+      "size_bytes": 3011,
+      "sha256": "sha256:d09ede04b225d8b5e85fddde7e5dba5dec64adf4a885fbc674f05c2d9d3bd4d8"
+    }
+  ]
+}

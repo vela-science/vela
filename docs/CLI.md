@@ -366,7 +366,10 @@ per obligation which of the two it used.
 `depends` and `supports` claim-to-claim edges exist in retained epoch-1 records
 but no current verb writes one, so a repository built with today's CLI has no
 edge for this projection to traverse and correctly reports an empty cascade.
-Closing that is a change to the signed Submission schema and is not made here.
+ADR 0043 now tests one exact, source-owned `requires` profile outside the
+protocol before considering any signed Submission change. That experiment does
+not make the CLI author an edge or turn this projection into a demonstrated
+current-Repository cascade.
 
 ## Repository setup
 
