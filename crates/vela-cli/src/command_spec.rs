@@ -5,9 +5,9 @@
 //! - **Acting identity** → `--as` for producer or verifier evidence.
 //!   It may default from `$VELA_ACTOR_ID`; a human Decision never does.
 //! - **Repository** → `--repo <path>`, accepted by every verb that acts on an
-//!   existing repository. All of those verbs but `submit` also take it as the
-//!   leading positional; `submit` does not because its leading positional is
-//!   already the Submission file. Omitted entirely, the
+//!   existing repository. Except for the two explicit-reservation cases below,
+//!   those verbs also take it as the leading positional. `submit` does not
+//!   because its leading positional is already the Submission file. Omitted entirely, the
 //!   repository is discovered upward from the current directory, exactly as
 //!   `vela status` does — one resolution behaviour, everywhere. Where a verb
 //!   takes both a repository and an object the object binds last, so
@@ -24,6 +24,11 @@
 //!   reproduction scope — a witness file, a directory of witnesses, or a
 //!   repository — so a bare `vela reproduce` means "reproduce what is here",
 //!   not "walk up until something replays".
+//!
+//!   `recover` is the one repository action that deliberately requires only
+//!   `--repo`: its positional names the exact durable operation journal, and
+//!   recovery may target an incomplete bootstrap repository that discovery
+//!   must never redirect to an enclosing Repository.
 
 use clap::{ArgGroup, Subcommand};
 use std::path::PathBuf;
@@ -42,6 +47,8 @@ pub(crate) const HELP_JSON: &str = "Output stable JSON for programmatic callers"
 /// the reader lands.
 pub(crate) const HELP_REPO: &str =
     "Vela repository. Optional: discovered upward from the current directory";
+pub(crate) const HELP_RECOVERY_REPO: &str =
+    "Exact Vela repository to recover. Required; never discovered upward";
 /// The positional repository on a verb that also takes an object. Stated
 /// explicitly because the slot is only the repository when both are supplied.
 pub(crate) const HELP_REPO_BEFORE_OBJECT: &str = "Vela repository, when both arguments are given. With one argument that argument is the object and the repository is discovered upward";
@@ -149,6 +156,21 @@ pub(crate) enum Commands {
     Authority {
         #[command(subcommand)]
         action: AuthorityAction,
+    },
+    /// Recover one exact durable repository transaction and stop.
+    Recover {
+        #[arg(
+            long = "repo",
+            required = true,
+            value_name = "PATH",
+            help = HELP_RECOVERY_REPO
+        )]
+        repository: PathBuf,
+        /// Exact durable repository operation id (`vop_...`).
+        #[arg(value_name = "OPERATION_ID")]
+        operation_id: String,
+        #[arg(long, help = HELP_JSON)]
+        json: bool,
     },
     /// Create a signed, replayable repository ready for scientific work.
     #[command(after_long_help = crate::cli::help_text::INIT)]

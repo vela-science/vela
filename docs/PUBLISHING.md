@@ -24,6 +24,13 @@ Require:
 - frozen verifier results for claims being cited; and
 - no private coordination or credential material in tracked files.
 
+An interrupted repository transaction must be resolved before publication. One
+valid unfinished transaction names the exact action,
+`vela recover --repo <PATH> <OPERATION_ID>`. Recovery resolves only that
+filesystem transaction and never commits, moves, pushes, or otherwise
+publishes a Git ref. Rerun `status` and `replay`, then perform any still-needed
+Git publication as a separate explicit step.
+
 ## Publish exact Git state
 
 Use a normal Git commit and protected public ref. Record:
@@ -80,8 +87,10 @@ Verification as acceptance or graph rank as Standing.
 
 ## Updating
 
-Every new canonical write creates a new Git commit and repository root.
-Publishers do not amend, force-push, or regenerate old canonical bytes.
+An ordinary completed canonical write produces a new repository root and Git
+commit. Explicit recovery may finish the already-authorized filesystem
+transaction but never creates that commit. Publishers do not amend,
+force-push, or regenerate old canonical bytes.
 
 A correction is a new Submission, Decision, and Event. It preserves the prior
 Claim and exposes the new Standing through replay.

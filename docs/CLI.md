@@ -56,7 +56,7 @@ init status claims submit show why review replay reproduce log
 ## Advanced commands
 
 ```text
-verification correction authority
+verification correction recover authority
 ```
 
 - `why` also resolves a retained superseded Claim through covered authority
@@ -73,6 +73,14 @@ Advanced verification and integration:
   of one already ruled on. It reads the two relation kinds that carry
   consequence (`depends` as `depends_on`, and `supports`) and reports every
   relation it excluded. See [Corrections](#corrections).
+
+Advanced maintenance:
+
+- `recover` resolves one exact interrupted repository transaction:
+  `vela recover --repo <PATH> <OPERATION_ID> [--json]`. A blocked write names
+  the operation ID and this next action. Recovery never chooses a journal by
+  directory order, resumes the interrupted semantic command, or publishes Git
+  state. See [Repository recovery](#repository-recovery).
 
 Advanced setup:
 
@@ -410,6 +418,45 @@ The command verifies the current manifest, native-genesis or signed-predecessor
 origin, retained authority chain, exact object roots, and rejection of retired
 active paths. The one-time migration writer is not part of the current binary.
 
+## Repository recovery
+
+Canonical writes never auto-recover an interrupted transaction. One valid
+unfinished transaction stops them with the stable `repository_incomplete` code
+and an exact next action:
+
+```bash
+vela recover --repo <PATH> <OPERATION_ID> [--json]
+```
+
+The explicit operation ID binds operator intent to one journal. Under the
+repository-wide lock, recovery has four successful outcomes:
+
+- `aborted_prepared` — the journal was exactly Prepared and its commit marker
+  was definitely absent, so the uncommitted transaction was aborted;
+- `completed` — a valid durable marker authorized policy-free installation and
+  completion of the exact transaction;
+- `already_completed` — the named journal was already terminal; and
+- `already_aborted` — the named journal was already terminal.
+
+Malformed or unreadable markers are never treated as absent. A mismatched
+canonical root, retained Profile identity, or journal binding; a corrupt or
+missing blob; a postimage conflict; a nonregular or substituted path;
+inconsistent state; or an ambiguous incomplete-journal set fails closed. A
+valid marker is sufficient to finish its exact idempotent filesystem
+installation; recovery does not reacquire a signer, repository-authority
+policy, Decision, or serialized permission.
+
+The command reports `vela.recover-result.v1` in JSON mode: repository path and
+identity, operation ID, prior recovery state, closed outcome,
+`repository_blocked_after`, and `next_command` only when one exact action is
+available. It stops after that one recovery outcome: it does not run a new
+scientific operation or create, move, or publish a Git ref. Completed and
+Aborted journals can be named again without changing semantic state. A
+Completed result names `git -C <PATH> status --short` as the next inspection;
+any needed publication remains a separate operator step. Read-only commands
+such as `status`, `show`, `why`, `log`, `replay`, and `reproduce` remain
+read-only even while recovery is required.
+
 ## Machine contracts
 
 - `status --json` returns compact identity, full roots, replay, blocker counts,
@@ -473,5 +520,10 @@ Canonical writes refuse:
 - invalid signatures;
 - active or corrupt recovery state; and
 - a changed read set before commit.
+
+For an unfinished valid transaction, the failure uses code
+`repository_incomplete` and names the exact recovery action shown above.
+Corrupt or ambiguous recovery state fails closed and is never converted into
+permission to abort or complete a different operation.
 
 See [Authority and attribution](SIGNING.md) and [Protocol](PROTOCOL.md).

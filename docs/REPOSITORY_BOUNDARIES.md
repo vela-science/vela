@@ -43,3 +43,9 @@ installation, and recovery. Concrete Fresh, Routine, and RepositoryAuthority
 write policy remains in `vela-cli`; canonical scientific semantics remain in
 `vela-protocol`. The dependency direction is
 `vela-protocol <- vela-repository <- vela-cli`.
+
+The product exposes recovery only as
+`vela recover --repo <PATH> <OPERATION_ID>`. CLI code parses and renders that
+action, while `vela-repository` owns exact-journal validation, Prepared abort,
+marker-authorized installation, and terminal idempotence. Recovery neither
+re-enters a concrete write policy nor publishes Git state.

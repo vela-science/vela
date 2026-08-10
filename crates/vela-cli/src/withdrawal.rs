@@ -179,6 +179,7 @@ pub(crate) fn withdraw(
         return Err("proposal withdrawal reason cannot be empty".into());
     }
     let repository = crate::repository::verify_repository_at(repository_path, true)?;
+    crate::repository_ops::verify_repository_transaction_barrier_read_only(repository_path)?;
     if let Some(outcome) =
         existing_outcome(repository_path, &repository, proposal_id, actor, reason)?
     {
@@ -374,8 +375,10 @@ pub(crate) fn cmd_withdraw(
     crate::ui::set_mode(COMMAND, json_out);
     crate::ui::require_initialized_repo(repository_path);
     let repository_path = crate::ui::canonicalize_repo(repository_path);
-    let outcome = withdraw(&repository_path, proposal_id, actor, reason)
-        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let outcome = withdraw(&repository_path, proposal_id, actor, reason).unwrap_or_else(|error| {
+        crate::ui::fail_if_recovery_required(&repository_path);
+        crate::cli::fail_return(&error)
+    });
     if json_out {
         crate::cli::print_json(&outcome);
     } else {

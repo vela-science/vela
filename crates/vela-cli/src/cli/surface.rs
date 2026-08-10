@@ -31,7 +31,7 @@ Usage: vela <COMMAND>
   show       why        review     replay
   reproduce  log
 
-Run `vela help advanced` for setup and verification commands.
+Run `vela help advanced` for setup, verification, and maintenance commands.
 "#,
         env!("CARGO_PKG_VERSION")
     )
@@ -67,6 +67,9 @@ Daily product:
 Advanced verification and integration:
   verification  Retain non-authorizing scoped Verification Records
   correction    Project what one correction costs the Claims resting on it
+
+Advanced maintenance:
+  recover       finish or abort one exact durable repository transaction
 
 Advanced setup:
   authority     pin an independently published repository trust root

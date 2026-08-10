@@ -392,6 +392,7 @@ fn submit_inner(
     }
     let repository = crate::repository::verify_repository_at(repository_path, true)?;
     let repository_root = repository.canonical_root()?;
+    crate::repository_ops::verify_repository_transaction_barrier_read_only(repository_path)?;
     let submission_root = submission.root.clone();
     if let Some(outcome) =
         existing_outcome(repository_path, &repository, submission, &submission_root)?
@@ -561,6 +562,10 @@ fn submit_inner(
         .mark_committed()
         .map_err(|error| error.to_string())?;
     prepared.install().map_err(|error| error.to_string())?;
+    #[cfg(feature = "test-support")]
+    if std::env::var_os("VELA_TEST_INTERRUPT_SUBMIT_AFTER_INSTALL").is_some() {
+        return Err("injected product-boundary interruption after durable Installed state".into());
+    }
     prepared.complete().map_err(|error| error.to_string())?;
     crate::repository::verify_repository_prepublication_at(repository_path)?;
     let proposal_id = proposal.id();

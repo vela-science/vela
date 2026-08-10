@@ -471,6 +471,32 @@ the recoverable journal.
 
 Any drift or failure before the commit marker produces no canonical mutation.
 
+### 5.6 Recover one repository transaction
+
+`vela recover --repo <PATH> <OPERATION_ID>` is an advanced operator action for
+one interrupted canonical transaction. The operation ID is required: under the
+repository-wide lock the runtime opens exactly that journal and never selects
+one by scanning directory order.
+
+An exactly Prepared journal whose commit marker is definitely absent is
+aborted. A valid durable marker is the authorization to install, verify, and
+complete the exact transaction idempotently; no signer, repository-authority
+policy, Decision, trust material, or serialized write capability is reacquired.
+Completed and Aborted journals return their corresponding idempotent result.
+
+Malformed or unreadable markers are not absence. A mismatched repository root,
+retained Profile identity, or journal binding; inconsistent state; a missing or
+corrupt blob; a substituted path; a postimage conflict; or an ambiguous
+incomplete-journal set fails closed. Recovery
+does not run the interrupted semantic command again, start a new operation, or
+publish Git state. Read-only operations never invoke it. When one valid
+unfinished transaction exists, ordinary writes stop with its exact recovery
+action rather than recovering implicitly.
+
+For a Completed transaction, the recovery result may name ordinary Git status
+as the next inspection. This is only a next action: recovery itself remains
+policy-free and performs no Git publication.
+
 ## 6. Source-local next obligations
 
 Vela core publishes no Target catalogue and no `next`/`start` command pair. A

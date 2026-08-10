@@ -24,6 +24,7 @@ mod output;
 pub(crate) mod page;
 pub(crate) mod progress;
 pub(crate) mod records;
+mod recovery;
 pub(crate) mod repo_arg;
 pub(crate) mod review_decision;
 pub(crate) mod safe_text;
@@ -33,6 +34,11 @@ pub(crate) use lifecycle::*;
 pub(crate) use output::*;
 pub(crate) use records::*;
 pub(crate) use surface::*;
+
+pub(crate) fn shell_arg(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
+}
+
 pub fn run_command() {
     // Deliberately NO dotenv here. `dotenvy::dotenv()` walks the working
     // tree upward, and vela runs inside CLONED repository repos — a
@@ -162,6 +168,11 @@ pub fn run_command() {
                 }
             },
         },
+        Commands::Recover {
+            repository,
+            operation_id,
+            json,
+        } => recovery::cmd_recover(&repository, &operation_id, json),
         Commands::Init {
             path,
             name,
@@ -446,7 +457,10 @@ pub fn run_command() {
                         );
                     }
                 }
-                Err(e) => fail(&e),
+                Err(e) => {
+                    crate::ui::fail_if_recovery_required(&dir);
+                    fail(&e)
+                }
             }
         }
     }
@@ -680,7 +694,27 @@ mod tests {
             } else {
                 format!("{path} {name}")
             };
-            if leaf && !NOT_REPOSITORY_VERBS.contains(&name) {
+            if leaf && name == "recover" {
+                let flag = command
+                    .get_arguments()
+                    .find(|arg| arg.get_long() == Some("repo"));
+                assert!(
+                    flag.is_some_and(clap::Arg::is_required_set),
+                    "`{path}` must require an explicit --repo"
+                );
+                assert_eq!(
+                    flag.and_then(clap::Arg::get_help)
+                        .map(|help| help.to_string()),
+                    Some(crate::command_spec::HELP_RECOVERY_REPO.to_string()),
+                    "`{path} --repo` must state the exact recovery contract"
+                );
+                assert!(
+                    !command
+                        .get_positionals()
+                        .any(|arg| arg.get_id() == "repository"),
+                    "`{path}` reserves its positional for the exact operation id"
+                );
+            } else if leaf && !NOT_REPOSITORY_VERBS.contains(&name) {
                 let flag = command
                     .get_arguments()
                     .find(|arg| arg.get_long() == Some("repo"));

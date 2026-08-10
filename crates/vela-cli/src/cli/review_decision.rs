@@ -57,7 +57,10 @@ fn run_review_decision(
         &reason,
         &observed_at,
     )
-    .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
+    .unwrap_or_else(|error| {
+        ui::fail_if_recovery_required(&repository_path);
+        ui::fail_with(ErrorKind::Domain, &error, None)
+    });
     if let Some(entry_root) = expected_entry_root {
         crate::decision_inbox::require_prepared_entry_root(&prepared, entry_root)
             .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
@@ -89,7 +92,10 @@ fn run_review_decision(
         recovery_barrier,
         action,
     )
-    .unwrap_or_else(|error| ui::fail_with(ErrorKind::Custody, &error, None));
+    .unwrap_or_else(|error| {
+        ui::fail_if_recovery_required(&repository_path);
+        ui::fail_with(ErrorKind::Custody, &error, None)
+    });
     let payload = serde_json::json!({
         "ok": true,
         "command": format!("review.{}", action.as_str()),

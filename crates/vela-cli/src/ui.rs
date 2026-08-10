@@ -325,6 +325,53 @@ pub fn canonicalize_repo(repository_path: &std::path::Path) -> std::path::PathBu
     })
 }
 
+/// If a failed mutating command left or encountered one exact incomplete
+/// repository transaction, replace its string-erased error with the stable,
+/// actionable recovery contract.
+///
+/// This diagnostic is read-only and deliberately best-effort: the transaction
+/// runtime still performs the authoritative locked check for every write and
+/// for `vela recover` itself.
+pub(crate) fn fail_if_recovery_required(repository_path: &std::path::Path) {
+    let Ok(repository) = repository_path.canonicalize() else {
+        return;
+    };
+    let Ok(journal_dir) = crate::repository_ops::repository_transaction_journal_dir(&repository)
+    else {
+        return;
+    };
+    let error =
+        match vela_repository::RepositoryTxn::verify_recovery_barrier(&repository, &journal_dir) {
+            Ok(()) => return,
+            Err(error) => error,
+        };
+    if matches!(error, vela_repository::RepositoryTxnError::Busy) {
+        fail_with(
+            ErrorKind::Domain,
+            &error.to_string(),
+            Some("wait for the active repository writer to exit, then rerun the same command"),
+        );
+    }
+    let vela_repository::RepositoryTxnError::RecoveryRequired {
+        operation_id,
+        state,
+    } = error
+    else {
+        return;
+    };
+    let repository_arg = crate::cli::shell_arg(&repository.display().to_string());
+    let next = format!("vela recover --repo {repository_arg} {operation_id} --json");
+    fail_coded(
+        ErrorKind::Domain,
+        Some("repository_incomplete"),
+        &format!(
+            "repository transaction {operation_id} requires explicit recovery from {} before another write",
+            state.as_str()
+        ),
+        Some(&next),
+    );
+}
+
 /// Refuse commands that require an initialized current repository with one
 /// phase-aware, actionable error. `status` and resumable `init` deliberately do
 /// not call this helper because they are the two valid bootstrap operations.

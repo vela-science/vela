@@ -142,9 +142,26 @@ Canonical transactions bind expected repository and Git state, exact path
 sets, read sets, and postimages. They do not consume unrelated staged work or
 silently merge a changed base.
 
-The recoverable journal and commit marker distinguish preflight, active,
-committed, and recoverable states. A failed or cancelled transaction before the
-marker creates no canonical effect.
+The private journal and commit marker distinguish uncommitted Prepared state
+from a committed transaction whose exact installation may be incomplete. A
+failed or cancelled transaction before the marker creates no canonical effect.
+One valid unfinished transaction stops ordinary writes with its exact operation
+ID; corrupt or multiple state supplies no guessed ID. Read-only commands do not
+mutate recovery state and no command auto-recovers a different operation.
+
+`vela recover --repo <PATH> <OPERATION_ID>` acquires the repository-wide lock
+and opens only the named journal. It may abort only an exactly Prepared journal
+whose marker is definitely absent. A valid marker authorizes policy-free,
+idempotent installation of the already-bound postimages; it does not deserialize
+permission or reacquire a signer, trust material, authority policy, or
+Decision. Malformed or unreadable markers, root/Profile-identity binding or
+path substitution, missing or corrupt blobs, postimage conflicts, and
+ambiguous incomplete state fail closed rather than being treated as absence.
+
+Recovery ends after that one filesystem transaction. It does not resume the
+semantic command, begin another write, or create, move, or publish a Git ref.
+Terminal Completed and Aborted journals are safe to name again without
+rewriting semantic state.
 
 ### Reader compromise
 

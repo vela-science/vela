@@ -18,9 +18,9 @@ tempfile = { workspace = true }
 unicode-normalization = { workspace = true }
 
 # Enables crash injection and recovery inspection only for vela-cli's
-# cross-crate authority-transaction integration tests. The runtime's unit
-# failpoint suite stays in this crate, and this feature exports no authorization
-# implementation.
+# cross-crate authority-transaction and product-boundary recovery tests. The
+# runtime's unit failpoint suite stays in this crate, and this feature exports
+# no authorization implementation.
 [features]
 test-support = []
 

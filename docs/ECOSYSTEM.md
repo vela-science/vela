@@ -663,8 +663,8 @@ Packet, Frontier map, Attempt (ADR 0039 §5), and Registration Record (ADR
   kernel        crates/vela-protocol, vela-authority, vela-verify
                   ↑ objects, roots, signatures, authority, replay, Standing
   operator      crates/vela-cli
-                  ↑ 14 verbs: replay status claims log verification reproduce
-                    correction authority init review show why submit
+                  ↑ 15 verbs: replay status claims log verification reproduce
+                    correction recover authority init review show why submit
                     completions
   readers       conformance/readers/python, conformance/readers/javascript,
                 conformance/emitters/javascript.mjs, conformance/emitters/python.py

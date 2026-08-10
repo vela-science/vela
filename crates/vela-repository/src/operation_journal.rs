@@ -14,6 +14,21 @@ use sha2::{Digest, Sha256};
 
 #[cfg(test)]
 const JOURNAL_SCHEMA: &str = "vela.operation-journal.internal.v1";
+pub(crate) const ATOMIC_TEMP_PREFIX: &str = ".vela-journal-tmp-";
+const ATOMIC_TEMP_RANDOM_LEN: usize = 12;
+
+pub(crate) fn is_owned_atomic_temp(path: &Path) -> bool {
+    path.extension().is_none_or(|extension| extension != "json")
+        && path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| {
+                name.strip_prefix(ATOMIC_TEMP_PREFIX).is_some_and(|suffix| {
+                    suffix.len() == ATOMIC_TEMP_RANDOM_LEN
+                        && suffix.bytes().all(|byte| byte.is_ascii_alphanumeric())
+                })
+            })
+}
 
 /// Derive a stable, filesystem-safe operation id from the complete planning
 /// identity. Retrying the same plan therefore finds the same journal.
@@ -40,7 +55,10 @@ pub(crate) fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), Str
 
     let bytes = serde_json::to_vec_pretty(value)
         .map_err(|error| format!("serialize operation journal: {error}"))?;
-    let mut temporary = tempfile::NamedTempFile::new_in(parent)
+    let mut temporary = tempfile::Builder::new()
+        .prefix(ATOMIC_TEMP_PREFIX)
+        .rand_bytes(ATOMIC_TEMP_RANDOM_LEN)
+        .tempfile_in(parent)
         .map_err(|error| format!("create journal temporary file: {error}"))?;
     temporary
         .write_all(&bytes)
@@ -190,6 +208,24 @@ mod tests {
         remove(&journal).unwrap();
         remove(&journal).unwrap();
         assert!(!journal.exists());
+    }
+
+    #[test]
+    fn owned_atomic_temp_namespace_is_exact_and_closed() {
+        assert!(is_owned_atomic_temp(Path::new(
+            ".vela-journal-tmp-aB3dE5fG7hI9"
+        )));
+        for name in [
+            ".vela-journal-tmp-short",
+            ".vela-journal-tmp-abcdefghijklX",
+            ".Vela-journal-tmp-abcdefghijkl",
+            ".vela-journal-tmp-abcdefghijk_",
+            ".vela-journal-tmp-abcdefghijké",
+            ".vela-journal-tmp-abcdefghijkl.json",
+            "unowned-abcdefghijkl",
+        ] {
+            assert!(!is_owned_atomic_temp(Path::new(name)), "accepted {name}");
+        }
     }
 
     #[test]

@@ -502,6 +502,7 @@ fn import_inner(
 
     let repository = crate::repository::verify_repository_at(repository_path, true)?;
     let repository_root = repository.canonical_root()?;
+    crate::repository_ops::verify_repository_transaction_barrier_read_only(repository_path)?;
     let (_proposal, proposal_root, submission) =
         load_subject(repository_path, &repository, record)?;
     let record_bytes = record.bytes.clone();

@@ -50,6 +50,10 @@ impl ContentDigest {
         &self.0
     }
 
+    fn verify(&self) -> Result<(), RepositoryTxnError> {
+        Self::parse(self.0.clone()).map(|_| ())
+    }
+
     fn file_stem(&self) -> &str {
         self.0
             .strip_prefix("sha256:")
@@ -148,6 +152,10 @@ impl RepoPath {
         &self.0
     }
 
+    fn verify(&self) -> Result<(), RepositoryTxnError> {
+        Self::parse(self.0.clone()).map(|_| ())
+    }
+
     fn target(&self, root: &Path) -> Result<PathBuf, RepositoryTxnError> {
         validate_target(root, self)
     }
@@ -160,7 +168,7 @@ pub enum FileMode {
     Executable,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum FileState {
     Absent,
@@ -171,10 +179,49 @@ pub enum FileState {
     },
 }
 
+impl<'de> Deserialize<'de> for FileState {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+        enum Wire {
+            Absent {},
+            File {
+                digest: ContentDigest,
+                size: u64,
+                mode: FileMode,
+            },
+        }
+
+        Ok(match Wire::deserialize(deserializer)? {
+            Wire::Absent {} => Self::Absent,
+            Wire::File { digest, size, mode } => Self::File { digest, size, mode },
+        })
+    }
+}
+
+impl FileState {
+    fn verify(&self) -> Result<(), RepositoryTxnError> {
+        match self {
+            Self::Absent => Ok(()),
+            Self::File { digest, .. } => digest.verify(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct JournalBlobRef {
     digest: ContentDigest,
     size: u64,
+}
+
+impl JournalBlobRef {
+    fn verify(&self) -> Result<(), RepositoryTxnError> {
+        self.digest.verify()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -196,6 +243,7 @@ impl WriteClass {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct StagedWrite {
     pub path: RepoPath,
     pub class: WriteClass,
@@ -207,6 +255,12 @@ pub struct StagedWrite {
 
 impl StagedWrite {
     fn verify_payload_binding(&self) -> Result<(), RepositoryTxnError> {
+        self.path.verify()?;
+        self.preimage.verify()?;
+        self.postimage.verify()?;
+        if let Some(payload) = &self.payload {
+            payload.verify()?;
+        }
         match (&self.postimage, &self.payload) {
             (FileState::Absent, None) => Ok(()),
             (
@@ -233,6 +287,7 @@ impl StagedWrite {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CanonicalDelta {
     schema: String,
     root: ContentDigest,
@@ -299,6 +354,7 @@ impl CanonicalDelta {
                 self.schema
             )));
         }
+        self.root.verify()?;
         let normalized = Self::new(self.writes.clone())?;
         if normalized.writes != self.writes || normalized.root != self.root {
             return Err(RepositoryTxnError::CorruptPlan(
@@ -469,10 +525,13 @@ impl DeltaDraft {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RepositoryBinding {
     canonical_root: String,
     repository_id: String,
 }
+
+const MAX_REPOSITORY_ID_BYTES: usize = 256;
 
 impl RepositoryBinding {
     pub fn new(
@@ -481,15 +540,30 @@ impl RepositoryBinding {
     ) -> Result<Self, RepositoryTxnError> {
         let root = canonical_repository_root(repository_root)?;
         let repository_id = repository_id.into();
+        let binding = Self {
+            canonical_root: root.to_string_lossy().into_owned(),
+            repository_id,
+        };
+        binding.verify_shape()?;
+        Ok(binding)
+    }
+
+    fn verify_repository_id(repository_id: &str) -> Result<(), RepositoryTxnError> {
         if repository_id.trim().is_empty() {
             return Err(RepositoryTxnError::CorruptPlan(
                 "repository binding has an empty repository id".to_string(),
             ));
         }
-        Ok(Self {
-            canonical_root: root.to_string_lossy().into_owned(),
-            repository_id,
-        })
+        if repository_id.len() > MAX_REPOSITORY_ID_BYTES {
+            return Err(RepositoryTxnError::CorruptPlan(format!(
+                "repository binding id exceeds {MAX_REPOSITORY_ID_BYTES} bytes"
+            )));
+        }
+        Ok(())
+    }
+
+    fn verify_shape(&self) -> Result<(), RepositoryTxnError> {
+        Self::verify_repository_id(&self.repository_id)
     }
 
     fn verify_root(&self, repository_root: &Path) -> Result<PathBuf, RepositoryTxnError> {
@@ -539,6 +613,7 @@ impl OperationKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct InputBinding {
     pub name: String,
     pub digest: ContentDigest,
@@ -905,8 +980,11 @@ impl RepositoryTxnPlan {
                 self.schema
             )));
         }
+        self.root.verify()?;
         OperationId::parse(self.operation_id.as_str())?;
+        self.request_root.verify()?;
         self.kind.verify()?;
+        self.repository.verify_shape()?;
         for input in &self.read_set {
             input.verify_shape()?;
         }
@@ -943,9 +1021,15 @@ impl CommitMarker {
             delta_root: plan.canonical_delta.root.clone(),
         }
     }
+
+    fn verify_shape(&self) -> Result<(), RepositoryTxnError> {
+        OperationId::parse(self.operation_id.as_str())?;
+        self.plan_root.verify()?;
+        self.delta_root.verify()
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum RecoveryState {
     Prepared,
@@ -955,6 +1039,52 @@ pub enum RecoveryState {
     Installed,
     Completed,
     CommittedConflict { path: RepoPath },
+}
+
+impl<'de> Deserialize<'de> for RecoveryState {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
+        enum Wire {
+            Prepared {},
+            Aborted {},
+            Committed {},
+            Installing { installed: usize, total: usize },
+            Installed {},
+            Completed {},
+            CommittedConflict { path: RepoPath },
+        }
+
+        Ok(match Wire::deserialize(deserializer)? {
+            Wire::Prepared {} => Self::Prepared,
+            Wire::Aborted {} => Self::Aborted,
+            Wire::Committed {} => Self::Committed,
+            Wire::Installing { installed, total } => Self::Installing { installed, total },
+            Wire::Installed {} => Self::Installed,
+            Wire::Completed {} => Self::Completed,
+            Wire::CommittedConflict { path } => Self::CommittedConflict { path },
+        })
+    }
+}
+
+impl RecoveryState {
+    /// Stable lowercase token for operator and JSON diagnostics. Progress
+    /// fields remain available on the typed variants without leaking Debug
+    /// spellings into a product contract.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Prepared => "prepared",
+            Self::Aborted => "aborted",
+            Self::Committed => "committed",
+            Self::Installing { .. } => "installing",
+            Self::Installed => "installed",
+            Self::Completed => "completed",
+            Self::CommittedConflict { .. } => "committed_conflict",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -997,11 +1127,46 @@ impl RepositoryTxnJournal {
                 self.plan.operation_id.as_str()
             )));
         }
-        self.plan.verify()
+        self.plan.verify()?;
+        self.verify_recovery_shape()
+    }
+
+    fn verify_recovery_shape(&self) -> Result<(), RepositoryTxnError> {
+        let write_count = self.plan.canonical_delta.writes().len();
+        match &self.recovery {
+            RecoveryState::Installing { installed, total }
+                if *total != write_count || *installed == 0 || *installed > *total =>
+            {
+                Err(RepositoryTxnError::CorruptPlan(format!(
+                    "transaction {} has invalid installing progress {installed}/{total} for {write_count} writes",
+                    self.plan.operation_id.as_str()
+                )))
+            }
+            RecoveryState::CommittedConflict { path } => {
+                path.verify()?;
+                if self
+                    .plan
+                    .canonical_delta
+                    .writes()
+                    .iter()
+                    .any(|write| &write.path == path)
+                {
+                    Ok(())
+                } else {
+                    Err(RepositoryTxnError::CorruptPlan(format!(
+                        "transaction {} records a conflict outside its canonical delta at {}",
+                        self.plan.operation_id.as_str(),
+                        path.as_str()
+                    )))
+                }
+            }
+            _ => Ok(()),
+        }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct BlobJournal {
     schema: String,
     digest: ContentDigest,
@@ -1049,11 +1214,42 @@ impl Drop for RepositoryWriteLock {
 }
 
 impl RepositoryWriteLock {
-    fn acquire(journal_dir: &Path, root: &Path) -> Result<Self, RepositoryTxnError> {
+    fn path(journal_dir: &Path, root: &Path) -> PathBuf {
         let lock_id = ContentDigest::hash(root.to_string_lossy().as_bytes());
-        let path = journal_dir
+        journal_dir
             .join("repository-locks")
-            .join(format!("{}.lock", lock_id.file_stem()));
+            .join(format!("{}.lock", lock_id.file_stem()))
+    }
+
+    fn validate_existing_path(path: &Path) -> Result<(), RepositoryTxnError> {
+        let metadata = fs::symlink_metadata(path).map_err(|error| {
+            RepositoryTxnError::Io(format!(
+                "inspect repository lock {}: {error}",
+                path.display()
+            ))
+        })?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            return Err(RepositoryTxnError::Io(format!(
+                "repository lock is not a regular non-symlink file: {}",
+                path.display()
+            )));
+        }
+        Ok(())
+    }
+
+    fn lock_file(file: File, path: &Path) -> Result<Self, RepositoryTxnError> {
+        match file.try_lock() {
+            Ok(()) => Ok(Self { _file: file }),
+            Err(std::fs::TryLockError::WouldBlock) => Err(RepositoryTxnError::Busy),
+            Err(std::fs::TryLockError::Error(error)) => Err(RepositoryTxnError::Io(format!(
+                "lock repository {}: {error}",
+                path.display()
+            ))),
+        }
+    }
+
+    fn acquire(journal_dir: &Path, root: &Path) -> Result<Self, RepositoryTxnError> {
+        let path = Self::path(journal_dir, root);
         let parent = path.parent().ok_or_else(|| {
             RepositoryTxnError::Io(format!(
                 "repository lock path has no parent: {}",
@@ -1079,13 +1275,7 @@ impl RepositoryWriteLock {
             )));
         }
         match fs::symlink_metadata(&path) {
-            Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
-                return Err(RepositoryTxnError::Io(format!(
-                    "repository lock is not a regular non-symlink file: {}",
-                    path.display()
-                )));
-            }
-            Ok(_) => {}
+            Ok(_) => Self::validate_existing_path(&path)?,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
             Err(error) => {
                 return Err(RepositoryTxnError::Io(format!(
@@ -1103,14 +1293,60 @@ impl RepositoryWriteLock {
             .map_err(|error| {
                 RepositoryTxnError::Io(format!("open repository lock {}: {error}", path.display()))
             })?;
-        match file.try_lock() {
-            Ok(()) => Ok(Self { _file: file }),
-            Err(std::fs::TryLockError::WouldBlock) => Err(RepositoryTxnError::Busy),
-            Err(std::fs::TryLockError::Error(error)) => Err(RepositoryTxnError::Io(format!(
-                "lock repository {}: {error}",
+        Self::lock_file(file, &path)
+    }
+
+    /// Try to hold an existing repository lock without creating a directory or
+    /// file. `None` means no lock byte exists, so the caller only has a
+    /// race-prone diagnostic snapshot; authoritative writes use `acquire`.
+    fn try_acquire_existing(
+        journal_dir: &Path,
+        root: &Path,
+    ) -> Result<Option<Self>, RepositoryTxnError> {
+        let path = Self::path(journal_dir, root);
+        let parent = path.parent().ok_or_else(|| {
+            RepositoryTxnError::Io(format!(
+                "repository lock path has no parent: {}",
                 path.display()
-            ))),
+            ))
+        })?;
+        match fs::symlink_metadata(parent) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => {
+                return Err(RepositoryTxnError::Io(format!(
+                    "inspect repository lock directory {}: {error}",
+                    parent.display()
+                )));
+            }
+            Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+                return Err(RepositoryTxnError::Io(format!(
+                    "repository lock directory is not a regular non-symlink directory: {}",
+                    parent.display()
+                )));
+            }
+            Ok(_) => {}
         }
+        match fs::symlink_metadata(&path) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => {
+                return Err(RepositoryTxnError::Io(format!(
+                    "inspect repository lock {}: {error}",
+                    path.display()
+                )));
+            }
+            Ok(_) => Self::validate_existing_path(&path)?,
+        }
+        let file = match OpenOptions::new().read(true).write(true).open(&path) {
+            Ok(file) => file,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => {
+                return Err(RepositoryTxnError::Io(format!(
+                    "open repository lock {}: {error}",
+                    path.display()
+                )));
+            }
+        };
+        Self::lock_file(file, &path).map(Some)
     }
 }
 
@@ -1373,43 +1609,280 @@ impl RepositoryRecoveryBarrier {
     }
 }
 
-fn repository_journals(
-    root: &Path,
-    journal_dir: &Path,
-) -> Result<Vec<(RepositoryTxnPaths, RepositoryTxnJournal)>, RepositoryTxnError> {
-    let repository_dir = journal_dir.join("repository");
-    let metadata = match fs::symlink_metadata(&repository_dir) {
+#[derive(Debug)]
+struct RepositoryJournalInventory {
+    journals: Vec<(RepositoryTxnPaths, RepositoryTxnJournal)>,
+    private_residue: Vec<ValidatedPrivateResidue>,
+}
+
+fn journal_directory_entries(
+    path: &Path,
+    label: &str,
+) -> Result<Option<Vec<fs::DirEntry>>, RepositoryTxnError> {
+    let metadata = match fs::symlink_metadata(path) {
         Ok(metadata) => metadata,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(error) => {
             return Err(RepositoryTxnError::Journal(format!(
-                "inspect repository journal directory {}: {error}",
-                repository_dir.display()
+                "inspect {label} {}: {error}",
+                path.display()
             )));
         }
     };
     if metadata.file_type().is_symlink() || !metadata.is_dir() {
         return Err(RepositoryTxnError::Journal(format!(
-            "repository journal directory is not a regular non-symlink directory: {}",
-            repository_dir.display()
+            "{label} is not a regular non-symlink directory: {}",
+            path.display()
         )));
     }
-
-    let mut entries = fs::read_dir(&repository_dir)
+    let mut entries = fs::read_dir(path)
         .map_err(|error| {
-            RepositoryTxnError::Journal(format!(
-                "read repository journal directory {}: {error}",
-                repository_dir.display()
-            ))
+            RepositoryTxnError::Journal(format!("read {label} {}: {error}", path.display()))
         })?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|error| {
-            RepositoryTxnError::Journal(format!(
-                "enumerate repository journal directory {}: {error}",
-                repository_dir.display()
-            ))
+            RepositoryTxnError::Journal(format!("enumerate {label} {}: {error}", path.display()))
         })?;
     entries.sort_by_key(|entry| entry.file_name());
+    Ok(Some(entries))
+}
+
+fn private_residue_entry(
+    journal_dir: &Path,
+    path: &Path,
+    kind: ValidatedPrivateResidueKind,
+) -> Result<ValidatedPrivateResidue, RepositoryTxnError> {
+    let relative = path.strip_prefix(journal_dir).map_err(|_| {
+        RepositoryTxnError::Journal(format!(
+            "private recovery entry escapes its journal root: {}",
+            path.display()
+        ))
+    })?;
+    let relative = relative.to_str().ok_or_else(|| {
+        RepositoryTxnError::Journal(format!(
+            "private recovery entry is not valid UTF-8: {}",
+            path.display()
+        ))
+    })?;
+    Ok(ValidatedPrivateResidue {
+        path: RepoPath::parse(relative.to_string())?,
+        kind,
+    })
+}
+
+fn require_regular_recovery_file(
+    path: &Path,
+    label: &str,
+) -> Result<fs::Metadata, RepositoryTxnError> {
+    let metadata = fs::symlink_metadata(path).map_err(|error| {
+        RepositoryTxnError::Journal(format!("inspect {label} {}: {error}", path.display()))
+    })?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(RepositoryTxnError::Journal(format!(
+            "{label} is not a regular non-symlink file: {}",
+            path.display()
+        )));
+    }
+    Ok(metadata)
+}
+
+fn verify_repository_lock_index(
+    root: &Path,
+    journal_dir: &Path,
+    residue: &mut Vec<ValidatedPrivateResidue>,
+) -> Result<(), RepositoryTxnError> {
+    let lock_dir = journal_dir.join("repository-locks");
+    let Some(entries) = journal_directory_entries(&lock_dir, "repository lock directory")? else {
+        return Ok(());
+    };
+    let canonical_root = canonical_repository_root(root)?;
+    let expected = RepositoryWriteLock::path(journal_dir, &canonical_root);
+    for entry in entries {
+        let path = entry.path();
+        let metadata = require_regular_recovery_file(&path, "repository lock entry")?;
+        if path != expected || metadata.len() != 0 {
+            return Err(RepositoryTxnError::Journal(format!(
+                "unexpected repository lock entry: {}",
+                path.display()
+            )));
+        }
+        residue.push(private_residue_entry(
+            journal_dir,
+            &path,
+            ValidatedPrivateResidueKind::RegularFile,
+        )?);
+    }
+    Ok(())
+}
+
+fn verify_blob_index(
+    journal_dir: &Path,
+    blob_dir: &Path,
+    residue: &mut Vec<ValidatedPrivateResidue>,
+) -> Result<(), RepositoryTxnError> {
+    let Some(entries) =
+        journal_directory_entries(blob_dir, "repository transaction blob directory")?
+    else {
+        return Ok(());
+    };
+    for entry in entries {
+        let path = entry.path();
+        require_regular_recovery_file(&path, "repository transaction blob entry")?;
+        if operation_journal::is_owned_atomic_temp(&path) {
+            residue.push(private_residue_entry(
+                journal_dir,
+                &path,
+                ValidatedPrivateResidueKind::RegularFile,
+            )?);
+            continue;
+        }
+        if path.extension().and_then(|extension| extension.to_str()) != Some("json") {
+            return Err(RepositoryTxnError::Journal(format!(
+                "unexpected repository transaction blob entry: {}",
+                path.display()
+            )));
+        }
+        let stem = path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .ok_or_else(|| {
+                RepositoryTxnError::Journal(format!(
+                    "repository transaction blob has an invalid file name: {}",
+                    path.display()
+                ))
+            })?;
+        let filename_digest = ContentDigest::parse(format!("sha256:{stem}"))?;
+        let blob: BlobJournal =
+            operation_journal::read_json(&path).map_err(RepositoryTxnError::Journal)?;
+        blob.digest.verify()?;
+        if blob.schema != REPOSITORY_TXN_BLOB_SCHEMA
+            || blob.digest != filename_digest
+            || blob.size != blob.bytes.len() as u64
+            || ContentDigest::hash(&blob.bytes) != blob.digest
+        {
+            return Err(RepositoryTxnError::CorruptBlob(filename_digest));
+        }
+        residue.push(private_residue_entry(
+            journal_dir,
+            &path,
+            ValidatedPrivateResidueKind::RegularFile,
+        )?);
+    }
+    Ok(())
+}
+
+fn verify_commit_marker_index(
+    journal_dir: &Path,
+    marker_dir: &Path,
+    plans: &BTreeMap<OperationId, &RepositoryTxnJournal>,
+    residue: &mut Vec<ValidatedPrivateResidue>,
+) -> Result<(), RepositoryTxnError> {
+    let Some(entries) =
+        journal_directory_entries(marker_dir, "repository commit-marker directory")?
+    else {
+        return Ok(());
+    };
+    for entry in entries {
+        let path = entry.path();
+        require_regular_recovery_file(&path, "repository commit-marker entry")?;
+        if operation_journal::is_owned_atomic_temp(&path) {
+            residue.push(private_residue_entry(
+                journal_dir,
+                &path,
+                ValidatedPrivateResidueKind::RegularFile,
+            )?);
+            continue;
+        }
+        if path.extension().and_then(|extension| extension.to_str()) != Some("json") {
+            return Err(RepositoryTxnError::Journal(format!(
+                "unexpected repository commit-marker entry: {}",
+                path.display()
+            )));
+        }
+        let operation_id = path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .ok_or_else(|| {
+                RepositoryTxnError::CorruptPlan(format!(
+                    "repository commit marker has an invalid file name: {}",
+                    path.display()
+                ))
+            })?;
+        let operation_id = OperationId::parse(operation_id.to_string())?;
+        let journal = plans.get(&operation_id).ok_or_else(|| {
+            RepositoryTxnError::CorruptPlan(format!(
+                "commit marker {} has no matching durable plan",
+                operation_id.as_str()
+            ))
+        })?;
+        let marker: CommitMarker =
+            operation_journal::read_json(&path).map_err(RepositoryTxnError::Journal)?;
+        marker.verify_shape()?;
+        if marker.schema != REPOSITORY_TXN_MARKER_SCHEMA
+            || marker.operation_id != operation_id
+            || marker != CommitMarker::from_plan(&journal.plan)
+        {
+            return Err(RepositoryTxnError::CorruptPlan(format!(
+                "commit marker {} does not match its durable plan and file name",
+                operation_id.as_str()
+            )));
+        }
+        residue.push(private_residue_entry(
+            journal_dir,
+            &path,
+            ValidatedPrivateResidueKind::RegularFile,
+        )?);
+    }
+    Ok(())
+}
+
+fn repository_inventory(
+    root: &Path,
+    journal_dir: &Path,
+) -> Result<RepositoryJournalInventory, RepositoryTxnError> {
+    let mut residue = Vec::new();
+    let Some(root_entries) = journal_directory_entries(journal_dir, "repository journal root")?
+    else {
+        return Ok(RepositoryJournalInventory {
+            journals: Vec::new(),
+            private_residue: residue,
+        });
+    };
+    for entry in root_entries {
+        let path = entry.path();
+        let name = entry.file_name();
+        let metadata = fs::symlink_metadata(&path).map_err(|error| {
+            RepositoryTxnError::Journal(format!(
+                "inspect repository journal-root entry {}: {error}",
+                path.display()
+            ))
+        })?;
+        if metadata.file_type().is_symlink()
+            || !metadata.is_dir()
+            || (name != "repository" && name != "repository-locks")
+        {
+            return Err(RepositoryTxnError::Journal(format!(
+                "unexpected repository journal-root entry: {}",
+                path.display()
+            )));
+        }
+        residue.push(private_residue_entry(
+            journal_dir,
+            &path,
+            ValidatedPrivateResidueKind::Directory,
+        )?);
+    }
+    verify_repository_lock_index(root, journal_dir, &mut residue)?;
+
+    let repository_dir = journal_dir.join("repository");
+    let Some(entries) = journal_directory_entries(&repository_dir, "repository journal directory")?
+    else {
+        residue.sort();
+        return Ok(RepositoryJournalInventory {
+            journals: Vec::new(),
+            private_residue: residue,
+        });
+    };
 
     let mut journals = Vec::new();
     for entry in entries {
@@ -1429,6 +1902,11 @@ fn repository_journals(
         if metadata.is_dir() {
             let name = entry.file_name();
             if name == "blobs" || name == "committed" {
+                residue.push(private_residue_entry(
+                    journal_dir,
+                    &path,
+                    ValidatedPrivateResidueKind::Directory,
+                )?);
                 continue;
             }
             return Err(RepositoryTxnError::Journal(format!(
@@ -1436,9 +1914,23 @@ fn repository_journals(
                 path.display()
             )));
         }
-        if !metadata.is_file() || path.extension().is_none_or(|extension| extension != "json") {
+        if !metadata.is_file() {
             return Err(RepositoryTxnError::Journal(format!(
                 "unexpected non-journal entry in repository journal: {}",
+                path.display()
+            )));
+        }
+        if operation_journal::is_owned_atomic_temp(&path) {
+            residue.push(private_residue_entry(
+                journal_dir,
+                &path,
+                ValidatedPrivateResidueKind::RegularFile,
+            )?);
+            continue;
+        }
+        if path.extension().and_then(|extension| extension.to_str()) != Some("json") {
+            return Err(RepositoryTxnError::Journal(format!(
+                "unexpected repository journal entry: {}",
                 path.display()
             )));
         }
@@ -1453,12 +1945,40 @@ fn repository_journals(
                 journal.plan.operation_id.as_str()
             )));
         }
-        if Path::new(&journal.plan.repository.canonical_root) == root {
-            journal.plan.repository.verify_root(root)?;
-            journals.push((paths, journal));
-        }
+        // The caller supplies one repository-local journal directory. A
+        // durable plan bound to any other root is corruption, not an entry to
+        // ignore while deciding whether this repository is safe to mutate.
+        journal.plan.repository.verify_root(root)?;
+        residue.push(private_residue_entry(
+            journal_dir,
+            &path,
+            ValidatedPrivateResidueKind::RegularFile,
+        )?);
+        journals.push((paths, journal));
     }
-    Ok(journals)
+    let plans = journals
+        .iter()
+        .map(|(_, journal)| (journal.plan.operation_id.clone(), journal))
+        .collect::<BTreeMap<_, _>>();
+    verify_blob_index(journal_dir, &repository_dir.join("blobs"), &mut residue)?;
+    verify_commit_marker_index(
+        journal_dir,
+        &repository_dir.join("committed"),
+        &plans,
+        &mut residue,
+    )?;
+    residue.sort();
+    Ok(RepositoryJournalInventory {
+        journals,
+        private_residue: residue,
+    })
+}
+
+fn repository_journals(
+    root: &Path,
+    journal_dir: &Path,
+) -> Result<Vec<(RepositoryTxnPaths, RepositoryTxnJournal)>, RepositoryTxnError> {
+    Ok(repository_inventory(root, journal_dir)?.journals)
 }
 
 fn journal_blob_digests(journal: &RepositoryTxnJournal) -> BTreeSet<ContentDigest> {
@@ -1526,6 +2046,7 @@ fn read_commit_marker(
     }
     let marker: CommitMarker =
         operation_journal::read_json(&paths.marker).map_err(RepositoryTxnError::Journal)?;
+    marker.verify_shape()?;
     let expected = CommitMarker::from_plan(&journal.plan);
     if marker != expected {
         return Err(RepositoryTxnError::CorruptPlan(
@@ -1539,6 +2060,7 @@ fn read_blob_at(
     paths: &RepositoryTxnPaths,
     expected: &JournalBlobRef,
 ) -> Result<Vec<u8>, RepositoryTxnError> {
+    expected.verify()?;
     let path = paths.blob(&expected.digest);
     match fs::symlink_metadata(&paths.blob_dir) {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -1571,6 +2093,7 @@ fn read_blob_at(
     }
     let blob: BlobJournal =
         operation_journal::read_json(&path).map_err(RepositoryTxnError::Journal)?;
+    blob.digest.verify()?;
     if blob.schema != REPOSITORY_TXN_BLOB_SCHEMA
         || blob.digest != expected.digest
         || blob.size != expected.size
@@ -1661,15 +2184,13 @@ fn postimage_reaches_current(
     false
 }
 
-fn verify_completed_history(
+fn verify_completed_history_against_base(
     root: &Path,
     completed: &[(RepositoryTxnPaths, RepositoryTxnJournal)],
+    pending_delta: Option<&CanonicalDelta>,
 ) -> Result<(), RepositoryTxnError> {
     if completed.is_empty() {
         return Ok(());
-    }
-    for (paths, journal) in completed {
-        verify_completed_marker_and_blobs(paths, journal)?;
     }
 
     // Every completed journal participates in the same exact postimage
@@ -1682,7 +2203,15 @@ fn verify_completed_history(
     // engine and remain verifiable completed history.
     for (_, journal) in &current_head {
         for write in journal.plan.canonical_delta.writes() {
-            let actual = inspect_file_state(root, &write.path)?;
+            let actual = pending_delta
+                .and_then(|delta| {
+                    delta
+                        .writes()
+                        .iter()
+                        .find(|pending| pending.path == write.path)
+                })
+                .map(|pending| pending.preimage.clone())
+                .map_or_else(|| inspect_file_state(root, &write.path), Ok)?;
             if postimage_reaches_current(&write.path, &write.postimage, &actual, &current_head) {
                 continue;
             }
@@ -1697,32 +2226,262 @@ fn verify_completed_history(
     Ok(())
 }
 
+#[cfg(test)]
+fn verify_completed_history(
+    root: &Path,
+    completed: &[(RepositoryTxnPaths, RepositoryTxnJournal)],
+) -> Result<(), RepositoryTxnError> {
+    for (paths, journal) in completed {
+        verify_completed_marker_and_blobs(paths, journal)?;
+    }
+    verify_completed_history_against_base(root, completed, None)
+}
+
+fn corrupt_recovery_layout(
+    journal: &RepositoryTxnJournal,
+    detail: impl fmt::Display,
+) -> RepositoryTxnError {
+    RepositoryTxnError::CorruptPlan(format!(
+        "transaction {} has an impossible durable recovery layout for {:?}: {detail}",
+        journal.plan.operation_id.as_str(),
+        journal.recovery
+    ))
+}
+
+fn observe_recovery_layout(
+    root: &Path,
+    journal: &RepositoryTxnJournal,
+) -> Result<usize, RepositoryTxnError> {
+    let mut prefix = 0;
+    let mut first_non_postimage = false;
+    for write in journal.plan.canonical_delta.writes() {
+        let actual = inspect_file_state(root, &write.path)?;
+        if actual == write.postimage {
+            if first_non_postimage {
+                return Err(corrupt_recovery_layout(
+                    journal,
+                    format!(
+                        "postimage at {} follows a preimage hole",
+                        write.path.as_str()
+                    ),
+                ));
+            }
+            prefix += 1;
+        } else if actual == write.preimage {
+            first_non_postimage = true;
+        } else {
+            return Err(RepositoryTxnError::CommittedConflict {
+                path: write.path.clone(),
+                expected_preimage: Box::new(write.preimage.clone()),
+                expected_postimage: Box::new(write.postimage.clone()),
+                actual: Box::new(actual),
+            });
+        }
+    }
+    Ok(prefix)
+}
+
+fn verify_marker_bearing_recovery_layout(
+    root: &Path,
+    journal: &RepositoryTxnJournal,
+) -> Result<(), RepositoryTxnError> {
+    let writes = journal.plan.canonical_delta.writes();
+    match &journal.recovery {
+        RecoveryState::Prepared | RecoveryState::Committed => {
+            let prefix = observe_recovery_layout(root, journal)?;
+            if prefix <= usize::from(!writes.is_empty()) {
+                Ok(())
+            } else {
+                Err(corrupt_recovery_layout(
+                    journal,
+                    format!("installed prefix {prefix} exceeds the single-write crash window"),
+                ))
+            }
+        }
+        RecoveryState::Installing { installed, total } => {
+            let prefix = observe_recovery_layout(root, journal)?;
+            let write_before_progress = installed.saturating_add(1).min(*total);
+            if prefix == *installed || prefix == write_before_progress {
+                Ok(())
+            } else {
+                Err(corrupt_recovery_layout(
+                    journal,
+                    format!(
+                        "installed prefix {prefix} is neither durable progress {installed} nor its one-write crash window {write_before_progress}"
+                    ),
+                ))
+            }
+        }
+        RecoveryState::Installed => {
+            for write in writes {
+                let actual = inspect_file_state(root, &write.path)?;
+                if actual != write.postimage {
+                    return Err(RepositoryTxnError::CompletedPostimageMismatch {
+                        operation_id: journal.plan.operation_id.as_str().to_string(),
+                        path: write.path.clone(),
+                        expected: Box::new(write.postimage.clone()),
+                        actual: Box::new(actual),
+                    });
+                }
+            }
+            Ok(())
+        }
+        RecoveryState::CommittedConflict { path } => {
+            let conflict_index = writes
+                .iter()
+                .position(|write| &write.path == path)
+                .ok_or_else(|| {
+                    corrupt_recovery_layout(
+                        journal,
+                        format!(
+                            "conflict path {} is outside the canonical delta",
+                            path.as_str()
+                        ),
+                    )
+                })?;
+            for (index, write) in writes.iter().enumerate() {
+                let actual = inspect_file_state(root, &write.path)?;
+                if index < conflict_index && actual != write.postimage {
+                    return Err(RepositoryTxnError::CompletedPostimageMismatch {
+                        operation_id: journal.plan.operation_id.as_str().to_string(),
+                        path: write.path.clone(),
+                        expected: Box::new(write.postimage.clone()),
+                        actual: Box::new(actual),
+                    });
+                }
+                if index > conflict_index {
+                    if actual == write.postimage {
+                        return Err(corrupt_recovery_layout(
+                            journal,
+                            format!(
+                                "{} is an out-of-order postimage beyond the recorded conflict",
+                                write.path.as_str()
+                            ),
+                        ));
+                    }
+                    if actual != write.preimage {
+                        return Err(RepositoryTxnError::CommittedConflict {
+                            path: write.path.clone(),
+                            expected_preimage: Box::new(write.preimage.clone()),
+                            expected_postimage: Box::new(write.postimage.clone()),
+                            actual: Box::new(actual),
+                        });
+                    }
+                }
+                // The conflict slot itself may still contain the third state
+                // that caused the retry failure, or an operator may have
+                // restored either exact endpoint before retrying.
+            }
+            Ok(())
+        }
+        RecoveryState::Aborted | RecoveryState::Completed => Err(corrupt_recovery_layout(
+            journal,
+            "terminal state was passed to incomplete recovery validation",
+        )),
+    }
+}
+
+#[derive(Debug, Clone)]
+struct PendingRecovery {
+    operation_id: OperationId,
+    state: RecoveryState,
+}
+
 fn ensure_recovery_barrier_locked(
     root: &Path,
     journal_dir: &Path,
     allowed_operation_id: Option<&OperationId>,
 ) -> Result<(), RepositoryTxnError> {
     let journals = repository_journals(root, journal_dir)?;
-    let mut completed = Vec::new();
-    for (paths, journal) in journals {
-        if allowed_operation_id == Some(&journal.plan.operation_id) {
-            continue;
+    if let Some(pending) = validate_recovery_journals(root, &journals)? {
+        if allowed_operation_id == Some(&pending.operation_id) {
+            return Ok(());
         }
-        match journal.recovery {
-            RecoveryState::Aborted => {
-                verify_aborted_without_marker(&paths, &journal)?;
+        return Err(RepositoryTxnError::RecoveryRequired {
+            operation_id: pending.operation_id.as_str().to_string(),
+            state: pending.state,
+        });
+    }
+    Ok(())
+}
+
+fn verify_incomplete_recovery_candidate(
+    root: &Path,
+    paths: &RepositoryTxnPaths,
+    journal: &RepositoryTxnJournal,
+) -> Result<bool, RepositoryTxnError> {
+    verify_journal_blobs(paths, journal)?;
+    match read_commit_marker(paths, journal) {
+        Ok(_) => {
+            verify_marker_bearing_recovery_layout(root, journal)?;
+            Ok(true)
+        }
+        Err(RepositoryTxnError::NotCommitted)
+            if matches!(journal.recovery, RecoveryState::Prepared) =>
+        {
+            Ok(false)
+        }
+        Err(RepositoryTxnError::NotCommitted) => Err(RepositoryTxnError::CorruptPlan(format!(
+            "transaction {} is {:?} but has no commit marker",
+            journal.plan.operation_id.as_str(),
+            journal.recovery
+        ))),
+        Err(error) => Err(error),
+    }
+}
+
+fn validate_recovery_journals(
+    root: &Path,
+    journals: &[(RepositoryTxnPaths, RepositoryTxnJournal)],
+) -> Result<Option<PendingRecovery>, RepositoryTxnError> {
+    let mut completed = Vec::new();
+    let mut pending = Vec::new();
+    let repository_ids = journals
+        .iter()
+        .map(|(_, journal)| journal.plan.repository.repository_id.clone())
+        .collect::<BTreeSet<_>>();
+    if repository_ids.len() > 1 {
+        return Err(RepositoryTxnError::MixedRepositoryIdentities {
+            repository_ids: repository_ids.into_iter().collect(),
+        });
+    }
+
+    for (paths, journal) in journals {
+        match journal.recovery.clone() {
+            RecoveryState::Aborted => verify_aborted_without_marker(paths, journal)?,
+            RecoveryState::Completed => {
+                verify_completed_marker_and_blobs(paths, journal)?;
+                completed.push((paths.clone(), journal.clone()));
             }
-            RecoveryState::Completed => completed.push((paths, journal)),
             state => {
-                return Err(RepositoryTxnError::RecoveryRequired {
-                    operation_id: journal.plan.operation_id.as_str().to_string(),
-                    state,
-                });
+                let marker_present = verify_incomplete_recovery_candidate(root, paths, journal)?;
+                pending.push((paths, journal, state, marker_present));
             }
         }
     }
 
-    verify_completed_history(root, &completed)
+    pending.sort_by(|left, right| left.1.plan.operation_id.cmp(&right.1.plan.operation_id));
+    if pending.len() > 1 {
+        return Err(RepositoryTxnError::MultiplePendingTransactions {
+            operation_ids: pending
+                .iter()
+                .map(|(_, journal, _, _)| journal.plan.operation_id.as_str().to_string())
+                .collect(),
+        });
+    }
+
+    let pending_delta = pending.first().and_then(|(_, journal, _, marker_present)| {
+        marker_present.then_some(&journal.plan.canonical_delta)
+    });
+    verify_completed_history_against_base(root, &completed, pending_delta)?;
+
+    Ok(pending
+        .into_iter()
+        .next()
+        .map(|(_, journal, state, _)| PendingRecovery {
+            operation_id: journal.plan.operation_id.clone(),
+            state,
+        }))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1783,13 +2542,92 @@ pub struct RepositoryTxn {
     _lock: RepositoryWriteLock,
 }
 
-#[cfg(any(test, feature = "test-support"))]
+/// Result of explicitly recovering one exact durable operation journal.
+///
+/// Recovery never reconstructs or invokes a write authorization. A definite
+/// marker-free Prepared journal is durably aborted without installing its
+/// canonical postimage; a valid commit marker is the complete authority to
+/// finish exact installation and journal completion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RecoveryOutcome {
-    Prepared,
-    Aborted,
+    AbortedPrepared,
+    AlreadyAborted,
     Completed,
     AlreadyCompleted,
+}
+
+/// Stable facts returned after an explicit, exact-ID recovery attempt.
+///
+/// `next_operation_id` is present only when the named operation was already
+/// terminal and exactly one other valid incomplete transaction still blocks
+/// new writes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RepositoryRecoveryResult {
+    pub operation_id: OperationId,
+    pub repository_id: String,
+    pub prior_state: RecoveryState,
+    pub outcome: RecoveryOutcome,
+    pub next_operation_id: Option<OperationId>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ValidatedPrivateResidueKind {
+    Directory,
+    RegularFile,
+}
+
+/// One exact runtime-owned entry, relative to the caller-supplied private
+/// journal directory. Every entry has already passed the closed inventory and
+/// content checks; symlinks and other filesystem kinds never appear here.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ValidatedPrivateResidue {
+    path: RepoPath,
+    kind: ValidatedPrivateResidueKind,
+}
+
+impl ValidatedPrivateResidue {
+    pub fn path(&self) -> &RepoPath {
+        &self.path
+    }
+
+    pub fn kind(&self) -> ValidatedPrivateResidueKind {
+        self.kind
+    }
+}
+
+/// Immutable result of validating one Completed operation and the complete
+/// private residue tree under the same held repository lock.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VerifiedCompletedOperation {
+    canonical_delta: CanonicalDelta,
+    read_set: Vec<InputBinding>,
+    private_residue: Vec<ValidatedPrivateResidue>,
+}
+
+impl VerifiedCompletedOperation {
+    pub fn canonical_delta(&self) -> &CanonicalDelta {
+        &self.canonical_delta
+    }
+
+    pub fn read_set(&self) -> &[InputBinding] {
+        &self.read_set
+    }
+
+    pub fn private_residue(&self) -> &[ValidatedPrivateResidue] {
+        &self.private_residue
+    }
+}
+
+/// Exact caller-owned facts that a durable Completed operation must match.
+/// The runtime verifies its private plan and history first, then compares these
+/// fields without interpreting their product meaning.
+#[derive(Debug, Clone, Copy)]
+pub struct CompletedOperationExpectation<'a> {
+    pub repository_id: &'a str,
+    pub kind: &'a OperationKind,
+    pub request_root: &'a ContentDigest,
+    pub fixed_time: &'a str,
+    pub result: &'a serde_json::Value,
 }
 
 /// Private durability boundaries used by the transaction test harness.
@@ -1854,13 +2692,90 @@ impl RepositoryTxnFailpoints for FailAtRepositoryTxnStep {
 }
 
 impl RepositoryTxn {
-    #[cfg(test)]
-    fn verify_recovery_barrier_read_only(
+    /// Inspect the repository-wide recovery barrier without writing any
+    /// journal or lock byte.
+    ///
+    /// This is a diagnostic snapshot for reporting an exact typed recovery
+    /// requirement after a higher layer has erased an earlier error. When the
+    /// repository lock already exists, the method holds it through the scan
+    /// and returns [`RepositoryTxnError::Busy`] instead of mistaking a live
+    /// writer's Prepared journal for a recovery instruction. A missing lock is
+    /// not created, so that case remains a race-prone read-only snapshot. Every
+    /// writer must still acquire [`Self::acquire_recovery_barrier`] and rely on
+    /// its authoritative locked recheck.
+    pub fn verify_recovery_barrier(
         repository_root: &Path,
         journal_dir: &Path,
     ) -> Result<(), RepositoryTxnError> {
         let root = canonical_repository_root(repository_root)?;
+        let _lock = RepositoryWriteLock::try_acquire_existing(journal_dir, &root)?;
         ensure_recovery_barrier_locked(&root, journal_dir, None)
+    }
+
+    /// Verify one exact Completed operation without writing, recovering, or
+    /// exposing its private journal. The existing repository lock is held for
+    /// the entire inventory, marker, blob, history, and expectation check; its
+    /// absence fails closed rather than creating a byte in this read-only path.
+    pub fn verify_completed_operation(
+        repository_root: &Path,
+        journal_dir: &Path,
+        operation_id: &OperationId,
+        expected: &CompletedOperationExpectation<'_>,
+    ) -> Result<VerifiedCompletedOperation, RepositoryTxnError> {
+        let root = canonical_repository_root(repository_root)?;
+        let _lock = RepositoryWriteLock::try_acquire_existing(journal_dir, &root)?
+            .ok_or(RepositoryTxnError::RepositoryLockMissing)?;
+        let inventory = repository_inventory(&root, journal_dir)?;
+        if let Some(pending) = validate_recovery_journals(&root, &inventory.journals)? {
+            return Err(RepositoryTxnError::RecoveryRequired {
+                operation_id: pending.operation_id.as_str().to_string(),
+                state: pending.state,
+            });
+        }
+        let journal = inventory
+            .journals
+            .iter()
+            .find_map(|(_, journal)| {
+                (journal.plan.operation_id == *operation_id).then_some(journal)
+            })
+            .ok_or_else(|| RepositoryTxnError::OperationNotFound {
+                operation_id: operation_id.as_str().to_string(),
+            })?;
+        if !matches!(journal.recovery, RecoveryState::Completed) {
+            return Err(RepositoryTxnError::CompletedOperationNotCompleted {
+                operation_id: operation_id.as_str().to_string(),
+                state: journal.recovery.clone(),
+            });
+        }
+        RepositoryBinding::verify_repository_id(expected.repository_id)?;
+        expected.kind.verify()?;
+        expected.request_root.verify()?;
+        let mismatch = [
+            (
+                "repository identity",
+                journal.plan.repository.repository_id == expected.repository_id,
+            ),
+            ("operation kind", journal.plan.kind == *expected.kind),
+            (
+                "request root",
+                journal.plan.request_root == *expected.request_root,
+            ),
+            ("fixed time", journal.plan.fixed_time == expected.fixed_time),
+            ("result", journal.plan.result == *expected.result),
+        ]
+        .into_iter()
+        .find_map(|(field, matches)| (!matches).then_some(field));
+        if let Some(field) = mismatch {
+            return Err(RepositoryTxnError::CompletedOperationExpectationMismatch {
+                operation_id: operation_id.as_str().to_string(),
+                field,
+            });
+        }
+        Ok(VerifiedCompletedOperation {
+            canonical_delta: journal.plan.canonical_delta.clone(),
+            read_set: journal.plan.read_set.clone(),
+            private_residue: inventory.private_residue,
+        })
     }
 
     /// Acquire the repository-wide recovery barrier before loading mutable
@@ -2059,22 +2974,57 @@ impl RepositoryTxn {
         )
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     fn open(
         repository_root: &Path,
         journal_dir: &Path,
         operation_id: &OperationId,
     ) -> Result<Self, RepositoryTxnError> {
         Self::open_if_present(repository_root, journal_dir, operation_id)?.ok_or_else(|| {
-            RepositoryTxnError::Journal(format!(
-                "repository transaction {} was not found",
-                operation_id.as_str()
-            ))
+            RepositoryTxnError::OperationNotFound {
+                operation_id: operation_id.as_str().to_string(),
+            }
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    fn open_for_recovery(
+        repository_root: &Path,
+        journal_dir: &Path,
+        operation_id: &OperationId,
+    ) -> Result<(Self, Option<PendingRecovery>), RepositoryTxnError> {
+        let root = canonical_repository_root(repository_root)?;
+        let lock = RepositoryWriteLock::acquire(journal_dir, &root)?;
+        let journals = repository_journals(&root, journal_dir)?;
+        let pending = validate_recovery_journals(&root, &journals)?;
+        let (paths, journal) = journals
+            .into_iter()
+            .find(|(_, journal)| journal.plan.operation_id == *operation_id)
+            .ok_or_else(|| RepositoryTxnError::OperationNotFound {
+                operation_id: operation_id.as_str().to_string(),
+            })?;
+        Ok((
+            Self {
+                root,
+                paths,
+                journal,
+                authorization: None,
+                _lock: lock,
+            },
+            pending,
+        ))
+    }
+
+    #[cfg(test)]
     fn open_if_present(
+        repository_root: &Path,
+        journal_dir: &Path,
+        operation_id: &OperationId,
+    ) -> Result<Option<Self>, RepositoryTxnError> {
+        Self::open_if_present_impl(repository_root, journal_dir, operation_id)
+    }
+
+    #[cfg(test)]
+    fn open_if_present_impl(
         repository_root: &Path,
         journal_dir: &Path,
         operation_id: &OperationId,
@@ -2293,9 +3243,9 @@ impl RepositoryTxn {
         self.mark_committed_with_failpoints(&mut FailAtRepositoryTxnStep { target: step })
     }
 
-    /// Permanently discard a marker-free plan. Since no commit marker exists,
-    /// this state transition has no repository delta and a later plan may safely
-    /// reuse the operation id.
+    /// Durably close a marker-free plan as Aborted. Its journal remains as the
+    /// terminal record, its canonical postimage is not installed, and the same
+    /// exact plan may safely reuse the operation id.
     pub fn abort_prepared(&mut self) -> Result<(), RepositoryTxnError> {
         self.abort_prepared_with_failpoints(&mut NoRepositoryTxnFailpoints)
     }
@@ -2486,25 +3436,109 @@ impl RepositoryTxn {
         self.complete_with_failpoints(&mut FailAtRepositoryTxnStep { target: step })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    /// Recover one exact durable operation while holding the repository write
+    /// lock.
+    ///
+    /// The operation identifier is mandatory: recovery never guesses between
+    /// journals. A marker-free Prepared journal is safely aborted. Once an
+    /// exact marker exists, recovery installs and completes the durable plan
+    /// idempotently without loading or invoking caller policy. Any other
+    /// incomplete journal remains a repository-wide barrier and is reported
+    /// before this method changes either journal or repository bytes.
+    ///
+    /// `expected_repository_id` is an opaque caller-owned binding checked
+    /// under the write lock before recovery mutates either journal or
+    /// repository bytes.
     pub fn recover(
         repository_root: &Path,
         journal_dir: &Path,
         operation_id: &OperationId,
-    ) -> Result<RecoveryOutcome, RepositoryTxnError> {
-        let mut txn = Self::open(repository_root, journal_dir, operation_id)?;
-        if matches!(txn.journal.recovery, RecoveryState::Aborted) {
-            return Ok(RecoveryOutcome::Aborted);
+        expected_repository_id: &str,
+    ) -> Result<RepositoryRecoveryResult, RepositoryTxnError> {
+        Self::recover_with_failpoints(
+            repository_root,
+            journal_dir,
+            operation_id,
+            expected_repository_id,
+            &mut NoRepositoryTxnFailpoints,
+        )
+    }
+
+    fn recover_with_failpoints(
+        repository_root: &Path,
+        journal_dir: &Path,
+        operation_id: &OperationId,
+        expected_repository_id: &str,
+        failpoints: &mut impl RepositoryTxnFailpoints,
+    ) -> Result<RepositoryRecoveryResult, RepositoryTxnError> {
+        let (mut txn, pending) =
+            match Self::open_for_recovery(repository_root, journal_dir, operation_id) {
+                Ok(opened) => opened,
+                Err(RepositoryTxnError::MultiplePendingTransactions { operation_ids }) => {
+                    return Err(RepositoryTxnError::AmbiguousRecovery {
+                        requested_operation_id: operation_id.as_str().to_string(),
+                        other_operation_ids: operation_ids
+                            .into_iter()
+                            .filter(|candidate| candidate != operation_id.as_str())
+                            .collect(),
+                    });
+                }
+                Err(error) => return Err(error),
+            };
+        let prior_state = txn.journal.recovery.clone();
+        let durable_operation_id = txn.journal.plan.operation_id.clone();
+        let repository_id = txn.journal.plan.repository.repository_id.clone();
+        RepositoryBinding::verify_repository_id(expected_repository_id)?;
+        if expected_repository_id != repository_id {
+            return Err(RepositoryTxnError::RepositoryIdentityMismatch {
+                expected: expected_repository_id.to_string(),
+                actual: repository_id,
+            });
         }
-        if matches!(txn.journal.recovery, RecoveryState::Completed) {
-            return Ok(RecoveryOutcome::AlreadyCompleted);
+        let selected_is_terminal = matches!(
+            prior_state,
+            RecoveryState::Aborted | RecoveryState::Completed
+        );
+        let blocker = pending.filter(|pending| pending.operation_id != *operation_id);
+        if !selected_is_terminal && blocker.is_some() {
+            return Err(RepositoryTxnError::AmbiguousRecovery {
+                requested_operation_id: operation_id.as_str().to_string(),
+                other_operation_ids: blocker
+                    .into_iter()
+                    .map(|pending| pending.operation_id.as_str().to_string())
+                    .collect(),
+            });
         }
+        if selected_is_terminal {
+            let outcome = match prior_state {
+                RecoveryState::Aborted => RecoveryOutcome::AlreadyAborted,
+                RecoveryState::Completed => RecoveryOutcome::AlreadyCompleted,
+                _ => unreachable!("selected terminal state checked above"),
+            };
+            let next_operation_id = blocker.map(|pending| pending.operation_id);
+            return Ok(RepositoryRecoveryResult {
+                operation_id: durable_operation_id,
+                repository_id,
+                prior_state,
+                outcome,
+                next_operation_id,
+            });
+        }
+
         match read_commit_marker(&txn.paths, &txn.journal) {
             Ok(_) => {}
             Err(RepositoryTxnError::NotCommitted)
                 if matches!(txn.journal.recovery, RecoveryState::Prepared) =>
             {
-                return Ok(RecoveryOutcome::Prepared);
+                txn.abort_prepared_with_failpoints(failpoints)?;
+                ensure_recovery_barrier_locked(&txn.root, journal_dir, None)?;
+                return Ok(RepositoryRecoveryResult {
+                    operation_id: durable_operation_id,
+                    repository_id,
+                    prior_state,
+                    outcome: RecoveryOutcome::AbortedPrepared,
+                    next_operation_id: None,
+                });
             }
             Err(RepositoryTxnError::NotCommitted) => {
                 return Err(RepositoryTxnError::CorruptPlan(format!(
@@ -2515,9 +3549,38 @@ impl RepositoryTxn {
             }
             Err(error) => return Err(error),
         }
-        txn.install()?;
-        txn.complete()?;
-        Ok(RecoveryOutcome::Completed)
+        txn.install_with_failpoints(failpoints)?;
+        txn.complete_with_failpoints(failpoints)?;
+        ensure_recovery_barrier_locked(&txn.root, journal_dir, None)?;
+        Ok(RepositoryRecoveryResult {
+            operation_id: durable_operation_id,
+            repository_id,
+            prior_state,
+            outcome: RecoveryOutcome::Completed,
+            next_operation_id: None,
+        })
+    }
+
+    /// Exercise the exact production recovery engine with one injected durable
+    /// interruption. This narrow seam is available only to in-crate tests and
+    /// the non-default `test-support` feature used by product-boundary crash
+    /// tests; it carries no authorization capability or alternate recovery
+    /// policy.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn recover_at_failpoint(
+        repository_root: &Path,
+        journal_dir: &Path,
+        operation_id: &OperationId,
+        expected_repository_id: &str,
+        step: RepositoryTxnStep,
+    ) -> Result<RepositoryRecoveryResult, RepositoryTxnError> {
+        Self::recover_with_failpoints(
+            repository_root,
+            journal_dir,
+            operation_id,
+            expected_repository_id,
+            &mut FailAtRepositoryTxnStep { target: step },
+        )
     }
 
     pub fn resolved_public_writes(&self) -> Result<Vec<ResolvedWrite>, RepositoryTxnError> {
@@ -2669,8 +3732,34 @@ pub enum RepositoryTxnError {
         expected: String,
         actual: String,
     },
+    RepositoryIdentityMismatch {
+        expected: String,
+        actual: String,
+    },
+    MixedRepositoryIdentities {
+        repository_ids: Vec<String>,
+    },
     OperationConflict {
         operation_id: String,
+    },
+    OperationNotFound {
+        operation_id: String,
+    },
+    AmbiguousRecovery {
+        requested_operation_id: String,
+        other_operation_ids: Vec<String>,
+    },
+    MultiplePendingTransactions {
+        operation_ids: Vec<String>,
+    },
+    RepositoryLockMissing,
+    CompletedOperationNotCompleted {
+        operation_id: String,
+        state: RecoveryState,
+    },
+    CompletedOperationExpectationMismatch {
+        operation_id: String,
+        field: &'static str,
     },
     RecoveryRequired {
         operation_id: String,
@@ -2762,9 +3851,54 @@ impl fmt::Display for RepositoryTxnError {
                 formatter,
                 "repository binding mismatch: expected {expected}, found {actual}"
             ),
+            Self::RepositoryIdentityMismatch { expected, actual } => write!(
+                formatter,
+                "repository identity mismatch: expected {expected}, durable transaction is bound to {actual}"
+            ),
+            Self::MixedRepositoryIdentities { repository_ids } => write!(
+                formatter,
+                "repository journal set contains mixed repository identities: {}",
+                repository_ids.join(", ")
+            ),
             Self::OperationConflict { operation_id } => write!(
                 formatter,
                 "operation id {operation_id} is already bound to a different plan"
+            ),
+            Self::OperationNotFound { operation_id } => write!(
+                formatter,
+                "repository transaction {operation_id} was not found"
+            ),
+            Self::AmbiguousRecovery {
+                requested_operation_id,
+                other_operation_ids,
+            } => write!(
+                formatter,
+                "cannot recover repository transaction {requested_operation_id} while other incomplete transactions exist: {}; recover an exact unambiguous journal set",
+                other_operation_ids.join(", ")
+            ),
+            Self::MultiplePendingTransactions { operation_ids } => write!(
+                formatter,
+                "repository contains multiple incomplete transactions and cannot emit one exact recovery action: {}",
+                operation_ids.join(", ")
+            ),
+            Self::RepositoryLockMissing => write!(
+                formatter,
+                "repository has durable transaction journals but no existing write lock to hold for read-only verification"
+            ),
+            Self::CompletedOperationNotCompleted {
+                operation_id,
+                state,
+            } => write!(
+                formatter,
+                "repository transaction {operation_id} is {}, not completed",
+                state.as_str()
+            ),
+            Self::CompletedOperationExpectationMismatch {
+                operation_id,
+                field,
+            } => write!(
+                formatter,
+                "completed repository transaction {operation_id} does not match expected {field}"
             ),
             Self::RecoveryRequired {
                 operation_id,
@@ -3191,6 +4325,17 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    const TEST_REPOSITORY_ID: &str = "33333333-3333-4333-8333-333333333333";
+    const TEST_OWNED_ATOMIC_TEMP: &str = ".vela-journal-tmp-abcdefghijkl";
+
+    fn empty_test_repository() -> (tempfile::TempDir, PathBuf, PathBuf) {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("repository");
+        let journals = temp.path().join("journals");
+        fs::create_dir_all(&root).unwrap();
+        (temp, root, journals)
+    }
+
     fn fixture_root(byte: char) -> String {
         format!("sha256:{}", byte.to_string().repeat(64))
     }
@@ -3203,8 +4348,7 @@ mod tests {
                 kind: OperationKind::new("submission").unwrap(),
                 operation_id,
                 request_root,
-                repository: RepositoryBinding::new(root, "33333333-3333-4333-8333-333333333333")
-                    .unwrap(),
+                repository: RepositoryBinding::new(root, TEST_REPOSITORY_ID).unwrap(),
                 fixed_time: "2026-07-13T00:00:00Z".to_string(),
                 read_set: vec![InputBinding {
                     name: "receipt".to_string(),
@@ -3233,6 +4377,20 @@ mod tests {
         .unwrap();
         let plan = fixture_plan(root, &draft, identity);
         (draft, plan)
+    }
+
+    fn persist_marker_free_prepared_fixture(
+        root: &Path,
+        journals: &Path,
+        path: &str,
+        identity: &[u8],
+    ) -> (OperationId, RepositoryTxnPaths) {
+        let (draft, plan) = one_write_fixture(root, path, identity);
+        let operation_id = plan.operation_id.clone();
+        let txn = RepositoryTxn::prepare(root, journals, plan, draft).unwrap();
+        let paths = txn.paths.clone();
+        drop(txn);
+        (operation_id, paths)
     }
 
     #[test]
@@ -3268,6 +4426,16 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path().join("repository");
         fs::create_dir_all(&root).unwrap();
+        assert!(matches!(
+            RepositoryBinding::new(&root, "   "),
+            Err(RepositoryTxnError::CorruptPlan(error))
+                if error.contains("empty repository id")
+        ));
+        assert!(matches!(
+            RepositoryBinding::new(&root, "r".repeat(MAX_REPOSITORY_ID_BYTES + 1)),
+            Err(RepositoryTxnError::CorruptPlan(error))
+                if error.contains("exceeds 256 bytes")
+        ));
         let (draft, mut plan) =
             one_write_fixture(&root, "records/operation.json", b"operation kind");
         assert_eq!(draft.delta, plan.canonical_delta);
@@ -3278,6 +4446,30 @@ mod tests {
             Err(RepositoryTxnError::CorruptPlan(error))
                 if error.contains("invalid internal operation kind")
         ));
+    }
+
+    #[test]
+    fn recovery_state_tokens_are_stable_and_progress_independent() {
+        assert_eq!(RecoveryState::Prepared.as_str(), "prepared");
+        assert_eq!(RecoveryState::Aborted.as_str(), "aborted");
+        assert_eq!(RecoveryState::Committed.as_str(), "committed");
+        assert_eq!(
+            RecoveryState::Installing {
+                installed: 3,
+                total: 7,
+            }
+            .as_str(),
+            "installing"
+        );
+        assert_eq!(RecoveryState::Installed.as_str(), "installed");
+        assert_eq!(RecoveryState::Completed.as_str(), "completed");
+        assert_eq!(
+            RecoveryState::CommittedConflict {
+                path: RepoPath::parse("records/conflict.json").unwrap(),
+            }
+            .as_str(),
+            "committed_conflict"
+        );
     }
 
     #[cfg(unix)]
@@ -3605,10 +4797,12 @@ mod tests {
         calls.lock().unwrap().clear();
         drop(transaction);
 
-        assert_eq!(
-            RepositoryTxn::recover(&root, &journals, &operation_id).unwrap(),
-            RecoveryOutcome::Completed
-        );
+        let recovery =
+            RepositoryTxn::recover(&root, &journals, &operation_id, TEST_REPOSITORY_ID).unwrap();
+        assert_eq!(recovery.operation_id, operation_id);
+        assert_eq!(recovery.prior_state, RecoveryState::Prepared);
+        assert_eq!(recovery.outcome, RecoveryOutcome::Completed);
+        assert!(recovery.next_operation_id.is_none());
         assert!(calls.lock().unwrap().is_empty());
         assert_eq!(
             fs::read(root.join("records/recover.json")).unwrap(),
@@ -3925,13 +5119,17 @@ mod tests {
         operation_id: &OperationId,
     ) {
         assert!(matches!(
-            RepositoryTxn::recover(root, journals, operation_id).unwrap(),
+            RepositoryTxn::recover(root, journals, operation_id, TEST_REPOSITORY_ID)
+                .unwrap()
+                .outcome,
             RecoveryOutcome::Completed | RecoveryOutcome::AlreadyCompleted
         ));
         assert_eq!(snapshot_files(root), expected_failpoint_postimage());
         let first_recovery = snapshot_files(root);
         assert_eq!(
-            RepositoryTxn::recover(root, journals, operation_id).unwrap(),
+            RepositoryTxn::recover(root, journals, operation_id, TEST_REPOSITORY_ID)
+                .unwrap()
+                .outcome,
             RecoveryOutcome::AlreadyCompleted
         );
         assert_eq!(
@@ -3988,10 +5186,7 @@ mod tests {
 
     #[test]
     fn open_if_present_returns_none_only_for_an_absent_journal() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("repository");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(&root).unwrap();
+        let (_temp, root, journals) = empty_test_repository();
         let operation_id = OperationId::derive("submission", b"absent request");
 
         assert!(
@@ -4003,10 +5198,7 @@ mod tests {
 
     #[test]
     fn open_if_present_exposes_request_identity_and_resumes_marker_window() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("repository");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(&root).unwrap();
+        let (_temp, root, journals) = empty_test_repository();
         let draft = DeltaDraft::prepare(
             &root,
             vec![PlannedWrite::write(
@@ -4205,6 +5397,78 @@ mod tests {
     }
 
     #[test]
+    fn nested_durable_maps_reject_unknown_fields_before_recovery() {
+        type Mutate = fn(&mut serde_json::Value);
+        let cases: [(&str, Mutate); 8] = [
+            ("repository binding", |journal| {
+                journal["plan"]["repository"]["unexpected"] = json!(true);
+            }),
+            ("input binding", |journal| {
+                journal["plan"]["read_set"][0]["unexpected"] = json!(true);
+            }),
+            ("canonical delta", |journal| {
+                journal["plan"]["canonical_delta"]["unexpected"] = json!(true);
+            }),
+            ("staged write", |journal| {
+                journal["plan"]["canonical_delta"]["writes"][0]["unexpected"] = json!(true);
+            }),
+            ("absent file state", |journal| {
+                journal["plan"]["canonical_delta"]["writes"][0]["preimage"]["unexpected"] =
+                    json!(true);
+            }),
+            ("file postimage state", |journal| {
+                journal["plan"]["canonical_delta"]["writes"][0]["postimage"]["unexpected"] =
+                    json!(true);
+            }),
+            ("journal blob reference", |journal| {
+                journal["plan"]["canonical_delta"]["writes"][0]["payload"]["unexpected"] =
+                    json!(true);
+            }),
+            ("prepared recovery state", |journal| {
+                journal["recovery"]["unexpected"] = json!(true);
+            }),
+        ];
+
+        for (label, mutate) in cases {
+            let (_temp, root, journals) = empty_test_repository();
+            let (operation_id, paths) = persist_marker_free_prepared_fixture(
+                &root,
+                &journals,
+                "records/nested-schema.json",
+                label.as_bytes(),
+            );
+            let mut journal: serde_json::Value = operation_journal::read_json(&paths.plan).unwrap();
+            mutate(&mut journal);
+            operation_journal::write_json(&paths.plan, &journal).unwrap();
+            let before = snapshot_files(&journals);
+
+            let error = RepositoryTxn::recover(&root, &journals, &operation_id, TEST_REPOSITORY_ID)
+                .expect_err("nested unknown field must fail closed");
+            assert!(
+                matches!(error, RepositoryTxnError::Journal(ref message) if message.contains("unknown field")),
+                "{label} was not rejected as a closed durable map: {error:?}"
+            );
+            assert_eq!(
+                snapshot_files(&journals),
+                before,
+                "{label} mutated journals"
+            );
+            assert!(!root.join("records/nested-schema.json").exists());
+        }
+
+        for recovery in [
+            json!({"state": "installing", "installed": 1, "total": 1, "unexpected": true}),
+            json!({
+                "state": "committed_conflict",
+                "path": "records/nested-schema.json",
+                "unexpected": true,
+            }),
+        ] {
+            assert!(serde_json::from_value::<RecoveryState>(recovery).is_err());
+        }
+    }
+
+    #[test]
     fn pre_marker_failpoints_leave_zero_repository_delta_and_retry_exactly() {
         let blob_count = 4;
         let mut prepare_failpoints = Vec::new();
@@ -4218,9 +5482,7 @@ mod tests {
         ]);
 
         for step in prepare_failpoints {
-            let temp = tempfile::tempdir().unwrap();
-            let root = temp.path().join("repository");
-            let journals = temp.path().join("journals");
+            let (_temp, root, journals) = empty_test_repository();
             initialize_failpoint_repository(&root);
             let before = snapshot_files(&root);
             let draft = DeltaDraft::prepare(&root, failpoint_writes()).unwrap();
@@ -4277,9 +5539,7 @@ mod tests {
             RepositoryTxnStep::BeforeAbortedJournalWrite,
             RepositoryTxnStep::AfterAbortedJournalWrite,
         ] {
-            let temp = tempfile::tempdir().unwrap();
-            let root = temp.path().join("repository");
-            let journals = temp.path().join("journals");
+            let (_temp, root, journals) = empty_test_repository();
             initialize_failpoint_repository(&root);
             let before = snapshot_files(&root);
             let identity = format!("abort {step:?}");
@@ -4328,9 +5588,7 @@ mod tests {
         // A safely injected marker-write error occurs before the atomic,
         // fsync-backed journal replacement. The old state is therefore a
         // complete Prepared journal with no marker and no repository delta.
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("repository");
-        let journals = temp.path().join("journals");
+        let (_temp, root, journals) = empty_test_repository();
         initialize_failpoint_repository(&root);
         let before = snapshot_files(&root);
         let draft = DeltaDraft::prepare(&root, failpoint_writes()).unwrap();
@@ -4343,8 +5601,10 @@ mod tests {
         assert!(!txn.paths.marker.exists());
         drop(txn);
         assert_eq!(
-            RepositoryTxn::recover(&root, &journals, &operation_id).unwrap(),
-            RecoveryOutcome::Prepared
+            RepositoryTxn::recover(&root, &journals, &operation_id, TEST_REPOSITORY_ID)
+                .unwrap()
+                .outcome,
+            RecoveryOutcome::AbortedPrepared
         );
         assert_eq!(snapshot_files(&root), before);
     }
@@ -4352,10 +5612,7 @@ mod tests {
     #[test]
     fn reused_operation_id_with_changed_request_is_rejected_after_abort_and_completion() {
         for terminal_state in [RecoveryState::Aborted, RecoveryState::Completed] {
-            let temp = tempfile::tempdir().unwrap();
-            let root = temp.path().join("repository");
-            let journals = temp.path().join("journals");
-            fs::create_dir_all(&root).unwrap();
+            let (_temp, root, journals) = empty_test_repository();
             let identity = format!("operation collision {terminal_state:?}");
             let original_draft = DeltaDraft::prepare(
                 &root,
@@ -4431,9 +5688,7 @@ mod tests {
         ]);
 
         for step in failpoints {
-            let temp = tempfile::tempdir().unwrap();
-            let root = temp.path().join("repository");
-            let journals = temp.path().join("journals");
+            let (_temp, root, journals) = empty_test_repository();
             initialize_failpoint_repository(&root);
             let draft = DeltaDraft::prepare(&root, failpoint_writes()).unwrap();
             assert!(draft.delta.writes().iter().any(|write| {
@@ -4491,9 +5746,7 @@ mod tests {
                 RepositoryTxnStep::BeforeCommittedConflictJournalWrite { index },
                 RepositoryTxnStep::AfterCommittedConflictJournalWrite { index },
             ] {
-                let temp = tempfile::tempdir().unwrap();
-                let root = temp.path().join("repository");
-                let journals = temp.path().join("journals");
+                let (_temp, root, journals) = empty_test_repository();
                 initialize_failpoint_repository(&root);
                 let draft = DeltaDraft::prepare(&root, failpoint_writes()).unwrap();
                 let conflicted_write = draft.delta.writes()[index].clone();
@@ -4516,7 +5769,7 @@ mod tests {
                 drop(txn);
 
                 assert!(matches!(
-                    RepositoryTxn::recover(&root, &journals, &operation_id),
+                    RepositoryTxn::recover(&root, &journals, &operation_id, TEST_REPOSITORY_ID),
                     Err(RepositoryTxnError::CommittedConflict { path, .. })
                         if path == conflicted_write.path
                 ));
@@ -4533,10 +5786,7 @@ mod tests {
 
     #[test]
     fn committed_install_is_idempotent_and_recovers_after_failpoint() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("repository");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(&root).unwrap();
+        let (_temp, root, journals) = empty_test_repository();
         let draft = DeltaDraft::prepare(
             &root,
             vec![
@@ -4565,10 +5815,16 @@ mod tests {
         ));
         drop(txn);
 
+        let recovery =
+            RepositoryTxn::recover(&root, &journals, &operation_id, TEST_REPOSITORY_ID).unwrap();
         assert_eq!(
-            RepositoryTxn::recover(&root, &journals, &operation_id).unwrap(),
-            RecoveryOutcome::Completed
+            recovery.prior_state,
+            RecoveryState::Installing {
+                installed: 1,
+                total: 2,
+            }
         );
+        assert_eq!(recovery.outcome, RecoveryOutcome::Completed);
         let reopened = RepositoryTxn::open(&root, &journals, &operation_id).unwrap();
         assert_eq!(reopened.recovery_state(), &RecoveryState::Completed);
         drop(reopened);
@@ -4581,7 +5837,9 @@ mod tests {
             b"repository"
         );
         assert_eq!(
-            RepositoryTxn::recover(&root, &journals, &operation_id).unwrap(),
+            RepositoryTxn::recover(&root, &journals, &operation_id, TEST_REPOSITORY_ID)
+                .unwrap()
+                .outcome,
             RecoveryOutcome::AlreadyCompleted,
             "replaying a completed transaction must remain idempotent"
         );
@@ -4589,10 +5847,7 @@ mod tests {
 
     #[test]
     fn completed_recovery_blob_retirement_preserves_plan_marker_and_replay() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("repository");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(&root).unwrap();
+        let (_temp, root, journals) = empty_test_repository();
         let draft = DeltaDraft::prepare(
             &root,
             vec![PlannedWrite::write(
@@ -4638,17 +5893,16 @@ mod tests {
         );
         drop(reopened);
         assert_eq!(
-            RepositoryTxn::recover(&root, &journals, &operation_id).unwrap(),
+            RepositoryTxn::recover(&root, &journals, &operation_id, TEST_REPOSITORY_ID)
+                .unwrap()
+                .outcome,
             RecoveryOutcome::AlreadyCompleted
         );
     }
 
     #[test]
     fn recovery_blobs_survive_a_crash_until_explicit_completed_retirement() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("repository");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(&root).unwrap();
+        let (_temp, root, journals) = empty_test_repository();
         let draft = DeltaDraft::prepare(
             &root,
             vec![PlannedWrite::write(
@@ -4684,7 +5938,9 @@ mod tests {
         drop(txn);
 
         assert_eq!(
-            RepositoryTxn::recover(&root, &journals, &operation_id).unwrap(),
+            RepositoryTxn::recover(&root, &journals, &operation_id, TEST_REPOSITORY_ID)
+                .unwrap()
+                .outcome,
             RecoveryOutcome::Completed
         );
         assert!(paths.blob(&blob).is_file());
@@ -4695,10 +5951,7 @@ mod tests {
 
     #[test]
     fn shared_blob_is_removed_only_after_every_referencing_journal_is_pruned() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("repository");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(&root).unwrap();
+        let (_temp, root, journals) = empty_test_repository();
 
         let first_draft = DeltaDraft::prepare(
             &root,
@@ -4765,10 +6018,7 @@ mod tests {
 
     #[test]
     fn incomplete_journal_is_a_repository_wide_recovery_barrier() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("repository");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(&root).unwrap();
+        let (_temp, root, journals) = empty_test_repository();
         let first_draft = DeltaDraft::prepare(
             &root,
             vec![
@@ -4808,7 +6058,7 @@ mod tests {
             } if operation_id == first_operation.as_str()
         ));
         assert!(matches!(
-            RepositoryTxn::verify_recovery_barrier_read_only(&root, &journals),
+            RepositoryTxn::verify_recovery_barrier(&root, &journals),
             Err(RepositoryTxnError::RecoveryRequired { operation_id, .. })
                 if operation_id == first_operation.as_str()
         ));
@@ -4830,20 +6080,217 @@ mod tests {
         ));
 
         assert_eq!(
-            RepositoryTxn::recover(&root, &journals, &first_operation).unwrap(),
+            RepositoryTxn::recover(&root, &journals, &first_operation, TEST_REPOSITORY_ID)
+                .unwrap()
+                .outcome,
             RecoveryOutcome::Completed
         );
         let barrier = RepositoryTxn::acquire_recovery_barrier(&root, &journals).unwrap();
         drop(barrier);
-        RepositoryTxn::verify_recovery_barrier_read_only(&root, &journals).unwrap();
+        RepositoryTxn::verify_recovery_barrier(&root, &journals).unwrap();
+    }
+
+    #[test]
+    fn recovery_barrier_diagnostic_is_read_only_even_when_blocked() {
+        let (_temp, root, journals) = empty_test_repository();
+        RepositoryTxn::verify_recovery_barrier(&root, &journals).unwrap();
+        assert!(!journals.exists());
+
+        let (operation_id, _) = persist_marker_free_prepared_fixture(
+            &root,
+            &journals,
+            "records/pending-diagnostic.json",
+            b"read-only recovery diagnostic",
+        );
+        let lock_dir = journals.join("repository-locks");
+        fs::remove_dir_all(&lock_dir).unwrap();
+        assert!(matches!(
+            RepositoryTxn::verify_recovery_barrier(&root, &journals),
+            Err(RepositoryTxnError::RecoveryRequired {
+                operation_id: blocked,
+                state: RecoveryState::Prepared,
+            }) if blocked == operation_id.as_str()
+        ));
+        assert!(
+            !lock_dir.exists(),
+            "a read-only diagnostic must not recreate the recovery lock"
+        );
+        assert!(!root.join("records/pending-diagnostic.json").exists());
+    }
+
+    #[test]
+    fn commit_marker_index_rejects_invalid_orphan_and_nonregular_semantic_entries() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("repository");
+        let journals = temp.path().join("journals");
+        let marker_dir = journals.join("repository/committed");
+        fs::create_dir_all(&root).unwrap();
+        fs::create_dir_all(&marker_dir).unwrap();
+
+        fs::write(
+            marker_dir.join(TEST_OWNED_ATOMIC_TEMP),
+            b"temporary residue",
+        )
+        .unwrap();
+        RepositoryTxn::verify_recovery_barrier(&root, &journals).unwrap();
+
+        let unowned_temp = marker_dir.join(".marker-write.tmp");
+        fs::write(&unowned_temp, b"unowned temporary residue").unwrap();
+        assert!(matches!(
+            RepositoryTxn::verify_recovery_barrier(&root, &journals),
+            Err(RepositoryTxnError::Journal(error))
+                if error.contains("unexpected repository commit-marker entry")
+        ));
+        fs::remove_file(&unowned_temp).unwrap();
+
+        let invalid = marker_dir.join("evil.json");
+        fs::write(&invalid, b"{}").unwrap();
+        assert!(matches!(
+            RepositoryTxn::verify_recovery_barrier(&root, &journals),
+            Err(RepositoryTxnError::InvalidOperationId(value)) if value == "evil"
+        ));
+        fs::remove_file(&invalid).unwrap();
+
+        let (draft, plan) = one_write_fixture(&root, "records/orphan.json", b"orphan marker");
+        assert_eq!(draft.delta, plan.canonical_delta);
+        let orphan_path = RepositoryTxnPaths::new(&journals, &plan.operation_id).marker;
+        operation_journal::write_json(&orphan_path, &CommitMarker::from_plan(&plan)).unwrap();
+        assert!(matches!(
+            RepositoryTxn::verify_recovery_barrier(&root, &journals),
+            Err(RepositoryTxnError::CorruptPlan(error))
+                if error.contains("has no matching durable plan")
+        ));
+
+        fs::remove_file(&orphan_path).unwrap();
+        fs::create_dir(&orphan_path).unwrap();
+        assert!(matches!(
+            RepositoryTxn::verify_recovery_barrier(&root, &journals),
+            Err(RepositoryTxnError::Journal(error))
+                if error.contains("not a regular non-symlink file")
+        ));
+        fs::remove_dir(&orphan_path).unwrap();
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::symlink;
+
+            let outside = temp.path().join("outside-marker.json");
+            fs::write(&outside, b"{}").unwrap();
+            symlink(&outside, &orphan_path).unwrap();
+            assert!(matches!(
+                RepositoryTxn::verify_recovery_barrier(&root, &journals),
+                Err(RepositoryTxnError::Journal(error))
+                    if error.contains("not a regular non-symlink file")
+            ));
+        }
+    }
+
+    #[test]
+    fn private_recovery_inventory_rejects_unowned_aliases_and_kind_substitution() {
+        fn assert_rejected(label: &str, mutate: impl FnOnce(&Path, &Path)) -> RepositoryTxnError {
+            let (_temp, root, journals) = empty_test_repository();
+            drop(RepositoryTxn::acquire_recovery_barrier(&root, &journals).unwrap());
+            mutate(&root, &journals);
+            let error = RepositoryTxn::verify_recovery_barrier(&root, &journals)
+                .expect_err("hostile private residue must fail closed");
+            assert!(
+                !matches!(
+                    error,
+                    RepositoryTxnError::Busy | RepositoryTxnError::RecoveryRequired { .. }
+                ),
+                "{label} produced an unsafe operational hint: {error:?}"
+            );
+            error
+        }
+
+        for name in [
+            "arbitrary-residue",
+            ".journal-write.tmp",
+            ".Vela-journal-tmp-abcdefghijkl",
+            ".vela-journal-tmp-abcdefghijké",
+            ".vela-journal-tmp-abcdefghijkl.json",
+        ] {
+            let error = assert_rejected(name, |_, journals| {
+                let repository = journals.join("repository");
+                fs::create_dir_all(&repository).unwrap();
+                fs::write(repository.join(name), b"unowned").unwrap();
+            });
+            assert!(matches!(error, RepositoryTxnError::Journal(_)));
+        }
+
+        for name in ["Repository", "repository-locks-copy"] {
+            let error = assert_rejected(name, |_, journals| {
+                fs::create_dir(journals.join(name)).unwrap();
+            });
+            assert!(matches!(error, RepositoryTxnError::Journal(_)));
+        }
+
+        let error = assert_rejected("case-aliased blob directory", |_, journals| {
+            fs::create_dir_all(journals.join("repository/Blobs")).unwrap();
+        });
+        assert!(matches!(error, RepositoryTxnError::Journal(_)));
+
+        let error = assert_rejected("foreign repository lock", |_, journals| {
+            fs::write(journals.join("repository-locks/foreign.lock"), b"").unwrap();
+        });
+        assert!(matches!(error, RepositoryTxnError::Journal(_)));
+
+        let error = assert_rejected("nonempty repository lock", |root, journals| {
+            let canonical_root = canonical_repository_root(root).unwrap();
+            fs::write(
+                RepositoryWriteLock::path(journals, &canonical_root),
+                b"not a lock file",
+            )
+            .unwrap();
+        });
+        assert!(matches!(error, RepositoryTxnError::Journal(_)));
+
+        let error = assert_rejected("malformed unreferenced blob", |_, journals| {
+            let blob_dir = journals.join("repository/blobs");
+            fs::create_dir_all(&blob_dir).unwrap();
+            let bytes = b"unreferenced malformed blob";
+            let digest = ContentDigest::hash(bytes);
+            fs::write(
+                blob_dir.join(format!("{}.json", digest.file_stem())),
+                serde_json::to_vec(&json!({
+                    "schema": REPOSITORY_TXN_BLOB_SCHEMA,
+                    "digest": digest.as_str(),
+                    "size": bytes.len(),
+                    "bytes": bytes,
+                    "unexpected": true,
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+        });
+        assert!(matches!(error, RepositoryTxnError::Journal(_)));
+
+        let error = assert_rejected("owned-temp kind substitution", |_, journals| {
+            fs::create_dir_all(
+                journals
+                    .join("repository/blobs")
+                    .join(TEST_OWNED_ATOMIC_TEMP),
+            )
+            .unwrap();
+        });
+        assert!(matches!(error, RepositoryTxnError::Journal(_)));
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::symlink;
+
+            let error = assert_rejected("owned-temp symlink substitution", |_, journals| {
+                let blob_dir = journals.join("repository/blobs");
+                fs::create_dir_all(&blob_dir).unwrap();
+                symlink("outside", blob_dir.join(TEST_OWNED_ATOMIC_TEMP)).unwrap();
+            });
+            assert!(matches!(error, RepositoryTxnError::Journal(_)));
+        }
     }
 
     #[test]
     fn completed_journal_fails_closed_when_a_postimage_is_missing() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("repository");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(&root).unwrap();
+        let (_temp, root, journals) = empty_test_repository();
         let draft = DeltaDraft::prepare(
             &root,
             vec![PlannedWrite::write(
@@ -4919,10 +6366,7 @@ mod tests {
 
     #[test]
     fn completed_history_proves_multi_step_superseded_postimages_out_of_order() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("repository");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(&root).unwrap();
+        let (_temp, root, journals) = empty_test_repository();
 
         let first_draft = DeltaDraft::prepare(
             &root,
@@ -4986,10 +6430,7 @@ mod tests {
 
     #[test]
     fn completed_history_rejects_corrupt_marker_and_blob() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("repository");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(&root).unwrap();
+        let (_temp, root, journals) = empty_test_repository();
         let draft = DeltaDraft::prepare(
             &root,
             vec![PlannedWrite::write(
@@ -5044,10 +6485,7 @@ mod tests {
 
     #[test]
     fn committed_install_never_overwrites_post_marker_drift() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("repository");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(&root).unwrap();
+        let (_temp, root, journals) = empty_test_repository();
         fs::write(root.join("state.json"), b"before").unwrap();
         let draft = DeltaDraft::prepare(
             &root,
@@ -5117,7 +6555,9 @@ mod tests {
         // `validate_target` documents that remaining permission boundary.
         fs::remove_file(root.join("records")).unwrap();
         assert_eq!(
-            RepositoryTxn::recover(&root, &journals, &operation_id).unwrap(),
+            RepositoryTxn::recover(&root, &journals, &operation_id, TEST_REPOSITORY_ID)
+                .unwrap()
+                .outcome,
             RecoveryOutcome::Completed
         );
         assert_eq!(
@@ -5128,10 +6568,7 @@ mod tests {
 
     #[test]
     fn recovery_before_marker_has_zero_repository_delta() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("repository");
-        let journals = temp.path().join("journals");
-        fs::create_dir_all(&root).unwrap();
+        let (_temp, root, journals) = empty_test_repository();
         let draft = DeltaDraft::prepare(
             &root,
             vec![PlannedWrite::write(
@@ -5146,11 +6583,1061 @@ mod tests {
         let txn = RepositoryTxn::prepare(&root, &journals, plan, draft).unwrap();
         drop(txn);
 
-        assert_eq!(
-            RepositoryTxn::recover(&root, &journals, &operation_id).unwrap(),
-            RecoveryOutcome::Prepared
-        );
+        let result =
+            RepositoryTxn::recover(&root, &journals, &operation_id, TEST_REPOSITORY_ID).unwrap();
+        assert_eq!(result.operation_id, operation_id);
+        assert_eq!(result.repository_id, "33333333-3333-4333-8333-333333333333");
+        assert_eq!(result.prior_state, RecoveryState::Prepared);
+        assert_eq!(result.outcome, RecoveryOutcome::AbortedPrepared);
+        assert_eq!(result.next_operation_id, None);
         assert!(!root.join("pending.json").exists());
+        assert_eq!(
+            RepositoryTxn::recover(&root, &journals, &operation_id, TEST_REPOSITORY_ID)
+                .unwrap()
+                .outcome,
+            RecoveryOutcome::AlreadyAborted
+        );
+    }
+
+    #[test]
+    fn durable_recovery_revalidates_every_path_before_blob_lookup_or_install() {
+        for hostile_path in [
+            "../outside-sentinel",
+            "/absolute-sentinel",
+            ".git/config",
+            "records/cafe\u{301}.json",
+            "records/control\n.json",
+        ] {
+            let temp = tempfile::tempdir().unwrap();
+            let root = temp.path().join("repository");
+            let journals = temp.path().join("journals");
+            fs::create_dir_all(root.join(".git")).unwrap();
+            let outside = temp.path().join("outside-sentinel");
+            fs::write(&outside, b"outside-safe").unwrap();
+            fs::write(root.join(".git/config"), b"git-safe").unwrap();
+
+            let (operation_id, paths) = persist_marker_free_prepared_fixture(
+                &root,
+                &journals,
+                "records/original.json",
+                hostile_path.as_bytes(),
+            );
+            let mut journal: RepositoryTxnJournal =
+                operation_journal::read_json(&paths.plan).unwrap();
+            let durable_path = if hostile_path == "/absolute-sentinel" {
+                temp.path()
+                    .join("absolute-sentinel")
+                    .to_string_lossy()
+                    .into_owned()
+            } else {
+                hostile_path.to_string()
+            };
+            journal.plan.canonical_delta.writes[0].path = RepoPath(durable_path.clone());
+            journal.plan.canonical_delta.root =
+                CanonicalDelta::compute_root(&journal.plan.canonical_delta.writes).unwrap();
+            journal.plan.root = journal.plan.compute_root().unwrap();
+            operation_journal::write_json(&paths.plan, &journal).unwrap();
+            operation_journal::write_json(&paths.marker, &CommitMarker::from_plan(&journal.plan))
+                .unwrap();
+
+            assert!(matches!(
+                RepositoryTxn::recover(&root, &journals, &operation_id, TEST_REPOSITORY_ID),
+                Err(RepositoryTxnError::InvalidPath { path, .. }) if path == durable_path
+            ));
+            assert_eq!(fs::read(&outside).unwrap(), b"outside-safe");
+            assert_eq!(fs::read(root.join(".git/config")).unwrap(), b"git-safe");
+            assert!(!temp.path().join("absolute-sentinel").exists());
+            assert!(!root.join("records/original.json").exists());
+        }
+    }
+
+    #[test]
+    fn durable_recovery_rejects_invalid_plan_marker_and_blob_digests_without_panicking() {
+        let invalid = ContentDigest("not-a-content-digest".into());
+
+        {
+            let (_temp, root, journals) = empty_test_repository();
+            let (operation_id, paths) = persist_marker_free_prepared_fixture(
+                &root,
+                &journals,
+                "records/invalid-postimage-digest.json",
+                b"invalid postimage digest",
+            );
+            let mut journal: RepositoryTxnJournal =
+                operation_journal::read_json(&paths.plan).unwrap();
+            let write = &mut journal.plan.canonical_delta.writes[0];
+            if let FileState::File { digest, .. } = &mut write.postimage {
+                *digest = invalid.clone();
+            }
+            write.payload.as_mut().unwrap().digest = invalid.clone();
+            journal.plan.canonical_delta.root =
+                CanonicalDelta::compute_root(&journal.plan.canonical_delta.writes).unwrap();
+            journal.plan.root = journal.plan.compute_root().unwrap();
+            operation_journal::write_json(&paths.plan, &journal).unwrap();
+            operation_journal::write_json(&paths.marker, &CommitMarker::from_plan(&journal.plan))
+                .unwrap();
+            assert!(matches!(
+                RepositoryTxn::recover(&root, &journals, &operation_id, TEST_REPOSITORY_ID),
+                Err(RepositoryTxnError::InvalidDigest(value)) if value == invalid.as_str()
+            ));
+        }
+
+        {
+            let (_temp, root, journals) = empty_test_repository();
+            let (operation_id, paths) = persist_marker_free_prepared_fixture(
+                &root,
+                &journals,
+                "records/invalid-request-digest.json",
+                b"invalid request digest",
+            );
+            let mut journal: RepositoryTxnJournal =
+                operation_journal::read_json(&paths.plan).unwrap();
+            journal.plan.request_root = invalid.clone();
+            journal.plan.root = journal.plan.compute_root().unwrap();
+            operation_journal::write_json(&paths.plan, &journal).unwrap();
+            assert!(matches!(
+                RepositoryTxn::recover(&root, &journals, &operation_id, TEST_REPOSITORY_ID),
+                Err(RepositoryTxnError::InvalidDigest(value)) if value == invalid.as_str()
+            ));
+        }
+
+        {
+            let (_temp, root, journals) = empty_test_repository();
+            let (operation_id, paths) = persist_marker_free_prepared_fixture(
+                &root,
+                &journals,
+                "records/invalid-marker-digest.json",
+                b"invalid marker digest",
+            );
+            let journal: RepositoryTxnJournal = operation_journal::read_json(&paths.plan).unwrap();
+            let mut marker = CommitMarker::from_plan(&journal.plan);
+            marker.plan_root = invalid.clone();
+            operation_journal::write_json(&paths.marker, &marker).unwrap();
+            assert!(matches!(
+                RepositoryTxn::recover(&root, &journals, &operation_id, TEST_REPOSITORY_ID),
+                Err(RepositoryTxnError::InvalidDigest(value)) if value == invalid.as_str()
+            ));
+        }
+
+        {
+            let (_temp, root, journals) = empty_test_repository();
+            let (draft, plan) = one_write_fixture(
+                &root,
+                "records/invalid-blob-digest.json",
+                b"invalid blob digest",
+            );
+            let operation_id = plan.operation_id.clone();
+            let mut txn = RepositoryTxn::prepare(&root, &journals, plan, draft).unwrap();
+            txn.mark_committed().unwrap();
+            let paths = txn.paths.clone();
+            let blob_ref = txn.journal.plan.canonical_delta.writes[0]
+                .payload
+                .clone()
+                .unwrap();
+            drop(txn);
+            let blob_path = paths.blob(&blob_ref.digest);
+            let mut blob: BlobJournal = operation_journal::read_json(&blob_path).unwrap();
+            blob.digest = invalid.clone();
+            operation_journal::write_json(&blob_path, &blob).unwrap();
+            assert!(matches!(
+                RepositoryTxn::recover(&root, &journals, &operation_id, TEST_REPOSITORY_ID),
+                Err(RepositoryTxnError::InvalidDigest(value)) if value == invalid.as_str()
+            ));
+        }
+    }
+
+    #[test]
+    fn durable_recovery_rejects_impossible_progress_before_repository_mutation() {
+        let (_temp, root, journals) = empty_test_repository();
+        initialize_failpoint_repository(&root);
+        let draft = DeltaDraft::prepare(&root, failpoint_writes()).unwrap();
+        let plan = fixture_plan(&root, &draft, b"invalid progress shape");
+        let operation_id = plan.operation_id.clone();
+        let mut txn = RepositoryTxn::prepare(&root, &journals, plan, draft).unwrap();
+        txn.mark_committed().unwrap();
+        let paths = txn.paths.clone();
+        drop(txn);
+        let before = snapshot_files(&root);
+        let original: RepositoryTxnJournal = operation_journal::read_json(&paths.plan).unwrap();
+
+        for recovery in [
+            RecoveryState::Installing {
+                installed: 0,
+                total: original.plan.canonical_delta.writes().len(),
+            },
+            RecoveryState::Installing {
+                installed: 1,
+                total: original.plan.canonical_delta.writes().len() + 1,
+            },
+            RecoveryState::Installing {
+                installed: original.plan.canonical_delta.writes().len() + 1,
+                total: original.plan.canonical_delta.writes().len(),
+            },
+            RecoveryState::CommittedConflict {
+                path: RepoPath("../outside".into()),
+            },
+        ] {
+            let mut journal = original.clone();
+            journal.recovery = recovery;
+            operation_journal::write_json(&paths.plan, &journal).unwrap();
+            assert!(matches!(
+                RepositoryTxn::recover(&root, &journals, &operation_id, TEST_REPOSITORY_ID),
+                Err(RepositoryTxnError::CorruptPlan(_) | RepositoryTxnError::InvalidPath { .. })
+            ));
+            assert_eq!(snapshot_files(&root), before);
+        }
+    }
+
+    #[test]
+    fn durable_recovery_rejects_rolled_back_or_out_of_order_installation() {
+        {
+            let (_temp, root, journals) = empty_test_repository();
+            let (draft, plan) =
+                one_write_fixture(&root, "records/installed.json", b"installed rollback");
+            let operation_id = plan.operation_id.clone();
+            let mut txn = RepositoryTxn::prepare(&root, &journals, plan, draft).unwrap();
+            txn.mark_committed().unwrap();
+            txn.install().unwrap();
+            assert_eq!(txn.recovery_state(), &RecoveryState::Installed);
+            fs::remove_file(root.join("records/installed.json")).unwrap();
+            drop(txn);
+
+            assert!(matches!(
+                RepositoryTxn::recover(&root, &journals, &operation_id, TEST_REPOSITORY_ID),
+                Err(RepositoryTxnError::CompletedPostimageMismatch { path, .. })
+                    if path.as_str() == "records/installed.json"
+            ));
+            assert!(!root.join("records/installed.json").exists());
+        }
+
+        {
+            let (_temp, root, journals) = empty_test_repository();
+            initialize_failpoint_repository(&root);
+            let draft = DeltaDraft::prepare(&root, failpoint_writes()).unwrap();
+            let plan = fixture_plan(&root, &draft, b"install prefix rollback");
+            let operation_id = plan.operation_id.clone();
+            let mut txn = RepositoryTxn::prepare(&root, &journals, plan, draft).unwrap();
+            txn.mark_committed().unwrap();
+            assert_injected(
+                txn.install_at_failpoint(RepositoryTxnStep::AfterInstallingJournalWrite {
+                    index: 0,
+                }),
+                RepositoryTxnStep::AfterInstallingJournalWrite { index: 0 },
+            );
+            let first = txn.journal.plan.canonical_delta.writes()[0].clone();
+            match first.preimage {
+                FileState::Absent => {
+                    let _ = fs::remove_file(first.path.target(&root).unwrap());
+                }
+                FileState::File { .. } => panic!("fixture first preimage must be absent"),
+            }
+            drop(txn);
+            assert!(matches!(
+                RepositoryTxn::recover(&root, &journals, &operation_id, TEST_REPOSITORY_ID),
+                Err(RepositoryTxnError::CorruptPlan(error))
+                    if error.contains("impossible durable recovery layout")
+            ));
+        }
+
+        {
+            let (_temp, root, journals) = empty_test_repository();
+            initialize_failpoint_repository(&root);
+            let draft = DeltaDraft::prepare(&root, failpoint_writes()).unwrap();
+            let plan = fixture_plan(&root, &draft, b"out of order postimage");
+            let operation_id = plan.operation_id.clone();
+            let mut txn = RepositoryTxn::prepare(&root, &journals, plan, draft).unwrap();
+            txn.mark_committed().unwrap();
+            assert_injected(
+                txn.install_at_failpoint(RepositoryTxnStep::AfterInstallingJournalWrite {
+                    index: 0,
+                }),
+                RepositoryTxnStep::AfterInstallingJournalWrite { index: 0 },
+            );
+            let later = txn.journal.plan.canonical_delta.writes()[2].clone();
+            txn.install_write(&later).unwrap();
+            drop(txn);
+            assert!(matches!(
+                RepositoryTxn::recover(&root, &journals, &operation_id, TEST_REPOSITORY_ID),
+                Err(RepositoryTxnError::CorruptPlan(error))
+                    if error.contains("postimage") && error.contains("preimage hole")
+            ));
+            assert_eq!(
+                inspect_file_state(&root, &later.path).unwrap(),
+                later.postimage
+            );
+        }
+    }
+
+    #[test]
+    fn recovery_conflict_is_typed_and_never_overwrites_third_party_drift() {
+        let (_temp, root, journals) = empty_test_repository();
+        initialize_failpoint_repository(&root);
+        let draft = DeltaDraft::prepare(&root, failpoint_writes()).unwrap();
+        let plan = fixture_plan(&root, &draft, b"later recovery conflict");
+        let operation_id = plan.operation_id.clone();
+        let mut txn = RepositoryTxn::prepare(&root, &journals, plan, draft).unwrap();
+        txn.mark_committed().unwrap();
+        let conflicted = txn.journal.plan.canonical_delta.writes()[2].clone();
+        let target = conflicted.path.target(&root).unwrap();
+        fs::create_dir_all(target.parent().unwrap()).unwrap();
+        fs::write(&target, b"third-party drift").unwrap();
+        drop(txn);
+
+        assert!(matches!(
+            RepositoryTxn::recover(&root, &journals, &operation_id, TEST_REPOSITORY_ID),
+            Err(RepositoryTxnError::CommittedConflict { path, .. }) if path == conflicted.path
+        ));
+        assert_eq!(fs::read(&target).unwrap(), b"third-party drift");
+        assert!(!root.join("records/evidence.json").exists());
+    }
+
+    #[test]
+    fn barrier_diagnostic_validates_the_full_set_before_emitting_an_exact_hint() {
+        {
+            let (_temp, root, journals) = empty_test_repository();
+            let (_, paths) = persist_marker_free_prepared_fixture(
+                &root,
+                &journals,
+                "records/malformed-barrier.json",
+                b"malformed barrier marker",
+            );
+            fs::create_dir_all(paths.marker.parent().unwrap()).unwrap();
+            fs::write(&paths.marker, b"{").unwrap();
+            assert!(matches!(
+                RepositoryTxn::verify_recovery_barrier(&root, &journals),
+                Err(RepositoryTxnError::Journal(_))
+            ));
+        }
+
+        {
+            let (_temp, root, journals) = empty_test_repository();
+            let (_, paths) = persist_marker_free_prepared_fixture(
+                &root,
+                &journals,
+                "records/missing-blob-barrier.json",
+                b"missing barrier blob",
+            );
+            let journal: RepositoryTxnJournal = operation_journal::read_json(&paths.plan).unwrap();
+            let digest = &journal.plan.canonical_delta.writes()[0]
+                .payload
+                .as_ref()
+                .unwrap()
+                .digest;
+            fs::remove_file(paths.blob(digest)).unwrap();
+            assert!(matches!(
+                RepositoryTxn::verify_recovery_barrier(&root, &journals),
+                Err(RepositoryTxnError::MissingBlob(actual)) if actual == *digest
+            ));
+        }
+
+        {
+            let (_temp, root, journals) = empty_test_repository();
+            let (first, first_paths) = persist_marker_free_prepared_fixture(
+                &root,
+                &journals,
+                "records/first-barrier.json",
+                b"first barrier",
+            );
+            let hidden = _temp.path().join("first-barrier-hidden.json");
+            fs::rename(&first_paths.plan, &hidden).unwrap();
+            let (second, _) = persist_marker_free_prepared_fixture(
+                &root,
+                &journals,
+                "records/second-barrier.json",
+                b"second barrier",
+            );
+            fs::rename(&hidden, &first_paths.plan).unwrap();
+            let error = RepositoryTxn::verify_recovery_barrier(&root, &journals).unwrap_err();
+            assert!(matches!(
+                error,
+                RepositoryTxnError::MultiplePendingTransactions { operation_ids }
+                    if operation_ids == {
+                        let mut expected = vec![
+                            first.as_str().to_string(),
+                            second.as_str().to_string(),
+                        ];
+                        expected.sort();
+                        expected
+                    }
+            ));
+        }
+    }
+
+    #[test]
+    fn barrier_diagnostic_holds_an_existing_lock_and_ignores_atomic_temp_residue() {
+        let (_temp, root, journals) = empty_test_repository();
+        let (draft, plan) = one_write_fixture(&root, "records/live-writer.json", b"live writer");
+        let operation_id = plan.operation_id.clone();
+        let txn = RepositoryTxn::prepare(&root, &journals, plan, draft).unwrap();
+
+        assert!(matches!(
+            RepositoryTxn::verify_recovery_barrier(&root, &journals),
+            Err(RepositoryTxnError::Busy)
+        ));
+        drop(txn);
+
+        fs::write(
+            journals.join("repository").join(TEST_OWNED_ATOMIC_TEMP),
+            b"orphaned atomic temporary file",
+        )
+        .unwrap();
+        assert!(matches!(
+            RepositoryTxn::verify_recovery_barrier(&root, &journals),
+            Err(RepositoryTxnError::RecoveryRequired {
+                operation_id: blocked,
+                state: RecoveryState::Prepared,
+            }) if blocked == operation_id.as_str()
+        ));
+    }
+
+    #[test]
+    fn completed_history_is_checked_before_terminal_or_incomplete_recovery_mutates() {
+        let (_temp, root, journals) = empty_test_repository();
+        let (completed_draft, completed_plan) = one_write_fixture(
+            &root,
+            "records/completed-history.json",
+            b"completed history",
+        );
+        let completed_operation = completed_plan.operation_id.clone();
+        let mut completed =
+            RepositoryTxn::prepare(&root, &journals, completed_plan, completed_draft).unwrap();
+        completed.mark_committed().unwrap();
+        completed.install().unwrap();
+        completed.complete().unwrap();
+        drop(completed);
+
+        let (pending_operation, pending_paths) = persist_marker_free_prepared_fixture(
+            &root,
+            &journals,
+            "records/pending-history.json",
+            b"pending history",
+        );
+        fs::remove_file(root.join("records/completed-history.json")).unwrap();
+
+        assert!(matches!(
+            RepositoryTxn::recover(&root, &journals, &pending_operation, TEST_REPOSITORY_ID),
+            Err(RepositoryTxnError::CompletedPostimageMismatch { .. })
+        ));
+        let pending: RepositoryTxnJournal =
+            operation_journal::read_json(&pending_paths.plan).unwrap();
+        assert_eq!(pending.recovery, RecoveryState::Prepared);
+        assert!(!root.join("records/pending-history.json").exists());
+
+        assert!(matches!(
+            RepositoryTxn::recover(&root, &journals, &completed_operation, TEST_REPOSITORY_ID),
+            Err(RepositoryTxnError::CompletedPostimageMismatch { .. })
+        ));
+    }
+
+    #[test]
+    fn recovery_binds_the_caller_retained_repository_identity_under_lock() {
+        let (_temp, root, journals) = empty_test_repository();
+        let (operation_id, paths) = persist_marker_free_prepared_fixture(
+            &root,
+            &journals,
+            "records/identity-bound.json",
+            b"identity-bound recovery",
+        );
+        let expected = "33333333-3333-4333-8333-333333333333";
+        assert!(matches!(
+            RepositoryTxn::recover(&root, &journals, &operation_id, "different-repository"),
+            Err(RepositoryTxnError::RepositoryIdentityMismatch {
+                expected: retained,
+                actual,
+            }) if retained == "different-repository" && actual == expected
+        ));
+        let journal: RepositoryTxnJournal = operation_journal::read_json(&paths.plan).unwrap();
+        assert_eq!(journal.recovery, RecoveryState::Prepared);
+        assert!(!root.join("records/identity-bound.json").exists());
+
+        assert_eq!(
+            RepositoryTxn::recover(&root, &journals, &operation_id, expected)
+                .unwrap()
+                .outcome,
+            RecoveryOutcome::AbortedPrepared
+        );
+    }
+
+    #[test]
+    fn recovery_inventory_rejects_mixed_repository_identities_before_mutation() {
+        const CURRENT_ID: &str = "33333333-3333-4333-8333-333333333333";
+        const FOREIGN_ID: &str = "44444444-4444-4444-8444-444444444444";
+
+        {
+            let (_temp, root, journals) = empty_test_repository();
+            let (foreign_draft, foreign_plan) =
+                one_write_fixture(&root, "records/foreign-terminal.json", b"foreign terminal");
+            let mut foreign =
+                RepositoryTxn::prepare(&root, &journals, foreign_plan, foreign_draft).unwrap();
+            foreign.mark_committed().unwrap();
+            foreign.install().unwrap();
+            foreign.complete().unwrap();
+            let foreign_paths = foreign.paths.clone();
+            drop(foreign);
+            let mut foreign_journal: RepositoryTxnJournal =
+                operation_journal::read_json(&foreign_paths.plan).unwrap();
+            foreign_journal.plan.repository.repository_id = FOREIGN_ID.into();
+            foreign_journal.plan.root = foreign_journal.plan.compute_root().unwrap();
+            operation_journal::write_json(&foreign_paths.plan, &foreign_journal).unwrap();
+            operation_journal::write_json(
+                &foreign_paths.marker,
+                &CommitMarker::from_plan(&foreign_journal.plan),
+            )
+            .unwrap();
+
+            let (pending, pending_paths) = persist_marker_free_prepared_fixture(
+                &root,
+                &journals,
+                "records/current-pending.json",
+                b"current pending",
+            );
+            assert!(matches!(
+                RepositoryTxn::verify_recovery_barrier(&root, &journals),
+                Err(RepositoryTxnError::MixedRepositoryIdentities { .. })
+            ));
+            assert!(matches!(
+                RepositoryTxn::recover(&root, &journals, &pending, CURRENT_ID),
+                Err(RepositoryTxnError::MixedRepositoryIdentities { repository_ids })
+                    if repository_ids == [CURRENT_ID, FOREIGN_ID]
+            ));
+            let pending_journal: RepositoryTxnJournal =
+                operation_journal::read_json(&pending_paths.plan).unwrap();
+            assert_eq!(pending_journal.recovery, RecoveryState::Prepared);
+            assert!(!root.join("records/current-pending.json").exists());
+        }
+
+        {
+            let (_temp, root, journals) = empty_test_repository();
+            let (selected_draft, selected_plan) =
+                one_write_fixture(&root, "records/current-terminal.json", b"current terminal");
+            let selected_operation = selected_plan.operation_id.clone();
+            let mut selected =
+                RepositoryTxn::prepare(&root, &journals, selected_plan, selected_draft).unwrap();
+            selected.mark_committed().unwrap();
+            selected.install().unwrap();
+            selected.complete().unwrap();
+            drop(selected);
+
+            let (_, foreign_paths) = persist_marker_free_prepared_fixture(
+                &root,
+                &journals,
+                "records/foreign-pending.json",
+                b"foreign pending",
+            );
+            let mut foreign_journal: RepositoryTxnJournal =
+                operation_journal::read_json(&foreign_paths.plan).unwrap();
+            foreign_journal.plan.repository.repository_id = FOREIGN_ID.into();
+            foreign_journal.plan.root = foreign_journal.plan.compute_root().unwrap();
+            operation_journal::write_json(&foreign_paths.plan, &foreign_journal).unwrap();
+
+            assert!(matches!(
+                RepositoryTxn::recover(
+                    &root,
+                    &journals,
+                    &selected_operation,
+                    CURRENT_ID,
+                ),
+                Err(RepositoryTxnError::MixedRepositoryIdentities { repository_ids })
+                    if repository_ids == [CURRENT_ID, FOREIGN_ID]
+            ));
+            assert!(!root.join("records/foreign-pending.json").exists());
+        }
+    }
+
+    #[test]
+    fn recovery_failpoint_seam_reuses_the_production_engine_and_normal_retry() {
+        let (_temp, root, journals) = empty_test_repository();
+        let (draft, plan) = one_write_fixture(
+            &root,
+            "records/recovery-interruption.json",
+            b"recovery interruption",
+        );
+        let operation_id = plan.operation_id.clone();
+        let repository_id = plan.repository.repository_id().to_string();
+        let mut txn = RepositoryTxn::prepare(&root, &journals, plan, draft).unwrap();
+        txn.mark_committed().unwrap();
+        drop(txn);
+
+        assert!(matches!(
+            RepositoryTxn::recover_at_failpoint(
+                &root,
+                &journals,
+                &operation_id,
+                &repository_id,
+                RepositoryTxnStep::AfterInstalledJournalWrite,
+            ),
+            Err(RepositoryTxnError::InjectedFailure {
+                step: RepositoryTxnStep::AfterInstalledJournalWrite,
+            })
+        ));
+        let interrupted: RepositoryTxnJournal =
+            operation_journal::read_json(&RepositoryTxnPaths::new(&journals, &operation_id).plan)
+                .unwrap();
+        assert_eq!(interrupted.recovery, RecoveryState::Installed);
+        assert_eq!(
+            fs::read(root.join("records/recovery-interruption.json")).unwrap(),
+            b"authorized postimage"
+        );
+
+        assert_eq!(
+            RepositoryTxn::recover(&root, &journals, &operation_id, &repository_id,)
+                .unwrap()
+                .outcome,
+            RecoveryOutcome::Completed
+        );
+    }
+
+    #[test]
+    fn completed_operation_proof_is_locked_exact_and_read_only() {
+        let (_temp, root, journals) = empty_test_repository();
+        let (draft, plan) =
+            one_write_fixture(&root, "records/completed-proof.json", b"completed proof");
+        let expected_delta = draft.delta.clone();
+        let operation_id = plan.operation_id.clone();
+        let repository_id = plan.repository.repository_id.clone();
+        let kind = plan.kind.clone();
+        let request_root = plan.request_root.clone();
+        let fixed_time = plan.fixed_time.clone();
+        let read_set = plan.read_set.clone();
+        let result = plan.result.clone();
+        let mut txn = RepositoryTxn::prepare(&root, &journals, plan, draft).unwrap();
+        txn.mark_committed().unwrap();
+        txn.install().unwrap();
+        txn.complete().unwrap();
+        let paths = txn.paths.clone();
+        let referenced_blob = txn
+            .plan()
+            .canonical_delta
+            .writes()
+            .first()
+            .and_then(|write| write.payload.as_ref())
+            .map(|blob| paths.blob(&blob.digest))
+            .unwrap();
+        drop(txn);
+
+        let stale_bytes = b"valid unreferenced recovery blob".to_vec();
+        let stale_digest = ContentDigest::hash(&stale_bytes);
+        let stale_blob = BlobJournal {
+            schema: REPOSITORY_TXN_BLOB_SCHEMA.to_string(),
+            digest: stale_digest.clone(),
+            size: stale_bytes.len() as u64,
+            bytes: stale_bytes,
+        };
+        let stale_blob_path = paths.blob(&stale_digest);
+        operation_journal::write_json(&stale_blob_path, &stale_blob).unwrap();
+        let repository_temp = journals.join("repository").join(TEST_OWNED_ATOMIC_TEMP);
+        let blob_temp = paths.blob_dir.join(TEST_OWNED_ATOMIC_TEMP);
+        let marker_temp = paths.marker.parent().unwrap().join(TEST_OWNED_ATOMIC_TEMP);
+        for temp in [&repository_temp, &blob_temp, &marker_temp] {
+            fs::write(temp, b"owned atomic-write residue").unwrap();
+        }
+
+        let expected = CompletedOperationExpectation {
+            repository_id: &repository_id,
+            kind: &kind,
+            request_root: &request_root,
+            fixed_time: &fixed_time,
+            result: &result,
+        };
+        let before = snapshot_files(&journals);
+        let verified =
+            RepositoryTxn::verify_completed_operation(&root, &journals, &operation_id, &expected)
+                .unwrap();
+        assert_eq!(verified.canonical_delta(), &expected_delta);
+        assert_eq!(verified.read_set(), read_set.as_slice());
+        assert_ne!(verified.read_set(), &[]);
+        let canonical_root = canonical_repository_root(&root).unwrap();
+        let lock_path = RepositoryWriteLock::path(&journals, &canonical_root);
+        let relative = |path: &Path| {
+            path.strip_prefix(&journals)
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string()
+        };
+        let mut expected_residue = vec![
+            (
+                "repository".to_string(),
+                ValidatedPrivateResidueKind::Directory,
+            ),
+            (
+                "repository/blobs".to_string(),
+                ValidatedPrivateResidueKind::Directory,
+            ),
+            (
+                "repository/committed".to_string(),
+                ValidatedPrivateResidueKind::Directory,
+            ),
+            (
+                "repository-locks".to_string(),
+                ValidatedPrivateResidueKind::Directory,
+            ),
+            (
+                relative(&paths.plan),
+                ValidatedPrivateResidueKind::RegularFile,
+            ),
+            (
+                relative(&paths.marker),
+                ValidatedPrivateResidueKind::RegularFile,
+            ),
+            (
+                relative(&referenced_blob),
+                ValidatedPrivateResidueKind::RegularFile,
+            ),
+            (
+                relative(&stale_blob_path),
+                ValidatedPrivateResidueKind::RegularFile,
+            ),
+            (
+                relative(&repository_temp),
+                ValidatedPrivateResidueKind::RegularFile,
+            ),
+            (
+                relative(&blob_temp),
+                ValidatedPrivateResidueKind::RegularFile,
+            ),
+            (
+                relative(&marker_temp),
+                ValidatedPrivateResidueKind::RegularFile,
+            ),
+            (
+                relative(&lock_path),
+                ValidatedPrivateResidueKind::RegularFile,
+            ),
+        ];
+        expected_residue.sort();
+        let observed_residue = verified
+            .private_residue()
+            .iter()
+            .map(|entry| (entry.path().as_str().to_string(), entry.kind()))
+            .collect::<Vec<_>>();
+        assert_eq!(observed_residue, expected_residue);
+        assert_eq!(snapshot_files(&journals), before);
+
+        let mut malformed_stale_blob = stale_blob.clone();
+        malformed_stale_blob.schema = "unowned.blob.schema".to_string();
+        operation_journal::write_json(&stale_blob_path, &malformed_stale_blob).unwrap();
+        assert!(matches!(
+            RepositoryTxn::verify_completed_operation(
+                &root,
+                &journals,
+                &operation_id,
+                &expected,
+            ),
+            Err(RepositoryTxnError::CorruptBlob(digest)) if digest == stale_digest
+        ));
+        operation_journal::write_json(&stale_blob_path, &stale_blob).unwrap();
+        assert_eq!(snapshot_files(&journals), before);
+
+        let wrong_result = json!({"different": true});
+        let mismatched = CompletedOperationExpectation {
+            result: &wrong_result,
+            ..expected
+        };
+        assert!(matches!(
+            RepositoryTxn::verify_completed_operation(&root, &journals, &operation_id, &mismatched,),
+            Err(RepositoryTxnError::CompletedOperationExpectationMismatch {
+                field: "result",
+                ..
+            })
+        ));
+
+        fs::remove_file(&lock_path).unwrap();
+        assert!(matches!(
+            RepositoryTxn::verify_completed_operation(&root, &journals, &operation_id, &expected,),
+            Err(RepositoryTxnError::RepositoryLockMissing)
+        ));
+        assert!(!lock_path.exists());
+    }
+
+    #[test]
+    fn named_terminal_recovery_reports_one_other_exact_blocker_idempotently() {
+        for terminal_state in [RecoveryState::Completed, RecoveryState::Aborted] {
+            let (_temp, root, journals) = empty_test_repository();
+
+            let (selected_operation, selected_paths) = persist_marker_free_prepared_fixture(
+                &root,
+                &journals,
+                "records/selected.json",
+                format!("selected {terminal_state:?}").as_bytes(),
+            );
+            match terminal_state {
+                RecoveryState::Completed => {
+                    let mut selected =
+                        RepositoryTxn::open(&root, &journals, &selected_operation).unwrap();
+                    selected.bind_exact_test_authorization().unwrap();
+                    selected.mark_committed().unwrap();
+                    selected.install().unwrap();
+                    selected.complete().unwrap();
+                }
+                RecoveryState::Aborted => {
+                    assert_eq!(
+                        RepositoryTxn::recover(
+                            &root,
+                            &journals,
+                            &selected_operation,
+                            TEST_REPOSITORY_ID
+                        )
+                        .unwrap()
+                        .outcome,
+                        RecoveryOutcome::AbortedPrepared
+                    );
+                    assert!(!selected_paths.marker.exists());
+                }
+                _ => unreachable!(),
+            }
+
+            let (next_operation, _) = persist_marker_free_prepared_fixture(
+                &root,
+                &journals,
+                "records/next.json",
+                format!("next after {terminal_state:?}").as_bytes(),
+            );
+            let result =
+                RepositoryTxn::recover(&root, &journals, &selected_operation, TEST_REPOSITORY_ID)
+                    .unwrap();
+            assert_eq!(result.operation_id, selected_operation);
+            assert_eq!(result.prior_state, terminal_state);
+            assert_eq!(
+                result.outcome,
+                if matches!(terminal_state, RecoveryState::Completed) {
+                    RecoveryOutcome::AlreadyCompleted
+                } else {
+                    RecoveryOutcome::AlreadyAborted
+                }
+            );
+            assert_eq!(result.next_operation_id, Some(next_operation.clone()));
+            assert!(!root.join("records/next.json").exists());
+
+            assert_eq!(
+                RepositoryTxn::recover(&root, &journals, &next_operation, TEST_REPOSITORY_ID)
+                    .unwrap()
+                    .outcome,
+                RecoveryOutcome::AbortedPrepared
+            );
+            let retry =
+                RepositoryTxn::recover(&root, &journals, &selected_operation, TEST_REPOSITORY_ID)
+                    .unwrap();
+            assert_eq!(retry.next_operation_id, None);
+        }
+    }
+
+    #[test]
+    fn named_nonterminal_recovery_refuses_any_other_incomplete_before_mutation() {
+        let (_temp, root, journals) = empty_test_repository();
+
+        let (selected_operation, selected_paths) = persist_marker_free_prepared_fixture(
+            &root,
+            &journals,
+            "records/selected.json",
+            b"selected pending",
+        );
+        let hidden_selected = _temp.path().join("selected-journal.json");
+        fs::rename(&selected_paths.plan, &hidden_selected).unwrap();
+        let (other_operation, _) = persist_marker_free_prepared_fixture(
+            &root,
+            &journals,
+            "records/other.json",
+            b"other pending",
+        );
+        fs::rename(&hidden_selected, &selected_paths.plan).unwrap();
+
+        let error =
+            RepositoryTxn::recover(&root, &journals, &selected_operation, TEST_REPOSITORY_ID)
+                .unwrap_err();
+        assert!(matches!(
+            error,
+            RepositoryTxnError::AmbiguousRecovery {
+                requested_operation_id,
+                other_operation_ids,
+            } if requested_operation_id == selected_operation.as_str()
+                && other_operation_ids == [other_operation.as_str()]
+        ));
+        assert_eq!(
+            RepositoryTxn::open(&root, &journals, &selected_operation)
+                .unwrap()
+                .recovery_state(),
+            &RecoveryState::Prepared
+        );
+        assert!(!root.join("records/selected.json").exists());
+        assert!(!root.join("records/other.json").exists());
+    }
+
+    #[test]
+    fn named_terminal_recovery_rejects_more_than_one_other_incomplete() {
+        let (_temp, root, journals) = empty_test_repository();
+
+        let (terminal_operation, _) = persist_marker_free_prepared_fixture(
+            &root,
+            &journals,
+            "records/terminal.json",
+            b"terminal operation",
+        );
+        let mut terminal = RepositoryTxn::open(&root, &journals, &terminal_operation).unwrap();
+        terminal.bind_exact_test_authorization().unwrap();
+        terminal.mark_committed().unwrap();
+        terminal.install().unwrap();
+        terminal.complete().unwrap();
+        drop(terminal);
+
+        let (first_operation, first_paths) = persist_marker_free_prepared_fixture(
+            &root,
+            &journals,
+            "records/first-pending.json",
+            b"first pending",
+        );
+        let hidden_first = _temp.path().join("first-pending-journal.json");
+        fs::rename(&first_paths.plan, &hidden_first).unwrap();
+        let (second_operation, _) = persist_marker_free_prepared_fixture(
+            &root,
+            &journals,
+            "records/second-pending.json",
+            b"second pending",
+        );
+        fs::rename(&hidden_first, &first_paths.plan).unwrap();
+
+        let mut expected = vec![
+            first_operation.as_str().to_string(),
+            second_operation.as_str().to_string(),
+        ];
+        expected.sort();
+        let error =
+            RepositoryTxn::recover(&root, &journals, &terminal_operation, TEST_REPOSITORY_ID)
+                .unwrap_err();
+        assert!(matches!(
+            error,
+            RepositoryTxnError::AmbiguousRecovery {
+                requested_operation_id,
+                other_operation_ids,
+            } if requested_operation_id == terminal_operation.as_str()
+                && other_operation_ids == expected
+        ));
+        assert!(!root.join("records/first-pending.json").exists());
+        assert!(!root.join("records/second-pending.json").exists());
+    }
+
+    #[test]
+    fn production_recovery_fails_closed_for_not_found_malformed_marker_and_wrong_root() {
+        let (_temp, root, journals) = empty_test_repository();
+        let absent = OperationId::derive("submission", b"absent recovery");
+        assert!(matches!(
+            RepositoryTxn::recover(&root, &journals, &absent, TEST_REPOSITORY_ID),
+            Err(RepositoryTxnError::OperationNotFound { operation_id })
+                if operation_id == absent.as_str()
+        ));
+
+        let (malformed_operation, malformed_paths) = persist_marker_free_prepared_fixture(
+            &root,
+            &journals,
+            "records/malformed.json",
+            b"malformed marker recovery",
+        );
+        fs::create_dir_all(malformed_paths.marker.parent().unwrap()).unwrap();
+        fs::write(&malformed_paths.marker, b"{").unwrap();
+        assert!(matches!(
+            RepositoryTxn::recover(&root, &journals, &malformed_operation, TEST_REPOSITORY_ID),
+            Err(RepositoryTxnError::Journal(_))
+        ));
+        assert!(!root.join("records/malformed.json").exists());
+
+        fs::remove_file(&malformed_paths.marker).unwrap();
+        assert_eq!(
+            RepositoryTxn::recover(&root, &journals, &malformed_operation, TEST_REPOSITORY_ID)
+                .unwrap()
+                .outcome,
+            RecoveryOutcome::AbortedPrepared
+        );
+
+        let (mismatched_operation, mismatched_paths) = persist_marker_free_prepared_fixture(
+            &root,
+            &journals,
+            "records/mismatched-marker.json",
+            b"mismatched marker recovery",
+        );
+        let journal: RepositoryTxnJournal =
+            operation_journal::read_json(&mismatched_paths.plan).unwrap();
+        let mut marker = CommitMarker::from_plan(&journal.plan);
+        marker.plan_root = ContentDigest::hash(b"different plan");
+        operation_journal::write_json(&mismatched_paths.marker, &marker).unwrap();
+        assert!(matches!(
+            RepositoryTxn::recover(&root, &journals, &mismatched_operation, TEST_REPOSITORY_ID),
+            Err(RepositoryTxnError::CorruptPlan(error))
+                if error.contains("does not match its durable plan")
+        ));
+        assert!(!root.join("records/mismatched-marker.json").exists());
+        fs::remove_file(&mismatched_paths.marker).unwrap();
+        assert_eq!(
+            RepositoryTxn::recover(&root, &journals, &mismatched_operation, TEST_REPOSITORY_ID)
+                .unwrap()
+                .outcome,
+            RecoveryOutcome::AbortedPrepared
+        );
+
+        let (empty_id_operation, empty_id_paths) = persist_marker_free_prepared_fixture(
+            &root,
+            &journals,
+            "records/empty-repository-id.json",
+            b"empty repository id recovery",
+        );
+        let mut empty_id_journal: RepositoryTxnJournal =
+            operation_journal::read_json(&empty_id_paths.plan).unwrap();
+        let repository_id = empty_id_journal.plan.repository.repository_id.clone();
+        empty_id_journal.plan.repository.repository_id = " ".into();
+        empty_id_journal.plan.root = empty_id_journal.plan.compute_root().unwrap();
+        operation_journal::write_json(&empty_id_paths.plan, &empty_id_journal).unwrap();
+        assert!(matches!(
+            RepositoryTxn::recover(&root, &journals, &empty_id_operation, TEST_REPOSITORY_ID),
+            Err(RepositoryTxnError::CorruptPlan(error))
+                if error.contains("empty repository id")
+        ));
+        assert!(!root.join("records/empty-repository-id.json").exists());
+        empty_id_journal.plan.repository.repository_id = repository_id;
+        empty_id_journal.plan.root = empty_id_journal.plan.compute_root().unwrap();
+        operation_journal::write_json(&empty_id_paths.plan, &empty_id_journal).unwrap();
+        assert_eq!(
+            RepositoryTxn::recover(&root, &journals, &empty_id_operation, TEST_REPOSITORY_ID)
+                .unwrap()
+                .outcome,
+            RecoveryOutcome::AbortedPrepared
+        );
+
+        let (wrong_root_operation, wrong_root_paths) = persist_marker_free_prepared_fixture(
+            &root,
+            &journals,
+            "records/wrong-root.json",
+            b"wrong root recovery",
+        );
+        let mut journal: RepositoryTxnJournal =
+            operation_journal::read_json(&wrong_root_paths.plan).unwrap();
+        journal.plan.repository.canonical_root = "/different/repository".into();
+        journal.plan.root = journal.plan.compute_root().unwrap();
+        operation_journal::write_json(&wrong_root_paths.plan, &journal).unwrap();
+        assert!(matches!(
+            RepositoryTxn::recover(&root, &journals, &wrong_root_operation, TEST_REPOSITORY_ID),
+            Err(RepositoryTxnError::RepositoryBindingMismatch { .. })
+        ));
+        assert!(!root.join("records/wrong-root.json").exists());
+    }
+
+    #[test]
+    fn production_recovery_rejects_a_journal_stored_under_another_operation_id() {
+        let (_temp, root, journals) = empty_test_repository();
+        let (_, paths) = persist_marker_free_prepared_fixture(
+            &root,
+            &journals,
+            "records/wrong-name.json",
+            b"wrong journal name",
+        );
+        let wrong_name = OperationId::derive("submission", b"different journal name");
+        let wrong_paths = RepositoryTxnPaths::new(&journals, &wrong_name);
+        fs::rename(&paths.plan, &wrong_paths.plan).unwrap();
+
+        assert!(matches!(
+            RepositoryTxn::recover(&root, &journals, &wrong_name, TEST_REPOSITORY_ID),
+            Err(RepositoryTxnError::CorruptPlan(error))
+                if error.contains("stored under the wrong journal name")
+        ));
+        assert!(!root.join("records/wrong-name.json").exists());
     }
 
     #[test]
@@ -5221,10 +7708,12 @@ mod tests {
             RepositoryTxn::recover(
                 &root,
                 &journals,
-                &OperationId::derive("submission", b"policy input drift")
+                &OperationId::derive("submission", b"policy input drift"),
+                TEST_REPOSITORY_ID,
             )
-            .unwrap(),
-            RecoveryOutcome::Aborted
+            .unwrap()
+            .outcome,
+            RecoveryOutcome::AlreadyAborted
         );
 
         // The aborted journal is terminal and does not block an unrelated

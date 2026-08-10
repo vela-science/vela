@@ -144,6 +144,14 @@ verified plan before journal bytes and revalidate immediately before the
 commit marker. That capability is never serialized; once a valid marker
 exists, exact idempotent installation is policy-free.
 
+Production recovery reaches that same engine through one advanced action,
+`vela recover --repo <PATH> <OPERATION_ID>`. The CLI supplies parsing and
+rendering only; `vela-repository` acquires the repository-wide lock, opens the
+exact named journal, aborts an uncommitted Prepared transaction only when the
+marker is definitely absent, or completes the exact marker-authorized
+installation without Vela policy. The action is terminal and idempotent: it
+does not resume a semantic command, start another write, or publish Git state.
+
 The three `WriteClass` spellings remain frozen journal vocabulary because
 renaming them would change durable roots. The runtime orders those labels but
 does not attach Vela authority or scientific meaning to them.

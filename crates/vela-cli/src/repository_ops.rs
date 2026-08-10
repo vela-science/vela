@@ -428,6 +428,23 @@ pub(crate) fn repository_transaction_journal_dir(
     }
 }
 
+/// Take a read-only snapshot of the repository transaction barrier before a
+/// mutating command considers an idempotent current-state result.
+///
+/// The snapshot can race. Every actual write still acquires the authoritative
+/// locked barrier through `vela-repository`; this check only prevents an
+/// incomplete durable transaction from being hidden by an early success.
+pub(crate) fn verify_repository_transaction_barrier_read_only(
+    repository_path: &Path,
+) -> Result<(), String> {
+    let root = repository_path
+        .canonicalize()
+        .map_err(|error| format!("resolve repository transaction root: {error}"))?;
+    let journal_dir = repository_transaction_journal_dir(&root)?;
+    vela_repository::RepositoryTxn::verify_recovery_barrier(&root, &journal_dir)
+        .map_err(|error| error.to_string())
+}
+
 fn account_public_artifact_bytes(
     total: &mut u64,
     artifact_bytes: u64,

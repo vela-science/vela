@@ -213,10 +213,19 @@ init status claims submit show why review replay reproduce log
 Current advanced surfaces:
 
 ```text
-verification correction authority
+verification correction recover authority
 ```
 
 Run `vela help advanced` for the grouped contract.
+
+`vela recover --repo <PATH> <OPERATION_ID> [--json]` is the explicit operator
+route out of an interrupted repository transaction. It opens only the named
+journal: an exactly Prepared transaction with a definitely absent commit marker
+is aborted, while a valid marker authorizes policy-free exact completion.
+Completed and Aborted journals are idempotent. Recovery stops after the
+repository filesystem transaction; it neither continues the semantic command
+nor publishes Git state. A Completed result names Git status as the next
+inspection.
 
 Source-owning repositories and read products may expose exact next obligations
 under their own rooted contracts. They are replaceable orientation surfaces,

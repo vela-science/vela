@@ -69,7 +69,10 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                 fail_return(&error)
             });
             let result = crate::repository_ops::import_verification(&repository, &record, &actor)
-                .unwrap_or_else(|error| fail_return(&error));
+                .unwrap_or_else(|error| {
+                    crate::ui::fail_if_recovery_required(&repository);
+                    fail_return(&error)
+                });
             print_verification_result(&result, "verification record", json);
         }
         VerifyAction::Import {
@@ -105,7 +108,10 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                         ))
                     });
             let result = crate::repository_ops::import_verification(&repository, &record, &actor)
-                .unwrap_or_else(|error| fail_return(&error));
+                .unwrap_or_else(|error| {
+                    crate::ui::fail_if_recovery_required(&repository);
+                    fail_return(&error)
+                });
             print_verification_result(&result, "verification import", json);
         }
     }

@@ -54,5 +54,11 @@ rustix = { version = "1", features = ["process"] }
 [dev-dependencies]
 vela-repository = { workspace = true, features = ["test-support"] }
 
+# Enables only process-boundary crash injection for the recovery integration
+# suite. Production authorization remains unavailable, and default builds do
+# not inspect test failpoint environment variables.
+[features]
+test-support = ["vela-repository/test-support"]
+
 [lints]
 workspace = true

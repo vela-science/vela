@@ -168,7 +168,7 @@ atomically commits:
 - the semantic Decision event;
 - the repository manifest;
 - the authority record and its exact write-set root; and
-- the recoverable publication journal.
+- the recoverable repository transaction journal.
 
 Cancellation or drift writes nothing. Verification never selects the Decision.
 
@@ -209,10 +209,13 @@ suggest work but cannot change Standing. Vela core owns no work catalogue.
 
 ### Transaction and publication separation
 
-The scientific transaction first creates an exact candidate repository state.
-Git publication then moves the intended ref only if its expected head still
-matches. A push failure cannot change the semantic outcome, and the recovery
-journal preserves the exact publication operation.
+The scientific transaction first installs an exact candidate repository state
+through its private journal. Explicit recovery may abort an uncommitted
+Prepared journal or finish the exact installation authorized by a valid commit
+marker. It never moves a Git ref. Git publication is a separate step and moves
+the intended ref only if its expected head still matches. A publication
+failure cannot change the semantic outcome and is not converted into implicit
+repository recovery.
 
 ## 7. Conformance
 

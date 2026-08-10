@@ -4073,8 +4073,10 @@ mod tests {
                 fixture.temporary.path(),
                 &fixture.journal_dir(),
                 &operation_id,
+                REPOSITORY_ID,
             )
-            .unwrap(),
+            .unwrap()
+            .outcome,
             RecoveryOutcome::Completed
         );
         assert_eq!(signer.calls, 1);
@@ -4139,8 +4141,10 @@ mod tests {
                 fixture.temporary.path(),
                 &fixture.journal_dir(),
                 &operation_id,
+                REPOSITORY_ID,
             )
-            .unwrap(),
+            .unwrap()
+            .outcome,
             RecoveryOutcome::Completed
         );
         assert_eq!(signer.calls, 1);
