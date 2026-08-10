@@ -8,8 +8,7 @@
 //! what the proposer reported. Corrupting a witness must fail the
 //! verifier — that is the property the self-tests pin.
 //!
-//! This is the reference verifier registry `vela reproduce` builds on,
-//! reachable directly through this crate's own `vela-verify` binary. The
+//! This is the reference verifier registry `vela reproduce` builds on. The
 //! verifiers are intentionally dependency-light (serde only) and pure — no
 //! I/O, no randomness — so a third party can re-run them and get
 //! byte-identical verdicts.
