@@ -451,10 +451,14 @@ different facts.
   in PROTOCOL.md and written into no record" — and a near-miss table is for
   spellings a retained record holds. It now has the disposition `revises` and
   `retracts` already had. Removing it required editing the fixture that pins it,
-  which nothing outside this repository reads. `depends_on` → `depends` stays:
-  it reads the same way in the fixture but is live, because
-  `correction_impact.rs` classifies edges by the derived-graph rendering ADR
-  0004 gave it.
+  which nothing outside this repository reads. `depends_on` → `depends` was
+  kept at the time because `correction_impact.rs` was said to classify edges by
+  the derived-graph rendering ADR 0004 gave it. That was wrong about the code:
+  `RULE_FOR_RETAINED_KIND` matches its left column, which is the spelling a
+  record retains — `depends` — and emits `depends_on` as the rule kind
+  independently of any alias. The alias narrowed nothing, no record in any
+  repository holds it, and it is withdrawn too. The near-miss table is gone with
+  it.
 - ~~One retired term is still wire.~~ Resolved in the final pre-release wire
   cut: `provenance.source_attempt`, its bespoke `vat_` identifier, and the
   `--source-attempt` flag are deleted. `provenance.source_run` is the one

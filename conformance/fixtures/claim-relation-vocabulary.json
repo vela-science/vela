@@ -25,73 +25,49 @@
       "synthesized_from"
     ]
   },
-  "aliases": [
-    {
-      "recorded": "depends_on",
-      "canonical": "depends",
-      "authority": "ADR 0004 named `depends` the canonical stored wire value and `depends_on` the derived-graph rendering.",
-      "retained_uses": 0
-    }
-  ],
   "classification_cases": [
     {
       "kind": "corrects",
-      "canonical": "corrects",
       "class": "correction"
     },
     {
       "kind": "supersedes",
-      "canonical": "supersedes",
       "class": "correction"
     },
     {
       "kind": "supports",
-      "canonical": "supports",
       "class": "descriptive"
     },
     {
       "kind": "depends",
-      "canonical": "depends",
-      "class": "descriptive"
-    },
-    {
-      "kind": "depends_on",
-      "canonical": "depends",
       "class": "descriptive"
     },
     {
       "kind": "contradicts",
-      "canonical": "contradicts",
       "class": "descriptive"
     },
     {
       "kind": "opposes",
-      "canonical": "opposes",
       "class": "unrecognized"
     },
     {
       "kind": "synthesized_from",
-      "canonical": "synthesized_from",
       "class": "descriptive"
     },
     {
       "kind": "replicates",
-      "canonical": "replicates",
       "class": "descriptive"
     },
     {
       "kind": "revises",
-      "canonical": "revises",
       "class": "unrecognized"
     },
     {
       "kind": "retracts",
-      "canonical": "retracts",
       "class": "unrecognized"
     },
     {
       "kind": "generic_link",
-      "canonical": "generic_link",
       "class": "unrecognized"
     }
   ],

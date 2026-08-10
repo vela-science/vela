@@ -40,9 +40,8 @@
 //! The spelling changes across that boundary and the change is ADR 0004's, not
 //! this module's: `depends` is the stored wire value and `depends_on` is the
 //! derived-graph rendering, and a correction impact projection is a derived
-//! graph. `canonical_relation_kind` resolves a record's near-miss spelling first,
-//! so a Claim retaining `depends_on` and a Claim retaining `depends` arrive as
-//! one edge.
+//! graph. The left column is what a Claim Record retains, so that is what is
+//! matched on.
 //!
 //! Three exclusions apply, and each is reported by count and by id rather than
 //! applied quietly:
@@ -100,9 +99,7 @@ use vela_edge::correction_impact::{
     CorrectionRelationRule, CorrectionTransition, correction_impact_projection_root,
     derive_correction_impact,
 };
-use vela_protocol::claim_record::{
-    CORRECTION_RELATION_KINDS, ClaimRecordV1, canonical_relation_kind,
-};
+use vela_protocol::claim_record::{CORRECTION_RELATION_KINDS, ClaimRecordV1};
 use vela_protocol::repository::ClaimStandingRefV1;
 
 /// The extension namespace a Claim Record declares a repair condition under.
@@ -188,7 +185,7 @@ pub(crate) fn cmd_correction_impact(repository_path: &Path, claim_arg: &str, jso
             .record
             .relations
             .iter()
-            .find(|relation| CORRECTION_RELATION_KINDS.contains(&relation.canonical_kind()))
+            .find(|relation| CORRECTION_RELATION_KINDS.contains(&relation.kind.as_str()))
             .unwrap_or_else(|| {
                 crate::cli::fail_kind_return(
                     crate::ui::ErrorKind::Usage,
@@ -198,7 +195,7 @@ pub(crate) fn cmd_correction_impact(repository_path: &Path, claim_arg: &str, jso
                     ),
                 )
             });
-        let kind = match correction.canonical_kind() {
+        let kind = match correction.kind.as_str() {
             "corrects" => "correct_claim",
             _ => "supersede_claim",
         };
@@ -234,12 +231,11 @@ pub(crate) fn cmd_correction_impact(repository_path: &Path, claim_arg: &str, jso
     let mut seen_relation_ids = BTreeSet::new();
     for claim in held.values() {
         for relation in &claim.record.relations {
-            let canonical = canonical_relation_kind(&relation.kind);
             let Some((_, rule_kind, _)) = RULE_FOR_RETAINED_KIND
                 .iter()
-                .find(|(retained, _, _)| *retained == canonical)
+                .find(|(retained, _, _)| *retained == relation.kind)
             else {
-                *excluded_unmapped.entry(canonical.to_string()).or_default() += 1;
+                *excluded_unmapped.entry(relation.kind.clone()).or_default() += 1;
                 continue;
             };
             let relation_id = format!(
