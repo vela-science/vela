@@ -4,7 +4,7 @@ them is dead code in the rest. */
 #![allow(dead_code)]
 
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Command, Output, Stdio};
 use std::thread;
 use std::time::Duration;
 
@@ -105,4 +105,91 @@ impl Drop for RemoveAnchorOnDrop {
     fn drop(&mut self) {
         let _ = std::fs::remove_file(&self.0);
     }
+}
+
+pub fn run_with_home_and_socket(cwd: &Path, home: &Path, socket: &Path, args: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_vela"))
+        .current_dir(cwd)
+        .args(args)
+        .env("HOME", home)
+        .env("NO_COLOR", "1")
+        .env("VELA_ADVICE", "0")
+        .env("SSH_AUTH_SOCK", socket)
+        .output()
+        .expect("run vela")
+}
+
+pub fn successful_stdout(output: &Output) -> String {
+    assert!(
+        output.status.success(),
+        "vela exited {:?}\nstdout: {}\nstderr: {}",
+        output.status.code(),
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout.clone()).expect("vela output must be UTF-8")
+}
+
+pub fn json_object(output: &Output) -> serde_json::Value {
+    serde_json::from_str(String::from_utf8_lossy(&output.stdout).trim())
+        .expect("vela --json must emit one JSON object")
+}
+
+/// `vela submit` commits what it retains, so the fixture needs a Git identity
+/// the commit can carry.
+pub fn configure_git_identity(repository_path: &Path) {
+    for (key, value) in [
+        ("user.name", "Vela Test"),
+        ("user.email", "vela@example.invalid"),
+    ] {
+        let configured = Command::new("git")
+            .current_dir(repository_path)
+            .args(["config", key, value])
+            .status()
+            .expect("configure test Git identity");
+        assert!(configured.success());
+    }
+}
+
+pub fn run_with_isolated_home(
+    cwd: &Path,
+    socket: Option<&Path>,
+    home: &Path,
+    args: &[&str],
+) -> Output {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_vela"));
+    command
+        .current_dir(cwd)
+        .args(args)
+        .env("HOME", home)
+        .env("NO_COLOR", "1")
+        .env("VELA_ADVICE", "0")
+        .env_remove("VELA_AGENT_KEY_HEX");
+    match socket {
+        Some(socket) => command.env("SSH_AUTH_SOCK", socket),
+        None => command.env("SSH_AUTH_SOCK", cwd.join("missing-ssh-agent.sock")),
+    };
+    command.output().expect("run vela")
+}
+
+pub fn success_json(output: &Output) -> serde_json::Value {
+    assert!(
+        output.status.success(),
+        "status={:?}\nstdout={}\nstderr={}",
+        output.status.code(),
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(&output.stdout).expect("decode Vela JSON")
+}
+
+pub fn diagnostic_json(output: &Output) -> serde_json::Value {
+    serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
+        panic!(
+            "decode Vela JSON: {error}\nstatus={:?}\nstdout={}\nstderr={}",
+            output.status.code(),
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        )
+    })
 }

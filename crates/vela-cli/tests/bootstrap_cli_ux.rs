@@ -6,18 +6,11 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::{Command, Output};
 
+#[cfg(feature = "test-support")]
 use serde_json::Value;
 
 mod support;
-use support::EphemeralAgent;
-
-struct RemoveOnDrop(std::path::PathBuf);
-
-impl Drop for RemoveOnDrop {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.0);
-    }
-}
+use support::{EphemeralAgent, RemoveAnchorOnDrop as RemoveOnDrop, diagnostic_json as json};
 
 fn unique_name(prefix: &str, temporary: &tempfile::TempDir) -> String {
     format!(
@@ -167,17 +160,6 @@ fn chmod(path: &Path, mode: u32) {
 fn write_executable(path: &Path, contents: &str) {
     std::fs::write(path, contents).unwrap();
     chmod(path, 0o755);
-}
-
-fn json(output: &Output) -> Value {
-    serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
-        panic!(
-            "decode Vela JSON: {error}\nstatus={:?}\nstdout={}\nstderr={}",
-            output.status.code(),
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        )
-    })
 }
 
 fn directory_snapshot(root: &Path) -> BTreeMap<String, Vec<u8>> {

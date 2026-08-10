@@ -8,58 +8,13 @@
 //! boundary that resumes rather than restarts, a Standing filter spelled the
 //! way the rows report Standing, and a row count a caller can trust.
 
-use std::path::Path;
-use std::process::{Command, Output};
-
 use serde_json::Value;
 
 mod support;
-use support::EphemeralAgent;
-
-fn run(cwd: &Path, home: &Path, socket: &Path, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_vela"))
-        .current_dir(cwd)
-        .args(args)
-        .env("HOME", home)
-        .env("NO_COLOR", "1")
-        .env("VELA_ADVICE", "0")
-        .env("SSH_AUTH_SOCK", socket)
-        .output()
-        .expect("run vela")
-}
-
-fn stdout(output: &Output) -> String {
-    assert!(
-        output.status.success(),
-        "vela exited {:?}\nstdout: {}\nstderr: {}",
-        output.status.code(),
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    String::from_utf8(output.stdout.clone()).expect("vela output must be UTF-8")
-}
-
-fn json(output: &Output) -> Value {
-    serde_json::from_str(String::from_utf8_lossy(&output.stdout).trim())
-        .expect("vela --json must emit one JSON object")
-}
-
-/// `vela submit` commits what it retains, so the fixture needs a Git identity
-/// the commit can carry. Without it the first Submission leaves its Artifact
-/// installed but untracked and the second refuses the occupied path.
-fn configure_git_identity(repository_path: &Path) {
-    for (key, value) in [
-        ("user.name", "Vela Test"),
-        ("user.email", "vela@example.invalid"),
-    ] {
-        let configured = Command::new("git")
-            .current_dir(repository_path)
-            .args(["config", key, value])
-            .status()
-            .expect("configure test Git identity");
-        assert!(configured.success());
-    }
-}
+use support::{
+    EphemeralAgent, configure_git_identity, json_object as json, run_with_home_and_socket as run,
+    successful_stdout as stdout,
+};
 
 fn ids(payload: &Value) -> Vec<String> {
     payload["items"]

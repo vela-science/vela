@@ -19,7 +19,11 @@ use vela_protocol::verification_record::{
 };
 
 mod support;
-use support::EphemeralAgent;
+use support::{
+    EphemeralAgent, RemoveAnchorOnDrop as RemoveOnDrop,
+    configure_git_identity as configure_test_git_identity, run_with_isolated_home as run_with_home,
+    success_json,
+};
 
 fn run(cwd: &Path, socket: Option<&Path>, args: &[&str]) -> Output {
     let mut command = Command::new(env!("CARGO_BIN_EXE_vela"));
@@ -34,34 +38,6 @@ fn run(cwd: &Path, socket: Option<&Path>, args: &[&str]) -> Output {
         command.env("SSH_AUTH_SOCK", cwd.join("missing-ssh-agent.sock"));
     }
     command.output().expect("run vela")
-}
-
-fn run_with_home(cwd: &Path, socket: Option<&Path>, home: &Path, args: &[&str]) -> Output {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_vela"));
-    command
-        .current_dir(cwd)
-        .args(args)
-        .env("HOME", home)
-        .env("NO_COLOR", "1")
-        .env("VELA_ADVICE", "0")
-        .env_remove("VELA_AGENT_KEY_HEX");
-    if let Some(socket) = socket {
-        command.env("SSH_AUTH_SOCK", socket);
-    } else {
-        command.env("SSH_AUTH_SOCK", cwd.join("missing-ssh-agent.sock"));
-    }
-    command.output().expect("run vela with isolated home")
-}
-
-fn success_json(output: &Output) -> Value {
-    assert!(
-        output.status.success(),
-        "status={:?}\nstdout={}\nstderr={}",
-        output.status.code(),
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    serde_json::from_slice(&output.stdout).expect("decode Vela JSON")
 }
 
 fn exact_directory_snapshot(directory: &Path) -> Vec<(String, Vec<u8>)> {
@@ -80,28 +56,6 @@ fn exact_directory_snapshot(directory: &Path) -> Vec<(String, Vec<u8>)> {
         .collect::<Vec<_>>();
     entries.sort_by(|left, right| left.0.cmp(&right.0));
     entries
-}
-
-struct RemoveOnDrop(std::path::PathBuf);
-
-impl Drop for RemoveOnDrop {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.0);
-    }
-}
-
-fn configure_test_git_identity(repository_path: &Path) {
-    for (key, value) in [
-        ("user.name", "Vela Test"),
-        ("user.email", "vela@example.invalid"),
-    ] {
-        let configured = Command::new("git")
-            .current_dir(repository_path)
-            .args(["config", key, value])
-            .status()
-            .expect("configure test Git identity");
-        assert!(configured.success());
-    }
 }
 
 #[test]

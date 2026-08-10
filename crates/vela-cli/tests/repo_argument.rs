@@ -16,7 +16,7 @@ use std::path::Path;
 use std::process::{Command, Output};
 
 mod support;
-use support::EphemeralAgent;
+use support::{EphemeralAgent, diagnostic_json as json};
 
 fn run(cwd: &Path, home: &Path, socket: Option<&Path>, args: &[&str]) -> Output {
     let mut command = Command::new(env!("CARGO_BIN_EXE_vela"));
@@ -31,17 +31,6 @@ fn run(cwd: &Path, home: &Path, socket: Option<&Path>, args: &[&str]) -> Output 
         None => command.env("SSH_AUTH_SOCK", cwd.join("missing-ssh-agent.sock")),
     };
     command.output().expect("vela must run")
-}
-
-fn json(output: &Output) -> serde_json::Value {
-    serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
-        panic!(
-            "decode Vela JSON: {error}\nstatus={:?}\nstdout={}\nstderr={}",
-            output.status.code(),
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        )
-    })
 }
 
 fn stderr(output: &Output) -> String {

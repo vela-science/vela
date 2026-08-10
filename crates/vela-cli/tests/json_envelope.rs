@@ -14,7 +14,7 @@ use std::path::Path;
 use std::process::Command;
 
 mod support;
-use support::EphemeralAgent;
+use support::{EphemeralAgent, RemoveAnchorOnDrop as RemoveOnDrop};
 
 fn run(cwd: &Path, socket: &Path, args: &[&str]) -> (bool, String) {
     let mut command = Command::new(env!("CARGO_BIN_EXE_vela"));
@@ -30,20 +30,6 @@ fn run(cwd: &Path, socket: &Path, args: &[&str]) -> (bool, String) {
         output.status.success(),
         String::from_utf8(output.stdout).expect("vela output must be UTF-8"),
     )
-}
-
-/* `vela init` installs a local trust anchor under the OS ACCOUNT home, resolved
-through geteuid/getpwuid_r, which deliberately ignores `$HOME` — there is a
-test upstream asserting a hostile HOME cannot redirect it. So setting HOME to
-a temp directory does not keep a test out of the developer's real trust
-store, and this suite spent an evening quietly filling it. The anchor path
-comes back in init's own JSON; delete exactly that file and nothing else. */
-struct RemoveOnDrop(std::path::PathBuf);
-
-impl Drop for RemoveOnDrop {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.0);
-    }
 }
 
 #[test]

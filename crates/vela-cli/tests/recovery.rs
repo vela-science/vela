@@ -24,7 +24,7 @@ use vela_repository::{
 };
 
 mod support;
-use support::{EphemeralAgent, RemoveAnchorOnDrop};
+use support::{EphemeralAgent, RemoveAnchorOnDrop, diagnostic_json as json_output};
 
 #[derive(Debug, Default)]
 struct ExactTestAuthorization {
@@ -213,17 +213,6 @@ fn run_with_test_env(
         .env(name, value)
         .output()
         .expect("run failpoint-enabled vela")
-}
-
-fn json_output(output: &Output) -> Value {
-    serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
-        panic!(
-            "decode Vela JSON: {error}\nstatus={:?}\nstdout={}\nstderr={}",
-            output.status.code(),
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        )
-    })
 }
 
 fn successful_recovery(output: &Output, operation_id: &OperationId, outcome: &str) -> Value {
