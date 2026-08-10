@@ -9,7 +9,7 @@ use std::path::{Component, Path, PathBuf};
 
 use chrono::{SecondsFormat, Utc};
 use serde_json::json;
-use sha2::{Digest, Sha256};
+use vela_protocol::canonical::sha256_root;
 use vela_protocol::proposal::ProposalV1;
 use vela_protocol::repository::{RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
@@ -222,10 +222,7 @@ fn method_manifest_binding(
             "Verification method manifest differs from the retained current Git bytes".into(),
         );
     }
-    Ok((
-        implementation,
-        format!("sha256:{}", hex::encode(Sha256::digest(&bytes))),
-    ))
+    Ok((implementation, sha256_root(&bytes)))
 }
 
 fn resolve_property(

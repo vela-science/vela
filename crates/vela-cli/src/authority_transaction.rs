@@ -15,7 +15,6 @@ use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 use vela_authority::runtime_authentication::{
     AuthenticationAdapter, AuthenticationRequest, AuthorityPreflightFailure, RuntimeSessionState,
     preflight_authority_action,
@@ -35,6 +34,7 @@ use vela_protocol::authority_history::{
 use vela_protocol::authorization::{
     AuthorityActionV1, AuthorizationModelV1, AuthorizationRequestV1,
 };
+use vela_protocol::canonical::sha256_root;
 use vela_protocol::canonical::to_canonical_bytes;
 #[cfg(test)]
 use vela_protocol::events::event_log_hash;
@@ -1535,7 +1535,7 @@ struct WriteSetCommitment<'a> {
 pub(crate) fn execution_binary_sha256(path: &Path) -> Result<String, String> {
     let bytes = std::fs::read(path)
         .map_err(|error| format!("read execution binary {}: {error}", path.display()))?;
-    Ok(format!("sha256:{}", hex::encode(Sha256::digest(bytes))))
+    Ok(sha256_root(&bytes))
 }
 
 #[cfg(test)]
@@ -1834,7 +1834,7 @@ mod tests {
             closed: false,
         };
         let initial_event_log_root = format!("sha256:{}", event_log_hash(&[]));
-        let initial_actor_registry_root = format!("sha256:{}", hex::encode(Sha256::digest([])));
+        let initial_actor_registry_root = sha256_root(&[]);
         let keyset_root = keyset.root().unwrap();
         let model_root = authorization_model.root().unwrap();
         let initialization = AuthorityInitializationV1 {

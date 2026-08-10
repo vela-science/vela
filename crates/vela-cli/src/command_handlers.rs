@@ -6,6 +6,7 @@ use crate::cli::{
 use crate::command_spec::*;
 use serde_json::{Value, json};
 use std::path::{Component, Path, PathBuf};
+use vela_protocol::canonical::sha256_root;
 use vela_protocol::proposal::ProposalV1;
 use vela_protocol::submission::SubmissionRecordV2;
 
@@ -164,9 +165,8 @@ fn verified_repository_file(
     if !resolved.starts_with(&repository_root) {
         return Err(format!("{label} resolves outside the repository"));
     }
-    use sha2::{Digest, Sha256};
     let bytes = std::fs::read(&resolved).map_err(|error| format!("read {label}: {error}"))?;
-    let observed = format!("sha256:{}", hex::encode(Sha256::digest(&bytes)));
+    let observed = sha256_root(&bytes);
     if observed != expected_root {
         return Err(format!(
             "{label} content root does not match retained bytes"
@@ -616,7 +616,6 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
 #[cfg(test)]
 mod gate_tests {
     use super::*;
-    use sha2::{Digest, Sha256};
 
     // The exact-lane vouch gate. An adversarial review showed the prior vouch
     // (a "registered non-agent reviewer" signing a verifier_attachment.added
@@ -632,7 +631,7 @@ mod gate_tests {
         std::fs::create_dir(repository.path().join("records")).unwrap();
         let bytes = br#"{"schema":"fixture"}"#;
         std::fs::write(repository.path().join("records/witness.json"), bytes).unwrap();
-        let root = format!("sha256:{}", hex::encode(Sha256::digest(bytes)));
+        let root = sha256_root(bytes);
         let resolved = verified_repository_file(
             repository.path(),
             "fixture witness",
@@ -674,7 +673,7 @@ mod gate_tests {
         let proposal_bytes = br#"{"schema":"fixture-proposal"}"#;
         let proposal_path = "records/proposals/sha256/proposal.json";
         std::fs::write(repository.path().join(proposal_path), proposal_bytes).unwrap();
-        let proposal_root = format!("sha256:{}", hex::encode(Sha256::digest(proposal_bytes)));
+        let proposal_root = sha256_root(proposal_bytes);
 
         let implementation_bytes = b"#!/usr/bin/env python3\n";
         let implementation_path = "reproductions/example/replay.py";
@@ -683,10 +682,7 @@ mod gate_tests {
             implementation_bytes,
         )
         .unwrap();
-        let implementation_root = format!(
-            "sha256:{}",
-            hex::encode(Sha256::digest(implementation_bytes))
-        );
+        let implementation_root = sha256_root(implementation_bytes);
 
         std::fs::write(
             repository.path().join("reproductions/example/capsule.json"),

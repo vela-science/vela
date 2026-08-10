@@ -7,7 +7,7 @@ use std::process::{Command, Output};
 
 use ed25519_dalek::SigningKey;
 use serde_json::Value;
-use sha2::{Digest, Sha256};
+use vela_protocol::canonical::sha256_root;
 use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
 use vela_protocol::submission::{
     RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
@@ -296,7 +296,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     std::fs::remove_file(&anchor_path).expect("remove routine writer trust pin");
     let actor = "agent:current-submission-regression";
     let artifact = b"{\"bounded\":true}\n";
-    let artifact_digest = format!("sha256:{}", hex::encode(Sha256::digest(artifact)));
+    let artifact_digest = sha256_root(artifact);
     let artifact_stem = artifact_digest.trim_start_matches("sha256:").to_string();
     let bundle = temporary.path().join("bundle");
     std::fs::create_dir_all(&bundle).expect("Submission bundle directory");
@@ -524,12 +524,8 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         observed_at.clone(),
     )
     .expect("Verifier identity");
-    let method_root = format!(
-        "sha256:{}",
-        hex::encode(Sha256::digest(
-            std::fs::read(repository_path.join(method_path)).expect("method bytes")
-        ))
-    );
+    let method_root =
+        sha256_root(&std::fs::read(repository_path.join(method_path)).expect("method bytes"));
     let verification_record = VerificationRecordEnvelopeV2::seal(
         VerificationRecordDraft {
             subject: VerificationSubject {
@@ -634,12 +630,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert_eq!(retained.record.method.implementation, method_path);
     assert_eq!(
         retained.record.method.environment_root,
-        format!(
-            "sha256:{}",
-            hex::encode(Sha256::digest(
-                std::fs::read(repository_path.join(method_path)).expect("method bytes")
-            ))
-        )
+        sha256_root(&std::fs::read(repository_path.join(method_path)).expect("method bytes"))
     );
     assert_eq!(
         retained.record.independence.declared_independent_of[0],

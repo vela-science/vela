@@ -27,6 +27,7 @@ use vela_protocol::authorization::{
     AuthorityActionV1, AuthorityMemberV1, AuthorityResourceTypeV1, AuthorityRoleV1,
     AuthorizationModelV1, AuthorizationRequestV1, AuthorizationResourceV1,
 };
+use vela_protocol::canonical::sha256_root;
 
 /// A placeholder root for the two request fields the preflight overwrites.
 ///
@@ -1318,7 +1319,7 @@ fn empty_repository_event_log_root() -> String {
 }
 
 fn empty_repository_actor_registry_root() -> String {
-    format!("sha256:{}", hex::encode(Sha256::digest([])))
+    sha256_root(&[])
 }
 
 fn authority_envelope_sequence(envelope: &AuthorityEnvelopeV1) -> Result<u64, String> {

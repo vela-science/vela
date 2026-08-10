@@ -18,6 +18,7 @@ use vela_protocol::authorization::{
     AUTHORIZATION_PROFILE_V1, AUTHORIZATION_REQUEST_SCHEMA_V1, AuthorityActionV1,
     AuthorityResourceTypeV1, AuthorizationRequestV1, AuthorizationResourceV1,
 };
+use vela_protocol::canonical::sha256_root;
 use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::events::{EventKind, NULL_HASH, StateActor, StateEvent, StateTarget};
 use vela_protocol::principal::PrincipalClass;
@@ -102,7 +103,7 @@ pub(crate) fn read_exact<T>(
 ) -> Result<T, String> {
     let bytes =
         fs::read(repository_path.join(path)).map_err(|error| format!("read {path}: {error}"))?;
-    if format!("sha256:{}", hex::encode(Sha256::digest(bytes.as_slice()))) != expected_root {
+    if sha256_root(&bytes) != expected_root {
         return Err(format!("{path} differs from its declared full root"));
     }
     let value = parse(&bytes)?;

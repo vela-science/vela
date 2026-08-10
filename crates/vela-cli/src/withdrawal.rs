@@ -11,7 +11,7 @@ use std::path::Path;
 use chrono::{SecondsFormat, Utc};
 use serde::Serialize;
 use serde_json::json;
-use sha2::Digest;
+use vela_protocol::canonical::sha256_root;
 use vela_protocol::proposal::ProposalV1;
 use vela_protocol::proposal_withdrawal::ProposalWithdrawalEnvelopeV2;
 use vela_protocol::repository::{RepositoryObjectRefV1, RepositoryV4};
@@ -53,7 +53,7 @@ fn read_exact(
 ) -> Result<Vec<u8>, String> {
     let bytes = fs::read(repository_path.join(&reference.path))
         .map_err(|error| format!("read object {}: {error}", reference.path))?;
-    let root = format!("sha256:{}", hex::encode(sha2::Sha256::digest(&bytes)));
+    let root = sha256_root(&bytes);
     if root != reference.root {
         return Err(format!(
             "current object {} differs from its repository root",

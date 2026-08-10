@@ -26,6 +26,7 @@ use std::process::{Command, Stdio};
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use vela_protocol::canonical::sha256_root;
 use vela_repository::{ValidatedPrivateResidue, ValidatedPrivateResidueKind};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -805,7 +806,7 @@ fn publish(
     }
     for entry in &delta.entries {
         let observed = file_sha256_if_regular(&root.join(&entry.path))?;
-        let expected = entry.postimage.as_deref().map(sha256_bytes);
+        let expected = entry.postimage.as_deref().map(sha256_root);
         if observed != expected {
             return Err(format!("installed postimage changed for {}", entry.path));
         }
@@ -1013,7 +1014,7 @@ fn git_blob_sha256(
     let spec = format!("{commit}:{path}");
     let output = git_output_in(repository, &["show", &spec], None)?;
     if output.status.success() {
-        return Ok(Some(sha256_bytes(&output.stdout)));
+        return Ok(Some(sha256_root(&output.stdout)));
     }
     let missing = git_output_in(repository, &["cat-file", "-e", &spec], None)?;
     if !missing.status.success() {
@@ -1033,13 +1034,7 @@ fn file_sha256_if_regular(path: &Path) -> Result<Option<String>, String> {
 
 fn file_sha256(path: &Path) -> Result<String, String> {
     let bytes = std::fs::read(path).map_err(|error| format!("read {}: {error}", path.display()))?;
-    Ok(sha256_bytes(&bytes))
-}
-
-fn sha256_bytes(bytes: &[u8]) -> String {
-    let mut digest = Sha256::new();
-    digest.update(bytes);
-    format!("sha256:{:x}", digest.finalize())
+    Ok(sha256_root(&bytes))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1399,7 +1394,7 @@ mod tests {
             root: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
             entries: vec![PublicationDeltaEntry {
                 path: path.into(),
-                preimage_sha256: Some(sha256_bytes(b"before")),
+                preimage_sha256: Some(sha256_root(b"before")),
                 postimage: Some(b"after".to_vec()),
                 executable: false,
             }],

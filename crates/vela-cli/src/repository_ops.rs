@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
-use sha2::{Digest, Sha256};
+use vela_protocol::canonical::sha256_root;
 use vela_protocol::submission::{
     ProducerCheck, RequestedChange, RequestedChangeTarget, SubmissionArtifact, SubmissionClaim,
     SubmissionDraft, SubmissionProvenance, SubmissionRecordV2,
@@ -131,7 +131,7 @@ pub(crate) fn author_submission(
         artifacts.push(SubmissionArtifact {
             kind: kind.to_string(),
             path: path.to_string(),
-            digest: format!("sha256:{}", hex::encode(Sha256::digest(&bytes))),
+            digest: sha256_root(&bytes),
         });
     }
     let checks = producer_checks
@@ -310,7 +310,7 @@ pub(crate) fn prepare_submission_artifacts(
             .map_err(|error| public_artifact_read_error(error, limit, index))?
         };
         account_public_artifact_bytes(&mut total, bytes.len() as u64, index)?;
-        let observed = format!("sha256:{}", hex::encode(Sha256::digest(&bytes)));
+        let observed = sha256_root(&bytes);
         if observed != artifact.digest {
             return Err(format!(
                 "Submission artifact {index} digest mismatch: declared {}, observed {observed}",

@@ -6,9 +6,9 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use vela_protocol::authority::AuthorityEventV1;
 use vela_protocol::authority_history::AuthorityInitializationV1;
+use vela_protocol::canonical::sha256_root;
 use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::events::{EventKind, NULL_HASH};
 use vela_protocol::proposal::ProposalV1;
@@ -1528,7 +1528,7 @@ pub(crate) fn verify_repository_at(
         let bytes = object_bytes
             .get(&reference.path)
             .ok_or_else(|| format!("current object {} was not loaded", reference.path))?;
-        if root_bytes(bytes) != reference.root {
+        if sha256_root(bytes) != reference.root {
             return Err(format!(
                 "{} does not contain the declared content-addressed Artifact",
                 reference.path
@@ -1720,7 +1720,7 @@ pub(crate) fn read_rooted_object(
 ) -> Result<Vec<u8>, String> {
     let bytes =
         fs::read(root.join(path)).map_err(|error| format!("read object {path}: {error}"))?;
-    if root_bytes(&bytes) != expected_root {
+    if sha256_root(&bytes) != expected_root {
         return Err(format!("object {path} does not match its declared root"));
     }
     let expected_name = expected_root.trim_start_matches("sha256:");
@@ -1740,7 +1740,7 @@ fn verify_repository_authority(
     /* Genesis is the only origin, so the initial roots are the empty ones.
     These read a predecessor's archived roots when one existed. */
     let initial_event_log_root = format!("sha256:{}", vela_protocol::events::event_log_hash(&[]));
-    let initial_actor_registry_root = format!("sha256:{}", hex::encode(Sha256::digest([])));
+    let initial_actor_registry_root = sha256_root(&[]);
     let loaded = crate::cli::load_repository_authority(root, repository, origin)?;
     validate_current_proposal_standing(root, repository, &loaded.history.authority_events)?;
     let initialization_event_id = loaded
@@ -1910,7 +1910,7 @@ fn verify_repository_authority(
             .to_string();
         observed_record_paths.insert(
             relative,
-            root_bytes(
+            sha256_root(
                 &fs::read(&path)
                     .map_err(|error| format!("read current record {}: {error}", path.display()))?,
             ),
@@ -2367,10 +2367,6 @@ fn authority_store_files(directory: &Path, suffix: &str) -> Result<Vec<PathBuf>,
         .collect::<Vec<_>>();
     files.sort();
     Ok(files)
-}
-
-fn root_bytes(bytes: &[u8]) -> String {
-    format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
 }
 
 /// The origin remote as a person refers to it: `vela-science/math`.
