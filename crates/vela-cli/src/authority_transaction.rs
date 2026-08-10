@@ -1773,6 +1773,36 @@ mod tests {
                 fail: false,
             }
         }
+
+        fn prepare(
+            &self,
+            request: AuthorityTransactionRequest,
+            adapter: &mut LocalOsSession,
+            signer: &mut TestSigner,
+        ) -> Result<PreparedAuthorityTransaction, AuthorityTransactionError> {
+            prepare_authority_transaction(
+                self.barrier(),
+                self.temporary.path(),
+                request,
+                adapter,
+                signer,
+            )
+        }
+
+        fn execute(
+            &self,
+            request: AuthorityTransactionRequest,
+            adapter: &mut LocalOsSession,
+            signer: &mut TestSigner,
+        ) -> Result<AuthorityTransactionResult, AuthorityTransactionError> {
+            execute_authority_transaction(
+                self.barrier(),
+                self.temporary.path(),
+                request,
+                adapter,
+                signer,
+            )
+        }
     }
 
     fn fixture() -> Fixture {
@@ -2213,14 +2243,9 @@ mod tests {
         }
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let result = execute_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            fixture.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let result = fixture
+            .execute(fixture.request.clone(), &mut adapter, &mut signer)
+            .unwrap();
         assert_eq!(result.before_event_log_root, archived_event_root);
         assert_eq!(signer.calls, 1);
     }
@@ -2253,14 +2278,9 @@ mod tests {
         let fixture = self::fixture();
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let result = execute_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            fixture.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let result = fixture
+            .execute(fixture.request.clone(), &mut adapter, &mut signer)
+            .unwrap();
         assert_eq!(signer.calls, 1);
         assert_eq!(result.event_ids.len(), 1);
         assert!(result.transaction_id.starts_with("vtx_"));
@@ -2388,14 +2408,7 @@ mod tests {
         let (request, semantic_domain, proposal_postimage) = acceptance_request(&fixture);
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let result = execute_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let result = fixture.execute(request, &mut adapter, &mut signer).unwrap();
         assert_eq!(result.event_ids.len(), 2);
         let events = result
             .event_ids
@@ -2471,14 +2484,9 @@ mod tests {
 
             let mut adapter = fixture.adapter();
             let mut signer = fixture.signer();
-            let error = prepare_authority_transaction(
-                fixture.barrier(),
-                fixture.temporary.path(),
-                request,
-                &mut adapter,
-                &mut signer,
-            )
-            .unwrap_err();
+            let error = fixture
+                .prepare(request, &mut adapter, &mut signer)
+                .unwrap_err();
             assert!(
                 error.to_string().contains(if mutation == "missing" {
                     "lacks payload.applied_event_id"
@@ -2531,14 +2539,9 @@ mod tests {
             let fixture = fixture();
             let mut adapter = fixture.adapter();
             let mut signer = fixture.signer();
-            let result = execute_authority_transaction(
-                fixture.barrier(),
-                fixture.temporary.path(),
-                fixture.request.clone(),
-                &mut adapter,
-                &mut signer,
-            )
-            .unwrap();
+            let result = fixture
+                .execute(fixture.request.clone(), &mut adapter, &mut signer)
+                .unwrap();
             assert_eq!(signer.calls, 1);
             // Completed journals are ignored operational state and are absent
             // in a clean clone. The signed authority record must therefore
@@ -2582,14 +2585,9 @@ mod tests {
 
             let mut adapter = fixture.adapter();
             let mut signer = fixture.signer();
-            let error = prepare_authority_transaction(
-                fixture.barrier(),
-                fixture.temporary.path(),
-                request,
-                &mut adapter,
-                &mut signer,
-            )
-            .unwrap_err();
+            let error = fixture
+                .prepare(request, &mut adapter, &mut signer)
+                .unwrap_err();
             if mutation == "delete" {
                 assert!(
                     matches!(error, AuthorityTransactionError::History(_)),
@@ -2625,14 +2623,9 @@ mod tests {
         }];
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let error = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
+        let error = fixture
+            .prepare(request, &mut adapter, &mut signer)
+            .unwrap_err();
         assert!(matches!(error, AuthorityTransactionError::Invalid(_)));
         assert_eq!(signer.calls, 0);
 
@@ -2648,14 +2641,9 @@ mod tests {
         .unwrap();
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let error = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            fixture.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
+        let error = fixture
+            .prepare(fixture.request.clone(), &mut adapter, &mut signer)
+            .unwrap_err();
         assert!(
             matches!(
                 error,
@@ -2668,14 +2656,9 @@ mod tests {
         let fixture = self::fixture();
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let mut prepared = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            fixture.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let mut prepared = fixture
+            .prepare(fixture.request.clone(), &mut adapter, &mut signer)
+            .unwrap();
         fs::create_dir_all(fixture.temporary.path().join(".vela/authority/keysets")).unwrap();
         fs::write(
             fixture
@@ -2742,14 +2725,9 @@ mod tests {
         let mut adapter = fixture_two.adapter();
         let mut signer = fixture_two.signer();
         signer.fail = true;
-        let error = prepare_authority_transaction(
-            fixture_two.barrier(),
-            fixture_two.temporary.path(),
-            fixture_two.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
+        let error = fixture_two
+            .prepare(fixture_two.request.clone(), &mut adapter, &mut signer)
+            .unwrap_err();
         assert!(matches!(error, AuthorityTransactionError::Signing(_)));
         assert_eq!(signer.calls, 1);
         assert!(authority_transaction_postimages_absent(&fixture_two));
@@ -2763,14 +2741,9 @@ mod tests {
         request.history.authority_envelopes[0].payload.push('A');
         let mut adapter = fixture_one.adapter();
         let mut signer = fixture_one.signer();
-        let error = prepare_authority_transaction(
-            fixture_one.barrier(),
-            fixture_one.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
+        let error = fixture_one
+            .prepare(request, &mut adapter, &mut signer)
+            .unwrap_err();
         assert!(matches!(error, AuthorityTransactionError::History(_)));
         assert_eq!(signer.calls, 0);
         assert!(authority_transaction_postimages_absent(&fixture_one));
@@ -2785,14 +2758,9 @@ mod tests {
         request.authorization_request.model_root = root('7');
         let mut adapter = fixture_two.adapter();
         let mut signer = fixture_two.signer();
-        let error = prepare_authority_transaction(
-            fixture_two.barrier(),
-            fixture_two.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
+        let error = fixture_two
+            .prepare(request, &mut adapter, &mut signer)
+            .unwrap_err();
         assert!(
             matches!(error, AuthorityTransactionError::Invalid(_)),
             "{error:?}"
@@ -2807,14 +2775,9 @@ mod tests {
         let fixture = fixture();
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let mut prepared = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            fixture.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let mut prepared = fixture
+            .prepare(fixture.request.clone(), &mut adapter, &mut signer)
+            .unwrap();
         assert!(authority_transaction_postimages_absent(&fixture));
         fs::write(
             fixture.temporary.path().join(".vela/actors.json"),
@@ -2851,14 +2814,7 @@ mod tests {
         }];
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let mut prepared = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let mut prepared = fixture.prepare(request, &mut adapter, &mut signer).unwrap();
         fs::write(&path, to_canonical_bytes(&json!({"version": 3})).unwrap()).unwrap();
         let error = prepared.mark_committed().unwrap_err();
         assert!(matches!(
@@ -2929,14 +2885,9 @@ mod tests {
         let fixture = fixture();
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        execute_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            fixture.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        fixture
+            .execute(fixture.request.clone(), &mut adapter, &mut signer)
+            .unwrap();
 
         let mut adapter = fixture.adapter();
         let mut stale_signer = fixture.signer();
@@ -2958,14 +2909,9 @@ mod tests {
         let fresh = self::fixture();
         let mut adapter = fresh.adapter();
         let mut signer = fresh.signer();
-        let mut prepared = prepare_authority_transaction(
-            fresh.barrier(),
-            fresh.temporary.path(),
-            fresh.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let mut prepared = fresh
+            .prepare(fresh.request.clone(), &mut adapter, &mut signer)
+            .unwrap();
         fs::write(
             fresh
                 .temporary
@@ -3000,14 +2946,9 @@ mod tests {
         fs::write(event_path, b"tampered").unwrap();
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let error = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            fixture.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
+        let error = fixture
+            .prepare(fixture.request.clone(), &mut adapter, &mut signer)
+            .unwrap_err();
         assert!(
             matches!(error, AuthorityTransactionError::History(_)),
             "{error}"
@@ -3030,14 +2971,9 @@ mod tests {
         .unwrap();
         let mut adapter = missing.adapter();
         let mut signer = missing.signer();
-        let error = prepare_authority_transaction(
-            missing.barrier(),
-            missing.temporary.path(),
-            missing.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
+        let error = missing
+            .prepare(missing.request.clone(), &mut adapter, &mut signer)
+            .unwrap_err();
         assert!(
             matches!(error, AuthorityTransactionError::History(_)),
             "{error}"
@@ -3094,14 +3030,7 @@ mod tests {
         ];
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let mut prepared = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let mut prepared = fixture.prepare(request, &mut adapter, &mut signer).unwrap();
         let payload = BASE64_STANDARD.decode(&prepared.envelope.payload).unwrap();
         let record: AuthorityRecordV1 = serde_json::from_slice(&payload).unwrap();
         /* Five, not eight: the three Cedar policy-material snapshots that
@@ -3161,14 +3090,7 @@ mod tests {
         }];
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let result = execute_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let result = fixture.execute(request, &mut adapter, &mut signer).unwrap();
 
         assert!(result.event_ids.is_empty());
         assert_eq!(result.before_event_log_root, result.after_event_log_root);
@@ -3216,14 +3138,9 @@ mod tests {
         request.object_drafts.clear();
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let error = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
+        let error = fixture
+            .prepare(request, &mut adapter, &mut signer)
+            .unwrap_err();
         assert!(matches!(error, AuthorityTransactionError::Invalid(_)));
         assert_eq!(signer.calls, 0);
         assert!(prepared_journal_absent(&fixture));
@@ -3239,14 +3156,9 @@ mod tests {
         }];
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let error = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
+        let error = fixture
+            .prepare(request, &mut adapter, &mut signer)
+            .unwrap_err();
         assert!(matches!(error, AuthorityTransactionError::Invalid(_)));
         assert_eq!(signer.calls, 0);
 
@@ -3261,14 +3173,9 @@ mod tests {
         }];
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let error = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
+        let error = fixture
+            .prepare(request, &mut adapter, &mut signer)
+            .unwrap_err();
         assert!(matches!(error, AuthorityTransactionError::Invalid(_)));
         assert_eq!(signer.calls, 0);
         assert!(prepared_journal_absent(&fixture));
@@ -3279,48 +3186,33 @@ mod tests {
         let fixture_one = fixture();
         let mut adapter = fixture_one.adapter();
         let mut signer = fixture_one.signer();
-        let baseline = prepare_authority_transaction(
-            fixture_one.barrier(),
-            fixture_one.temporary.path(),
-            fixture_one.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap()
-        .result
-        .transaction_id;
+        let baseline = fixture_one
+            .prepare(fixture_one.request.clone(), &mut adapter, &mut signer)
+            .unwrap()
+            .result
+            .transaction_id;
 
         let fixture_two = fixture();
         let mut request = fixture_two.request.clone();
         request.read_set[0].digest = ContentDigest::parse(root('a')).unwrap();
         let mut adapter = fixture_two.adapter();
         let mut signer = fixture_two.signer();
-        let changed_read_set = prepare_authority_transaction(
-            fixture_two.barrier(),
-            fixture_two.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap()
-        .result
-        .transaction_id;
+        let changed_read_set = fixture_two
+            .prepare(request, &mut adapter, &mut signer)
+            .unwrap()
+            .result
+            .transaction_id;
 
         let fixture_three = fixture();
         let mut request = fixture_three.request.clone();
         request.binary_sha256 = root('b');
         let mut adapter = fixture_three.adapter();
         let mut signer = fixture_three.signer();
-        let changed_binary = prepare_authority_transaction(
-            fixture_three.barrier(),
-            fixture_three.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap()
-        .result
-        .transaction_id;
+        let changed_binary = fixture_three
+            .prepare(request, &mut adapter, &mut signer)
+            .unwrap()
+            .result
+            .transaction_id;
 
         assert_ne!(baseline, changed_read_set);
         assert_ne!(baseline, changed_binary);
@@ -3339,14 +3231,7 @@ mod tests {
         }];
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let mut prepared = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let mut prepared = fixture.prepare(request, &mut adapter, &mut signer).unwrap();
         let result = prepared.result.clone();
         let events = prepared.events.clone();
         let envelope = prepared.envelope.clone();
@@ -3404,14 +3289,7 @@ mod tests {
         let before_event_root = verified_fixture_history(&fixture).final_event_log_root;
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let mut prepared = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let mut prepared = fixture.prepare(request, &mut adapter, &mut signer).unwrap();
         assert!(prepared.result.event_ids.is_empty());
         assert_eq!(prepared.result.before_event_log_root, before_event_root);
         assert_eq!(prepared.result.after_event_log_root, before_event_root);
