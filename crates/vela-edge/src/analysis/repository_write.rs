@@ -1,26 +1,30 @@
 //! Repository write edges.
 //!
 //! The protocol/runtime owns repository validation. This module retains only
-//! the operating-system edges that protocol code must not implement:
-//! descriptor-bound atomic file replacement and the independently stored
-//! sequence-one repository-authority pin.
+//! descriptor-hardened storage for the independently held sequence-one
+//! repository-authority pin.
 
 #[cfg(any(target_os = "linux", target_vendor = "apple"))]
 use std::ffi::OsString;
 use std::fs;
 use std::io::{Read, Write};
-#[cfg(any(target_os = "linux", target_vendor = "apple"))]
-use std::path::Component;
 use std::path::{Path, PathBuf};
 
 #[cfg(any(target_os = "linux", target_vendor = "apple"))]
 use rustix::fd::OwnedFd;
 
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use vela_protocol::canonical;
 
 pub const AUTHORITY_TRUST_ANCHOR_SCHEMA_V1: &str = "vela.authority-trust-anchor.v1";
+#[cfg(any(target_os = "linux", target_vendor = "apple"))]
+const AUTHORITY_TRUST_ANCHOR_MAX_BYTES: u64 = 4 * 1024;
+#[cfg(any(target_os = "linux", target_vendor = "apple"))]
+const AUTHORITY_TRUST_ANCHOR_REBIND_MISSING: &str =
+    "authority trust-anchor rebind requires an existing exact pin";
+#[cfg(any(target_os = "linux", target_vendor = "apple"))]
+const AUTHORITY_TRUST_ANCHOR_REBIND_MISMATCH: &str =
+    "authority trust-anchor rebind preimage does not match the installed pin";
 
 /// An out-of-band pin for the first repository-authority record.
 ///
@@ -79,32 +83,12 @@ pub struct LoadedAuthorityTrustAnchorV1 {
     pub anchor: AuthorityTrustAnchorV1,
 }
 
-/// The exact leaf state a repository-file replacement is allowed to consume.
-///
-/// This is deliberately stronger than "the path looked safe when the command
-/// started". The preimage is retained together with pinned repository and
-/// parent-directory descriptors and is checked again immediately before the
-/// atomic install.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum RepositoryFilePreimage {
-    Absent,
-    Exact(Vec<u8>),
-}
-
-/// Permission handling for an installed repository file.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RepositoryFileReplacementMode {
-    /// Preserve the permission bits of an exact existing preimage.
-    PreserveExisting,
-    /// Install with one explicit permission mode.
-    Exact(u32),
-}
-
 #[cfg(any(target_os = "linux", target_vendor = "apple"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct RepositoryFileIdentity {
     device: u64,
     inode: u64,
+    owner: u32,
     mode: u32,
 }
 
@@ -136,13 +120,52 @@ impl RepositoryFileIdentity {
         Self {
             device: stat_device(stat),
             inode: stat.st_ino,
+            owner: stat.st_uid,
             mode: stat_mode(stat),
         }
     }
+}
 
-    fn same_object(self, stat: &rustix::fs::Stat) -> bool {
-        self.device == stat_device(stat) && self.inode == stat.st_ino
+#[cfg(unix)]
+fn require_trusted_parent_owner_mode(owner: u32, mode: u32, label: &Path) -> Result<(), String> {
+    if owner != rustix::process::geteuid().as_raw() {
+        return Err(format!(
+            "trust parent directory '{}' is not owned by the current operating-system account",
+            label.display()
+        ));
     }
+    let mode = mode & 0o777;
+    if mode & 0o022 != 0 {
+        return Err(format!(
+            "trust parent directory '{}' may not be group- or world-writable; observed mode {mode:04o}",
+            label.display()
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn require_private_owner_mode(
+    owner: u32,
+    mode: u32,
+    label: &Path,
+    expected_mode: u32,
+    kind: &str,
+) -> Result<(), String> {
+    if owner != rustix::process::geteuid().as_raw() {
+        return Err(format!(
+            "trust {kind} '{}' is not owned by the current operating-system account",
+            label.display()
+        ));
+    }
+    let mode = mode & 0o777;
+    if mode != expected_mode {
+        return Err(format!(
+            "trust {kind} '{}' must have exact mode {expected_mode:04o}, observed {mode:04o}",
+            label.display()
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(any(target_os = "linux", target_vendor = "apple"))]
@@ -197,11 +220,14 @@ impl RepositoryRootWriteLock<'_> {
             .map_err(|error| {
                 if error == rustix::io::Errno::AGAIN || error == rustix::io::Errno::WOULDBLOCK {
                     format!(
-                        "repository replacement busy for {}; retry after the current Vela writer finishes",
+                        "authority trust-anchor replacement busy for {}; retry after the current Vela writer finishes",
                         label.display()
                     )
                 } else {
-                    format!("lock repository before replacing {}: {error}", label.display())
+                    format!(
+                        "lock authority trust store before replacing {}: {error}",
+                        label.display()
+                    )
                 }
             })?;
         Ok(RepositoryRootWriteLock { descriptor })
@@ -215,137 +241,72 @@ impl Drop for RepositoryRootWriteLock<'_> {
     }
 }
 
-/// A two-phase, descriptor-relative repository-file replacement.
+/// A descriptor-relative replacement for one existing authority trust pin.
 ///
-/// Preparation opens the repository root and every directory below it with
-/// no-follow semantics, records their identities, and binds either an exact
-/// regular-file preimage or exact absence. Installation writes and fsyncs a
-/// temporary through the pinned parent descriptor. Installation holds one
-/// non-blocking advisory exclusive lock on the pinned repository-root
-/// descriptor from the first preimage revalidation through install, readback,
-/// and parent fsync. Every Vela caller of this edge therefore serializes on the
-/// same repository inode; a concurrent Vela writer receives a precise busy
-/// error rather than hanging. Non-cooperating repository writers are still
-/// detected by exact preimage and displaced-file checks. They can make a
-/// losing exchange transiently observable before rollback because POSIX has no
-/// conditional replace-existing primitive; this edge is therefore limited to
-/// non-authoritative, replaceable repository files such as settings and target
-/// indexes. The lock does not claim to constrain a process that can already
-/// mutate repository bytes directly.
+/// Preparation pins the account home, private authority directory chain, and
+/// existing owner-only 0600 preimage with no-follow semantics. Installation
+/// locks the account home, revalidates every identity/mode/owner/byte, and then
+/// either returns the verified no-op or atomically exchanges and reads back.
+/// The lock serializes Vela writers only; exact checks detect other writers.
+/// Failed or uncertain rollback stops cleanup and names its recovery path;
+/// no write can escape the pinned authority directory.
 ///
-/// With the lock held, installation revalidates the complete named path, then
-/// performs an atomic no-clobber create or exchange. The displaced file from
-/// an exchange is checked against the prepared preimage before it is removed.
-/// Caught failures clean their reserved temporary path. A process crash may
-/// leave the reserved `.vela-replace-*` recovery artifact, but cannot redirect
-/// the write outside the pinned repository directory.
-///
-/// Linux and Apple platforms expose the required no-replace/exchange rename
-/// primitives. Unsupported platforms fail closed at preparation rather than
+/// Linux and Apple platforms expose the required exchange rename primitive.
+/// Unsupported platforms fail closed at preparation rather than
 /// falling back to a path-based rename with a known TOCTOU gap.
+#[cfg(any(target_os = "linux", target_vendor = "apple"))]
 #[derive(Debug)]
-pub struct PreparedRepositoryFileReplacement {
-    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
+struct PreparedAuthorityTrustAnchorReplacement {
     root_path: PathBuf,
-    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     relative_path: PathBuf,
-    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     root_descriptor: OwnedFd,
-    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     root_identity: RepositoryFileIdentity,
-    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     directories: Vec<PinnedRepositoryDirectory>,
-    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     leaf_name: OsString,
-    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
-    preimage: RepositoryFilePreimage,
-    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
-    preimage_identity: Option<RepositoryFileIdentity>,
-    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
+    preimage: Vec<u8>,
+    preimage_identity: RepositoryFileIdentity,
     replacement: Vec<u8>,
-    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
-    replacement_mode: u32,
-    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
-    max_bytes: u64,
-    #[cfg(not(any(target_os = "linux", target_vendor = "apple")))]
-    #[allow(dead_code)]
-    unavailable: (),
 }
 
-#[cfg(any(target_os = "linux", target_vendor = "apple"))]
-impl PreparedRepositoryFileReplacement {
-    /// Prepare against an explicit exact preimage. `None` means the leaf must
-    /// be absent; `Some(bytes)` means a regular non-symlink file with those
-    /// exact bytes.
-    pub fn prepare_exact(
-        root_path: &Path,
-        relative_path: &Path,
-        expected: Option<&[u8]>,
-        replacement: &[u8],
-        mode: RepositoryFileReplacementMode,
-        max_bytes: u64,
-    ) -> Result<Self, String> {
-        let expected = match expected {
-            Some(bytes) => RepositoryFilePreimage::Exact(bytes.to_vec()),
-            None => RepositoryFilePreimage::Absent,
-        };
-        Self::prepare(
-            root_path,
-            relative_path,
-            expected,
-            replacement,
-            mode,
-            max_bytes,
-        )
-    }
+#[cfg(not(any(target_os = "linux", target_vendor = "apple")))]
+#[derive(Debug)]
+struct PreparedAuthorityTrustAnchorReplacement;
 
+#[cfg(any(target_os = "linux", target_vendor = "apple"))]
+impl PreparedAuthorityTrustAnchorReplacement {
     fn prepare(
         root_path: &Path,
-        relative_path: &Path,
-        expected: RepositoryFilePreimage,
-        replacement: &[u8],
-        mode: RepositoryFileReplacementMode,
-        max_bytes: u64,
+        expected: &AuthorityTrustAnchorV1,
+        replacement: &AuthorityTrustAnchorV1,
     ) -> Result<Self, String> {
         use rustix::fs::{FileType, Mode, OFlags};
 
-        if max_bytes == 0 || replacement.len() as u64 > max_bytes {
-            return Err(format!(
-                "{} replacement exceeds the {} byte repository-file limit",
-                relative_path.display(),
-                max_bytes
-            ));
-        }
-        let mut components = Vec::new();
-        for component in relative_path.components() {
-            match component {
-                Component::Normal(component) => components.push(component.to_os_string()),
-                _ => {
-                    return Err(format!(
-                        "repository replacement path '{}' must be a non-empty normalized relative path",
-                        relative_path.display()
-                    ));
-                }
-            }
-        }
-        let leaf_name = components
-            .pop()
-            .ok_or_else(|| "repository replacement path must contain a file name".to_string())?;
+        let mut preimage = serde_json::to_vec_pretty(expected)
+            .map_err(|error| format!("serialize authority trust-anchor preimage: {error}"))?;
+        preimage.push(b'\n');
+        let mut replacement = serde_json::to_vec_pretty(replacement)
+            .map_err(|error| format!("serialize authority trust-anchor replacement: {error}"))?;
+        replacement.push(b'\n');
+        let relative_path = PathBuf::from(".vela")
+            .join("trust")
+            .join("authorities")
+            .join(format!("{}.json", expected.repository_id));
+        let components = [".vela", "trust", "authorities"];
+        let leaf_name = OsString::from(format!("{}.json", expected.repository_id));
         let label = relative_path.display().to_string();
 
-        let root_metadata = fs::symlink_metadata(root_path)
-            .map_err(|error| format!("inspect repository root for {label}: {error}"))?;
-        if root_metadata.file_type().is_symlink() || !root_metadata.is_dir() {
-            return Err(format!(
-                "{label} must be beneath real non-symlink repository directories"
-            ));
-        }
         let root_descriptor = rustix::fs::open(
             root_path,
             OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC | OFlags::NOFOLLOW,
             Mode::empty(),
         )
-        .map_err(|error| format!("open repository root for {label}: {error}"))?;
+        .map_err(|error| {
+            if error == rustix::io::Errno::NOENT {
+                AUTHORITY_TRUST_ANCHOR_REBIND_MISSING.to_string()
+            } else {
+                format!("open repository root for {label}: {error}")
+            }
+        })?;
         let root_stat = rustix::fs::fstat(&root_descriptor)
             .map_err(|error| format!("identify repository root for {label}: {error}"))?;
         if FileType::from_raw_mode(root_stat.st_mode) != FileType::Directory {
@@ -356,7 +317,10 @@ impl PreparedRepositoryFileReplacement {
         let root_identity = RepositoryFileIdentity::from_stat(&root_stat);
 
         let mut directories: Vec<PinnedRepositoryDirectory> = Vec::new();
-        for name in components {
+        let mut directory_label = PathBuf::new();
+        for (index, name) in components.into_iter().enumerate() {
+            let name = OsString::from(name);
+            directory_label.push(&name);
             let parent = directories
                 .last()
                 .map_or(&root_descriptor, |directory| &directory.descriptor);
@@ -366,7 +330,13 @@ impl PreparedRepositoryFileReplacement {
                 OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC | OFlags::NOFOLLOW,
                 Mode::empty(),
             )
-            .map_err(|error| format!("open pinned parent of {label}: {error}"))?;
+            .map_err(|error| {
+                if error == rustix::io::Errno::NOENT {
+                    AUTHORITY_TRUST_ANCHOR_REBIND_MISSING.to_string()
+                } else {
+                    format!("open pinned parent of {label}: {error}")
+                }
+            })?;
             let stat = rustix::fs::fstat(&descriptor)
                 .map_err(|error| format!("identify pinned parent of {label}: {error}"))?;
             if FileType::from_raw_mode(stat.st_mode) != FileType::Directory {
@@ -374,59 +344,49 @@ impl PreparedRepositoryFileReplacement {
                     "{label} must be beneath real non-symlink repository directories"
                 ));
             }
+            let identity = RepositoryFileIdentity::from_stat(&stat);
+            if index == 0 {
+                require_trusted_parent_owner_mode(identity.owner, identity.mode, &directory_label)?;
+            } else {
+                require_private_owner_mode(
+                    identity.owner,
+                    identity.mode,
+                    &directory_label,
+                    0o700,
+                    "directory",
+                )?;
+            }
             directories.push(PinnedRepositoryDirectory {
                 name,
                 descriptor,
-                identity: RepositoryFileIdentity::from_stat(&stat),
+                identity,
             });
         }
         let parent = directories
             .last()
             .map_or(&root_descriptor, |directory| &directory.descriptor);
-        let observed = Self::read_named_preimage(parent, &leaf_name, max_bytes, &label)?;
-        let (preimage, preimage_identity) = match (expected, observed) {
-            (RepositoryFilePreimage::Absent, None) => (RepositoryFilePreimage::Absent, None),
-            (RepositoryFilePreimage::Absent, Some(_)) => {
-                return Err(format!("{label} appeared before replacement"));
-            }
-            (RepositoryFilePreimage::Exact(expected), Some((observed, identity)))
-                if observed == expected =>
-            {
-                (RepositoryFilePreimage::Exact(expected), Some(identity))
-            }
-            (RepositoryFilePreimage::Exact(_), Some(_)) => {
-                return Err(format!("{label} changed before replacement"));
-            }
-            (RepositoryFilePreimage::Exact(_), None) => {
-                return Err(format!("{label} disappeared before replacement"));
-            }
-        };
-        let replacement_mode = match mode {
-            RepositoryFileReplacementMode::Exact(mode) if mode & !0o777 != 0 => {
-                return Err(format!(
-                    "{label} replacement mode must contain only ordinary permission bits"
-                ));
-            }
-            RepositoryFileReplacementMode::Exact(mode) => mode,
-            RepositoryFileReplacementMode::PreserveExisting => {
-                preimage_identity
-                    .ok_or_else(|| format!("{label} has no existing mode to preserve"))?
-                    .mode
-                    & 0o777
-            }
-        };
+        let (observed, preimage_identity) = Self::read_named_preimage(parent, &leaf_name, &label)?
+            .ok_or_else(|| AUTHORITY_TRUST_ANCHOR_REBIND_MISSING.to_string())?;
+        if observed != preimage {
+            return Err(AUTHORITY_TRUST_ANCHOR_REBIND_MISMATCH.to_string());
+        }
+        require_private_owner_mode(
+            preimage_identity.owner,
+            preimage_identity.mode,
+            &relative_path,
+            0o600,
+            "file",
+        )?;
         Ok(Self {
             root_path: root_path.to_path_buf(),
-            relative_path: relative_path.to_path_buf(),
+            relative_path,
             root_descriptor,
             root_identity,
             directories,
             leaf_name,
             preimage,
             preimage_identity,
-            replacement: replacement.to_vec(),
-            replacement_mode,
-            max_bytes,
+            replacement,
         })
     }
 
@@ -436,16 +396,16 @@ impl PreparedRepositoryFileReplacement {
             .map_or(&self.root_descriptor, |directory| &directory.descriptor)
     }
 
-    fn read_open_file(file: OwnedFd, max_bytes: u64, label: &str) -> Result<Vec<u8>, String> {
+    fn read_open_file(file: OwnedFd, label: &str) -> Result<Vec<u8>, String> {
         let mut file = fs::File::from(file);
         let mut bytes = Vec::new();
         Read::by_ref(&mut file)
-            .take(max_bytes + 1)
+            .take(AUTHORITY_TRUST_ANCHOR_MAX_BYTES + 1)
             .read_to_end(&mut bytes)
             .map_err(|error| format!("read pinned {label}: {error}"))?;
-        if bytes.len() as u64 > max_bytes {
+        if bytes.len() as u64 > AUTHORITY_TRUST_ANCHOR_MAX_BYTES {
             return Err(format!(
-                "{label} exceeds the {max_bytes} byte repository-file limit"
+                "{label} exceeds the {AUTHORITY_TRUST_ANCHOR_MAX_BYTES} byte repository-file limit"
             ));
         }
         Ok(bytes)
@@ -454,7 +414,6 @@ impl PreparedRepositoryFileReplacement {
     fn read_named_preimage(
         parent: &OwnedFd,
         leaf_name: &OsString,
-        max_bytes: u64,
         label: &str,
     ) -> Result<Option<(Vec<u8>, RepositoryFileIdentity)>, String> {
         use rustix::fs::{FileType, Mode, OFlags};
@@ -462,7 +421,7 @@ impl PreparedRepositoryFileReplacement {
         let descriptor = match rustix::fs::openat(
             parent,
             leaf_name,
-            OFlags::RDONLY | OFlags::CLOEXEC | OFlags::NOFOLLOW,
+            OFlags::RDONLY | OFlags::CLOEXEC | OFlags::NOFOLLOW | OFlags::NONBLOCK,
             Mode::empty(),
         ) {
             Ok(descriptor) => descriptor,
@@ -474,12 +433,10 @@ impl PreparedRepositoryFileReplacement {
         let stat = rustix::fs::fstat(&descriptor)
             .map_err(|error| format!("identify pinned repository file {label}: {error}"))?;
         if FileType::from_raw_mode(stat.st_mode) != FileType::RegularFile {
-            return Err(format!(
-                "{label} must be absent or a regular non-symlink file"
-            ));
+            return Err(format!("{label} must be a regular non-symlink file"));
         }
         let identity = RepositoryFileIdentity::from_stat(&stat);
-        let bytes = Self::read_open_file(descriptor, max_bytes, label)?;
+        let bytes = Self::read_open_file(descriptor, label)?;
         Ok(Some((bytes, identity)))
     }
 
@@ -497,7 +454,7 @@ impl PreparedRepositoryFileReplacement {
         })?;
         let root_stat = rustix::fs::fstat(&named_root)
             .map_err(|error| format!("reidentify repository root for {label}: {error}"))?;
-        if !self.root_identity.same_object(&root_stat) {
+        if RepositoryFileIdentity::from_stat(&root_stat) != self.root_identity {
             return Err(format!(
                 "repository parent of {label} changed before replacement"
             ));
@@ -507,7 +464,7 @@ impl PreparedRepositoryFileReplacement {
             let stat = rustix::fs::statat(parent, &directory.name, AtFlags::SYMLINK_NOFOLLOW)
                 .map_err(|error| format!("reidentify pinned parent of {label}: {error}"))?;
             if FileType::from_raw_mode(stat.st_mode) != FileType::Directory
-                || !directory.identity.same_object(&stat)
+                || RepositoryFileIdentity::from_stat(&stat) != directory.identity
             {
                 return Err(format!(
                     "repository parent of {label} changed before replacement"
@@ -518,71 +475,118 @@ impl PreparedRepositoryFileReplacement {
         Ok(())
     }
 
-    fn revalidate_preimage(&self) -> Result<(), String> {
+    fn loaded_from_bytes(&self, bytes: &[u8]) -> Result<LoadedAuthorityTrustAnchorV1, String> {
+        let anchor: AuthorityTrustAnchorV1 = serde_json::from_slice(bytes).map_err(|error| {
+            format!(
+                "parse verified authority trust anchor '{}': {error}",
+                self.relative_path.display()
+            )
+        })?;
+        anchor.validate()?;
+        Ok(LoadedAuthorityTrustAnchorV1 {
+            path: self.root_path.join(&self.relative_path),
+            root: anchor.root()?,
+            anchor,
+        })
+    }
+
+    fn revalidate_preimage(&self) -> Result<LoadedAuthorityTrustAnchorV1, String> {
         let label = self.relative_path.display().to_string();
-        let observed = Self::read_named_preimage(
-            self.parent_descriptor(),
-            &self.leaf_name,
-            self.max_bytes,
-            &label,
-        )?;
-        match (&self.preimage, self.preimage_identity, observed) {
-            (RepositoryFilePreimage::Absent, None, None) => Ok(()),
-            (
-                RepositoryFilePreimage::Exact(expected),
-                Some(expected_identity),
-                Some((observed, observed_identity)),
-            ) if observed == *expected && observed_identity == expected_identity => Ok(()),
-            (RepositoryFilePreimage::Absent, _, Some(_)) => {
-                Err(format!("{label} appeared before replacement"))
+        let observed =
+            Self::read_named_preimage(self.parent_descriptor(), &self.leaf_name, &label)?;
+        match observed {
+            Some((observed, observed_identity))
+                if observed == self.preimage && observed_identity == self.preimage_identity =>
+            {
+                self.loaded_from_bytes(&observed)
             }
-            (RepositoryFilePreimage::Exact(_), _, None) => {
-                Err(format!("{label} disappeared before replacement"))
-            }
-            _ => Err(format!("{label} changed before replacement")),
+            None => Err(AUTHORITY_TRUST_ANCHOR_REBIND_MISSING.to_string()),
+            _ => Err(AUTHORITY_TRUST_ANCHOR_REBIND_MISMATCH.to_string()),
         }
     }
 
     fn verify_installed_leaf(
         &self,
         temporary_identity: RepositoryFileIdentity,
-    ) -> Result<(), String> {
+    ) -> Result<LoadedAuthorityTrustAnchorV1, String> {
         let label = self.relative_path.display().to_string();
-        let (bytes, identity) = Self::read_named_preimage(
-            self.parent_descriptor(),
-            &self.leaf_name,
-            self.max_bytes,
-            &label,
-        )?
-        .ok_or_else(|| format!("installed {label} disappeared during exact readback"))?;
+        let (bytes, identity) =
+            Self::read_named_preimage(self.parent_descriptor(), &self.leaf_name, &label)?
+                .ok_or_else(|| format!("installed {label} disappeared during exact readback"))?;
+        require_private_owner_mode(
+            identity.owner,
+            identity.mode,
+            &self.relative_path,
+            0o600,
+            "file",
+        )?;
         if bytes != self.replacement || identity != temporary_identity {
             return Err(format!(
                 "installed {label} does not match its planned replacement"
             ));
         }
-        self.revalidate_named_path()
+        self.revalidate_named_path()?;
+        self.loaded_from_bytes(&bytes)
     }
 
-    /// Install the prepared replacement.
-    pub fn install(self) -> Result<bool, String> {
-        self.install_with_hook(|| Ok(()))
+    fn rollback_exchange(
+        &self,
+        parent: &OwnedFd,
+        temporary_cleanup: &mut RepositoryReplacementTemporary<'_>,
+        reason: String,
+    ) -> String {
+        use rustix::fs::RenameFlags;
+
+        let recovery_path = self
+            .root_path
+            .join(self.relative_path.parent().unwrap_or_else(|| Path::new("")))
+            .join(&temporary_cleanup.name);
+        let rollback = rustix::fs::renameat_with(
+            parent,
+            temporary_cleanup.name.as_str(),
+            parent,
+            &self.leaf_name,
+            RenameFlags::EXCHANGE,
+        );
+        match rollback {
+            Ok(()) => match rustix::fs::fsync(parent) {
+                Ok(()) => format!("{reason}; replacement was rolled back"),
+                Err(error) => {
+                    temporary_cleanup.disarm();
+                    format!(
+                        "{reason}; replacement was rolled back but rollback durability is uncertain: {error}; automatic cleanup stopped; inspect the exact pin and recovery path '{}'",
+                        recovery_path.display()
+                    )
+                }
+            },
+            Err(rollback) => {
+                temporary_cleanup.disarm();
+                format!(
+                    "{reason}; failed to roll back replacement: {rollback}; automatic cleanup stopped; inspect the exact pin and recovery path '{}'",
+                    recovery_path.display()
+                )
+            }
+        }
     }
 
-    /// Install with one hook immediately before named-path/preimage
-    /// revalidation. This is public so callers can supply cancellation checks
-    /// and deterministic race tests without weakening the production path.
-    pub fn install_with_hook(
+    fn install(self) -> Result<LoadedAuthorityTrustAnchorV1, String> {
+        self.install_with_hooks(|| Ok(()), || Ok(()), || {})
+    }
+
+    #[cfg(test)]
+    fn install_with_hook(
         self,
         before_replace: impl FnOnce() -> Result<(), String>,
-    ) -> Result<bool, String> {
-        self.install_with_hooks(|| Ok(()), before_replace)
+    ) -> Result<LoadedAuthorityTrustAnchorV1, String> {
+        self.install_with_hooks(|| Ok(()), before_replace, || {})
     }
 
     fn install_with_hooks(
         self,
         after_temporary_created: impl FnOnce() -> Result<(), String>,
         before_replace: impl FnOnce() -> Result<(), String>,
-    ) -> Result<bool, String> {
+        after_exchange: impl FnOnce(),
+    ) -> Result<LoadedAuthorityTrustAnchorV1, String> {
         use rand_core::RngCore;
         use rustix::fs::{AtFlags, Mode, OFlags, RenameFlags};
 
@@ -593,18 +597,10 @@ impl PreparedRepositoryFileReplacement {
         let _root_lock =
             RepositoryRootWriteLock::try_acquire(&self.root_descriptor, &self.relative_path)?;
         self.revalidate_named_path()?;
-        self.revalidate_preimage()?;
-        if matches!(
-            &self.preimage,
-            RepositoryFilePreimage::Exact(bytes)
-                if *bytes == self.replacement
-                    && self.preimage_identity.is_some_and(|identity| {
-                        identity.mode & 0o777 == self.replacement_mode
-                    })
-        ) {
-            return Ok(false);
+        let loaded_preimage = self.revalidate_preimage()?;
+        if self.preimage == self.replacement {
+            return Ok(loaded_preimage);
         }
-
         let parent = self.parent_descriptor();
         let mut random = rand_core::OsRng;
         let (temporary_name, temporary) = loop {
@@ -636,10 +632,8 @@ impl PreparedRepositoryFileReplacement {
         };
         after_temporary_created()?;
 
-        // Keep an incomplete temporary private. Apply the requested final mode
-        // only after all bytes have been written, then capture the identity
-        // after chmod so a restrictive umask cannot create a false readback
-        // mismatch.
+        // Keep an incomplete temporary private and capture identity only after
+        // bytes and restrictive mode are final.
         rustix::fs::fchmod(&temporary, Mode::from_raw_mode(0o600)).map_err(|error| {
             format!(
                 "make temporary replacement private for {}: {error}",
@@ -653,14 +647,12 @@ impl PreparedRepositoryFileReplacement {
                 self.relative_path.display()
             )
         })?;
-        rustix::fs::fchmod(&temporary, Mode::from_raw_mode(self.replacement_mode as _)).map_err(
-            |error| {
-                format!(
-                    "set temporary replacement mode for {}: {error}",
-                    self.relative_path.display()
-                )
-            },
-        )?;
+        rustix::fs::fchmod(&temporary, Mode::from_raw_mode(0o600)).map_err(|error| {
+            format!(
+                "set temporary replacement mode for {}: {error}",
+                self.relative_path.display()
+            )
+        })?;
         temporary.sync_all().map_err(|error| {
             format!(
                 "fsync pinned temporary replacement for {}: {error}",
@@ -681,213 +673,84 @@ impl PreparedRepositoryFileReplacement {
         self.revalidate_preimage()?;
 
         let parent = self.parent_descriptor();
-        match &self.preimage {
-            RepositoryFilePreimage::Absent => {
-                rustix::fs::renameat_with(
-                    parent,
-                    temporary_cleanup.name.as_str(),
-                    parent,
-                    &self.leaf_name,
-                    RenameFlags::NOREPLACE,
+        rustix::fs::renameat_with(
+            parent,
+            temporary_cleanup.name.as_str(),
+            parent,
+            &self.leaf_name,
+            RenameFlags::EXCHANGE,
+        )
+        .map_err(|error| {
+            format!(
+                "atomically exchange {} replacement: {error}",
+                self.relative_path.display()
+            )
+        })?;
+        after_exchange();
+        let displaced = Self::read_named_preimage(
+            parent,
+            &OsString::from(&temporary_cleanup.name),
+            &self.relative_path.display().to_string(),
+        );
+        let displaced_matches = displaced.as_ref().is_ok_and(|value| {
+            value.as_ref().is_some_and(|(bytes, identity)| {
+                bytes == &self.preimage && *identity == self.preimage_identity
+            })
+        });
+        let installed = self.verify_installed_leaf(temporary_identity);
+        if !displaced_matches || installed.is_err() {
+            let reason = installed.err().unwrap_or_else(|| {
+                format!(
+                    "{} changed during atomic exchange",
+                    self.relative_path.display()
                 )
-                .map_err(|error| {
-                    format!(
-                        "atomically install absent {} without clobbering: {error}",
-                        self.relative_path.display()
-                    )
-                })?;
-                if let Err(error) = self.verify_installed_leaf(temporary_identity) {
-                    let rollback = rustix::fs::renameat_with(
-                        parent,
-                        &self.leaf_name,
-                        parent,
-                        temporary_cleanup.name.as_str(),
-                        RenameFlags::NOREPLACE,
-                    );
-                    return Err(match rollback {
-                        Ok(()) => error,
-                        Err(rollback) => {
-                            format!("{error}; failed to roll back replacement: {rollback}")
-                        }
-                    });
-                }
-                if let Err(error) = rustix::fs::fsync(parent) {
-                    let rollback = rustix::fs::renameat_with(
-                        parent,
-                        &self.leaf_name,
-                        parent,
-                        temporary_cleanup.name.as_str(),
-                        RenameFlags::NOREPLACE,
-                    );
-                    let rollback_sync = rollback
-                        .as_ref()
-                        .ok()
-                        .and_then(|()| rustix::fs::fsync(parent).ok());
-                    return Err(match (rollback, rollback_sync) {
-                        (Ok(()), Some(())) => format!(
-                            "fsync pinned parent of {}: {error}; replacement was rolled back",
-                            self.relative_path.display()
-                        ),
-                        (Ok(()), None) => format!(
-                            "fsync pinned parent of {}: {error}; replacement was rolled back but rollback durability is uncertain",
-                            self.relative_path.display()
-                        ),
-                        (Err(rollback), _) => format!(
-                            "fsync pinned parent of {}: {error}; failed to roll back replacement: {rollback}",
-                            self.relative_path.display()
-                        ),
-                    });
-                }
-                // The rename and its parent directory are durable; the
-                // temporary name no longer exists.
-                temporary_cleanup.disarm();
-            }
-            RepositoryFilePreimage::Exact(expected) => {
-                rustix::fs::renameat_with(
-                    parent,
-                    temporary_cleanup.name.as_str(),
-                    parent,
-                    &self.leaf_name,
-                    RenameFlags::EXCHANGE,
-                )
-                .map_err(|error| {
-                    format!(
-                        "atomically exchange {} replacement: {error}",
-                        self.relative_path.display()
-                    )
-                })?;
-                let displaced = Self::read_named_preimage(
-                    parent,
-                    &OsString::from(&temporary_cleanup.name),
-                    self.max_bytes,
-                    &self.relative_path.display().to_string(),
-                );
-                let displaced_matches = displaced.as_ref().is_ok_and(|value| {
-                    value.as_ref().is_some_and(|(bytes, identity)| {
-                        bytes == expected && Some(*identity) == self.preimage_identity
-                    })
-                });
-                let installed = self.verify_installed_leaf(temporary_identity);
-                if !displaced_matches || installed.is_err() {
-                    let reason = installed.err().unwrap_or_else(|| {
-                        format!(
-                            "{} changed during atomic exchange",
-                            self.relative_path.display()
-                        )
-                    });
-                    let rollback = rustix::fs::renameat_with(
-                        parent,
-                        temporary_cleanup.name.as_str(),
-                        parent,
-                        &self.leaf_name,
-                        RenameFlags::EXCHANGE,
-                    );
-                    return Err(match rollback {
-                        Ok(()) => reason,
-                        Err(rollback) => {
-                            format!("{reason}; failed to roll back replacement: {rollback}")
-                        }
-                    });
-                }
-
-                // Persist the exact installed leaf while the displaced
-                // preimage still exists, so an fsync error remains rollback
-                // capable rather than returning an ambiguous changed state.
-                if let Err(error) = rustix::fs::fsync(parent) {
-                    let rollback = rustix::fs::renameat_with(
-                        parent,
-                        temporary_cleanup.name.as_str(),
-                        parent,
-                        &self.leaf_name,
-                        RenameFlags::EXCHANGE,
-                    );
-                    let rollback_sync = rollback
-                        .as_ref()
-                        .ok()
-                        .and_then(|()| rustix::fs::fsync(parent).ok());
-                    return Err(match (rollback, rollback_sync) {
-                        (Ok(()), Some(())) => format!(
-                            "fsync pinned parent of {}: {error}; replacement was rolled back",
-                            self.relative_path.display()
-                        ),
-                        (Ok(()), None) => format!(
-                            "fsync pinned parent of {}: {error}; replacement was rolled back but rollback durability is uncertain",
-                            self.relative_path.display()
-                        ),
-                        (Err(rollback), _) => format!(
-                            "fsync pinned parent of {}: {error}; failed to roll back replacement: {rollback}",
-                            self.relative_path.display()
-                        ),
-                    });
-                }
-
-                if let Err(error) =
-                    rustix::fs::unlinkat(parent, temporary_cleanup.name.as_str(), AtFlags::empty())
-                {
-                    let rollback = rustix::fs::renameat_with(
-                        parent,
-                        temporary_cleanup.name.as_str(),
-                        parent,
-                        &self.leaf_name,
-                        RenameFlags::EXCHANGE,
-                    );
-                    let rollback_sync = rollback
-                        .as_ref()
-                        .ok()
-                        .and_then(|()| rustix::fs::fsync(parent).ok());
-                    return Err(match (rollback, rollback_sync) {
-                        (Ok(()), Some(())) => format!(
-                            "remove displaced {} preimage: {error}; replacement was rolled back",
-                            self.relative_path.display()
-                        ),
-                        (Ok(()), None) => format!(
-                            "remove displaced {} preimage: {error}; replacement was rolled back but rollback durability is uncertain",
-                            self.relative_path.display()
-                        ),
-                        (Err(rollback), _) => format!(
-                            "remove displaced {} preimage: {error}; failed to roll back replacement: {rollback}",
-                            self.relative_path.display()
-                        ),
-                    });
-                }
-                temporary_cleanup.disarm();
-
-                // The installed leaf was already made durable while rollback
-                // remained possible. This second sync persists only removal of
-                // the displaced recovery artifact; an error cannot make the
-                // successfully installed leaf semantically false.
-                let _ = rustix::fs::fsync(parent);
-            }
+            });
+            return Err(self.rollback_exchange(parent, &mut temporary_cleanup, reason));
         }
-        Ok(true)
+
+        // Persist the installed leaf while the displaced preimage still makes
+        // an fsync error rollback capable.
+        if let Err(error) = rustix::fs::fsync(parent) {
+            let reason = format!(
+                "fsync pinned parent of {}: {error}",
+                self.relative_path.display()
+            );
+            return Err(self.rollback_exchange(parent, &mut temporary_cleanup, reason));
+        }
+
+        if let Err(error) =
+            rustix::fs::unlinkat(parent, temporary_cleanup.name.as_str(), AtFlags::empty())
+        {
+            let reason = format!(
+                "remove displaced {} preimage: {error}",
+                self.relative_path.display()
+            );
+            return Err(self.rollback_exchange(parent, &mut temporary_cleanup, reason));
+        }
+        temporary_cleanup.disarm();
+
+        // The leaf is already durable. This sync only persists removal of the
+        // displaced recovery artifact and cannot falsify the installed leaf.
+        let _ = rustix::fs::fsync(parent);
+        self.verify_installed_leaf(temporary_identity)
     }
 }
 
 #[cfg(not(any(target_os = "linux", target_vendor = "apple")))]
-pub const REPOSITORY_FILE_MUTATION_UNAVAILABLE: &str = "repository-file mutation is unavailable on this platform because Vela cannot provide descriptor-relative no-clobber/exchange replacement";
+const AUTHORITY_TRUST_ANCHOR_REBIND_UNAVAILABLE: &str = "authority trust-anchor rebind is unavailable on this platform because Vela cannot provide descriptor-relative exchange replacement";
 
 #[cfg(not(any(target_os = "linux", target_vendor = "apple")))]
-impl PreparedRepositoryFileReplacement {
-    pub fn prepare_exact(
+impl PreparedAuthorityTrustAnchorReplacement {
+    fn prepare(
         _root_path: &Path,
-        _relative_path: &Path,
-        _expected: Option<&[u8]>,
-        _replacement: &[u8],
-        _mode: RepositoryFileReplacementMode,
-        _max_bytes: u64,
+        _expected: &AuthorityTrustAnchorV1,
+        _replacement: &AuthorityTrustAnchorV1,
     ) -> Result<Self, String> {
-        Err(REPOSITORY_FILE_MUTATION_UNAVAILABLE.to_string())
+        Err(AUTHORITY_TRUST_ANCHOR_REBIND_UNAVAILABLE.to_string())
     }
 
-    pub fn install(self) -> Result<bool, String> {
-        Err(REPOSITORY_FILE_MUTATION_UNAVAILABLE.to_string())
-    }
-
-    pub fn install_with_hook(
-        self,
-        _before_replace: impl FnOnce() -> Result<(), String>,
-    ) -> Result<bool, String> {
-        self.install()
+    fn install(self) -> Result<LoadedAuthorityTrustAnchorV1, String> {
+        Err(AUTHORITY_TRUST_ANCHOR_REBIND_UNAVAILABLE.to_string())
     }
 }
 
@@ -910,13 +773,7 @@ pub fn load_authority_trust_anchor_from_home(
     repository_id: &str,
 ) -> Result<Option<LoadedAuthorityTrustAnchorV1>, String> {
     let path = authority_trust_anchor_path(user_home, repository_id)?;
-    let Some(anchor) = load_private_trust_document::<AuthorityTrustAnchorV1>(
-        user_home,
-        "authorities",
-        &path,
-        "authority trust anchor",
-    )?
-    else {
+    let Some(anchor) = load_authority_trust_document(user_home, &path)? else {
         return Ok(None);
     };
     anchor.validate()?;
@@ -939,16 +796,29 @@ pub fn install_authority_trust_anchor_from_home(
 ) -> Result<LoadedAuthorityTrustAnchorV1, String> {
     anchor.validate()?;
     let path = authority_trust_anchor_path(user_home, &anchor.repository_id)?;
-    install_private_trust_document(
-        user_home,
-        "authorities",
-        &path,
-        anchor,
-        "authority trust anchor",
-        ".authority-trust-anchor-",
-    )?;
+    install_authority_trust_document(user_home, &path, anchor)?;
     load_authority_trust_anchor_from_home(user_home, &anchor.repository_id)?
         .ok_or_else(|| "installed authority trust anchor could not be read back".to_string())
+}
+
+#[cfg(all(test, any(target_os = "linux", target_vendor = "apple")))]
+std::thread_local! {
+    static AUTHORITY_REBIND_AFTER_PREPARE_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
+        std::cell::RefCell::new(None);
+}
+
+#[cfg(all(test, any(target_os = "linux", target_vendor = "apple")))]
+fn set_authority_rebind_after_prepare_hook(hook: impl FnOnce() + 'static) {
+    AUTHORITY_REBIND_AFTER_PREPARE_HOOK.with(|slot| slot.replace(Some(Box::new(hook))));
+}
+
+#[cfg(all(test, any(target_os = "linux", target_vendor = "apple")))]
+fn run_authority_rebind_after_prepare_hook() {
+    AUTHORITY_REBIND_AFTER_PREPARE_HOOK.with(|slot| {
+        if let Some(hook) = slot.take() {
+            hook();
+        }
+    });
 }
 
 /// Atomically move one independently retained authority pin to the exact
@@ -970,57 +840,21 @@ pub fn rebind_authority_trust_anchor_from_home(
     if expected.repository_id != replacement.repository_id {
         return Err("authority trust-anchor rebind cannot change repository identity".to_string());
     }
-    let loaded = load_authority_trust_anchor_from_home(user_home, &expected.repository_id)?
-        .ok_or_else(|| {
-            "authority trust-anchor rebind requires an existing exact pin".to_string()
-        })?;
-    if loaded.anchor != *expected {
-        return Err(
-            "authority trust-anchor rebind preimage does not match the installed pin".into(),
-        );
-    }
-    if expected == replacement {
-        return Ok(loaded);
-    }
-
-    let mut expected_bytes = serde_json::to_vec_pretty(expected)
-        .map_err(|error| format!("serialize authority trust-anchor preimage: {error}"))?;
-    expected_bytes.push(b'\n');
-    let mut replacement_bytes = serde_json::to_vec_pretty(replacement)
-        .map_err(|error| format!("serialize authority trust-anchor replacement: {error}"))?;
-    replacement_bytes.push(b'\n');
-    let relative = PathBuf::from(".vela")
-        .join("trust")
-        .join("authorities")
-        .join(format!("{}.json", replacement.repository_id));
-    PreparedRepositoryFileReplacement::prepare_exact(
-        user_home,
-        &relative,
-        Some(&expected_bytes),
-        &replacement_bytes,
-        RepositoryFileReplacementMode::PreserveExisting,
-        4 * 1024,
-    )?
-    .install()?;
-    let rebound = load_authority_trust_anchor_from_home(user_home, &replacement.repository_id)?
-        .ok_or_else(|| "rebound authority trust anchor could not be read back".to_string())?;
-    if rebound.anchor != *replacement {
-        return Err(
-            "rebound authority trust anchor differs from the exact replacement".to_string(),
-        );
-    }
-    Ok(rebound)
+    let prepared =
+        PreparedAuthorityTrustAnchorReplacement::prepare(user_home, expected, replacement)?;
+    #[cfg(all(test, any(target_os = "linux", target_vendor = "apple")))]
+    run_authority_rebind_after_prepare_hook();
+    prepared.install()
 }
 
-fn load_private_trust_document<T: DeserializeOwned>(
+fn load_authority_trust_document(
     user_home: &Path,
-    namespace: &str,
     path: &Path,
-    label: &str,
-) -> Result<Option<T>, String> {
+) -> Result<Option<AuthorityTrustAnchorV1>, String> {
+    let label = "authority trust anchor";
     let vela = user_home.join(".vela");
     let trust = vela.join("trust");
-    let namespace_dir = trust.join(namespace);
+    let namespace_dir = trust.join("authorities");
     match safe_metadata(&vela)? {
         None => return Ok(None),
         Some(metadata) if metadata.file_type().is_dir() => {
@@ -1090,23 +924,21 @@ fn load_private_trust_document<T: DeserializeOwned>(
         .map_err(|error| format!("parse {label} '{}': {error}", path.display()))
 }
 
-fn install_private_trust_document<T: Serialize + DeserializeOwned + PartialEq>(
+fn install_authority_trust_document(
     user_home: &Path,
-    namespace: &str,
     path: &Path,
-    document: &T,
-    label: &str,
-    temporary_prefix: &str,
+    document: &AuthorityTrustAnchorV1,
 ) -> Result<(), String> {
+    let label = "authority trust anchor";
     let vela = user_home.join(".vela");
     let trust = vela.join("trust");
-    let namespace_dir = trust.join(namespace);
+    let namespace_dir = trust.join("authorities");
     ensure_trusted_parent_directory(&vela)?;
     ensure_private_directory(&trust)?;
     ensure_private_directory(&namespace_dir)?;
 
     if path.exists() {
-        let existing = load_private_trust_document::<T>(user_home, namespace, path, label)?
+        let existing = load_authority_trust_document(user_home, path)?
             .ok_or_else(|| format!("{label} disappeared during install"))?;
         if existing == *document {
             return Ok(());
@@ -1121,7 +953,7 @@ fn install_private_trust_document<T: Serialize + DeserializeOwned + PartialEq>(
         .map_err(|error| format!("serialize {label}: {error}"))?;
     bytes.push(b'\n');
     let mut temporary = tempfile::Builder::new()
-        .prefix(temporary_prefix)
+        .prefix(".authority-trust-anchor-")
         .tempfile_in(&namespace_dir)
         .map_err(|error| format!("create {label} temporary file: {error}"))?;
     set_private_file_permissions(temporary.path())?;
@@ -1292,21 +1124,7 @@ fn require_private_directory(path: &Path, metadata: &fs::Metadata) -> Result<(),
 fn require_trusted_parent_directory(path: &Path, metadata: &fs::Metadata) -> Result<(), String> {
     use std::os::unix::fs::{MetadataExt, PermissionsExt};
 
-    let owner = rustix::process::geteuid().as_raw();
-    if metadata.uid() != owner {
-        return Err(format!(
-            "trust parent directory '{}' is not owned by the current operating-system account",
-            path.display()
-        ));
-    }
-    let mode = metadata.permissions().mode() & 0o777;
-    if mode & 0o022 != 0 {
-        return Err(format!(
-            "trust parent directory '{}' may not be group- or world-writable; observed mode {mode:04o}",
-            path.display()
-        ));
-    }
-    Ok(())
+    require_trusted_parent_owner_mode(metadata.uid(), metadata.permissions().mode(), path)
 }
 
 #[cfg(unix)]
@@ -1323,21 +1141,13 @@ fn require_owned_mode(
 ) -> Result<(), String> {
     use std::os::unix::fs::{MetadataExt, PermissionsExt};
 
-    let owner = rustix::process::geteuid().as_raw();
-    if metadata.uid() != owner {
-        return Err(format!(
-            "trust {kind} '{}' is not owned by the current operating-system account",
-            path.display()
-        ));
-    }
-    let mode = metadata.permissions().mode() & 0o777;
-    if mode != expected_mode {
-        return Err(format!(
-            "trust {kind} '{}' must have exact mode {expected_mode:04o}, observed {mode:04o}",
-            path.display()
-        ));
-    }
-    Ok(())
+    require_private_owner_mode(
+        metadata.uid(),
+        metadata.permissions().mode(),
+        path,
+        expected_mode,
+        kind,
+    )
 }
 
 #[cfg(not(unix))]
@@ -1369,132 +1179,175 @@ mod tests {
     }
 
     #[cfg(any(target_os = "linux", target_vendor = "apple"))]
-    fn no_repository_replacement_temporaries(directory: &Path) -> bool {
-        std::fs::read_dir(directory)
-            .unwrap()
-            .flatten()
-            .all(|entry| {
-                !entry
-                    .file_name()
-                    .to_string_lossy()
-                    .starts_with(".vela-replace-")
-            })
+    fn replacement_anchor(
+        original: &AuthorityTrustAnchorV1,
+        root_digit: char,
+    ) -> AuthorityTrustAnchorV1 {
+        let mut replacement = original.clone();
+        replacement.first_authority_record_root =
+            format!("sha256:{}", root_digit.to_string().repeat(64));
+        replacement
     }
 
     #[cfg(any(target_os = "linux", target_vendor = "apple"))]
-    #[test]
-    fn repository_file_replacement_enforces_exact_mode_after_umask_and_on_equal_bytes() {
+    fn anchor_bytes(anchor: &AuthorityTrustAnchorV1) -> Vec<u8> {
+        let mut bytes = serde_json::to_vec_pretty(anchor).unwrap();
+        bytes.push(b'\n');
+        bytes
+    }
+
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
+    fn expect_error<T: std::fmt::Debug>(result: Result<T, String>, expected: &str) -> String {
+        let error = result.unwrap_err();
+        assert!(error.contains(expected), "{error}");
+        error
+    }
+
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
+    struct AnchorFixture {
+        home: tempfile::TempDir,
+        original: AuthorityTrustAnchorV1,
+        replacement: AuthorityTrustAnchorV1,
+        installed: LoadedAuthorityTrustAnchorV1,
+    }
+
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
+    impl AnchorFixture {
+        fn new() -> Self {
+            let home = tempfile::tempdir().unwrap();
+            let original = authority_trust_anchor();
+            let replacement = replacement_anchor(&original, '5');
+            let installed =
+                install_authority_trust_anchor_from_home(home.path(), &original).unwrap();
+            Self {
+                home,
+                original,
+                replacement,
+                installed,
+            }
+        }
+
+        fn prepare(&self) -> PreparedAuthorityTrustAnchorReplacement {
+            PreparedAuthorityTrustAnchorReplacement::prepare(
+                self.home.path(),
+                &self.original,
+                &self.replacement,
+            )
+            .unwrap()
+        }
+
+        fn rebind_to(
+            &self,
+            replacement: &AuthorityTrustAnchorV1,
+        ) -> Result<LoadedAuthorityTrustAnchorV1, String> {
+            rebind_authority_trust_anchor_from_home(self.home.path(), &self.original, replacement)
+        }
+
+        fn try_load(&self) -> Result<Option<LoadedAuthorityTrustAnchorV1>, String> {
+            load_authority_trust_anchor_from_home(self.home.path(), &self.original.repository_id)
+        }
+
+        fn load(&self) -> LoadedAuthorityTrustAnchorV1 {
+            self.try_load().unwrap().unwrap()
+        }
+
+        fn public_race(
+            &self,
+            replacement: &AuthorityTrustAnchorV1,
+            expected_error: &str,
+            hook: impl FnOnce() + 'static,
+        ) -> String {
+            set_authority_rebind_after_prepare_hook(hook);
+            expect_error(self.rebind_to(replacement), expected_error)
+        }
+
+        fn assert_pin(&self, expected: &AuthorityTrustAnchorV1) {
+            assert_eq!(
+                fs::read(&self.installed.path).unwrap(),
+                anchor_bytes(expected)
+            );
+        }
+
+        fn assert_clean(&self) {
+            assert_no_replacement_temporaries(self.installed.path.parent().unwrap());
+        }
+    }
+
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
+    fn replace_anchor_path(path: &Path, anchor: &AuthorityTrustAnchorV1) {
         use std::os::unix::fs::PermissionsExt;
 
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("settings.toml");
-        std::fs::write(&path, b"before").unwrap();
+        let staged = path.with_extension("race");
+        fs::write(&staged, anchor_bytes(anchor)).unwrap();
+        fs::set_permissions(&staged, fs::Permissions::from_mode(0o600)).unwrap();
+        fs::rename(staged, path).unwrap();
+    }
 
-        let first = PreparedRepositoryFileReplacement::prepare_exact(
-            directory.path(),
-            Path::new("settings.toml"),
-            Some(b"before"),
-            b"after",
-            RepositoryFileReplacementMode::Exact(0o666),
-            1024,
-        )
-        .unwrap();
-        assert!(first.install().unwrap());
-        assert_eq!(std::fs::read(&path).unwrap(), b"after");
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
+    fn assert_no_replacement_temporaries(directory: &Path) {
+        assert!(fs::read_dir(directory).unwrap().flatten().all(|entry| {
+            !entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".vela-replace-")
+        }));
+    }
+
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
+    fn assert_mode(path: &Path, expected: u32) {
+        use std::os::unix::fs::PermissionsExt;
         assert_eq!(
-            std::fs::symlink_metadata(&path)
-                .unwrap()
-                .permissions()
-                .mode()
-                & 0o777,
-            0o666
+            fs::symlink_metadata(path).unwrap().permissions().mode() & 0o777,
+            expected
         );
-
-        // Equal bytes are not a no-op when Exact mode still needs repair.
-        let repair = PreparedRepositoryFileReplacement::prepare_exact(
-            directory.path(),
-            Path::new("settings.toml"),
-            Some(b"after"),
-            b"after",
-            RepositoryFileReplacementMode::Exact(0o644),
-            1024,
-        )
-        .unwrap();
-        assert!(repair.install().unwrap());
-        assert_eq!(
-            std::fs::symlink_metadata(&path)
-                .unwrap()
-                .permissions()
-                .mode()
-                & 0o777,
-            0o644
-        );
-
-        let unchanged = PreparedRepositoryFileReplacement::prepare_exact(
-            directory.path(),
-            Path::new("settings.toml"),
-            Some(b"after"),
-            b"after",
-            RepositoryFileReplacementMode::Exact(0o644),
-            1024,
-        )
-        .unwrap();
-        assert!(!unchanged.install().unwrap());
-        assert!(no_repository_replacement_temporaries(directory.path()));
     }
 
     #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     #[test]
-    fn repository_file_replacement_cleans_a_temporary_after_precommit_failure() {
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("settings.toml");
-        std::fs::write(&path, b"before").unwrap();
-        let prepared = PreparedRepositoryFileReplacement::prepare_exact(
-            directory.path(),
-            Path::new("settings.toml"),
-            Some(b"before"),
-            b"after",
-            RepositoryFileReplacementMode::Exact(0o644),
-            1024,
-        )
-        .unwrap();
+    fn authority_trust_anchor_replacement_cleans_rolls_back_and_serializes() {
+        use std::os::unix::fs::PermissionsExt;
 
-        let error = prepared
-            .install_with_hooks(
+        let fixture = AnchorFixture::new();
+        expect_error(
+            fixture.prepare().install_with_hooks(
                 || Err("injected failure after temporary creation".to_string()),
                 || Ok(()),
-            )
-            .unwrap_err();
-        assert!(error.contains("injected failure"), "{error}");
-        assert_eq!(std::fs::read(&path).unwrap(), b"before");
-        assert!(no_repository_replacement_temporaries(directory.path()));
-    }
+                || {},
+            ),
+            "injected failure",
+        );
+        fixture.assert_pin(&fixture.original);
+        fixture.assert_clean();
 
-    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
-    #[test]
-    fn repository_file_replacement_serializes_competing_prepared_writers() {
+        let rollback = AnchorFixture::new();
+        expect_error(
+            rollback.prepare().install_with_hooks(
+                || Ok(()),
+                || Ok(()),
+                || {
+                    fs::set_permissions(
+                        &rollback.installed.path,
+                        fs::Permissions::from_mode(0o640),
+                    )
+                    .unwrap();
+                },
+            ),
+            "replacement was rolled back",
+        );
+        rollback.assert_pin(&rollback.original);
+        assert_mode(&rollback.installed.path, 0o600);
+        rollback.assert_clean();
+
         use std::sync::atomic::{AtomicBool, Ordering};
         use std::sync::{Arc, mpsc};
 
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("settings.toml");
-        std::fs::write(&path, b"before").unwrap();
-        let first = PreparedRepositoryFileReplacement::prepare_exact(
-            directory.path(),
-            Path::new("settings.toml"),
-            Some(b"before"),
-            b"first",
-            RepositoryFileReplacementMode::Exact(0o644),
-            1024,
-        )
-        .unwrap();
-        let second = PreparedRepositoryFileReplacement::prepare_exact(
-            directory.path(),
-            Path::new("settings.toml"),
-            Some(b"before"),
-            b"second",
-            RepositoryFileReplacementMode::Exact(0o644),
-            1024,
+        let fixture = AnchorFixture::new();
+        let second_anchor = replacement_anchor(&fixture.original, '6');
+        let first = fixture.prepare();
+        let second = PreparedAuthorityTrustAnchorReplacement::prepare(
+            fixture.home.path(),
+            &fixture.original,
+            &second_anchor,
         )
         .unwrap();
 
@@ -1511,72 +1364,211 @@ mod tests {
 
         let second_hook_ran = Arc::new(AtomicBool::new(false));
         let observed_second_hook = Arc::clone(&second_hook_ran);
-        let second_error = second
-            .install_with_hook(|| {
+        expect_error(
+            second.install_with_hook(|| {
                 observed_second_hook.store(true, Ordering::SeqCst);
                 Ok(())
-            })
-            .unwrap_err();
-        assert!(
-            second_error.contains("repository replacement busy"),
-            "{second_error}"
+            }),
+            "authority trust-anchor replacement busy",
         );
         assert!(!second_hook_ran.load(Ordering::SeqCst));
 
         release_first_tx.send(()).unwrap();
-        assert!(first_thread.join().unwrap().unwrap());
-        assert_eq!(std::fs::read(&path).unwrap(), b"first");
-        assert!(no_repository_replacement_temporaries(directory.path()));
+        first_thread.join().unwrap().unwrap();
+        fixture.assert_pin(&fixture.replacement);
+        fixture.assert_clean();
     }
 
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     #[test]
-    fn authority_trust_anchor_round_trip_is_minimal_rooted_and_non_replacing() {
-        let home = tempfile::tempdir().unwrap();
-        let anchor = authority_trust_anchor();
-        let installed = install_authority_trust_anchor_from_home(home.path(), &anchor).unwrap();
-        assert_eq!(installed.anchor, anchor);
-        assert_eq!(installed.root, anchor.root().unwrap());
-        assert_eq!(
-            installed.path,
-            home.path()
-                .join(".vela/trust/authorities/01234567-89ab-4def-8123-456789abcdef.json")
+    fn public_rebind_rejects_preparation_races() {
+        use std::os::unix::fs::{PermissionsExt, symlink};
+
+        let equal = AnchorFixture::new();
+        let equal_path = equal.installed.path.clone();
+        let equal_anchor = equal.original.clone();
+        equal.public_race(&equal.original, "preimage does not match", move || {
+            replace_anchor_path(&equal_path, &equal_anchor)
+        });
+        equal.assert_pin(&equal.original);
+        equal.assert_clean();
+
+        for raced_anchor in ['5', '6'] {
+            let fixture = AnchorFixture::new();
+            let raced = replacement_anchor(&fixture.original, raced_anchor);
+            let raced_path = fixture.installed.path.clone();
+            let hook_anchor = raced.clone();
+            fixture.public_race(&fixture.replacement, "preimage does not match", move || {
+                replace_anchor_path(&raced_path, &hook_anchor)
+            });
+            fixture.assert_pin(&raced);
+            fixture.assert_clean();
+        }
+
+        let mode = AnchorFixture::new();
+        let mode_path = mode.installed.path.clone();
+        mode.public_race(&mode.replacement, "preimage does not match", move || {
+            fs::set_permissions(&mode_path, fs::Permissions::from_mode(0o640)).unwrap()
+        });
+        assert_mode(&mode.installed.path, 0o640);
+        mode.assert_pin(&mode.original);
+        mode.assert_clean();
+
+        expect_error(mode.rebind_to(&mode.replacement), "exact mode 0600");
+
+        let symlinked = AnchorFixture::new();
+        let sentinel = symlinked.home.path().join("sentinel");
+        fs::write(&sentinel, b"sentinel").unwrap();
+        let symlink_path = symlinked.installed.path.clone();
+        let hook_sentinel = sentinel.clone();
+        symlinked.public_race(
+            &symlinked.replacement,
+            "open pinned repository file",
+            move || {
+                fs::remove_file(&symlink_path).unwrap();
+                symlink(hook_sentinel, symlink_path).unwrap();
+            },
         );
-        let loaded = load_authority_trust_anchor_from_home(
-            home.path(),
-            "01234567-89ab-4def-8123-456789abcdef",
-        )
-        .unwrap()
-        .unwrap();
-        assert_eq!(loaded, installed);
+        assert_eq!(fs::read(sentinel).unwrap(), b"sentinel");
+        symlinked.assert_clean();
 
-        let mut replacement = anchor;
-        replacement.first_authority_record_root = format!("sha256:{}", "5".repeat(64));
-        let error =
-            install_authority_trust_anchor_from_home(home.path(), &replacement).unwrap_err();
-        assert!(error.contains("refusing to replace existing authority trust anchor"));
+        let fifo = AnchorFixture::new();
+        let fifo_path = fifo.installed.path.clone();
+        fifo.public_race(&fifo.replacement, "regular non-symlink file", move || {
+            fs::remove_file(&fifo_path).unwrap();
+            assert!(
+                std::process::Command::new("/usr/bin/mkfifo")
+                    .arg(fifo_path)
+                    .status()
+                    .unwrap()
+                    .success()
+            );
+        });
+        fifo.assert_clean();
+
+        let fixture = AnchorFixture::new();
+        let authorities = fixture.home.path().join(".vela/trust/authorities");
+        let real_authorities = fixture.home.path().join("real-authorities");
+        let sentinel_directory = fixture.home.path().join("sentinel-authorities");
+        fs::create_dir(&sentinel_directory).unwrap();
+        fs::set_permissions(&sentinel_directory, fs::Permissions::from_mode(0o700)).unwrap();
+        let sentinel = sentinel_directory.join(format!("{}.json", fixture.original.repository_id));
+        fs::write(&sentinel, b"sentinel").unwrap();
+        let error = fixture.public_race(&fixture.replacement, "parent", {
+            let authorities = authorities.clone();
+            let real_authorities = real_authorities.clone();
+            let sentinel_directory = sentinel_directory.clone();
+            move || {
+                fs::rename(&authorities, real_authorities).unwrap();
+                symlink(sentinel_directory, authorities).unwrap();
+            }
+        });
+        assert!(error.contains("changed"), "{error}");
+        assert_eq!(fs::read(&sentinel).unwrap(), b"sentinel");
+        assert_eq!(
+            fs::read(real_authorities.join(fixture.installed.path.file_name().unwrap())).unwrap(),
+            anchor_bytes(&fixture.original)
+        );
+        assert_no_replacement_temporaries(&real_authorities);
     }
 
+    #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     #[test]
-    fn authority_trust_anchor_rebind_requires_the_exact_installed_preimage() {
-        let home = tempfile::tempdir().unwrap();
+    fn authority_trust_anchor_public_contract_is_exact() {
+        use std::os::unix::fs::{PermissionsExt, symlink};
+
+        let current_owner = rustix::process::geteuid().as_raw();
+        let wrong_owner = current_owner
+            .checked_add(1)
+            .unwrap_or_else(|| current_owner.saturating_sub(1));
+        expect_error(
+            require_private_owner_mode(wrong_owner, 0o600, Path::new("pin.json"), 0o600, "file"),
+            "not owned",
+        );
+
+        expect_error(
+            require_trusted_parent_owner_mode(wrong_owner, 0o600, Path::new(".vela")),
+            "not owned",
+        );
+        let fixture = AnchorFixture::new();
+        assert_eq!(fixture.installed.anchor, fixture.original);
+        assert_eq!(fixture.installed.root, fixture.original.root().unwrap());
+        assert_eq!(
+            fixture.installed.path,
+            authority_trust_anchor_path(fixture.home.path(), &fixture.original.repository_id)
+                .unwrap()
+        );
+        assert_eq!(fixture.load(), fixture.installed);
+        for (path, mode) in [
+            (fixture.home.path().join(".vela"), 0o700),
+            (fixture.home.path().join(".vela/trust"), 0o700),
+            (fixture.home.path().join(".vela/trust/authorities"), 0o700),
+            (fixture.installed.path.clone(), 0o600),
+        ] {
+            assert_mode(&path, mode);
+        }
+        expect_error(
+            install_authority_trust_anchor_from_home(fixture.home.path(), &fixture.replacement),
+            "refusing to replace existing authority trust anchor",
+        );
+
+        for (case, mode, expected) in [
+            ("pin", 0o640, "exact mode 0600"),
+            ("trust", 0o750, "exact mode 0700"),
+            ("vela", 0o777, "may not be group- or world-writable"),
+        ] {
+            let fixture = AnchorFixture::new();
+            let path = match case {
+                "pin" => fixture.installed.path.clone(),
+                "trust" => fixture.home.path().join(".vela/trust"),
+                _ => fixture.home.path().join(".vela"),
+            };
+            fs::set_permissions(path, fs::Permissions::from_mode(mode)).unwrap();
+            expect_error(fixture.try_load(), expected);
+        }
+        let fixture = AnchorFixture::new();
+        let target = fixture.home.path().join("outside-anchor.json");
+        fs::rename(&fixture.installed.path, &target).unwrap();
+        symlink(&target, &fixture.installed.path).unwrap();
+
+        expect_error(fixture.try_load(), "may not be a symlink");
+        let absent = tempfile::tempdir().unwrap();
         let original = authority_trust_anchor();
-        install_authority_trust_anchor_from_home(home.path(), &original).unwrap();
+        expect_error(
+            rebind_authority_trust_anchor_from_home(
+                absent.path(),
+                &original,
+                &replacement_anchor(&original, '5'),
+            ),
+            "requires an existing exact pin",
+        );
+        assert!(!absent.path().join(".vela").exists());
 
-        let mut replacement = original.clone();
-        replacement.first_authority_record_root = format!("sha256:{}", "5".repeat(64));
-        let rebound =
-            rebind_authority_trust_anchor_from_home(home.path(), &original, &replacement).unwrap();
-        assert_eq!(rebound.anchor, replacement);
+        let fixture = AnchorFixture::new();
+        let before = same_file::Handle::from_path(&fixture.installed.path).unwrap();
+        let unchanged = fixture.rebind_to(&fixture.original).unwrap();
+        assert_eq!(unchanged.anchor, fixture.original);
+        assert_eq!(unchanged, fixture.load());
+        assert_eq!(
+            before,
+            same_file::Handle::from_path(&fixture.installed.path).unwrap()
+        );
+        fixture.assert_pin(&fixture.original);
+        assert_mode(&fixture.installed.path, 0o600);
+        fixture.assert_clean();
 
-        let mut wrong_preimage = original;
-        wrong_preimage.first_authority_record_root = format!("sha256:{}", "6".repeat(64));
-        let error = rebind_authority_trust_anchor_from_home(
-            home.path(),
-            &wrong_preimage,
-            &authority_trust_anchor(),
-        )
-        .unwrap_err();
-        assert!(error.contains("preimage does not match"));
+        let rebound = fixture.rebind_to(&fixture.replacement).unwrap();
+        assert_eq!(rebound, fixture.load());
+        let wrong_preimage = replacement_anchor(&fixture.original, '6');
+        expect_error(
+            rebind_authority_trust_anchor_from_home(
+                fixture.home.path(),
+                &wrong_preimage,
+                &fixture.original,
+            ),
+            "preimage does not match",
+        );
+        fixture.assert_pin(&fixture.replacement);
     }
 
     #[test]
