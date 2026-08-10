@@ -276,15 +276,14 @@
         "verifications": 7
       },
       "git": {
-        "commit": "130fc283b99b8c55dea51b5f8f959a6c33a679f6",
+        "commit": "fdb23666e7b5385a62cc97c58086bc67bd4e7fa9",
         "remote": "https://github.com/vela-science/math.git",
-        "tree": "3c99d1b9c969a8559605a664bdd7280e9729169f"
+        "tree": "809551a3bbdc18479604a5b16d5979b17343c204"
       },
       "method": "local-checkout",
-      "observed_at": "2026-08-09T13:14:03Z",
+      "observed_at": "2026-08-10T01:05:46Z",
       "origin": {
         "generation": 1,
-        "origin_id": "vro_229ce0a08217da5e",
         "schema": "vela.repository-origin.v1"
       },
       "origin_root": "sha256:229ce0a08217da5e8bad2059c35070989652ca546ab45b8e699922ba182e8a69",
@@ -357,12 +356,12 @@
     }
   },
   "projection": {
-    "activation_time": "2026-08-09T13:07:50.169Z",
+    "activation_time": "2026-08-10T00:59:57.849Z",
     "method": "https-get",
-    "observed_at": "2026-08-09T13:14:08Z",
+    "observed_at": "2026-08-10T01:05:47Z",
     "projected_repositories": [
       {
-        "commit": "130fc283b99b8c55dea51b5f8f959a6c33a679f6",
+        "commit": "fdb23666e7b5385a62cc97c58086bc67bd4e7fa9",
         "counts": {
           "accepted_claim": 1,
           "claim": 1,
@@ -379,11 +378,11 @@
         "origin_root": "sha256:229ce0a08217da5e8bad2059c35070989652ca546ab45b8e699922ba182e8a69",
         "repository_id": "8115c538-7688-40b7-ab75-3c4765bf3c19",
         "repository_root": "sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc",
-        "tree": "3c99d1b9c969a8559605a664bdd7280e9729169f"
+        "tree": "809551a3bbdc18479604a5b16d5979b17343c204"
       }
     ],
     "projection_schema": "vela.observatory-release-manifest",
-    "release_root": "sha256:eba70ba9604105bbc4fbdd229d806877d467a86e25bea4c071ee78066bc5ca78",
+    "release_root": "sha256:53baf6a8e6e995e1241289c6542221fa3ee48c5d9e8fa334a66c481ea3916439",
     "source": "https://app.vela.space/.well-known/vela-site.json",
     "vela_version": "vela 0.972.1"
   },
