@@ -28,6 +28,7 @@ use crate::repository_ops::{VerificationImportOutcome, publication_delta};
 use crate::repository_txn::{ContentDigest, InputBinding, WriteClass};
 
 const METHOD_MANIFEST_MAX_BYTES: u64 = 1024 * 1024;
+const REPOSITORY_OPERATION_KIND: &str = "verification";
 
 #[derive(Debug, Clone)]
 pub(crate) struct VerificationRecordRequest {
@@ -534,7 +535,7 @@ fn import_inner(
     )?;
 
     let journal_dir = crate::repository_ops::repository_transaction_journal_dir(repository_path)?;
-    let barrier = crate::repository_txn::RepositoryTxn::acquire_routine_evidence_write_barrier(
+    let barrier = crate::repository_write_policy::acquire_routine_evidence_write_barrier(
         repository_path,
         &journal_dir,
     )
@@ -575,7 +576,8 @@ fn import_inner(
         barrier,
         repository_path,
         &held_repository.repository_id,
-        crate::repository_txn::OperationKind::Verification,
+        crate::repository_txn::OperationKind::new(REPOSITORY_OPERATION_KIND)
+            .map_err(|error| error.to_string())?,
         operation_id.clone(),
         &request_root,
         recorded_at,

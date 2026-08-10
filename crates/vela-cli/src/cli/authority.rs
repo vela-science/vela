@@ -52,7 +52,7 @@ use crate::authority_transaction::{
 use crate::repository_authority_provider::{
     SshAgentRepositoryAuthoritySigner, select_repository_authority_identity,
 };
-use crate::repository_txn::{ContentDigest, RepositoryTxn, WriteClass};
+use crate::repository_txn::{ContentDigest, WriteClass};
 
 use super::{fail_return, print_json};
 
@@ -162,7 +162,7 @@ fn pin_repository_authority(
         repository_id: repository.repository_id.clone(),
         first_authority_record_root: observed_root.clone(),
     };
-    let user_home = crate::repository_txn::operating_system_account_home()
+    let user_home = crate::repository_write_policy::operating_system_account_home()
         .map_err(|error| error.to_string())?;
     let existing = load_authority_trust_anchor_from_home(&user_home, &repository.repository_id)?;
     let (installed, operation, writes) = match existing {
@@ -230,6 +230,13 @@ fn pin_repository_authority(
 pub(crate) enum RepositoryAuthorityInitError {
     /// Identity selection, signing, or repository genesis failed.
     Signing(String),
+    /// A pre-existing local pin makes fresh initialization inapplicable. No
+    /// authority record has been signed or installed yet.
+    TrustPinBlocksInitialization {
+        repository_id: String,
+        pin_path: String,
+        pinned_root: String,
+    },
     /// The authority record was established, but the local trust pin for this
     /// repository already selects a different sequence-one root. The repository
     /// still cannot take an authority write until the pin is reconciled.
@@ -264,6 +271,17 @@ pub(crate) fn initialize_repository_authority(
     }
     let profile = crate::repository::verify_bootstrap_at(repository_path)?;
     let profile_root = profile.profile_root()?;
+    let initial_user_home = crate::repository_write_policy::operating_system_account_home()
+        .map_err(|error| error.to_string())?;
+    if let Some(existing) =
+        load_authority_trust_anchor_from_home(&initial_user_home, &profile.repository_id)?
+    {
+        return Err(RepositoryAuthorityInitError::TrustPinBlocksInitialization {
+            repository_id: profile.repository_id,
+            pin_path: existing.path.display().to_string(),
+            pinned_root: existing.anchor.first_authority_record_root,
+        });
+    }
     let identity = select_repository_authority_identity(key_selector)?;
     let recorded_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
     let local = local_session(&recorded_at)?;
@@ -346,11 +364,26 @@ pub(crate) fn initialize_repository_authority(
         std::env::current_exe().map_err(|error| format!("resolve current Vela binary: {error}"))?;
     let binary_sha256 = execution_binary_sha256(&executable)?;
     let journal_dir = crate::repository_ops::repository_transaction_journal_dir(repository_path)?;
-    let barrier = RepositoryTxn::acquire_repository_authority_initialization_barrier(
+    let barrier = match crate::repository_write_policy::acquire_fresh_repository_write_barrier(
         repository_path,
         &journal_dir,
-    )
-    .map_err(|error| error.to_string())?;
+    ) {
+        Ok(barrier) => barrier,
+        Err(error) => {
+            let current_user_home = crate::repository_write_policy::operating_system_account_home()
+                .map_err(|home_error| home_error.to_string())?;
+            if let Some(existing) =
+                load_authority_trust_anchor_from_home(&current_user_home, &profile.repository_id)?
+            {
+                return Err(RepositoryAuthorityInitError::TrustPinBlocksInitialization {
+                    repository_id: profile.repository_id,
+                    pin_path: existing.path.display().to_string(),
+                    pinned_root: existing.anchor.first_authority_record_root,
+                });
+            }
+            return Err(error.to_string().into());
+        }
+    };
     let mut authentication = local;
     let mut signer = SshAgentRepositoryAuthoritySigner::from_environment(
         identity.key_id.clone(),
@@ -521,7 +554,7 @@ pub(crate) fn initialize_repository_authority(
         repository_id: profile.repository_id.clone(),
         first_authority_record_root: result.authority_record_root.clone(),
     };
-    let user_home = crate::repository_txn::operating_system_account_home()
+    let user_home = crate::repository_write_policy::operating_system_account_home()
         .map_err(|error| error.to_string())?;
     let installed_anchor = install_authority_trust_anchor_from_home(&user_home, &local_anchor)
         .map_err(|error| match load_authority_trust_anchor_from_home(

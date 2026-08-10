@@ -28,6 +28,8 @@ use crate::repository_ops::{
 };
 use crate::repository_txn::{ContentDigest, InputBinding, WriteClass};
 
+const REPOSITORY_OPERATION_KIND: &str = "submission";
+
 pub(crate) fn rooted_path(directory: &str, root: &str) -> Result<String, String> {
     let digest = root
         .strip_prefix("sha256:")
@@ -399,7 +401,7 @@ fn submit_inner(
     }
 
     let journal_dir = crate::repository_ops::repository_transaction_journal_dir(repository_path)?;
-    let barrier = crate::repository_txn::RepositoryTxn::acquire_routine_evidence_write_barrier(
+    let barrier = crate::repository_write_policy::acquire_routine_evidence_write_barrier(
         repository_path,
         &journal_dir,
     )
@@ -512,7 +514,7 @@ fn submit_inner(
     ]);
     for write in artifact_writes {
         let (path, class, postimage) = write
-            .into_authority_object_parts()
+            .into_regular_object_parts()
             .map_err(|error| error.to_string())?;
         object_drafts.push(AuthorityObjectDraft {
             path,
@@ -526,7 +528,8 @@ fn submit_inner(
         barrier,
         repository_path,
         &held_repository.repository_id,
-        crate::repository_txn::OperationKind::Submission,
+        crate::repository_txn::OperationKind::new(REPOSITORY_OPERATION_KIND)
+            .map_err(|error| error.to_string())?,
         operation_id.clone(),
         &request_root,
         fixed_time,

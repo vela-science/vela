@@ -3,22 +3,19 @@
 //! This is private durability plumbing, not a protocol object. A caller first
 //! builds a pure [`CanonicalDelta`], then persists its plan and postimage blobs,
 //! writes a durable commit marker, and finally installs the exact bytes. Once a
-//! marker exists recovery only replays the journal; it never re-runs policy,
-//! verification, clocks, or key-bearing code.
+//! marker exists recovery only replays the journal; it never re-runs caller
+//! policy, clocks, or key-bearing code.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::ffi::OsString;
 use std::fmt;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 
+use crate::operation_journal;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as ShaDigest, Sha256};
 use unicode_normalization::UnicodeNormalization;
-use vela_edge::repository_write::load_authority_trust_anchor_from_home;
-
-use crate::operation_journal;
 
 pub(crate) const REPOSITORY_TXN_SCHEMA: &str = "vela.repository-txn.internal.v2";
 const REPOSITORY_TXN_BLOB_SCHEMA: &str = "vela.repository-txn-blob.internal.v1";
@@ -324,13 +321,10 @@ impl PlannedWrite {
         }
     }
 
-    /// Consume one already-bounded planned write for inclusion in an Era-1
-    /// repository-authority object delta.
-    ///
-    /// Authority transactions own regular canonical/public object bytes.
-    /// Executable modes are intentionally rejected rather than silently
-    /// weakening the signed object commitment.
-    pub(crate) fn into_authority_object_parts(
+    /// Consume one already-bounded regular-file write as path, class, and
+    /// optional postimage bytes. Executable modes are intentionally rejected
+    /// because this representation has no mode field.
+    pub(crate) fn into_regular_object_parts(
         self,
     ) -> Result<(String, WriteClass, Option<Vec<u8>>), RepositoryTxnError> {
         let postimage = match self.postimage {
@@ -338,7 +332,7 @@ impl PlannedWrite {
             PlannedPostimage::File { bytes, mode } => {
                 if mode.is_some_and(|mode| mode != FileMode::Regular) {
                     return Err(RepositoryTxnError::CorruptPlan(format!(
-                        "authority object {} cannot install an executable mode",
+                        "planned object {} cannot discard an executable mode",
                         self.path.as_str()
                     )));
                 }
@@ -446,15 +440,40 @@ impl RepositoryBinding {
         }
         Ok(root)
     }
+
+    pub(crate) fn repository_id(&self) -> &str {
+        &self.repository_id
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum OperationKind {
-    Submission,
-    ProposalWithdrawal,
-    Verification,
-    Decision,
+#[serde(transparent)]
+pub(crate) struct OperationKind(String);
+
+impl OperationKind {
+    pub(crate) fn new(value: impl Into<String>) -> Result<Self, RepositoryTxnError> {
+        let kind = Self(value.into());
+        kind.verify()?;
+        Ok(kind)
+    }
+
+    fn verify(&self) -> Result<(), RepositoryTxnError> {
+        if self.0.is_empty()
+            || self.0.len() > 64
+            || !self.0.split('_').all(|segment| {
+                !segment.is_empty()
+                    && segment
+                        .bytes()
+                        .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
+            })
+        {
+            return Err(RepositoryTxnError::CorruptPlan(format!(
+                "invalid internal operation kind {:?}",
+                self.0
+            )));
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -514,7 +533,7 @@ impl InputBinding {
     /// Bind either the exact current file state or its exact absence.
     ///
     /// This is the read-set counterpart to a bounded caller read: it does not
-    /// assume that a decision-critical receipt or policy path exists, and the
+    /// assume that a caller-critical receipt or policy path exists, and the
     /// marker check rejects creation, deletion, byte drift, or mode drift.
     pub(crate) fn current_file(
         repository_root: &Path,
@@ -545,8 +564,8 @@ impl InputBinding {
     }
 
     /// Bind the absence of a relative repository file. Creation of that file
-    /// before the commit marker is therefore stale input, not a policy result
-    /// that can be committed under changed authority bytes.
+    /// before the commit marker is therefore stale input, not a result that
+    /// can be committed under changed input bytes.
     pub(crate) fn absent_file(
         repository_root: &Path,
         path: RepoPath,
@@ -793,6 +812,7 @@ impl RepositoryTxnPlan {
     ) -> Result<Self, RepositoryTxnError> {
         canonical_delta.verify()?;
         OperationId::parse(spec.operation_id.as_str())?;
+        spec.kind.verify()?;
         let mut plan = Self {
             schema: REPOSITORY_TXN_SCHEMA.to_string(),
             root: ContentDigest::hash([]),
@@ -833,6 +853,7 @@ impl RepositoryTxnPlan {
             )));
         }
         OperationId::parse(self.operation_id.as_str())?;
+        self.kind.verify()?;
         for input in &self.read_set {
             input.verify_shape()?;
         }
@@ -902,7 +923,7 @@ struct RepositoryTxnJournal {
     recovery: RecoveryState,
     /// Postimage bytes are required until installation is verified. Completed
     /// transactions retain their exact plan, marker, file-state commitments,
-    /// and event membership after these private recovery copies are pruned.
+    /// and transition membership after these private recovery copies are pruned.
     #[serde(default = "retained_blob_journals")]
     blob_retention: BlobRetention,
 }
@@ -1051,6 +1072,215 @@ pub(crate) struct RepositoryRecoveryBarrier {
     lock: RepositoryWriteLock,
 }
 
+/// One move-only, in-memory capability authorizing an exact repository plan.
+///
+/// Concrete caller policy remains outside the transaction runtime. The runtime
+/// only invokes these two lifecycle checks and never serializes the capability
+/// or interprets its commitment.
+pub(crate) trait TransactionAuthorization: fmt::Debug {
+    /// Bind the exact verified plan before the transaction writes any journal
+    /// byte.
+    fn bind_plan(
+        &mut self,
+        context: &mut TransactionAuthorizationContext<'_>,
+    ) -> Result<(), RepositoryTxnError>;
+
+    /// Revalidate policy as the last policy-dependent fallible check before
+    /// the durable commit marker is created.
+    fn revalidate_for_marker(
+        &self,
+        context: &mut TransactionAuthorizationContext<'_>,
+    ) -> Result<(), RepositoryTxnError>;
+}
+
+/// Read-only, exact transaction state exposed to one authorization capability.
+///
+/// Postimage access is bounded to a staged write in the canonical delta, and
+/// every returned byte string is checked against its size and digest.
+pub(crate) struct TransactionAuthorizationContext<'a> {
+    repository_root: &'a Path,
+    repository_binding: &'a RepositoryBinding,
+    plan_root: &'a ContentDigest,
+    canonical_delta: &'a CanonicalDelta,
+    read_blob: &'a mut dyn FnMut(&JournalBlobRef) -> Result<Vec<u8>, RepositoryTxnError>,
+}
+
+impl<'a> TransactionAuthorizationContext<'a> {
+    fn new(
+        repository_root: &'a Path,
+        repository_binding: &'a RepositoryBinding,
+        plan_root: &'a ContentDigest,
+        canonical_delta: &'a CanonicalDelta,
+        read_blob: &'a mut dyn FnMut(&JournalBlobRef) -> Result<Vec<u8>, RepositoryTxnError>,
+    ) -> Self {
+        Self {
+            repository_root,
+            repository_binding,
+            plan_root,
+            canonical_delta,
+            read_blob,
+        }
+    }
+
+    pub(crate) fn repository_root(&self) -> &Path {
+        self.repository_root
+    }
+
+    pub(crate) fn repository_binding(&self) -> &RepositoryBinding {
+        self.repository_binding
+    }
+
+    pub(crate) fn plan_root(&self) -> &ContentDigest {
+        self.plan_root
+    }
+
+    pub(crate) fn canonical_delta(&self) -> &CanonicalDelta {
+        self.canonical_delta
+    }
+
+    pub(crate) fn postimage_bytes(
+        &mut self,
+        write: &StagedWrite,
+    ) -> Result<Option<Vec<u8>>, RepositoryTxnError> {
+        if !self
+            .canonical_delta
+            .writes()
+            .iter()
+            .any(|candidate| candidate == write)
+        {
+            return Err(RepositoryTxnError::CorruptPlan(format!(
+                "authorization requested postimage bytes outside the canonical delta: {}",
+                write.path.as_str()
+            )));
+        }
+        match (&write.postimage, &write.payload) {
+            (FileState::Absent, None) => Ok(None),
+            (FileState::File { .. }, Some(blob)) => {
+                let bytes = (self.read_blob)(blob)?;
+                validate_blob_bytes(blob, &bytes)?;
+                Ok(Some(bytes))
+            }
+            (FileState::Absent, Some(_)) => Err(RepositoryTxnError::CorruptPlan(format!(
+                "deleted postimage {} carries a blob reference",
+                write.path.as_str()
+            ))),
+            (FileState::File { .. }, None) => Err(RepositoryTxnError::CorruptPlan(format!(
+                "file postimage {} has no blob reference",
+                write.path.as_str()
+            ))),
+        }
+    }
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TestAuthorizationBinding {
+    repository_id: String,
+    plan_root: ContentDigest,
+    delta_root: ContentDigest,
+}
+
+#[cfg(test)]
+impl TestAuthorizationBinding {
+    fn read(context: &TransactionAuthorizationContext<'_>) -> Self {
+        Self {
+            repository_id: context.repository_binding().repository_id().to_string(),
+            plan_root: context.plan_root().clone(),
+            delta_root: context.canonical_delta().root().clone(),
+        }
+    }
+
+    fn verify(&self, actual: Self) -> Result<(), RepositoryTxnError> {
+        if self.repository_id != actual.repository_id {
+            return Err(RepositoryTxnError::WriteAuthorizationRepositoryMismatch {
+                authorized: self.repository_id.clone(),
+                planned: actual.repository_id,
+            });
+        }
+        if self.delta_root != actual.delta_root {
+            return Err(RepositoryTxnError::WriteAuthorizationDeltaMismatch {
+                authorized: self.delta_root.clone(),
+                planned: actual.delta_root,
+            });
+        }
+        if self.plan_root != actual.plan_root {
+            return Err(RepositoryTxnError::StaleWriteAuthorization {
+                expected: self.plan_root.clone(),
+                actual: actual.plan_root,
+            });
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+#[derive(Debug, Default)]
+struct RecordingTransactionAuthorization {
+    binding: Option<TestAuthorizationBinding>,
+    deny_bind: bool,
+    deny_marker: bool,
+    calls: Option<std::sync::Arc<std::sync::Mutex<Vec<&'static str>>>>,
+}
+
+#[cfg(test)]
+impl RecordingTransactionAuthorization {
+    fn record(&self, call: &'static str) {
+        if let Some(calls) = &self.calls {
+            calls
+                .lock()
+                .expect("test authorization call log")
+                .push(call);
+        }
+    }
+}
+
+#[cfg(test)]
+impl TransactionAuthorization for RecordingTransactionAuthorization {
+    fn bind_plan(
+        &mut self,
+        context: &mut TransactionAuthorizationContext<'_>,
+    ) -> Result<(), RepositoryTxnError> {
+        self.record("bind_plan");
+        if self.deny_bind {
+            return Err(RepositoryTxnError::RepositoryWriteIntentDenied {
+                intent: "test_transaction",
+                reason: "test authorization denied plan binding".into(),
+            });
+        }
+        let candidate = TestAuthorizationBinding::read(context);
+        if let Some(binding) = &self.binding {
+            binding.verify(candidate)?;
+        } else {
+            self.binding = Some(candidate);
+        }
+        Ok(())
+    }
+
+    fn revalidate_for_marker(
+        &self,
+        context: &mut TransactionAuthorizationContext<'_>,
+    ) -> Result<(), RepositoryTxnError> {
+        self.record("revalidate_for_marker");
+        if self.deny_marker {
+            return Err(RepositoryTxnError::RepositoryWriteIntentDenied {
+                intent: "test_transaction",
+                reason: "test authorization denied marker".into(),
+            });
+        }
+        self.binding
+            .as_ref()
+            .ok_or_else(|| {
+                RepositoryTxnError::WriteAuthorization("unbound test capability".into())
+            })?
+            .verify(TestAuthorizationBinding::read(context))
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn test_transaction_authorization() -> Box<dyn TransactionAuthorization> {
+    Box::<RecordingTransactionAuthorization>::default()
+}
+
 /// A recovery barrier that has additionally passed the repository-generation
 /// write gate.
 ///
@@ -1060,618 +1290,22 @@ pub(crate) struct RepositoryRecoveryBarrier {
 #[derive(Debug)]
 pub(crate) struct CanonicalWriteBarrier {
     recovery: RepositoryRecoveryBarrier,
-    authorization: RepositoryTxnAuthorization,
-}
-
-#[derive(Debug)]
-struct RepositoryAuthorityWriteAuthorization {
-    repository_id: String,
-    boundary_event_id: String,
-    boundary_event_root: ContentDigest,
-}
-
-#[derive(Debug)]
-struct RoutineEvidenceWriteAuthorization {
-    repository_id: String,
-    origin_id: String,
-    repository_root: ContentDigest,
-    authority_record_root: ContentDigest,
-    authority_event_log_root: ContentDigest,
-}
-
-#[derive(Debug)]
-struct FreshRepositoryAuthorization {
-    repository_id: String,
-    context_root: ContentDigest,
-    trusted_user_home: PathBuf,
-    delta_root: Option<ContentDigest>,
-}
-
-fn verify_fresh_repository_authorization(
-    root: &Path,
-    trusted_user_home: &Path,
-) -> Result<FreshRepositoryAuthorization, RepositoryTxnError> {
-    let trusted_user_home = fs::canonicalize(trusted_user_home).map_err(|error| {
-        RepositoryTxnError::RepositoryTrustAnchor(format!(
-            "resolve operating-system account home for trust store: {error}"
-        ))
-    })?;
-    if root.join(".vela/origin.json").exists() || root.join(".vela/repository.json").exists() {
-        return Err(RepositoryTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority_initialization",
-            reason: "fresh repository authority requires an uninitialized current repository"
-                .into(),
-        });
-    }
-    let profile = crate::repository::verify_bootstrap_at(root).map_err(|reason| {
-        RepositoryTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority_initialization",
-            reason,
-        }
-    })?;
-    let profile_root = profile.profile_root().map_err(|reason| {
-        RepositoryTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority_initialization",
-            reason,
-        }
-    })?;
-    let context_root =
-        fresh_repository_context_root(&profile.repository_id, &profile_root, &trusted_user_home)?;
-    Ok(FreshRepositoryAuthorization {
-        repository_id: profile.repository_id,
-        context_root,
-        trusted_user_home,
-        delta_root: None,
-    })
-}
-
-fn fresh_repository_context_root(
-    repository_id: &str,
-    profile_root: &str,
-    trusted_user_home: &Path,
-) -> Result<ContentDigest, RepositoryTxnError> {
-    Ok(ContentDigest::hash(
-        vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
-            "schema": "vela.repository-bootstrap-authorization.internal.v3",
-            "repository_id": repository_id,
-            "profile_root": profile_root,
-            "trusted_user_home": trusted_user_home.to_string_lossy(),
-        }))
-        .map_err(RepositoryTxnError::Canonicalize)?,
-    ))
-}
-
-fn verify_routine_evidence_write_era(
-    root: &Path,
-) -> Result<RoutineEvidenceWriteAuthorization, RepositoryTxnError> {
-    let intent = "routine_evidence";
-    let repository = crate::repository::verify_repository_at(root, true).map_err(|error| {
-        RepositoryTxnError::RepositoryWriteIntentDenied {
-            intent,
-            reason: format!("repository origin is invalid: {error}"),
-        }
-    })?;
-    let origin_bytes = fs::read(root.join(".vela/origin.json"))
-        .map_err(|error| RepositoryTxnError::Io(format!("read repository origin: {error}")))?;
-    let origin = vela_protocol::repository_origin::RepositoryOriginV1::parse(&origin_bytes)
-        .map_err(|error| RepositoryTxnError::RepositoryWriteIntentDenied {
-            intent,
-            reason: format!("repository origin is invalid: {error}"),
-        })?;
-    let authority =
-        crate::cli::load_repository_authority(root, &repository, &origin).map_err(|error| {
-            RepositoryTxnError::RepositoryWriteIntentDenied {
-                intent,
-                reason: format!("current repository-authority history is invalid: {error}"),
-            }
-        })?;
-    if authority.verification.closed {
-        return Err(RepositoryTxnError::RepositoryWriteIntentDenied {
-            intent,
-            reason: "repository-authority history is closed".into(),
-        });
-    }
-    let authority_record_root = authority
-        .verification
-        .final_authority_record_root
-        .as_deref()
-        .ok_or_else(|| RepositoryTxnError::RepositoryWriteIntentDenied {
-            intent,
-            reason: "current repository-authority history has no head record".into(),
-        })?;
-    let repository_root = ContentDigest::parse(repository.canonical_root().map_err(|error| {
-        RepositoryTxnError::RepositoryWriteIntentDenied {
-            intent,
-            reason: format!("current repository has no valid root: {error}"),
-        }
-    })?)?;
-    Ok(RoutineEvidenceWriteAuthorization {
-        repository_id: repository.repository_id,
-        origin_id: origin.id().map_err(RepositoryTxnError::CorruptPlan)?,
-        repository_root,
-        authority_record_root: ContentDigest::parse(authority_record_root.to_string())?,
-        authority_event_log_root: ContentDigest::parse(
-            authority.verification.final_event_log_root,
-        )?,
-    })
-}
-
-fn verify_repository_authority_write_era(
-    root: &Path,
-) -> Result<RepositoryAuthorityWriteAuthorization, RepositoryTxnError> {
-    let repository = crate::repository::verify_repository_at(root, true).map_err(|error| {
-        RepositoryTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority",
-            reason: format!("repository origin is invalid: {error}"),
-        }
-    })?;
-    let origin_bytes = fs::read(root.join(".vela/origin.json"))
-        .map_err(|error| RepositoryTxnError::Io(format!("read repository origin: {error}")))?;
-    let origin = vela_protocol::repository_origin::RepositoryOriginV1::parse(&origin_bytes)
-        .map_err(|error| RepositoryTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority",
-            reason: format!("repository origin is invalid: {error}"),
-        })?;
-    let authority =
-        crate::cli::load_repository_authority(root, &repository, &origin).map_err(|error| {
-            RepositoryTxnError::RepositoryWriteIntentDenied {
-                intent: "repository_authority",
-                reason: format!("current repository-authority history is invalid: {error}"),
-            }
-        })?;
-    verified_repository_authority_write_authorization(&repository, &authority)
-}
-
-fn verified_repository_authority_write_authorization(
-    repository: &vela_protocol::repository::RepositoryV4,
-    authority: &crate::cli::LoadedRepositoryAuthority,
-) -> Result<RepositoryAuthorityWriteAuthorization, RepositoryTxnError> {
-    if authority.verification.closed {
-        return Err(RepositoryTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority",
-            reason: "repository-authority history is closed".into(),
-        });
-    }
-    let first_root = authority
-        .verification
-        .first_authority_record_root
-        .as_deref()
-        .ok_or_else(|| RepositoryTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority",
-            reason: "current repository-authority history has no sequence-one root".into(),
-        })?;
-    let trusted_user_home = operating_system_account_home()?;
-    let anchor =
-        load_authority_trust_anchor_from_home(&trusted_user_home, &repository.repository_id)
-            .map_err(|error| RepositoryTxnError::RepositoryWriteIntentDenied {
-                intent: "repository_authority",
-                reason: format!("load local authority trust anchor: {error}"),
-            })?
-            .ok_or_else(|| RepositoryTxnError::RepositoryWriteIntentDenied {
-                intent: "repository_authority",
-                reason: format!(
-                    "current repository-authority writes require an independent sequence-one pin; run `vela authority trust pin . --record-root {first_root} --json`"
-                ),
-            })?;
-    let anchor_selects = anchor
-        .anchor
-        .verify_sequence_one(&repository.repository_id, first_root)
-        .is_ok();
-    if !anchor_selects {
-        return Err(RepositoryTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority",
-            reason: format!(
-                "local authority trust anchor does not select current sequence one {first_root}"
-            ),
-        });
-    }
-    let initialization_event_id = authority
-        .verification
-        .initialization_event_id
-        .as_deref()
-        .ok_or_else(|| RepositoryTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority",
-            reason: "current repository authority has no origin initialization event".into(),
-        })?;
-    let event = authority
-        .history
-        .authority_events
-        .iter()
-        .find(|event| event.id == initialization_event_id)
-        .ok_or_else(|| RepositoryTxnError::RepositoryWriteIntentDenied {
-            intent: "repository_authority",
-            reason: format!(
-                "current origin initialization event {initialization_event_id} is missing"
-            ),
-        })?;
-    Ok(RepositoryAuthorityWriteAuthorization {
-        repository_id: repository.repository_id.clone(),
-        boundary_event_id: initialization_event_id.to_string(),
-        boundary_event_root: ContentDigest::parse(event.root().map_err(|error| {
-            RepositoryTxnError::RepositoryWriteIntentDenied {
-                intent: "repository_authority",
-                reason: format!(
-                    "current origin initialization event {initialization_event_id} has no valid root: {error}"
-                ),
-            }
-        })?)?,
-    })
-}
-
-fn staged_authority_event(
-    write: &StagedWrite,
-    mut read_blob: impl FnMut(&JournalBlobRef) -> Result<Vec<u8>, RepositoryTxnError>,
-) -> Result<Option<vela_protocol::authority::AuthorityEventV1>, RepositoryTxnError> {
-    let Some(relative) = write.path.as_str().strip_prefix(".vela/authority/events/") else {
-        return Ok(None);
-    };
-    let Some(event_id) = relative.strip_suffix(".json") else {
-        return Err(RepositoryTxnError::RepositoryWriteIntentDenied {
-            intent: "invalid",
-            reason: format!(
-                "authority event write {} is not one direct JSON event",
-                write.path.as_str()
-            ),
-        });
-    };
-    if write.class != WriteClass::Authority
-        || !matches!(write.preimage, FileState::Absent)
-        || !matches!(write.postimage, FileState::File { .. })
-    {
-        return Err(RepositoryTxnError::RepositoryWriteIntentDenied {
-            intent: "invalid",
-            reason: format!(
-                "authority events are append-only Authority writes: {}",
-                write.path.as_str()
-            ),
-        });
-    }
-    let blob = write.payload.as_ref().ok_or_else(|| {
-        RepositoryTxnError::CorruptPlan(format!(
-            "authority event write {} has no postimage blob",
-            write.path.as_str()
-        ))
-    })?;
-    let bytes = read_blob(blob)?;
-    let event = serde_json::from_slice::<vela_protocol::authority::AuthorityEventV1>(&bytes)
-        .map_err(|error| {
-            RepositoryTxnError::CorruptPlan(format!(
-                "authority event write {} is invalid: {error}",
-                write.path.as_str()
-            ))
-        })?;
-    event.validate().map_err(RepositoryTxnError::CorruptPlan)?;
-    if event.id != event_id {
-        return Err(RepositoryTxnError::CorruptPlan(format!(
-            "authority event write {} has a mismatched content id",
-            write.path.as_str()
-        )));
-    }
-    Ok(Some(event))
-}
-
-fn verify_fresh_repository_delta(
-    delta: &CanonicalDelta,
-    mut read_blob: impl FnMut(&JournalBlobRef) -> Result<Vec<u8>, RepositoryTxnError>,
-) -> Result<(), RepositoryTxnError> {
-    let deny = |reason: String| RepositoryTxnError::RepositoryWriteIntentDenied {
-        intent: "repository_authority_initialization",
-        reason,
-    };
-    let mut authority_initializations = 0_usize;
-    let mut authority_records = 0_usize;
-    let mut repository_origins = Vec::new();
-    let mut repository_v3_manifests = Vec::new();
-
-    for write in delta.writes() {
-        let path = write.path.as_str();
-        if path.starts_with(".vela/events/") {
-            return Err(deny(
-                "fresh repository authority cannot append a retired event".into(),
-            ));
-        }
-        let authority_event = staged_authority_event(write, &mut read_blob)?;
-        if let Some(event) = authority_event {
-            if event.content.kind.as_str()
-                != vela_protocol::authority_history::AUTHORITY_INITIALIZED_EVENT_KIND
-            {
-                return Err(deny(format!(
-                    "fresh repository authority cannot append event kind {}",
-                    event.content.kind
-                )));
-            }
-            authority_initializations += 1;
-        } else if path == ".vela/origin.json" {
-            if write.class != WriteClass::CanonicalEvidence
-                || !matches!(write.preimage, FileState::Absent)
-                || !matches!(write.postimage, FileState::File { .. })
-            {
-                return Err(deny(
-                    "repository initialization must create one canonical origin object".into(),
-                ));
-            }
-            let blob = write.payload.as_ref().ok_or_else(|| {
-                RepositoryTxnError::CorruptPlan("repository origin has no postimage blob".into())
-            })?;
-            let bytes = read_blob(blob)?;
-            let origin = vela_protocol::repository_origin::RepositoryOriginV1::parse(&bytes)
-                .map_err(RepositoryTxnError::CorruptPlan)?;
-            repository_origins.push(origin);
-        } else if path == ".vela/repository.json" {
-            if write.class != WriteClass::CanonicalEvidence
-                || !matches!(write.preimage, FileState::Absent)
-                || !matches!(write.postimage, FileState::File { .. })
-            {
-                return Err(deny(
-                    "repository genesis must create one canonical manifest".into(),
-                ));
-            }
-            let blob = write.payload.as_ref().ok_or_else(|| {
-                RepositoryTxnError::CorruptPlan("repository manifest has no postimage blob".into())
-            })?;
-            let bytes = read_blob(blob)?;
-            let repository = vela_protocol::repository::RepositoryV4::parse(&bytes)
-                .map_err(RepositoryTxnError::CorruptPlan)?;
-            repository_v3_manifests.push(repository);
-        } else if !path.starts_with(".vela/authority/")
-            || write.class != WriteClass::Authority
-            || !matches!(write.preimage, FileState::Absent)
-            || !matches!(write.postimage, FileState::File { .. })
-        {
-            return Err(deny(format!(
-                "fresh repository authority contains unrelated or non-append write {path}"
-            )));
-        } else if path.starts_with(".vela/authority/records/") && path.ends_with(".dsse.json") {
-            authority_records += 1;
-        }
-    }
-
-    if authority_initializations != 1 || authority_records != 1 {
-        return Err(deny(format!(
-            "fresh repository authority requires one initialization event and one covering record; found {authority_initializations} and {authority_records}"
-        )));
-    }
-
-    if repository_origins.len() != 1 || repository_v3_manifests.len() != 1 {
-        return Err(deny(format!(
-            "fresh repository authority requires exactly one origin and one repository manifest; found {} origin and {} repository object(s)",
-            repository_origins.len(),
-            repository_v3_manifests.len()
-        )));
-    }
-
-    let origin = repository_origins.first().expect("checked one origin");
-    let repository = repository_v3_manifests
-        .first()
-        .expect("checked one repository");
-    let origin_root = origin
-        .canonical_root()
-        .map_err(RepositoryTxnError::CorruptPlan)?;
-    if repository.repository_id != origin.repository_id
-        || repository.profile_root != origin.profile_root
-        || repository.origin_id != origin.id().map_err(deny)?
-        || repository.origin_root != origin_root
-    {
-        return Err(deny(
-            "repository origin and manifest do not bind the same exact identity".into(),
-        ));
-    }
-    if !repository.accepted_claims.is_empty()
-        || !repository.pending_claims.is_empty()
-        || !repository.proposals.is_empty()
-        || !repository.submissions.is_empty()
-        || !repository.verifications.is_empty()
-        || !repository.artifacts.is_empty()
-    {
-        return Err(deny(
-            "fresh repository initialization requires a genesis origin and empty object set".into(),
-        ));
-    }
-    Ok(())
-}
-
-fn bind_fresh_repository_authorization(
-    authorization: &mut FreshRepositoryAuthorization,
-    delta: &CanonicalDelta,
-    read_blob: impl FnMut(&JournalBlobRef) -> Result<Vec<u8>, RepositoryTxnError>,
-) -> Result<(), RepositoryTxnError> {
-    verify_fresh_repository_delta(delta, read_blob)?;
-    if let Some(bound) = &authorization.delta_root
-        && bound != delta.root()
-    {
-        return Err(RepositoryTxnError::WriteAuthorizationDeltaMismatch {
-            authorized: bound.clone(),
-            planned: delta.root().clone(),
-        });
-    }
-    authorization.delta_root = Some(delta.root().clone());
-    Ok(())
-}
-
-/// Resolve the current operating-system account home without consulting
-/// `HOME`, repository configuration, or a process-local override.
-#[cfg(unix)]
-#[allow(unsafe_code)]
-pub(crate) fn operating_system_account_home() -> Result<PathBuf, RepositoryTxnError> {
-    use std::ffi::CStr;
-    use std::os::unix::ffi::OsStringExt;
-
-    // SAFETY: `geteuid` has no preconditions. `getpwuid_r` receives a live
-    // passwd allocation, an owned writable buffer, and a result pointer for
-    // the duration of each call. The returned `pw_dir` is copied before the
-    // buffer is dropped.
-    let uid = unsafe { libc::geteuid() };
-    let suggested = unsafe { libc::sysconf(libc::_SC_GETPW_R_SIZE_MAX) };
-    let mut capacity = if suggested > 0 {
-        usize::try_from(suggested).unwrap_or(16 * 1024)
-    } else {
-        16 * 1024
-    }
-    .clamp(1024, 1024 * 1024);
-    loop {
-        let mut buffer = vec![0_u8; capacity];
-        let mut passwd = std::mem::MaybeUninit::<libc::passwd>::uninit();
-        let mut result = std::ptr::null_mut();
-        let status = unsafe {
-            libc::getpwuid_r(
-                uid,
-                passwd.as_mut_ptr(),
-                buffer.as_mut_ptr().cast(),
-                buffer.len(),
-                &mut result,
-            )
-        };
-        if status == libc::ERANGE && capacity < 1024 * 1024 {
-            capacity = (capacity * 2).min(1024 * 1024);
-            continue;
-        }
-        if status != 0 {
-            return Err(RepositoryTxnError::RepositoryTrustAnchor(format!(
-                "resolve operating-system account home for effective uid {uid}: OS error {status}"
-            )));
-        }
-        if result.is_null() {
-            return Err(RepositoryTxnError::RepositoryTrustAnchor(format!(
-                "operating-system account for effective uid {uid} has no password-database entry"
-            )));
-        }
-        let directory = unsafe { CStr::from_ptr((*result).pw_dir) };
-        if directory.to_bytes().is_empty() {
-            return Err(RepositoryTxnError::RepositoryTrustAnchor(
-                "operating-system account has an empty home directory".to_string(),
-            ));
-        }
-        return Ok(PathBuf::from(OsString::from_vec(
-            directory.to_bytes().to_vec(),
-        )));
-    }
+    authorization: Box<dyn TransactionAuthorization>,
 }
 
 impl RepositoryRecoveryBarrier {
-    /// Return the already-verified completed plan for one operation while this
-    /// barrier owns the repository lock. This closes the race where another
-    /// process completes the same operation between an unlocked exact-retry
-    /// lookup and barrier acquisition; callers can return the durable result
-    /// without rederiving stale applied proposals or touching a private key.
-    #[cfg(test)]
-    pub(crate) fn completed_plan(
-        &self,
-        operation_id: &OperationId,
-    ) -> Result<Option<RepositoryTxnPlan>, RepositoryTxnError> {
-        let journals = repository_journals(&self.root, &self.journal_dir)?;
-        for (paths, journal) in journals {
-            if journal.plan.operation_id != *operation_id {
-                continue;
-            }
-            if matches!(journal.recovery, RecoveryState::Completed) {
-                verify_completed_marker_and_blobs(&paths, &journal)?;
-                return Ok(Some(journal.plan));
-            }
-        }
-        Ok(None)
+    pub(crate) fn repository_root(&self) -> &Path {
+        &self.root
     }
 
-    /// Authorize a repository-authority write from state that was completely
-    /// verified after this recovery barrier acquired the repository lock.
-    ///
-    /// This avoids repeating the same repository and authority replay inside
-    /// one Decision while preserving the independent trust-anchor check and
-    /// the exact delta authorization performed when the transaction is
-    /// prepared.
-    pub(crate) fn authorize_verified_repository_authority(
+    pub(crate) fn authorize(
         self,
-        repository: &vela_protocol::repository::RepositoryV4,
-        authority: &crate::cli::LoadedRepositoryAuthority,
-    ) -> Result<CanonicalWriteBarrier, RepositoryTxnError> {
-        let authorization =
-            verified_repository_authority_write_authorization(repository, authority)?;
-        Ok(CanonicalWriteBarrier {
-            recovery: self,
-            authorization: RepositoryTxnAuthorization::RepositoryAuthority(authorization),
-        })
-    }
-
-    fn authorize_for_routine_evidence(self) -> Result<CanonicalWriteBarrier, RepositoryTxnError> {
-        let authorization = verify_routine_evidence_write_era(&self.root)?;
-        Ok(CanonicalWriteBarrier {
-            recovery: self,
-            authorization: RepositoryTxnAuthorization::RoutineEvidence(authorization),
-        })
-    }
-
-    fn authorize_for_fresh_repository(self) -> Result<CanonicalWriteBarrier, RepositoryTxnError> {
-        let trusted_user_home = operating_system_account_home()?;
-        let authorization = verify_fresh_repository_authorization(&self.root, &trusted_user_home)?;
-        Ok(CanonicalWriteBarrier {
-            recovery: self,
-            authorization: RepositoryTxnAuthorization::FreshRepository(authorization),
-        })
-    }
-
-    #[cfg(test)]
-    pub(crate) fn authorize_for_test(self) -> CanonicalWriteBarrier {
+        authorization: Box<dyn TransactionAuthorization>,
+    ) -> CanonicalWriteBarrier {
         CanonicalWriteBarrier {
             recovery: self,
-            authorization: RepositoryTxnAuthorization::TestHarness,
+            authorization,
         }
-    }
-}
-
-impl CanonicalWriteBarrier {
-    #[cfg(test)]
-    pub(crate) fn completed_plan(
-        &self,
-        operation_id: &OperationId,
-    ) -> Result<Option<RepositoryTxnPlan>, RepositoryTxnError> {
-        self.recovery.completed_plan(operation_id)
-    }
-}
-
-fn reverify_transaction_authorization(
-    root: &Path,
-    authorization: &RepositoryTxnAuthorization,
-) -> Result<(), RepositoryTxnError> {
-    match authorization {
-        RepositoryTxnAuthorization::FreshRepository(expected) => {
-            let actual = verify_fresh_repository_authorization(root, &expected.trusted_user_home)?;
-            if actual.context_root != expected.context_root {
-                return Err(RepositoryTxnError::StaleWriteAuthorization {
-                    expected: expected.context_root.clone(),
-                    actual: actual.context_root,
-                });
-            }
-            Ok(())
-        }
-        RepositoryTxnAuthorization::RepositoryAuthority(expected) => {
-            let actual = verify_repository_authority_write_era(root)?;
-            if actual.repository_id != expected.repository_id
-                || actual.boundary_event_id != expected.boundary_event_id
-                || actual.boundary_event_root != expected.boundary_event_root
-            {
-                return Err(RepositoryTxnError::StaleWriteAuthorization {
-                    expected: expected.boundary_event_root.clone(),
-                    actual: actual.boundary_event_root,
-                });
-            }
-            Ok(())
-        }
-        RepositoryTxnAuthorization::RoutineEvidence(expected) => {
-            let actual = verify_routine_evidence_write_era(root)?;
-            if actual.repository_id != expected.repository_id
-                || actual.origin_id != expected.origin_id
-                || actual.repository_root != expected.repository_root
-                || actual.authority_record_root != expected.authority_record_root
-                || actual.authority_event_log_root != expected.authority_event_log_root
-            {
-                return Err(RepositoryTxnError::StaleWriteAuthorization {
-                    expected: expected.repository_root.clone(),
-                    actual: actual.repository_root,
-                });
-            }
-            Ok(())
-        }
-        #[cfg(test)]
-        RepositoryTxnAuthorization::TestHarness => Ok(()),
     }
 }
 
@@ -2063,8 +1697,8 @@ fn resolve_public_writes(
             })
         })
         .collect::<Result<Vec<_>, RepositoryTxnError>>()?;
-    // Git's exact-delta boundary is path-sorted, while installation order is
-    // semantic (evidence before review before authority).
+    // The external exact-delta boundary is path-sorted, while installation
+    // preserves the durable class order.
     writes.sort_by(|left, right| left.staged.path.cmp(&right.staged.path));
     Ok(writes)
 }
@@ -2081,29 +1715,8 @@ pub(crate) struct RepositoryTxn {
     root: PathBuf,
     paths: RepositoryTxnPaths,
     journal: RepositoryTxnJournal,
-    authorization: Option<RepositoryTxnAuthorization>,
+    authorization: Option<Box<dyn TransactionAuthorization>>,
     _lock: RepositoryWriteLock,
-}
-
-#[derive(Debug)]
-enum RepositoryTxnAuthorization {
-    FreshRepository(FreshRepositoryAuthorization),
-    RepositoryAuthority(RepositoryAuthorityWriteAuthorization),
-    RoutineEvidence(RoutineEvidenceWriteAuthorization),
-    #[cfg(test)]
-    TestHarness,
-}
-
-impl RepositoryTxnAuthorization {
-    fn verified_repository_id(&self) -> Option<&str> {
-        match self {
-            Self::FreshRepository(authorization) => Some(&authorization.repository_id),
-            Self::RepositoryAuthority(authorization) => Some(&authorization.repository_id),
-            Self::RoutineEvidence(authorization) => Some(&authorization.repository_id),
-            #[cfg(test)]
-            Self::TestHarness => None,
-        }
-    }
 }
 
 #[cfg(test)]
@@ -2204,37 +1817,6 @@ impl RepositoryTxn {
         })
     }
 
-    pub(crate) fn acquire_routine_evidence_write_barrier(
-        repository_root: &Path,
-        journal_dir: &Path,
-    ) -> Result<CanonicalWriteBarrier, RepositoryTxnError> {
-        let root = canonical_repository_root(repository_root)?;
-        // Reject invalid, closed, or pre-current repositories before creating
-        // even the ignored lock. Routine evidence binds the repository and
-        // authority heads but deliberately does not require a caller-local
-        // trust pin; no scientific Standing can change through this path.
-        verify_routine_evidence_write_era(&root)?;
-        Self::acquire_recovery_barrier(&root, journal_dir)?.authorize_for_routine_evidence()
-    }
-
-    pub(crate) fn acquire_repository_authority_initialization_barrier(
-        repository_root: &Path,
-        journal_dir: &Path,
-    ) -> Result<CanonicalWriteBarrier, RepositoryTxnError> {
-        let root = canonical_repository_root(repository_root)?;
-        let trusted_user_home = operating_system_account_home()?;
-        verify_fresh_repository_authorization(&root, &trusted_user_home)?;
-        Self::acquire_recovery_barrier(&root, journal_dir)?.authorize_for_fresh_repository()
-    }
-
-    #[cfg(test)]
-    pub(crate) fn acquire_write_barrier_for_test(
-        repository_root: &Path,
-        journal_dir: &Path,
-    ) -> Result<CanonicalWriteBarrier, RepositoryTxnError> {
-        Ok(Self::acquire_recovery_barrier(repository_root, journal_dir)?.authorize_for_test())
-    }
-
     #[cfg(test)]
     pub(crate) fn prepare(
         repository_root: &Path,
@@ -2245,7 +1827,7 @@ impl RepositoryTxn {
         let barrier = Self::acquire_recovery_barrier(repository_root, journal_dir)?;
         Self::prepare_with_recovery_barrier_and_authorization(
             barrier,
-            RepositoryTxnAuthorization::TestHarness,
+            test_transaction_authorization(),
             plan,
             draft,
             &mut NoRepositoryTxnFailpoints,
@@ -2272,31 +1854,12 @@ impl RepositoryTxn {
 
     fn prepare_with_recovery_barrier_and_authorization(
         barrier: RepositoryRecoveryBarrier,
-        mut authorization: RepositoryTxnAuthorization,
+        mut authorization: Box<dyn TransactionAuthorization>,
         plan: RepositoryTxnPlan,
         draft: DeltaDraft,
         failpoints: &mut impl RepositoryTxnFailpoints,
     ) -> Result<Self, RepositoryTxnError> {
         plan.verify()?;
-        if let RepositoryTxnAuthorization::FreshRepository(verified) = &mut authorization {
-            bind_fresh_repository_authorization(verified, &plan.canonical_delta, |blob| {
-                let bytes = draft
-                    .blobs
-                    .get(&blob.digest)
-                    .cloned()
-                    .ok_or_else(|| RepositoryTxnError::MissingBlob(blob.digest.clone()))?;
-                validate_blob_bytes(blob, &bytes)?;
-                Ok(bytes)
-            })?;
-        }
-        if let Some(authorized) = authorization.verified_repository_id()
-            && plan.repository.repository_id != authorized
-        {
-            return Err(RepositoryTxnError::WriteAuthorizationRepositoryMismatch {
-                authorized: authorized.to_string(),
-                planned: plan.repository.repository_id.clone(),
-            });
-        }
         if plan.canonical_delta != draft.delta {
             return Err(RepositoryTxnError::CorruptPlan(
                 "plan delta differs from prepared postimage blobs".to_string(),
@@ -2344,7 +1907,7 @@ impl RepositoryTxn {
                         root,
                         paths,
                         journal,
-                        authorization: Some(authorization),
+                        authorization: None,
                         _lock: lock,
                     };
                     txn.verify_recovery_blobs()?;
@@ -2362,6 +1925,23 @@ impl RepositoryTxn {
                 )));
             }
         }
+
+        let mut read_draft_blob = |blob: &JournalBlobRef| {
+            let bytes = draft
+                .blobs
+                .get(&blob.digest)
+                .cloned()
+                .ok_or_else(|| RepositoryTxnError::MissingBlob(blob.digest.clone()))?;
+            validate_blob_bytes(blob, &bytes)?;
+            Ok(bytes)
+        };
+        authorization.bind_plan(&mut TransactionAuthorizationContext::new(
+            &root,
+            &plan.repository,
+            &plan.root,
+            &plan.canonical_delta,
+            &mut read_draft_blob,
+        ))?;
 
         for (index, (digest, bytes)) in draft.blobs.iter().enumerate() {
             let blob = BlobJournal {
@@ -2407,7 +1987,7 @@ impl RepositoryTxn {
         let barrier = Self::acquire_recovery_barrier(repository_root, journal_dir)?;
         Self::prepare_with_recovery_barrier_and_authorization(
             barrier,
-            RepositoryTxnAuthorization::TestHarness,
+            test_transaction_authorization(),
             plan,
             draft,
             &mut FailAtRepositoryTxnStep { target: step },
@@ -2510,13 +2090,22 @@ impl RepositoryTxn {
     }
 
     #[cfg(test)]
-    pub(crate) fn reauthorize_prepared_for_test(&mut self) -> Result<(), RepositoryTxnError> {
+    pub(crate) fn bind_exact_test_authorization(&mut self) -> Result<(), RepositoryTxnError> {
         if !matches!(self.journal.recovery, RecoveryState::Prepared) {
             return Err(RepositoryTxnError::WriteAuthorizationNotApplicable {
                 state: self.journal.recovery.clone(),
             });
         }
-        self.authorization = Some(RepositoryTxnAuthorization::TestHarness);
+        let mut authorization = test_transaction_authorization();
+        let mut read_journal_blob = |blob: &JournalBlobRef| read_blob_at(&self.paths, blob);
+        authorization.bind_plan(&mut TransactionAuthorizationContext::new(
+            &self.root,
+            &self.journal.plan.repository,
+            &self.journal.plan.root,
+            &self.journal.plan.canonical_delta,
+            &mut read_journal_blob,
+        ))?;
+        self.authorization = Some(authorization);
         Ok(())
     }
 
@@ -2526,8 +2115,10 @@ impl RepositoryTxn {
     ) -> Result<(), RepositoryTxnError> {
         let expected_marker = CommitMarker::from_plan(&self.journal.plan);
         match read_commit_marker(&self.paths, &self.journal) {
-            Ok(marker) => {
-                self.verify_marker(&marker)?;
+            Ok(_) => {
+                // A durable marker is sufficient authority for recovery. No
+                // policy capability survives or participates beyond it.
+                self.authorization.take();
                 if matches!(self.journal.recovery, RecoveryState::Completed) {
                     return self.verify_completed_state();
                 }
@@ -2552,31 +2143,6 @@ impl RepositoryTxn {
                     });
                 }
                 let preflight = (|| {
-                    reverify_transaction_authorization(
-                        &self.root,
-                        self.authorization
-                            .as_ref()
-                            .expect("authorization checked above"),
-                    )?;
-                    if let Some(RepositoryTxnAuthorization::FreshRepository(verified)) =
-                        self.authorization.as_ref()
-                    {
-                        if verified.delta_root.as_ref()
-                            != Some(self.journal.plan.canonical_delta.root())
-                        {
-                            return Err(RepositoryTxnError::WriteAuthorizationDeltaMismatch {
-                                authorized: verified
-                                    .delta_root
-                                    .clone()
-                                    .unwrap_or_else(|| ContentDigest::hash(b"unbound")),
-                                planned: self.journal.plan.canonical_delta.root().clone(),
-                            });
-                        }
-                        verify_fresh_repository_delta(
-                            &self.journal.plan.canonical_delta,
-                            |blob| self.read_blob(blob),
-                        )?;
-                    }
                     ensure_recovery_barrier_locked(
                         &self.root,
                         self.paths
@@ -2604,15 +2170,31 @@ impl RepositoryTxn {
                             });
                         }
                     }
-                    self.verify_blobs()
+                    self.verify_blobs()?;
+
+                    let authorization = self
+                        .authorization
+                        .as_ref()
+                        .expect("authorization checked above");
+                    let mut read_journal_blob =
+                        |blob: &JournalBlobRef| read_blob_at(&self.paths, blob);
+                    authorization.revalidate_for_marker(&mut TransactionAuthorizationContext::new(
+                        &self.root,
+                        &self.journal.plan.repository,
+                        &self.journal.plan.root,
+                        &self.journal.plan.canonical_delta,
+                        &mut read_journal_blob,
+                    ))
                 })();
                 if let Err(error) = preflight {
+                    self.authorization.take();
                     self.abort_prepared()?;
                     return Err(error);
                 }
                 failpoints.check(RepositoryTxnStep::BeforeCommitMarkerWrite)?;
                 operation_journal::write_json(&self.paths.marker, &expected_marker)
                     .map_err(RepositoryTxnError::Journal)?;
+                self.authorization.take();
                 failpoints.check(RepositoryTxnStep::AfterCommitMarkerWrite)?;
             }
             Err(error) => return Err(error),
@@ -2684,8 +2266,7 @@ impl RepositoryTxn {
         if matches!(self.journal.recovery, RecoveryState::Completed) {
             return self.verify_completed_state();
         }
-        let marker = read_commit_marker(&self.paths, &self.journal)?;
-        self.verify_marker(&marker)?;
+        read_commit_marker(&self.paths, &self.journal)?;
         let writes = self.journal.plan.canonical_delta.writes.clone();
         let total = writes.len();
         for (index, write) in writes.into_iter().enumerate() {
@@ -2735,7 +2316,7 @@ impl RepositoryTxn {
         self.complete_with_failpoints(&mut NoRepositoryTxnFailpoints)
     }
 
-    /// Retire private recovery copies after exact Git publication and strict
+    /// Retire private recovery copies after external publication and strict
     /// repository verification have both succeeded.
     ///
     /// The durable plan, commit marker, read set, and file-state commitments
@@ -2885,16 +2466,6 @@ impl RepositoryTxn {
                 atomic_write(&self.root, &target, &bytes, *mode)
             }
         }
-    }
-
-    fn verify_marker(&self, marker: &CommitMarker) -> Result<(), RepositoryTxnError> {
-        let expected = CommitMarker::from_plan(&self.journal.plan);
-        if marker != &expected {
-            return Err(RepositoryTxnError::CorruptPlan(
-                "commit marker does not match the durable plan".to_string(),
-            ));
-        }
-        Ok(())
     }
 
     fn verify_blobs(&self) -> Result<(), RepositoryTxnError> {
@@ -3083,7 +2654,7 @@ pub(crate) enum RepositoryTxnError {
         step: RepositoryTxnStep,
     },
     Canonicalize(String),
-    RepositoryTrustAnchor(String),
+    WriteAuthorization(String),
     CorruptPlan(String),
     Journal(String),
     Io(String),
@@ -3204,8 +2775,8 @@ impl fmt::Display for RepositoryTxnError {
                 )
             }
             Self::Canonicalize(error) => write!(formatter, "canonicalize transaction: {error}"),
-            Self::RepositoryTrustAnchor(error) => {
-                write!(formatter, "repository_trust_anchor_invalid: {error}")
+            Self::WriteAuthorization(error) => {
+                write!(formatter, "repository write authorization: {error}")
             }
             Self::CorruptPlan(error) => write!(formatter, "corrupt transaction plan: {error}"),
             Self::Journal(error) => write!(formatter, "repository transaction journal: {error}"),
@@ -3226,18 +2797,25 @@ fn canonical_repository_root(path: &Path) -> Result<PathBuf, RepositoryTxnError>
             path.display()
         )));
     }
-    fs::canonicalize(path).map_err(|error| {
+    let root = fs::canonicalize(path).map_err(|error| {
         RepositoryTxnError::Io(format!(
             "canonicalize repository root {}: {error}",
             path.display()
         ))
-    })
+    })?;
+    if root.to_str().is_none() {
+        return Err(RepositoryTxnError::Io(format!(
+            "canonical repository root is not valid UTF-8: {}",
+            root.display()
+        )));
+    }
+    Ok(root)
 }
 
 /// Reject path escapes, symbolic links, and non-directory ancestors observed
 /// while resolving a transaction target.
 ///
-/// This is a fail-closed check for a stable filesystem plus Vela's cooperative
+/// This is a fail-closed check for a stable filesystem plus the cooperative
 /// repository lock; it is not a sandbox against a hostile process that can
 /// mutate the repository with the same operating-system permissions. Rust's
 /// portable `std::fs` path APIs do not provide a complete dirfd-relative,
@@ -3535,132 +3113,16 @@ mod tests {
         format!("sha256:{}", byte.to_string().repeat(64))
     }
 
-    fn fixture_authority_initialization_write(repository_id: &str) -> PlannedWrite {
-        let event = vela_protocol::authority::AuthorityEventV1::new(
-            vela_protocol::authority::AuthorityEventContentV1 {
-                transaction_id: "vtx_fixture_initialization".into(),
-                principal_id: "local:fixture".into(),
-                authority_mode: vela_protocol::authority::AUTHORITY_MODE.into(),
-                kind: vela_protocol::events::EventKind::Other(
-                    vela_protocol::authority_history::AUTHORITY_INITIALIZED_EVENT_KIND.into(),
-                ),
-                target: vela_protocol::events::StateTarget {
-                    r#type: "repository".into(),
-                    id: repository_id.into(),
-                },
-                actor: vela_protocol::events::StateActor {
-                    r#type: "human".into(),
-                    id: "local:fixture".into(),
-                },
-                timestamp: "2026-07-29T00:00:00Z".into(),
-                reason: "Initialize exact repository authority fixture.".into(),
-                before_hash: vela_protocol::events::NULL_HASH.into(),
-                after_hash: vela_protocol::events::NULL_HASH.into(),
-                payload: json!({}),
-                caveats: Vec::new(),
-            },
-        )
-        .unwrap();
-        PlannedWrite::write(
-            RepoPath::parse(format!(".vela/authority/events/{}.json", event.id)).unwrap(),
-            WriteClass::Authority,
-            vela_protocol::canonical::to_canonical_bytes(&event).unwrap(),
-        )
-    }
-
-    fn fixture_covering_authority_record_write() -> PlannedWrite {
-        PlannedWrite::write(
-            RepoPath::parse(".vela/authority/records/var_fixture.dsse.json").unwrap(),
-            WriteClass::Authority,
-            b"fixture covering record".to_vec(),
-        )
-    }
-
-    fn fixture_repository(
-        origin: &vela_protocol::repository_origin::RepositoryOriginV1,
-    ) -> vela_protocol::repository::RepositoryV4 {
-        vela_protocol::repository::RepositoryV4 {
-            schema: vela_protocol::repository::REPOSITORY_SCHEMA_V4.into(),
-            repository_id: origin.repository_id.clone(),
-            profile_root: origin.profile_root.clone(),
-            origin_id: origin.id().unwrap(),
-            origin_root: origin.canonical_root().unwrap(),
-            accepted_claims: Vec::new(),
-            pending_claims: Vec::new(),
-            proposals: Vec::new(),
-            proposal_withdrawals: Vec::new(),
-            submissions: Vec::new(),
-            verifications: Vec::new(),
-            artifacts: Vec::new(),
-            authority_keyset_root: fixture_root('a'),
-            authority_model_root: fixture_root('b'),
-        }
-    }
-
-    fn verify_fresh_fixture(
-        root: &Path,
-        origin: &vela_protocol::repository_origin::RepositoryOriginV1,
-    ) -> Result<(), RepositoryTxnError> {
-        let repository = fixture_repository(origin);
-        let writes = vec![
-            PlannedWrite::write(
-                RepoPath::parse(".vela/origin.json").unwrap(),
-                WriteClass::CanonicalEvidence,
-                origin.canonical_bytes().unwrap(),
-            ),
-            PlannedWrite::write(
-                RepoPath::parse(".vela/repository.json").unwrap(),
-                WriteClass::CanonicalEvidence,
-                repository.canonical_bytes().unwrap(),
-            ),
-            fixture_authority_initialization_write(&origin.repository_id),
-            fixture_covering_authority_record_write(),
-        ];
-        let draft = DeltaDraft::prepare(root, writes).unwrap();
-        verify_fresh_repository_delta(&draft.delta, |blob| {
-            draft.blobs.get(&blob.digest).cloned().ok_or_else(|| {
-                RepositoryTxnError::CorruptPlan(format!(
-                    "fixture has no blob {}",
-                    blob.digest.as_str()
-                ))
-            })
-        })
-    }
-
-    #[test]
-    fn fresh_repository_delta_accepts_only_empty_genesis_origin() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path();
-        let repository_id = "01234567-89ab-4def-8123-456789abcdef";
-        let profile_root = fixture_root('c');
-        let genesis = vela_protocol::repository_origin::RepositoryOriginV1::genesis(
-            repository_id.into(),
-            profile_root.clone(),
-            "Establish current repository authority.".into(),
-        )
-        .unwrap();
-        verify_fresh_fixture(root, &genesis).unwrap();
-
-        /* Compaction is gone, so an origin claiming a generation beyond the
-        first is an object this runtime does not define. It fails at the
-        origin's own reader rather than at the fresh-repository check. */
-        let mut beyond_genesis = genesis.clone();
-        beyond_genesis.generation = 2;
-        assert!(beyond_genesis.verify().is_err());
-    }
-
     fn fixture_plan(root: &Path, draft: &DeltaDraft, identity: &[u8]) -> RepositoryTxnPlan {
         let operation_id = OperationId::derive("submission", identity);
         let request_root = ContentDigest::hash(identity);
-        let repository_id = crate::repository::verify_repository_at(root, false)
-            .map(|repository| repository.repository_id)
-            .unwrap_or_else(|_| "33333333-3333-4333-8333-333333333333".to_string());
         RepositoryTxnPlan::new(
             RepositoryTxnPlanSpec {
-                kind: OperationKind::Submission,
+                kind: OperationKind::new("submission").unwrap(),
                 operation_id,
                 request_root,
-                repository: RepositoryBinding::new(root, repository_id).unwrap(),
+                repository: RepositoryBinding::new(root, "33333333-3333-4333-8333-333333333333")
+                    .unwrap(),
                 fixed_time: "2026-07-13T00:00:00Z".to_string(),
                 read_set: vec![InputBinding {
                     name: "receipt".to_string(),
@@ -3671,6 +3133,335 @@ mod tests {
             draft.delta.clone(),
         )
         .unwrap()
+    }
+
+    fn one_write_fixture(
+        root: &Path,
+        path: &str,
+        identity: &[u8],
+    ) -> (DeltaDraft, RepositoryTxnPlan) {
+        let draft = DeltaDraft::prepare(
+            root,
+            vec![PlannedWrite::write(
+                RepoPath::parse(path).unwrap(),
+                WriteClass::CanonicalEvidence,
+                b"authorized postimage".to_vec(),
+            )],
+        )
+        .unwrap();
+        let plan = fixture_plan(root, &draft, identity);
+        (draft, plan)
+    }
+
+    #[test]
+    fn operation_kind_is_validated_at_construction_and_durable_plan_verification() {
+        for value in [
+            "submission",
+            "proposal_withdrawal",
+            "verification",
+            "decision",
+        ] {
+            OperationKind::new(value).unwrap();
+        }
+        for value in [
+            "",
+            "Decision With Spaces",
+            "_leading",
+            "trailing_",
+            "double__separator",
+            "contains-hyphen",
+        ] {
+            assert!(matches!(
+                OperationKind::new(value),
+                Err(RepositoryTxnError::CorruptPlan(error))
+                    if error.contains("invalid internal operation kind")
+            ));
+        }
+        assert!(matches!(
+            OperationKind::new("a".repeat(65)),
+            Err(RepositoryTxnError::CorruptPlan(error))
+                if error.contains("invalid internal operation kind")
+        ));
+
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("repository");
+        fs::create_dir_all(&root).unwrap();
+        let (draft, mut plan) =
+            one_write_fixture(&root, "records/operation.json", b"operation kind");
+        assert_eq!(draft.delta, plan.canonical_delta);
+        plan.kind = OperationKind("invalid kind".into());
+        plan.root = plan.compute_root().unwrap();
+        assert!(matches!(
+            plan.verify(),
+            Err(RepositoryTxnError::CorruptPlan(error))
+                if error.contains("invalid internal operation kind")
+        ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn repository_root_or_filesystem_rejects_non_utf8_paths_instead_of_lossy_binding() {
+        use std::os::unix::ffi::OsStringExt;
+
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary
+            .path()
+            .join(std::ffi::OsString::from_vec(vec![b'r', 0xff]));
+        if fs::create_dir(&root).is_err() {
+            // Some supported filesystems reject the byte sequence before the
+            // runtime can canonicalize it. That is already fail-closed.
+            return;
+        }
+        assert!(matches!(
+            canonical_repository_root(&root),
+            Err(RepositoryTxnError::Io(error)) if error.contains("not valid UTF-8")
+        ));
+    }
+
+    #[test]
+    fn authorization_bind_denial_precedes_every_transaction_journal_byte() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("repository");
+        let journals = temporary.path().join("journals");
+        fs::create_dir_all(&root).unwrap();
+        let (draft, plan) = one_write_fixture(&root, "records/denied.json", b"deny bind");
+        let paths = RepositoryTxnPaths::new(&journals, &plan.operation_id);
+        let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let barrier = RepositoryTxn::acquire_recovery_barrier(&root, &journals).unwrap();
+        let error = RepositoryTxn::prepare_with_recovery_barrier_and_authorization(
+            barrier,
+            Box::new(RecordingTransactionAuthorization {
+                deny_bind: true,
+                calls: Some(calls.clone()),
+                ..Default::default()
+            }),
+            plan,
+            draft,
+            &mut NoRepositoryTxnFailpoints,
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            error,
+            RepositoryTxnError::RepositoryWriteIntentDenied {
+                intent: "test_transaction",
+                ..
+            }
+        ));
+        assert_eq!(*calls.lock().unwrap(), ["bind_plan"]);
+        assert!(!paths.plan.exists());
+        assert!(!paths.marker.exists());
+        assert!(!paths.blob_dir.exists());
+        assert!(!paths.plan.parent().expect("journal parent").exists());
+        assert!(!root.join("records/denied.json").exists());
+    }
+
+    #[test]
+    fn authorization_bound_to_same_delta_in_another_plan_is_rejected() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("repository");
+        let journals = temporary.path().join("journals");
+        fs::create_dir_all(&root).unwrap();
+        let (draft, authorized_plan) =
+            one_write_fixture(&root, "records/exact-plan.json", b"authorized plan");
+        let planned = fixture_plan(&root, &draft, b"different plan same delta");
+        assert_eq!(
+            authorized_plan.canonical_delta.root(),
+            planned.canonical_delta.root()
+        );
+        assert_ne!(authorized_plan.root, planned.root);
+        let paths = RepositoryTxnPaths::new(&journals, &planned.operation_id);
+        let barrier = RepositoryTxn::acquire_recovery_barrier(&root, &journals).unwrap();
+        let error = RepositoryTxn::prepare_with_recovery_barrier_and_authorization(
+            barrier,
+            Box::new(RecordingTransactionAuthorization {
+                binding: Some(TestAuthorizationBinding {
+                    repository_id: planned.repository.repository_id.clone(),
+                    plan_root: authorized_plan.root,
+                    delta_root: planned.canonical_delta.root().clone(),
+                }),
+                ..Default::default()
+            }),
+            planned,
+            draft,
+            &mut NoRepositoryTxnFailpoints,
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            error,
+            RepositoryTxnError::StaleWriteAuthorization { .. }
+        ));
+        assert!(!paths.plan.exists());
+        assert!(!paths.marker.exists());
+        assert!(!root.join("records/exact-plan.json").exists());
+    }
+
+    #[test]
+    fn authorization_marker_denial_aborts_without_repository_delta() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("repository");
+        let journals = temporary.path().join("journals");
+        fs::create_dir_all(&root).unwrap();
+        let (draft, plan) = one_write_fixture(&root, "records/denied.json", b"deny marker");
+        let paths = RepositoryTxnPaths::new(&journals, &plan.operation_id);
+        let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let barrier = RepositoryTxn::acquire_recovery_barrier(&root, &journals).unwrap();
+        let mut transaction = RepositoryTxn::prepare_with_recovery_barrier_and_authorization(
+            barrier,
+            Box::new(RecordingTransactionAuthorization {
+                deny_marker: true,
+                calls: Some(calls.clone()),
+                ..Default::default()
+            }),
+            plan,
+            draft,
+            &mut NoRepositoryTxnFailpoints,
+        )
+        .unwrap();
+
+        let error = transaction.mark_committed().unwrap_err();
+        assert!(matches!(
+            error,
+            RepositoryTxnError::RepositoryWriteIntentDenied {
+                intent: "test_transaction",
+                ..
+            }
+        ));
+        assert_eq!(transaction.recovery_state(), &RecoveryState::Aborted);
+        assert!(transaction.authorization.is_none());
+        assert_eq!(
+            *calls.lock().unwrap(),
+            ["bind_plan", "revalidate_for_marker"]
+        );
+        assert!(!paths.marker.exists());
+        assert!(!root.join("records/denied.json").exists());
+    }
+
+    #[test]
+    fn generic_preflight_failure_precedes_marker_revalidation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("repository");
+        let journals = temporary.path().join("journals");
+        fs::create_dir_all(&root).unwrap();
+        let (draft, plan) = one_write_fixture(&root, "records/drift.json", b"generic first");
+        let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let barrier = RepositoryTxn::acquire_recovery_barrier(&root, &journals).unwrap();
+        let mut transaction = RepositoryTxn::prepare_with_recovery_barrier_and_authorization(
+            barrier,
+            Box::new(RecordingTransactionAuthorization {
+                calls: Some(calls.clone()),
+                ..Default::default()
+            }),
+            plan,
+            draft,
+            &mut NoRepositoryTxnFailpoints,
+        )
+        .unwrap();
+        fs::create_dir_all(root.join("records")).unwrap();
+        fs::write(root.join("records/drift.json"), b"ambient drift").unwrap();
+
+        assert!(matches!(
+            transaction.mark_committed(),
+            Err(RepositoryTxnError::StalePreimage { .. })
+        ));
+        assert_eq!(*calls.lock().unwrap(), ["bind_plan"]);
+        assert_eq!(transaction.recovery_state(), &RecoveryState::Aborted);
+        assert!(!transaction.paths.marker.exists());
+    }
+
+    #[test]
+    fn marker_present_recovery_never_invokes_authorization() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("repository");
+        let journals = temporary.path().join("journals");
+        fs::create_dir_all(&root).unwrap();
+        let (draft, plan) = one_write_fixture(&root, "records/recover.json", b"marker recovery");
+        let operation_id = plan.operation_id.clone();
+        let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let barrier = RepositoryTxn::acquire_recovery_barrier(&root, &journals).unwrap();
+        let mut transaction = RepositoryTxn::prepare_with_recovery_barrier_and_authorization(
+            barrier,
+            Box::new(RecordingTransactionAuthorization {
+                calls: Some(calls.clone()),
+                ..Default::default()
+            }),
+            plan,
+            draft,
+            &mut NoRepositoryTxnFailpoints,
+        )
+        .unwrap();
+        assert_injected(
+            transaction.mark_committed_at_failpoint(RepositoryTxnStep::AfterCommitMarkerWrite),
+            RepositoryTxnStep::AfterCommitMarkerWrite,
+        );
+        assert!(transaction.authorization.is_none());
+        calls.lock().unwrap().clear();
+        drop(transaction);
+
+        assert_eq!(
+            RepositoryTxn::recover(&root, &journals, &operation_id).unwrap(),
+            RecoveryOutcome::Completed
+        );
+        assert!(calls.lock().unwrap().is_empty());
+        assert_eq!(
+            fs::read(root.join("records/recover.json")).unwrap(),
+            b"authorized postimage"
+        );
+    }
+
+    #[test]
+    fn reopened_prepared_journal_requires_fresh_exact_test_binding() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("repository");
+        let journals = temporary.path().join("journals");
+        fs::create_dir_all(&root).unwrap();
+        let (draft, plan) = one_write_fixture(&root, "records/reopen.json", b"reopen binding");
+        let operation_id = plan.operation_id.clone();
+        drop(RepositoryTxn::prepare(&root, &journals, plan, draft).unwrap());
+
+        let mut reopened = RepositoryTxn::open(&root, &journals, &operation_id).unwrap();
+        assert!(matches!(
+            reopened.mark_committed(),
+            Err(RepositoryTxnError::WriteAuthorizationRequired { .. })
+        ));
+        assert_eq!(reopened.recovery_state(), &RecoveryState::Prepared);
+        assert!(!reopened.paths.marker.exists());
+        reopened.bind_exact_test_authorization().unwrap();
+        reopened.mark_committed().unwrap();
+        reopened.install().unwrap();
+        reopened.complete().unwrap();
+        assert_eq!(
+            fs::read(root.join("records/reopen.json")).unwrap(),
+            b"authorized postimage"
+        );
+    }
+
+    #[test]
+    fn authorization_postimage_reads_are_bounded_to_exact_delta_members() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        let (draft, plan) = one_write_fixture(root, "records/member.json", b"bounded read");
+        let mut foreign = draft.delta.writes()[0].clone();
+        foreign.path = RepoPath::parse("records/foreign.json").unwrap();
+        let mut read_attempted = false;
+        let mut read_blob = |_blob: &JournalBlobRef| {
+            read_attempted = true;
+            Ok(Vec::new())
+        };
+        let mut context = TransactionAuthorizationContext::new(
+            root,
+            &plan.repository,
+            &plan.root,
+            &draft.delta,
+            &mut read_blob,
+        );
+
+        assert!(matches!(
+            context.postimage_bytes(&foreign),
+            Err(RepositoryTxnError::CorruptPlan(_))
+        ));
+        assert!(!read_attempted);
     }
 
     #[test]
@@ -3711,7 +3502,7 @@ mod tests {
         // the exact current serialization without goldening a temporary path.
         let plan = RepositoryTxnPlan::new(
             RepositoryTxnPlanSpec {
-                kind: OperationKind::Submission,
+                kind: OperationKind::new("submission").unwrap(),
                 operation_id: OperationId::derive(
                     "submission",
                     b"post-phase-one-transaction-wire-fixture",
@@ -3827,38 +3618,6 @@ mod tests {
         assert_eq!(
             ContentDigest::hash(&marker_file_bytes).as_str(),
             "sha256:743789adb9484685ee197f8da04e06a36d475c69b6b21f30d2f7dbcf6479e390"
-        );
-    }
-
-    #[test]
-    fn operating_system_account_home_ignores_hostile_home_environment() {
-        const CHILD: &str = "VELA_OS_ACCOUNT_HOME_REDIRECTION_CHILD";
-        if std::env::var_os(CHILD).is_some() {
-            let hostile = fs::canonicalize(
-                std::env::var_os("HOME")
-                    .map(PathBuf::from)
-                    .expect("child HOME is set"),
-            )
-            .unwrap();
-            let actual = fs::canonicalize(operating_system_account_home().unwrap()).unwrap();
-            assert_ne!(actual, hostile, "hostile HOME redirected trust-pin lookup");
-            return;
-        }
-
-        let attacker_home = tempfile::tempdir().unwrap();
-        let output = std::process::Command::new(std::env::current_exe().unwrap())
-            .arg("--exact")
-            .arg("repository_txn::tests::operating_system_account_home_ignores_hostile_home_environment")
-            .arg("--nocapture")
-            .env(CHILD, "1")
-            .env("HOME", attacker_home.path())
-            .output()
-            .unwrap();
-        assert!(
-            output.status.success(),
-            "hostile-HOME child failed:\nstdout:\n{}\nstderr:\n{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr),
         );
     }
 
@@ -4241,7 +4000,7 @@ mod tests {
                 RepositoryTxn::prepare(&root, &journals, retry_plan, retry_draft).unwrap()
             };
             if retry.authorization.is_none() {
-                retry.reauthorize_prepared_for_test().unwrap();
+                retry.bind_exact_test_authorization().unwrap();
             }
             retry.mark_committed().unwrap();
             retry.install().unwrap();

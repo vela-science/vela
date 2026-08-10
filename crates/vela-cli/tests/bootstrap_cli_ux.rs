@@ -365,11 +365,9 @@ fn a_colliding_trust_pin_is_not_reported_as_a_signing_failure() {
             .expect("local trust anchor path"),
     ));
 
-    // A second key so the second init derives a different authority record
-    // root; an identical anchor would install idempotently and never collide.
-    let second_root = temporary.path().join("second");
-    std::fs::create_dir_all(&second_root).expect("second agent root");
-    let second_agent = EphemeralAgent::start(&second_root, "vela pin collision second");
+    // The second init has no usable agent. Detecting the pre-existing pin must
+    // happen before identity selection or signing, not merely be relabeled
+    // after a cryptographic failure.
     let second_repository = temporary.path().join("second/repository");
     let second_repository_text = second_repository.to_string_lossy().into_owned();
     // Copy the first repository's retained bootstrap, which carries its exact
@@ -401,7 +399,7 @@ fn a_colliding_trust_pin_is_not_reported_as_a_signing_failure() {
     );
     let collided = run(
         temporary.path(),
-        Some(second_agent.socket()),
+        None,
         &["init", &second_repository_text, "--json"],
     );
     assert_eq!(collided.status.code(), Some(1));
@@ -416,6 +414,10 @@ fn a_colliding_trust_pin_is_not_reported_as_a_signing_failure() {
     let hint = collided["error"]["hint"].as_str().expect("collision hint");
     assert!(!hint.contains("ssh-add"), "{hint}");
     assert!(hint.contains("--previous-record-root"), "{hint}");
+    assert!(!second_repository.join(".vela/origin.json").exists());
+    assert!(!second_repository.join(".vela/repository.json").exists());
+    assert!(!second_repository.join(".vela/authority").exists());
+    assert!(!second_repository.join(".vela/operation-journals").exists());
 }
 
 #[test]

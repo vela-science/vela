@@ -115,6 +115,23 @@ pub(crate) fn cmd_init(
                     Some(&recovery),
                 )
             }
+            RepositoryAuthorityInitError::TrustPinBlocksInitialization {
+                repository_id,
+                pin_path,
+                pinned_root,
+            } => crate::ui::fail_with(
+                crate::ui::ErrorKind::Domain,
+                &format!(
+                    "repository authority initialization was not attempted because the local trust pin for {repository_id} at {pin_path} already selects {pinned_root}"
+                ),
+                Some(&blocking_trust_pin_hint(
+                    path,
+                    &repository_id,
+                    &pin_path,
+                    &pinned_root,
+                    json_output,
+                )),
+            ),
             RepositoryAuthorityInitError::TrustPinCollision {
                 repository_id,
                 record_root,
@@ -233,6 +250,25 @@ fn trust_pin_collision_hint(
     }
     format!(
         "the pin is a write gate, so this repository cannot take an authority write until it is reconciled; read {pin_path} first. If it pins a different repository, rerun `vela init` with a --name or --scope that does not derive {repository_id}. If it is a stale pin for this repository and you have independently verified the new root, advance it with: {rebind}"
+    )
+}
+
+fn blocking_trust_pin_hint(
+    path: &Path,
+    repository_id: &str,
+    pin_path: &str,
+    pinned_root: &str,
+    json_output: bool,
+) -> String {
+    let mut rebind = format!(
+        "vela authority trust pin {} --record-root NEW_SEQUENCE_ONE_ROOT --previous-record-root {pinned_root}",
+        shell_arg(&path.display().to_string())
+    );
+    if json_output {
+        rebind.push_str(" --json");
+    }
+    format!(
+        "the pin is a write gate, so fresh initialization cannot sign or install an authority record while it exists; read {pin_path} first. If it pins a different repository, rerun `vela init` with a --name or --scope that does not derive {repository_id}. If it is stale for this repository, reconcile or archive it only after independently checking its provenance; any later verified replacement must name both roots, for example: {rebind}"
     )
 }
 

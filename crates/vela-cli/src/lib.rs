@@ -16,6 +16,7 @@ pub(crate) mod read;
 pub(crate) mod repository_authority_provider;
 pub(crate) mod repository_decision;
 pub(crate) mod repository_ops;
+pub(crate) mod repository_write_policy;
 pub(crate) mod routine_evidence_transaction;
 pub(crate) mod style;
 pub(crate) mod submission;

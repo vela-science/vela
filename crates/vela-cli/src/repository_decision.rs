@@ -678,9 +678,12 @@ pub(crate) fn execute_prepared(
     if expected.action != expected_action {
         return Err("current review plan carries another action".into());
     }
-    let barrier = recovery_barrier
-        .authorize_verified_repository_authority(&prepared.repository, &prepared.authority)
-        .map_err(|error| error.to_string())?;
+    let barrier = crate::repository_write_policy::authorize_repository_authority_write_barrier(
+        recovery_barrier,
+        &prepared.repository,
+        &prepared.authority,
+    )
+    .map_err(|error| error.to_string())?;
     let recorded_at =
         crate::cli::canonical_whole_second_time("current review decision", &expected.observed_at)?;
     let local = crate::cli::local_session(&recorded_at)?;

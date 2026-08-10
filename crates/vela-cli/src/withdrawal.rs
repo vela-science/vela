@@ -30,6 +30,7 @@ use crate::repository_txn::{ContentDigest, InputBinding, OperationId, OperationK
 caller switching on `command` saw two keys for one invocation, and neither
 named a verb the CLI accepts: the path is `vela review withdraw`. */
 const COMMAND: &str = "review.withdraw";
+const REPOSITORY_OPERATION_KIND: &str = "proposal_withdrawal";
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct ProposalWithdrawalOutcome {
@@ -203,7 +204,7 @@ pub(crate) fn withdraw(
     }
 
     let journal_dir = crate::repository_ops::repository_transaction_journal_dir(repository_path)?;
-    let barrier = crate::repository_txn::RepositoryTxn::acquire_routine_evidence_write_barrier(
+    let barrier = crate::repository_write_policy::acquire_routine_evidence_write_barrier(
         repository_path,
         &journal_dir,
     )
@@ -288,7 +289,7 @@ pub(crate) fn withdraw(
         barrier,
         repository_path,
         &held.repository_id,
-        OperationKind::ProposalWithdrawal,
+        OperationKind::new(REPOSITORY_OPERATION_KIND).map_err(|error| error.to_string())?,
         operation_id.clone(),
         &request_root,
         created_at,

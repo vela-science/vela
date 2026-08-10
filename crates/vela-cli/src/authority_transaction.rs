@@ -55,6 +55,7 @@ const READ_SET_SCHEMA: &str = "vela.authority-read-set.internal.v1";
 const WRITE_SET_SCHEMA: &str = "vela.authority-write-set.internal.v1";
 const RESULT_SCHEMA: &str = "vela.authority-transaction-result.internal.v1";
 const OPERATION_DOMAIN: &str = "authority_transaction";
+const REPOSITORY_OPERATION_KIND: &str = "decision";
 
 /// Complete verified-history input for the next transaction.
 ///
@@ -590,7 +591,8 @@ where
     };
     let plan = RepositoryTxnPlan::new(
         RepositoryTxnPlanSpec {
-            kind: OperationKind::Decision,
+            kind: OperationKind::new(REPOSITORY_OPERATION_KIND)
+                .map_err(AuthorityTransactionError::Transaction)?,
             operation_id,
             request_root: ContentDigest::parse(request.intent_digest.clone())
                 .map_err(AuthorityTransactionError::Transaction)?,
@@ -641,44 +643,6 @@ where
     prepared.install()?;
     prepared.complete()?;
     Ok(prepared.result)
-}
-
-/// Return one already-completed authority result without authenticating or
-/// signing again.
-///
-/// The caller must retain the complete result from the first execution. A
-/// short ID, intent digest, or transaction ID alone is insufficient. The
-/// recovery barrier verifies the completed marker, blobs, canonical
-/// postimages, and historical event commitment before this function compares
-/// the durable result byte-for-byte.
-#[cfg(test)]
-pub(crate) fn retry_completed_authority_transaction(
-    barrier: &CanonicalWriteBarrier,
-    expected: &AuthorityTransactionResult,
-) -> Result<AuthorityTransactionResult, AuthorityTransactionError> {
-    let operation_id = OperationId::parse(expected.operation_id.as_str())
-        .map_err(AuthorityTransactionError::Transaction)?;
-    let plan = barrier
-        .completed_plan(&operation_id)
-        .map_err(AuthorityTransactionError::Transaction)?
-        .ok_or_else(|| {
-            AuthorityTransactionError::Invalid(format!(
-                "authority transaction {} is not completed",
-                expected.operation_id
-            ))
-        })?;
-    let durable: DurableAuthorityTransactionResult = serde_json::from_value(plan.result.clone())
-        .map_err(|error| {
-            AuthorityTransactionError::Invalid(format!(
-                "completed authority transaction result is invalid: {error}"
-            ))
-        })?;
-    if durable.schema != RESULT_SCHEMA || durable.result != *expected {
-        return Err(AuthorityTransactionError::Invalid(
-            "completed authority transaction does not match the exact retained result".into(),
-        ));
-    }
-    Ok(durable.result)
 }
 
 fn validate_semantic_event_links(
@@ -1897,11 +1861,9 @@ mod tests {
         }
 
         fn barrier(&self) -> CanonicalWriteBarrier {
-            RepositoryTxn::acquire_write_barrier_for_test(
-                self.temporary.path(),
-                &self.journal_dir(),
-            )
-            .unwrap()
+            RepositoryTxn::acquire_recovery_barrier(self.temporary.path(), &self.journal_dir())
+                .unwrap()
+                .authorize(crate::repository_txn::test_transaction_authorization())
         }
 
         fn adapter(&self) -> LocalOsSession {
@@ -3311,33 +3273,6 @@ mod tests {
             error.contains("continues after its terminal close"),
             "{error}"
         );
-    }
-
-    #[test]
-    fn completed_retry_returns_only_the_exact_durable_result_without_another_signature() {
-        let fixture = fixture();
-        let mut adapter = fixture.adapter();
-        let mut signer = fixture.signer();
-        let result = execute_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            fixture.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
-        assert_eq!(signer.calls, 1);
-
-        let barrier = fixture.barrier();
-        let retried = retry_completed_authority_transaction(&barrier, &result).unwrap();
-        assert_eq!(retried, result);
-        assert_eq!(signer.calls, 1);
-
-        let mut substituted = result.clone();
-        substituted.transaction_id.push('0');
-        let error = retry_completed_authority_transaction(&barrier, &substituted).unwrap_err();
-        assert!(matches!(error, AuthorityTransactionError::Invalid(_)));
-        assert_eq!(signer.calls, 1);
     }
 
     #[test]
