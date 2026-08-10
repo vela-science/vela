@@ -76,11 +76,6 @@
           "type": "string",
           "pattern": "^https?://"
         },
-        "home": {
-          "description": "Legacy alias for `homepage`, carried because the Erdős generator's passthrough list named it. Prefer `homepage` in new declarations.",
-          "type": "string",
-          "pattern": "^https?://"
-        },
         "pages_commit": {
           "description": "The commit of the active GitHub Pages deployment serving `url`, for a source whose bytes are built by a workflow and tracked at no ref. It is not a locator the bytes can be re-fetched from, which is exactly why the content root in the lock is the real pin.",
           "$ref": "#/$defs/gitObject"

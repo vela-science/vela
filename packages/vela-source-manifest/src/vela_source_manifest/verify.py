@@ -41,7 +41,7 @@ from .resolver import (
 # one of these differs, either the lock was hand-edited or it predates a change
 # to the declaration; both mean the lock no longer describes what this Repository
 # says it acquires.
-VERBATIM = ("kind", "repo", "ref", "path", "paths", "home", "homepage", "url",
+VERBATIM = ("kind", "repo", "ref", "path", "paths", "homepage", "url",
             "pages_commit", "pages_commit_resolved", "acquired_by")
 
 # Fields the resolver reads back from GitHub. The declaration's value is an

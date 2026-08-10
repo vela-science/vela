@@ -76,7 +76,6 @@ PASSTHROUGH = (
     "paths",
     "commit",
     "tree",
-    "home",
     "homepage",
     "pages_commit",
     "pages_commit_resolved",
