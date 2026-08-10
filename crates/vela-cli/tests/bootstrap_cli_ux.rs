@@ -28,6 +28,20 @@ fn run(cwd: &Path, socket: Option<&Path>, args: &[&str]) -> Output {
     run_with_advice_setting(cwd, socket, args, "0")
 }
 
+fn run_native_init_continuation(cwd: &Path, repository: &str, key: &str, reason: &str) -> Output {
+    let args = [
+        "init", repository, "--key", key, "--reason", reason, "--json",
+    ];
+    run(cwd, None, &args)
+}
+
+fn assert_native_init_continuation(output: &Output, operation_id: &str, git_commit: &str) {
+    assert!(output.status.success());
+    let result = json(output);
+    assert_eq!(result["operation_id"], operation_id);
+    assert_eq!(result["repository"]["git_commit"], git_commit);
+}
+
 fn run_with_advice(cwd: &Path, socket: Option<&Path>, args: &[&str]) -> Output {
     run_with_advice_setting(cwd, socket, args, "1")
 }
@@ -188,6 +202,18 @@ fn directory_snapshot(root: &Path) -> BTreeMap<String, Vec<u8>> {
     let mut files = BTreeMap::new();
     visit(root, root, &mut files);
     files
+}
+
+#[cfg(all(feature = "test-support", unix))]
+fn assert_no_git_or_pin(
+    output: &Output,
+    repository: &Path,
+    git_before: &BTreeMap<String, Vec<u8>>,
+    anchor: &Path,
+) {
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(directory_snapshot(&repository.join(".git")), *git_before);
+    assert!(!anchor.exists());
 }
 
 #[test]
@@ -464,18 +490,11 @@ fn completed_native_genesis_finishes_git_and_trust_without_a_signer() {
         .output()
         .expect("remove genesis ref");
     assert!(deleted.status.success());
-    let continued = run(
+    let continued = run_native_init_continuation(
         temporary.path(),
-        None,
-        &[
-            "init",
-            &repository_path_text,
-            "--key",
-            &fingerprint,
-            "--reason",
-            reason,
-            "--json",
-        ],
+        &repository_path_text,
+        &fingerprint,
+        reason,
     );
     assert!(
         continued.status.success(),
@@ -505,42 +524,22 @@ fn completed_native_genesis_finishes_git_and_trust_without_a_signer() {
 
     // Crash after the exact commit but before trust: only the pin is missing.
     std::fs::remove_file(&anchor_path).expect("remove trust anchor after exact commit");
-    let trust_only = run(
+    let trust_only = run_native_init_continuation(
         temporary.path(),
-        None,
-        &[
-            "init",
-            &repository_path_text,
-            "--key",
-            &fingerprint,
-            "--reason",
-            reason,
-            "--json",
-        ],
+        &repository_path_text,
+        &fingerprint,
+        reason,
     );
-    assert!(trust_only.status.success());
-    let trust_only = json(&trust_only);
-    assert_eq!(trust_only["operation_id"], operation_id);
-    assert_eq!(trust_only["repository"]["git_commit"], initial_commit);
+    assert_native_init_continuation(&trust_only, &operation_id, &initial_commit);
 
     // Crash after trust (or a lost response): the exact command is idempotent.
-    let idempotent = run(
+    let idempotent = run_native_init_continuation(
         temporary.path(),
-        None,
-        &[
-            "init",
-            &repository_path_text,
-            "--key",
-            &fingerprint,
-            "--reason",
-            reason,
-            "--json",
-        ],
+        &repository_path_text,
+        &fingerprint,
+        reason,
     );
-    assert!(idempotent.status.success());
-    let idempotent = json(&idempotent);
-    assert_eq!(idempotent["operation_id"], operation_id);
-    assert_eq!(idempotent["repository"]["git_commit"], initial_commit);
+    assert_native_init_continuation(&idempotent, &operation_id, &initial_commit);
     assert_eq!(
         directory_snapshot(&repository_path.join(".vela/authority")),
         authority_before
@@ -552,18 +551,11 @@ fn completed_native_genesis_finishes_git_and_trust_without_a_signer() {
 
     let git_before_wrong_key = directory_snapshot(&repository_path.join(".git"));
     let anchor_before_wrong_key = std::fs::read(&anchor_path).expect("read exact trust anchor");
-    let wrong_key = run(
+    let wrong_key = run_native_init_continuation(
         temporary.path(),
-        None,
-        &[
-            "init",
-            &repository_path_text,
-            "--key",
-            "SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-            "--reason",
-            reason,
-            "--json",
-        ],
+        &repository_path_text,
+        "SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        reason,
     );
     assert_eq!(wrong_key.status.code(), Some(1));
     assert!(
@@ -590,18 +582,11 @@ fn completed_native_genesis_finishes_git_and_trust_without_a_signer() {
     assert!(removed_ref.status.success());
     let git_without_ref = directory_snapshot(&repository_path.join(".git"));
     let exact_pin_without_ref = std::fs::read(&anchor_path).expect("read exact retained pin");
-    let inconsistent_tail = run(
+    let inconsistent_tail = run_native_init_continuation(
         temporary.path(),
-        None,
-        &[
-            "init",
-            &repository_path_text,
-            "--key",
-            &fingerprint,
-            "--reason",
-            reason,
-            "--json",
-        ],
+        &repository_path_text,
+        &fingerprint,
+        reason,
     );
     assert_eq!(inconsistent_tail.status.code(), Some(1));
     assert_eq!(
@@ -621,18 +606,11 @@ fn completed_native_genesis_finishes_git_and_trust_without_a_signer() {
         .expect("restore exact genesis ref for remaining assertions");
     assert!(restored_ref.status.success());
 
-    let wrong_reason = run(
+    let wrong_reason = run_native_init_continuation(
         temporary.path(),
-        None,
-        &[
-            "init",
-            &repository_path_text,
-            "--key",
-            &fingerprint,
-            "--reason",
-            "Different reason.",
-            "--json",
-        ],
+        &repository_path_text,
+        &fingerprint,
+        "Different reason.",
     );
     assert_eq!(wrong_reason.status.code(), Some(1));
     assert!(
@@ -932,14 +910,12 @@ fn completed_genesis_rejects_missing_ambiguous_and_aliased_state_before_git_or_p
     let detached = temporary.path().join("detached-journal.json");
     std::fs::rename(&journal, &detached).unwrap();
     let missing = run(temporary.path(), None, &args);
-    assert_eq!(missing.status.code(), Some(1));
+    assert_no_git_or_pin(&missing, &repository, &git_before, &anchor);
     assert!(
         json(&missing)["error"]["message"]
             .as_str()
             .is_some_and(|message| message.contains("Completed native genesis"))
     );
-    assert_eq!(directory_snapshot(&repository.join(".git")), git_before);
-    assert!(!anchor.exists());
     std::fs::rename(&detached, &journal).unwrap();
 
     let duplicate = repository
@@ -947,9 +923,7 @@ fn completed_genesis_rejects_missing_ambiguous_and_aliased_state_before_git_or_p
         .join("vop_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.json");
     std::fs::copy(&journal, &duplicate).unwrap();
     let ambiguous = run(temporary.path(), None, &args);
-    assert_eq!(ambiguous.status.code(), Some(1));
-    assert_eq!(directory_snapshot(&repository.join(".git")), git_before);
-    assert!(!anchor.exists());
+    assert_no_git_or_pin(&ambiguous, &repository, &git_before, &anchor);
     std::fs::remove_file(&duplicate).unwrap();
 
     let readme = repository.join("README.md");
@@ -958,26 +932,20 @@ fn completed_genesis_rejects_missing_ambiguous_and_aliased_state_before_git_or_p
     std::fs::rename(&readme, &temporary_case).unwrap();
     std::fs::rename(&temporary_case, &lower).unwrap();
     let case_alias = run(temporary.path(), None, &args);
-    assert_eq!(case_alias.status.code(), Some(1));
-    assert_eq!(directory_snapshot(&repository.join(".git")), git_before);
-    assert!(!anchor.exists());
+    assert_no_git_or_pin(&case_alias, &repository, &git_before, &anchor);
     std::fs::rename(&lower, &temporary_case).unwrap();
     std::fs::rename(&temporary_case, &readme).unwrap();
 
     let unicode_extra = repository.join("e\u{301}.txt");
     std::fs::write(&unicode_extra, b"normalization alias residue\n").unwrap();
     let unicode = run(temporary.path(), None, &args);
-    assert_eq!(unicode.status.code(), Some(1));
-    assert_eq!(directory_snapshot(&repository.join(".git")), git_before);
-    assert!(!anchor.exists());
+    assert_no_git_or_pin(&unicode, &repository, &git_before, &anchor);
     std::fs::remove_file(&unicode_extra).unwrap();
 
     let readme_bytes = std::fs::read(&readme).unwrap();
     std::fs::write(&readme, b"drifted expected scaffold bytes\n").unwrap();
     let scaffold_drift = run(temporary.path(), None, &args);
-    assert_eq!(scaffold_drift.status.code(), Some(1));
-    assert_eq!(directory_snapshot(&repository.join(".git")), git_before);
-    assert!(!anchor.exists());
+    assert_no_git_or_pin(&scaffold_drift, &repository, &git_before, &anchor);
 
     let journals_before_blocked_advisory =
         directory_snapshot(&repository.join(".vela/operation-journals"));
