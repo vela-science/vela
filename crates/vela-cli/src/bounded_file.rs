@@ -59,6 +59,35 @@ impl std::fmt::Display for BoundedFileError {
     }
 }
 
+fn read_open_file(
+    file: impl Read,
+    path: &Path,
+    max_bytes: u64,
+    label: &str,
+) -> Result<Vec<u8>, BoundedFileError> {
+    let mut bytes = Vec::new();
+    file.take(max_bytes.saturating_add(1))
+        .read_to_end(&mut bytes)
+        .map_err(|error| {
+            BoundedFileError::new(
+                "read_failed",
+                format!("read {label} {}: {error}", path.display()),
+                true,
+            )
+        })?;
+    if bytes.len() as u64 > max_bytes {
+        return Err(BoundedFileError::new(
+            "oversized",
+            format!(
+                "{label} {} exceeds the {max_bytes}-byte limit",
+                path.display()
+            ),
+            true,
+        ));
+    }
+    Ok(bytes)
+}
+
 /// Read one explicitly supplied file without allowing its path to swap to a
 /// symlink or different inode while Vela is reading it. Unlike
 /// [`read_bounded_repository_file`], this accepts a path outside the repository so
@@ -159,26 +188,7 @@ pub(crate) fn read_bounded_file(
     }
     verify_named_path_identity(path, &opened_identity, label, true)?;
 
-    let mut bytes = Vec::new();
-    file.take(max_bytes.saturating_add(1))
-        .read_to_end(&mut bytes)
-        .map_err(|error| {
-            BoundedFileError::new(
-                "read_failed",
-                format!("read {label} {}: {error}", path.display()),
-                true,
-            )
-        })?;
-    if bytes.len() as u64 > max_bytes {
-        return Err(BoundedFileError::new(
-            "oversized",
-            format!(
-                "{label} {} exceeds the {max_bytes}-byte limit",
-                path.display()
-            ),
-            true,
-        ));
-    }
+    let bytes = read_open_file(file, path, max_bytes, label)?;
     verify_named_path_identity(path, &opened_identity, label, true)?;
     Ok(bytes)
 }
@@ -338,26 +348,7 @@ pub(crate) fn read_bounded_repository_file(
     }
     verify_open_path_identity(&root, &current, &opened_identity, label, true)?;
 
-    let mut bytes = Vec::new();
-    file.take(max_bytes.saturating_add(1))
-        .read_to_end(&mut bytes)
-        .map_err(|error| {
-            BoundedFileError::new(
-                "read_failed",
-                format!("read {label} {}: {error}", current.display()),
-                true,
-            )
-        })?;
-    if bytes.len() as u64 > max_bytes {
-        return Err(BoundedFileError::new(
-            "oversized",
-            format!(
-                "{label} {} exceeds the {max_bytes}-byte limit",
-                current.display()
-            ),
-            true,
-        ));
-    }
+    let bytes = read_open_file(file, &current, max_bytes, label)?;
     verify_open_path_identity(&root, &current, &opened_identity, label, true)?;
     Ok(bytes)
 }
@@ -444,56 +435,118 @@ fn verify_handle_identity(
 mod tests {
     use super::*;
     use std::fs;
+    use std::io::ErrorKind::{Interrupted, Other};
     use std::path::PathBuf;
 
-    #[test]
-    fn reads_a_valid_normalized_repository_relative_file() {
-        let repository_path = tempfile::tempdir().unwrap();
-        let relative = Path::new("records/receipts/receipt.json");
-        let absolute = repository_path.path().join(relative);
-        fs::create_dir_all(absolute.parent().unwrap()).unwrap();
-        fs::write(&absolute, b"bounded receipt bytes").unwrap();
+    struct OneError(Option<std::io::ErrorKind>);
 
-        let bytes = read_bounded_repository_file(
-            repository_path.path(),
-            relative,
-            b"bounded receipt bytes".len() as u64,
-            "receipt",
-        )
-        .unwrap();
-
-        assert_eq!(bytes, b"bounded receipt bytes");
+    impl Read for OneError {
+        fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+            if let Some(kind) = self.0.take() {
+                return Err(kind.into());
+            }
+            Ok(0)
+        }
     }
 
     #[test]
-    fn standalone_reader_accepts_an_absolute_file_and_rejects_size_before_open() {
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("receipt.json");
-        fs::write(&path, b"bounded receipt bytes").unwrap();
+    fn readers_accept_short_and_exact_files_and_reject_oversize_before_open() {
+        let repository = tempfile::tempdir().unwrap();
+        let relative = Path::new("records/receipts/receipt.json");
+        let absolute = repository.path().join(relative);
+        fs::create_dir_all(absolute.parent().unwrap()).unwrap();
+        fs::write(&absolute, b"12345").unwrap();
+
         assert_eq!(
-            read_bounded_file(&path, b"bounded receipt bytes".len() as u64, "receipt").unwrap(),
-            b"bounded receipt bytes"
+            read_bounded_file(&absolute, 6, "receipt").unwrap(),
+            b"12345"
+        );
+        let exact = read_bounded_repository_file(repository.path(), relative, 5, "receipt");
+        assert_eq!(exact.unwrap(), b"12345");
+        for error in [
+            read_bounded_file(&absolute, 4, "receipt").unwrap_err(),
+            read_bounded_repository_file(repository.path(), relative, 4, "receipt").unwrap_err(),
+        ] {
+            assert_eq!((error.code, error.opened), ("oversized", false));
+        }
+    }
+
+    #[test]
+    fn opened_reader_retries_interruptions_maps_errors_and_bounds_consumption() {
+        let path = Path::new("opened.fixture");
+        assert_eq!(
+            read_open_file(OneError(Some(Interrupted)), path, 4, "receipt").unwrap(),
+            b""
         );
 
-        let error = read_bounded_file(&path, 4, "receipt").unwrap_err();
-        assert_eq!(error.code, "oversized");
-        assert!(!error.opened);
+        let failure = read_open_file(OneError(Some(Other)), path, 4, "receipt").unwrap_err();
+        assert_eq!(
+            (failure.code, failure.message.as_str(), failure.opened),
+            (
+                "read_failed",
+                "read receipt opened.fixture: other error",
+                true
+            )
+        );
+
+        let mut large = std::io::Cursor::new([0; 1024]);
+        let error = read_open_file(&mut large, path, 4, "receipt").unwrap_err();
+        assert_eq!(
+            (error.code, error.message.as_str(), error.opened),
+            (
+                "oversized",
+                "receipt opened.fixture exceeds the 4-byte limit",
+                true
+            )
+        );
+        assert_eq!(large.position(), 5);
     }
 
     #[cfg(unix)]
     #[test]
-    fn standalone_reader_rejects_a_symlink_leaf_before_open() {
+    fn readers_reject_symlink_and_fifo_leaves_before_open() {
         use std::os::unix::fs::symlink;
 
-        let directory = tempfile::tempdir().unwrap();
-        let real = directory.path().join("real.json");
-        let linked = directory.path().join("linked.json");
-        fs::write(&real, b"receipt").unwrap();
-        symlink(&real, &linked).unwrap();
+        let repository = tempfile::tempdir().unwrap();
+        fs::write(repository.path().join("real"), b"receipt").unwrap();
+        let linked = repository.path().join("linked");
+        symlink("real", &linked).unwrap();
+        for error in [
+            read_bounded_file(&linked, 128, "receipt").unwrap_err(),
+            read_bounded_repository_file(repository.path(), Path::new("linked"), 128, "receipt")
+                .unwrap_err(),
+        ] {
+            assert_eq!((error.code, error.opened), ("symlink", false));
+        }
 
-        let error = read_bounded_file(&linked, 128, "receipt").unwrap_err();
-        assert_eq!(error.code, "symlink");
-        assert!(!error.opened);
+        let fifo = repository.path().join("fifo");
+        assert!(
+            std::process::Command::new("/usr/bin/mkfifo")
+                .arg(&fifo)
+                .status()
+                .unwrap()
+                .success()
+        );
+        for error in [
+            read_bounded_file(&fifo, 128, "receipt").unwrap_err(),
+            read_bounded_repository_file(repository.path(), Path::new("fifo"), 128, "receipt")
+                .unwrap_err(),
+        ] {
+            assert_eq!((error.code, error.opened), ("not_regular", false));
+        }
+
+        let records = repository.path().join("real-records");
+        fs::create_dir(&records).unwrap();
+        fs::write(records.join("receipt.json"), b"receipt").unwrap();
+        symlink("real-records", repository.path().join("records")).unwrap();
+        let error = read_bounded_repository_file(
+            repository.path(),
+            Path::new("records/receipt.json"),
+            128,
+            "receipt",
+        )
+        .unwrap_err();
+        assert_eq!((error.code, error.opened), ("symlink", false));
     }
 
     #[test]
@@ -509,67 +562,7 @@ mod tests {
         let error =
             verify_handle_identity(&inspected, &substituted, &inspected_path, "receipt", true)
                 .unwrap_err();
-        assert_eq!(error.code, "path_changed");
-        assert!(error.opened);
-    }
-
-    #[test]
-    fn rejects_oversized_input_before_opening_a_descriptor() {
-        let repository_path = tempfile::tempdir().unwrap();
-        let relative = Path::new("records/receipt.json");
-        let absolute = repository_path.path().join(relative);
-        fs::create_dir_all(absolute.parent().unwrap()).unwrap();
-        fs::write(&absolute, b"12345").unwrap();
-
-        let error = read_bounded_repository_file(repository_path.path(), relative, 4, "receipt")
-            .unwrap_err();
-
-        assert_eq!(error.code, "oversized");
-        assert!(!error.opened, "size metadata must reject before File::open");
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn rejects_a_symlink_leaf_before_opening_a_descriptor() {
-        use std::os::unix::fs::symlink;
-
-        let repository_path = tempfile::tempdir().unwrap();
-        fs::write(repository_path.path().join("real.json"), b"real bytes").unwrap();
-        symlink("real.json", repository_path.path().join("receipt.json")).unwrap();
-
-        let error = read_bounded_repository_file(
-            repository_path.path(),
-            Path::new("receipt.json"),
-            128,
-            "receipt",
-        )
-        .unwrap_err();
-
-        assert_eq!(error.code, "symlink");
-        assert!(!error.opened);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn rejects_a_symlink_ancestor_before_opening_a_descriptor() {
-        use std::os::unix::fs::symlink;
-
-        let repository_path = tempfile::tempdir().unwrap();
-        let real_directory = repository_path.path().join("real-records");
-        fs::create_dir(&real_directory).unwrap();
-        fs::write(real_directory.join("receipt.json"), b"real bytes").unwrap();
-        symlink("real-records", repository_path.path().join("records")).unwrap();
-
-        let error = read_bounded_repository_file(
-            repository_path.path(),
-            Path::new("records/receipt.json"),
-            128,
-            "receipt",
-        )
-        .unwrap_err();
-
-        assert_eq!(error.code, "symlink");
-        assert!(!error.opened);
+        assert_eq!((error.code, error.opened), ("path_changed", true));
     }
 
     #[test]
@@ -586,8 +579,7 @@ mod tests {
         for path in invalid {
             let error = read_bounded_repository_file(repository_path.path(), &path, 128, "receipt")
                 .unwrap_err();
-            assert_eq!(error.code, "path_invalid", "path: {}", path.display());
-            assert!(!error.opened, "path: {}", path.display());
+            assert!(error.code == "path_invalid" && !error.opened, "{path:?}");
         }
     }
 }
