@@ -1,9 +1,9 @@
 //! Repository-authority transaction writer.
 //!
-//! The writer composes authority records, runtime authentication, retained
-//! Cedar material, and the existing recoverable repository transaction without
-//! introducing a second journal. Routine work leases and the narrow governed
-//! work-policy rotation use this same core.
+//! The writer composes authority records, runtime authentication, and the
+//! existing recoverable repository transaction without introducing a second
+//! journal. Routine work leases and the narrow governed work-policy rotation
+//! use this same core.
 
 use std::collections::BTreeMap;
 use std::fmt;

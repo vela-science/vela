@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 use serde_json::Value;
 use vela_protocol::claim_record::{
     CORRECTION_RELATION_KINDS, ClaimAssertion, ClaimRecordV1, ClaimRelation, ClaimRelationClass,
-    DESCRIPTIVE_RELATION_KINDS, canonical_relation_kind, claim_relation_class,
+    DESCRIPTIVE_RELATION_KINDS, claim_relation_class,
 };
 
 const FIXTURE: &str = include_str!("../../../conformance/fixtures/claim-relation-vocabulary.json");
@@ -92,45 +92,12 @@ fn the_declared_sets_are_exactly_what_the_crate_exports() {
 }
 
 #[test]
-fn near_miss_spellings_resolve_to_one_canonical_name() {
-    let fixture = fixture();
-    let aliases = fixture["aliases"].as_array().expect("aliases are an array");
-    assert!(!aliases.is_empty());
-
-    for alias in aliases {
-        let recorded = alias["recorded"].as_str().expect("recorded spelling");
-        let canonical = alias["canonical"].as_str().expect("canonical spelling");
-
-        assert_eq!(canonical_relation_kind(recorded), canonical);
-        // The canonical spelling is a fixed point, and it is a declared kind.
-        assert_eq!(canonical_relation_kind(canonical), canonical);
-        assert_ne!(
-            claim_relation_class(canonical),
-            ClaimRelationClass::Unrecognized,
-            "`{canonical}` is canonical but undeclared"
-        );
-        // This is the live defect the reconciliation closes: a consumer that
-        // matches only the declared spelling must not miss the recorded one.
-        assert_eq!(
-            claim_relation_class(recorded),
-            claim_relation_class(canonical),
-            "`{recorded}` and `{canonical}` must classify alike"
-        );
-    }
-}
-
-#[test]
 fn every_classification_case_agrees_with_the_parser() {
     for case in fixture()["classification_cases"]
         .as_array()
         .expect("classification cases are an array")
     {
         let kind = case["kind"].as_str().expect("kind");
-        assert_eq!(
-            canonical_relation_kind(kind),
-            case["canonical"].as_str().expect("canonical"),
-            "canonical spelling of `{kind}`"
-        );
         assert_eq!(
             class_name(claim_relation_class(kind)),
             case["class"].as_str().expect("class"),
@@ -141,7 +108,6 @@ fn every_classification_case_agrees_with_the_parser() {
         // relation is retained description, never a parse failure.
         let record = claim_with_relation_kind(kind).expect("well-formed kind is accepted");
         let relation = &record.relations[0];
-        assert_eq!(relation.canonical_kind(), case["canonical"]);
         assert_eq!(class_name(relation.class()), case["class"]);
         assert_eq!(
             relation.moves_standing(),

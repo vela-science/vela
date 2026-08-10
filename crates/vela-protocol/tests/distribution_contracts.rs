@@ -1,6 +1,13 @@
+//! What a consumer meets before the binary exists: the installer, the release
+//! workflow, and the manifest between them.
+//!
+//! This was `action_contracts.rs`, and its largest test walked the composite
+//! action in `action.yml` asserting it stayed read-only and non-finalizing.
+//! The action is gone — every consumer of it was archived and pinned to an
+//! immutable commit — and what is left here never depended on it.
+
 use serde_json::Value;
 
-const ROOT_ACTION: &str = include_str!("../../../action.yml");
 const INSTALLER: &str = include_str!("../../../install.sh");
 const RELEASE_WORKFLOW: &str = include_str!("../../../.github/workflows/release.yml");
 const CONFORMANCE_WORKFLOW: &str = include_str!("../../../.github/workflows/conformance.yml");
@@ -64,28 +71,6 @@ fn needs(job: &Value) -> Vec<&str> {
     }
 }
 
-fn assert_no_finalizing_commands(action: &Value) {
-    let forbidden = [
-        "vela sign",
-        "vela accept",
-        "vela review",
-        "vela proposals accept",
-        "vela proposals reject",
-        "vela policy accept",
-    ];
-    for script in steps(&action["runs"])
-        .iter()
-        .filter_map(|step| step["run"].as_str())
-    {
-        for command in forbidden {
-            assert!(
-                !script.contains(command),
-                "producer action must not contain finalizing command `{command}`"
-            );
-        }
-    }
-}
-
 /// Read one `NAME="value"` assignment out of a shell script.
 ///
 /// The entry point declares its pins as constants at the top rather than
@@ -135,97 +120,6 @@ fn assert_immutable_action_pins(name: &str, workflow: &str) {
             }
         }
     }
-}
-
-#[test]
-fn root_action_is_read_only_and_nonfinalizing() {
-    let action = parse_yaml(ROOT_ACTION);
-    assert_eq!(action["runs"]["using"].as_str(), Some("composite"));
-    assert!(action["inputs"].get("strict").is_none());
-    assert!(action["inputs"].get("vela-version").is_none());
-    /* One key, one path. What this assertion is really about is that the
-    action takes nothing but a path: a second key would be a second thing it
-    can be told to do. */
-    let mut declared: Vec<&str> = action["inputs"]
-        .as_object()
-        .expect("action inputs must be an object")
-        .keys()
-        .map(String::as_str)
-        .collect();
-    declared.sort_unstable();
-    assert_eq!(
-        declared,
-        ["repository"],
-        "the public action accepts only the repository path"
-    );
-
-    let install = step_named(&action["runs"], "Install Vela");
-    assert_eq!(
-        install["env"]["GH_TOKEN"].as_str(),
-        Some("${{ github.token }}"),
-        "the installer must expose the workflow token to attestation checks"
-    );
-    assert!(script_named(&action["runs"], "Require a supported runner").contains("Linux|macOS"));
-    let strict = script_named(&action["runs"], "Read-only repository verification");
-    /* Shape, not verb. Pinning the literal subcommand here is what let the
-    `check` → `replay` rename ship with the Action still calling `check`:
-    this assertion passed on the stale string. Whether the verb exists is
-    proved by running the binary, in vela-cli/tests/action_invocation.rs. */
-    assert!(
-        strict.contains("\"$vela_bin\""),
-        "the step must invoke the pinned binary"
-    );
-    assert!(
-        strict.contains("\"$REPOSITORY_PATH\" --json"),
-        "the step must verify the consumer's repository as JSON"
-    );
-
-    /* The resolve, asserted where the rest of the action's shape is. One step
-    turns the input into the path every other step reads, so a step that named
-    the input for itself would be a second place the default lives. */
-    let resolve = script_named(&action["runs"], "Resolve the repository path");
-    assert!(
-        resolve.contains("REPOSITORY:-"),
-        "the resolve step must apply the default in one place"
-    );
-    assert_eq!(
-        ROOT_ACTION.matches("inputs.repository").count(),
-        1,
-        "the input must be read once, by the step that resolves it"
-    );
-
-    /* The two shape checks every repository owes and none of them owns. They are
-    named here because four repositories consume this file instead of carrying
-    four copies: deleting a step from it silently ungates all four at once. */
-    assert!(
-        script_named(
-            &action["runs"],
-            "Committed source lock matches its declaration"
-        )
-        .contains("vela-source-lock --check")
-    );
-    assert!(
-        script_named(&action["runs"], "Repository shape")
-            .contains("conformance/repository_lint.py")
-    );
-
-    /* The action now uses a hosted action of its own. Consumers pin this file
-    by SHA and cannot see what it resolves at run time, so an unpinned use here
-    would make their pin promise less than it says. */
-    for step in steps(&action["runs"]) {
-        let Some(use_clause) = step["uses"].as_str() else {
-            continue;
-        };
-        let (_, reference) = use_clause
-            .split_once('@')
-            .unwrap_or_else(|| panic!("the public action has malformed action use {use_clause}"));
-        assert!(
-            reference.len() == 40 && reference.bytes().all(|byte| byte.is_ascii_hexdigit()),
-            "the public action must use one immutable commit SHA: {use_clause}"
-        );
-    }
-
-    assert_no_finalizing_commands(&action);
 }
 
 #[test]
@@ -391,51 +285,6 @@ fn fresh_runner_smoke_precedes_publication_for_supported_platforms() {
     );
 }
 
-/// The one step that installs the Python reader, wherever it is declared.
-fn locked_reader_step<'a>(container: &'a Value, name: &str) -> &'a Value {
-    let mut found = steps(container).iter().filter(|step| {
-        step["uses"]
-            .as_str()
-            .is_some_and(|clause| clause.starts_with("astral-sh/setup-uv@"))
-    });
-    let step = found
-        .next()
-        .unwrap_or_else(|| panic!("{name} must install the locked reader"));
-    assert!(
-        found.next().is_none(),
-        "{name} installs the reader twice; one of them will be the stale one"
-    );
-    step
-}
-
-#[test]
-fn the_action_and_conformance_install_the_same_locked_reader() {
-    // Both run this repository's own `--locked` projects, so they must agree on
-    // the interpreter and the resolver that read those locks. A composite
-    // action cannot borrow a workflow's inputs, so the pin is written twice by
-    // necessity — which is exactly the kind of second copy that goes stale on
-    // the next bump. It is bound here instead of trusted.
-    let action = parse_yaml(ROOT_ACTION);
-    let workflow = parse_yaml(CONFORMANCE_WORKFLOW);
-    let by_action = locked_reader_step(&action["runs"], "the root action");
-    let by_conformance = locked_reader_step(workflow_job(&workflow, "rust"), "conformance");
-
-    assert_eq!(
-        by_action["uses"], by_conformance["uses"],
-        "the action and conformance disagree about which reader they install"
-    );
-    for field in ["version", "python-version"] {
-        assert_eq!(
-            by_action["with"][field], by_conformance["with"][field],
-            "the action and conformance disagree about the reader's {field}"
-        );
-        assert!(
-            by_action["with"][field].as_str().is_some(),
-            "the reader's {field} must be pinned, not left to the day the job ran"
-        );
-    }
-}
-
 #[test]
 fn every_hosted_action_is_pinned_by_commit() {
     for (name, workflow) in [
@@ -451,25 +300,6 @@ fn installers_verify_release_bytes_and_do_not_ship_a_signer() {
     assert!(!INSTALLER.contains("vela-signer"));
     assert!(!INSTALLER.contains("science.vela.signer.policy"));
     assert!(INSTALLER.contains("VELA_EXPECTED_SHA256"));
-}
-
-/// The distribution surface speaks the current vocabulary too.
-///
-/// `wording_contract.rs` walks the binary's whole help tree and both sides of
-/// its error surface, and `ecosystem-status.py` scans `crates/`, `schemas/` and
-/// `packages/` for the retired identifier spellings. Between them sits the one
-/// script every consumer runs before the binary exists, which neither reads: it
-/// told anyone who uninstalled Vela that "Frontier data was preserved" for as
-/// long as there had been no Frontier to hold data. `action.yml` is here for
-/// the same reason — it is the other file a consumer meets first.
-#[test]
-fn the_distribution_surface_does_not_name_a_frontier() {
-    for (name, source) in [("install.sh", INSTALLER), ("action.yml", ROOT_ACTION)] {
-        assert!(
-            !source.to_ascii_lowercase().contains("frontier"),
-            "{name} still says Frontier where ADR 0039 means Repository"
-        );
-    }
 }
 
 /// `docs/CONTINUITY.md` requires installing and verifying without the provider.
@@ -527,5 +357,24 @@ fn the_installer_can_verify_without_the_provider() {
     assert!(
         INSTALLER.contains("(sha256:)?([0-9a-f]{64})"),
         "the installer must accept the digest form release_manifest.py emits"
+    );
+}
+
+/// The distribution surface speaks the current vocabulary too.
+///
+/// `wording_contract.rs` walks the binary's whole help tree and both sides of
+/// its error surface, and `ecosystem-status.py` scans `crates/`, `schemas/` and
+/// `packages/` for the retired identifier spellings. Between them sits the one
+/// script every consumer runs before the binary exists, which neither reads: it
+/// told anyone who uninstalled Vela that "Frontier data was preserved" for as
+/// long as there had been no Frontier to hold data.
+///
+/// This used to cover `action.yml` for the same reason — the other file a
+/// consumer met first. There is no longer an action to meet.
+#[test]
+fn the_distribution_surface_does_not_name_a_frontier() {
+    assert!(
+        !INSTALLER.to_ascii_lowercase().contains("frontier"),
+        "install.sh still says Frontier where ADR 0039 means Repository"
     );
 }

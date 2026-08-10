@@ -49,7 +49,6 @@
         "tree": { "$ref": "#/$defs/gitObject" },
         "url": { "type": "string", "pattern": "^https?://" },
         "homepage": { "type": "string", "pattern": "^https?://" },
-        "home": { "type": "string", "pattern": "^https?://" },
         "pages_commit": { "$ref": "#/$defs/gitObject" },
         "pages_commit_resolved": { "$ref": "#/$defs/timestamp" },
         "acquired_by": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },

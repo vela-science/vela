@@ -337,12 +337,11 @@ imported from a corpus. The descriptive set is enumerated from those records
 rather than declared ahead of them, so it is open — a repository may write a kind
 it does not name, and that kind gains no authority by being written.
 
-One near-miss spelling is recognised on input and resolves to a canonical name:
-`depends_on` reads as `depends`. Producers emit the canonical spelling;
-consumers resolve before matching. `revises`, `retracts` and `opposes` were
-declared and written into no record; all three are withdrawn.
-`conformance/fixtures/claim-relation-vocabulary.json` fixes the alias, and a
-test in `vela-protocol` fails when an implementation drifts from it.
+There are no near-miss spellings. A kind is matched as the record stores it.
+`revises`, `retracts`, `opposes` and `depends_on` were declared and written into
+no record; all four are withdrawn.
+`conformance/fixtures/claim-relation-vocabulary.json` fixes the vocabulary, and
+a test in `vela-protocol` fails when an implementation drifts from it.
 
 Do not read `evidence[].relation` against this vocabulary. It names the role an
 Artifact plays for one Claim, not a link between two Claims, and every retained

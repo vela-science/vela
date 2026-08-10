@@ -75,20 +75,6 @@ pub const DESCRIPTIVE_RELATION_KINDS: &[&str] = &[
     "synthesized_from",
 ];
 
-/// Spellings recognised on input, paired with the canonical spelling.
-///
-/// Retained records cannot be rewritten, so both halves of a near-miss have to
-/// resolve to one meaning. `depends` is canonical by ADR 0004, which named it
-/// the stored wire value and `depends_on` the derived-graph rendering, and that
-/// rendering is live: `correction_impact.rs` classifies edges by it.
-///
-/// `opposes` was here too, resolving to `contradicts`. It aliased nothing — it
-/// was declared in `PROTOCOL.md` and written into no record, which the fixture
-/// recorded as `retained_uses: 0`. A near-miss table is for spellings a
-/// retained record actually holds, so it is withdrawn rather than aliased, the
-/// same disposition `revises` and `retracts` already have.
-const RELATION_KIND_ALIASES: &[(&str, &str)] = &[("depends_on", "depends")];
-
 /// What a relation kind does to Standing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ClaimRelationClass {
@@ -100,27 +86,11 @@ pub enum ClaimRelationClass {
     Unrecognized,
 }
 
-/// Resolve a recorded spelling to the canonical one. Unknown kinds pass
-/// through unchanged; this narrows near-misses, it does not validate.
-///
-/// Read-side only. Canonical bytes keep the spelling the producer wrote, so
-/// calling this can never move a record root.
-pub fn canonical_relation_kind(kind: &str) -> &str {
-    match RELATION_KIND_ALIASES
-        .iter()
-        .find(|(recorded, _)| *recorded == kind)
-    {
-        Some((_, canonical)) => canonical,
-        None => kind,
-    }
-}
-
-/// Classify a relation kind, resolving near-miss spellings first.
+/// Classify a relation kind.
 pub fn claim_relation_class(kind: &str) -> ClaimRelationClass {
-    let canonical = canonical_relation_kind(kind);
-    if CORRECTION_RELATION_KINDS.contains(&canonical) {
+    if CORRECTION_RELATION_KINDS.contains(&kind) {
         ClaimRelationClass::Correction
-    } else if DESCRIPTIVE_RELATION_KINDS.contains(&canonical) {
+    } else if DESCRIPTIVE_RELATION_KINDS.contains(&kind) {
         ClaimRelationClass::Descriptive
     } else {
         ClaimRelationClass::Unrecognized
@@ -128,11 +98,6 @@ pub fn claim_relation_class(kind: &str) -> ClaimRelationClass {
 }
 
 impl ClaimRelation {
-    /// The canonical spelling of this relation's kind.
-    pub fn canonical_kind(&self) -> &str {
-        canonical_relation_kind(&self.kind)
-    }
-
     /// What this relation does to Standing.
     pub fn class(&self) -> ClaimRelationClass {
         claim_relation_class(&self.kind)

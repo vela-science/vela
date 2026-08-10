@@ -43,10 +43,6 @@ updates:
   # conformance/ and packages/vela-source-manifest/ each carry their own
   # uv.lock. CI runs `uv run --locked`, so a manifest bump that misses the lock
   # fails the run instead of landing quietly.
-  #
-  # research/lean-replay-contract/requirements.lock.txt is left out on purpose:
-  # its hashes are pinned from the conformance lock and are part of the replay
-  # contract, not a dependency to keep current.
   - package-ecosystem: uv
     directories:
       - /conformance

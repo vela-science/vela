@@ -574,20 +574,16 @@ A relation kind is lowercase ASCII words joined by single underscores, at most
 
 ### 8.3 Canonical spellings
 
-Retained records cannot be rewritten, so two spellings recognised on input
-resolve to one canonical name:
+There is no near-miss table. A relation kind is matched as the record stores it.
 
-| Recorded | Canonical | Why |
-| --- | --- | --- |
-| `depends_on` | `depends` | ADR 0004 named `depends` the stored wire value and `depends_on` the derived-graph rendering |
-
-Producers emit the canonical spelling. Consumers resolve before matching. A
-consumer that matches only `depends_on` sees none of the recorded dependencies.
-
-`revises`, `retracts` and `opposes` are withdrawn: nothing ever emitted or read
-any of them. `opposes` was carried as an alias for `contradicts` until it was
-noticed that a near-miss table is for spellings a retained record holds, and no
-record holds this one.
+`revises`, `retracts`, `opposes` and `depends_on` are withdrawn: nothing ever
+emitted or read any of them. `opposes` was carried as an alias for
+`contradicts`, and `depends_on` as an alias for `depends`, until it was noticed
+that a near-miss table is for spellings a retained record holds — and across
+`vela-science/math` and the four archived topic repositories, no record holds
+either. `depends_on` remains the derived-graph rendering ADR 0004 gave it, which
+is a different vocabulary: it is what a correction-impact projection emits, not
+something a Claim Record stores.
 
 Do not confuse `relations[].kind` with `evidence[].relation`, which names the
 role an Artifact plays for one Claim rather than a link between two Claims.

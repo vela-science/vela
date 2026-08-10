@@ -148,7 +148,6 @@ DECLARED_SURFACES: dict[str, bool] = {
     ".github/workflows/conformance.yml": True,
     ".github/workflows/release.yml": True,
     ".github/workflows/scorecard.yml": True,
-    "action.yml": True,
     "conformance/canonical-hashing.json": True,
     "conformance/emitters/javascript.mjs": True,
     "conformance/emitters/python.py": True,

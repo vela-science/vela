@@ -161,8 +161,9 @@ candidate consumed by two independent readers at pinned commits, with
 `"level_1_promotion": false` — 1,017 lines added and 0 deleted. Two gates
 failed, not one; the network-sandbox gate is independent of the consumers. Both
 of the named consumers are now frozen repositories, so the experiment cannot be
-re-run as designed. It should be closed as answered in the negative rather than
-carried as open backlog.
+re-run as designed. It is closed as answered in the negative rather than carried
+as open backlog, and the candidate package itself has left the tree — Git
+history retains it. The qualification record stays because it is the answer.
 
 `docs/ARCHITECTURE.md` now states the same closed decision: native package
 ecosystems own resolution and publication; the two-consumer and net-deletion
@@ -450,10 +451,14 @@ different facts.
   in PROTOCOL.md and written into no record" — and a near-miss table is for
   spellings a retained record holds. It now has the disposition `revises` and
   `retracts` already had. Removing it required editing the fixture that pins it,
-  which nothing outside this repository reads. `depends_on` → `depends` stays:
-  it reads the same way in the fixture but is live, because
-  `correction_impact.rs` classifies edges by the derived-graph rendering ADR
-  0004 gave it.
+  which nothing outside this repository reads. `depends_on` → `depends` was
+  kept at the time because `correction_impact.rs` was said to classify edges by
+  the derived-graph rendering ADR 0004 gave it. That was wrong about the code:
+  `RULE_FOR_RETAINED_KIND` matches its left column, which is the spelling a
+  record retains — `depends` — and emits `depends_on` as the rule kind
+  independently of any alias. The alias narrowed nothing, no record in any
+  repository holds it, and it is withdrawn too. The near-miss table is gone with
+  it.
 - ~~One retired term is still wire.~~ Resolved in the final pre-release wire
   cut: `provenance.source_attempt`, its bespoke `vat_` identifier, and the
   `--source-attempt` flag are deleted. `provenance.source_run` is the one

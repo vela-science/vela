@@ -7,8 +7,7 @@ A discovery proposer (human or agent) is untrusted: it returns an explicit
 construction, and this crate re-checks it deterministically before any
 claim is recorded. Corrupting a witness must fail the verifier — that is
 the property the tests pin. This is the reference registry `vela reproduce`
-re-runs stored witnesses through, and it is reachable directly through this
-crate's own `vela-verify` executable.
+re-runs stored witnesses through.
 
 The verifiers are pure (no I/O, no randomness) and dependency-light (serde
 only), so a third party gets byte-identical verdicts.
@@ -60,13 +59,20 @@ states which, and the verifier's own message repeats it.
 pass AND have exactly that many elements, so a record can't claim a larger
 set than the witness it ships.
 
-The executable can also bind the verified witness to an exact claim:
+A verified witness can also be bound to an exact claim, through the library
+rather than a command:
 
-```bash
-vela-verify --claim \
-  'There exists a Sidon subset of {0,1}^8 with at least 33 elements.' \
-  witness.json
+```rust
+vela_verify::claim_witness_faithful(
+    "There exists a Sidon subset of {0,1}^8 with at least 33 elements.",
+    &witness,
+)
 ```
 
 The claim check fails closed on a wrong kind, dimension, parameter, or lower
 bound. A construction witness cannot establish equality or optimality.
+
+There is no `vela-verify` command. The crate built one, but no release ever
+shipped it — `scripts/release.sh` stages `vela` alone and `install.sh` installs
+`vela` alone — so it was reachable only from a source checkout. `vela reproduce`
+is the command surface.

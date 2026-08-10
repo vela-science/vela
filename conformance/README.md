@@ -39,52 +39,6 @@ the schemas document structure and carry no authority or Standing effect.
 
 `fixtures/exact-witness-floor.json` is a normative test vector.
 
-## `repository_lint.py`
-
-Everything above is about protocol bytes. `repository_lint.py` is about
-repository shape, and it is the one thing here that takes an argument:
-
-```bash
-uv run --project conformance --locked python conformance/repository_lint.py /path/to/a-repository
-uv run --project conformance --locked python conformance/repository_lint.py /path/to/a-repository --json
-```
-
-It exits 1 on findings, 2 when a declaration it reads has gone missing, and 0
-otherwise. It changes nothing and reads nothing outside the two roots it is
-given: the Vela checkout it ships in, and the Repository named on the command
-line. `../vela` is never consulted, because in the CI job that matters most
-there is no `../vela` to consult.
-
-Five rules, each reading the fact it needs from whatever declares it, so that
-none of them can go stale on its own:
-
-| Rule | Reads |
-| --- | --- |
-| `shared-package-copy` | the real file list, `__all__`, and module symbols of every package under `packages/` |
-| `non-production-dependency` | each `vela.package-consumer-reference.v1` in the Repository, and `subdirectory =` in its `pyproject.toml` |
-| `generator-pin` | every `git+` reference to a package under `packages/`, checked for a 40-character commit and for agreement between a Repository's own restatements of it |
-| `retired-path` | the fenced list under `<!-- repository-lint:retired-paths -->` in `docs/REPOSITORY_PROFILE.md` |
-| `generated-file` | the lock and declaration filenames and the console-script name published by the package that generates the lock |
-
-`generator-pin` deliberately does not check *which* commit a Repository names.
-Which one is right is not a fact this checkout can settle for a repository it
-was not shipped with, and a rule that compared the value would go red for a
-Repository whose pin is correct and simply newer. Shape and self-agreement only.
-
-Two rules used to live here and no longer do, both because something upstream
-of the linter already owned the same bytes. `unpinned-action` matched every
-`uses:` in `.github/` against a 40-character SHA; `zizmor` now audits the whole
-Repository a step earlier in `action.yml`, under a blanket policy that requires a
-hash with no configuration file, and it parses the workflow rather than the
-line. And `generated-file` used to validate the lock against the generator's
-schema; `vela-source-lock --check` does that a step earlier still, from the same
-schema. What is left of `generated-file` is the case `--check` returns early on:
-a lock with no `sources.yaml` behind it at all.
-
-`test_repository_lint.py` fails every rule on purpose and then passes it, and CI
-runs it. A rule that can no longer be made to fire is reported coverage that
-does not exist, which is worse than an absent rule.
-
 `fixtures/correction/diamond-input.json`,
 `diamond-expected.json`, and `diamond-adversarial.json` are synthetic
 conformance vectors only. They let the Rust reader in `vela-edge` and the
