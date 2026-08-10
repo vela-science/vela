@@ -160,6 +160,9 @@ record, reconstructs every retained scaffold byte, revalidates the local
 account/key/reason, and creates the one deterministic parentless Git commit and
 trust pin. No signer or write authorization participates. `vela recover`
 merely names that later exact `vela init` action and never performs the tail.
+The private `vela-cli` `config::authority_trust` module owns the trust schema,
+OS-account-local path, exact loading, installation, and rebind. Those mechanics
+are neither derived `vela-edge` analysis nor `vela-repository` transaction state.
 
 The three `WriteClass` spellings remain frozen journal vocabulary because
 renaming them would change durable roots. The runtime orders those labels but

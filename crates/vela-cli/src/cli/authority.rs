@@ -7,6 +7,11 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use crate::config::authority_trust::{
+    AUTHORITY_TRUST_ANCHOR_SCHEMA_V1, AuthorityTrustAnchorV1,
+    install_authority_trust_anchor_from_home, load_authority_trust_anchor_from_home,
+    rebind_authority_trust_anchor_from_home,
+};
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use chrono::{DateTime, Duration, SecondsFormat, Utc};
@@ -15,11 +20,6 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use vela_authority::runtime_authentication::{
     AuthenticationAdapter, AuthenticationRequest, LocalOsSession,
-};
-use vela_edge::repository_write::{
-    AUTHORITY_TRUST_ANCHOR_SCHEMA_V1, AuthorityTrustAnchorV1,
-    install_authority_trust_anchor_from_home, load_authority_trust_anchor_from_home,
-    rebind_authority_trust_anchor_from_home,
 };
 use vela_protocol::authorization::{
     AUTHORIZATION_MODEL_SCHEMA_V1, AUTHORIZATION_PROFILE_V1, AUTHORIZATION_REQUEST_SCHEMA_V1,

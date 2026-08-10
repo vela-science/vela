@@ -1,8 +1,5 @@
-//! Repository write edges.
-//!
-//! The protocol/runtime owns repository validation. This module retains only
-//! descriptor-hardened storage for the independently held sequence-one
-//! repository-authority pin.
+//! CLI-owned descriptor-hardened storage for the independently held
+//! sequence-one repository-authority pin. It grants no authority.
 
 #[cfg(any(target_os = "linux", target_vendor = "apple"))]
 use std::ffi::OsString;

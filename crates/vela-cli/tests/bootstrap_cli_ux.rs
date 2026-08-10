@@ -151,21 +151,22 @@ fn expected_anchor_path(repository: &Path) -> PathBuf {
         &std::fs::read_to_string(repository.join("vela.toml")).unwrap(),
     )
     .unwrap();
-    vela_edge::repository_write::authority_trust_anchor_path(
-        &PathBuf::from(std::env::var_os("HOME").expect("test HOME")),
-        &profile.repository_id,
-    )
-    .unwrap()
+    PathBuf::from(std::env::var_os("HOME").expect("test HOME"))
+        .join(".vela/trust/authorities")
+        .join(format!("{}.json", profile.repository_id))
+}
+
+#[cfg(all(feature = "test-support", unix))]
+fn chmod(path: &Path, mode: u32) {
+    use std::os::unix::fs::PermissionsExt;
+
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).unwrap();
 }
 
 #[cfg(all(feature = "test-support", unix))]
 fn write_executable(path: &Path, contents: &str) {
-    use std::os::unix::fs::PermissionsExt;
-
     std::fs::write(path, contents).unwrap();
-    let mut permissions = std::fs::metadata(path).unwrap().permissions();
-    permissions.set_mode(0o755);
-    std::fs::set_permissions(path, permissions).unwrap();
+    chmod(path, 0o755);
 }
 
 fn json(output: &Output) -> Value {
@@ -791,18 +792,22 @@ fn hard_exit_before_genesis_ref_rejects_private_residue_then_converges_exactly()
         &std::fs::read_to_string(repository.join("vela.toml")).unwrap(),
     )
     .unwrap();
-    let conflicting = vela_edge::repository_write::AuthorityTrustAnchorV1 {
-        schema: vela_edge::repository_write::AUTHORITY_TRUST_ANCHOR_SCHEMA_V1.into(),
-        repository_id: profile.repository_id,
-        first_authority_record_root:
-            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
-    };
-    let conflicting = vela_edge::repository_write::install_authority_trust_anchor_from_home(
-        &PathBuf::from(std::env::var_os("HOME").expect("test HOME")),
-        &conflicting,
+    let conflicting_path = expected_anchor_path(&repository);
+    assert!(!conflicting_path.exists());
+    let authorities = conflicting_path.parent().unwrap();
+    std::fs::create_dir_all(authorities).unwrap();
+    #[cfg(unix)]
+    for directory in [authorities, authorities.parent().unwrap()] {
+        chmod(directory, 0o700);
+    }
+    let conflicting_pin_before = format!(
+        "{{\n  \"schema\": \"vela.authority-trust-anchor.v1\",\n  \"repository_id\": \"{}\",\n  \"first_authority_record_root\": \"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\n}}\n",
+        profile.repository_id
     )
-    .unwrap();
-    let conflicting_pin_before = std::fs::read(&conflicting.path).unwrap();
+    .into_bytes();
+    std::fs::write(&conflicting_path, &conflicting_pin_before).unwrap();
+    #[cfg(unix)]
+    chmod(&conflicting_path, 0o600);
     let git_before_collision = directory_snapshot(&repository.join(".git"));
     let collision = run(temporary.path(), None, &args);
     assert_eq!(collision.status.code(), Some(1));
@@ -816,10 +821,10 @@ fn hard_exit_before_genesis_ref_rejects_private_residue_then_converges_exactly()
         git_before_collision
     );
     assert_eq!(
-        std::fs::read(&conflicting.path).unwrap(),
+        std::fs::read(&conflicting_path).unwrap(),
         conflicting_pin_before
     );
-    std::fs::remove_file(&conflicting.path).unwrap();
+    std::fs::remove_file(&conflicting_path).unwrap();
 
     let evil = repository.join(".vela/operation-journals/evil");
     std::fs::write(&evil, b"not runtime-owned\n").unwrap();

@@ -8,10 +8,10 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use serde::Serialize;
-use vela_edge::repository_write::{
+use crate::config::authority_trust::{
     authority_trust_anchor_path, load_authority_trust_anchor_from_home,
 };
+use serde::Serialize;
 
 use vela_repository::{
     CanonicalWriteBarrier, ContentDigest, FileState, RepositoryRecoveryBarrier, RepositoryTxn,
