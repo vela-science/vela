@@ -449,7 +449,6 @@ pub(crate) fn initialize_repository_authority(
                     postimage: Some(repository.canonical_bytes()?),
                 },
             ],
-            derived_drafts: Vec::new(),
             next_authority_keyset: None,
             next_authorization_model: None,
             read_set: Vec::new(),

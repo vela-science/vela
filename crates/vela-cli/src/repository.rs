@@ -1621,9 +1621,7 @@ fn read_object_set(
 /// transaction installs its files but before the corresponding Git
 /// publication. Canonical repository and authority objects still fail closed;
 /// the strict post-publication check additionally verifies Git ancestry.
-pub(crate) fn verify_repository_allow_derived_drift_at(
-    root: &Path,
-) -> Result<RepositoryV4, String> {
+pub(crate) fn verify_repository_prepublication_at(root: &Path) -> Result<RepositoryV4, String> {
     let repository = verify_repository_at(root, false)?;
     let origin_bytes = fs::read(root.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;

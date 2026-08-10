@@ -294,7 +294,6 @@ pub(crate) fn withdraw(
         created_at,
         read_set,
         objects,
-        Vec::new(),
     )?;
     let precommit = (|| {
         let public = prepared
@@ -322,7 +321,7 @@ pub(crate) fn withdraw(
         .map_err(|error| error.to_string())?;
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
-    crate::repository::verify_repository_allow_derived_drift_at(repository_path)?;
+    crate::repository::verify_repository_prepublication_at(repository_path)?;
     let publication = publish_exact_delta(
         repository_path,
         "proposal withdraw",

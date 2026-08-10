@@ -804,7 +804,6 @@ pub(crate) fn execute_prepared(
                 class: WriteClass::CanonicalEvidence,
                 postimage: Some(next.canonical_bytes()?),
             }],
-            derived_drafts: Vec::new(),
             next_authority_keyset: None,
             next_authorization_model: None,
             read_set,
@@ -831,8 +830,7 @@ pub(crate) fn execute_prepared(
         .map_err(|error| error.to_string())?;
     transaction.install().map_err(|error| error.to_string())?;
     transaction.complete().map_err(|error| error.to_string())?;
-    if let Err(error) = crate::repository::verify_repository_allow_derived_drift_at(repository_path)
-    {
+    if let Err(error) = crate::repository::verify_repository_prepublication_at(repository_path) {
         return Err(format!(
             "repository-authority transaction committed as record {} but postcondition verification failed: {error}; do not retry the Decision",
             result.authority_record_id

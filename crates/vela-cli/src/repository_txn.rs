@@ -185,7 +185,6 @@ pub(crate) enum WriteClass {
     CanonicalEvidence,
     PublicReview,
     Authority,
-    Derived,
     PrivateCoordination,
 }
 
@@ -195,8 +194,7 @@ impl WriteClass {
             Self::CanonicalEvidence => 10,
             Self::PublicReview => 20,
             Self::Authority => 30,
-            Self::Derived => 40,
-            Self::PrivateCoordination => 50,
+            Self::PrivateCoordination => 40,
         }
     }
 
@@ -428,14 +426,12 @@ impl DeltaDraft {
 pub(crate) struct RepositoryBinding {
     canonical_root: String,
     repository_id: String,
-    layout_root: ContentDigest,
 }
 
 impl RepositoryBinding {
     pub(crate) fn new(
         repository_root: &Path,
         repository_id: impl Into<String>,
-        layout_identity: &[u8],
     ) -> Result<Self, RepositoryTxnError> {
         let root = canonical_repository_root(repository_root)?;
         let repository_id = repository_id.into();
@@ -447,7 +443,6 @@ impl RepositoryBinding {
         Ok(Self {
             canonical_root: root.to_string_lossy().into_owned(),
             repository_id,
-            layout_root: ContentDigest::hash(layout_identity),
         })
     }
 
@@ -1980,18 +1975,17 @@ fn postimage_reaches_current(
 }
 
 fn completed_postimage_is_rematerializable(write: &StagedWrite) -> bool {
-    write.class == WriteClass::Derived
-        // The current-repository manifest is an authenticated rolling head, not
-        // immutable historical evidence. Current Submission and Verification
-        // transactions replace it after independently verifying the repository
-        // epoch and authority chain. Legacy completed journals therefore prove
-        // the manifest bytes they installed, but cannot require those bytes to
-        // remain the current head forever. This exception is deliberately
-        // limited to completed-history checks: active installation and
-        // completion still require the exact planned postimage, while every
-        // immutable event, authority record, Proposal, Submission, and evidence
-        // object remains byte-exact.
-        || write.path.as_str() == ".vela/repository.json"
+    // The current-repository manifest is an authenticated rolling head, not
+    // immutable historical evidence. Current Submission and Verification
+    // transactions replace it after independently verifying the repository
+    // epoch and authority chain. Legacy completed journals therefore prove
+    // the manifest bytes they installed, but cannot require those bytes to
+    // remain the current head forever. This exception is deliberately
+    // limited to completed-history checks: active installation and
+    // completion still require the exact planned postimage, while every
+    // immutable event, authority record, Proposal, Submission, and evidence
+    // object remains byte-exact.
+    write.path.as_str() == ".vela/repository.json"
 }
 
 fn verify_completed_history(
@@ -2014,9 +2008,9 @@ fn verify_completed_history(
 
     // Validate that each durable postimage is either still current or is
     // connected to the current bytes by another completed transaction's exact
-    // preimage -> postimage edge. Derived views are deliberately excluded from
-    // this historical-head check: a later materialization may replace them.
-    // Active installation and completion still verify every write class.
+    // preimage -> postimage edge. The rolling current-repository manifest is
+    // the sole rematerializable exception. Active installation and completion
+    // still verify every write class.
     for (_, journal) in &current_head {
         for write in journal
             .plan
@@ -2104,7 +2098,7 @@ fn resolve_public_writes(
         })
         .collect::<Result<Vec<_>, RepositoryTxnError>>()?;
     // Git's exact-delta boundary is path-sorted, while installation order is
-    // semantic (evidence before authority before derived views).
+    // semantic (evidence before review before authority before private state).
     writes.sort_by(|left, right| left.staged.path.cmp(&right.staged.path));
     Ok(writes)
 }
@@ -3700,8 +3694,7 @@ mod tests {
                 kind: OperationKind::Submission,
                 operation_id,
                 request_root,
-                repository: RepositoryBinding::new(root, repository_id, b"split-layout-v1")
-                    .unwrap(),
+                repository: RepositoryBinding::new(root, repository_id).unwrap(),
                 fixed_time: "2026-07-13T00:00:00Z".to_string(),
                 read_set: vec![InputBinding {
                     name: "receipt".to_string(),
@@ -3771,12 +3764,12 @@ mod tests {
             ),
             PlannedWrite::write(
                 RepoPath::parse("repository.json").unwrap(),
-                WriteClass::Derived,
+                WriteClass::CanonicalEvidence,
                 b"materialized repository".to_vec(),
             ),
             PlannedWrite::delete(
                 RepoPath::parse("obsolete.json").unwrap(),
-                WriteClass::Derived,
+                WriteClass::PublicReview,
             ),
             PlannedWrite::write(
                 RepoPath::parse(".vela/work/session.json").unwrap(),
@@ -3975,7 +3968,7 @@ mod tests {
             vec![
                 PlannedWrite::write(
                     RepoPath::parse("z.json").unwrap(),
-                    WriteClass::Derived,
+                    WriteClass::PublicReview,
                     b"z".to_vec(),
                 ),
                 PlannedWrite::write(
@@ -4011,7 +4004,7 @@ mod tests {
             vec![
                 PlannedWrite::write(
                     RepoPath::parse("same.json").unwrap(),
-                    WriteClass::Derived,
+                    WriteClass::PublicReview,
                     vec![1],
                 ),
                 PlannedWrite::write(
@@ -4306,14 +4299,14 @@ mod tests {
             let journals = temp.path().join("journals");
             initialize_failpoint_repository(&root);
             let draft = DeltaDraft::prepare(&root, failpoint_writes()).unwrap();
-            assert!(
-                draft
-                    .delta
-                    .writes()
-                    .iter()
-                    .any(|write| write.class == WriteClass::Derived),
-                "fixture must exercise materialized-view installation"
-            );
+            assert!(draft.delta.writes().iter().any(|write| {
+                write.class == WriteClass::CanonicalEvidence
+                    && matches!(write.postimage, FileState::File { .. })
+            }));
+            assert!(draft.delta.writes().iter().any(|write| {
+                write.class == WriteClass::PublicReview
+                    && matches!(write.postimage, FileState::Absent)
+            }));
             let plan = fixture_plan(&root, &draft, format!("post marker {step:?}").as_bytes());
             let operation_id = plan.operation_id.clone();
             let mut txn = RepositoryTxn::prepare(&root, &journals, plan, draft).unwrap();
@@ -4417,7 +4410,7 @@ mod tests {
                 ),
                 PlannedWrite::write(
                     RepoPath::parse("repository.json").unwrap(),
-                    WriteClass::Derived,
+                    WriteClass::PublicReview,
                     b"repository".to_vec(),
                 ),
             ],
@@ -4649,7 +4642,7 @@ mod tests {
                 ),
                 PlannedWrite::write(
                     RepoPath::parse("repository.json").unwrap(),
-                    WriteClass::Derived,
+                    WriteClass::CanonicalEvidence,
                     b"first repository".to_vec(),
                 ),
             ],
@@ -4806,8 +4799,8 @@ mod tests {
         let first_draft = DeltaDraft::prepare(
             &root,
             vec![PlannedWrite::write(
-                RepoPath::parse("repository.json").unwrap(),
-                WriteClass::Derived,
+                RepoPath::parse(".vela/repository.json").unwrap(),
+                WriteClass::CanonicalEvidence,
                 b"first head".to_vec(),
             )],
         )
@@ -4823,8 +4816,8 @@ mod tests {
         let second_draft = DeltaDraft::prepare(
             &root,
             vec![PlannedWrite::write(
-                RepoPath::parse("repository.json").unwrap(),
-                WriteClass::Derived,
+                RepoPath::parse(".vela/repository.json").unwrap(),
+                WriteClass::CanonicalEvidence,
                 b"second head".to_vec(),
             )],
         )
@@ -4912,7 +4905,7 @@ mod tests {
             &root,
             vec![PlannedWrite::write(
                 RepoPath::parse("state.json").unwrap(),
-                WriteClass::Derived,
+                WriteClass::PublicReview,
                 b"after".to_vec(),
             )],
         )

@@ -532,7 +532,6 @@ fn submit_inner(
         fixed_time,
         read_set,
         object_drafts,
-        Vec::new(),
     )?;
 
     let precommit = (|| {
@@ -562,7 +561,7 @@ fn submit_inner(
         .map_err(|error| error.to_string())?;
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
-    crate::repository::verify_repository_allow_derived_drift_at(repository_path)?;
+    crate::repository::verify_repository_prepublication_at(repository_path)?;
     let proposal_id = proposal.id();
     let publication = publish_exact_delta(
         repository_path,

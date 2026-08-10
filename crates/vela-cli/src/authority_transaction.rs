@@ -53,7 +53,6 @@ use crate::repository_txn::{
 const TRANSACTION_ID_SCHEMA: &str = "vela.authority-transaction-id.internal.v1";
 const READ_SET_SCHEMA: &str = "vela.authority-read-set.internal.v1";
 const WRITE_SET_SCHEMA: &str = "vela.authority-write-set.internal.v1";
-const LAYOUT_SCHEMA: &str = "vela.authority-layout.internal.v2";
 const RESULT_SCHEMA: &str = "vela.authority-transaction-result.internal.v1";
 const OPERATION_DOMAIN: &str = "authority_transaction";
 
@@ -92,25 +91,13 @@ pub(crate) struct AuthorityEventDraft {
 /// Canonical non-event postimage covered by the same authority transaction.
 ///
 /// `None` deletes an existing object. The writer derives before/after roots
-/// from the held repository and refuses no-ops, duplicate paths, derived views,
-/// private coordination, retired protocol paths, or covering-record paths.
+/// from the held repository and refuses no-ops, duplicate paths, private
+/// coordination, retired protocol paths, or covering-record paths.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub(crate) struct AuthorityObjectDraft {
     pub(crate) path: String,
     pub(crate) object_kind: String,
     pub(crate) class: WriteClass,
-    pub(crate) postimage: Option<Vec<u8>>,
-}
-
-/// Non-authoritative materialized postimage installed by the same recoverable
-/// transaction as its covering canonical change.
-///
-/// Derived bytes are bound to the journal and its active recovery checks, but
-/// do not enter the signed scientific object delta or authority write-set
-/// root. `None` deletes an obsolete derived file.
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct AuthorityDerivedDraft {
-    pub(crate) path: String,
     pub(crate) postimage: Option<Vec<u8>>,
 }
 
@@ -127,7 +114,6 @@ pub(crate) struct AuthorityTransactionRequest {
     pub(crate) semantic_approvals: Vec<SemanticApprovalV1>,
     pub(crate) event_drafts: Vec<AuthorityEventDraft>,
     pub(crate) object_drafts: Vec<AuthorityObjectDraft>,
-    pub(crate) derived_drafts: Vec<AuthorityDerivedDraft>,
     pub(crate) next_authority_keyset: Option<AuthorityKeysetV1>,
     pub(crate) next_authorization_model: Option<AuthorizationModelV1>,
     pub(crate) read_set: Vec<InputBinding>,
@@ -286,7 +272,6 @@ where
     }
     normalize_authority_snapshots(repository_root, &mut request)?;
     normalize_object_drafts(repository_root, &mut request)?;
-    normalize_derived_drafts(repository_root, &mut request)?;
     validate_request_shape(&request)?;
     let history = verify_authority_history(AuthorityHistoryInput {
         repository_id: &request.history.repository_id,
@@ -562,13 +547,6 @@ where
         WriteClass::Authority,
         to_canonical_bytes(&envelope).map_err(AuthorityTransactionError::Invalid)?,
     ));
-    writes.extend(
-        request
-            .derived_drafts
-            .iter()
-            .map(authority_derived_planned_write)
-            .collect::<Result<Vec<_>, _>>()?,
-    );
     let draft = DeltaDraft::prepare(repository_root, writes)
         .map_err(AuthorityTransactionError::Transaction)?;
     let record_path = authority_record_path(&record.record_id);
@@ -582,7 +560,7 @@ where
         .delta
         .writes()
         .iter()
-        .filter(|write| write.path.as_str() != record_path && write.class != WriteClass::Derived)
+        .filter(|write| write.path.as_str() != record_path)
         .cloned()
         .collect::<Vec<_>>();
     if record_writes.len() != 1
@@ -610,38 +588,14 @@ where
         read_set_root,
         write_set_root,
     };
-    let layout_identity = to_canonical_bytes(&LayoutCommitment {
-        schema: LAYOUT_SCHEMA,
-        repository_id: &request.history.repository_id,
-        authority_event_paths: &event_ids
-            .iter()
-            .map(|event_id| authority_event_path(event_id))
-            .collect::<Vec<_>>(),
-        object_paths: &request
-            .object_drafts
-            .iter()
-            .map(|draft| draft.path.clone())
-            .collect::<Vec<_>>(),
-        derived_paths: &request
-            .derived_drafts
-            .iter()
-            .map(|draft| draft.path.clone())
-            .collect::<Vec<_>>(),
-        authority_record_path: &authority_record_path(&record.record_id),
-    })
-    .map_err(AuthorityTransactionError::Invalid)?;
     let plan = RepositoryTxnPlan::new(
         RepositoryTxnPlanSpec {
             kind: OperationKind::Decision,
             operation_id,
             request_root: ContentDigest::parse(request.intent_digest.clone())
                 .map_err(AuthorityTransactionError::Transaction)?,
-            repository: RepositoryBinding::new(
-                repository_root,
-                &request.history.repository_id,
-                &layout_identity,
-            )
-            .map_err(AuthorityTransactionError::Transaction)?,
+            repository: RepositoryBinding::new(repository_root, &request.history.repository_id)
+                .map_err(AuthorityTransactionError::Transaction)?,
             fixed_time: request.recorded_at,
             read_set: request.read_set,
             result: serde_json::to_value(DurableAuthorityTransactionResult {
@@ -1250,47 +1204,6 @@ fn normalize_object_drafts(
     Ok(())
 }
 
-fn normalize_derived_drafts(
-    repository_root: &Path,
-    request: &mut AuthorityTransactionRequest,
-) -> Result<(), AuthorityTransactionError> {
-    request
-        .derived_drafts
-        .sort_by(|left, right| left.path.cmp(&right.path));
-    let mut previous_path: Option<&str> = None;
-    let mut derived_inputs = Vec::with_capacity(request.derived_drafts.len());
-    for draft in &request.derived_drafts {
-        if previous_path == Some(draft.path.as_str()) {
-            return Err(AuthorityTransactionError::Invalid(format!(
-                "duplicate derived postimage path {}",
-                draft.path
-            )));
-        }
-        previous_path = Some(&draft.path);
-        if request
-            .object_drafts
-            .iter()
-            .any(|object| object.path == draft.path)
-        {
-            return Err(AuthorityTransactionError::Invalid(format!(
-                "derived postimage path {} overlaps an authority object",
-                draft.path
-            )));
-        }
-        let path =
-            RepoPath::parse(draft.path.clone()).map_err(AuthorityTransactionError::Transaction)?;
-        validate_authority_derived_path(&path)?;
-        derived_inputs.push(
-            InputBinding::current_file(repository_root, path)
-                .map_err(AuthorityTransactionError::Transaction)?,
-        );
-    }
-    for binding in derived_inputs {
-        merge_input_binding(&mut request.read_set, binding)?;
-    }
-    Ok(())
-}
-
 fn bind_repository_authority_history(
     repository_root: &Path,
     request: &mut AuthorityTransactionRequest,
@@ -1440,7 +1353,7 @@ fn validate_authority_object_path(
                 || value.starts_with("records/claims/")
                 || value.starts_with("records/artifacts/")
         }
-        WriteClass::Derived | WriteClass::PrivateCoordination => false,
+        WriteClass::PrivateCoordination => false,
     };
     if !valid {
         return Err(AuthorityTransactionError::Invalid(format!(
@@ -1448,28 +1361,6 @@ fn validate_authority_object_path(
         )));
     }
     Ok(())
-}
-
-fn validate_authority_derived_path(path: &RepoPath) -> Result<(), AuthorityTransactionError> {
-    let value = path.as_str();
-    if authority_derived_path(value) {
-        return Ok(());
-    }
-    Err(AuthorityTransactionError::Invalid(format!(
-        "authority transaction derived path {value} is not a Vela-owned materialized view"
-    )))
-}
-
-/// The materialized views an authority transaction may rewrite in passing.
-///
-/// One entry, because one is all a current repository has. `frontier.json`,
-/// `vela.lock` and `proof/` were here too, and all three are retired paths the
-/// verifier refuses: a writer that admitted them produced a repository
-/// `vela replay` then rejected. Nothing ever asked for them — every production
-/// derived draft is the Target Index rebound by `rebind_target_index` — so the
-/// entries were a standing invitation to write a repository nobody can verify.
-pub(crate) fn authority_derived_path(value: &str) -> bool {
-    value == "targets.json"
 }
 
 fn authority_object_planned_write(
@@ -1480,17 +1371,6 @@ fn authority_object_planned_write(
     Ok(match &draft.postimage {
         Some(bytes) => PlannedWrite::write(path, draft.class, bytes.clone()),
         None => PlannedWrite::delete(path, draft.class),
-    })
-}
-
-fn authority_derived_planned_write(
-    draft: &AuthorityDerivedDraft,
-) -> Result<PlannedWrite, AuthorityTransactionError> {
-    let path =
-        RepoPath::parse(draft.path.clone()).map_err(AuthorityTransactionError::Transaction)?;
-    Ok(match &draft.postimage {
-        Some(bytes) => PlannedWrite::write(path, WriteClass::Derived, bytes.clone()),
-        None => PlannedWrite::delete(path, WriteClass::Derived),
     })
 }
 
@@ -1840,16 +1720,6 @@ struct WriteSetCommitment<'a> {
     after_event_log_root: &'a str,
     event_ids: &'a [String],
     object_delta: &'a [ObjectDeltaV1],
-}
-
-#[derive(Serialize)]
-struct LayoutCommitment<'a> {
-    schema: &'static str,
-    repository_id: &'a str,
-    authority_event_paths: &'a [String],
-    object_paths: &'a [String],
-    derived_paths: &'a [String],
-    authority_record_path: &'a str,
 }
 
 pub(crate) fn execution_binary_sha256(path: &Path) -> Result<String, String> {
@@ -2327,7 +2197,6 @@ mod tests {
                 caveats: Vec::new(),
             }],
             object_drafts: Vec::new(),
-            derived_drafts: Vec::new(),
             next_authority_keyset: None,
             next_authorization_model: None,
             read_set: vec![fixture_input],
@@ -3733,71 +3602,6 @@ mod tests {
     }
 
     #[test]
-    fn derived_postimages_share_recovery_without_entering_authority_delta() {
-        assert!(authority_derived_path("targets.json"));
-        // Every path the verifier retires is refused here too, or the writer
-        // admits a repository replay rejects.
-        for retired in ["frontier.json", "vela.lock", "proof/latest.json"] {
-            assert!(
-                crate::repository::is_retired_path(retired),
-                "{retired} is no longer retired; this test is stale"
-            );
-            assert!(!authority_derived_path(retired));
-        }
-        assert!(!authority_derived_path(".vela/proof-state.json"));
-        assert!(
-            !authority_derived_path("vela.toml"),
-            "repository configuration is not a derived materialized view"
-        );
-        let fixture = fixture();
-        fs::write(fixture.temporary.path().join("targets.json"), b"before\n").unwrap();
-        let mut request = fixture.request.clone();
-        request.derived_drafts = vec![AuthorityDerivedDraft {
-            path: "targets.json".into(),
-            postimage: Some(b"after\n".to_vec()),
-        }];
-        let mut adapter = fixture.adapter();
-        let mut signer = fixture.signer();
-        let mut prepared = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
-        let payload = BASE64_STANDARD.decode(&prepared.envelope.payload).unwrap();
-        let record: AuthorityRecordV1 = serde_json::from_slice(&payload).unwrap();
-        assert!(
-            record
-                .content
-                .object_delta
-                .iter()
-                .all(|object| object.path != "targets.json"),
-            "derived materialization must not become a signed scientific object"
-        );
-        assert!(
-            prepared
-                .transaction
-                .plan()
-                .canonical_delta
-                .writes()
-                .iter()
-                .any(|write| {
-                    write.path.as_str() == "targets.json" && write.class == WriteClass::Derived
-                }),
-            "the recoverable journal must retain the exact derived postimage"
-        );
-        prepared.mark_committed().unwrap();
-        prepared.install().unwrap();
-        prepared.complete().unwrap();
-        assert_eq!(
-            fs::read(fixture.temporary.path().join("targets.json")).unwrap(),
-            b"after\n"
-        );
-    }
-
-    #[test]
     fn current_claim_and_artifact_paths_are_canonical_evidence() {
         for path in [
             "records/claims/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.json",
@@ -3843,7 +3647,6 @@ mod tests {
                 WriteClass::Authority,
                 WriteClass::PublicReview,
                 WriteClass::CanonicalEvidence,
-                WriteClass::Derived,
                 WriteClass::PrivateCoordination,
             ] {
                 assert!(
@@ -3852,86 +3655,6 @@ mod tests {
                 );
             }
         }
-    }
-
-    #[test]
-    fn derived_drift_and_derived_only_authority_attempts_fail_closed() {
-        let drift_fixture = fixture();
-        fs::write(
-            drift_fixture.temporary.path().join("targets.json"),
-            b"before\n",
-        )
-        .unwrap();
-        let mut request = drift_fixture.request.clone();
-        request.derived_drafts = vec![AuthorityDerivedDraft {
-            path: "targets.json".into(),
-            postimage: Some(b"after\n".to_vec()),
-        }];
-        let mut adapter = drift_fixture.adapter();
-        let mut signer = drift_fixture.signer();
-        let mut prepared = prepare_authority_transaction(
-            drift_fixture.barrier(),
-            drift_fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
-        fs::write(
-            drift_fixture.temporary.path().join("targets.json"),
-            b"changed after signing\n",
-        )
-        .unwrap();
-        let error = prepared.mark_committed().unwrap_err();
-        assert!(matches!(
-            error,
-            AuthorityTransactionError::Transaction(RepositoryTxnError::StaleInput { .. })
-        ));
-        assert_eq!(signer.calls, 1);
-
-        let derived_only_fixture = fixture();
-        let mut request = derived_only_fixture.request.clone();
-        request.event_drafts.clear();
-        request.object_drafts.clear();
-        request.derived_drafts = vec![AuthorityDerivedDraft {
-            path: "targets.json".into(),
-            postimage: Some(b"derived only\n".to_vec()),
-        }];
-        let mut adapter = derived_only_fixture.adapter();
-        let mut signer = derived_only_fixture.signer();
-        let error = prepare_authority_transaction(
-            derived_only_fixture.barrier(),
-            derived_only_fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
-        assert!(
-            matches!(error, AuthorityTransactionError::Invalid(message) if message.contains("changes no event, object, keyset, or policy bundle"))
-        );
-        assert_eq!(signer.calls, 0);
-
-        let invalid_path_fixture = fixture();
-        let mut request = invalid_path_fixture.request.clone();
-        request.derived_drafts = vec![AuthorityDerivedDraft {
-            path: ".vela/proposals/forbidden.json".into(),
-            postimage: Some(b"{}\n".to_vec()),
-        }];
-        let mut adapter = invalid_path_fixture.adapter();
-        let mut signer = invalid_path_fixture.signer();
-        let error = prepare_authority_transaction(
-            invalid_path_fixture.barrier(),
-            invalid_path_fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
-        assert!(
-            matches!(error, AuthorityTransactionError::Invalid(message) if message.contains("not a Vela-owned materialized view"))
-        );
-        assert_eq!(signer.calls, 0);
     }
 
     #[test]
