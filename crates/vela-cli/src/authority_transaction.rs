@@ -1353,7 +1353,6 @@ fn validate_authority_object_path(
                 || value.starts_with("records/claims/")
                 || value.starts_with("records/artifacts/")
         }
-        WriteClass::PrivateCoordination => false,
     };
     if !valid {
         return Err(AuthorityTransactionError::Invalid(format!(
@@ -3647,7 +3646,6 @@ mod tests {
                 WriteClass::Authority,
                 WriteClass::PublicReview,
                 WriteClass::CanonicalEvidence,
-                WriteClass::PrivateCoordination,
             ] {
                 assert!(
                     validate_authority_object_path(&parsed, class).is_err(),

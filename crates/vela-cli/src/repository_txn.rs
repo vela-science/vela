@@ -185,7 +185,6 @@ pub(crate) enum WriteClass {
     CanonicalEvidence,
     PublicReview,
     Authority,
-    PrivateCoordination,
 }
 
 impl WriteClass {
@@ -194,12 +193,7 @@ impl WriteClass {
             Self::CanonicalEvidence => 10,
             Self::PublicReview => 20,
             Self::Authority => 30,
-            Self::PrivateCoordination => 40,
         }
-    }
-
-    pub(crate) fn is_public(self) -> bool {
-        !matches!(self, Self::PrivateCoordination)
     }
 }
 
@@ -294,10 +288,6 @@ impl CanonicalDelta {
 
     pub(crate) fn writes(&self) -> &[StagedWrite] {
         &self.writes
-    }
-
-    pub(crate) fn public_writes(&self) -> impl Iterator<Item = &StagedWrite> {
-        self.writes.iter().filter(|write| write.class.is_public())
     }
 }
 
@@ -465,7 +455,6 @@ pub(crate) enum OperationKind {
     ProposalWithdrawal,
     Verification,
     Decision,
-    Maintenance,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -2073,7 +2062,8 @@ fn resolve_public_writes(
     mut read_blob: impl FnMut(&JournalBlobRef) -> Result<Vec<u8>, RepositoryTxnError>,
 ) -> Result<Vec<ResolvedWrite>, RepositoryTxnError> {
     let mut writes = delta
-        .public_writes()
+        .writes()
+        .iter()
         .map(|write| {
             let postimage_bytes = match (&write.postimage, &write.payload) {
                 (FileState::Absent, None) => None,
@@ -2098,7 +2088,7 @@ fn resolve_public_writes(
         })
         .collect::<Result<Vec<_>, RepositoryTxnError>>()?;
     // Git's exact-delta boundary is path-sorted, while installation order is
-    // semantic (evidence before review before authority before private state).
+    // semantic (evidence before review before authority).
     writes.sort_by(|left, right| left.staged.path.cmp(&right.staged.path));
     Ok(writes)
 }
@@ -3771,11 +3761,6 @@ mod tests {
                 RepoPath::parse("obsolete.json").unwrap(),
                 WriteClass::PublicReview,
             ),
-            PlannedWrite::write(
-                RepoPath::parse(".vela/work/session.json").unwrap(),
-                WriteClass::PrivateCoordination,
-                b"closed".to_vec(),
-            ),
         ]
     }
 
@@ -3814,7 +3799,6 @@ mod tests {
 
     fn expected_failpoint_postimage() -> BTreeMap<String, Vec<u8>> {
         BTreeMap::from([
-            (".vela/work/session.json".to_string(), b"closed".to_vec()),
             (
                 "repository.json".to_string(),
                 b"materialized repository".to_vec(),
@@ -4069,7 +4053,7 @@ mod tests {
 
     #[test]
     fn pre_marker_failpoints_leave_zero_repository_delta_and_retry_exactly() {
-        let blob_count = 5;
+        let blob_count = 4;
         let mut prepare_failpoints = Vec::new();
         for index in 0..blob_count {
             prepare_failpoints.push(RepositoryTxnStep::BeforeBlobJournalWrite { index });
