@@ -204,6 +204,33 @@ pub(crate) struct StagedWrite {
     pub(crate) payload: Option<JournalBlobRef>,
 }
 
+impl StagedWrite {
+    fn verify_payload_binding(&self) -> Result<(), RepositoryTxnError> {
+        match (&self.postimage, &self.payload) {
+            (FileState::Absent, None) => Ok(()),
+            (
+                FileState::File { digest, size, .. },
+                Some(JournalBlobRef {
+                    digest: payload_digest,
+                    size: payload_size,
+                }),
+            ) if digest == payload_digest && size == payload_size => Ok(()),
+            (FileState::Absent, Some(_)) => Err(RepositoryTxnError::CorruptPlan(format!(
+                "deleted postimage {} carries a blob reference",
+                self.path.as_str()
+            ))),
+            (FileState::File { .. }, None) => Err(RepositoryTxnError::CorruptPlan(format!(
+                "file postimage {} has no blob reference",
+                self.path.as_str()
+            ))),
+            (FileState::File { .. }, Some(_)) => Err(RepositoryTxnError::CorruptPlan(format!(
+                "file postimage {} does not bind its payload digest and size",
+                self.path.as_str()
+            ))),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct CanonicalDelta {
     schema: String,
@@ -228,6 +255,7 @@ impl CanonicalDelta {
         let mut paths = BTreeSet::new();
         let mut portable_paths = BTreeMap::new();
         for write in &writes {
+            write.verify_payload_binding()?;
             if !paths.insert(write.path.clone()) {
                 return Err(RepositoryTxnError::DuplicatePath(
                     write.path.as_str().to_string(),
@@ -403,6 +431,39 @@ impl DeltaDraft {
             .collect::<BTreeSet<_>>();
         blobs.retain(|digest, _| referenced.contains(digest));
         Ok(Self { delta, blobs })
+    }
+
+    fn verify(&self) -> Result<(), RepositoryTxnError> {
+        self.delta.verify()?;
+        let referenced = self
+            .delta
+            .writes()
+            .iter()
+            .filter_map(|write| write.payload.as_ref().map(|blob| blob.digest.clone()))
+            .collect::<BTreeSet<_>>();
+        if referenced.len() != self.blobs.len()
+            || referenced
+                .iter()
+                .any(|digest| !self.blobs.contains_key(digest))
+        {
+            return Err(RepositoryTxnError::CorruptPlan(
+                "prepared delta does not contain exactly its referenced blobs".into(),
+            ));
+        }
+        for blob in self
+            .delta
+            .writes()
+            .iter()
+            .filter_map(|write| write.payload.as_ref())
+        {
+            validate_blob_bytes(
+                blob,
+                self.blobs
+                    .get(&blob.digest)
+                    .expect("checked referenced draft blob"),
+            )?;
+        }
+        Ok(())
     }
 }
 
@@ -1153,6 +1214,7 @@ impl<'a> TransactionAuthorizationContext<'a> {
                 write.path.as_str()
             )));
         }
+        write.verify_payload_binding()?;
         match (&write.postimage, &write.payload) {
             (FileState::Absent, None) => Ok(None),
             (FileState::File { .. }, Some(blob)) => {
@@ -1219,6 +1281,7 @@ struct RecordingTransactionAuthorization {
     binding: Option<TestAuthorizationBinding>,
     deny_bind: bool,
     deny_marker: bool,
+    obstruct_marker_write_on_revalidate: Option<PathBuf>,
     calls: Option<std::sync::Arc<std::sync::Mutex<Vec<&'static str>>>>,
 }
 
@@ -1272,7 +1335,16 @@ impl TransactionAuthorization for RecordingTransactionAuthorization {
             .ok_or_else(|| {
                 RepositoryTxnError::WriteAuthorization("unbound test capability".into())
             })?
-            .verify(TestAuthorizationBinding::read(context))
+            .verify(TestAuthorizationBinding::read(context))?;
+        if let Some(path) = &self.obstruct_marker_write_on_revalidate {
+            fs::create_dir_all(path).map_err(|error| {
+                RepositoryTxnError::Io(format!(
+                    "obstruct marker write at {}: {error}",
+                    path.display()
+                ))
+            })?;
+        }
+        Ok(())
     }
 }
 
@@ -1865,6 +1937,7 @@ impl RepositoryTxn {
                 "plan delta differs from prepared postimage blobs".to_string(),
             ));
         }
+        draft.verify()?;
         let root = plan.repository.verify_root(&barrier.root)?;
         let RepositoryRecoveryBarrier {
             root: barrier_root,
@@ -2089,6 +2162,14 @@ impl RepositoryTxn {
         self.mark_committed_with_failpoints(&mut NoRepositoryTxnFailpoints)
     }
 
+    fn read_commit_marker_once(&mut self) -> Result<CommitMarker, RepositoryTxnError> {
+        let result = read_commit_marker(&self.paths, &self.journal);
+        if !matches!(&result, Err(RepositoryTxnError::NotCommitted)) {
+            self.authorization.take();
+        }
+        result
+    }
+
     #[cfg(test)]
     pub(crate) fn bind_exact_test_authorization(&mut self) -> Result<(), RepositoryTxnError> {
         if !matches!(self.journal.recovery, RecoveryState::Prepared) {
@@ -2114,11 +2195,10 @@ impl RepositoryTxn {
         failpoints: &mut impl RepositoryTxnFailpoints,
     ) -> Result<(), RepositoryTxnError> {
         let expected_marker = CommitMarker::from_plan(&self.journal.plan);
-        match read_commit_marker(&self.paths, &self.journal) {
+        match self.read_commit_marker_once() {
             Ok(_) => {
                 // A durable marker is sufficient authority for recovery. No
                 // policy capability survives or participates beyond it.
-                self.authorization.take();
                 if matches!(self.journal.recovery, RecoveryState::Completed) {
                     return self.verify_completed_state();
                 }
@@ -2192,12 +2272,20 @@ impl RepositoryTxn {
                     return Err(error);
                 }
                 failpoints.check(RepositoryTxnStep::BeforeCommitMarkerWrite)?;
+                // From the first marker write onward, durable state may be
+                // ambiguous to this process. Permission is one-shot and must
+                // not survive any write error or unwind.
+                self.authorization.take();
                 operation_journal::write_json(&self.paths.marker, &expected_marker)
                     .map_err(RepositoryTxnError::Journal)?;
-                self.authorization.take();
                 failpoints.check(RepositoryTxnStep::AfterCommitMarkerWrite)?;
             }
-            Err(error) => return Err(error),
+            Err(error) => {
+                // Only a definite NotCommitted result permits another
+                // authorized attempt. A malformed or unreadable marker may
+                // already represent a durable commit boundary.
+                return Err(error);
+            }
         }
         self.journal.recovery = RecoveryState::Committed;
         failpoints.check(RepositoryTxnStep::BeforeCommittedJournalWrite)?;
@@ -2231,8 +2319,10 @@ impl RepositoryTxn {
                 self.journal.recovery
             )));
         }
-        match read_commit_marker(&self.paths, &self.journal) {
-            Err(RepositoryTxnError::NotCommitted) => {}
+        match self.read_commit_marker_once() {
+            Err(RepositoryTxnError::NotCommitted) => {
+                self.authorization.take();
+            }
             Ok(_) => {
                 return Err(RepositoryTxnError::CorruptPlan(format!(
                     "cannot abort committed transaction {}",
@@ -2266,7 +2356,7 @@ impl RepositoryTxn {
         if matches!(self.journal.recovery, RecoveryState::Completed) {
             return self.verify_completed_state();
         }
-        read_commit_marker(&self.paths, &self.journal)?;
+        self.read_commit_marker_once()?;
         let writes = self.journal.plan.canonical_delta.writes.clone();
         let total = writes.len();
         for (index, write) in writes.into_iter().enumerate() {
@@ -3257,43 +3347,85 @@ mod tests {
     }
 
     #[test]
-    fn authorization_bound_to_same_delta_in_another_plan_is_rejected() {
+    fn authorization_refuses_same_delta_transplanted_across_any_plan_metadata() {
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path().join("repository");
         let journals = temporary.path().join("journals");
         fs::create_dir_all(&root).unwrap();
-        let (draft, authorized_plan) =
+        let (draft, authorized) =
             one_write_fixture(&root, "records/exact-plan.json", b"authorized plan");
-        let planned = fixture_plan(&root, &draft, b"different plan same delta");
-        assert_eq!(
-            authorized_plan.canonical_delta.root(),
-            planned.canonical_delta.root()
-        );
-        assert_ne!(authorized_plan.root, planned.root);
-        let paths = RepositoryTxnPaths::new(&journals, &planned.operation_id);
-        let barrier = RepositoryTxn::acquire_recovery_barrier(&root, &journals).unwrap();
-        let error = RepositoryTxn::prepare_with_recovery_barrier_and_authorization(
-            barrier,
-            Box::new(RecordingTransactionAuthorization {
-                binding: Some(TestAuthorizationBinding {
-                    repository_id: planned.repository.repository_id.clone(),
-                    plan_root: authorized_plan.root,
-                    delta_root: planned.canonical_delta.root().clone(),
-                }),
-                ..Default::default()
-            }),
-            planned,
-            draft,
-            &mut NoRepositoryTxnFailpoints,
-        )
-        .unwrap_err();
+        let binding = TestAuthorizationBinding {
+            repository_id: authorized.repository.repository_id.clone(),
+            plan_root: authorized.root.clone(),
+            delta_root: authorized.canonical_delta.root().clone(),
+        };
+        let mut variants = Vec::new();
+        let mut mutate = |name: &'static str, update: fn(&mut RepositoryTxnPlan)| {
+            let mut plan = authorized.clone();
+            update(&mut plan);
+            plan.root = plan.compute_root().unwrap();
+            assert_eq!(authorized.canonical_delta, plan.canonical_delta);
+            assert_ne!(
+                authorized.root, plan.root,
+                "{name} must change the plan root"
+            );
+            variants.push((name, plan));
+        };
+        mutate("repository id binding", |plan| {
+            plan.repository.repository_id = "44444444-4444-4444-8444-444444444444".into()
+        });
+        mutate("repository root binding", |plan| {
+            plan.repository.canonical_root = "/different/repository".into()
+        });
+        mutate("operation kind", |plan| {
+            plan.kind = OperationKind::new("verification").unwrap()
+        });
+        mutate("operation id", |plan| {
+            plan.operation_id = OperationId::derive("submission", b"different operation")
+        });
+        mutate("request", |plan| {
+            plan.request_root = ContentDigest::hash(b"different request")
+        });
+        mutate("time", |plan| {
+            plan.fixed_time = "2026-07-14T00:00:00Z".into()
+        });
+        mutate("read set", |plan| {
+            plan.read_set.push(InputBinding {
+                name: "another input".into(),
+                digest: ContentDigest::hash(b"another input"),
+            })
+        });
+        mutate("result", |plan| {
+            plan.result = json!({"proposal_id": "vpr_different"})
+        });
 
-        assert!(matches!(
-            error,
-            RepositoryTxnError::StaleWriteAuthorization { .. }
-        ));
-        assert!(!paths.plan.exists());
-        assert!(!paths.marker.exists());
+        for (name, plan) in variants {
+            let paths = RepositoryTxnPaths::new(&journals, &plan.operation_id);
+            let barrier = RepositoryTxn::acquire_recovery_barrier(&root, &journals).unwrap();
+            let error = RepositoryTxn::prepare_with_recovery_barrier_and_authorization(
+                barrier,
+                Box::new(RecordingTransactionAuthorization {
+                    binding: Some(binding.clone()),
+                    ..Default::default()
+                }),
+                plan,
+                draft.clone(),
+                &mut NoRepositoryTxnFailpoints,
+            )
+            .unwrap_err();
+
+            assert!(
+                matches!(
+                    error,
+                    RepositoryTxnError::StaleWriteAuthorization { .. }
+                        | RepositoryTxnError::WriteAuthorizationRepositoryMismatch { .. }
+                        | RepositoryTxnError::RepositoryBindingMismatch { .. }
+                ),
+                "{name} transplant returned {error}"
+            );
+            assert!(!paths.plan.exists(), "{name} wrote a durable plan");
+            assert!(!paths.marker.exists(), "{name} wrote a marker");
+        }
         assert!(!root.join("records/exact-plan.json").exists());
     }
 
@@ -3367,7 +3499,89 @@ mod tests {
         ));
         assert_eq!(*calls.lock().unwrap(), ["bind_plan"]);
         assert_eq!(transaction.recovery_state(), &RecoveryState::Aborted);
+        assert!(transaction.authorization.is_none());
         assert!(!transaction.paths.marker.exists());
+    }
+
+    #[test]
+    fn malformed_marker_cannot_preserve_authorization_through_any_lifecycle_reader() {
+        for action in ["commit", "abort", "install"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let root = temporary.path().join("repository");
+            let journals = temporary.path().join("journals");
+            fs::create_dir_all(&root).unwrap();
+            let relative = format!("records/malformed-marker-{action}.json");
+            let (draft, plan) = one_write_fixture(&root, &relative, action.as_bytes());
+            let barrier = RepositoryTxn::acquire_recovery_barrier(&root, &journals).unwrap();
+            let mut transaction = RepositoryTxn::prepare_with_recovery_barrier_and_authorization(
+                barrier,
+                Box::new(RecordingTransactionAuthorization::default()),
+                plan,
+                draft,
+                &mut NoRepositoryTxnFailpoints,
+            )
+            .unwrap();
+            fs::create_dir_all(transaction.paths.marker.parent().unwrap()).unwrap();
+            fs::write(&transaction.paths.marker, b"{").unwrap();
+
+            let error = match action {
+                "commit" => transaction.mark_committed(),
+                "abort" => transaction.abort_prepared(),
+                "install" => transaction.install(),
+                _ => unreachable!(),
+            }
+            .unwrap_err();
+            assert!(matches!(error, RepositoryTxnError::Journal(_)));
+            assert!(transaction.authorization.is_none(), "{action}");
+            assert_eq!(transaction.recovery_state(), &RecoveryState::Prepared);
+            fs::remove_file(&transaction.paths.marker).unwrap();
+            assert!(matches!(
+                transaction.mark_committed(),
+                Err(RepositoryTxnError::WriteAuthorizationRequired { .. })
+            ));
+            assert!(!root.join(relative).exists());
+        }
+    }
+
+    #[test]
+    fn marker_write_error_cannot_retain_in_memory_authorization() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("repository");
+        let journals = temporary.path().join("journals");
+        fs::create_dir_all(&root).unwrap();
+        let (draft, plan) = one_write_fixture(
+            &root,
+            "records/marker-write-error.json",
+            b"marker write error",
+        );
+        let paths = RepositoryTxnPaths::new(&journals, &plan.operation_id);
+        let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let barrier = RepositoryTxn::acquire_recovery_barrier(&root, &journals).unwrap();
+        let mut transaction = RepositoryTxn::prepare_with_recovery_barrier_and_authorization(
+            barrier,
+            Box::new(RecordingTransactionAuthorization {
+                obstruct_marker_write_on_revalidate: Some(paths.marker.clone()),
+                calls: Some(calls.clone()),
+                ..Default::default()
+            }),
+            plan,
+            draft,
+            &mut NoRepositoryTxnFailpoints,
+        )
+        .unwrap();
+
+        assert!(matches!(
+            transaction.mark_committed(),
+            Err(RepositoryTxnError::Journal(_))
+        ));
+        assert_eq!(
+            *calls.lock().unwrap(),
+            ["bind_plan", "revalidate_for_marker"]
+        );
+        assert!(transaction.authorization.is_none());
+        assert_eq!(transaction.recovery_state(), &RecoveryState::Prepared);
+        assert!(paths.marker.is_dir());
+        assert!(!root.join("records/marker-write-error.json").exists());
     }
 
     #[test]
@@ -3913,6 +4127,61 @@ mod tests {
             portable_collision,
             RepositoryTxnError::PortablePathCollision { .. }
         ));
+    }
+
+    #[test]
+    fn root_consistent_delta_rejects_unbound_postimage_payloads_and_bytes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("repository");
+        let journals = temporary.path().join("journals");
+        fs::create_dir_all(&root).unwrap();
+        let (draft, plan) =
+            one_write_fixture(&root, "records/payload-binding.json", b"payload binding");
+
+        let mut unbound = draft.delta.clone();
+        unbound.writes[0]
+            .payload
+            .as_mut()
+            .expect("file payload")
+            .size += 1;
+        unbound.root = CanonicalDelta::compute_root(&unbound.writes).unwrap();
+        assert!(matches!(
+            unbound.verify(),
+            Err(RepositoryTxnError::CorruptPlan(message))
+                if message.contains("does not bind its payload digest and size")
+        ));
+
+        let mut corrupt = draft.clone();
+        let digest = corrupt.delta.writes()[0]
+            .payload
+            .as_ref()
+            .expect("file payload")
+            .digest
+            .clone();
+        corrupt
+            .blobs
+            .get_mut(&digest)
+            .expect("prepared blob")
+            .push(0);
+        let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let paths = RepositoryTxnPaths::new(&journals, &plan.operation_id);
+        let barrier = RepositoryTxn::acquire_recovery_barrier(&root, &journals).unwrap();
+        let error = RepositoryTxn::prepare_with_recovery_barrier_and_authorization(
+            barrier,
+            Box::new(RecordingTransactionAuthorization {
+                calls: Some(calls.clone()),
+                ..Default::default()
+            }),
+            plan,
+            corrupt,
+            &mut NoRepositoryTxnFailpoints,
+        )
+        .unwrap_err();
+        assert!(matches!(error, RepositoryTxnError::CorruptBlob(actual) if actual == digest));
+        assert!(calls.lock().unwrap().is_empty());
+        assert!(!paths.plan.exists());
+        assert!(!paths.marker.exists());
+        assert!(!paths.blob_dir.exists());
     }
 
     #[test]
