@@ -402,7 +402,7 @@ pub fn run_command() {
                 (authored, None, actor)
             };
             crate::ui::require_initialized_repo(&dir);
-            match crate::repository_ops::submit(&dir, &submission, &actor, bundle_root.as_deref()) {
+            match crate::submission::submit(&dir, &submission, &actor, bundle_root.as_deref()) {
                 Ok(outcome) => {
                     if json {
                         let mut payload = serde_json::to_value(&outcome)

@@ -374,15 +374,6 @@ pub(crate) fn submit(
     executor: &str,
     bundle_root: Option<&Path>,
 ) -> Result<SubmitOutcome, String> {
-    submit_inner(repository_path, submission, executor, bundle_root)
-}
-
-fn submit_inner(
-    repository_path: &Path,
-    submission: &SubmissionRecordV2,
-    executor: &str,
-    bundle_root: Option<&Path>,
-) -> Result<SubmitOutcome, String> {
     let executor = executor.trim();
     if executor != submission.submission.provenance.producer
         || executor != submission.submission.identity.actor_id

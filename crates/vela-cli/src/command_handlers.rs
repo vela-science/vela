@@ -68,8 +68,8 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                 }
                 fail_return(&error)
             });
-            let result = crate::repository_ops::import_verification(&repository, &record, &actor)
-                .unwrap_or_else(|error| {
+            let result =
+                crate::verification::import(&repository, &record, &actor).unwrap_or_else(|error| {
                     crate::ui::fail_if_recovery_required(&repository);
                     fail_return(&error)
                 });
@@ -107,8 +107,8 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                             record.display()
                         ))
                     });
-            let result = crate::repository_ops::import_verification(&repository, &record, &actor)
-                .unwrap_or_else(|error| {
+            let result =
+                crate::verification::import(&repository, &record, &actor).unwrap_or_else(|error| {
                     crate::ui::fail_if_recovery_required(&repository);
                     fail_return(&error)
                 });

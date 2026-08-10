@@ -486,14 +486,6 @@ pub(crate) fn import(
     record: &VerificationRecordEnvelopeV2,
     executor: &str,
 ) -> Result<VerificationImportOutcome, String> {
-    import_inner(repository_path, record, executor)
-}
-
-fn import_inner(
-    repository_path: &Path,
-    record: &VerificationRecordEnvelopeV2,
-    executor: &str,
-) -> Result<VerificationImportOutcome, String> {
     let executor = executor.trim();
     if executor != record.record.verifier() || executor != record.record.identity.actor_id {
         return Err("verification import actor must match the Verification Record verifier".into());

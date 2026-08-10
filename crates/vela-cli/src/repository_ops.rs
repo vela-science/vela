@@ -377,23 +377,6 @@ fn canonical_submission_input(repository_path: &Path, relative: &Path) -> Option
     (regular && exact).then_some(lexical)
 }
 
-pub(crate) fn submit(
-    repository_path: &Path,
-    submission: &SubmissionRecordV2,
-    executor: &str,
-    bundle_root: Option<&Path>,
-) -> Result<SubmitOutcome, String> {
-    crate::submission::submit(repository_path, submission, executor, bundle_root)
-}
-
-pub(crate) fn import_verification(
-    repository_path: &Path,
-    record: &vela_protocol::verification_record::VerificationRecordEnvelopeV2,
-    executor: &str,
-) -> Result<VerificationImportOutcome, String> {
-    crate::verification::import(repository_path, record, executor)
-}
-
 pub(crate) fn repository_transaction_journal_dir(
     repository_path: &Path,
 ) -> Result<PathBuf, String> {
