@@ -312,8 +312,7 @@ pub(crate) fn withdraw(
         std::slice::from_ref(&withdrawal.id),
         &delta,
         preflight,
-    )
-    .map_err(|error| error.to_string())?;
+    )?;
     if matches!(
         publication.state,
         PublicationState::Unchanged { .. } | PublicationState::CommittedLocal { .. }

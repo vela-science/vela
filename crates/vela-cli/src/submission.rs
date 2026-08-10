@@ -551,8 +551,7 @@ pub(crate) fn submit(
         std::slice::from_ref(&proposal_id),
         &delta,
         preflight,
-    )
-    .map_err(|error| error.to_string())?;
+    )?;
     if matches!(
         publication.state,
         PublicationState::Unchanged { .. } | PublicationState::CommittedLocal { .. }

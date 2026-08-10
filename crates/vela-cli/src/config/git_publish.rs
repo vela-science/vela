@@ -75,30 +75,6 @@ pub(crate) struct PublicationDelta {
     pub entries: Vec<PublicationDeltaEntry>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum ExactPublicationError {
-    DeltaChanged {
-        expected_sha256: String,
-        actual_sha256: String,
-    },
-}
-
-impl std::fmt::Display for ExactPublicationError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::DeltaChanged {
-                expected_sha256,
-                actual_sha256,
-            } => write!(
-                formatter,
-                "exact publication delta changed after preflight (expected {expected_sha256}, got {actual_sha256})"
-            ),
-        }
-    }
-}
-
-impl std::error::Error for ExactPublicationError {}
-
 #[derive(Debug, Clone)]
 pub(crate) struct PublishOptions {
     preflight_inputs: Vec<PathBuf>,
@@ -162,13 +138,13 @@ pub(crate) fn publish_exact_delta(
     object_ids: &[String],
     delta: &PublicationDelta,
     preflight: ExactPublicationPreflight,
-) -> Result<PublicationOutcome, ExactPublicationError> {
+) -> Result<PublicationOutcome, String> {
     let actual_sha256 = publication_delta_sha256(delta);
     if actual_sha256 != preflight.delta_sha256 {
-        return Err(ExactPublicationError::DeltaChanged {
-            expected_sha256: preflight.delta_sha256,
-            actual_sha256,
-        });
+        return Err(format!(
+            "exact publication delta changed after preflight (expected {}, got {actual_sha256})",
+            preflight.delta_sha256
+        ));
     }
     Ok(
         publish(repository_path, summary, object_ids, delta, &preflight)
@@ -2073,6 +2049,33 @@ mod tests {
                 if reason.contains("staged changes on Vela transaction paths")
         ));
         assert_eq!(git_text(root, &["show", ":a.txt"]).unwrap(), "staged");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn delta_transplant_after_preflight_leaves_git_and_worktree_byte_exact() {
+        use std::os::unix::fs::MetadataExt;
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        setup_repository(root);
+        std::fs::write(root.join("a.txt"), b"before").unwrap();
+        write_executable(&root.join("unrelated.txt"), "sentinel");
+        git(root, &["add", "."]);
+        git(root, &["commit", "-m", "initial"]);
+        let mut delta = one_file_delta("a.txt");
+        let preflight =
+            exact_publication_preflight(root, &delta, &PublishOptions::local()).unwrap();
+        delta.root = sha256_root(b"transplanted root");
+        std::fs::write(root.join("a.txt"), b"after").unwrap();
+        let mode = |path| std::fs::metadata(root.join(path)).unwrap().mode();
+        let state = || (native_state(root), mode("a.txt"), mode("unrelated.txt"));
+        let before = state();
+        let error = publish_exact_delta(root, "transplant", &[], &delta, preflight).unwrap_err();
+        assert_eq!(
+            error,
+            "exact publication delta changed after preflight (expected sha256:2f808e15404bd334942aac2328ffcde194a6c337a97da172f04e5333207e89b6, got sha256:4d504504e69689b5c843ad647f79045cf4b735e986bd697eaff9c66a15b58ef8)"
+        );
+        assert_eq!(state(), before);
     }
 
     #[test]

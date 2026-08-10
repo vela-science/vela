@@ -627,8 +627,7 @@ pub(crate) fn import(
         std::slice::from_ref(&record.id),
         &delta,
         preflight,
-    )
-    .map_err(|error| error.to_string())?;
+    )?;
     if matches!(
         publication.state,
         PublicationState::Unchanged { .. } | PublicationState::CommittedLocal { .. }
