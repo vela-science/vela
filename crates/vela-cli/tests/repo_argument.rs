@@ -1,9 +1,9 @@
 //! The repository argument has one shape and one resolution behaviour.
 //!
-//! It used to have four of each: a required leading positional on `show`,
-//! `why`, `review *` and `verification *`; an optional one on `status`, `next`
-//! and `log`; `default_value = "."` on `authority trust pin`; and a
-//! `--repo` flag on `start` and `submit`. A reader who learned `vela
+//! It used to have several of each: a required leading positional on `show`,
+//! `why`, `review *` and `verification *`; an optional one on `status` and
+//! `log`; `default_value = "."` on `authority trust pin`; and a
+//! `--repo` flag on `submit`. A reader who learned `vela
 //! status` and then typed `vela show vcl_…` had the object id bound to the
 //! repository slot and was told the *object id* was missing.
 //!
@@ -239,8 +239,8 @@ fn one_repository_convention_across_the_surface() {
         );
 
         /* The third spelling. `--repo` was previously accepted on
-        `start` and `submit` only, which is why a user could not carry the
-        habit; it now works on every verb that acts on a repository, and it
+        `submit` only, which is why a user could not carry the habit; it now
+        works on every verb that acts on a repository, and it
         works from outside the tree, where discovery has nothing to find. */
         let mut flagged = short.clone();
         flagged.extend_from_slice(&["--repo", repository_path]);

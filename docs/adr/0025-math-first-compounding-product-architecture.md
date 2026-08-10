@@ -1,6 +1,8 @@
 # ADR 0025: Math-first compounding product architecture
 
 - Status: Accepted
+- Target-surface disposition: any Vela Target Index or `next`/`start` language
+  below is historical; commit `719cbc77` retired that core surface on 2026-08-10.
 - Accepted: 2026-07-28
 - Protocol effect: none
 - Product effect: adopt the public loop

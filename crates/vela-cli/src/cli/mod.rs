@@ -699,8 +699,8 @@ mod tests {
                             || arg.get_value_names().is_some_and(|names| names
                                 .iter()
                                 .any(|name| name.as_str() == "REPO")))
-                        || matches!(name, "start" | "submit"),
-                    "`{path}` accepts --repo but has no positional repository, and only start and submit may omit one"
+                        || name == "submit",
+                    "`{path}` accepts --repo but has no positional repository, and only submit may omit one"
                 );
             }
             if leaf && NOT_REPOSITORY_VERBS.contains(&name) {

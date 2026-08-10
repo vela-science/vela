@@ -5,7 +5,7 @@ Status: current pre-1.0 boundary.
 Vela records a narrow chain of scientific state:
 
 ```text
-Target -> native run -> Submission -> Verification -> Decision -> Standing
+native run -> Submission -> Verification Record -> Decision -> Event -> Standing
 ```
 
 It does not decide whether science is true. It preserves the exact objects,
@@ -95,7 +95,7 @@ A Submission is an authenticated producer package:
 
 ```text
 s = (
-  target,
+  requested change,
   requested Claim,
   artifacts,
   conditions,
@@ -203,9 +203,9 @@ with explicit relations to the earlier record.
 
 ### Derived-state non-authority
 
-Targets, rankings, graphs, search indexes, web projections, packets, summaries,
-and caches are rebuildable readers. They can suggest work but cannot change
-Standing.
+Source-local next obligations, rankings, graphs, search indexes, web
+projections, packets, summaries, and caches are rebuildable readers. They can
+suggest work but cannot change Standing. Vela core owns no work catalogue.
 
 ### Transaction and publication separation
 

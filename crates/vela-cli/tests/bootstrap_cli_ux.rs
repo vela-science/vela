@@ -531,8 +531,7 @@ fn the_scaffold_never_normalizes_a_content_addressed_path() {
     /* The other half of the same failure. The profile line said
     `frontier.toml` while `vela init` wrote `vela.toml`, so the one file here a
     human is expected to edit was declared under a name that never existed and
-    the rule matched nothing. `targets.json` is deliberately not held to this:
-    an adapter writes it later, so the scaffold declares it ahead of time. */
+    the rule matched nothing. */
     let profile = attributes
         .lines()
         .find(|line| line.starts_with("vela.toml "))

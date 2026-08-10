@@ -1,6 +1,8 @@
 # ADR 0003: Preserve the rigorous core behind a task-first workflow
 
 - Status: Accepted 2026-07-13. Approved by the user for implementation.
+- Target-surface disposition: any Vela Target Index or `next`/`start` language
+  below is historical; commit `719cbc77` retired that core surface on 2026-08-10.
 - Scope: Vela substrate CLI, protocol plumbing, MCP exposure, and derived review
   projections.
 - Implementation state: Vela `0.800` is the deliberate prelaunch hard cut;

@@ -5,9 +5,9 @@
 //! - **Acting identity** → `--as` for producer or verifier evidence.
 //!   It may default from `$VELA_ACTOR_ID`; a human Decision never does.
 //! - **Repository** → `--repo <path>`, accepted by every verb that acts on an
-//!   existing repository. All of those verbs but two also take it as the leading
-//!   positional; `start` and `submit` do not, because their leading positional
-//!   is already the Target and the Submission file. Omitted entirely, the
+//!   existing repository. All of those verbs but `submit` also take it as the
+//!   leading positional; `submit` does not because its leading positional is
+//!   already the Submission file. Omitted entirely, the
 //!   repository is discovered upward from the current directory, exactly as
 //!   `vela status` does — one resolution behaviour, everywhere. Where a verb
 //!   takes both a repository and an object the object binds last, so
@@ -259,7 +259,7 @@ pub(crate) enum Commands {
         /// --supersedes.
         #[arg(long, conflicts_with = "submission", requires = "submission_change")]
         target_root: Option<String>,
-        /// Full root of the exact target packet executed by this producer.
+        /// Full root of the exact bounded-work packet used by this producer.
         #[arg(long, conflicts_with = "submission", requires_all = ["profile_root", "verifier_capsule_root", "result_contract_root"])]
         packet_root: Option<String>,
         /// Full root of the exact producer profile used for this result.

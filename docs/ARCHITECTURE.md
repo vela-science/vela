@@ -41,17 +41,20 @@ The research-navigation story around it is:
 map -> target -> work -> submit -> verify -> decide -> remap
 ```
 
+Here `target` is source-local or read-product navigation language. Vela core
+owns neither a Target catalogue nor a command that selects or briefs one.
+
 The three-word compression is `MAP -> ADVANCE -> REMAP`. Work remains native;
 Submission is the portable evidence boundary; Verification reports a scoped
 check; Decision is the only authority boundary; and remapping derives the
 current territory and next valid work from the new exact root.
 
-A Repository is **action-complete only within declared bounds** when every
-represented unresolved item yields either a fresh, root-bound Target with an
-exact completion contract or an explicit blocker explaining why no current
-Target can be offered. This is a product and evaluation property, not a new
-protocol object. A map, Target generator, ranking, or learning policy remains
-read-only and cannot change Standing.
+A Repository is **action-complete only within declared bounds** when its
+source-owning adapter or read product turns every represented unresolved item
+into either an exact next obligation with a completion contract or an explicit
+blocker. Such a surface may call that obligation a Target. This is a product
+and evaluation property, not a protocol object. A map, obligation generator,
+ranking, or learning policy remains read-only and cannot change Standing.
 
 A Repository is one ordinary Git repository for a bounded scientific scope, and
 it is the only authority boundary. A Frontier is a derived query over the
@@ -319,8 +322,8 @@ model activity. The useful performance functions remain separate:
 2. correct Decisions and correction comprehension per reviewer-minute; and
 3. time to the first useful downstream action after changing producer,
    runtime, or reader; and
-4. map correctness: coverage disclosure, stale-state rate, valid Target rate,
-   Decision-to-remap latency, and cold-user comprehension.
+4. map correctness: coverage disclosure, stale-state rate, valid
+   next-obligation rate, Decision-to-remap latency, and cold-user comprehension.
 
 The current read path is `status`, `show`, and `why`; the existing Observatory
 is the public map surface. A new map, diff, or comparison feature is worth

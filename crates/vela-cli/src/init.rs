@@ -240,11 +240,6 @@ fn write_scaffold(path: &Path, name: &str, scope: &str) -> Result<(), String> {
         // comment explaining the fix. `vela.toml` keeps `text eol=lf` because
         // it is configuration a human edits and is not hashed by content.
         //
-        // `targets.json` had a line here too, on the same reasoning, until the
-        // Target Index was retired. A `.gitattributes` rule for a file `vela
-        // init` no longer scaffolds is the same dead line the paragraph below
-        // describes.
-        //
         // That profile line named `frontier.toml` until now, and `vela init`
         // has never written a file by that name — the profile is `vela.toml`,
         // as the paragraph above always said. The rule therefore matched

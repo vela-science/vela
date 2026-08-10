@@ -1,6 +1,8 @@
 # ADR 0022: Current repository epoch and legacy runtime retirement
 
 - Status: Superseded by accepted ADR 0027
+- Target-surface disposition: any Vela Target Index or `next`/`start` language
+  below is historical; commit `719cbc77` retired that core surface on 2026-08-10.
 - Target release: Vela `v0.940.0`
 - Protocol effect: one current-only repository epoch, Claim Record v1,
   Proposal v1, and a signed predecessor boundary

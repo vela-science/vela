@@ -1,4 +1,4 @@
-//! Repository verification, reads, work offers, and review views.
+//! Repository verification, status, object reads, and review views.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -1617,12 +1617,10 @@ fn read_object_set(
     Ok(loaded)
 }
 
-/// Verify the complete current repository and its authority history while
-/// allowing a derived Target Index to report its own staleness.
-///
-/// Target-index inspect, repair, and reseal must remain available precisely
-/// when tracked source or packet bytes drift. Canonical repository and
-/// authority objects still fail closed.
+/// Verify the complete current repository and its authority history after a
+/// transaction installs its files but before the corresponding Git
+/// publication. Canonical repository and authority objects still fail closed;
+/// the strict post-publication check additionally verifies Git ancestry.
 pub(crate) fn verify_repository_allow_derived_drift_at(
     root: &Path,
 ) -> Result<RepositoryV4, String> {

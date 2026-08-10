@@ -35,14 +35,18 @@ init -> submit -> verify -> decide -> replay
 
 Work can happen in any native tool. A Submission retains bounded producer
 evidence. Checks remain scoped. Only an authorized Decision changes Standing,
-and the resulting map exposes the next valid Target or an explicit blocker.
-Compounding is a measured outcome, not an automatic property of acceptance.
+and a source-owning Repository or read product may use the resulting state to
+expose an exact next obligation or an explicit blocker. Compounding is a
+measured outcome, not an automatic property of acceptance.
 
 Research navigation wraps that exact loop without adding authority:
 
 ```text
 map -> target -> work -> submit -> verify -> decide -> remap
 ```
+
+`target` here is source-local navigation language, not a Vela protocol object
+or CLI verb. Vela core owns no Target catalogue.
 
 The product hierarchy is deliberate:
 
@@ -191,28 +195,32 @@ When the Submission declares one verification requirement, `verification
 record` uses it directly. Additional observations require an explicit
 `--property ... --complementary` so they cannot be mistaken for evidence that
 satisfies the registered gate.
-`start` writes nothing: Codex, Claude, OpenCode, Harbor, laboratory software,
-or another native tool owns execution. Submission and Verification authenticate
-their own exact records; neither reads repository-authority credentials.
+Work selection and execution stay with the source-owning Repository, a read
+product, or a native tool such as Codex, Claude, OpenCode, Harbor, or laboratory
+software. Those surfaces may expose exact next obligations and rooted work
+packets. Vela core provides no `next`/`start` command pair; Submission and
+Verification authenticate their own exact records, and neither reads
+repository-authority credentials.
 
 ## Command surface
 
 The ordinary CLI is intentionally small:
 
 ```text
-init status claims next start submit show why review replay reproduce log
+init status claims submit show why review replay reproduce log
 ```
 
 Current advanced surfaces:
 
 ```text
-verification authority
+verification correction authority
 ```
 
 Run `vela help advanced` for the grouped contract.
 
-Domain adapters write the optional tracked Target Index directly;
-`replay`, `next`, and `start` validate it without a maintenance subcommand.
+Source-owning repositories and read products may expose exact next obligations
+under their own rooted contracts. They are replaceable orientation surfaces,
+not Vela replay state, and cannot change Standing.
 
 ## Repository model
 
@@ -251,10 +259,10 @@ scripts/            Release, release manifest, and ecosystem status
 
 The immutable public `@vela-science/canopus@0.8.0` and its Git tag remain
 historical replay evidence. Current Vela ships no agent runner. Codex, Claude,
-OpenCode, laboratory software, and other native tools work from a Target
-packet and register ordinary Submissions or Verification Records. Vela Web and
-the canonical Repositories remain separate because they have independent
-deployment and scientific-history lifecycles.
+OpenCode, laboratory software, and other native tools work directly or from a
+source-local packet and register ordinary Submissions or Verification Records.
+Vela Web and the canonical Repositories remain separate because they have
+independent deployment and scientific-history lifecycles.
 
 Package-local tooling stays with its package. The top-level `scripts/` holds
 four files and is not a bucket for a fifth kind of thing: `release.sh` is the

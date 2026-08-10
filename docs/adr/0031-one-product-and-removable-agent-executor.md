@@ -1,6 +1,10 @@
 # ADR 0031: One Vela product; native tools remain external
 
 - Status: Accepted
+- Current disposition: the native-tool and no-runner boundary remains
+  accepted. The stateless `vela start` Target briefing was superseded when
+  commit `719cbc77` retired the Target Index and its `next`/`start` readers on
+  2026-08-10; the body remains decision-era evidence.
 - Proposed: 2026-07-30
 - Accepted: 2026-07-31
 - Revised: 2026-07-31 (stateless Target briefing)

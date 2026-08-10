@@ -266,7 +266,6 @@ fi
 echo
 echo "Quick start in a reviewed repository clone:"
 echo "  1) verify:  vela replay . --json"
-echo "  2) inspect: vela next . --json"
-echo "  3) brief:   vela start <target> --repo . --json  # optional, write-free"
-echo "  4) submit:  vela submit --repo . --claim <claim> --type <type> --replayability <class> --artifact <path>:<kind> --caveat <limit> --as agent:<you> --json"
+echo "  2) inspect: vela status . --json"
+echo "  3) submit:  vela submit --repo . --claim <claim> --type <type> --replayability <class> --artifact <path>:<kind> --caveat <limit> --as agent:<you> --json"
 echo "Producer guide: https://github.com/vela-science/vela/blob/${TAG}/docs/PRODUCER_QUICKSTART.md"

@@ -1,6 +1,8 @@
 # ADR 0017: Kernel, Frontier Algebra, and Discovery Calculus boundaries
 
 - Status: Deferred — research only
+- Target-surface disposition: any Vela Target Index or `next`/`start` language
+  below is historical; commit `719cbc77` retired that core surface on 2026-08-10.
 - Protocol effect: None
 - Candidate release: No Vela release required for the first experiment
 - Scientific authority effect: None

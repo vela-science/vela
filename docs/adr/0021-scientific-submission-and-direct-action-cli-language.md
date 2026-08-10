@@ -1,6 +1,8 @@
 # ADR 0021: Scientific Submission and direct-action CLI language
 
 - Status: Superseded by ADR 0033
+- Target-surface disposition: any Vela Target Index or `next`/`start` language
+  below is historical; commit `719cbc77` retired that core surface on 2026-08-10.
 - Supersession: the direct `submit -> Proposal` contract remains; Registration
   Records and their lifecycle language are retired. This record is historical.
 - Target release: Vela `v0.940.0`

@@ -670,8 +670,7 @@ Packet, Frontier map, Attempt (ADR 0039 §5), and Registration Record (ADR
                 conformance/emitters/javascript.mjs, conformance/emitters/python.py
                   ↑ independent implementations of the same bytes
   analysis      crates/vela-edge
-                  ↑ correction impact, target index; read-only, never required
-                    for replay
+                  ↑ correction impact; read-only, never required for replay
   projection    vela-web/packages/observatory-data  (20 tables; the 17 that hold
                     projected rows are root-bound)
   surfaces      vela-web/apps/observatory, vela-web/apps/www

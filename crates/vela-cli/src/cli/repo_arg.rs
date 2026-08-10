@@ -1,10 +1,10 @@
 //! The one binding rule for the repository argument.
 //!
-//! The surface used to carry four shapes and four resolution behaviours for
-//! the same concept: a required leading positional on `show`, `why`, `review`,
-//! and `verification`; an optional one on `status`, `next`, and `log`; a
+//! The surface used to carry several shapes and resolution behaviours for the
+//! same concept: a required leading positional on `show`, `why`, `review`,
+//! and `verification`; an optional one on `status` and `log`; a
 //! `default_value = "."` one on `authority trust pin`; and a `--repo` flag
-//! on `start` and `submit`. A reader who learned `vela status` and then typed
+//! on `submit`. A reader who learned `vela status` and then typed
 //! `vela show vcl_…` had the object id silently bound to the repository slot and
 //! was told the *object id* was missing.
 //!
@@ -70,7 +70,7 @@ fn reject_object_id_as_repo(verb: &str, candidate: &Path) {
 }
 
 /// Verbs whose only repository-shaped argument is the repository itself:
-/// `status`, `next`, `replay`, `review inbox`, `review list`,
+/// `status`, `replay`, `review inbox`, `review list`,
 /// `authority trust pin`.
 pub(crate) fn bind_repo(verb: &str, positional: Option<PathBuf>, flag: Option<PathBuf>) -> PathBuf {
     match (positional, flag) {

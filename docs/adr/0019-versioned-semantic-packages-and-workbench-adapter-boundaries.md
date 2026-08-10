@@ -1,6 +1,8 @@
 # ADR 0019: Versioned semantic packages and workbench-adapter boundaries
 
 - Status: Rejected — no shared adapter promotion
+- Target-surface disposition: any Vela Target Index or `next`/`start` language
+  below is historical; commit `719cbc77` retired that core surface on 2026-08-10.
 - Protocol effect: None in the proposed program
 - Candidate release: None reserved
 - Scientific authority effect: None

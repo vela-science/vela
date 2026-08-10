@@ -1,6 +1,8 @@
 # ADR 0032: Self-authenticated evidence; human Decision authority
 
 - Status: Accepted and implemented on `main`
+- Target-surface disposition: any Vela Target Index or `next`/`start` language
+  below is historical; commit `719cbc77` retired that core surface on 2026-08-10.
 - Proposed: 2026-07-31
 - Accepted: 2026-07-31
 - Protocol effect: repository evidence coverage changes

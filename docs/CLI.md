@@ -8,7 +8,6 @@ Standing, and Git preserves the exact repository history.
 
 ```bash
 vela status . --json
-vela next . --limit 1 --json
 
 vela submit --repo . \
   --claim "<bounded result>" \
@@ -49,7 +48,7 @@ init status claims submit show why review replay reproduce log
 | `submit` | Build or import one authenticated Submission and pending Proposal. |
 | `show` | Inspect one exact typed object and its authority effect. |
 | `why` | Explain one Claim's Standing from retained roots and history. |
-| `review` | List, show, accept, or reject one exact Proposal. |
+| `review` | Inspect the Inbox, list or show Proposals, or accept, reject, or withdraw one exact Proposal. |
 | `replay` | Verify repository structure, roots, replay, and authority. |
 | `reproduce` | Run retained evidence through its frozen verifier. |
 | `log` | Read admitted Event history. |
@@ -84,9 +83,10 @@ Advanced setup:
   byte. See [Repository setup](#repository-setup). Writer initialization is
   `vela init`, not `authority`.
 
-Repository-owned domain adapters generate the optional tracked `targets.json`
-catalogue. `replay`, `next`, and `start` validate it; Vela has no separate
-Target Index maintenance command.
+Source-owning repositories and read products may expose exact next obligations
+and rooted work packets under their own contracts. Vela core owns no Target
+catalogue and publishes no `next`/`start` command pair. Those orientation
+surfaces are not Vela replay state and cannot change Standing.
 
 `vela help advanced` is the executable source for this grouping.
 
@@ -148,38 +148,21 @@ retained under `records/claims/` but holds no Standing and is not repository
 state; read those through `vela review list --status all` and
 `vela review show`.
 
-## Target briefing and Submissions
+## Source-local work and Submissions
 
-`vela next` returns a ranked Target Offer. `queue_position` is the Target's
-current place among open work; `rank` is its stable configured priority and may
-begin above one after earlier Targets close. Review work never enters that
-producer queue.
-
-`vela start` revalidates the selected Target and returns:
-
-- the exact target and packet;
-- the repository origin and root;
-- the Target Index root;
-- the source Git identity, explicitly labeled `target_index_source` so it is
-  not confused with the current `repository_head` reported by `status`;
-- the repository scope and declared verifier profile; and
-- the explicit boundary that evidence may enter review but only a human
-  Decision changes Standing.
-
-It writes no file, lease, run record, counter, budget, Event, or canonical object
-and reads no authority key.
-
-The default remains one short command:
-
-```bash
-vela start <target> --json
-```
+A source-owning Repository, workbench, or read product may rank bounded work
+and publish an exact packet, verifier profile, and completion contract. It owns
+the schema, freshness check, and user-facing command for that projection. Vela
+does not select or brief the work and `vela replay` does not validate an
+external work catalogue.
 
 Vela does not select, launch, wrap, meter, or schedule a runner. The producer
 uses its native agent, workbench, notebook, proof assistant, or laboratory
 system. Harbor owns benchmark execution. Those systems may retain their own
 run or attempt identities as ordinary provenance, but Vela does not create or
-authorize them.
+authorize them. When all four execution-binding roots are available, `submit`
+can retain the source-local packet, profile, verifier-capsule, and result-contract
+roots as producer-declared provenance; those roots grant no authority.
 
 When a producer supersedes or abandons its own still-pending Proposal, it can
 remove that item from human review without invoking repository authority:
@@ -197,8 +180,8 @@ accepted Standing.
 
 `vela status` is the compact repository summary. Its `decision_inbox` projection
 reports pending, ready, and blocked consequence counts plus rooted projection
-identities. The suggested next action may inspect the Inbox or select and
-brief the next Target; it never accepts or rejects Standing.
+identities. Its work action points to direct Submission; a review action may
+point to the Inbox. Neither accepts or rejects Standing.
 
 `vela review inbox --json` returns `vela.decision-inbox.v2`. Each rooted entry
 contains one explicit `standing_delta`: the affected Claim IDs, accepted
@@ -434,11 +417,9 @@ active paths. The one-time migration writer is not part of the current binary.
 - `claims --json` returns one page of the repository claim index, with the
   Standing and origin era of each row and an explicit count of rows whose
   retained bytes could not be read.
-- `next --json` returns ranked producer Targets only.
-- `start --json` returns one exact write-free Target briefing.
 - `review list --json` returns compact Proposal summaries.
 - `review inbox --json` returns rooted consequence-only decision summaries
-  with an explicit target-scoped Standing delta.
+  with an explicit Claim-scoped Standing delta.
 - `review show --json` returns one pending Proposal or terminal Decision.
 
 Default JSON does not embed full packet bodies, review collections, private
@@ -446,7 +427,7 @@ coordination, test telemetry, or secret material.
 
 Every `--json` outcome, success or failure, is one object carrying `ok`,
 `command`, and a versioned `schema`. A failure is `vela.error.v1` and carries an
-`error` with a `kind`, a `code`, a message, and a hint naming the next command.
+`error` with a `kind`, a `code`, a message, and a nullable hint.
 
 The failure fields have different contracts, and mixing them up is
 how a caller ends up parsing English:
@@ -486,7 +467,7 @@ Canonical writes refuse:
 - dirty or drifting inputs;
 - missing or mismatched trust roots;
 - broken authority continuity;
-- stale Proposals, Claims, Targets, or Artifacts;
+- stale Proposals, Claims, or Artifacts;
 - insufficient verification;
 - ambiguous principal or authorization;
 - invalid signatures;

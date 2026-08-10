@@ -60,9 +60,13 @@ inputs. These profiles are not interchangeable.
 | Verification ID/root `vvr_…` | Signed scoped verifier observation | Broader truth or authority |
 | Proposal ID/root `vpr_…` | Candidate transition | Decision or Event |
 | Artifact digest | Exact retained evidence bytes | Scientific meaning or availability elsewhere |
-| Target Index root | Derived current producer catalogue | Work authority or Standing |
 | Projection root | One derived reader artifact | Any source root |
 | Release checksum | Exact binary/archive bytes | Source commit or build attestation |
+
+Source-local next-obligation and work-packet roots belong to their owning
+schema, not this Vela root catalogue. A Submission execution binding can retain
+packet, profile, verifier-capsule, and result-contract roots as exact producer
+provenance; none grants authority or Standing.
 
 ## Current object identities
 
@@ -138,8 +142,6 @@ inspectable through its tag, archive, and pinned historical release.
   valid historical projection, not the current state.
 - A checkout contains a valid authority chain but no pinned sequence-one root:
   it has not selected the intended authority fork.
-- A tracked Target Index names an old repository root or mismatched
-  input/packet bytes: it is stale and yields no Offer.
 
 ## Conformance
 

@@ -19,6 +19,10 @@ Research navigation wraps that exact operator loop:
 map -> target -> work -> submit -> verify -> decide -> remap
 ```
 
+`target` and `map` in this navigation loop belong to source-owning
+repositories and read products. They are not Vela protocol objects or CLI
+verbs, and Vela core owns no Target catalogue.
+
 These navigation verbs are not renamed protocol objects:
 
 ```text
@@ -173,10 +177,10 @@ These terms describe bounded system behavior. They are not protocol objects:
 
 | Property | Meaning |
 | --- | --- |
-| action-complete | Every represented unresolved item yields a fresh exact Target or an explicit blocker, within declared source coverage, compiler, relation, and resource bounds |
+| action-complete | Every represented unresolved item yields an exact next obligation or an explicit blocker in its source-owning or read-product projection, within declared source coverage, compiler, relation, and resource bounds |
 | correction-closed | A declared complete relation slice identifies affected, surviving, and repair-required state after a correction |
 | inheritance-complete | A cold successor can recover current Standing, decisive evidence, and the next valid action without private maintainer context |
-| Frontier closure | State, coverage, Targets, Decisions, corrections, and handoff each close over exact current inputs or fail explicitly |
+| Frontier closure | State, coverage, next obligations, Decisions, corrections, and handoff each close over exact current inputs or fail explicitly |
 | compounding | Inherited Repository state measurably improves later correct scientific work under a matched comparison |
 
 The current **Math Atlas** is the bounded first-party read product over
@@ -187,14 +191,14 @@ completeness claim.
 ## Daily commands
 
 ```text
-init status next start submit show why review replay reproduce log
+init status claims submit show why review replay reproduce log
 ```
 
 | Command | Meaning |
 | --- | --- |
+| `init` | Create one signed, replayable Repository boundary |
 | `status` | Summarize Repository identity, integrity, blockers, counts, authority readiness, and one next action |
-| `next` | Return ranked Target Offers |
-| `start` | Print a write-free briefing for one exact current Target |
+| `claims` | Page the Repository's Claim index with Standing and origin era |
 | `submit` | Validate and retain a Submission, then create its Proposal |
 | `show` | Inspect one current or historical typed object |
 | `why` | Explain current standing from exact evidence, verification, Decisions, Events, and corrections |
@@ -364,46 +368,6 @@ authentication field.
 
 All predecessor bytes remain retrievable through the epoch's tag, commit,
 Git-object manifest, and archive digest. They are not current writer objects.
-
-## Controlled verbs
-
-Read:
-
-```text
-status show list why log
-```
-
-Work:
-
-```text
-next start run resume abandon
-```
-
-Evidence:
-
-```text
-submit import reproduce
-```
-
-Evaluation:
-
-```text
-replay verify reproduce
-```
-
-Authority:
-
-```text
-accept reject correct supersede retract authorize revoke
-```
-
-Distribution and recovery:
-
-```text
-export publish repair restore rebuild compact
-```
-
-Lower-power roles never receive higher-power verbs.
 
 ## Product wording
 

@@ -53,11 +53,10 @@ A verifier never emits a Vela Decision or Event.
 The current CLI exposes closed JSON for:
 
 - status and repository roots;
-- ranked Target Offers;
-- write-free Target briefings;
+- Claim-index pages;
 - typed object inspection;
 - Claim Standing explanations;
-- Proposal lists and their rendered detail;
+- Decision Inbox projections, Proposal lists, and rendered detail;
 - strict checks and reproduction; and
 - authority and repository verification.
 
@@ -75,10 +74,12 @@ An adapter:
 5. retains explicit caveats and nonclaims; and
 6. never infers acceptance from tool success.
 
-Any external runner or workbench may be a producer. It consumes native Target
-packets and emits ordinary Submissions or Verification Records. Vela does not
-own or wrap the runner. Frozen Canopus `0.8.0` remains historical replay
-evidence, not a current product or interoperability requirement.
+Any external runner or workbench may be a producer. It may consume a
+source-local work packet and emit ordinary Submissions or Verification
+Records. Vela does not own or wrap the runner, publish a Target catalogue, or
+standardize the packet briefing command. Frozen Canopus `0.8.0` remains
+historical replay evidence, not a current product or interoperability
+requirement.
 
 ## Semantic packages
 

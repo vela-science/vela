@@ -1,6 +1,8 @@
 # ADR 0018: Authenticated historical dependency states
 
 - Status: Accepted
+- Target-surface disposition: any Vela Target Index or `next`/`start` language
+  below is historical; commit `719cbc77` retired that core surface on 2026-08-10.
 - Protocol effect: no new event kind, reducer transition, canonical dependency
   object, signature algorithm, or authority rule
 - Release: Vela `v0.915.0`

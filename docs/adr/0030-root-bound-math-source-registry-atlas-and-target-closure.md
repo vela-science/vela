@@ -1,6 +1,10 @@
 # ADR 0030: Root-bound Math Source Registry, Atlas, and Target closure
 
 - Status: Accepted
+- Current disposition: the Source Registry, Atlas, and source-local closure
+  decisions remain accepted. The Vela Target Index and `next`/`start` clauses
+  were superseded when commit `719cbc77` retired that core surface on
+  2026-08-10; the body remains decision-era evidence.
 - Proposed: 2026-07-30
 - Accepted: 2026-07-30 at Vela Web `v0.430.0`
 - Protocol effect: none; no new canonical object or reducer rule

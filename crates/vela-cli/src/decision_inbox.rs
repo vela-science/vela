@@ -536,8 +536,8 @@ fn derive_entry(inputs: EntryInputs<'_>) -> Result<DecisionInboxEntry, String> {
         },
         next_obligation: DecisionInboxNextObligation {
             now,
-            if_accept: "Replay the accepted successor repository, recompute derived Target obligations, and expose the exact next valid Target.".into(),
-            if_reject: "Replay the rejected successor repository and expose the next valid Target without changing accepted Standing.".into(),
+            if_accept: "Replay the accepted successor repository; source-owning repositories and read products may then recompute exact next obligations.".into(),
+            if_reject: "Replay the rejected successor repository; source-owning repositories and read products may then recompute exact next obligations without changing accepted Standing.".into(),
         },
         entry_root: String::new(),
     };
