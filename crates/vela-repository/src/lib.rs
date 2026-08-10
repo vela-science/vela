@@ -4393,6 +4393,13 @@ mod tests {
         (operation_id, paths)
     }
 
+    fn mark_install_complete(mut transaction: RepositoryTxn) -> RepositoryTxnPaths {
+        transaction.mark_committed().unwrap();
+        transaction.install().unwrap();
+        transaction.complete().unwrap();
+        transaction.paths.clone()
+    }
+
     #[test]
     fn operation_kind_is_validated_at_construction_and_durable_plan_verification() {
         for value in [
@@ -6302,11 +6309,7 @@ mod tests {
         .unwrap();
         let plan = fixture_plan(&root, &draft, b"completed corruption");
         let operation_id = plan.operation_id.clone();
-        let mut txn = RepositoryTxn::prepare(&root, &journals, plan, draft).unwrap();
-        txn.mark_committed().unwrap();
-        txn.install().unwrap();
-        txn.complete().unwrap();
-        drop(txn);
+        mark_install_complete(RepositoryTxn::prepare(&root, &journals, plan, draft).unwrap());
 
         fs::remove_file(root.join("records/receipt.json")).unwrap();
         assert!(matches!(
@@ -6346,11 +6349,7 @@ mod tests {
         )
         .unwrap();
         let plan = fixture_plan(&root, &draft, b"rolling repository head");
-        let mut txn = RepositoryTxn::prepare(&root, &journals, plan, draft).unwrap();
-        txn.mark_committed().unwrap();
-        txn.install().unwrap();
-        txn.complete().unwrap();
-        drop(txn);
+        mark_install_complete(RepositoryTxn::prepare(&root, &journals, plan, draft).unwrap());
 
         fs::write(
             root.join(".vela/repository.json"),
@@ -6379,11 +6378,8 @@ mod tests {
         .unwrap();
         let first_plan = fixture_plan(&root, &first_draft, b"first neutral operation");
         let first_operation = first_plan.operation_id.clone();
-        let mut first = RepositoryTxn::prepare(&root, &journals, first_plan, first_draft).unwrap();
-        first.mark_committed().unwrap();
-        first.install().unwrap();
-        first.complete().unwrap();
-        drop(first);
+        let first = RepositoryTxn::prepare(&root, &journals, first_plan, first_draft).unwrap();
+        mark_install_complete(first);
 
         let second_draft = DeltaDraft::prepare(
             &root,
@@ -6395,12 +6391,8 @@ mod tests {
         )
         .unwrap();
         let second_plan = fixture_plan(&root, &second_draft, b"second neutral operation");
-        let mut second =
-            RepositoryTxn::prepare(&root, &journals, second_plan, second_draft).unwrap();
-        second.mark_committed().unwrap();
-        second.install().unwrap();
-        second.complete().unwrap();
-        drop(second);
+        let second = RepositoryTxn::prepare(&root, &journals, second_plan, second_draft).unwrap();
+        mark_install_complete(second);
 
         let third_draft = DeltaDraft::prepare(
             &root,
@@ -6412,11 +6404,8 @@ mod tests {
         )
         .unwrap();
         let third_plan = fixture_plan(&root, &third_draft, b"third neutral operation");
-        let mut third = RepositoryTxn::prepare(&root, &journals, third_plan, third_draft).unwrap();
-        third.mark_committed().unwrap();
-        third.install().unwrap();
-        third.complete().unwrap();
-        drop(third);
+        let third = RepositoryTxn::prepare(&root, &journals, third_plan, third_draft).unwrap();
+        mark_install_complete(third);
 
         let mut completed = repository_journals(&root, &journals).unwrap();
         completed.reverse();
@@ -6999,12 +6988,9 @@ mod tests {
             b"completed history",
         );
         let completed_operation = completed_plan.operation_id.clone();
-        let mut completed =
+        let completed =
             RepositoryTxn::prepare(&root, &journals, completed_plan, completed_draft).unwrap();
-        completed.mark_committed().unwrap();
-        completed.install().unwrap();
-        completed.complete().unwrap();
-        drop(completed);
+        mark_install_complete(completed);
 
         let (pending_operation, pending_paths) = persist_marker_free_prepared_fixture(
             &root,
@@ -7067,13 +7053,9 @@ mod tests {
             let (_temp, root, journals) = empty_test_repository();
             let (foreign_draft, foreign_plan) =
                 one_write_fixture(&root, "records/foreign-terminal.json", b"foreign terminal");
-            let mut foreign =
+            let foreign =
                 RepositoryTxn::prepare(&root, &journals, foreign_plan, foreign_draft).unwrap();
-            foreign.mark_committed().unwrap();
-            foreign.install().unwrap();
-            foreign.complete().unwrap();
-            let foreign_paths = foreign.paths.clone();
-            drop(foreign);
+            let foreign_paths = mark_install_complete(foreign);
             let mut foreign_journal: RepositoryTxnJournal =
                 operation_journal::read_json(&foreign_paths.plan).unwrap();
             foreign_journal.plan.repository.repository_id = FOREIGN_ID.into();
@@ -7111,12 +7093,9 @@ mod tests {
             let (selected_draft, selected_plan) =
                 one_write_fixture(&root, "records/current-terminal.json", b"current terminal");
             let selected_operation = selected_plan.operation_id.clone();
-            let mut selected =
+            let selected =
                 RepositoryTxn::prepare(&root, &journals, selected_plan, selected_draft).unwrap();
-            selected.mark_committed().unwrap();
-            selected.install().unwrap();
-            selected.complete().unwrap();
-            drop(selected);
+            mark_install_complete(selected);
 
             let (_, foreign_paths) = persist_marker_free_prepared_fixture(
                 &root,
@@ -7475,10 +7454,7 @@ mod tests {
         );
         let mut terminal = RepositoryTxn::open(&root, &journals, &terminal_operation).unwrap();
         terminal.bind_exact_test_authorization().unwrap();
-        terminal.mark_committed().unwrap();
-        terminal.install().unwrap();
-        terminal.complete().unwrap();
-        drop(terminal);
+        mark_install_complete(terminal);
 
         let (first_operation, first_paths) = persist_marker_free_prepared_fixture(
             &root,
