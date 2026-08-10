@@ -263,7 +263,9 @@ pub fn run_command() {
                 }))
                 .unwrap_or_default();
             let preflight_id =
-                crate::operation_journal::operation_id("submit-preflight", &preflight_identity);
+                vela_repository::OperationId::derive("submit-preflight", &preflight_identity)
+                    .as_str()
+                    .to_owned();
             let fail_preflight = |kind, message: String| -> ! {
                 crate::ui::fail_unchanged(kind, &message, &preflight_id, "vela submit --help")
             };

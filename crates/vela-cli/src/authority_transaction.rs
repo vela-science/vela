@@ -44,7 +44,7 @@ use vela_protocol::events::event_log_hash;
 use vela_protocol::events::{EventKind, StateActor, StateTarget};
 use vela_protocol::principal::HUMAN_ONLY_AUTHORITY_ACTIONS_V1;
 
-use crate::repository_txn::{
+use vela_repository::{
     CanonicalWriteBarrier, ContentDigest, DeltaDraft, InputBinding, OperationId, OperationKind,
     PlannedWrite, RepoPath, RepositoryBinding, RepositoryTxn, RepositoryTxnError,
     RepositoryTxnPlan, RepositoryTxnPlanSpec, WriteClass,
@@ -167,7 +167,7 @@ pub(crate) struct PreparedAuthorityTransaction {
 impl PreparedAuthorityTransaction {
     pub(crate) fn resolved_public_writes(
         &self,
-    ) -> Result<Vec<crate::repository_txn::ResolvedWrite>, AuthorityTransactionError> {
+    ) -> Result<Vec<vela_repository::ResolvedWrite>, AuthorityTransactionError> {
         self.transaction
             .resolved_public_writes()
             .map_err(AuthorityTransactionError::Transaction)
@@ -567,7 +567,7 @@ where
     if record_writes.len() != 1
         || !matches!(
             record_writes[0].preimage,
-            crate::repository_txn::FileState::Absent
+            vela_repository::FileState::Absent
         )
         || content_delta != unsigned_draft.delta.writes()
         || record.content.object_delta != record_object_delta
@@ -1391,10 +1391,10 @@ fn authority_object_delta(
         .collect()
 }
 
-fn file_state_root(state: &crate::repository_txn::FileState) -> Option<String> {
+fn file_state_root(state: &vela_repository::FileState) -> Option<String> {
     match state {
-        crate::repository_txn::FileState::Absent => None,
-        crate::repository_txn::FileState::File { digest, .. } => Some(digest.as_str().to_string()),
+        vela_repository::FileState::Absent => None,
+        vela_repository::FileState::File { digest, .. } => Some(digest.as_str().to_string()),
     }
 }
 
@@ -1725,11 +1725,51 @@ mod tests {
     use vela_protocol::principal::PrincipalClass;
 
     use super::*;
-    use crate::repository_txn::{RecoveryOutcome, RepositoryTxnStep};
+    use vela_repository::{
+        RecoveryOutcome, RepositoryTxnStep, TransactionAuthorization,
+        TransactionAuthorizationContext,
+    };
 
     const REPOSITORY_ID: &str = "01234567-89ab-4def-8123-456789abcdef";
     const REPOSITORY_PRINCIPAL: &str = "local:device-1|uid:501";
     const RECORDED_AT: &str = "2026-07-24T12:05:00Z";
+
+    #[derive(Debug, Default)]
+    struct TestTransactionAuthorization(Option<ContentDigest>);
+
+    impl TransactionAuthorization for TestTransactionAuthorization {
+        fn bind_plan(
+            &mut self,
+            context: &mut TransactionAuthorizationContext<'_>,
+        ) -> Result<(), RepositoryTxnError> {
+            if let Some(expected) = &self.0 {
+                if expected != context.plan_root() {
+                    return Err(RepositoryTxnError::WriteAuthorization(
+                        "test authorization plan changed after binding".into(),
+                    ));
+                }
+            } else {
+                self.0 = Some(context.plan_root().clone());
+            }
+            Ok(())
+        }
+
+        fn revalidate_for_marker(
+            &self,
+            context: &mut TransactionAuthorizationContext<'_>,
+        ) -> Result<(), RepositoryTxnError> {
+            if self.0.as_ref() != Some(context.plan_root()) {
+                return Err(RepositoryTxnError::WriteAuthorization(
+                    "test authorization plan changed before marker".into(),
+                ));
+            }
+            Ok(())
+        }
+    }
+
+    fn test_transaction_authorization() -> Box<dyn TransactionAuthorization> {
+        Box::<TestTransactionAuthorization>::default()
+    }
 
     fn root(character: char) -> String {
         format!("sha256:{}", character.to_string().repeat(64))
@@ -1863,7 +1903,7 @@ mod tests {
         fn barrier(&self) -> CanonicalWriteBarrier {
             RepositoryTxn::acquire_recovery_barrier(self.temporary.path(), &self.journal_dir())
                 .unwrap()
-                .authorize(crate::repository_txn::test_transaction_authorization())
+                .authorize(test_transaction_authorization())
         }
 
         fn adapter(&self) -> LocalOsSession {
@@ -2101,7 +2141,7 @@ mod tests {
         )
         .unwrap();
 
-        let fixture_input = InputBinding::existing_file(
+        let fixture_input = InputBinding::current_file(
             root_path,
             RepoPath::parse(".vela/input.json".to_string()).unwrap(),
         )
@@ -3492,10 +3532,9 @@ mod tests {
             AuthorityTransactionError::Transaction(RepositoryTxnError::StaleInput { .. })
         ));
         assert!(authority_transaction_postimages_absent(&fixture));
-        assert!(!prepared.transaction.plan().operation_id.as_str().is_empty());
         assert!(matches!(
             prepared.transaction.recovery_state(),
-            crate::repository_txn::RecoveryState::Aborted
+            vela_repository::RecoveryState::Aborted
         ));
     }
 

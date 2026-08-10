@@ -249,7 +249,7 @@ The public product now develops from one repository while retaining separate
 runtime boundaries:
 
 ```text
-crates/             Vela protocol, replay, repository authority, and CLI
+crates/             Protocol, repository runtime, authority, adapters, verifier, and CLI
 conformance/        Independent Python and JavaScript readers, two clean-room emitters,
                     fixtures, and repository-wide checks
 packages/           The shared source-manifest tooling
@@ -272,10 +272,12 @@ the operator step that signs what CI published and then publishes it, and
 public product installer.
 
 The Rust crates are internal implementation boundaries, tested together and
-released as one `vela` binary. Cross-language conformance uses small standalone
-readers instead of a second package. A registry package will exist only after a
-real external consumer needs it. The immutable Canopus `0.8.0` package remains
-historical evidence from `product-v0.8.0`.
+released as one `vela` binary. `vela-repository` is the policy-neutral durable
+transaction runtime below the CLI; it is not a separate product or semantic
+kernel. Cross-language conformance uses small standalone readers instead of a
+second package. A registry package will exist only after a real external
+consumer needs it. The immutable Canopus `0.8.0` package remains historical
+evidence from `product-v0.8.0`.
 
 ## Security model
 

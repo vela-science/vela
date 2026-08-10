@@ -126,6 +126,35 @@ activity-plane systems. Their records may support provenance, review, or
 continuation, but they cannot create a Verification Record, Decision, Event,
 or Standing and are never required for Vela replay.
 
+## Rust runtime boundaries
+
+The workspace has one semantic kernel and one separate durability boundary:
+
+```text
+vela-protocol <- vela-repository <- vela-cli
+```
+
+`vela-protocol` owns canonical scientific objects, bytes, roots, events, and
+replay. `vela-repository` owns policy-neutral, path-bound filesystem
+transactions and their private recovery journal. It knows no Fresh, Routine,
+RepositoryAuthority, signer, keyset, model, Event, Decision, or Standing
+semantics. The CLI owns those concrete write policies and supplies one
+move-only, in-memory authorization with exactly two lifecycle checks: bind the
+verified plan before journal bytes and revalidate immediately before the
+commit marker. That capability is never serialized; once a valid marker
+exists, exact idempotent installation is policy-free.
+
+The three `WriteClass` spellings remain frozen journal vocabulary because
+renaming them would change durable roots. The runtime orders those labels but
+does not attach Vela authority or scientific meaning to them.
+
+`vela-authority` remains the restricted authorization and service-signing
+implementation, `vela-edge` remains derived read machinery, and `vela-verify`
+remains package-plane compatibility code outside the semantic kernel. All are
+internal implementation crates released through the single `vela` product
+identity; the crate split creates neither a plugin system nor another public
+product.
+
 Mathematics is the first complete domain proving ground, not a second Kernel.
 Lean and other proof assistants retain proof checking, native package managers
 retain dependency resolution, source communities retain their identifiers and

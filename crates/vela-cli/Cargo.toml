@@ -26,6 +26,7 @@ path = "src/main.rs"
 [dependencies]
 vela-protocol = { workspace = true }
 vela-authority = { workspace = true }
+vela-repository = { workspace = true }
 vela-edge.workspace = true
 vela-verify = { workspace = true }
 serde = { workspace = true }
@@ -51,6 +52,7 @@ libc = { workspace = true }
 rustix = { version = "1", features = ["process"] }
 
 [dev-dependencies]
+vela-repository = { workspace = true, features = ["test-support"] }
 
 [lints]
 workspace = true

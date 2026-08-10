@@ -1,9 +1,8 @@
 //! Small, private, fsync-backed operation journals.
 //!
-//! These records are recovery plumbing. Git publication stores them below the
-//! Git directory; repository transactions store them below the ignored private
-//! `.vela/operation-journals` directory. Neither location is scientific state
-//! or part of the publication path set.
+//! These records are repository-transaction recovery plumbing stored below the
+//! ignored private `.vela/operation-journals` directory. They are neither
+//! scientific state nor part of the publication path set.
 
 use std::fs::{self, File};
 use std::io::Write;

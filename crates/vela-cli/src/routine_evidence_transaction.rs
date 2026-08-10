@@ -12,7 +12,7 @@ use std::path::Path;
 use serde::Serialize;
 
 use crate::authority_transaction::AuthorityObjectDraft;
-use crate::repository_txn::{
+use vela_repository::{
     CanonicalWriteBarrier, ContentDigest, DeltaDraft, InputBinding, OperationId, OperationKind,
     PlannedWrite, RepoPath, RepositoryBinding, RepositoryTxn, RepositoryTxnError,
     RepositoryTxnPlan, RepositoryTxnPlanSpec, WriteClass,
@@ -36,7 +36,7 @@ pub(crate) struct PreparedRoutineEvidenceTransaction {
 impl PreparedRoutineEvidenceTransaction {
     pub(crate) fn resolved_public_writes(
         &self,
-    ) -> Result<Vec<crate::repository_txn::ResolvedWrite>, RepositoryTxnError> {
+    ) -> Result<Vec<vela_repository::ResolvedWrite>, RepositoryTxnError> {
         self.transaction.resolved_public_writes()
     }
 

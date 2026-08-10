@@ -6,35 +6,36 @@
 //! marker exists recovery only replays the journal; it never re-runs caller
 //! policy, clocks, or key-bearing code.
 
+mod operation_journal;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 
-use crate::operation_journal;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as ShaDigest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 
-pub(crate) const REPOSITORY_TXN_SCHEMA: &str = "vela.repository-txn.internal.v2";
+const REPOSITORY_TXN_SCHEMA: &str = "vela.repository-txn.internal.v2";
 const REPOSITORY_TXN_BLOB_SCHEMA: &str = "vela.repository-txn-blob.internal.v1";
 const REPOSITORY_TXN_MARKER_SCHEMA: &str = "vela.repository-txn-marker.internal.v1";
 const CANONICAL_DELTA_SCHEMA: &str = "vela.canonical-delta.internal.v1";
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
-pub(crate) struct ContentDigest(String);
+pub struct ContentDigest(String);
 
 impl ContentDigest {
-    pub(crate) fn hash(bytes: impl AsRef<[u8]>) -> Self {
+    pub fn hash(bytes: impl AsRef<[u8]>) -> Self {
         Self(format!(
             "sha256:{}",
             hex::encode(Sha256::digest(bytes.as_ref()))
         ))
     }
 
-    pub(crate) fn parse(value: impl Into<String>) -> Result<Self, RepositoryTxnError> {
+    pub fn parse(value: impl Into<String>) -> Result<Self, RepositoryTxnError> {
         let value = value.into();
         let Some(hex) = value.strip_prefix("sha256:") else {
             return Err(RepositoryTxnError::InvalidDigest(value));
@@ -45,7 +46,7 @@ impl ContentDigest {
         Ok(Self(value))
     }
 
-    pub(crate) fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         &self.0
     }
 
@@ -58,14 +59,14 @@ impl ContentDigest {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
-pub(crate) struct OperationId(String);
+pub struct OperationId(String);
 
 impl OperationId {
-    pub(crate) fn derive(kind: &str, planning_identity: &[u8]) -> Self {
+    pub fn derive(kind: &str, planning_identity: &[u8]) -> Self {
         Self(operation_journal::operation_id(kind, planning_identity))
     }
 
-    pub(crate) fn parse(value: impl Into<String>) -> Result<Self, RepositoryTxnError> {
+    pub fn parse(value: impl Into<String>) -> Result<Self, RepositoryTxnError> {
         let value = value.into();
         let Some(hex) = value.strip_prefix("vop_") else {
             return Err(RepositoryTxnError::InvalidOperationId(value));
@@ -76,17 +77,17 @@ impl OperationId {
         Ok(Self(value))
     }
 
-    pub(crate) fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         &self.0
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
-pub(crate) struct RepoPath(String);
+pub struct RepoPath(String);
 
 impl RepoPath {
-    pub(crate) fn parse(value: impl Into<String>) -> Result<Self, RepositoryTxnError> {
+    pub fn parse(value: impl Into<String>) -> Result<Self, RepositoryTxnError> {
         let value = value.into();
         if value.is_empty()
             || value.starts_with('/')
@@ -143,7 +144,7 @@ impl RepoPath {
         Ok(Self(value))
     }
 
-    pub(crate) fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         &self.0
     }
 
@@ -154,14 +155,14 @@ impl RepoPath {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum FileMode {
+pub enum FileMode {
     Regular,
     Executable,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub(crate) enum FileState {
+pub enum FileState {
     Absent,
     File {
         digest: ContentDigest,
@@ -171,14 +172,14 @@ pub(crate) enum FileState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct JournalBlobRef {
-    pub(crate) digest: ContentDigest,
-    pub(crate) size: u64,
+struct JournalBlobRef {
+    digest: ContentDigest,
+    size: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum WriteClass {
+pub enum WriteClass {
     CanonicalEvidence,
     PublicReview,
     Authority,
@@ -195,13 +196,13 @@ impl WriteClass {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct StagedWrite {
-    pub(crate) path: RepoPath,
-    pub(crate) class: WriteClass,
-    pub(crate) preimage: FileState,
-    pub(crate) postimage: FileState,
+pub struct StagedWrite {
+    pub path: RepoPath,
+    pub class: WriteClass,
+    pub preimage: FileState,
+    pub postimage: FileState,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub(crate) payload: Option<JournalBlobRef>,
+    payload: Option<JournalBlobRef>,
 }
 
 impl StagedWrite {
@@ -232,7 +233,7 @@ impl StagedWrite {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct CanonicalDelta {
+pub struct CanonicalDelta {
     schema: String,
     root: ContentDigest,
     writes: Vec<StagedWrite>,
@@ -291,7 +292,7 @@ impl CanonicalDelta {
         Ok(ContentDigest::hash(bytes))
     }
 
-    pub(crate) fn verify(&self) -> Result<(), RepositoryTxnError> {
+    fn verify(&self) -> Result<(), RepositoryTxnError> {
         if self.schema != CANONICAL_DELTA_SCHEMA {
             return Err(RepositoryTxnError::CorruptPlan(format!(
                 "unexpected canonical delta schema {}",
@@ -307,11 +308,11 @@ impl CanonicalDelta {
         Ok(())
     }
 
-    pub(crate) fn root(&self) -> &ContentDigest {
+    pub fn root(&self) -> &ContentDigest {
         &self.root
     }
 
-    pub(crate) fn writes(&self) -> &[StagedWrite] {
+    pub fn writes(&self) -> &[StagedWrite] {
         &self.writes
     }
 }
@@ -326,14 +327,14 @@ enum PlannedPostimage {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct PlannedWrite {
+pub struct PlannedWrite {
     path: RepoPath,
     class: WriteClass,
     postimage: PlannedPostimage,
 }
 
 impl PlannedWrite {
-    pub(crate) fn write(path: RepoPath, class: WriteClass, bytes: Vec<u8>) -> Self {
+    pub fn write(path: RepoPath, class: WriteClass, bytes: Vec<u8>) -> Self {
         Self {
             path,
             class,
@@ -341,7 +342,7 @@ impl PlannedWrite {
         }
     }
 
-    pub(crate) fn delete(path: RepoPath, class: WriteClass) -> Self {
+    pub fn delete(path: RepoPath, class: WriteClass) -> Self {
         Self {
             path,
             class,
@@ -352,7 +353,7 @@ impl PlannedWrite {
     /// Consume one already-bounded regular-file write as path, class, and
     /// optional postimage bytes. Executable modes are intentionally rejected
     /// because this representation has no mode field.
-    pub(crate) fn into_regular_object_parts(
+    pub fn into_regular_object_parts(
         self,
     ) -> Result<(String, WriteClass, Option<Vec<u8>>), RepositoryTxnError> {
         let postimage = match self.postimage {
@@ -372,13 +373,13 @@ impl PlannedWrite {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct DeltaDraft {
-    pub(crate) delta: CanonicalDelta,
+pub struct DeltaDraft {
+    pub delta: CanonicalDelta,
     blobs: BTreeMap<ContentDigest, Vec<u8>>,
 }
 
 impl DeltaDraft {
-    pub(crate) fn prepare(
+    pub fn prepare(
         repository_root: &Path,
         writes: Vec<PlannedWrite>,
     ) -> Result<Self, RepositoryTxnError> {
@@ -468,13 +469,13 @@ impl DeltaDraft {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct RepositoryBinding {
+pub struct RepositoryBinding {
     canonical_root: String,
     repository_id: String,
 }
 
 impl RepositoryBinding {
-    pub(crate) fn new(
+    pub fn new(
         repository_root: &Path,
         repository_id: impl Into<String>,
     ) -> Result<Self, RepositoryTxnError> {
@@ -502,17 +503,17 @@ impl RepositoryBinding {
         Ok(root)
     }
 
-    pub(crate) fn repository_id(&self) -> &str {
+    pub fn repository_id(&self) -> &str {
         &self.repository_id
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
-pub(crate) struct OperationKind(String);
+pub struct OperationKind(String);
 
 impl OperationKind {
-    pub(crate) fn new(value: impl Into<String>) -> Result<Self, RepositoryTxnError> {
+    pub fn new(value: impl Into<String>) -> Result<Self, RepositoryTxnError> {
         let kind = Self(value.into());
         kind.verify()?;
         Ok(kind)
@@ -538,9 +539,9 @@ impl OperationKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct InputBinding {
-    pub(crate) name: String,
-    pub(crate) digest: ContentDigest,
+pub struct InputBinding {
+    pub name: String,
+    pub digest: ContentDigest,
 }
 
 const REPOSITORY_FILE_INPUT_PREFIX: &str = "repository_file:";
@@ -582,7 +583,7 @@ impl InputBinding {
     /// This is used when the caller must preserve an append-only store whose
     /// historical members are discovered from the held repository rather
     /// than supplied as a parsed object list.
-    pub(crate) fn current_directory(
+    pub fn current_directory(
         repository_root: &Path,
         path: RepoPath,
     ) -> Result<Self, RepositoryTxnError> {
@@ -596,7 +597,7 @@ impl InputBinding {
     /// This is the read-set counterpart to a bounded caller read: it does not
     /// assume that a caller-critical receipt or policy path exists, and the
     /// marker check rejects creation, deletion, byte drift, or mode drift.
-    pub(crate) fn current_file(
+    pub fn current_file(
         repository_root: &Path,
         path: RepoPath,
     ) -> Result<Self, RepositoryTxnError> {
@@ -609,10 +610,7 @@ impl InputBinding {
     /// is encoded in the existing `name` field so old digest-only journal
     /// records remain wire-compatible and continue to deserialize unchanged.
     #[cfg(test)]
-    pub(crate) fn existing_file(
-        repository_root: &Path,
-        path: RepoPath,
-    ) -> Result<Self, RepositoryTxnError> {
+    fn existing_file(repository_root: &Path, path: RepoPath) -> Result<Self, RepositoryTxnError> {
         let root = canonical_repository_root(repository_root)?;
         let state = inspect_file_state(&root, &path)?;
         if matches!(state, FileState::Absent) {
@@ -627,10 +625,7 @@ impl InputBinding {
     /// Bind the absence of a relative repository file. Creation of that file
     /// before the commit marker is therefore stale input, not a result that
     /// can be committed under changed input bytes.
-    pub(crate) fn absent_file(
-        repository_root: &Path,
-        path: RepoPath,
-    ) -> Result<Self, RepositoryTxnError> {
+    pub fn absent_file(repository_root: &Path, path: RepoPath) -> Result<Self, RepositoryTxnError> {
         let root = canonical_repository_root(repository_root)?;
         let state = inspect_file_state(&root, &path)?;
         if !matches!(state, FileState::Absent) {
@@ -646,10 +641,7 @@ impl InputBinding {
     /// path a second time. Marker-time verification still inspects the path,
     /// so any drift between that snapshot and commit fails closed.
     #[cfg(test)]
-    pub(crate) fn file_snapshot(
-        path: RepoPath,
-        bytes: Option<&[u8]>,
-    ) -> Result<Self, RepositoryTxnError> {
+    fn file_snapshot(path: RepoPath, bytes: Option<&[u8]>) -> Result<Self, RepositoryTxnError> {
         let state = match bytes {
             Some(bytes) => FileState::File {
                 digest: ContentDigest::hash(bytes),
@@ -665,7 +657,7 @@ impl InputBinding {
     ///
     /// This closes the gap between a parsed, caller-supplied history object
     /// and the canonical bytes actually present in the held repository.
-    pub(crate) fn exact_file(
+    pub fn exact_file(
         repository_root: &Path,
         path: RepoPath,
         bytes: &[u8],
@@ -690,7 +682,7 @@ impl InputBinding {
 
     /// Bind a directory only if its direct membership equals the supplied
     /// canonical path set.
-    pub(crate) fn exact_directory(
+    pub fn exact_directory(
         repository_root: &Path,
         path: RepoPath,
         expected_paths: &[RepoPath],
@@ -828,29 +820,29 @@ fn repository_directory_input_digest(
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct RepositoryTxnPlanSpec {
-    pub(crate) kind: OperationKind,
-    pub(crate) operation_id: OperationId,
-    pub(crate) request_root: ContentDigest,
-    pub(crate) repository: RepositoryBinding,
-    pub(crate) fixed_time: String,
-    pub(crate) read_set: Vec<InputBinding>,
-    pub(crate) result: serde_json::Value,
+pub struct RepositoryTxnPlanSpec {
+    pub kind: OperationKind,
+    pub operation_id: OperationId,
+    pub request_root: ContentDigest,
+    pub repository: RepositoryBinding,
+    pub fixed_time: String,
+    pub read_set: Vec<InputBinding>,
+    pub result: serde_json::Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct RepositoryTxnPlan {
+pub struct RepositoryTxnPlan {
     schema: String,
     root: ContentDigest,
-    pub(crate) kind: OperationKind,
-    pub(crate) operation_id: OperationId,
-    pub(crate) request_root: ContentDigest,
-    pub(crate) repository: RepositoryBinding,
-    pub(crate) fixed_time: String,
-    pub(crate) read_set: Vec<InputBinding>,
-    pub(crate) canonical_delta: CanonicalDelta,
-    pub(crate) result: serde_json::Value,
+    kind: OperationKind,
+    operation_id: OperationId,
+    request_root: ContentDigest,
+    repository: RepositoryBinding,
+    fixed_time: String,
+    read_set: Vec<InputBinding>,
+    canonical_delta: CanonicalDelta,
+    result: serde_json::Value,
 }
 
 #[derive(Serialize)]
@@ -867,7 +859,7 @@ struct PlanCommitment<'a> {
 }
 
 impl RepositoryTxnPlan {
-    pub(crate) fn new(
+    pub fn new(
         spec: RepositoryTxnPlanSpec,
         canonical_delta: CanonicalDelta,
     ) -> Result<Self, RepositoryTxnError> {
@@ -928,14 +920,14 @@ impl RepositoryTxnPlan {
     }
 
     #[cfg(test)]
-    pub(crate) fn root(&self) -> &ContentDigest {
+    fn root(&self) -> &ContentDigest {
         &self.root
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CommitMarker {
+struct CommitMarker {
     schema: String,
     operation_id: OperationId,
     plan_root: ContentDigest,
@@ -955,7 +947,7 @@ impl CommitMarker {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case")]
-pub(crate) enum RecoveryState {
+pub enum RecoveryState {
     Prepared,
     Aborted,
     Committed,
@@ -1127,7 +1119,7 @@ impl RepositoryWriteLock {
 /// from crossing the same barrier until it is consumed by
 /// [`RepositoryTxn::prepare_with_barrier`] or dropped.
 #[derive(Debug)]
-pub(crate) struct RepositoryRecoveryBarrier {
+pub struct RepositoryRecoveryBarrier {
     root: PathBuf,
     journal_dir: PathBuf,
     lock: RepositoryWriteLock,
@@ -1138,7 +1130,7 @@ pub(crate) struct RepositoryRecoveryBarrier {
 /// Concrete caller policy remains outside the transaction runtime. The runtime
 /// only invokes these two lifecycle checks and never serializes the capability
 /// or interprets its commitment.
-pub(crate) trait TransactionAuthorization: fmt::Debug {
+pub trait TransactionAuthorization: fmt::Debug {
     /// Bind the exact verified plan before the transaction writes any journal
     /// byte.
     fn bind_plan(
@@ -1158,7 +1150,7 @@ pub(crate) trait TransactionAuthorization: fmt::Debug {
 ///
 /// Postimage access is bounded to a staged write in the canonical delta, and
 /// every returned byte string is checked against its size and digest.
-pub(crate) struct TransactionAuthorizationContext<'a> {
+pub struct TransactionAuthorizationContext<'a> {
     repository_root: &'a Path,
     repository_binding: &'a RepositoryBinding,
     plan_root: &'a ContentDigest,
@@ -1183,23 +1175,23 @@ impl<'a> TransactionAuthorizationContext<'a> {
         }
     }
 
-    pub(crate) fn repository_root(&self) -> &Path {
+    pub fn repository_root(&self) -> &Path {
         self.repository_root
     }
 
-    pub(crate) fn repository_binding(&self) -> &RepositoryBinding {
+    pub fn repository_binding(&self) -> &RepositoryBinding {
         self.repository_binding
     }
 
-    pub(crate) fn plan_root(&self) -> &ContentDigest {
+    pub fn plan_root(&self) -> &ContentDigest {
         self.plan_root
     }
 
-    pub(crate) fn canonical_delta(&self) -> &CanonicalDelta {
+    pub fn canonical_delta(&self) -> &CanonicalDelta {
         self.canonical_delta
     }
 
-    pub(crate) fn postimage_bytes(
+    pub fn postimage_bytes(
         &mut self,
         write: &StagedWrite,
     ) -> Result<Option<Vec<u8>>, RepositoryTxnError> {
@@ -1349,7 +1341,7 @@ impl TransactionAuthorization for RecordingTransactionAuthorization {
 }
 
 #[cfg(test)]
-pub(crate) fn test_transaction_authorization() -> Box<dyn TransactionAuthorization> {
+fn test_transaction_authorization() -> Box<dyn TransactionAuthorization> {
     Box::<RecordingTransactionAuthorization>::default()
 }
 
@@ -1360,17 +1352,17 @@ pub(crate) fn test_transaction_authorization() -> Box<dyn TransactionAuthorizati
 /// durable Prepared journal therefore cannot recreate permission to cross the
 /// commit-marker boundary after a process restart.
 #[derive(Debug)]
-pub(crate) struct CanonicalWriteBarrier {
+pub struct CanonicalWriteBarrier {
     recovery: RepositoryRecoveryBarrier,
     authorization: Box<dyn TransactionAuthorization>,
 }
 
 impl RepositoryRecoveryBarrier {
-    pub(crate) fn repository_root(&self) -> &Path {
+    pub fn repository_root(&self) -> &Path {
         &self.root
     }
 
-    pub(crate) fn authorize(
+    pub fn authorize(
         self,
         authorization: Box<dyn TransactionAuthorization>,
     ) -> CanonicalWriteBarrier {
@@ -1734,9 +1726,9 @@ fn ensure_recovery_barrier_locked(
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ResolvedWrite {
-    pub(crate) staged: StagedWrite,
-    pub(crate) postimage_bytes: Option<Vec<u8>>,
+pub struct ResolvedWrite {
+    pub staged: StagedWrite,
+    pub postimage_bytes: Option<Vec<u8>>,
 }
 
 fn resolve_public_writes(
@@ -1783,7 +1775,7 @@ fn validate_blob_bytes(expected: &JournalBlobRef, bytes: &[u8]) -> Result<(), Re
 }
 
 #[derive(Debug)]
-pub(crate) struct RepositoryTxn {
+pub struct RepositoryTxn {
     root: PathBuf,
     paths: RepositoryTxnPaths,
     journal: RepositoryTxnJournal,
@@ -1791,9 +1783,9 @@ pub(crate) struct RepositoryTxn {
     _lock: RepositoryWriteLock,
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum RecoveryOutcome {
+pub enum RecoveryOutcome {
     Prepared,
     Aborted,
     Completed,
@@ -1808,7 +1800,7 @@ pub(crate) enum RecoveryOutcome {
 /// complete new durable record. They deliberately do not pretend to model a
 /// torn JSON file inside `operation_journal::write_json`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum RepositoryTxnStep {
+pub enum RepositoryTxnStep {
     BeforeBlobJournalWrite { index: usize },
     AfterBlobJournalWrite { index: usize },
     BeforePreparedJournalWrite,
@@ -1846,12 +1838,12 @@ impl RepositoryTxnFailpoints for NoRepositoryTxnFailpoints {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 struct FailAtRepositoryTxnStep {
     target: RepositoryTxnStep,
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 impl RepositoryTxnFailpoints for FailAtRepositoryTxnStep {
     fn check(&mut self, step: RepositoryTxnStep) -> Result<(), RepositoryTxnError> {
         if step == self.target {
@@ -1863,7 +1855,7 @@ impl RepositoryTxnFailpoints for FailAtRepositoryTxnStep {
 
 impl RepositoryTxn {
     #[cfg(test)]
-    pub(crate) fn verify_recovery_barrier_read_only(
+    fn verify_recovery_barrier_read_only(
         repository_root: &Path,
         journal_dir: &Path,
     ) -> Result<(), RepositoryTxnError> {
@@ -1875,7 +1867,7 @@ impl RepositoryTxn {
     /// repository inputs for a new operation. The returned guard deliberately
     /// holds the write lock through planning and must be consumed by
     /// [`Self::prepare_with_barrier`].
-    pub(crate) fn acquire_recovery_barrier(
+    pub fn acquire_recovery_barrier(
         repository_root: &Path,
         journal_dir: &Path,
     ) -> Result<RepositoryRecoveryBarrier, RepositoryTxnError> {
@@ -1890,7 +1882,7 @@ impl RepositoryTxn {
     }
 
     #[cfg(test)]
-    pub(crate) fn prepare(
+    fn prepare(
         repository_root: &Path,
         journal_dir: &Path,
         plan: RepositoryTxnPlan,
@@ -1906,7 +1898,7 @@ impl RepositoryTxn {
         )
     }
 
-    pub(crate) fn prepare_with_barrier(
+    pub fn prepare_with_barrier(
         barrier: CanonicalWriteBarrier,
         plan: RepositoryTxnPlan,
         draft: DeltaDraft,
@@ -2067,8 +2059,8 @@ impl RepositoryTxn {
         )
     }
 
-    #[cfg(test)]
-    pub(crate) fn open(
+    #[cfg(any(test, feature = "test-support"))]
+    fn open(
         repository_root: &Path,
         journal_dir: &Path,
         operation_id: &OperationId,
@@ -2081,8 +2073,8 @@ impl RepositoryTxn {
         })
     }
 
-    #[cfg(test)]
-    pub(crate) fn open_if_present(
+    #[cfg(any(test, feature = "test-support"))]
+    fn open_if_present(
         repository_root: &Path,
         journal_dir: &Path,
         operation_id: &OperationId,
@@ -2149,16 +2141,16 @@ impl RepositoryTxn {
     }
 
     #[cfg(test)]
-    pub(crate) fn plan(&self) -> &RepositoryTxnPlan {
+    fn plan(&self) -> &RepositoryTxnPlan {
         &self.journal.plan
     }
 
-    #[cfg(test)]
-    pub(crate) fn recovery_state(&self) -> &RecoveryState {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn recovery_state(&self) -> &RecoveryState {
         &self.journal.recovery
     }
 
-    pub(crate) fn mark_committed(&mut self) -> Result<(), RepositoryTxnError> {
+    pub fn mark_committed(&mut self) -> Result<(), RepositoryTxnError> {
         self.mark_committed_with_failpoints(&mut NoRepositoryTxnFailpoints)
     }
 
@@ -2171,7 +2163,7 @@ impl RepositoryTxn {
     }
 
     #[cfg(test)]
-    pub(crate) fn bind_exact_test_authorization(&mut self) -> Result<(), RepositoryTxnError> {
+    fn bind_exact_test_authorization(&mut self) -> Result<(), RepositoryTxnError> {
         if !matches!(self.journal.recovery, RecoveryState::Prepared) {
             return Err(RepositoryTxnError::WriteAuthorizationNotApplicable {
                 state: self.journal.recovery.clone(),
@@ -2304,7 +2296,7 @@ impl RepositoryTxn {
     /// Permanently discard a marker-free plan. Since no commit marker exists,
     /// this state transition has no repository delta and a later plan may safely
     /// reuse the operation id.
-    pub(crate) fn abort_prepared(&mut self) -> Result<(), RepositoryTxnError> {
+    pub fn abort_prepared(&mut self) -> Result<(), RepositoryTxnError> {
         self.abort_prepared_with_failpoints(&mut NoRepositoryTxnFailpoints)
     }
 
@@ -2345,7 +2337,7 @@ impl RepositoryTxn {
         self.abort_prepared_with_failpoints(&mut FailAtRepositoryTxnStep { target: step })
     }
 
-    pub(crate) fn install(&mut self) -> Result<(), RepositoryTxnError> {
+    pub fn install(&mut self) -> Result<(), RepositoryTxnError> {
         self.install_with_failpoints(&mut NoRepositoryTxnFailpoints)
     }
 
@@ -2394,15 +2386,15 @@ impl RepositoryTxn {
         failpoints.check(RepositoryTxnStep::AfterInstalledJournalWrite)
     }
 
-    #[cfg(test)]
-    pub(crate) fn install_at_failpoint(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn install_at_failpoint(
         &mut self,
         step: RepositoryTxnStep,
     ) -> Result<(), RepositoryTxnError> {
         self.install_with_failpoints(&mut FailAtRepositoryTxnStep { target: step })
     }
 
-    pub(crate) fn complete(&mut self) -> Result<(), RepositoryTxnError> {
+    pub fn complete(&mut self) -> Result<(), RepositoryTxnError> {
         self.complete_with_failpoints(&mut NoRepositoryTxnFailpoints)
     }
 
@@ -2418,7 +2410,7 @@ impl RepositoryTxn {
     /// Callers deliberately invoke this as best-effort maintenance after the
     /// semantic operation is already published. An error must be reported as a
     /// diagnostic, never converted into a false operation failure.
-    pub(crate) fn retire_completed_recovery_blobs(&mut self) -> Result<usize, RepositoryTxnError> {
+    pub fn retire_completed_recovery_blobs(&mut self) -> Result<usize, RepositoryTxnError> {
         if !matches!(self.journal.recovery, RecoveryState::Completed) {
             return Err(RepositoryTxnError::CorruptPlan(format!(
                 "cannot retire recovery blobs for transaction {} from {:?}",
@@ -2494,8 +2486,8 @@ impl RepositoryTxn {
         self.complete_with_failpoints(&mut FailAtRepositoryTxnStep { target: step })
     }
 
-    #[cfg(test)]
-    pub(crate) fn recover(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn recover(
         repository_root: &Path,
         journal_dir: &Path,
         operation_id: &OperationId,
@@ -2528,7 +2520,7 @@ impl RepositoryTxn {
         Ok(RecoveryOutcome::Completed)
     }
 
-    pub(crate) fn resolved_public_writes(&self) -> Result<Vec<ResolvedWrite>, RepositoryTxnError> {
+    pub fn resolved_public_writes(&self) -> Result<Vec<ResolvedWrite>, RepositoryTxnError> {
         resolve_public_writes(&self.journal.plan.canonical_delta, |blob| {
             match self.journal.blob_retention {
                 BlobRetention::Retained => self.read_blob(blob),
@@ -2537,7 +2529,7 @@ impl RepositoryTxn {
         })
     }
 
-    pub(crate) fn canonical_delta_root(&self) -> &str {
+    pub fn canonical_delta_root(&self) -> &str {
         self.journal.plan.canonical_delta.root().as_str()
     }
 
@@ -2657,7 +2649,7 @@ impl RepositoryTxn {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum RepositoryTxnError {
+pub enum RepositoryTxnError {
     InvalidDigest(String),
     InvalidOperationId(String),
     InvalidPath {
@@ -2739,7 +2731,7 @@ pub(crate) enum RepositoryTxnError {
     CorruptBlob(ContentDigest),
     NotCommitted,
     Busy,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     InjectedFailure {
         step: RepositoryTxnStep,
     },
@@ -2857,7 +2849,7 @@ impl fmt::Display for RepositoryTxnError {
                 formatter,
                 "another repository transaction holds the write lock"
             ),
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-support"))]
             Self::InjectedFailure { step } => {
                 write!(
                     formatter,

@@ -33,3 +33,13 @@ and repository root remain authoritative.
 
 Moving or rendering a record never changes Standing. Only an attributed,
 authorized Decision admitted by the named repository can do that.
+
+## Internal implementation boundary
+
+The unpublished `vela-repository` workspace crate is an internal durability
+boundary inside the `vela` source repository, not another Repository or
+product. It owns generic transaction plans, journals, commit markers,
+installation, and recovery. Concrete Fresh, Routine, and RepositoryAuthority
+write policy remains in `vela-cli`; canonical scientific semantics remain in
+`vela-protocol`. The dependency direction is
+`vela-protocol <- vela-repository <- vela-cli`.

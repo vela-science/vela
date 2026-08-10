@@ -13,7 +13,7 @@ use vela_edge::repository_write::{
     authority_trust_anchor_path, load_authority_trust_anchor_from_home,
 };
 
-use crate::repository_txn::{
+use vela_repository::{
     CanonicalWriteBarrier, ContentDigest, FileState, RepositoryRecoveryBarrier, RepositoryTxn,
     RepositoryTxnError, StagedWrite, TransactionAuthorization, TransactionAuthorizationContext,
     WriteClass,
@@ -839,7 +839,7 @@ mod tests {
     use serde_json::{Value, json};
 
     use crate::init::InitOptions;
-    use crate::repository_txn::{
+    use vela_repository::{
         DeltaDraft, OperationId, OperationKind, PlannedWrite, RepoPath, RepositoryBinding,
         RepositoryTxnPlan, RepositoryTxnPlanSpec,
     };

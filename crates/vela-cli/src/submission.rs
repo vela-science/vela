@@ -26,7 +26,7 @@ use crate::repository_ops::{
     PreparedSubmissionArtifacts, SubmitOutcome, prepare_submission_artifacts, publication_delta,
     submission_publication_inputs,
 };
-use crate::repository_txn::{ContentDigest, InputBinding, WriteClass};
+use vela_repository::{ContentDigest, InputBinding, WriteClass};
 
 const REPOSITORY_OPERATION_KIND: &str = "submission";
 
@@ -303,8 +303,7 @@ fn existing_outcome(
     };
     let (_, proposal) = proposal_reference;
     let request_root = submit_request_root(repository, submission_root)?;
-    let operation_id =
-        crate::repository_txn::OperationId::derive("submit", request_root.as_bytes());
+    let operation_id = vela_repository::OperationId::derive("submit", request_root.as_bytes());
     Ok(Some(SubmitOutcome {
         schema: "vela.submit-result.v1",
         operation_id: operation_id.as_str().into(),
@@ -489,8 +488,7 @@ fn submit_inner(
         )?;
     }
     let request_root = submit_request_root(&held_repository, &submission_root)?;
-    let operation_id =
-        crate::repository_txn::OperationId::derive("submit", request_root.as_bytes());
+    let operation_id = vela_repository::OperationId::derive("submit", request_root.as_bytes());
     next_repository.verify()?;
     object_drafts.extend([
         AuthorityObjectDraft {
@@ -528,7 +526,7 @@ fn submit_inner(
         barrier,
         repository_path,
         &held_repository.repository_id,
-        crate::repository_txn::OperationKind::new(REPOSITORY_OPERATION_KIND)
+        vela_repository::OperationKind::new(REPOSITORY_OPERATION_KIND)
             .map_err(|error| error.to_string())?,
         operation_id.clone(),
         &request_root,

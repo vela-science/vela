@@ -23,7 +23,7 @@ use crate::config::git_publish::{
     publish_exact_delta,
 };
 use crate::repository_ops::publication_delta;
-use crate::repository_txn::{ContentDigest, InputBinding, OperationId, OperationKind, WriteClass};
+use vela_repository::{ContentDigest, InputBinding, OperationId, OperationKind, WriteClass};
 
 /* One name for the verb on every path. The success payload said
 `proposal.withdraw` and the failure envelope said `proposal withdraw`, so a

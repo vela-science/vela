@@ -214,8 +214,8 @@ pub(crate) struct VerificationImportOutcome {
 
 #[derive(Debug)]
 pub(crate) struct PreparedSubmissionArtifacts {
-    pub(crate) writes: Vec<crate::repository_txn::PlannedWrite>,
-    pub(crate) read_set: Vec<crate::repository_txn::InputBinding>,
+    pub(crate) writes: Vec<vela_repository::PlannedWrite>,
+    pub(crate) read_set: Vec<vela_repository::InputBinding>,
 }
 
 pub(crate) fn prepare_submission_artifacts(
@@ -223,7 +223,7 @@ pub(crate) fn prepare_submission_artifacts(
     submission: &SubmissionRecordV2,
     bundle_root: Option<&Path>,
 ) -> Result<PreparedSubmissionArtifacts, String> {
-    use crate::repository_txn::{ContentDigest, InputBinding, PlannedWrite, RepoPath, WriteClass};
+    use vela_repository::{ContentDigest, InputBinding, PlannedWrite, RepoPath, WriteClass};
 
     let mut blobs = BTreeMap::<String, Vec<u8>>::new();
     let mut read_set = Vec::new();
@@ -334,7 +334,7 @@ pub(crate) fn prepare_submission_artifacts(
                 bytes,
             ))
         })
-        .collect::<Result<Vec<_>, crate::repository_txn::RepositoryTxnError>>()
+        .collect::<Result<Vec<_>, vela_repository::RepositoryTxnError>>()
         .map_err(|error| error.to_string())?;
     Ok(PreparedSubmissionArtifacts { writes, read_set })
 }
@@ -476,10 +476,10 @@ fn public_artifact_read_error(
 pub(crate) fn publication_delta(
     repository_path: &Path,
     root: &str,
-    writes: Vec<crate::repository_txn::ResolvedWrite>,
+    writes: Vec<vela_repository::ResolvedWrite>,
 ) -> Result<Option<crate::config::git_publish::PublicationDelta>, String> {
     use crate::config::git_publish::{PublicationDelta, PublicationDeltaEntry};
-    use crate::repository_txn::{FileMode, FileState};
+    use vela_repository::{FileMode, FileState};
     if writes.is_empty() {
         return Ok(None);
     }

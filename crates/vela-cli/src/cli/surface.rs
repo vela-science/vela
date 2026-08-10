@@ -164,7 +164,7 @@ mod tests {
     /// but nothing held clap to it, and clap disagreed: `authority` was
     /// `hide = true` while this grid listed it under `Advanced setup:`,
     /// `docs/CLI.md` documented it as an advanced command, and
-    /// `repository_txn.rs` and `cli/lifecycle.rs` both print `vela authority
+    /// the repository write policy and `cli/lifecycle.rs` both print `vela authority
     /// trust pin …` as the next step to run. So the one command the CLI asks a
     /// consumer to run was the one `vela --help` would not show them.
     #[test]

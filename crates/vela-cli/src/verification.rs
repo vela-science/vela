@@ -25,7 +25,7 @@ use crate::config::git_publish::{
     publish_exact_delta,
 };
 use crate::repository_ops::{VerificationImportOutcome, publication_delta};
-use crate::repository_txn::{ContentDigest, InputBinding, WriteClass};
+use vela_repository::{ContentDigest, InputBinding, WriteClass};
 
 const METHOD_MANIFEST_MAX_BYTES: u64 = 1024 * 1024;
 const REPOSITORY_OPERATION_KIND: &str = "verification";
@@ -518,7 +518,7 @@ fn import_inner(
         }))?
     );
     let operation_id =
-        crate::repository_txn::OperationId::derive("verification-import", request_root.as_bytes());
+        vela_repository::OperationId::derive("verification-import", request_root.as_bytes());
     if let Some(outcome) = existing_outcome(
         repository_path,
         &repository,
@@ -576,7 +576,7 @@ fn import_inner(
         barrier,
         repository_path,
         &held_repository.repository_id,
-        crate::repository_txn::OperationKind::new(REPOSITORY_OPERATION_KIND)
+        vela_repository::OperationKind::new(REPOSITORY_OPERATION_KIND)
             .map_err(|error| error.to_string())?,
         operation_id.clone(),
         &request_root,

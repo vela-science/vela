@@ -1,7 +1,8 @@
 //! `vela` — one CLI over the protocol, evidence, and Decision boundary.
 
-// Keep the protocol crate read/replay focused. Product commands and local
-// repository writes live here; Vela exposes no server or workbench runtime.
+// Keep the protocol crate read/replay focused. Product commands and concrete
+// repository write policy live here; the policy-neutral durability engine is
+// `vela-repository`. Vela exposes no server or workbench runtime.
 pub(crate) mod authority_transaction;
 mod bounded_file;
 pub(crate) mod claim_standing;
@@ -24,9 +25,7 @@ pub(crate) mod verification;
 pub(crate) mod withdrawal;
 pub(crate) use config::cli_identity;
 // Repository verification and object projections.
-mod operation_journal;
 pub(crate) mod repository;
-pub(crate) mod repository_txn;
 pub(crate) mod ui;
 
 /// The stable codes `error.code` may carry, re-exported because they are the

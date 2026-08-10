@@ -52,7 +52,7 @@ use crate::authority_transaction::{
 use crate::repository_authority_provider::{
     SshAgentRepositoryAuthoritySigner, select_repository_authority_identity,
 };
-use crate::repository_txn::{ContentDigest, WriteClass};
+use vela_repository::{ContentDigest, WriteClass};
 
 use super::{fail_return, print_json};
 

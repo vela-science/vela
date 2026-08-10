@@ -36,7 +36,7 @@ use crate::config::git_publish::{
 };
 use crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner;
 use crate::repository_ops::publication_delta;
-use crate::repository_txn::{
+use vela_repository::{
     ContentDigest, InputBinding, RepositoryRecoveryBarrier, RepositoryTxn, WriteClass,
 };
 
