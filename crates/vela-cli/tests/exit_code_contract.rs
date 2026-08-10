@@ -156,10 +156,7 @@ fn missing_objects_exit_3_and_malformed_flags_exit_2() {
 
     // The reclassification must not have swept up the domain failures. A
     // request that is well formed and names a real directory, refused by the
-    // repository contract, still exits 1 — including `start` on a repository
-    // with no Target Index, which is a broken repository and not a bad
-    // argument. (`start` on an absent Target needs a live Target Index to
-    // reach; genesis.rs pins that one.)
+    // repository contract, still exits 1.
     let bare = temporary.path().join("bare");
     std::fs::create_dir_all(&bare).expect("bare directory");
     let output = run(temporary.path(), &home, None, &["replay", "bare", "--json"]);
@@ -169,11 +166,4 @@ fn missing_objects_exit_3_and_malformed_flags_exit_2() {
         "domain",
         "replay on a directory with no Vela store",
     );
-    let output = run(
-        &repository_path,
-        &home,
-        None,
-        &["start", "no-such-target", "--repo", ".", "--json"],
-    );
-    assert_failure(&output, 1, "domain", "start with no Target Index at all");
 }

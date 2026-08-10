@@ -10,28 +10,6 @@
 //! carries one. New verbs get a const here in the same edit that adds them
 //! to the surface.
 
-pub const NEXT: &str = "\
-EXAMPLES
-  vela next          ranked open targets, payload pre-loaded
-  vela next . --json the agent contract
-
-SEE ALSO
-  vela start  inspect one exact target briefing";
-
-pub const START: &str = "\
-EXAMPLES
-  vela start erdos:443 --json
-                                inspect the exact target, packet, and read roots
-
-Start is stateless and write-free. It validates the current repository and
-Target Index, prints the exact packet and read roots, and includes the exact
-Submission binding when the packet declares rooted execution contracts. It
-creates no lease, workbench run, counter, lock, Event, or Standing change.
-
-SEE ALSO
-  vela next   the ranked offer this claims from
-  vela submit retain one authenticated producer Submission";
-
 pub const SUBMIT: &str = "\
 EXAMPLES
   vela submit submission.json                  retain a signed Submission v2 envelope

@@ -17,7 +17,6 @@
 - [Verification](VERIFICATION.md)
 - [Roots](ROOTS.md)
 - [Repository profile](REPOSITORY_PROFILE.md)
-- [Target Index](TARGET_INDEX.md)
 - [Scientific State Profile v1](interop/scientific-state-profile.md)
 - [ADR 0034: Direct Target Index generation](adr/0034-direct-target-index-generation.md)
 - [Threat model](THREAT_MODEL.md)

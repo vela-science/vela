@@ -38,7 +38,7 @@ Decision, Event, or accepted Standing.
 Default help exposes exactly:
 
 ```text
-init status claims next start submit show why review replay reproduce log
+init status claims submit show why review replay reproduce log
 ```
 
 | Command | Contract |
@@ -46,8 +46,6 @@ init status claims next start submit show why review replay reproduce log
 | `init` | Create a signed, replayable repository ready for scientific work. |
 | `status` | Report identity, replay, Decision Inbox readiness, and one safe next action. |
 | `claims` | Page the repository claim index: Claim ID, one-line assertion, Standing, origin era. |
-| `next` | Return canonically ranked producer Targets. |
-| `start` | Print a write-free briefing for one exact current Target. |
 | `submit` | Build or import one authenticated Submission and pending Proposal. |
 | `show` | Inspect one exact typed object and its authority effect. |
 | `why` | Explain one Claim's Standing from retained roots and history. |

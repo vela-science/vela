@@ -695,7 +695,6 @@ pub(crate) fn execute_prepared(
         action,
     )?;
     let next_root = next.canonical_root()?;
-    let derived = crate::submission::rebind_target_index(repository_path, &next)?;
     let events = decision_events(
         &prepared.plan,
         &prepared.repository,
@@ -805,7 +804,7 @@ pub(crate) fn execute_prepared(
                 class: WriteClass::CanonicalEvidence,
                 postimage: Some(next.canonical_bytes()?),
             }],
-            derived_drafts: derived,
+            derived_drafts: Vec::new(),
             next_authority_keyset: None,
             next_authorization_model: None,
             read_set,

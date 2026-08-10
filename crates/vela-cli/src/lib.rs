@@ -21,7 +21,6 @@ pub(crate) mod style;
 pub(crate) mod submission;
 pub(crate) mod verification;
 pub(crate) mod withdrawal;
-pub(crate) mod work;
 pub(crate) use config::cli_identity;
 // Repository verification and object projections.
 mod operation_journal;

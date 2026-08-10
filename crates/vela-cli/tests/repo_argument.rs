@@ -182,7 +182,6 @@ fn one_repository_convention_across_the_surface() {
     docs/QUICKSTART.md and docs/AGENT_QUICKSTART.md publish today. */
     for (documented, short) in [
         (vec!["status", ".", "--json"], vec!["status", "--json"]),
-        (vec!["next", ".", "--json"], vec!["next", "--json"]),
         (vec!["replay", ".", "--json"], vec!["replay", "--json"]),
         (
             vec!["log", ".", "--limit", "5", "--json"],

@@ -17,7 +17,7 @@ use vela_protocol::proposal::{ProposalProducerPackage, ProposalSubject, Proposal
 use vela_protocol::repository::{ClaimStandingRefV1, RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::submission::SubmissionRecordV2;
 
-use crate::authority_transaction::{AuthorityDerivedDraft, AuthorityObjectDraft};
+use crate::authority_transaction::AuthorityObjectDraft;
 use crate::config::git_publish::{
     PublicationOutcome, PublicationState, PublishOptions, exact_publication_preflight,
     publish_exact_delta,
@@ -264,40 +264,6 @@ fn proposed_change(
     })
 }
 
-pub(crate) fn rebind_target_index(
-    repository_path: &Path,
-    repository: &RepositoryV4,
-) -> Result<Vec<AuthorityDerivedDraft>, String> {
-    let path = repository_path.join("targets.json");
-    if !path.is_file() {
-        return Ok(Vec::new());
-    }
-    let bytes = fs::read(&path).map_err(|error| format!("read current Target Index: {error}"))?;
-    let mut index: vela_edge::target_index::TargetIndexV5 = serde_json::from_slice(&bytes)
-        .map_err(|error| format!("parse Target Index v5: {error}"))?;
-    index.validate()?;
-    if index.canonical_bytes()? != bytes || index.repository.origin_id != repository.origin_id {
-        return Err("current Target Index is not an exact canonical origin member".into());
-    }
-    if index
-        .inputs
-        .entries
-        .iter()
-        .any(|entry| entry.path == ".vela/repository.json")
-    {
-        return Err(
-            "target_index_invalid_path: current Target Index input \".vela/repository.json\" duplicates the mutable repository binding; regenerate targets.json without it"
-                .into(),
-        );
-    }
-    index.repository.repository_root = repository.canonical_root()?;
-    index.index_root = index.computed_index_root()?;
-    Ok(vec![AuthorityDerivedDraft {
-        path: "targets.json".into(),
-        postimage: Some(index.canonical_bytes()?),
-    }])
-}
-
 fn existing_outcome(
     repository_path: &Path,
     repository: &RepositoryV4,
@@ -524,7 +490,6 @@ fn submit_inner(
     let operation_id =
         crate::repository_txn::OperationId::derive("submit", request_root.as_bytes());
     next_repository.verify()?;
-    let derived_drafts = rebind_target_index(repository_path, &next_repository)?;
     object_drafts.extend([
         AuthorityObjectDraft {
             path: proposal_path,
@@ -567,7 +532,7 @@ fn submit_inner(
         fixed_time,
         read_set,
         object_drafts,
-        derived_drafts,
+        Vec::new(),
     )?;
 
     let precommit = (|| {

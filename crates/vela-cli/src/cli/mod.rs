@@ -212,27 +212,6 @@ pub fn run_command() {
             );
             crate::read::cmd_why(&repository, &claim_id, json);
         }
-        Commands::Next {
-            repository,
-            repo_flag,
-            limit,
-            json,
-        } => {
-            crate::ui::set_mode("next", json);
-            let dir = repo_arg::bind_repo("next", repository, repo_flag);
-            crate::ui::require_initialized_repo(&dir);
-            crate::repository::cmd_next(&dir, limit, json);
-        }
-        Commands::Start {
-            target,
-            repository,
-            json,
-        } => {
-            crate::ui::set_mode("start", json);
-            let dir = crate::ui::resolve_repo(repository);
-            crate::ui::require_initialized_repo(&dir);
-            crate::work::cmd_start(&dir, &target, json);
-        }
         Commands::Submit {
             submission,
             repository,

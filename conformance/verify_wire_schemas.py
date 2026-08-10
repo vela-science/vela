@@ -128,7 +128,6 @@ def status_document(**overrides: object) -> dict:
             "verifications": 1,
             "artifacts": 3,
         },
-        "work": {"ready_target_count": 4},
         "decision_inbox": {
             "pending_count": 1,
             "protocol_ready_count": 1,
@@ -139,9 +138,9 @@ def status_document(**overrides: object) -> dict:
         "actions": {
             "review": {"pending_count": 1, "command": "vela review inbox . --json"},
             "work": {
-                "mode": "target",
-                "ready_target_count": 4,
-                "command": "vela next . --limit 1 --json",
+                "mode": "direct_submission",
+                "command": "vela submit --repo . --help",
+                "note": "Submit bounded evidence directly.",
             },
         },
     }
@@ -196,7 +195,6 @@ def verify_status_read_surface() -> tuple[int, int]:
             "authority_policy": None,
         },
         counts=dict.fromkeys(status_document()["counts"], 0),
-        work={"ready_target_count": 0},
         decision_inbox={
             "pending_count": 0,
             "protocol_ready_count": 0,
@@ -208,7 +206,6 @@ def verify_status_read_surface() -> tuple[int, int]:
             "review": None,
             "work": {
                 "mode": "authority_uninitialized",
-                "ready_target_count": 0,
                 "command": "vela init . --json",
                 "note": "Resume `vela init`.",
             },

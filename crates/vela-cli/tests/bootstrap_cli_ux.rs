@@ -151,8 +151,6 @@ fn bootstrap_discovery_and_blocked_commands_name_the_one_valid_next_action() {
 
     for args in [
         vec!["replay", "--json"],
-        vec!["next", "--json"],
-        vec!["start", "missing:target", "--json"],
         vec!["review", "inbox", &repository_path_text, "--json"],
         vec!["show", &repository_path_text, "vcl_missing", "--json"],
     ] {
@@ -278,16 +276,6 @@ fn init_creates_a_signed_ready_repository_in_one_command() {
     assert_eq!(status["actions"]["work"]["mode"], "direct_submission");
     assert!(
         status["actions"]["work"]["command"]
-            .as_str()
-            .is_some_and(|command| command.starts_with("vela submit "))
-    );
-
-    let next = run(&repository_path, None, &["next", "--json"]);
-    assert!(next.status.success());
-    let next = json(&next);
-    assert_eq!(next["availability"]["configured"], 0);
-    assert!(
-        next["next_action"]
             .as_str()
             .is_some_and(|command| command.starts_with("vela submit "))
     );

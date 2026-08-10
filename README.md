@@ -157,9 +157,6 @@ remote, untrusted, or proposal-supplied code.
 
 ```bash
 vela status . --json
-vela next . --limit 1 --json
-# Optional: print the exact stateless Target briefing.
-vela start <target> --repo . --json
 
 # Produce the bounded artifact and run the declared verifier.
 
