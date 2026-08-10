@@ -12,6 +12,12 @@ use vela_repository::{
 
 use crate::ui::{self, ErrorKind};
 
+const CONTINUATION_NOT_APPLICABLE: &str = "not_applicable";
+const CONTINUATION_EXACT_INIT_AVAILABLE: &str = "exact_init_available";
+const CONTINUATION_BLOCKED: &str = "blocked";
+const CONTINUATION_BLOCKED_CODE: &str = "native_genesis_continuation_unverified";
+const CONTINUATION_BLOCKED_DIAGNOSTIC: &str = "filesystem recovery succeeded, but the exact native-genesis init continuation could not be verified; preserve the Completed journal and repository bytes before repair";
+
 #[derive(Serialize)]
 struct RecoverResultV1<'a> {
     schema: &'static str,
@@ -23,6 +29,11 @@ struct RecoverResultV1<'a> {
     prior_recovery_state: &'static str,
     outcome: &'static str,
     repository_blocked_after: bool,
+    continuation_status: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    continuation_code: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    continuation_diagnostic: Option<&'static str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     next_command: Option<String>,
 }
@@ -192,36 +203,43 @@ fn render_recovery(repository: &Path, result: &RepositoryRecoveryResult, json: b
         )
     });
     let outcome = outcome_token(result.outcome);
-    let next_command = if let Some(operation_id) = &result.next_operation_id {
-        Some(format!(
-            "vela recover --repo {} {} --json",
-            super::shell_arg(repository_path),
-            operation_id.as_str()
-        ))
-    } else if matches!(
-        result.outcome,
-        RecoveryOutcome::Completed | RecoveryOutcome::AlreadyCompleted
-    ) {
-        match super::completed_native_genesis_init_command(repository, &result.operation_id) {
-            Ok(Some(command)) => Some(command),
-            Ok(None) => Some(format!(
-                "git -C {} status --short",
-                super::shell_arg(repository_path)
-            )),
-            Err(error) => ui::fail_coded(
-                ErrorKind::Domain,
-                Some("repository_incomplete"),
-                &format!(
-                    "recovery completed the exact filesystem transaction, but its native-genesis continuation could not be verified: {error}"
+    let (continuation_status, continuation_code, continuation_diagnostic, next_command) =
+        if let Some(operation_id) = &result.next_operation_id {
+            (
+                CONTINUATION_NOT_APPLICABLE,
+                None,
+                None,
+                Some(format!(
+                    "vela recover --repo {} {} --json",
+                    super::shell_arg(repository_path),
+                    operation_id.as_str()
+                )),
+            )
+        } else if matches!(
+            result.outcome,
+            RecoveryOutcome::Completed | RecoveryOutcome::AlreadyCompleted
+        ) {
+            match super::completed_native_genesis_init_command(repository, &result.operation_id) {
+                Ok(Some(command)) => (CONTINUATION_EXACT_INIT_AVAILABLE, None, None, Some(command)),
+                Ok(None) => (
+                    CONTINUATION_NOT_APPLICABLE,
+                    None,
+                    None,
+                    Some(format!(
+                        "git -C {} status --short",
+                        super::shell_arg(repository_path)
+                    )),
                 ),
-                Some(
-                    "preserve the Completed journal and exact repository bytes; repair the native-genesis proof before rerunning the exact `vela init`; recovery never publishes Git or installs trust",
+                Err(_) => (
+                    CONTINUATION_BLOCKED,
+                    Some(CONTINUATION_BLOCKED_CODE),
+                    Some(CONTINUATION_BLOCKED_DIAGNOSTIC),
+                    None,
                 ),
-            ),
-        }
-    } else {
-        None
-    };
+            }
+        } else {
+            (CONTINUATION_NOT_APPLICABLE, None, None, None)
+        };
     let payload = RecoverResultV1 {
         schema: "vela.recover-result.v1",
         ok: true,
@@ -232,6 +250,9 @@ fn render_recovery(repository: &Path, result: &RepositoryRecoveryResult, json: b
         prior_recovery_state: result.prior_state.as_str(),
         outcome,
         repository_blocked_after: result.next_operation_id.is_some(),
+        continuation_status,
+        continuation_code,
+        continuation_diagnostic,
         next_command,
     };
     if json {
@@ -264,6 +285,17 @@ fn render_recovery(repository: &Path, result: &RepositoryRecoveryResult, json: b
             "no"
         }
     );
+    println!(
+        "  {:<24} {}",
+        crate::style::dim("continuation"),
+        continuation_status
+    );
+    if let (Some(code), Some(diagnostic)) =
+        (payload.continuation_code, payload.continuation_diagnostic)
+    {
+        println!("  {:<24} {}", crate::style::dim("warning code"), code);
+        println!("  {:<24} {}", crate::style::dim("warning"), diagnostic);
+    }
     println!(
         "  {:<24} not attempted",
         crate::style::dim("Git publication")

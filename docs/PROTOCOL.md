@@ -507,9 +507,11 @@ status as the next inspection. For an exact verified native genesis whose
 deterministic Git/trust tail can be continued or confirmed idempotently, it
 instead names the exact `vela init --key ... --reason ...` continuation.
 This is only a next action: recovery itself remains policy-free and performs no
-Git publication or trust installation. A genesis-shaped repository with a
-missing, ambiguous, or mismatched Completed proof fails closed rather than
-receiving a generic publication hint.
+Git publication or trust installation. If a native-genesis continuation proof
+is unavailable after filesystem recovery succeeds, the recovery outcome remains
+successful, the advisory continuation status is `blocked`, and no executable
+publication hint is returned. That advisory does not set the durable repository
+barrier.
 
 ## 6. Source-local next obligations
 

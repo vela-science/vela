@@ -239,6 +239,9 @@ fn successful_recovery(output: &Output, operation_id: &OperationId, outcome: &st
     assert_eq!(payload["command"], "recover");
     assert_eq!(payload["operation_id"], operation_id.as_str());
     assert_eq!(payload["outcome"], outcome);
+    assert_eq!(payload["continuation_status"], "not_applicable");
+    assert!(payload.get("continuation_code").is_none());
+    assert!(payload.get("continuation_diagnostic").is_none());
     let mut keys = payload
         .as_object()
         .expect("recover result object")
@@ -248,6 +251,7 @@ fn successful_recovery(output: &Output, operation_id: &OperationId, outcome: &st
     keys.sort_unstable();
     let mut expected = vec![
         "command",
+        "continuation_status",
         "ok",
         "operation_id",
         "outcome",
@@ -862,6 +866,8 @@ fn every_install_crash_position_recovers_exactly_without_git_publication() {
             assert!(human.contains("completed"));
             assert!(human.contains("Git publication"));
             assert!(human.contains("not attempted"));
+            assert!(human.contains("continuation"));
+            assert!(human.contains("not_applicable"));
             assert!(human.contains("next"));
             assert!(human.contains("git -C"));
             assert!(human.contains("status --short"));

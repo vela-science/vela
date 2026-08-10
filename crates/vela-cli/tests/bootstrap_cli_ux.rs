@@ -992,35 +992,47 @@ fn completed_genesis_rejects_missing_ambiguous_and_aliased_state_before_git_or_p
     assert_eq!(directory_snapshot(&repository.join(".git")), git_before);
     assert!(!anchor.exists());
 
-    let journals_before_recover_error =
+    let journals_before_blocked_advisory =
         directory_snapshot(&repository.join(".vela/operation-journals"));
-    let recover_with_invalid_continuation = run(
+    let recover_with_blocked_continuation = run(
         temporary.path(),
         None,
         &["recover", "--repo", &repository_text, &operation, "--json"],
     );
-    assert_eq!(recover_with_invalid_continuation.status.code(), Some(1));
-    let recovery_error = json(&recover_with_invalid_continuation);
-    assert_eq!(recovery_error["schema"], "vela.error.v1");
-    assert_eq!(recovery_error["error"]["kind"], "domain");
-    assert_eq!(recovery_error["error"]["code"], "repository_incomplete");
-    assert!(
-        recovery_error["error"]["message"]
-            .as_str()
-            .is_some_and(|message| message.contains("native-genesis continuation"))
+    assert!(recover_with_blocked_continuation.status.success());
+    let blocked_advisory = json(&recover_with_blocked_continuation);
+    assert_eq!(blocked_advisory["schema"], "vela.recover-result.v1");
+    assert_eq!(blocked_advisory["ok"], true);
+    assert_eq!(blocked_advisory["outcome"], "already_completed");
+    assert_eq!(blocked_advisory["prior_recovery_state"], "completed");
+    assert_eq!(blocked_advisory["repository_blocked_after"], false);
+    assert_eq!(blocked_advisory["continuation_status"], "blocked");
+    assert_eq!(
+        blocked_advisory["continuation_code"],
+        "native_genesis_continuation_unverified"
     );
-    assert!(
-        recovery_error["error"]["hint"]
-            .as_str()
-            .is_some_and(|hint| hint.contains("Completed journal") && hint.contains("vela init"))
+    assert_eq!(
+        blocked_advisory["continuation_diagnostic"],
+        "filesystem recovery succeeded, but the exact native-genesis init continuation could not be verified; preserve the Completed journal and repository bytes before repair"
     );
+    assert!(blocked_advisory.get("next_command").is_none());
     assert_eq!(directory_snapshot(&repository.join(".git")), git_before);
     assert_eq!(
         directory_snapshot(&repository.join(".vela/operation-journals")),
-        journals_before_recover_error,
-        "renderer proof failure must not mutate the Completed journal inventory"
+        journals_before_blocked_advisory,
+        "blocked continuation advice must not mutate the Completed journal inventory"
     );
     assert!(!anchor.exists());
+    let blocked_retry = run(
+        temporary.path(),
+        None,
+        &["recover", "--repo", &repository_text, &operation, "--json"],
+    );
+    assert!(blocked_retry.status.success());
+    assert_eq!(
+        blocked_retry.stdout, recover_with_blocked_continuation.stdout,
+        "a terminal blocked advisory must be byte-stable on retry"
+    );
     std::fs::write(&readme, readme_bytes).unwrap();
 
     let resumed = run(temporary.path(), None, &args);
@@ -1131,6 +1143,17 @@ fn installed_native_genesis_requires_explicit_recovery_then_policy_free_init_tai
             .is_some_and(|hint| hint.contains(&operation) && hint.contains("vela recover"))
     );
 
+    // Recovery has a complete filesystem transaction to finalize, but the
+    // native-genesis continuation is only advisory. A scaffold defect must
+    // not turn that successful recovery into a command failure.
+    let readme = repository.join("README.md");
+    let readme_bytes = std::fs::read(&readme).unwrap();
+    std::fs::write(&readme, b"drifted after Installed recovery state\n").unwrap();
+    let git_before_recovery = directory_snapshot(&repository.join(".git"));
+    let authority_before_recovery = directory_snapshot(&repository.join(".vela/authority"));
+    let anchor = expected_anchor_path(&repository);
+    assert!(!anchor.exists());
+
     let recovered = run(
         temporary.path(),
         None,
@@ -1144,7 +1167,81 @@ fn installed_native_genesis_requires_explicit_recovery_then_policy_free_init_tai
     );
     let recovered = json(&recovered);
     assert_eq!(recovered["outcome"], "completed");
-    let next = recovered["next_command"]
+    assert_eq!(recovered["prior_recovery_state"], "installed");
+    assert_eq!(recovered["repository_blocked_after"], false);
+    assert_eq!(recovered["continuation_status"], "blocked");
+    assert_eq!(
+        recovered["continuation_code"],
+        "native_genesis_continuation_unverified"
+    );
+    assert!(recovered.get("next_command").is_none());
+    assert_eq!(
+        directory_snapshot(&repository.join(".git")),
+        git_before_recovery
+    );
+    assert_eq!(
+        directory_snapshot(&repository.join(".vela/authority")),
+        authority_before_recovery
+    );
+    assert!(!anchor.exists());
+    let journals_after_recovery = directory_snapshot(&repository.join(".vela/operation-journals"));
+
+    let repeated = run(
+        temporary.path(),
+        None,
+        &["recover", "--repo", &repository_text, &operation, "--json"],
+    );
+    assert!(repeated.status.success());
+    let repeated = json(&repeated);
+    assert_eq!(repeated["outcome"], "already_completed");
+    assert_eq!(repeated["prior_recovery_state"], "completed");
+    assert_eq!(repeated["repository_blocked_after"], false);
+    assert_eq!(repeated["continuation_status"], "blocked");
+    assert!(repeated.get("next_command").is_none());
+    assert_eq!(
+        directory_snapshot(&repository.join(".vela/operation-journals")),
+        journals_after_recovery
+    );
+    assert_eq!(
+        directory_snapshot(&repository.join(".git")),
+        git_before_recovery
+    );
+    assert!(!anchor.exists());
+
+    let blocked_human = run(
+        temporary.path(),
+        None,
+        &["recover", "--repo", &repository_text, &operation],
+    );
+    assert!(blocked_human.status.success());
+    let blocked_human = String::from_utf8(blocked_human.stdout).unwrap();
+    assert!(blocked_human.contains("continuation"));
+    assert!(blocked_human.contains("blocked"));
+    assert!(blocked_human.contains("native_genesis_continuation_unverified"));
+    assert!(blocked_human.contains("filesystem recovery succeeded"));
+    assert_eq!(
+        directory_snapshot(&repository.join(".git")),
+        git_before_recovery
+    );
+    assert_eq!(
+        directory_snapshot(&repository.join(".vela/operation-journals")),
+        journals_after_recovery
+    );
+    assert!(!anchor.exists());
+
+    std::fs::write(&readme, readme_bytes).unwrap();
+    let available = run(
+        temporary.path(),
+        None,
+        &["recover", "--repo", &repository_text, &operation, "--json"],
+    );
+    assert!(available.status.success());
+    let available = json(&available);
+    assert_eq!(available["outcome"], "already_completed");
+    assert_eq!(available["continuation_status"], "exact_init_available");
+    assert!(available.get("continuation_code").is_none());
+    assert!(available.get("continuation_diagnostic").is_none());
+    let next = available["next_command"]
         .as_str()
         .expect("exact init continuation");
     assert!(next.contains("vela init"));
@@ -1152,7 +1249,6 @@ fn installed_native_genesis_requires_explicit_recovery_then_policy_free_init_tai
     assert!(next.contains(reason));
     assert!(git_text(&repository, &["for-each-ref", "--format=%(refname)"]).is_empty());
     let authority_after_recovery = directory_snapshot(&repository.join(".vela/authority"));
-    let journals_after_recovery = directory_snapshot(&repository.join(".vela/operation-journals"));
 
     let recovered_human = run(
         temporary.path(),

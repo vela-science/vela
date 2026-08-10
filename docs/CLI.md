@@ -458,11 +458,16 @@ policy, Decision, or serialized permission.
 
 The command reports `vela.recover-result.v1` in JSON mode: repository path and
 identity, operation ID, prior recovery state, closed outcome,
-`repository_blocked_after`, and `next_command` only when one exact action is
-available. It stops after that one recovery outcome: it does not run a new
-scientific operation or create, move, or publish a Git ref. Completed and
-Aborted journals can be named again without changing semantic state. A routine
-completed result names `git -C <PATH> status --short` as the next inspection.
+`repository_blocked_after`, a closed `continuation_status` of
+`not_applicable`, `exact_init_available`, or `blocked`, and `next_command` only
+when one exact action is available. A blocked advisory additionally carries the
+fixed code `native_genesis_continuation_unverified` and a bounded diagnostic;
+it does not turn successful filesystem recovery into an error or set the
+durable repository barrier. The command stops after that one recovery outcome:
+it does not run a new scientific operation or create, move, or publish a Git
+ref. Completed and Aborted journals can be named again without changing
+semantic state. A routine completed result names
+`git -C <PATH> status --short` as the next inspection.
 When the exact Completed operation is a fully verified native genesis whose
 deterministic Git/trust tail can be continued or confirmed idempotently, the
 result instead names the executable continuation, including the retained key
@@ -473,9 +478,10 @@ vela init <PATH> --key <FINGERPRINT> --reason <EXACT_REASON> --json
 ```
 
 That later `init` invocation verifies and publishes the deterministic genesis
-tail; recovery itself never does. A native-genesis-shaped repository whose
-Completed proof is missing, ambiguous, or inconsistent fails closed rather
-than falling back to the routine Git-status hint. Read-only commands such as
+tail; recovery itself never does. If advisory proof of that continuation is
+unavailable after recovery succeeds, the result reports `blocked`, omits
+`next_command`, and preserves the Completed transaction for repair rather than
+falling back to the routine Git-status hint. Read-only commands such as
 `status`, `show`, `why`, `log`, `replay`, and `reproduce` remain read-only even
 while recovery is required.
 

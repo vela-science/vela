@@ -228,7 +228,10 @@ nor publishes Git state. A routine completion names Git status as the next
 inspection. If the exact operation is a verified native genesis, it instead
 names the retained `vela init --key ... --reason ...` continuation; that later
 command verifies and creates or idempotently confirms only the deterministic
-Git/trust tail without a signer or another authority transaction.
+Git/trust tail without a signer or another authority transaction. If that
+advisory proof is unavailable after recovery succeeds, the result stays
+successful, reports a closed `blocked` continuation status, and offers no
+executable continuation until the retained proof is repaired.
 
 Source-owning repositories and read products may expose exact next obligations
 under their own rooted contracts. They are replaceable orientation surfaces,
