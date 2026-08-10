@@ -20,7 +20,7 @@ EXAMPLES
     --type theoretical --replayability exact --artifact diff.json:source-diff \
     --caveat \"exact source revision only\" --supersedes vcl_0123… \
     --target-root sha256:0123…
-                                               request one exact supersession; no synthetic work target is required
+                                               request one exact supersession; no separate planning object is required
   vela submit submission.json                  retain and commit locally
   git push                                     publish with ordinary Git
 
@@ -28,7 +28,7 @@ Submission retains authenticated producer input as a pending Proposal. It
 does not create a Verification Record, Decision, Event, or accepted-state
 change. --corrects and --supersedes bind one full accepted Claim ID and root;
 they never decide the Proposal and may describe an observed correction without
-inventing a ranked work target. --check records only producer-reported checks.
+inventing a work-planning object. --check records only producer-reported checks.
 
 SEE ALSO
   vela review show     inspect one exact deferred Proposal";

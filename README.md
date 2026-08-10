@@ -39,27 +39,39 @@ and a source-owning Repository or read product may use the resulting state to
 expose an exact next obligation or an explicit blocker. Compounding is a
 measured outcome, not an automatic property of acceptance.
 
-Research navigation wraps that exact loop without adding authority:
+The public navigation loop wraps that exact operator loop without adding
+authority:
 
 ```text
-map -> target -> work -> submit -> verify -> decide -> remap
+MAP -> ADVANCE -> REMAP
 ```
 
-`target` here is source-local navigation language, not a Vela protocol object
-or CLI verb. Vela core owns no Target catalogue.
+**Map** reads Problems, Claims, Standing, dependencies, Corrections, and open
+Obligations from exact roots. **Advance** means doing native human or machine
+work that may produce a bounded proposed change. **Remap** replays the new
+Standing and derives what remains current, affected, blocked, or open. Vela
+core owns no work catalogue or planner.
 
 The product hierarchy is deliberate:
 
 ```text
-protocol     integrity layer
-map          user-facing product
-movement     measurable outcome
+protocol                     integrity layer
+map                          user-facing product
+verified frontier movement   measurable outcome
 ```
 
 The protocol is useful when it makes a Frontier legible — the derived boundary
 of what is still unresolved — and helps the next valid scientific action
 improve after a result, correction, or useful failure. Record count, graph size, workflow completion, and model activity are
 not product success.
+
+The Vela Protocol is the narrow integrity layer: Claim records, authenticated
+Submissions, scoped Verification Records, Proposals, authorized Decisions,
+Events, exact roots, replay, and Standing. The wider Vela ecosystem includes
+native workbenches, source-owning Repositories, verifiers, and rebuildable read
+products. A Dossier is one such root-bound, reviewer-ready projection; it
+assembles evidence and limitations but is not a protocol object and cannot
+make a Decision.
 
 Its long-range direction is a federated inheritance layer for science:
 different workbenches can produce evidence, different verifiers can report

@@ -126,8 +126,8 @@ copy retains.
 
 ### Stale or malicious work projection
 
-Vela core owns no Target catalogue or `next`/`start` command pair. A
-source-owning Repository or read product may expose exact next obligations,
+Vela core owns no work catalogue or planner and no `next`/`start` command pair.
+A source-owning Repository or read product may expose exact next obligations,
 packets, and ranking under its own rooted freshness contract. That owner must
 detect stale or substituted source inputs; `vela replay` does not validate the
 projection.

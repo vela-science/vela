@@ -18,8 +18,8 @@ projection under its owning contract.
 
 ## Orient bounded work
 
-Vela core owns no Target catalogue and publishes no `next`/`start` command
-pair. Work selection and packet briefing stay in the source Repository, read
+Vela core owns no work catalogue or planner and publishes no `next`/`start`
+command pair. Work selection and packet briefing stay in the source Repository, read
 product, or native workbench. Run the bounded work in the native agent,
 workbench, proof assistant, notebook, or laboratory system.
 Retain exact repository-relative Artifacts. A failed or negative result is

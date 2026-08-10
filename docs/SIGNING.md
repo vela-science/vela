@@ -124,7 +124,7 @@ key binding.
 A native workbench may retain its own run or attempt identity as provenance.
 A source-owning Repository or read product may expose an exact next obligation
 and rooted work packet, but Vela core creates no signed or local protocol object
-for work orientation and owns no Target catalogue. Producer identity cannot
+for work orientation and owns no work catalogue or planner. Producer identity cannot
 authorize review, acceptance, policy administration, recovery, membership, or
 repository-key changes.
 

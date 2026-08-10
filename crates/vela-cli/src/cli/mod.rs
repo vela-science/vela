@@ -5,7 +5,7 @@ use clap::Parser;
 
 #[derive(Parser)]
 #[command(name = "vela", version)]
-#[command(about = "Portable scientific state")]
+#[command(about = "Version control for scientific state")]
 struct Cli {
     /// Suppress hint/advice lines (VELA_ADVICE=0 does the same).
     #[arg(long, global = true)]

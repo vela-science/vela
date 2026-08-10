@@ -92,9 +92,9 @@ Advanced setup:
   `vela init`, not `authority`.
 
 Source-owning repositories and read products may expose exact next obligations
-and rooted work packets under their own contracts. Vela core owns no Target
-catalogue and publishes no `next`/`start` command pair. Those orientation
-surfaces are not Vela replay state and cannot change Standing.
+and rooted work packets under their own contracts. Vela core owns no work
+catalogue or planner and publishes no `next`/`start` command pair. Those
+orientation surfaces are not Vela replay state and cannot change Standing.
 
 `vela help advanced` is the executable source for this grouping.
 
@@ -220,7 +220,7 @@ vela submit --repo . \
   --json
 ```
 
-An observed correction or supersession does not need a synthetic work target.
+An observed correction or supersession does not need a separate planning object.
 New Claims are signed and submitted directly. Submission creates a pending
 Proposal and cannot decide it.
 
@@ -279,11 +279,12 @@ vela review show . <vpr_id> --json
 objects. Each entry binds the Proposal, Claim, Submission, Verification set,
 policy, authority heads, hypothetical accept/reject repository roots, limits,
 blockers, and one deterministic entry root. It writes nothing and cannot
-accept or reject. It classifies exact-target Verification Records as
-requirement-satisfying, complementary, or blocking using the same predicate as
-the protocol gate. Complementary evidence stays visible and root-bound but
-does not silently satisfy the registered requirement. `review list` remains
-the compact record queue; `review show` remains the complete source packet.
+accept or reject. It classifies Verification Records whose exact subjects match
+the Proposal as requirement-satisfying, complementary, or blocking using the
+same predicate as the protocol gate. Complementary evidence stays visible and
+root-bound but does not silently satisfy the registered requirement. The
+compact record queue remains `review list`; `review show` remains the complete
+source packet.
 Entries whose protocol checks are satisfied appear before blocked cleanup;
 each group remains oldest-first. `status` reports `protocol_ready_count` and
 `protocol_blocked_count`; neither field is a scientific recommendation.
@@ -344,10 +345,10 @@ it does not move the answer; the projection is over the transition and the two
 Claim roots, and none of those change when a Decision is recorded.
 
 The projection reads the two relation kinds that carry consequence. `depends`
-is a hard dependency — correcting its target puts the source under a repair
-obligation. `supports` is a support route — a source that loses every route it
-had is under a repair obligation too, and one that loses some but not all is
-reported as `route_changed`. Every other relation kind is retained description
+is a hard dependency — correcting the Claim it points to puts the source under
+a repair obligation. `supports` is a support route — a source that loses every
+route it had is under a repair obligation too, and one that loses some but not
+all is reported as `route_changed`. Every other relation kind is retained description
 that moves no Standing, and the verb reports each one it excluded by kind and
 count rather than dropping it silently.
 

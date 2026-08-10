@@ -43,8 +43,8 @@ vela submit \
   --json
 ```
 
-Vela core owns no Target catalogue or `next`/`start` command pair. Source-local
-orientation remains non-authoritative. `submit` authenticates and retains the
+Vela core owns no work catalogue or planner and no `next`/`start` command pair.
+Source-local orientation remains non-authoritative. `submit` authenticates and retains the
 resulting Submission and creates a pending Proposal. It does not create
 Verification, a Decision, an Event, or accepted scientific state.
 

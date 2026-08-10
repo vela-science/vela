@@ -35,26 +35,26 @@ The exact operator loop is:
 init -> submit -> verify -> decide -> replay
 ```
 
-The research-navigation story around it is:
+The public navigation loop around it is:
 
 ```text
-map -> target -> work -> submit -> verify -> decide -> remap
+MAP -> ADVANCE -> REMAP
 ```
 
-Here `target` is source-local or read-product navigation language. Vela core
-owns neither a Target catalogue nor a command that selects or briefs one.
-
-The three-word compression is `MAP -> ADVANCE -> REMAP`. Work remains native;
-Submission is the portable evidence boundary; Verification reports a scoped
-check; Decision is the only authority boundary; and remapping derives the
-current territory and next valid work from the new exact root.
+**Map** reads Problems, Claims, Standing, dependencies, Corrections, and open
+Obligations from exact roots. **Advance** is native human or machine work that
+may produce a bounded proposed change. **Remap** replays the resulting Standing
+and derives the current territory, correction consequences, blockers, and next
+valid work from the new exact root. Work remains native; Submission is the
+portable evidence boundary; Verification reports a scoped check; and Decision
+is the only authority boundary.
 
 A Repository is **action-complete only within declared bounds** when its
 source-owning adapter or read product turns every represented unresolved item
 into either an exact next obligation with a completion contract or an explicit
-blocker. Such a surface may call that obligation a Target. This is a product
-and evaluation property, not a protocol object. A map, obligation generator,
-ranking, or learning policy remains read-only and cannot change Standing.
+blocker. This is a product and evaluation property, not a protocol object. A
+map, obligation generator, ranking, or learning policy remains read-only and
+cannot change Standing.
 
 A Repository is one ordinary Git repository for a bounded scientific scope, and
 it is the only authority boundary. A Frontier is a derived query over the
@@ -119,6 +119,58 @@ Discovery plane
 Vela owns the scientific-state boundary. Workbenches own activity. Packages
 make language and capability reusable but confer no Standing. Discovery
 surfaces are root-bound, rebuildable readers.
+
+## Protocol and ecosystem
+
+The **Vela Protocol** is the narrow scientific-state waist: canonical Claims,
+authenticated Submissions, scoped Verification Records, Proposals, authorized
+Decisions, Events, exact roots, replay, correction, and derived Standing. The
+**Vela ecosystem** is wider. It includes sovereign workbenches, source-owning
+Repositories, verifiers, package ecosystems, the CLI, and read products. An
+ecosystem component does not enter the Protocol merely because Vela ships or
+links to it.
+
+First-party products are ordinary components with the same boundaries as
+third-party ones. The Observatory is a rebuildable Atlas; a Dossier is a
+root-bound reviewer-ready projection; source registries and generated graphs
+are disposable readers; and any first-party workbench owns activity only.
+Deleting or replacing one changes no canonical object, Decision, or Standing.
+The CLI is the one operator product over the Protocol, not a second authority.
+
+## Three graphs
+
+The ecosystem has three related conceptual graph views, not one universal
+knowledge graph. They are ownership separations, not canonical Vela objects,
+wire fields, required stores, or a mandate to materialize three databases.
+
+| Graph | Contents | Owner and authority effect |
+| --- | --- | --- |
+| Working graph | Problem, gap, hypothesis, experiment, result, candidate Claim | A native workbench or laboratory; mutable activity with no Standing effect |
+| Standing graph | Claim, Evidence, Verification, Decision, Standing, dependency, Correction, Reassessment | Deterministic readers over Repository state; derived, rebuildable, root-bound, and authority-aware |
+| Metascience graph | Program design, review process, resources, intervention, and measured outcomes | An evaluation system; evidence for institutional judgment, never scientific Standing |
+
+The crossings are controlled. A working graph may export a signed bounded
+Submission. A root-bound Problem or Obligation view may orient native work. A
+metascience result may inform a separate institutional process. Workbench
+success, a favorable metric, or funding never becomes scientific Standing
+without the ordinary Verification and Decision boundary.
+
+## Four clocks
+
+The layers also run on four conceptually distinct clocks. These are ordering
+and governance boundaries, not protocol timestamps, wire fields, service-level
+agreements, or prescribed schedules:
+
+| Clock | Ordering responsibility |
+| --- | --- |
+| Research iteration | Native branches, experiments, and hypotheses may change fastest |
+| Verification and Decision | Scoped checks and deliberate review follow bounded producer activity |
+| Correction and inheritance | Dependency reassessment follows an admitted change while historical Standing remains inspectable |
+| Institutional learning | Programs and governance change only through their own measured evidence and review |
+
+The architecture does not force all layers onto the research clock. Activity
+may be continuous; scientific authority remains deliberate; institutional
+rules change under their own evidence and review.
 
 External activity recorders may preserve session context, prompts, traces,
 checkpoints, or workbench history. They remain non-authoritative

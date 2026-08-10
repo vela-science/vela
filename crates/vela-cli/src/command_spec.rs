@@ -232,8 +232,6 @@ pub(crate) enum Commands {
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },
-    /// THE offer: ranked open targets with the compounding payload
-    /// pre-loaded (premises, banked routes, attempts, dead channels).
     /// Retain one authenticated Submission and create a pending Proposal.
     /// This producer action cannot create Verification, a Decision, an Event,
     /// or accepted scientific state.

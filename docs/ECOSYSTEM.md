@@ -571,7 +571,8 @@ broke. This document does not resolve it.
 | Vela term | What it is |
 | --- | --- |
 | Repository | a Git repository under a named authority |
-| Target | an issue |
+| Problem | a bounded issue or milestone |
+| Obligation | an explicit open requirement |
 | Submission | a signed patch |
 | Proposal | a pull request |
 | Verification Record | a check run |

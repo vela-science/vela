@@ -49,8 +49,8 @@ init -> submit -> verify -> decide -> replay
 
 - A Vela agent runner, scheduler, graph authority, automatic Decision path,
   hosted package registry, or reviewer-recruitment program.
-- A Vela-owned Target catalogue or `next`/`start` command pair. Source-owning
-  repositories and read products may expose exact next obligations.
+- A Vela-owned work catalogue or planner, or a `next`/`start` command pair.
+  Source-owning repositories and read products may expose exact next obligations.
 - A Vela mathematics library, competing theorem library, universal ontology, or
   separate canonical `problems.science` database. One repository per authority
   is not this: see ADR 0039 §11.

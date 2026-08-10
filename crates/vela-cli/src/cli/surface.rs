@@ -46,7 +46,7 @@ pub(crate) fn advanced_help_text() -> String {
     format!(
         r#"Vela {}
 Version control for scientific state.
-Agents submit evidence. Verifiers establish scoped results. Authorized
+Agents submit evidence. Verifiers report scoped checks. Authorized
 Decisions change Standing. Git preserves and publishes bytes.
 
 Usage:

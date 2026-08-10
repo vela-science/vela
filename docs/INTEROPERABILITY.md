@@ -76,8 +76,8 @@ An adapter:
 
 Any external runner or workbench may be a producer. It may consume a
 source-local work packet and emit ordinary Submissions or Verification
-Records. Vela does not own or wrap the runner, publish a Target catalogue, or
-standardize the packet briefing command. Frozen Canopus `0.8.0` remains
+Records. Vela does not own or wrap the runner, publish a work catalogue or
+planner, or standardize the packet briefing command. Frozen Canopus `0.8.0` remains
 historical replay evidence, not a current product or interoperability
 requirement.
 
