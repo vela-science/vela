@@ -358,49 +358,6 @@ impl Witness {
 
 /// Verify a witness against its exact verifier, plus the optional
 /// `claimed_size` cross-check.
-/// Machine-checked novelty: does `new` strictly dominate `prior` for
-/// kinds with a natural order? Conservative: kinds without an obvious
-/// dominance order return Err (the caller reports "not comparable") —
-/// never a silent pass. This is the anti-AI-novelty-judge: dominance is
-/// arithmetic, not opinion.
-pub fn dominates(new: &Witness, prior: &Witness) -> Result<bool, String> {
-    use Witness::*;
-    match (new, prior) {
-        (
-            Sidon {
-                n: n1, points: p1, ..
-            },
-            Sidon {
-                n: n2, points: p2, ..
-            },
-        ) => {
-            if n1 != n2 {
-                return Err(format!("different n ({n1} vs {n2}); not comparable"));
-            }
-            Ok(p1.len() > p2.len())
-        }
-        (BalancedColoring { n: n1, r: r1, .. }, BalancedColoring { n: n2, r: r2, .. }) => {
-            if r1 != r2 {
-                return Err(format!("different r ({r1} vs {r2}); not comparable"));
-            }
-            Ok(n1 > n2)
-        }
-        (IntervalProduct { p: p1, cuts: c1 }, IntervalProduct { p: p2, cuts: c2 }) => {
-            if p1 == p2 {
-                Ok(c1.len() > c2.len())
-            } else {
-                // a longer chain at ANY prime is a new k-record
-                Ok(c1.len() > c2.len())
-            }
-        }
-        _ => Err(format!(
-            "no dominance order defined between {} and {}",
-            new.kind(),
-            prior.kind()
-        )),
-    }
-}
-
 pub fn verify_witness(witness: &Witness) -> VerifyResult {
     match witness {
         Witness::Sidon {
@@ -3125,22 +3082,6 @@ mod balanced_coloring_tests {
         ec.insert("0,1".to_string(), 2);
         let r = verify_balanced_coloring(5, 2, &ec);
         assert!(!r.ok);
-    }
-
-    #[test]
-    fn dominates_orders_by_n_at_same_r() {
-        let w5 = Witness::BalancedColoring {
-            n: 5,
-            r: 2,
-            edge_colors: pentagon_k5(),
-        };
-        let w4 = Witness::BalancedColoring {
-            n: 4,
-            r: 2,
-            edge_colors: BTreeMap::new(),
-        };
-        assert_eq!(dominates(&w5, &w4), Ok(true));
-        assert_eq!(dominates(&w4, &w5), Ok(false));
     }
 }
 

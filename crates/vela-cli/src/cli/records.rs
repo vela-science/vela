@@ -24,17 +24,6 @@ impl ReproductionWitness {
             }
         }
     }
-
-    pub(crate) fn dominates(&self, prior: &Self) -> Result<bool, String> {
-        match (self, prior) {
-            (Self::Vela(current), Self::Vela(prior)) => vela_verify::dominates(current, prior),
-            _ => Err(format!(
-                "no dominance order defined between {} and {}",
-                self.kind(),
-                prior.kind()
-            )),
-        }
-    }
 }
 
 /// Parse one already-bounded current bare witness representation.
@@ -45,6 +34,9 @@ pub(crate) fn parse_witness(raw: &[u8]) -> Result<ReproductionWitness, String> {
 }
 
 fn parse_witness_value(value: serde_json::Value) -> Result<ReproductionWitness, String> {
+    if value.get("improves_on").is_some() {
+        return Err("not a recognized current witness".into());
+    }
     if let Ok(witness) = serde_json::from_value::<vela_verify::Witness>(value.clone()) {
         return Ok(ReproductionWitness::Vela(witness));
     }
@@ -145,5 +137,20 @@ mod tests {
     fn witness_parser_rejects_duplicate_properties() {
         let duplicate = br#"{"schema":"one","schema":"two"}"#;
         assert!(parse_witness(duplicate).unwrap_err().contains("duplicate"));
+    }
+
+    #[test]
+    fn semantic_extra_is_closed_while_archive_metadata_stays_inert() {
+        let mut quantum: serde_json::Value = serde_json::from_str(QUANTUM_WITNESS).unwrap();
+        quantum["improves_on"] = serde_json::Value::Null;
+        assert_eq!(
+            parse_witness(&serde_json::to_vec(&quantum).unwrap()).unwrap_err(),
+            "not a recognized current witness"
+        );
+
+        let witness =
+            parse_witness(br#"{"kind":"sidon","n":1,"points":[[0]],"claim":"archive metadata"}"#)
+                .unwrap();
+        assert!(witness.verify().ok);
     }
 }

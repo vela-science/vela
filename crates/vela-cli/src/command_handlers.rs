@@ -544,43 +544,7 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
                 continue;
             }
         };
-        let mut outcome = witness.verify();
-        // Machine-checked novelty: a witness may declare `improves_on`
-        // (a sibling witness path relative to its own directory). The
-        // claim then verifies ONLY if it also strictly dominates the
-        // referenced witness — dominance is arithmetic, not opinion.
-        if outcome.ok
-            && let Ok(value) = vela_protocol::canonical::parse_json_value_strict(&raw)
-            && let Some(prior_rel) = value.get("improves_on").and_then(Value::as_str)
-        {
-            let prior_path = file
-                .parent()
-                .map(|d| d.join(prior_rel))
-                .unwrap_or_else(|| std::path::PathBuf::from(prior_rel));
-            match crate::bounded_file::read_bounded_file(
-                &prior_path,
-                WITNESS_MAX_BYTES,
-                "improves_on witness",
-            )
-            .map_err(|e| e.to_string())
-            .and_then(|p| parse_witness(&p))
-            .and_then(|prior| witness.dominates(&prior))
-            {
-                Ok(true) => {
-                    outcome.message =
-                        format!("{} · strictly improves on {prior_rel}", outcome.message);
-                }
-                Ok(false) => {
-                    outcome = vela_verify::VerifyResult::fail(format!(
-                        "claims improves_on {prior_rel} but does NOT strictly dominate it"
-                    ));
-                }
-                Err(e) => {
-                    outcome =
-                        vela_verify::VerifyResult::fail(format!("improves_on check failed: {e}"));
-                }
-            }
-        }
+        let outcome = witness.verify();
         if outcome.ok {
             passed += 1;
         } else {
