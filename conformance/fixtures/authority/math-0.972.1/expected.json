@@ -1,0 +1,65 @@
+{
+  "schema": "vela.authority-chain-expectation.v1",
+  "fixture_id": "math-0.972.1",
+  "repository_id": "8115c538-7688-40b7-ab75-3c4765bf3c19",
+  "trust_anchor_root": "sha256:738cebec28a246cf437522361f59ebcec340bd552ddcbfa5f8f0f99c5324b590",
+  "initial_event_log_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "initial_actor_registry_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "authority_keyset_root": "sha256:cb06d8d9c2bcb88e0bcdfa908659f06cd6419d07f335ff1c956c1da64942f111",
+  "authorization_model_root": "sha256:b9cdcd8061ea0693769b20288590dbb672984f5ff81ea7a7631a4d20eafe3cfe",
+  "records": [
+    {
+      "sequence": 1,
+      "path": "authority/records/var_eeb904de922de3f4.dsse.json",
+      "record_id": "var_eeb904de922de3f4",
+      "record_root": "sha256:4ac100cd870f51c14f72d2d5226a1ca3eca8058aed7d896848214f61f3d5d59b",
+      "action": "authority_initialize",
+      "event_ids": ["vev_8bc2ab6301663407"],
+      "write_set_root": "sha256:63531bba4193ade4ab1965c59edb04f29c0f1d3dfb048c56d0d1a09520eb3ee4"
+    },
+    {
+      "sequence": 2,
+      "path": "authority/records/var_7730c004926050d2.dsse.json",
+      "record_id": "var_7730c004926050d2",
+      "record_root": "sha256:e7144ec37064d6e8f37651a207d1a3ef852181aec5cf8e35293199c6ba64c704",
+      "action": "review_reject",
+      "event_ids": ["vev_e045ff0592e193fa"],
+      "write_set_root": "sha256:6f9226104e713322356099c601514fcffd4a4f64707968aca471da85395ec145"
+    },
+    {
+      "sequence": 3,
+      "path": "authority/records/var_3b1390bd9881c965.dsse.json",
+      "record_id": "var_3b1390bd9881c965",
+      "record_root": "sha256:661446365adef697280bb0ec94739bfa060518906ad257779c865f0c1e4969b0",
+      "action": "review_reject",
+      "event_ids": ["vev_7b333d5b16a70cdd"],
+      "write_set_root": "sha256:f3db5ab399f86ec44153caf16c450d1eff98e5ace2d0fc93530a2f170729ad3a"
+    },
+    {
+      "sequence": 4,
+      "path": "authority/records/var_948ca88ec08032cf.dsse.json",
+      "record_id": "var_948ca88ec08032cf",
+      "record_root": "sha256:7be6410303841a1d8ea372d970b00546798226a2c8e0cd7c55c9a678451d0dba",
+      "action": "review_accept",
+      "event_ids": ["vev_fa0607b365786fe7", "vev_fb652e14f2a9323f"],
+      "write_set_root": "sha256:3ba72bfa8680533f42791ab2cad57dfa80f109e168eda735e54d3531a3393174"
+    }
+  ],
+  "final_authority_record_root": "sha256:7be6410303841a1d8ea372d970b00546798226a2c8e0cd7c55c9a678451d0dba",
+  "final_event_log_root": "sha256:a77cbdc52a400d7903dda21b6084bc36cd4e8240ed509a14dc6fe316970c8917",
+  "terminal": {
+    "repository_manifest_root": "sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc",
+    "accepted_claim_id": "vcl_3d4fd59554ccaa2b792b08abae16a8d0fe329d4901ad798fe05c6c7769c9966b",
+    "accepted_claim_root": "sha256:d5d77e7d96e390e0bf692d0abd44367eb06a0c6a61534e1c6654962d6c644776",
+    "applied_semantic_event_id": "vev_cd5f3e7839be404d",
+    "counts": {
+      "accepted_claims": 1,
+      "pending_claims": 0,
+      "proposals": 3,
+      "withdrawals": 0,
+      "submissions": 3,
+      "verifications": 7,
+      "artifacts": 3
+    }
+  }
+}

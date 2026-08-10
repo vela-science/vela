@@ -1,6 +1,6 @@
 # ADR 0041: A language-independent conformance vector for the authority contract
 
-- Status: Proposed
+- Status: Accepted
 - Protocol effect: none. A vector describes existing bytes and adds no object,
   field or vocabulary
 - Product effect: none on the binary; `conformance/verify.py` gains a check
@@ -12,9 +12,10 @@
 
 ## Context
 
-The interop profile names seven contracts and pairs each with the check that
-decides whether an implementation satisfies it. Contract 4, Authority, has no
-check, and the profile says so in its own words:
+When this ADR was proposed, the interop profile named seven contracts and
+paired each with the check that decided whether an implementation satisfied
+it. Contract 4, Authority, had no check, and the profile said so in its own
+words:
 
 > **This contract has no language-independent conformance vector, and that is a
 > gap rather than an omission.** `crates/vela-cli/tests/review_acceptance.rs`
@@ -24,15 +25,18 @@ check, and the profile says so in its own words:
 > implementation claiming to verify authority is currently taking its own word
 > for it.
 
-This is confirmed at the code level, not only in prose. `conformance/verify.py`
-runs `verify_canonical_hashing.py`, `verify_current_objects.py`,
+At proposal time this was confirmed at the code level, not only in prose.
+`conformance/verify.py` ran `verify_canonical_hashing.py`, `verify_current_objects.py`,
 `verify_wire_schemas.py`, `verify_correction_impact.py`, an inline exact-witness
-floor, and the ecosystem check. Nothing exercises an authority chain.
+floor, and the ecosystem check. Nothing then exercised an authority chain.
 
 `conformance/fixtures/epoch1/authorization-profile-parity.json` looks like it
-might. It does not: its own README records that its test was removed with the
-epoch-1 reader, and nothing in `crates/`, `conformance/`, `scripts/` or
-`.github/` reads it. `AGENTS.md` records the evaluator half of the same gap.
+might. At the time this ADR was drafted, its README recorded that its test had
+been removed with the epoch-1 reader. It is now read by
+`crates/vela-authority/tests/authorization_profile_parity.rs`, which translates
+the retired identifiers, recomputes the seven retained evaluator decisions,
+and checks seven negative boundaries. That is evaluator compatibility in Rust,
+not a language-independent signed-chain vector.
 
 The asymmetry matters more here than anywhere else in the profile. Producing and
 verifying are unprivileged; deciding is not. Contract 4 is the one that says only
@@ -90,8 +94,8 @@ history.
 
 ## Decision
 
-Not taken here. Three options, and the third exists because of the question
-above.
+The original options analysis follows. The accepted choice and its exact
+implementation boundary are recorded after Option C.
 
 ### Option A — a fixture authority seed, matching contracts 1 and 3
 
@@ -134,6 +138,40 @@ Ship the verification vectors, and record that the signing half is deliberately
 absent until some implementation other than this one needs to write an authority
 record. If that never happens, the gap was never real.
 
+## Implementation decision — 2026-08-10
+
+Accept Option B: a verification-only vector over the retained public Math
+0.972.1 chain. The fixture copies four signed authority records, five Events,
+the generation-one keyset and authorization model, origin, and five exact
+repository-manifest snapshots from commit
+`9bdabbcc1f77d0dd60458e3e9d91d2ffa01fd476`, tree
+`3c99d1b9c969a8559605a664bdd7280e9729169f`. It contains no signing seed,
+private key, writer, new Decision, or Standing mutation.
+
+`trust-anchor.json` is an explicit verifier input separate from the copied
+Repository bytes. The clean-room Python reader does not call Vela, Rust, Git,
+or the network. It independently checks canonical bytes and roots, DSSE PAE and
+Ed25519 signatures, the authority sequence, keyset and authorization-model
+evaluation, Event and object-delta links, the authorization request read pin,
+the recomputed write-set commitment, and the bounded terminal state. The
+execution read-set preimage remains unavailable. Thirteen stable negative
+vectors mutate temporary in-memory copies only; no corrupted record is
+retained.
+
+The source commit has no `LICENSE`, `COPYING`, or `NOTICE`, so fixture rights
+remain `NOASSERTION` and this decision makes no redistribution-right claim.
+This decision accepts the value of verification evidence despite that unresolved
+rights classification. This is narrower than the original live-chain
+rejection: there is no private key, tests never alter the retained source bytes,
+and the fixture makes no claim that its anchor distribution is authoritative.
+
+Two implementation limits remain explicit. Current CLI read and replay paths do
+not load the local authority trust pin, so this vector proves verification from
+an externally supplied anchor, not current read-side pin enforcement. The
+production history verifier also does not enforce every positive cross-link the
+fixture readers assert. Those additional links are conformance evidence, not a
+claim about the production kernel.
+
 ## Evidence that would settle it
 
 - **Does any prospective consumer need to produce authority records, or only to
@@ -160,11 +198,10 @@ why this ADR could be written from the document itself, and that is the property
 worth preserving: a profile that claimed a check it did not have would be worse
 than the gap.
 
-If any option ships, `conformance/verify.py` gains the check and
-`conformance/fixtures/epoch1/authorization-profile-parity.json` should be
-addressed at the same time — it is a record nothing reads, sitting in a fixture
-directory, in the same subject area, and leaving it there beside a real vector
-invites it to be mistaken for one.
+`conformance/verify.py` runs the clean-room signed-chain check. The epoch-1
+authorization fixture remains separately useful and is read by the Rust
+authorization-profile parity test; it proves evaluator compatibility across
+retired vocabulary, not canonical-root or signed-chain parity.
 
 If none ships, that is a decision too, and it belongs in the profile beside the
 gap: the contract is verified by this implementation's Rust tests and no foreign
@@ -179,16 +216,21 @@ purpose is to be checkable by something that shares no code with the reference,
 and naming an in-tree test as the check would be the overstatement this document
 exists to avoid.
 
-**Revive `authorization-profile-parity.json` as the vector.** It pins the
-epoch-1 repositories' commits and is a record rather than a check; its own
-README says the test was removed with the epoch-1 reader. It also describes
-`frontier_id` and `resource_type: "frontier"`, which is the shape those
-repositories genuinely have and not the shape a current implementation must
-satisfy. Rewriting it to the current spelling would assert a shape the measured
-data does not have, which that README already refuses to do.
+**Use `authorization-profile-parity.json` as the signed-chain vector.** It pins
+the epoch-1 repositories' commits and is now exercised by a Rust evaluator
+parity test. It still describes `frontier_id` and `resource_type: "frontier"`,
+which is the shape those repositories genuinely have and not the shape a
+current implementation must satisfy. Rewriting it to current spelling would
+assert a shape the measured data does not have. It therefore remains evaluator
+compatibility evidence, not the current signed-chain vector.
 
 **Generate the vector from the live `vela-science/math` authority.** Its chain
 is real signed history and its trust root is pinned by real consumers. A
 conformance fixture must be freely redistributable and safe to tamper with in
 tests, and the negative cases require deliberately corrupted records — which is
 exactly what must never exist alongside a live authority's real ones.
+
+The accepted implementation revises this historical rejection only within the
+verification-only boundary above: provenance rights stay `NOASSERTION`, the
+fixture makes no redistribution-right claim, and every negative mutation is
+ephemeral. No corrupted retained record or authority secret is added.

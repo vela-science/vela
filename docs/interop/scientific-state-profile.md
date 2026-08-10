@@ -26,7 +26,7 @@ complete. Answering it as a table of contract → schema → check does not.
 | 1 | Producer | `vela.submission.v2` in a DSSE envelope | PROTOCOL.md §3.3 | `conformance/current-objects/submission-draft.json`, `verify_current_objects.py` |
 | 2 | Artifact | Content address only — `sha256:<64 hex>` under `records/artifacts/sha256/` | PROTOCOL.md §3.6, ROOTS.md | `verify_canonical_hashing.py` |
 | 3 | Verification | `vela.verification-record.v2` in a DSSE envelope | PROTOCOL.md §3.4 | `conformance/current-objects/verification-draft.json`, `verify_current_objects.py` |
-| 4 | Authority | `vela.authority-record.v1`, `vela.authorization-model.v1` | THREAT_MODEL.md, SIGNING.md | `crates/vela-cli/tests/review_acceptance.rs` — **no language-independent vector** |
+| 4 | Authority | `vela.authority-record.v1`, `vela.authorization-model.v1` | THREAT_MODEL.md, SIGNING.md | `conformance/fixtures/authority/math-0.972.1/`, `verify_authority_chain.py` |
 | 5 | Correction | `vela.correction-impact-input.v1` → `vela.correction-impact-projection.v1` | ADR 0004, CLI.md § Corrections | `conformance/fixtures/correction/`, `verify_correction_impact.py` |
 | 6 | Projection | Root-bound derived rows | INTEROPERABILITY.md § Public read contracts | `conformance/readers/python/repository_root.py` |
 | 7 | Canonical bytes | RFC 8785 JCS, SHA-256 | ROOTS.md | `verify_canonical_hashing.py`, `conformance/emitters/` |
@@ -101,21 +101,27 @@ Producing and verifying are unprivileged; deciding is not. That asymmetry is
 the point of the boundary, and a profile that let a producer sign its own
 acceptance would be describing a different system.
 
-**This contract has no language-independent conformance vector, and that is a
-gap rather than an omission.** `crates/vela-cli/tests/review_acceptance.rs`
-executes a real authorized acceptance over a contiguous record chain, but it is
-Rust and it exercises this implementation. Contracts 1, 3 and 7 each have
-fixtures a foreign implementation can be held to; this one does not, so an
-implementation claiming to verify authority is currently taking its own word
-for it.
+`conformance/fixtures/authority/math-0.972.1/` is the language-independent
+verification vector. Its clean-room Python reader takes the sequence-one root
+as a separate explicit input and, without Vela, Rust, Git, or network access,
+verifies the retained four-record chain, five Events, keyset, authorization
+model, signed deltas, and bounded terminal state. Thirteen stable negative
+vectors exercise the proved layers without retaining corrupted history. The
+companion Rust test checks the same fixture through the public history verifier.
 
-`conformance/fixtures/epoch1/authorization-profile-parity.json` is now read —
-`crates/vela-authority/tests/authorization_profile_parity.rs` recomputes every
-retained epoch-1 decision under the closed profile and checks seven negative
-boundary cases. That closes the gap this paragraph used to name in its last
-sentence, but not the one it names in its first: the corpus is a fixture a
-foreign implementation *could* be held to, and the test that reads it is still
-Rust. ADR 0041 is where the language-independent vector belongs.
+This closes the independent-vector gap, not every authority implementation
+gap. Current CLI read and replay paths do not consult the local trust pin; the
+vector demonstrates verification from an externally supplied anchor rather
+than claiming read-side enforcement. The vector readers also assert some
+positive request, Event, delta, and terminal-state cross-links that the
+production history verifier does not itself enforce.
+
+`conformance/fixtures/epoch1/authorization-profile-parity.json` remains a
+different contract. `crates/vela-authority/tests/authorization_profile_parity.rs`
+translates its retired identifiers, recomputes all seven retained evaluator
+decisions, and checks seven negative boundaries. That is Rust evaluator
+compatibility across the vocabulary migration, not current canonical-root or
+signed-chain parity.
 
 ### 5. Correction
 
