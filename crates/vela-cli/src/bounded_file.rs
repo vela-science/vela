@@ -5,8 +5,11 @@
 //! symlink swap cannot substitute different bytes after validation on the
 //! supported Linux and macOS targets.
 
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 use std::io::Read;
-use std::path::{Component, Path};
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+use std::path::Component;
+use std::path::Path;
 
 pub(crate) const PUBLIC_ARTIFACT_MAX_BYTES: u64 = 8 * 1024 * 1024;
 pub(crate) const PUBLIC_ARTIFACT_TOTAL_MAX_BYTES: u64 = 64 * 1024 * 1024;
@@ -59,6 +62,72 @@ impl std::fmt::Display for BoundedFileError {
     }
 }
 
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct BoundedFileIdentity {
+    device: u64,
+    inode: u64,
+}
+
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+impl BoundedFileIdentity {
+    fn from_metadata(metadata: &std::fs::Metadata) -> Self {
+        use std::os::unix::fs::MetadataExt;
+
+        Self {
+            device: metadata.dev(),
+            inode: metadata.ino(),
+        }
+    }
+}
+
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+fn open_bounded_descriptor(path: &Path) -> std::io::Result<std::fs::File> {
+    use rustix::fs::{Mode, OFlags};
+
+    rustix::fs::open(
+        path,
+        OFlags::RDONLY | OFlags::CLOEXEC | OFlags::NOFOLLOW | OFlags::NONBLOCK,
+        Mode::empty(),
+    )
+    .map(std::fs::File::from)
+    .map_err(|error| std::io::Error::from_raw_os_error(error.raw_os_error()))
+}
+
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+fn path_changed_while_opening(error: &std::io::Error) -> bool {
+    let code = error.raw_os_error();
+    [
+        rustix::io::Errno::LOOP,
+        rustix::io::Errno::NOENT,
+        rustix::io::Errno::NOTDIR,
+    ]
+    .into_iter()
+    .any(|errno| code == Some(errno.raw_os_error()))
+}
+
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+fn open_inspected_file(path: &Path, label: &str) -> Result<std::fs::File, BoundedFileError> {
+    #[cfg(test)]
+    run_before_bounded_open_hook(path);
+    open_bounded_descriptor(path).map_err(|error| {
+        if path_changed_while_opening(&error) {
+            BoundedFileError::new(
+                "path_changed",
+                format!("{label} path changed before open: {}", path.display()),
+                false,
+            )
+        } else {
+            BoundedFileError::new(
+                "open_failed",
+                format!("open {label} {}: {error}", path.display()),
+                false,
+            )
+        }
+    })
+}
+
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn read_open_file(
     file: impl Read,
     path: &Path,
@@ -92,6 +161,7 @@ fn read_open_file(
 /// symlink or different inode while Vela is reading it. Unlike
 /// [`read_bounded_repository_file`], this accepts a path outside the repository so
 /// portable Submission and Verification files can be retained directly.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 pub(crate) fn read_bounded_file(
     path: &Path,
     max_bytes: u64,
@@ -133,20 +203,8 @@ pub(crate) fn read_bounded_file(
         ));
     }
 
-    let inspected_identity = same_file::Handle::from_path(path).map_err(|error| {
-        BoundedFileError::new(
-            "inspect_failed",
-            format!("identify {label} {}: {error}", path.display()),
-            false,
-        )
-    })?;
-    let file = std::fs::File::open(path).map_err(|error| {
-        BoundedFileError::new(
-            "open_failed",
-            format!("open {label} {}: {error}", path.display()),
-            false,
-        )
-    })?;
+    let inspected_identity = BoundedFileIdentity::from_metadata(&metadata);
+    let file = open_inspected_file(path, label)?;
     let opened = file.metadata().map_err(|error| {
         BoundedFileError::new(
             "inspect_open_failed",
@@ -161,20 +219,7 @@ pub(crate) fn read_bounded_file(
             true,
         ));
     }
-    let opened_identity = same_file::Handle::from_file(file.try_clone().map_err(|error| {
-        BoundedFileError::new(
-            "inspect_open_failed",
-            format!("clone open {label} {}: {error}", path.display()),
-            true,
-        )
-    })?)
-    .map_err(|error| {
-        BoundedFileError::new(
-            "inspect_open_failed",
-            format!("identify open {label} {}: {error}", path.display()),
-            true,
-        )
-    })?;
+    let opened_identity = BoundedFileIdentity::from_metadata(&opened);
     verify_handle_identity(&inspected_identity, &opened_identity, path, label, true)?;
     if opened.len() > max_bytes {
         return Err(BoundedFileError::new(
@@ -193,6 +238,23 @@ pub(crate) fn read_bounded_file(
     Ok(bytes)
 }
 
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+pub(crate) fn read_bounded_file(
+    path: &Path,
+    _max_bytes: u64,
+    label: &str,
+) -> Result<Vec<u8>, BoundedFileError> {
+    Err(BoundedFileError::new(
+        "inspect_failed",
+        format!(
+            "inspect {label} {}: descriptor-hardened bounded-file reads are unavailable on this platform",
+            path.display()
+        ),
+        false,
+    ))
+}
+
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 pub(crate) fn read_bounded_repository_file(
     repository_path: &Path,
     relative: &Path,
@@ -271,13 +333,7 @@ pub(crate) fn read_bounded_repository_file(
                     false,
                 ));
             }
-            inspected_identity = Some(same_file::Handle::from_path(&current).map_err(|error| {
-                BoundedFileError::new(
-                    "inspect_failed",
-                    format!("identify {label} {}: {error}", current.display()),
-                    false,
-                )
-            })?);
+            inspected_identity = Some(BoundedFileIdentity::from_metadata(&metadata));
         } else if !metadata.is_dir() {
             return Err(BoundedFileError::new(
                 "ancestor_not_directory",
@@ -290,13 +346,7 @@ pub(crate) fn read_bounded_repository_file(
         }
     }
 
-    let file = std::fs::File::open(&current).map_err(|error| {
-        BoundedFileError::new(
-            "open_failed",
-            format!("open {label} {}: {error}", current.display()),
-            false,
-        )
-    })?;
+    let file = open_inspected_file(&current, label)?;
     let opened = file.metadata().map_err(|error| {
         BoundedFileError::new(
             "inspect_open_failed",
@@ -321,20 +371,7 @@ pub(crate) fn read_bounded_repository_file(
             true,
         )
     })?;
-    let opened_identity = same_file::Handle::from_file(file.try_clone().map_err(|error| {
-        BoundedFileError::new(
-            "inspect_open_failed",
-            format!("clone open {label} {}: {error}", current.display()),
-            true,
-        )
-    })?)
-    .map_err(|error| {
-        BoundedFileError::new(
-            "inspect_open_failed",
-            format!("identify open {label} {}: {error}", current.display()),
-            true,
-        )
-    })?;
+    let opened_identity = BoundedFileIdentity::from_metadata(&opened);
     verify_handle_identity(&inspected_identity, &opened_identity, &current, label, true)?;
     if opened.len() > max_bytes {
         return Err(BoundedFileError::new(
@@ -353,10 +390,28 @@ pub(crate) fn read_bounded_repository_file(
     Ok(bytes)
 }
 
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+pub(crate) fn read_bounded_repository_file(
+    _repository_path: &Path,
+    relative: &Path,
+    _max_bytes: u64,
+    label: &str,
+) -> Result<Vec<u8>, BoundedFileError> {
+    Err(BoundedFileError::new(
+        "inspect_failed",
+        format!(
+            "inspect {label} {}: descriptor-hardened bounded-file reads are unavailable on this platform",
+            relative.display()
+        ),
+        false,
+    ))
+}
+
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn verify_open_path_identity(
     root: &Path,
     current: &Path,
-    opened: &same_file::Handle,
+    opened: &BoundedFileIdentity,
     label: &str,
     descriptor_opened: bool,
 ) -> Result<(), BoundedFileError> {
@@ -381,9 +436,10 @@ fn verify_open_path_identity(
     Ok(())
 }
 
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn verify_named_path_identity(
     current: &Path,
-    opened: &same_file::Handle,
+    opened: &BoundedFileIdentity,
     label: &str,
     descriptor_opened: bool,
 ) -> Result<(), BoundedFileError> {
@@ -404,19 +460,14 @@ fn verify_named_path_identity(
             descriptor_opened,
         ));
     }
-    let named = same_file::Handle::from_path(current).map_err(|error| {
-        BoundedFileError::new(
-            "path_changed",
-            format!("reinspect named {label} {}: {error}", current.display()),
-            descriptor_opened,
-        )
-    })?;
+    let named = BoundedFileIdentity::from_metadata(&linked);
     verify_handle_identity(&named, opened, current, label, descriptor_opened)
 }
 
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn verify_handle_identity(
-    inspected: &same_file::Handle,
-    opened: &same_file::Handle,
+    inspected: &BoundedFileIdentity,
+    opened: &BoundedFileIdentity,
     current: &Path,
     label: &str,
     descriptor_opened: bool,
@@ -431,12 +482,41 @@ fn verify_handle_identity(
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, any(target_os = "linux", target_os = "macos")))]
+type BeforeBoundedOpenHook = Box<dyn FnOnce(&Path)>;
+
+#[cfg(all(test, any(target_os = "linux", target_os = "macos")))]
+thread_local! {
+    static BEFORE_BOUNDED_OPEN_HOOK: std::cell::RefCell<Option<BeforeBoundedOpenHook>> =
+        std::cell::RefCell::new(None);
+}
+
+#[cfg(all(test, any(target_os = "linux", target_os = "macos")))]
+fn set_before_bounded_open_hook(hook: impl FnOnce(&Path) + 'static) {
+    BEFORE_BOUNDED_OPEN_HOOK.with(|slot| *slot.borrow_mut() = Some(Box::new(hook)));
+}
+
+#[cfg(all(test, any(target_os = "linux", target_os = "macos")))]
+fn run_before_bounded_open_hook(path: &Path) {
+    BEFORE_BOUNDED_OPEN_HOOK.with(|slot| {
+        if let Some(hook) = slot.borrow_mut().take() {
+            hook(path);
+        }
+    });
+}
+
+#[cfg(all(test, any(target_os = "linux", target_os = "macos")))]
 mod tests {
     use super::*;
     use std::fs;
     use std::io::ErrorKind::{Interrupted, Other};
     use std::path::PathBuf;
+    use std::process::Command;
+    use std::time::{Duration, Instant};
+
+    const SWAP_CHILD: &str = "VELA_TEST_BOUNDED_FILE_SWAP_CHILD";
+    const SWAP_TEST: &str =
+        "bounded_file::tests::coordinated_path_swaps_fail_closed_without_blocking";
 
     struct OneError(Option<std::io::ErrorKind>);
 
@@ -446,6 +526,176 @@ mod tests {
                 return Err(kind.into());
             }
             Ok(0)
+        }
+    }
+
+    fn create_fifo(path: &Path) {
+        assert!(
+            Command::new("/usr/bin/mkfifo")
+                .arg(path)
+                .status()
+                .unwrap()
+                .success()
+        );
+    }
+
+    fn run_swap_child(case: &str) {
+        use std::os::unix::fs::symlink;
+
+        let temporary = tempfile::tempdir().unwrap();
+        let repository = temporary.path().join("repository");
+        let relative = Path::new("records/receipt.json");
+        let leaf = repository.join(relative);
+        fs::create_dir_all(leaf.parent().unwrap()).unwrap();
+        fs::write(&leaf, b"original").unwrap();
+        let sentinel = temporary.path().join("sentinel");
+        fs::write(&sentinel, b"sentinel").unwrap();
+        let repository_reader = case.starts_with("repository-");
+        let expected_path = if repository_reader {
+            repository.canonicalize().unwrap().join(relative)
+        } else {
+            leaf.clone()
+        };
+
+        match case {
+            "standalone-fifo" | "repository-fifo" => set_before_bounded_open_hook(|path| {
+                fs::remove_file(path).unwrap();
+                create_fifo(path);
+            }),
+            "standalone-symlink" | "repository-symlink" => {
+                let sentinel = sentinel.clone();
+                set_before_bounded_open_hook(move |path| {
+                    fs::remove_file(path).unwrap();
+                    symlink(&sentinel, path).unwrap();
+                });
+            }
+            "standalone-replacement" | "repository-replacement" => {
+                let replacement = temporary.path().join("replacement");
+                fs::write(&replacement, b"replacement").unwrap();
+                set_before_bounded_open_hook(move |path| fs::rename(&replacement, path).unwrap());
+            }
+            "standalone-missing" | "repository-missing" => {
+                set_before_bounded_open_hook(|path| fs::remove_file(path).unwrap());
+            }
+            "repository-notdir" => {
+                let records = repository.join("records");
+                let retained = repository.join("retained-records");
+                set_before_bounded_open_hook(move |_| {
+                    fs::rename(&records, &retained).unwrap();
+                    fs::write(&records, b"not a directory").unwrap();
+                });
+            }
+            "repository-escape" => {
+                let outside = temporary.path().join("outside");
+                fs::create_dir(&outside).unwrap();
+                fs::hard_link(&leaf, outside.join("receipt.json")).unwrap();
+                let records = repository.join("records");
+                let retained = repository.join("retained-records");
+                set_before_bounded_open_hook(move |_| {
+                    fs::rename(&records, &retained).unwrap();
+                    symlink(&outside, &records).unwrap();
+                });
+            }
+            _ => panic!("unknown bounded-file swap case: {case}"),
+        }
+
+        let error = if repository_reader {
+            read_bounded_repository_file(&repository, relative, 128, "receipt").unwrap_err()
+        } else {
+            read_bounded_file(&leaf, 128, "receipt").unwrap_err()
+        };
+        let expected = match case {
+            "standalone-fifo" | "repository-fifo" => (
+                "not_regular",
+                true,
+                format!(
+                    "receipt must be a regular file: {}",
+                    expected_path.display()
+                ),
+            ),
+            "standalone-symlink" | "repository-symlink" | "standalone-missing"
+            | "repository-missing" | "repository-notdir" => (
+                "path_changed",
+                false,
+                format!(
+                    "receipt path changed before open: {}",
+                    expected_path.display()
+                ),
+            ),
+            "standalone-replacement" | "repository-replacement" => (
+                "path_changed",
+                true,
+                format!(
+                    "receipt path changed while open: {}",
+                    expected_path.display()
+                ),
+            ),
+            "repository-escape" => (
+                "path_escape",
+                true,
+                format!(
+                    "receipt resolved outside the repository: {}",
+                    temporary
+                        .path()
+                        .join("outside/receipt.json")
+                        .canonicalize()
+                        .unwrap()
+                        .display()
+                ),
+            ),
+            _ => unreachable!(),
+        };
+        assert_eq!(
+            (error.code, error.opened, error.message),
+            (expected.0, expected.1, expected.2),
+            "case: {case}"
+        );
+        assert_eq!(fs::read(&sentinel).unwrap(), b"sentinel");
+    }
+
+    #[test]
+    fn coordinated_path_swaps_fail_closed_without_blocking() {
+        if let Ok(case) = std::env::var(SWAP_CHILD) {
+            run_swap_child(&case);
+            return;
+        }
+        for case in [
+            "standalone-fifo",
+            "repository-fifo",
+            "standalone-symlink",
+            "repository-symlink",
+            "standalone-replacement",
+            "repository-replacement",
+            "standalone-missing",
+            "repository-missing",
+            "repository-notdir",
+            "repository-escape",
+        ] {
+            let mut child = Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", SWAP_TEST, "--nocapture"])
+                .env(SWAP_CHILD, case)
+                .spawn()
+                .unwrap();
+            let deadline = Instant::now() + Duration::from_secs(5);
+            let status = loop {
+                match child.try_wait() {
+                    Ok(Some(status)) => break status,
+                    Ok(None) if Instant::now() < deadline => {
+                        std::thread::sleep(Duration::from_millis(10));
+                    }
+                    Ok(None) => {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        panic!("bounded-file swap case blocked past its deadline: {case}");
+                    }
+                    Err(error) => {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        panic!("poll bounded-file swap case {case}: {error}");
+                    }
+                }
+            };
+            assert!(status.success(), "bounded-file swap child failed: {case}");
         }
     }
 
@@ -556,8 +806,10 @@ mod tests {
         let substituted_path = directory.path().join("substituted.json");
         fs::write(&inspected_path, b"inspected").unwrap();
         fs::write(&substituted_path, b"substituted").unwrap();
-        let inspected = same_file::Handle::from_path(&inspected_path).unwrap();
-        let substituted = same_file::Handle::from_path(&substituted_path).unwrap();
+        let inspected =
+            BoundedFileIdentity::from_metadata(&fs::symlink_metadata(&inspected_path).unwrap());
+        let substituted =
+            BoundedFileIdentity::from_metadata(&fs::symlink_metadata(&substituted_path).unwrap());
 
         let error =
             verify_handle_identity(&inspected, &substituted, &inspected_path, "receipt", true)
