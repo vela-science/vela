@@ -9,7 +9,6 @@ pub mod execution_binding;
 pub mod proposal;
 pub mod proposal_withdrawal;
 pub mod repository;
-pub mod repository_inputs;
 pub mod repository_origin;
 pub mod signer_identity;
 pub mod submission;

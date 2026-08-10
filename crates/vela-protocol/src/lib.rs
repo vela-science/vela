@@ -22,13 +22,12 @@ pub mod wire_schema;
 
 mod kernel;
 pub use kernel::{
-    authentication, authority, authority_history, authorization, canonical, dsse, events,
-    principal, sign,
+    authentication, authority, authority_history, authorization, canonical, dsse, events, principal,
 };
 mod objects;
 pub use objects::{
-    claim_record, execution_binding, proposal, proposal_withdrawal, repository, repository_inputs,
-    repository_origin, signer_identity, submission, verification_record,
+    claim_record, execution_binding, proposal, proposal_withdrawal, repository, repository_origin,
+    signer_identity, submission, verification_record,
 };
 mod read_surface;
 pub use read_surface::{error, status};

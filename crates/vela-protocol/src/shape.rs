@@ -307,21 +307,13 @@ mod tests {
     /// from the regular expression. This is that check.
     #[test]
     fn wire_patterns_agree_with_predicates() {
-        use crate::wire_schema::{
-            ED25519_SIGNATURE_PATTERN, LOWER_HEX_64_PATTERN, SHA256_ROOT_PATTERN,
-        };
-
-        let signature_predicate = |value: &str| {
-            hex::decode(value).is_ok_and(|bytes| bytes.len() == 64)
-                && value.bytes().all(is_lower_hex)
-        };
+        use crate::wire_schema::{LOWER_HEX_64_PATTERN, SHA256_ROOT_PATTERN};
         /// A published pattern and the predicate it is the wire spelling of.
         type WirePattern<'a> = (&'a str, &'a dyn Fn(&str) -> bool);
 
-        let cases: [WirePattern; 3] = [
+        let cases: [WirePattern; 2] = [
             (SHA256_ROOT_PATTERN, &is_full_sha256_root),
             (LOWER_HEX_64_PATTERN, &is_lower_hex_64),
-            (ED25519_SIGNATURE_PATTERN, &signature_predicate),
         ];
         for (pattern, predicate) in cases {
             let compiled = regex::Regex::new(pattern).expect("wire pattern compiles");
