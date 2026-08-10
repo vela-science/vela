@@ -161,8 +161,9 @@ candidate consumed by two independent readers at pinned commits, with
 `"level_1_promotion": false` — 1,017 lines added and 0 deleted. Two gates
 failed, not one; the network-sandbox gate is independent of the consumers. Both
 of the named consumers are now frozen repositories, so the experiment cannot be
-re-run as designed. It should be closed as answered in the negative rather than
-carried as open backlog.
+re-run as designed. It is closed as answered in the negative rather than carried
+as open backlog, and the candidate package itself has left the tree — Git
+history retains it. The qualification record stays because it is the answer.
 
 `docs/ARCHITECTURE.md` now states the same closed decision: native package
 ecosystems own resolution and publication; the two-consumer and net-deletion

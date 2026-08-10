@@ -5,6 +5,13 @@ Lean replay package experiment. It is outside the logical package root and is
 not a package index, Registry, Vela object, Verification Record, or source of
 scientific authority.
 
+The package it qualified is no longer in the tree. The experiment failed its
+own net-deletion gate, both named consumers were archived read-only by ADR
+0039, and `docs/PORTABLE_WAIST_CAMPAIGN.md` recorded it as closed while the
+implementation went on being built and tested. Git history retains that
+implementation; what is kept here is the answer it produced, which is what
+`docs/ECOSYSTEM.md` cites.
+
 `qualification.json` records the package's current identity, both independent
 root readers agreeing on it, and the binding stop condition that keeps it at
 Level 0.
