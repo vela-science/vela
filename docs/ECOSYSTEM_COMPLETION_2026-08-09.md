@@ -24,7 +24,7 @@ requires a real consumer, exact evidence, and net deletion.
 | Corrected projection ownership | `vela-web` keys canonical projection data by Repository UUID, keeps `math` only as a route slug, and uses `@vela/observatory-data`. The reader has no scientific write authority. |
 | Science-translation experiment | The Erdős 321 Dossier carries exact Reference annotations, deterministic semantic facts, explicit loss, provenance, RO-Crate material, and five nonclaims. None is a new Vela protocol object. |
 | Provider-loss continuation | Signed Vela assets and Math state were restored from Codeberg, replayed without GitHub, rebuilt twice into fresh PostgreSQL clusters, compared by roots, and exported as a usable Dossier without Neon or Vercel. See [the qualification record](PROVIDER_LOSS_QUALIFICATION_2026-08-09.md). |
-| Live read surface | The production manifest binds Vela 0.972.1, Math commit `130fc283b99b8c55dea51b5f8f959a6c33a679f6`, Repository root `sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc`, and release root `sha256:eba70ba9604105bbc4fbdd229d806877d467a86e25bea4c071ee78066bc5ca78`. |
+| Live read surface | The production manifest binds Vela 0.972.1, Math commit `fdb23666e7b5385a62cc97c58086bc67bd4e7fa9`, Repository root `sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc`, and release root `sha256:53baf6a8e6e995e1241289c6542221fa3ee48c5d9e8fa334a66c481ea3916439`. The Repository root is the one this ledger was written with: the vocabulary cut moved the projection and the commit above it, and no scientific state. |
 
 The current implementation therefore satisfies the architecture memo's Phases
 0 through 3, delivers the concrete translation artifacts in Phase 4, and closes
