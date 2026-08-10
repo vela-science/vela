@@ -27,9 +27,11 @@ authority, never because there is a new topic.**
 
 **Repository.** `crates/vela-protocol/src/objects/repository.rs`
 (`RepositoryV4`), the authority history in `crates/vela-authority/`,
-replay in `crates/vela-verify/`. The rename landed in v0.967.0: `vfr_` and
-`frontier_id` are absent from current crate code. The type parses `vela.toml`,
-mints a standard UUIDv4 once at genesis, and answers `vela.status.v4`.
+protocol replay in `crates/vela-protocol/`. Frozen witness reproduction in
+`crates/vela-verify/` is package-plane compatibility, not repository authority
+or Standing. The rename landed in v0.967.0: `vfr_` and `frontier_id` are absent
+from current crate code. The type parses `vela.toml`, mints a standard UUIDv4
+once at genesis, and answers `vela.status.v4`.
 
 **Source.** Declared per repository in `sources.yaml` and locked in
 `sources.lock.json`; the shared lock tooling is
@@ -660,8 +662,11 @@ Packet, Frontier map, Attempt (ADR 0039 §5), and Registration Record (ADR
 ## 8. Layering, and what must never depend on what
 
 ```text
-  kernel        crates/vela-protocol, vela-authority, vela-verify
+  kernel        crates/vela-protocol, vela-authority
                   ↑ objects, roots, signatures, authority, replay, Standing
+  package       crates/vela-verify
+                  ↑ frozen witness reproduction compatibility; no authority
+                    or Standing
   operator      crates/vela-cli
                   ↑ 15 verbs: replay status claims log verification reproduce
                     correction recover authority init review show why submit

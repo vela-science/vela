@@ -1,12 +1,10 @@
-//! Frozen, independent exact verifiers for combinatorial and
-//! coding-theory witnesses.
+//! Frozen, dependency-light exact verifiers retained for compatibility with
+//! accepted and archived witness bytes.
 //!
 //! The discovery loop's proposers are **untrusted**: an agent returns an
-//! explicit construction (a set of points, a ruler, a generator matrix),
-//! and this crate re-checks it deterministically before any claim is
-//! recorded. A witness that does not pass here is discarded no matter
-//! what the proposer reported. Corrupting a witness must fail the
-//! verifier — that is the property the self-tests pin.
+//! explicit construction, and this crate re-checks it deterministically.
+//! Corrupting a witness must fail the verifier — that is the property the
+//! self-tests pin.
 //!
 //! This is the reference verifier registry `vela reproduce` builds on. The
 //! verifiers are intentionally dependency-light (serde only) and pure — no
@@ -24,13 +22,11 @@ pub struct VerifyResult {
     pub ok: bool,
     /// Human-readable detail (what was checked, or why it failed).
     pub message: String,
-    /// A recomputed numeric quantity for "value-to-beat" problems. Set by
-    /// `verify_linear_code` (the exact minimum weight, on both the passing
-    /// and the failing path) and by `verify_quantum_stabilizer_witness_v1`
-    /// (the exact logical distance, on success only). `None` for every other
-    /// verifier and for the early-return failures of those two, and omitted
-    /// from the serialized JSON when `None` — so a present `value` is not
-    /// itself a pass signal. Read `ok`.
+    /// A recomputed numeric quantity for "value-to-beat" problems. The retained
+    /// quantum verifier sets the exact logical distance on success. `None` for
+    /// every other verifier and for early-return failures, and omitted from the
+    /// serialized JSON when `None` — so a present `value` is not itself a pass
+    /// signal. Read `ok`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<f64>,
 }
@@ -84,43 +80,6 @@ pub enum Witness {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         claimed_size: Option<usize>,
     },
-    /// A Golomb ruler: integer marks with all pairwise differences
-    /// distinct.
-    Golomb { marks: Vec<i64> },
-    /// A cap set in `F_3^n`: no three distinct points collinear.
-    Cap {
-        n: usize,
-        points: Vec<Vec<i64>>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        claimed_size: Option<usize>,
-    },
-    /// A `B_h` set in `{0,1}^n`: all `h`-fold sums distinct (`h = 2` is
-    /// Sidon).
-    Bh {
-        n: usize,
-        h: usize,
-        points: Vec<Vec<i64>>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        claimed_size: Option<usize>,
-    },
-    /// A covering design `C(v, k, t)`: every `t`-subset of `[0, v)` lies
-    /// in at least one `k`-block.
-    Covering {
-        v: usize,
-        k: usize,
-        t: usize,
-        blocks: Vec<Vec<usize>>,
-    },
-    /// A constant-weight binary code `A(n, d, w)`: codewords of weight
-    /// exactly `w`, pairwise Hamming distance `>= d`.
-    ConstantWeight {
-        n: usize,
-        d: usize,
-        w: usize,
-        words: Vec<Vec<i64>>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        claimed_size: Option<usize>,
-    },
     /// A Costas array: a permutation whose displacement vectors are all
     /// distinct.
     Costas { perm: Vec<i64> },
@@ -153,13 +112,6 @@ pub enum Witness {
         perm: Vec<i64>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         claimed_directions: Option<usize>,
-    },
-    /// A linear `[n, k, d]_q` code given by a `k x n` generator matrix
-    /// over a prime field `GF(q)`.
-    LinearCode {
-        q: u64,
-        claimed_d: usize,
-        generator: Vec<Vec<i64>>,
     },
     /// An Erdős #1056 cut-equality certificate: a prime `p` and strictly
     /// increasing cuts `c_0 < ... < c_k` such that every consecutive
@@ -220,18 +172,6 @@ pub enum Witness {
     UnsatCert {
         cnf: Vec<Vec<i64>>,
         proof: Vec<LratStep>,
-    },
-    /// A difference triangle set (HorizonMath / coding theory): `rows` of
-    /// strictly increasing non-negative integers each starting at 0, such that
-    /// every positive within-row pairwise difference is GLOBALLY distinct (no
-    /// difference repeats anywhere in the set). A `(I, J)`-DTS has `I` rows of
-    /// `J + 1` marks; the objective is to MINIMIZE the scope (the largest mark).
-    /// `claimed_scope`, when present, must equal the recomputed scope, so a
-    /// record claim ("scope < 112") cannot ship a witness of a different scope.
-    DiffTriangle {
-        rows: Vec<Vec<i64>>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        claimed_scope: Option<usize>,
     },
     /// An Erdős #242 (Erdős–Straus, distinct variant) certificate: for every
     /// `n` in `[3, n_max]`, distinct integers `1 <= x < y < z` with
@@ -394,16 +334,10 @@ impl Witness {
     pub fn kind(&self) -> &'static str {
         match self {
             Witness::Sidon { .. } => "sidon",
-            Witness::Golomb { .. } => "golomb",
-            Witness::Cap { .. } => "cap",
-            Witness::Bh { .. } => "bh",
-            Witness::Covering { .. } => "covering",
-            Witness::ConstantWeight { .. } => "constant_weight",
             Witness::Costas { .. } => "costas",
             Witness::Gf2Sidon { .. } => "gf2_sidon",
             Witness::UnionFree { .. } => "union_free",
             Witness::RookDirections { .. } => "rook_directions",
-            Witness::LinearCode { .. } => "linear_code",
             Witness::IntervalProduct { .. } => "interval_product",
             Witness::BalancedColoring { .. } => "balanced_coloring",
             Witness::CrtPartialCover { .. } => "crt_partial_cover",
@@ -412,7 +346,6 @@ impl Witness {
             Witness::BinomDeficiency { .. } => "binom_deficiency",
             Witness::BinomExceptionEnum { .. } => "binom_exception_enum",
             Witness::UnsatCert { .. } => "unsat_cert",
-            Witness::DiffTriangle { .. } => "diff_triangle",
             Witness::UnitFractionDecomp { .. } => "unit_fraction_decomp",
             Witness::DistinctPartialSums { .. } => "distinct_partial_sums",
             Witness::PowerfulTriplesNone { .. } => "powerful_triples_none",
@@ -421,59 +354,6 @@ impl Witness {
             Witness::SemiprimeEgyptian { .. } => "semiprime_egyptian",
         }
     }
-}
-
-/// Verify a difference triangle set: `rows` of strictly increasing
-/// non-negative integers, each starting at 0, with every positive within-row
-/// pairwise difference GLOBALLY distinct (no difference repeats across the
-/// whole set). Reports the scope (the largest mark). `claimed_scope`, when
-/// present, must equal the recomputed scope.
-pub fn verify_diff_triangle(rows: &[Vec<i64>], claimed_scope: Option<usize>) -> VerifyResult {
-    if rows.is_empty() {
-        return VerifyResult::fail("empty difference triangle set");
-    }
-    let mut diffs: HashSet<i64> = HashSet::new();
-    let mut diff_count = 0usize;
-    let mut scope: i64 = 0;
-    for (r, row) in rows.iter().enumerate() {
-        if row.len() < 2 {
-            return VerifyResult::fail(format!("row {r} has fewer than 2 marks"));
-        }
-        if row[0] != 0 {
-            return VerifyResult::fail(format!("row {r} does not start at 0"));
-        }
-        // strictly increasing, non-negative
-        for w in row.windows(2) {
-            if w[1] <= w[0] {
-                return VerifyResult::fail(format!("row {r} is not strictly increasing"));
-            }
-        }
-        scope = scope.max(*row.last().unwrap());
-        // every within-row positive difference must be globally distinct
-        for i in 0..row.len() {
-            for j in (i + 1)..row.len() {
-                let d = row[j] - row[i];
-                if !diffs.insert(d) {
-                    return VerifyResult::fail(format!(
-                        "difference {d} repeats (row {r}) — not a difference triangle set"
-                    ));
-                }
-                diff_count += 1;
-            }
-        }
-    }
-    let scope_usize = scope as usize;
-    if let Some(c) = claimed_scope
-        && c != scope_usize
-    {
-        return VerifyResult::fail(format!(
-            "verifier passed but scope {scope_usize} != claimed_scope {c}"
-        ));
-    }
-    VerifyResult::ok(format!(
-        "difference triangle set: {} rows, scope {scope_usize}, all {diff_count} within-row differences globally distinct",
-        rows.len()
-    ))
 }
 
 /// Verify a witness against its exact verifier, plus the optional
@@ -499,7 +379,6 @@ pub fn dominates(new: &Witness, prior: &Witness) -> Result<bool, String> {
             }
             Ok(p1.len() > p2.len())
         }
-        (Golomb { marks: m1, .. }, Golomb { marks: m2, .. }) => Ok(m1.len() > m2.len()),
         (BalancedColoring { n: n1, r: r1, .. }, BalancedColoring { n: n2, r: r2, .. }) => {
             if r1 != r2 {
                 return Err(format!("different r ({r1} vs {r2}); not comparable"));
@@ -529,19 +408,6 @@ pub fn verify_witness(witness: &Witness) -> VerifyResult {
             points,
             claimed_size,
         } => with_size(verify_sidon(points, *n), points.len(), *claimed_size),
-        Witness::Golomb { marks } => verify_golomb(marks),
-        Witness::Cap {
-            n,
-            points,
-            claimed_size,
-        } => with_size(verify_cap(points, *n), points.len(), *claimed_size),
-        Witness::Bh {
-            n,
-            h,
-            points,
-            claimed_size,
-        } => with_size(verify_bh(points, *n, *h), points.len(), *claimed_size),
-        Witness::Covering { v, k, t, blocks } => verify_covering(blocks, *v, *k, *t),
         Witness::IntervalProduct { p, cuts } => verify_interval_product(*p, cuts),
         Witness::BalancedColoring { n, r, edge_colors } => {
             verify_balanced_coloring(*n, *r, edge_colors)
@@ -554,17 +420,6 @@ pub fn verify_witness(witness: &Witness) -> VerifyResult {
             verify_binom_exception_enum(*k_max, exceptions)
         }
         Witness::UnsatCert { cnf, proof } => verify_unsat_cert(cnf, proof),
-        Witness::ConstantWeight {
-            n,
-            d,
-            w,
-            words,
-            claimed_size,
-        } => with_size(
-            verify_constant_weight(words, *n, *d, *w),
-            words.len(),
-            *claimed_size,
-        ),
         Witness::Costas { perm } => verify_costas(perm),
         Witness::Gf2Sidon {
             elements,
@@ -580,15 +435,6 @@ pub fn verify_witness(witness: &Witness) -> VerifyResult {
             perm,
             claimed_directions,
         } => verify_rook_directions(*n, perm, *claimed_directions),
-        Witness::LinearCode {
-            q,
-            claimed_d,
-            generator,
-        } => verify_linear_code(generator, *q, *claimed_d),
-        Witness::DiffTriangle {
-            rows,
-            claimed_scope,
-        } => verify_diff_triangle(rows, *claimed_scope),
         Witness::UnitFractionDecomp { n_max, cases } => verify_unit_fraction_decomp(*n_max, cases),
         Witness::DistinctPartialSums { p, orderings } => {
             verify_distinct_partial_sums(*p, orderings)
@@ -1170,26 +1016,15 @@ pub struct ParsedClaim {
     /// The witness kind keyword found in the assertion (e.g. "sidon").
     pub kind: String,
     /// The ambient dimension / order `n`, reconciled from the OEIS order
-    /// `a(N)` and/or an ambient literal (`{0,1}^N` / `GF(2)^N` / `F_3^N`).
+    /// `a(N)` and/or an ambient literal (`{0,1}^N` / `GF(2)^N`).
     /// `None` only when the assertion states neither.
     pub ambient_n: Option<usize>,
     /// The claimed size / order bound `k`.
     pub bound: usize,
     /// `true` when the claim is an equality (`= k` / `exactly k`), `false`
-    /// for a lower bound (`>= k` / `at least k`). Only lower bounds and
-    /// matched equalities are admissible.
+    /// for a lower bound (`>= k` / `at least k`). Only lower bounds are
+    /// admissible; parsed equalities route to review.
     pub exact: bool,
-    /// The B_h order `h` (from `B_<h>` / `<h>-fold`), when stated. Bound to the
-    /// witness `h` for `bh` claims; required for B_h floor-admission.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub h: Option<usize>,
-    /// The constant-weight code distance `d` and weight `w` (from the
-    /// `A(n,d,w)` signature), when stated. Both bound to the witness for
-    /// `constant_weight` floor-admission.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub d: Option<usize>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub w: Option<usize>,
 }
 
 /// The frozen faithfulness verdict: does `witness` ESTABLISH the claim in
@@ -1269,45 +1104,6 @@ fn equality_bound(text: &str) -> Option<usize> {
     None
 }
 
-/// The B_h order `h` from the standard subscript form `b_<h>` and/or the
-/// `<h>-fold` form. Disagreeing signals -> `None` (fail closed via the
-/// mandatory bind). `b_h` with a literal `h` (no digit) yields `None`.
-fn bh_order(text: &str) -> Option<usize> {
-    let subscript = text.find("b_").and_then(|i| leading_usize(&text[i + 2..]));
-    let fold = text.find("-fold").and_then(|i| {
-        let pre: String = text[..i]
-            .chars()
-            .rev()
-            .take_while(|c| c.is_ascii_digit())
-            .collect();
-        pre.chars().rev().collect::<String>().parse().ok()
-    });
-    match (subscript, fold) {
-        (Some(a), Some(b)) if a != b => None,
-        (Some(a), _) => Some(a),
-        (None, Some(b)) => Some(b),
-        (None, None) => None,
-    }
-}
-
-/// The constant-weight `A(n, d, w)` triple from the first `a(...)` group that
-/// holds exactly three comma-separated integers. `None` when the signature is
-/// absent or malformed (so `(d, w)` go unbound and the claim routes to review).
-fn cw_params(text: &str) -> Option<(usize, usize, usize)> {
-    let i = text.find("a(")?;
-    let rest = &text[i + 2..];
-    let close = rest.find(')')?;
-    let parts: Vec<&str> = rest[..close].split(',').collect();
-    if parts.len() != 3 {
-        return None;
-    }
-    Some((
-        parts[0].trim().parse().ok()?,
-        parts[1].trim().parse().ok()?,
-        parts[2].trim().parse().ok()?,
-    ))
-}
-
 /// Parse a finding assertion into a [`ParsedClaim`]. Conservative and
 /// fail-closed: recognizes only the lower-bound forms the exact lane admits,
 /// and returns `None` on any ambiguity (no kind keyword, no parseable bound,
@@ -1321,14 +1117,6 @@ pub fn parse_claim(assertion_text: &str) -> Option<ParsedClaim> {
         "gf2_sidon"
     } else if text.contains("sidon") {
         "sidon"
-    } else if text.contains("golomb") {
-        "golomb"
-    } else if text.contains("cap set") || text.contains("cap-set") {
-        "cap"
-    } else if text.contains("b_h") || text.contains("bh set") || bh_order(&text).is_some() {
-        "bh"
-    } else if text.contains("constant weight") || text.contains("constant-weight") {
-        "constant_weight"
     } else if text.contains("union-free") || text.contains("union free") {
         "union_free"
     } else {
@@ -1336,12 +1124,12 @@ pub fn parse_claim(assertion_text: &str) -> Option<ParsedClaim> {
     };
 
     // Dimension / order. Two independent signals: the OEIS order `a(N)` and an
-    // ambient-space literal (`{0,1}^N`, `gf(2)^N`, `f_3^N`). Reading the `a(N)`
+    // ambient-space literal (`{0,1}^N`, `gf(2)^N`). Reading the `a(N)`
     // order (not only the literal) is what binds an OEIS "a(20)" claim to the
     // witness even when the prose omits a `{0,1}^20` literal. If BOTH signals
     // are present and DISAGREE the claim is ambiguous -> fail closed.
     let order = order_in_a_paren(&text);
-    let literal = ["{0,1}^", "gf(2)^", "f_3^"].iter().find_map(|m| {
+    let literal = ["{0,1}^", "gf(2)^"].iter().find_map(|m| {
         text.find(m)
             .and_then(|i| leading_usize(&text[i + m.len()..]))
     });
@@ -1366,21 +1154,11 @@ pub fn parse_claim(assertion_text: &str) -> Option<ParsedClaim> {
         _ => return None,
     };
 
-    // Extra hardness parameters, bound per-kind in claim_witness_faithful.
-    let h = bh_order(&text);
-    let (d, w) = match cw_params(&text) {
-        Some((_, d, w)) => (Some(d), Some(w)),
-        None => (None, None),
-    };
-
     Some(ParsedClaim {
         kind: kind.to_string(),
         ambient_n,
         bound,
         exact: is_exact,
-        h,
-        d,
-        w,
     })
 }
 
@@ -1488,17 +1266,8 @@ fn claim_witness_faithful_from_verification(
         }
     };
 
-    // The floor admits a kind only when EVERY witness-defining parameter that
-    // changes a record's hardness is parsed from the assertion and bound to the
-    // witness — not just the ambient dimension `n`. A third adversarial review
-    // showed binding `n` alone is insufficient: verify_witness checks a witness
-    // against its OWN author-set h/d/w, so an EASY witness (B_2, or A(n,2,1))
-    // could back a HARD headline (B_3, or A(n,10,8)). B_h now binds the order
-    // `h`, constant-weight binds `(d, w)`; both route to review when the
-    // parameter is unstated. Golomb (a min-length problem) still has no sound
-    // witness->lower-bound binding and routes to review.
     let size: usize = match witness {
-        Witness::Sidon { n, points, .. } | Witness::Cap { n, points, .. } => {
+        Witness::Sidon { n, points, .. } => {
             if let Some(r) = dim_n_witness(*n) {
                 reasons.push(r);
                 return Faithfulness {
@@ -1547,98 +1316,6 @@ fn claim_witness_faithful_from_verification(
                 };
             }
             elements.len()
-        }
-        Witness::Bh { n, h, points, .. } => {
-            // B_h binds the ambient n AND the order h (a B_3 set admits strictly
-            // fewer points than B_2). h is mandatory and must match the witness;
-            // an unstated or mismatched h routes to review.
-            if let Some(r) = dim_n_witness(*n) {
-                reasons.push(r);
-                return Faithfulness {
-                    faithful: false,
-                    reasons,
-                    parsed: Some(parsed),
-                };
-            }
-            match parsed.h {
-                Some(ch) if ch == *h => {}
-                Some(ch) => {
-                    reasons.push(format!(
-                        "claim B_{ch} does not match witness B_{h} (the order h binds the record)"
-                    ));
-                    return Faithfulness {
-                        faithful: false,
-                        reasons,
-                        parsed: Some(parsed),
-                    };
-                }
-                None => {
-                    reasons.push(
-                        "B_h claim does not state the order h (B_<h> / <h>-fold); routes to review"
-                            .to_string(),
-                    );
-                    return Faithfulness {
-                        faithful: false,
-                        reasons,
-                        parsed: Some(parsed),
-                    };
-                }
-            }
-            points.len()
-        }
-        Witness::ConstantWeight { n, d, w, words, .. } => {
-            // A constant-weight record A(n,d,w) binds the ambient n AND the
-            // minimum distance d and weight w; a trivial A(n,2,1) witness must
-            // not back a hard A(n,10,8) claim. Both d and w are mandatory (from
-            // the `A(n,d,w)` signature) and must match the witness.
-            if let Some(r) = dim_n_witness(*n) {
-                reasons.push(r);
-                return Faithfulness {
-                    faithful: false,
-                    reasons,
-                    parsed: Some(parsed),
-                };
-            }
-            match (parsed.d, parsed.w) {
-                (Some(cd), Some(cw)) if cd == *d && cw == *w => {}
-                (Some(cd), Some(cw)) => {
-                    reasons.push(format!(
-                        "claim A(n,{cd},{cw}) does not match witness A(n,{d},{w}) (d,w bind the record)"
-                    ));
-                    return Faithfulness {
-                        faithful: false,
-                        reasons,
-                        parsed: Some(parsed),
-                    };
-                }
-                _ => {
-                    reasons.push(
-                        "constant-weight claim does not state (d,w) as A(n,d,w); routes to review"
-                            .to_string(),
-                    );
-                    return Faithfulness {
-                        faithful: false,
-                        reasons,
-                        parsed: Some(parsed),
-                    };
-                }
-            }
-            words.len()
-        }
-        Witness::Golomb { .. } => {
-            // A Golomb claim is a MIN-length problem (a(n) <= length); a ruler
-            // witness does not establish a >= lower bound the same way, and no
-            // sound witness->claim binding is defined here. Route to review.
-            reasons.push(
-                "golomb claims are not floor-admissible (no sound witness->bound binding \
-                 defined); routes to review"
-                    .to_string(),
-            );
-            return Faithfulness {
-                faithful: false,
-                reasons,
-                parsed: Some(parsed),
-            };
         }
         // Any other variant is outside the size/order-bearing exact lane.
         _ => {
@@ -1896,8 +1573,6 @@ pub fn verify_rook_directions(n: usize, perm: &[i64], claimed: Option<usize>) ->
     ))
 }
 
-/// A Golomb ruler: integer marks with all `C(m,2)` pairwise differences
-/// distinct.
 /// Verify an Erdős #1056 cut-equality certificate: a prime `p` and
 /// strictly increasing cuts `c_0 < ... < c_k` such that every consecutive
 /// interval `(c_{i-1}, c_i]` has integer product `== 1 (mod p)`. Pure
@@ -2634,168 +2309,6 @@ pub fn verify_unsat_cert(cnf: &[Vec<i64>], proof: &[LratStep]) -> VerifyResult {
     ))
 }
 
-pub fn verify_golomb(marks: &[i64]) -> VerifyResult {
-    let set: HashSet<&i64> = marks.iter().collect();
-    if set.len() != marks.len() {
-        return VerifyResult::fail("duplicate marks");
-    }
-    let mut diffs: HashSet<i64> = HashSet::new();
-    let mut count = 0usize;
-    for i in 0..marks.len() {
-        for j in (i + 1)..marks.len() {
-            if !diffs.insert((marks[j] - marks[i]).abs()) {
-                return VerifyResult::fail("repeated pairwise difference (not a Golomb ruler)");
-            }
-            count += 1;
-        }
-    }
-    let (lo, hi) = (marks.iter().min().copied(), marks.iter().max().copied());
-    let length = match (lo, hi) {
-        (Some(a), Some(b)) => b - a,
-        _ => 0,
-    };
-    VerifyResult::ok(format!(
-        "Golomb ruler: {} marks, length {length}, all {count} differences distinct",
-        marks.len()
-    ))
-}
-
-/// A cap in `F_3^n`: no three distinct points sum to 0 mod 3 (no three
-/// collinear). For each pair, the unique line-completion must be absent.
-pub fn verify_cap(points: &[Vec<i64>], n: usize) -> VerifyResult {
-    let set: HashSet<&Vec<i64>> = points.iter().collect();
-    if set.len() != points.len() {
-        return VerifyResult::fail("duplicate points");
-    }
-    if !points
-        .iter()
-        .all(|p| p.len() == n && p.iter().all(|&x| (0..=2).contains(&x)))
-    {
-        return VerifyResult::fail(format!("points not in (0,1,2)^{n}"));
-    }
-    let owned: HashSet<Vec<i64>> = points.iter().cloned().collect();
-    let m = points.len();
-    for i in 0..m {
-        let a = &points[i];
-        for b in points.iter().take(m).skip(i + 1) {
-            let c: Vec<i64> = (0..n).map(|k| (-(a[k] + b[k])).rem_euclid(3)).collect();
-            if owned.contains(&c) && &c != a && &c != b {
-                return VerifyResult::fail("3 collinear points found (not a cap)");
-            }
-        }
-    }
-    VerifyResult::ok(format!(
-        "cap verified: {m} points in F_3^{n}, no 3 collinear"
-    ))
-}
-
-/// A `B_h` set in `{0,1}^n`: all sums of `h` elements (with repetition,
-/// non-decreasing index order) distinct. `h = 2` is Sidon.
-pub fn verify_bh(points: &[Vec<i64>], n: usize, h: usize) -> VerifyResult {
-    if let Some(bad) = binary_points_ok(points, n) {
-        return bad;
-    }
-    let m = points.len();
-    if m == 0 || h == 0 {
-        return VerifyResult::ok(format!("B_{h} verified: {m} points, 0 sums"));
-    }
-    let mut sums: HashSet<Vec<i64>> = HashSet::new();
-    let mut count = 0usize;
-    let mut idx = vec![0usize; h];
-    loop {
-        let mut s = vec![0i64; n];
-        for &i in &idx {
-            for k in 0..n {
-                s[k] += points[i][k];
-            }
-        }
-        if !sums.insert(s) {
-            return VerifyResult::fail(format!("B_{h} violated: a repeated {h}-fold sum"));
-        }
-        count += 1;
-        if !advance_with_replacement(&mut idx, m) {
-            break;
-        }
-    }
-    VerifyResult::ok(format!(
-        "B_{h} verified: {m} points, {count} h-fold sums all distinct"
-    ))
-}
-
-/// A covering design `C(v, k, t)`: blocks are `k`-subsets of `[0, v)`
-/// such that every `t`-subset of `[0, v)` is contained in at least one.
-pub fn verify_covering(blocks: &[Vec<usize>], v: usize, k: usize, t: usize) -> VerifyResult {
-    let norm: Vec<Vec<usize>> = blocks
-        .iter()
-        .map(|b| {
-            let s: std::collections::BTreeSet<usize> = b.iter().copied().collect();
-            s.into_iter().collect()
-        })
-        .collect();
-    if !norm
-        .iter()
-        .all(|b| b.len() == k && b.iter().all(|&x| x < v))
-    {
-        return VerifyResult::fail(format!("blocks not valid {k}-subsets of [0,{v})"));
-    }
-    let mut covered: HashSet<Vec<usize>> = HashSet::new();
-    for b in &norm {
-        each_combination(b.len(), t, &mut |sub| {
-            covered.insert(sub.iter().map(|&i| b[i]).collect());
-        });
-    }
-    let mut need = 0usize;
-    let mut missing = 0usize;
-    each_combination(v, t, &mut |sub| {
-        need += 1;
-        if !covered.contains(sub) {
-            missing += 1;
-        }
-    });
-    if missing > 0 {
-        return VerifyResult::fail(format!(
-            "not a covering: {missing} of {need} t-subsets uncovered"
-        ));
-    }
-    VerifyResult::ok(format!(
-        "valid C({v},{k},{t}) covering with {} blocks",
-        norm.len()
-    ))
-}
-
-/// A constant-weight binary code `A(n, d, w)`: codewords of weight
-/// exactly `w`, pairwise Hamming distance `>= d`.
-pub fn verify_constant_weight(words: &[Vec<i64>], n: usize, d: usize, w: usize) -> VerifyResult {
-    let set: HashSet<&Vec<i64>> = words.iter().collect();
-    if set.len() != words.len() {
-        return VerifyResult::fail("duplicate codewords");
-    }
-    if !words
-        .iter()
-        .all(|c| c.len() == n && c.iter().all(|&x| x == 0 || x == 1))
-    {
-        return VerifyResult::fail(format!("words not binary length-{n}"));
-    }
-    if let Some(c) = words.iter().find(|c| c.iter().sum::<i64>() as usize != w) {
-        return VerifyResult::fail(format!(
-            "a codeword has weight {} != {w}",
-            c.iter().sum::<i64>()
-        ));
-    }
-    for i in 0..words.len() {
-        for j in (i + 1)..words.len() {
-            let dist = (0..n).filter(|&k| words[i][k] != words[j][k]).count();
-            if dist < d {
-                return VerifyResult::fail(format!("a pair has Hamming distance {dist} < {d}"));
-            }
-        }
-    }
-    VerifyResult::ok(format!(
-        "constant-weight code A({n},{d},{w}): {} words, all weight {w}, min dist >= {d}",
-        words.len()
-    ))
-}
-
 /// A Costas array: a permutation `p` of consecutive integers such that
 /// the displacement vectors `(j-i, p[j]-p[i])` for `i < j` are distinct.
 pub fn verify_costas(perm: &[i64]) -> VerifyResult {
@@ -2820,86 +2333,6 @@ pub fn verify_costas(perm: &[i64]) -> VerifyResult {
     VerifyResult::ok(format!(
         "Costas array of order {n} verified ({count} displacement vectors all distinct)"
     ))
-}
-
-/// A linear `[n, k, d]_q` code given by a `k x n` generator matrix over a
-/// prime field `GF(q)`. Verifies `rank(G) = k` and that the true minimum
-/// distance (min nonzero codeword weight, by exhaustive enumeration of
-/// the `q^k` codewords, guarded) is `>= claimed_d`. Prime-power `GF(q)`
-/// is refused rather than mis-verified.
-// Frozen exact verifier: the range loops index multiple parallel arrays
-// (codeword/weight); the explicit index is the faithful expression, not a
-// refactor target.
-#[allow(clippy::needless_range_loop)]
-pub fn verify_linear_code(generator: &[Vec<i64>], q: u64, claimed_d: usize) -> VerifyResult {
-    const MAX_ENUM: u64 = 1_000_000;
-    if !is_prime(q) {
-        return VerifyResult::fail(format!(
-            "q={q} not prime; prime-power GF(q) not implemented — refusing to claim"
-        ));
-    }
-    let k = generator.len();
-    if k == 0 {
-        return VerifyResult::fail("empty generator");
-    }
-    let n = generator[0].len();
-    if !generator.iter().all(|row| row.len() == n) {
-        return VerifyResult::fail("ragged generator matrix");
-    }
-    let g: Vec<Vec<u64>> = generator
-        .iter()
-        .map(|row| row.iter().map(|&x| x.rem_euclid(q as i64) as u64).collect())
-        .collect();
-    if gf_rank(&g, q) != k {
-        return VerifyResult::fail(format!(
-            "generator rank < k={k} (rows dependent — not an [n,{k}] code)"
-        ));
-    }
-    let qk = (q).checked_pow(k as u32);
-    match qk {
-        Some(v) if v <= MAX_ENUM => {}
-        _ => {
-            return VerifyResult::fail(format!(
-                "q^k exceeds enum guard {MAX_ENUM}; distance not exhaustively verifiable — refusing to claim"
-            ));
-        }
-    }
-    let qk = qk.unwrap();
-    let mut dmin = n + 1;
-    // Enumerate all nonzero message vectors msg in GF(q)^k.
-    let mut msg = vec![0u64; k];
-    for code in 1..qk {
-        // decode `code` as a base-q digit vector
-        let mut x = code;
-        for m in msg.iter_mut() {
-            *m = x % q;
-            x /= q;
-        }
-        let mut weight = 0usize;
-        for c in 0..n {
-            let mut s = 0u64;
-            for i in 0..k {
-                if msg[i] != 0 {
-                    s = (s + msg[i] * g[i][c]) % q;
-                }
-            }
-            if s != 0 {
-                weight += 1;
-            }
-        }
-        if weight < dmin {
-            dmin = weight;
-        }
-    }
-    let ok = dmin >= claimed_d;
-    let rel = if ok { ">=" } else { "<" };
-    VerifyResult {
-        ok,
-        message: format!(
-            "[{n},{k},{dmin}]_{q} verified (min weight {dmin} {rel} claimed {claimed_d})"
-        ),
-        value: Some(dmin as f64),
-    }
 }
 
 /// Reconstruct the exact `[[10,1,4]]` stabilizer certificate retained by the
@@ -3104,53 +2537,6 @@ fn quantum_pauli_weight(vector: u64, n: usize) -> usize {
 
 // --- small numeric / combinatorial helpers -------------------------------
 
-/// Advance an index tuple to the next combination-with-replacement over
-/// `[0, m)`. Returns false when exhausted.
-fn advance_with_replacement(idx: &mut [usize], m: usize) -> bool {
-    let h = idx.len();
-    let mut i = h;
-    loop {
-        if i == 0 {
-            return false;
-        }
-        i -= 1;
-        if idx[i] != m - 1 {
-            let nv = idx[i] + 1;
-            for slot in idx.iter_mut().take(h).skip(i) {
-                *slot = nv;
-            }
-            return true;
-        }
-    }
-}
-
-/// Visit every strictly-increasing `t`-combination of indices in
-/// `[0, n)`.
-fn each_combination(n: usize, t: usize, f: &mut impl FnMut(&[usize])) {
-    if t > n {
-        return;
-    }
-    let mut idx: Vec<usize> = (0..t).collect();
-    loop {
-        f(&idx);
-        // advance
-        let mut i = t;
-        loop {
-            if i == 0 {
-                return;
-            }
-            i -= 1;
-            if idx[i] != i + n - t {
-                idx[i] += 1;
-                for j in (i + 1)..t {
-                    idx[j] = idx[j - 1] + 1;
-                }
-                break;
-            }
-        }
-    }
-}
-
 fn is_prime(q: u64) -> bool {
     if q < 2 {
         return false;
@@ -3163,47 +2549,6 @@ fn is_prime(q: u64) -> bool {
         p += 1;
     }
     true
-}
-
-/// Rank over `GF(q)` (q prime) of an integer matrix (entries already
-/// reduced mod q).
-// Gaussian elimination over GF(q): the inner loops index two rows by the same
-// column, so a range loop is the honest form (iterator pairs would obscure it).
-#[allow(clippy::needless_range_loop)]
-fn gf_rank(rows: &[Vec<u64>], q: u64) -> usize {
-    let mut m: Vec<Vec<u64>> = rows.to_vec();
-    if m.is_empty() {
-        return 0;
-    }
-    let ncols = m[0].len();
-    let mut rank = 0usize;
-    for col in 0..ncols {
-        let piv = (rank..m.len()).find(|&r| !m[r][col].is_multiple_of(q));
-        let Some(piv) = piv else { continue };
-        m.swap(rank, piv);
-        let inv = mod_inv(m[rank][col] % q, q);
-        for c in 0..ncols {
-            m[rank][c] = (m[rank][c] * inv) % q;
-        }
-        for r in 0..m.len() {
-            if r != rank && !m[r][col].is_multiple_of(q) {
-                let f = m[r][col] % q;
-                for c in 0..ncols {
-                    m[r][c] = (m[r][c] + q - (f * m[rank][c]) % q) % q;
-                }
-            }
-        }
-        rank += 1;
-        if rank == m.len() {
-            break;
-        }
-    }
-    rank
-}
-
-/// Modular inverse of `a` mod prime `q` via Fermat's little theorem.
-fn mod_inv(a: u64, q: u64) -> u64 {
-    mod_pow(a, q - 2, q)
 }
 
 fn mod_pow(mut base: u64, mut exp: u64, modulus: u64) -> u64 {
@@ -3288,10 +2633,10 @@ mod tests {
         assert!(f.reasons.iter().any(|r| r.contains("dimension")));
     }
 
-    // ATTACK: a Golomb claim bound to a Sidon witness.
+    // ATTACK: a union-free claim bound to a Sidon witness.
     #[test]
     fn faithful_rejects_kind_mismatch() {
-        let text = "an optimal Golomb ruler of order 4 with >= 4 marks.";
+        let text = "a union-free family with at least 4 sets.";
         let w = Witness::Sidon {
             n: 3,
             points: small_sidon(),
@@ -3448,129 +2793,6 @@ mod tests {
         // dimension omitted -> mandatory fail closed.
         let f3 = claim_witness_faithful("A GF(2) Sidon set, at least 5 elements.", &wide);
         assert!(!f3.faithful, "{:?}", f3.reasons);
-    }
-
-    // B_h and constant-weight bind their extra hardness parameter (h; d,w).
-    // The round-3 attack (an EASY witness dressed with a HARD headline) now
-    // FAILS on the parameter mismatch; a matched claim PASSES; an unstated
-    // parameter routes to review.
-    #[test]
-    fn faithful_binds_bh_order_and_constant_weight_params() {
-        // B_h: the witness is a valid B_2 set.
-        let bh = Witness::Bh {
-            n: 3,
-            h: 2,
-            points: small_sidon(),
-            claimed_size: None,
-        };
-        assert!(verify_witness(&bh).ok, "the B_2 witness is itself valid");
-        // ATTACK: a B_3 headline over a B_2 witness -> h mismatch -> rejected.
-        let attack = claim_witness_faithful("a B_3 set in {0,1}^3: a(3) >= 4.", &bh);
-        assert!(
-            !attack.faithful,
-            "B_3 claim cannot ride a B_2 witness: {:?}",
-            attack.reasons
-        );
-        assert!(attack.reasons.iter().any(|r| r.contains("does not match")));
-        // GENUINE: a matched B_2 claim is faithful.
-        let ok = claim_witness_faithful("a B_2 set in {0,1}^3: a(3) >= 4.", &bh);
-        assert!(ok.faithful, "matched B_2 claim: {:?}", ok.reasons);
-        // h unstated -> route to review.
-        let bare = claim_witness_faithful("a bh set in {0,1}^3: a(3) >= 4.", &bh);
-        assert!(
-            !bare.faithful,
-            "unstated h routes to review: {:?}",
-            bare.reasons
-        );
-
-        // constant-weight: the witness is a valid A(4,2,1) code (2 weight-1 words).
-        let cw = Witness::ConstantWeight {
-            n: 4,
-            d: 2,
-            w: 1,
-            words: vec![vec![1, 0, 0, 0], vec![0, 1, 0, 0]],
-            claimed_size: None,
-        };
-        assert!(
-            verify_witness(&cw).ok,
-            "the A(4,2,1) witness is itself valid"
-        );
-        // ATTACK: a hard A(4,10,8) headline over the trivial witness -> rejected.
-        let attack2 = claim_witness_faithful("constant weight code A(4,10,8) >= 2.", &cw);
-        assert!(
-            !attack2.faithful,
-            "A(4,10,8) claim cannot ride an A(4,2,1) witness: {:?}",
-            attack2.reasons
-        );
-        assert!(attack2.reasons.iter().any(|r| r.contains("does not match")));
-        // GENUINE: the matched A(4,2,1) claim is faithful.
-        let ok2 = claim_witness_faithful("constant weight code A(4,2,1) >= 2.", &cw);
-        assert!(ok2.faithful, "matched A(4,2,1) claim: {:?}", ok2.reasons);
-        // (d,w) unstated -> route to review.
-        let bare2 = claim_witness_faithful("a constant weight code, a(4) >= 2.", &cw);
-        assert!(
-            !bare2.faithful,
-            "unstated (d,w) routes to review: {:?}",
-            bare2.reasons
-        );
-    }
-
-    // Golomb has no sound witness->lower-bound binding defined: route to review.
-    #[test]
-    fn faithful_golomb_routes_to_review() {
-        let w = Witness::Golomb {
-            marks: vec![0, 1, 3],
-        };
-        assert!(verify_witness(&w).ok);
-        let f = claim_witness_faithful("Golomb ruler a(3) >= 3.", &w);
-        assert!(
-            !f.faithful,
-            "golomb is not floor-admissible: {:?}",
-            f.reasons
-        );
-    }
-
-    // ---- difference triangle set (HorizonMath (7,5), scope < 112) ----
-
-    #[test]
-    fn diff_triangle_accepts_valid_and_reports_scope() {
-        // rows {0,1,3} (diffs 1,2,3) and {0,4,9} (diffs 4,5,9): all distinct.
-        let w = Witness::DiffTriangle {
-            rows: vec![vec![0, 1, 3], vec![0, 4, 9]],
-            claimed_scope: Some(9),
-        };
-        let r = verify_witness(&w);
-        assert!(r.ok, "{}", r.message);
-        assert!(r.message.contains("scope 9"));
-    }
-
-    #[test]
-    fn diff_triangle_rejects_global_difference_collision() {
-        // row2 {0,2,5} has differences 2 and 3, which collide with row1.
-        let w = Witness::DiffTriangle {
-            rows: vec![vec![0, 1, 3], vec![0, 2, 5]],
-            claimed_scope: None,
-        };
-        let r = verify_witness(&w);
-        assert!(!r.ok);
-        assert!(r.message.contains("repeats"));
-    }
-
-    #[test]
-    fn diff_triangle_rejects_non_increasing_and_nonzero_start() {
-        assert!(!verify_diff_triangle(&[vec![0, 3, 1]], None).ok);
-        assert!(!verify_diff_triangle(&[vec![1, 2, 4]], None).ok);
-    }
-
-    #[test]
-    fn diff_triangle_rejects_inflated_scope_claim() {
-        // A valid set, but a record claim ("scope below 112") that lies about
-        // the actual scope must fail.
-        let w = Witness::DiffTriangle {
-            rows: vec![vec![0, 1, 3], vec![0, 4, 9]],
-            claimed_scope: Some(100),
-        };
-        assert!(!verify_witness(&w).ok);
     }
 
     #[test]
@@ -3853,65 +3075,10 @@ mod tests {
     }
 
     #[test]
-    fn golomb_accepts_valid_and_rejects_corrupted() {
-        // {0,1,4,6} is a perfect Golomb ruler (differences 1,4,6,3,5,2).
-        assert!(verify_golomb(&[0, 1, 4, 6]).ok);
-        // {0,1,2,4}: differences 1,2,4,1,... -> repeat -> fail.
-        assert!(!verify_golomb(&[0, 1, 2, 4]).ok);
-    }
-
-    #[test]
-    fn cap_accepts_valid_and_rejects_collinear() {
-        // {0,1} along one axis in F_3^1 is a cap (need 3 for a line).
-        assert!(verify_cap(&[vec![0], vec![1]], 1).ok);
-        // {0,1,2} in F_3^1: 0+1+2 = 0 mod 3 -> collinear -> fail.
-        assert!(!verify_cap(&[vec![0], vec![1], vec![2]], 1).ok);
-    }
-
-    #[test]
-    fn bh_h2_matches_sidon() {
-        assert!(verify_bh(&small_sidon(), 3, 2).ok);
-        let mut bad = small_sidon();
-        bad.push(vec![1, 1, 0]);
-        assert!(!verify_bh(&bad, 3, 2).ok);
-    }
-
-    #[test]
-    fn covering_accepts_full_and_rejects_gap() {
-        // C(4,3,2): blocks {0,1,2},{0,1,3},{0,2,3},{1,2,3} cover every pair.
-        let full = vec![vec![0, 1, 2], vec![0, 1, 3], vec![0, 2, 3], vec![1, 2, 3]];
-        assert!(verify_covering(&full, 4, 3, 2).ok);
-        // Drop a block: pair {2,3} only in {0,2,3} and {1,2,3}; remove both.
-        let gap = vec![vec![0, 1, 2], vec![0, 1, 3]];
-        assert!(!verify_covering(&gap, 4, 3, 2).ok);
-    }
-
-    #[test]
-    fn constant_weight_checks_weight_and_distance() {
-        // A(4,2,2): {1100, 0011} weight 2, distance 4 >= 2.
-        let ok = vec![vec![1, 1, 0, 0], vec![0, 0, 1, 1]];
-        assert!(verify_constant_weight(&ok, 4, 2, 2).ok);
-        // wrong weight
-        assert!(!verify_constant_weight(&[vec![1, 1, 1, 0]], 4, 2, 2).ok);
-    }
-
-    #[test]
     fn costas_accepts_valid_and_rejects_nonpermutation() {
         // {0,2,3,1} is a Costas array of order 4.
         assert!(verify_costas(&[0, 2, 3, 1]).ok);
         assert!(!verify_costas(&[0, 0, 1, 2]).ok);
-    }
-
-    #[test]
-    fn linear_code_verifies_distance_and_refuses_nonprime() {
-        // [3,1,3]_2 repetition code: generator [1,1,1], min weight 3.
-        let g = vec![vec![1, 1, 1]];
-        let r = verify_linear_code(&g, 2, 3);
-        assert!(r.ok, "{}", r.message);
-        // claim d=4 on a min-weight-3 code must fail.
-        assert!(!verify_linear_code(&g, 2, 4).ok);
-        // non-prime q refused.
-        assert!(!verify_linear_code(&g, 4, 1).ok);
     }
 
     #[test]

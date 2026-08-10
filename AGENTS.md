@@ -178,7 +178,8 @@ unaffected suites locally.
 - `vela-repository`: policy-neutral durable repository transactions and recovery.
 - `vela-edge`: derived views and adapters over canonical state.
 - `vela-cli`: the single user-facing product binary.
-- `vela-verify`: dependency-light exact verifier registry and corpus.
+- `vela-verify`: frozen package-plane witness compatibility outside the
+  protocol and authority kernel.
 
 Workspace crates are implementation boundaries, not separate products. Keep
 their versions aligned with the single Vela release identity.
