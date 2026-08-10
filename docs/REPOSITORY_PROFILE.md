@@ -165,19 +165,12 @@ vela.lock
 proof/
 ```
 
-These are retired without `vela replay` rejecting them. This block is the
-list; `conformance/repository_lint.py` in `vela` reads it and fails on a file at
-any of these paths, so the retirement is checked without widening what
-verification refuses.
-
-<!-- repository-lint:retired-paths -->
-```text
-SCOPE.md
-scripts/write_sources_lock.py
-```
-
-A repository carrying either of them verifies clean today, and each is here for
-its own reason.
+Two more paths are retired without `vela replay` rejecting them, `SCOPE.md` and
+`scripts/write_sources_lock.py`. Nothing checks for them now:
+`conformance/repository_lint.py` read a fenced list here and failed on a file at
+either path, and the linter was retired with the composite action that was its
+only runner. A repository carrying either verifies clean, and each is recorded
+below for its own reason.
 
 `vela.lock` and `proof/` used to be listed here instead. What kept them out of
 the enforced block was not the protocol: two published repositories declared
@@ -310,7 +303,7 @@ Verification checks:
 - the optional Target Index, its declared inputs, and packets exactly match
   tracked `HEAD` bytes and the current repository root; and
 - the enforced retired paths listed above are absent; the rest are not replay's
-  to check and are left to `conformance/repository_lint.py`.
+  to check and are now checked nowhere.
 
 No published repository gates this in CI today. The four that did,
 `erdos-frontier`, `sidon-frontier`, `quantum-codes-frontier` and

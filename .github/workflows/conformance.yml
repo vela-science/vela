@@ -68,11 +68,6 @@ jobs:
         env:
           VELA_EPHEMERAL_ACCOUNT_HOME: "1"
         run: ./conformance/check-current-object-waist.sh
-      # The linter runs against a Repository, and there is none here. What this
-      # job can check is that each of its rules still fires: a rule that has
-      # stopped being able to fail reports coverage it does not have.
-      - name: Repository lint rules
-        run: uv run --project conformance --locked python conformance/test_repository_lint.py
       # `install.sh` reads a digest out of the release manifest, and the two
       # sides had never been run against each other: the generator emits
       # `sha256:<hex>` and the installer's parse required bare hex, so every

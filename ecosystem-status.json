@@ -127,10 +127,6 @@
         "declared": true,
         "present": true
       },
-      "action.yml": {
-        "declared": true,
-        "present": true
-      },
       "conformance/canonical-hashing.json": {
         "declared": true,
         "present": true
