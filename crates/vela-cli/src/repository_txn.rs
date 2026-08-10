@@ -1963,20 +1963,6 @@ fn postimage_reaches_current(
     false
 }
 
-fn completed_postimage_is_rematerializable(write: &StagedWrite) -> bool {
-    // The current-repository manifest is an authenticated rolling head, not
-    // immutable historical evidence. Current Submission and Verification
-    // transactions replace it after independently verifying the repository
-    // epoch and authority chain. Legacy completed journals therefore prove
-    // the manifest bytes they installed, but cannot require those bytes to
-    // remain the current head forever. This exception is deliberately
-    // limited to completed-history checks: active installation and
-    // completion still require the exact planned postimage, while every
-    // immutable event, authority record, Proposal, Submission, and evidence
-    // object remains byte-exact.
-    write.path.as_str() == ".vela/repository.json"
-}
-
 fn verify_completed_history(
     root: &Path,
     completed: &[(RepositoryTxnPaths, RepositoryTxnJournal)],
@@ -1988,26 +1974,16 @@ fn verify_completed_history(
         verify_completed_marker_and_blobs(paths, journal)?;
     }
 
-    /* Every completed journal belongs to the current postimage transition
-    graph. A compaction origin used to archive a predecessor repository root
-    and take its journals out of this set; there is one generation now, so
-    there is nothing to exclude. The retired `.vela/events` set no longer
-    participates in private crash recovery or completed-history checks. */
+    // Every completed journal participates in the same exact postimage
+    // transition graph; there is no out-of-engine rematerialization exception.
     let current_head = completed.to_vec();
 
     // Validate that each durable postimage is either still current or is
     // connected to the current bytes by another completed transaction's exact
-    // preimage -> postimage edge. The rolling current-repository manifest is
-    // the sole rematerializable exception. Active installation and completion
-    // still verify every write class.
+    // preimage -> postimage edge. No write may be rematerialized outside the
+    // engine and remain verifiable completed history.
     for (_, journal) in &current_head {
-        for write in journal
-            .plan
-            .canonical_delta
-            .writes()
-            .iter()
-            .filter(|write| !completed_postimage_is_rematerializable(write))
-        {
+        for write in journal.plan.canonical_delta.writes() {
             let actual = inspect_file_state(root, &write.path)?;
             if postimage_reaches_current(&write.path, &write.postimage, &actual, &current_head) {
                 continue;
@@ -4880,7 +4856,7 @@ mod tests {
     }
 
     #[test]
-    fn completed_journal_allows_a_later_repository_head_but_not_evidence_drift() {
+    fn completed_history_rejects_out_of_transaction_head_replacement() {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
@@ -4909,29 +4885,20 @@ mod tests {
         txn.complete().unwrap();
         drop(txn);
 
-        // A current object transaction may install a later, independently
-        // verified repository head without participating in this legacy
-        // journal generation.
         fs::write(
             root.join(".vela/repository.json"),
-            b"authenticated repository head two",
+            b"out-of-transaction repository head",
         )
         .unwrap();
-        drop(RepositoryTxn::acquire_recovery_barrier(&root, &journals).unwrap());
-
-        // The exception is only for the rolling repository head. Immutable
-        // canonical evidence written by the same completed transaction remains
-        // byte-exact and fails closed if altered.
-        fs::write(root.join("records/receipt.json"), b"altered receipt").unwrap();
         assert!(matches!(
             RepositoryTxn::acquire_recovery_barrier(&root, &journals),
             Err(RepositoryTxnError::CompletedPostimageMismatch { path, .. })
-                if path.as_str() == "records/receipt.json"
+                if path.as_str() == ".vela/repository.json"
         ));
     }
 
     #[test]
-    fn completed_history_proves_superseded_postimages() {
+    fn completed_history_proves_multi_step_superseded_postimages_out_of_order() {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().join("repository");
         let journals = temp.path().join("journals");
@@ -4970,6 +4937,26 @@ mod tests {
         second.install().unwrap();
         second.complete().unwrap();
         drop(second);
+
+        let third_draft = DeltaDraft::prepare(
+            &root,
+            vec![PlannedWrite::write(
+                RepoPath::parse(".vela/repository.json").unwrap(),
+                WriteClass::CanonicalEvidence,
+                b"third head".to_vec(),
+            )],
+        )
+        .unwrap();
+        let third_plan = fixture_plan(&root, &third_draft, b"third neutral operation");
+        let mut third = RepositoryTxn::prepare(&root, &journals, third_plan, third_draft).unwrap();
+        third.mark_committed().unwrap();
+        third.install().unwrap();
+        third.complete().unwrap();
+        drop(third);
+
+        let mut completed = repository_journals(&root, &journals).unwrap();
+        completed.reverse();
+        verify_completed_history(&root, &completed).unwrap();
 
         let first_retry = RepositoryTxn::open(&root, &journals, &first_operation).unwrap();
         assert_eq!(first_retry.recovery_state(), &RecoveryState::Completed);
