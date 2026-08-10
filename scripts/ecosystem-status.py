@@ -444,11 +444,34 @@ def observe_projection(url: str) -> dict[str, object] | None:
     projection = document.get("projection")
     if not isinstance(projection, dict):
         return None
-    # The deployed manifest still keys its per-repository rows `source_frontiers`
-    # under `vela.observatory-release-manifest`; renaming that key moves a
-    # published root, so it is read as it is served rather than corrected here.
+    # `source_repositories` was `source_frontiers` until the Observatory named
+    # the boundary after the boundary. That rename moves a published root, so
+    # this key could not be corrected here alone; it moved on the serving side
+    # first, and this follows it.
+    #
+    # Read as one key rather than two. A projection refresh is what publishes
+    # the new shape, and between the deploy and that refresh the manifest still
+    # serves the old one — during which a tolerant read would report an empty
+    # repository set as fact, which is the failure the schema check below was
+    # already written to prevent. An absent key is a mismatch and says so.
+    rows = projection.get("source_repositories")
+    if rows is None:
+        served = sorted(key for key in projection if key.startswith("source_"))
+        return {
+            "activation_time": projection.get("activation_time"),
+            "method": "https-get",
+            "observed_at": now(),
+            "projection_schema": projection.get("schema"),
+            "read_failure": (
+                "manifest has no source_repositories; it serves "
+                f"{served or 'no per-repository rows'}"
+            ),
+            "release_root": projection.get("release_root"),
+            "source": url,
+            "vela_version": projection.get("vela_version"),
+        }
     repositories = []
-    for entry in projection.get("source_frontiers") or []:
+    for entry in rows or []:
         if not isinstance(entry, dict):
             continue
         repositories.append(
@@ -708,8 +731,8 @@ def check(arguments: argparse.Namespace) -> list[str]:
                         f"projection: observation from {stamp} is older than "
                         f"{arguments.max_age_days} days; re-observe with --observe-projection"
                     )
-        # `observe_projection` reads `source_frontiers` out of the manifest, so
-        # it assumes a schema. Recording the id without checking it means a
+        # `observe_projection` reads `source_repositories` out of the manifest,
+        # so it assumes a schema. Recording the id without checking it means a
         # renamed manifest would be parsed as whatever the old shape was and the
         # emptiness reported as fact.
         observed_schema = projection.get("projection_schema")
@@ -717,6 +740,15 @@ def check(arguments: argparse.Namespace) -> list[str]:
             failures.append(
                 f"projection: manifest schema is {observed_schema!r}, and this script "
                 f"parses {PROJECTION_SCHEMA!r}"
+            )
+        # The schema id is unversioned, so it cannot separate a manifest that
+        # renamed a key from one that did not. The observation says which it
+        # read, and an unreadable one is a failure rather than a zero.
+        read_failure = projection.get("read_failure")
+        if read_failure is not None:
+            failures.append(
+                f"projection: {read_failure}; re-observe once the Observatory "
+                "refresh has republished, with --observe-projection"
             )
     return failures
 
