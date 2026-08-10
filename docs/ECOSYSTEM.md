@@ -50,7 +50,7 @@ The containment property is enforced in SQL, not prose.
 reference or snapshot of an external source cannot carry Standing.
 
 **Problem.** No protocol object. No projection table. The surface at
-`apps/observatory/src/app/frontiers/[slug]/problems/` is derived, in
+`apps/observatory/src/app/repositories/[slug]/problems/` is derived, in
 `packages/observatory-data/src/index.ts`, from `observatory.native_records` scoped
 through `release_sources`, with the Claim a `LEFT JOIN LATERAL` and the declared
 status, formalization, prize and subject tags read from the Source record's
@@ -702,8 +702,8 @@ Dependencies point up the list only. Concretely:
   violated.
 
 The former violation is closed. The route under
-`apps/observatory/src/app/frontiers/` keeps `math` only as a public presentation
-handle; `packages/observatory-data/src/registry.ts` maps it to the Repository
-UUID. Canonical rows and joins use `repository_id`, while remaining
-`frontier_slugs` fields describe declared route coverage and confer no protocol
-identity or authority.
+`apps/observatory/src/app/repositories/` keeps `math` only as a public
+presentation handle; `packages/observatory-data/src/registry.ts` maps it to the
+Repository UUID. Canonical rows and joins use `repository_id`, while
+`repository_slugs` fields describe declared route coverage and confer no
+protocol identity or authority.
