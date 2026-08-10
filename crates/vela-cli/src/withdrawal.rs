@@ -19,10 +19,8 @@ use vela_protocol::submission::SubmissionRecordV2;
 
 use crate::authority_transaction::AuthorityObjectDraft;
 use crate::config::git_publish::{
-    PublicationOutcome, PublicationState, PublishOptions, exact_publication_preflight,
-    publish_exact_delta,
+    PublicationOutcome, PublicationState, PublishOptions, publish_exact_delta,
 };
-use crate::repository_ops::publication_delta;
 use vela_repository::{ContentDigest, InputBinding, OperationId, OperationKind, WriteClass};
 
 /* One name for the verb on every path. The success payload said
@@ -297,27 +295,11 @@ pub(crate) fn withdraw(
         read_set,
         objects,
     )?;
-    let precommit = (|| {
-        let public = prepared
-            .resolved_public_writes()
-            .map_err(|error| error.to_string())?;
-        let delta_root = prepared.canonical_delta_root().to_string();
-        let delta = publication_delta(repository_path, &delta_root, public)?
-            .ok_or_else(|| "Proposal Withdrawal transaction had no public Git delta".to_string())?;
-        let publish_options = PublishOptions::local();
-        let preflight = exact_publication_preflight(repository_path, &delta, &publish_options)
-            .map_err(crate::repository_ops::publication_error)?;
-        Ok::<_, String>((delta, preflight))
-    })();
-    let (delta, preflight) = match precommit {
-        Ok(value) => value,
-        Err(error) => {
-            prepared
-                .abort_prepared()
-                .map_err(|abort| format!("{error}; abort failed: {abort}"))?;
-            return Err(error);
-        }
-    };
+    let (delta, preflight) = prepared.preflight_publication(
+        repository_path,
+        || Ok(PublishOptions::local()),
+        "Proposal Withdrawal transaction had no public Git delta",
+    )?;
     prepared
         .mark_committed()
         .map_err(|error| error.to_string())?;

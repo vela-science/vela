@@ -19,11 +19,10 @@ use vela_protocol::submission::SubmissionRecordV2;
 
 use crate::authority_transaction::AuthorityObjectDraft;
 use crate::config::git_publish::{
-    PublicationOutcome, PublicationState, PublishOptions, exact_publication_preflight,
-    publish_exact_delta,
+    PublicationOutcome, PublicationState, PublishOptions, publish_exact_delta,
 };
 use crate::repository_ops::{
-    PreparedSubmissionArtifacts, SubmitOutcome, prepare_submission_artifacts, publication_delta,
+    PreparedSubmissionArtifacts, SubmitOutcome, prepare_submission_artifacts,
     submission_publication_inputs,
 };
 use vela_repository::{ContentDigest, InputBinding, WriteClass};
@@ -536,28 +535,14 @@ fn submit_inner(
         object_drafts,
     )?;
 
-    let precommit = (|| {
-        let public = prepared
-            .resolved_public_writes()
-            .map_err(|error| error.to_string())?;
-        let delta_root = prepared.canonical_delta_root().to_string();
-        let publish_options = PublishOptions::local()
-            .with_preflight_inputs(submission_publication_inputs(repository_path, submission)?);
-        let delta = publication_delta(repository_path, &delta_root, public)?
-            .ok_or_else(|| "Submission transaction had no public Git delta".to_string())?;
-        let preflight = exact_publication_preflight(repository_path, &delta, &publish_options)
-            .map_err(crate::repository_ops::publication_error)?;
-        Ok::<_, String>((delta, preflight))
-    })();
-    let (delta, preflight) = match precommit {
-        Ok(value) => value,
-        Err(error) => {
-            prepared
-                .abort_prepared()
-                .map_err(|abort| format!("{error}; abort failed: {abort}"))?;
-            return Err(error);
-        }
-    };
+    let (delta, preflight) = prepared.preflight_publication(
+        repository_path,
+        || {
+            Ok(PublishOptions::local()
+                .with_preflight_inputs(submission_publication_inputs(repository_path, submission)?))
+        },
+        "Submission transaction had no public Git delta",
+    )?;
     prepared
         .mark_committed()
         .map_err(|error| error.to_string())?;

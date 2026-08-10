@@ -12,6 +12,10 @@ use std::path::Path;
 use serde::Serialize;
 
 use crate::authority_transaction::AuthorityObjectDraft;
+use crate::config::git_publish::{
+    ExactPublicationPreflight, PublicationDelta, PublishOptions, exact_publication_preflight,
+};
+use crate::repository_ops::{publication_delta, publication_error};
 use vela_repository::{
     CanonicalWriteBarrier, ContentDigest, DeltaDraft, InputBinding, OperationId, OperationKind,
     PlannedWrite, RepoPath, RepositoryBinding, RepositoryTxn, RepositoryTxnError,
@@ -46,6 +50,34 @@ impl PreparedRoutineEvidenceTransaction {
 
     pub(crate) fn abort_prepared(&mut self) -> Result<(), RepositoryTxnError> {
         self.transaction.abort_prepared()
+    }
+
+    pub(crate) fn preflight_publication(
+        &mut self,
+        repository: &Path,
+        options: impl FnOnce() -> Result<PublishOptions, String>,
+        missing_delta: &str,
+    ) -> Result<(PublicationDelta, ExactPublicationPreflight), String> {
+        let precommit = (|| {
+            let public = self
+                .resolved_public_writes()
+                .map_err(|error| error.to_string())?;
+            let delta_root = self.canonical_delta_root().to_string();
+            let publish_options = options()?;
+            let delta = publication_delta(repository, &delta_root, public)?
+                .ok_or_else(|| missing_delta.to_string())?;
+            let preflight = exact_publication_preflight(repository, &delta, &publish_options)
+                .map_err(publication_error)?;
+            Ok::<_, String>((delta, preflight))
+        })();
+        match precommit {
+            Ok(value) => Ok(value),
+            Err(error) => {
+                self.abort_prepared()
+                    .map_err(|abort| format!("{error}; abort failed: {abort}"))?;
+                Err(error)
+            }
+        }
     }
 
     pub(crate) fn mark_committed(&mut self) -> Result<(), RepositoryTxnError> {
