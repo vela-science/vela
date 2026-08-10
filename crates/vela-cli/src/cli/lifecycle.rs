@@ -18,7 +18,7 @@ pub(crate) fn cmd_init(
     let staged = if initialized {
         None
     } else {
-        crate::init::resume_staged_minimal(path, name, scope, true)
+        crate::init::resume_staged_minimal(path, name, scope)
             .unwrap_or_else(|error| fail_return(&error))
     };
     let resolve = |label: &str, supplied: Option<&str>| -> String {
@@ -88,7 +88,6 @@ pub(crate) fn cmd_init(
                 crate::init::InitOptions {
                     name: &name,
                     scope: &scope,
-                    initialize_git: true,
                 },
             )
             .unwrap_or_else(|error| fail_return(&error));

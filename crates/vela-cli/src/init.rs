@@ -17,7 +17,6 @@ use vela_protocol::repository::{
 pub(crate) struct InitOptions<'a> {
     pub(crate) name: &'a str,
     pub(crate) scope: &'a str,
-    pub(crate) initialize_git: bool,
 }
 
 pub(crate) fn initialize_minimal(path: &Path, options: InitOptions<'_>) -> Result<Value, String> {
@@ -107,24 +106,21 @@ pub(crate) fn resume_staged_minimal(
     path: &Path,
     name: Option<&str>,
     scope: Option<&str>,
-    initialize_git: bool,
 ) -> Result<Option<Value>, String> {
     let Some(staging) = find_initialization_staging(path)? else {
         return Ok(None);
     };
-    let profile = validate_staged_bootstrap(path, &staging, name, scope, initialize_git)?;
-    if initialize_git {
-        let git = distributed_entry(path, &staging, ".git")?;
-        match git {
-            Some(git) => crate::config::git_publish::verify_empty_native_git_repository(
-                git.parent()
-                    .ok_or_else(|| "staged Git repository has no parent".to_string())?,
-            )?,
-            None => crate::config::git_publish::initialize_native_git_repository(&staging)?,
-        }
+    let profile = validate_staged_bootstrap(path, &staging, name, scope)?;
+    let git = distributed_entry(path, &staging, ".git")?;
+    match git {
+        Some(git) => crate::config::git_publish::verify_empty_native_git_repository(
+            git.parent()
+                .ok_or_else(|| "staged Git repository has no parent".to_string())?,
+        )?,
+        None => crate::config::git_publish::initialize_native_git_repository(&staging)?,
     }
     // Re-run the complete proof after Git initialization, before moving a byte.
-    validate_staged_bootstrap(path, &staging, name, scope, initialize_git)?;
+    validate_staged_bootstrap(path, &staging, name, scope)?;
     install_staged_entries(path, &staging)?;
     fs::remove_dir(&staging).map_err(|error| {
         format!(
@@ -206,7 +202,6 @@ fn validate_staged_bootstrap(
     staging: &Path,
     name: Option<&str>,
     scope: Option<&str>,
-    initialize_git: bool,
 ) -> Result<RepositoryProfileV1, String> {
     let known = [
         ".git",
@@ -299,16 +294,11 @@ fn validate_staged_bootstrap(
     {
         return Err("initialization private bootstrap contains unexpected state".into());
     }
-    match distributed_entry(root, staging, ".git")? {
-        Some(git) if initialize_git => {
-            crate::config::git_publish::verify_empty_native_git_repository(
-                git.parent()
-                    .ok_or_else(|| "staged Git repository has no parent".to_string())?,
-            )?;
-        }
-        Some(_) => return Err("initialization staging unexpectedly contains Git state".into()),
-        None if initialize_git => {}
-        None => {}
+    if let Some(git) = distributed_entry(root, staging, ".git")? {
+        crate::config::git_publish::verify_empty_native_git_repository(
+            git.parent()
+                .ok_or_else(|| "staged Git repository has no parent".to_string())?,
+        )?;
     }
     Ok(profile)
 }
@@ -376,7 +366,7 @@ fn initialize_in_place(path: &Path, options: &InitOptions<'_>) -> Result<Value, 
     if std::env::var_os("VELA_TEST_INTERRUPT_INIT_BEFORE_GIT").is_some() {
         std::process::exit(86);
     }
-    initialize_git(path, options.initialize_git)?;
+    crate::config::git_publish::initialize_native_git_repository(path)?;
 
     bootstrap_payload(path, &profile)
 }
@@ -506,13 +496,6 @@ pub(crate) fn expected_scaffold(
     Ok(files)
 }
 
-fn initialize_git(path: &Path, requested: bool) -> Result<(), String> {
-    if !requested || path.join(".git").exists() {
-        return Ok(());
-    }
-    crate::config::git_publish::initialize_native_git_repository(path)
-}
-
 fn shell_arg(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\"'\"'"))
 }
@@ -522,15 +505,8 @@ mod tests {
     use super::*;
 
     fn initialize(root: &Path, name: &str, scope: &str) -> Value {
-        initialize_minimal(
-            root,
-            InitOptions {
-                name,
-                scope,
-                initialize_git: false,
-            },
-        )
-        .expect("initialize a fresh repository")
+        initialize_minimal(root, InitOptions { name, scope })
+            .expect("initialize a fresh repository")
     }
 
     fn repository_id(payload: &Value) -> String {

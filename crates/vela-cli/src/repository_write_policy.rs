@@ -989,7 +989,6 @@ mod tests {
             InitOptions {
                 name: "Fresh policy fixture",
                 scope: "Exercise the exact fresh repository write policy.",
-                initialize_git: false,
             },
         )
         .unwrap();
