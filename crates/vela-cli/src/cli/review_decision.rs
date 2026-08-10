@@ -20,13 +20,6 @@ pub(crate) fn cmd_review_decide(
     reason: String,
     json: bool,
 ) {
-    ui::set_mode(
-        match action {
-            DecisionAction::Accept => "review.accept",
-            DecisionAction::Reject => "review.reject",
-        },
-        json,
-    );
     ui::require_initialized_repo(&repository_path);
     if reason.trim().is_empty() {
         ui::fail_with(ErrorKind::Usage, "--reason must not be empty", None);

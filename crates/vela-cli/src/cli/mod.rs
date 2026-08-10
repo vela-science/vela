@@ -530,10 +530,11 @@ fn cmd_log(
     }
 }
 
+/// The one Proposal-shaped object every `review` subcommand but `inbox`
+/// and `list` names, so the missing-argument error is written once.
+const PROPOSAL: (&str, &str) = ("a Proposal id (vpr_...)", "PROPOSAL_ID");
+
 fn cmd_review(action: ReviewAction) {
-    /// The one Proposal-shaped object every `review` subcommand but `inbox`
-    /// and `list` names, so the missing-argument error is written once.
-    const PROPOSAL: (&str, &str) = ("a Proposal id (vpr_...)", "PROPOSAL_ID");
     match action {
         ReviewAction::Inbox {
             repository,
@@ -579,58 +580,18 @@ fn cmd_review(action: ReviewAction) {
             );
             crate::repository::cmd_review_show(&repository, &proposal_id, json);
         }
-        ReviewAction::Accept {
-            first,
-            second,
-            repo_flag,
-            if_entry_root,
-            reason,
-            json,
-        } => {
-            crate::ui::set_mode("review.accept", json);
-            let (repository, proposal_id) = repo_arg::bind_repo_and_object(
-                "review accept",
-                PROPOSAL.0,
-                PROPOSAL.1,
-                first,
-                second,
-                repo_flag,
-            );
-            review_decision::cmd_review_decide(
-                repository,
-                &proposal_id,
-                crate::repository_decision::DecisionAction::Accept,
-                if_entry_root.as_deref(),
-                reason,
-                json,
-            );
-        }
-        ReviewAction::Reject {
-            first,
-            second,
-            repo_flag,
-            if_entry_root,
-            reason,
-            json,
-        } => {
-            crate::ui::set_mode("review.reject", json);
-            let (repository, proposal_id) = repo_arg::bind_repo_and_object(
-                "review reject",
-                PROPOSAL.0,
-                PROPOSAL.1,
-                first,
-                second,
-                repo_flag,
-            );
-            review_decision::cmd_review_decide(
-                repository,
-                &proposal_id,
-                crate::repository_decision::DecisionAction::Reject,
-                if_entry_root.as_deref(),
-                reason,
-                json,
-            );
-        }
+        ReviewAction::Accept { args } => dispatch_review_decision(
+            args,
+            "review.accept",
+            "review accept",
+            crate::repository_decision::DecisionAction::Accept,
+        ),
+        ReviewAction::Reject { args } => dispatch_review_decision(
+            args,
+            "review.reject",
+            "review reject",
+            crate::repository_decision::DecisionAction::Reject,
+        ),
         ReviewAction::Withdraw {
             first,
             second,
@@ -651,6 +612,31 @@ fn cmd_review(action: ReviewAction) {
             crate::withdrawal::cmd_withdraw(&repository, &proposal_id, &actor, &reason, json);
         }
     }
+}
+
+fn dispatch_review_decision(
+    args: ReviewDecisionArgs,
+    mode: &str,
+    bind_label: &str,
+    action: crate::repository_decision::DecisionAction,
+) {
+    crate::ui::set_mode(mode, args.json);
+    let (repository, proposal_id) = repo_arg::bind_repo_and_object(
+        bind_label,
+        PROPOSAL.0,
+        PROPOSAL.1,
+        args.first,
+        args.second,
+        args.repo_flag,
+    );
+    review_decision::cmd_review_decide(
+        repository,
+        &proposal_id,
+        action,
+        args.if_entry_root.as_deref(),
+        args.reason,
+        args.json,
+    );
 }
 
 fn cmd_replay(

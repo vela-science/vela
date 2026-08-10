@@ -30,7 +30,7 @@
 //!   recovery may target an incomplete bootstrap repository that discovery
 //!   must never redirect to an enclosing Repository.
 
-use clap::{ArgGroup, Subcommand};
+use clap::{ArgGroup, Args, Subcommand};
 use std::path::PathBuf;
 
 /// One meaning per flag, everywhere (the audit's top finding was
@@ -429,6 +429,25 @@ pub(crate) enum AuthorityTrustAction {
     },
 }
 
+#[derive(Args)]
+pub(crate) struct ReviewDecisionArgs {
+    #[arg(value_name = "REPO", help = HELP_REPO_BEFORE_OBJECT)]
+    pub(crate) first: Option<String>,
+    /// Exact pending Proposal ID (`vpr_...`).
+    #[arg(value_name = "PROPOSAL_ID")]
+    pub(crate) second: Option<String>,
+    #[arg(long = "repo", value_name = "PATH", help = HELP_REPO)]
+    pub(crate) repo_flag: Option<PathBuf>,
+    /// Require the exact Decision Inbox entry that was reviewed.
+    #[arg(long)]
+    pub(crate) if_entry_root: Option<String>,
+    #[arg(long)]
+    /// Human reason covered by the Decision signature.
+    pub(crate) reason: String,
+    #[arg(long, help = HELP_JSON)]
+    pub(crate) json: bool,
+}
+
 #[derive(Subcommand)]
 pub(crate) enum ReviewAction {
     /// Derive the current consequence-only Decision Inbox.
@@ -476,42 +495,16 @@ pub(crate) enum ReviewAction {
         override_usage = "vela review accept [OPTIONS] [REPO] <PROPOSAL_ID> --reason <REASON>"
     )]
     Accept {
-        #[arg(value_name = "REPO", help = HELP_REPO_BEFORE_OBJECT)]
-        first: Option<String>,
-        /// Exact pending Proposal ID (`vpr_...`).
-        #[arg(value_name = "PROPOSAL_ID")]
-        second: Option<String>,
-        #[arg(long = "repo", value_name = "PATH", help = HELP_REPO)]
-        repo_flag: Option<PathBuf>,
-        /// Require the exact Decision Inbox entry that was reviewed.
-        #[arg(long)]
-        if_entry_root: Option<String>,
-        #[arg(long)]
-        /// Human reason covered by the Decision signature.
-        reason: String,
-        #[arg(long, help = HELP_JSON)]
-        json: bool,
+        #[command(flatten)]
+        args: ReviewDecisionArgs,
     },
     /// Reject exactly one Proposal through repository authority.
     #[command(
         override_usage = "vela review reject [OPTIONS] [REPO] <PROPOSAL_ID> --reason <REASON>"
     )]
     Reject {
-        #[arg(value_name = "REPO", help = HELP_REPO_BEFORE_OBJECT)]
-        first: Option<String>,
-        /// Exact pending Proposal ID (`vpr_...`).
-        #[arg(value_name = "PROPOSAL_ID")]
-        second: Option<String>,
-        #[arg(long = "repo", value_name = "PATH", help = HELP_REPO)]
-        repo_flag: Option<PathBuf>,
-        /// Require the exact Decision Inbox entry that was reviewed.
-        #[arg(long)]
-        if_entry_root: Option<String>,
-        #[arg(long)]
-        /// Human reason covered by the Decision signature.
-        reason: String,
-        #[arg(long, help = HELP_JSON)]
-        json: bool,
+        #[command(flatten)]
+        args: ReviewDecisionArgs,
     },
     /// Withdraw your own still-pending Proposal using its Submission identity.
     #[command(
