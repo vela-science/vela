@@ -2,7 +2,7 @@
 
 #![cfg(unix)]
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 use ed25519_dalek::SigningKey;
@@ -54,6 +54,32 @@ fn exact_directory_snapshot(directory: &Path) -> Vec<(String, Vec<u8>)> {
             )
         })
         .collect::<Vec<_>>();
+    entries.sort_by(|left, right| left.0.cmp(&right.0));
+    entries
+}
+
+fn tree_snapshot(root: &Path) -> Vec<(PathBuf, u32, Vec<u8>)> {
+    use std::os::unix::fs::MetadataExt;
+
+    fn visit(root: &Path, path: &Path, entries: &mut Vec<(PathBuf, u32, Vec<u8>)>) {
+        for entry in std::fs::read_dir(path).expect("read snapshot directory") {
+            let entry = entry.expect("snapshot entry");
+            let path = entry.path();
+            let metadata = std::fs::symlink_metadata(&path).expect("snapshot metadata");
+            if metadata.is_dir() {
+                visit(root, &path, entries);
+            } else {
+                entries.push((
+                    path.strip_prefix(root).unwrap().to_path_buf(),
+                    metadata.mode(),
+                    std::fs::read(path).expect("snapshot bytes"),
+                ));
+            }
+        }
+    }
+
+    let mut entries = Vec::new();
+    visit(root, root, &mut entries);
     entries.sort_by(|left, right| left.0.cmp(&right.0));
     entries
 }
@@ -149,6 +175,32 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
         .expect("inspect clone");
     assert!(dirt.status.success());
     assert!(dirt.stdout.is_empty(), "clean clone must remain clean");
+
+    for (name, value) in [
+        ("remote.origin.promisor", "true"),
+        ("remote.origin.partialclonefilter", "blob:none"),
+    ] {
+        let configured = Command::new("git")
+            .current_dir(&clone)
+            .args(["config", name, value])
+            .output()
+            .expect("configure deferred partial-clone fixture");
+        assert!(configured.status.success());
+    }
+    let before = tree_snapshot(&clone);
+    let refused = run(&clone, None, &["replay", ".", "--json"]);
+    assert_eq!(refused.status.code(), Some(1));
+    let refused: Value =
+        serde_json::from_slice(&refused.stdout).expect("offline storage error JSON");
+    assert_eq!(refused["ok"], false);
+    assert_eq!(refused["command"], "replay");
+    assert_eq!(refused["error"]["kind"], "domain");
+    assert!(refused["error"]["code"].is_null());
+    assert_eq!(
+        refused["error"]["message"],
+        "Git repository storage is unsupported for exact offline reads; use a complete local repository without shallow or grafted history, config includes, partial-clone/promisor settings, or object alternates"
+    );
+    assert_eq!(tree_snapshot(&clone), before);
 }
 
 #[test]
@@ -431,6 +483,49 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         .status()
         .expect("stage method manifest");
     assert!(staged.success());
+    let staged_method_home = temporary.path().join("staged-method-home");
+    std::fs::create_dir_all(&staged_method_home).expect("staged method home");
+    let staged_method = run_with_home(
+        &repository_path,
+        Some(agent.socket()),
+        &staged_method_home,
+        &[
+            "verification",
+            "record",
+            ".",
+            submitted["proposal_id"].as_str().expect("proposal id"),
+            "--profile",
+            "exact-replay-v1",
+            "--method",
+            method_path,
+            "--property",
+            "Replay the retained artifact bytes.",
+            "--outcome",
+            "pass",
+            "--does-not-establish",
+            "Scientific acceptance.",
+            "--as",
+            "verifier:staged-method-regression",
+            "--json",
+        ],
+    );
+    assert_eq!(staged_method.status.code(), Some(1));
+    let staged_method: Value =
+        serde_json::from_slice(&staged_method.stdout).expect("staged method error JSON");
+    assert_eq!(staged_method["command"], "verification.record");
+    assert_eq!(
+        staged_method["error"]["message"],
+        "Verification method manifest differs from the retained current Git bytes"
+    );
+    assert!(
+        staged_method["error"]["hint"].as_str().is_some_and(
+            |hint| hint.contains(method_path) && hint.contains("current repository HEAD")
+        )
+    );
+    assert!(
+        !staged_method_home.join(".vela/agents").exists(),
+        "staged method preflight must fail before verifier key creation"
+    );
     let committed = Command::new("git")
         .current_dir(&repository_path)
         .args([

@@ -1642,7 +1642,7 @@ pub(crate) fn initial_repository(
     let commit = current_origin_commit(root, origin)?;
     let read_blob = |path: &str| -> Result<Vec<u8>, String> {
         let spec = format!("{commit}:{path}");
-        let output = vela_edge::git::output(root, &["show", &spec])?;
+        let output = crate::config::git_publish::exact_git_output(root, &["show", &spec])?;
         if !output.status.success() {
             return Err(format!(
                 "read origin blob {spec}: {}",
@@ -1678,7 +1678,7 @@ fn current_origin_commit(root: &Path, origin: &RepositoryOriginV1) -> Result<Str
     let mut matching = Vec::new();
     for commit in commits {
         let spec = format!("{commit}:.vela/origin.json");
-        let output = vela_edge::git::output(root, &["show", &spec])?;
+        let output = crate::config::git_publish::exact_git_output(root, &["show", &spec])?;
         if output.status.success() && output.stdout == expected {
             matching.push(commit);
         }
@@ -2040,7 +2040,7 @@ fn verify_repository_manifest_delta_chain<'a>(
 
 fn repository_manifest_at_commit(root: &Path, commit: &str) -> Result<RepositoryV4, String> {
     let spec = format!("{commit}:.vela/repository.json");
-    let output = vela_edge::git::output(root, &["show", &spec])?;
+    let output = crate::config::git_publish::exact_git_output(root, &["show", &spec])?;
     if !output.status.success() {
         return Err(format!(
             "read repository manifest at {commit}: {}",
@@ -2397,7 +2397,7 @@ fn human_remote(repository: &Path) -> Option<String> {
 }
 
 fn git_text(repository: &Path, args: &[&str]) -> Result<String, String> {
-    vela_edge::git::text(repository, args)
+    crate::config::git_publish::exact_git_text(repository, args)
 }
 
 /// The set of paths a current repository must no longer carry.

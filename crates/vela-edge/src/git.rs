@@ -1,17 +1,15 @@
-//! Shared Git process isolation and read-only repository inspection.
+//! Shared ambient-process isolation for Git callers.
 //!
 //! An ordinary Git subprocess is not a trust boundary: inherited `GIT_*`
 //! variables and process configuration can redirect repository discovery,
 //! object lookup, the index, replacement refs, shallow state, or hooks. The
-//! write-neutral [`isolate_ambient`] helper removes that shared ambient state;
-//! [`command`] adds the repository binding required by read-only callers.
+//! write-neutral [`isolate_ambient`] helper removes that shared ambient state.
 //!
-//! Repository initialization and publication remain explicit product
-//! operations. This module does not choose or execute either operation.
+//! Repository discovery, reads, initialization, and publication remain with
+//! their owning callers. This module does not choose or execute an operation.
 
 use std::ffi::OsString;
-use std::path::Path;
-use std::process::{Command, Output};
+use std::process::Command;
 
 const NULL_DEVICE: &str = "/dev/null";
 
@@ -59,6 +57,7 @@ fn isolate_ambient_from(
             ("GIT_OPTIONAL_LOCKS", "0"),
             ("GIT_NO_REPLACE_OBJECTS", "1"),
             ("GIT_LITERAL_PATHSPECS", "1"),
+            ("GIT_NO_LAZY_FETCH", "1"),
             ("GIT_ATTR_NOSYSTEM", "1"),
             ("GIT_TERMINAL_PROMPT", "0"),
             ("GIT_PAGER", "cat"),
@@ -67,67 +66,11 @@ fn isolate_ambient_from(
         ]);
 }
 
-/// Construct a read-only Git command isolated from ambient Git configuration
-/// and repository-redirection variables.
-pub(crate) fn command(repo: &Path) -> Result<Command, String> {
-    let repo = std::fs::canonicalize(repo)
-        .map_err(|error| format!("resolve Git repository {}: {error}", repo.display()))?;
-    let worktree = repo
-        .to_str()
-        .ok_or_else(|| format!("Git repository path is not UTF-8: {}", repo.display()))?;
-    let mut command = Command::new("git");
-    isolate_ambient(&mut command);
-    command
-        .arg("-c")
-        .arg(format!("core.worktree={worktree}"))
-        .arg("-C")
-        .arg(&repo);
-    Ok(command)
-}
-
-/// Run an explicitly supplied read-only Git operation.
-pub fn output(repo: &Path, args: &[&str]) -> Result<Output, String> {
-    command(repo)?
-        .args(args)
-        .output()
-        .map_err(|error| format!("run git {}: {error}", args.join(" ")))
-}
-
-/// Return stdout for a successful read-only Git operation.
-pub(crate) fn bytes(repo: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
-    let output = output(repo, args)?;
-    if output.status.success() {
-        return Ok(output.stdout);
-    }
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    Err(if stderr.is_empty() {
-        format!("git {} failed with {}", args.join(" "), output.status)
-    } else {
-        stderr
-    })
-}
-
-/// Return trimmed UTF-8 stdout for a successful read-only Git operation.
-pub fn text(repo: &Path, args: &[&str]) -> Result<String, String> {
-    String::from_utf8(bytes(repo, args)?)
-        .map(|text| text.trim().to_string())
-        .map_err(|error| format!("git {} output was not UTF-8: {error}", args.join(" ")))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::collections::BTreeMap;
     use std::ffi::{OsStr, OsString};
-
-    fn run(mut command: Command) {
-        let output = command.output().expect("run Git fixture command");
-        assert!(
-            output.status.success(),
-            "Git fixture command failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
 
     #[test]
     fn ambient_isolation_removes_the_git_namespace_and_sets_only_common_state() {
@@ -154,6 +97,14 @@ mod tests {
             .collect::<BTreeMap<_, _>>();
 
         for name in inherited {
+            if name == "GIT_NO_LAZY_FETCH" {
+                assert_eq!(
+                    environment.get(&name),
+                    Some(&Some(OsString::from("1"))),
+                    "lazy fetch must remain disabled after ambient scrubbing"
+                );
+                continue;
+            }
             assert_eq!(
                 environment.get(&name),
                 Some(&None),
@@ -166,6 +117,7 @@ mod tests {
             ("GIT_CONFIG_NOSYSTEM", "1"),
             ("GIT_CONFIG_SYSTEM", "/dev/null"),
             ("GIT_LITERAL_PATHSPECS", "1"),
+            ("GIT_NO_LAZY_FETCH", "1"),
             ("GIT_NO_REPLACE_OBJECTS", "1"),
             ("GIT_OPTIONAL_LOCKS", "0"),
             ("GIT_PAGER", "cat"),
@@ -199,39 +151,5 @@ mod tests {
         }
         assert!(!command.get_args().any(|arg| arg == "--literal-pathspecs"));
         assert!(!command.get_args().any(|arg| arg == "commit.gpgSign=false"));
-    }
-
-    #[test]
-    fn reads_only_the_explicit_initialized_repository() {
-        let repo = tempfile::tempdir().expect("temporary repository");
-        let unrelated = tempfile::tempdir().expect("unrelated repository");
-        run({
-            let mut command = Command::new("git");
-            command.args(["init", "--quiet"]).current_dir(repo.path());
-            command
-        });
-        run({
-            let mut command = Command::new("git");
-            command
-                .args(["init", "--quiet"])
-                .current_dir(unrelated.path());
-            command
-        });
-
-        let resolved = text(repo.path(), &["rev-parse", "--show-toplevel"])
-            .expect("inspect initialized repository");
-        assert_eq!(
-            std::fs::canonicalize(resolved).expect("canonical Git output"),
-            std::fs::canonicalize(repo.path()).expect("canonical repository")
-        );
-    }
-
-    #[test]
-    fn does_not_implicitly_initialize_a_directory() {
-        let directory = tempfile::tempdir().expect("temporary directory");
-        let error = text(directory.path(), &["rev-parse", "--git-dir"])
-            .expect_err("plain directory must not become a repository");
-        assert!(error.contains("not a git repository"), "{error}");
-        assert!(!directory.path().join(".git").exists());
     }
 }

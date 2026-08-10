@@ -255,7 +255,7 @@ pub(crate) fn prepare_submission_artifacts(
                 &format!("Submission artifact {index}"),
             )
             .map_err(|error| public_artifact_read_error(error, limit, index))?;
-            let tracked = vela_edge::git::output(
+            let tracked = crate::config::git_publish::exact_git_output(
                 repository_path,
                 &["ls-files", "--error-unmatch", "--", &canonical_path],
             )?

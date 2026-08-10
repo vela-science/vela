@@ -174,7 +174,6 @@ pub(crate) fn initialize_native_git_repository(path: &Path) -> Result<(), String
         .arg(templates.path())
         .args(["-b", "main", "--"])
         .arg(&root)
-        .env("GIT_NO_LAZY_FETCH", "1")
         .env("GIT_EDITOR", "true")
         .env("GIT_SEQUENCE_EDITOR", "true")
         .env("GIT_CEILING_DIRECTORIES", &root);
@@ -1022,6 +1021,74 @@ struct GitRepository {
     object_format: String,
 }
 
+const EXACT_READ_STORAGE_ERROR: &str = "Git repository storage is unsupported for exact offline reads; use a complete local repository without shallow or grafted history, config includes, partial-clone/promisor settings, or object alternates";
+const ROOT_ERROR: &str = "exact Git reads require the requested root to be its resolved worktree";
+
+pub(crate) fn exact_git_output(root: &Path, args: &[&str]) -> Result<std::process::Output, String> {
+    let repository = resolve_exact_read_repository(root)?;
+    run_git_owned(&repository, None, Some(&repository.object_dir), args, None)
+}
+
+pub(crate) fn exact_git_text(root: &Path, args: &[&str]) -> Result<String, String> {
+    let output = exact_git_output(root, args)?;
+    if output.status.success() {
+        return String::from_utf8(output.stdout)
+            .map(|text| text.trim().to_string())
+            .map_err(|error| format!("git {} output was not UTF-8: {error}", args.join(" ")));
+    }
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    Err(if stderr.is_empty() {
+        format!("git {} failed with {}", args.join(" "), output.status)
+    } else {
+        stderr
+    })
+}
+
+fn resolve_exact_read_repository(path: &Path) -> Result<GitRepository, String> {
+    let requested = path
+        .canonicalize()
+        .map_err(|error| format!("canonicalize repository path {}: {error}", path.display()))?;
+    let marker = std::fs::symlink_metadata(requested.join(".git"));
+    if !marker.is_ok_and(|metadata| metadata.is_dir() || metadata.is_file()) {
+        return Err(ROOT_ERROR.into());
+    }
+    let repository = resolve_git_repository(&requested).map_err(|error| {
+        if error.contains("unsupported for exact publication")
+            || error.starts_with("inspect Git object alternates")
+            || error.starts_with("Git object directory is outside")
+        {
+            EXACT_READ_STORAGE_ERROR.to_string()
+        } else {
+            error
+        }
+    })?;
+    if repository.worktree != requested {
+        return Err(ROOT_ERROR.into());
+    }
+    for path in [
+        repository.git_common_dir.join("shallow"),
+        repository.git_common_dir.join("info").join("grafts"),
+    ] {
+        let metadata = std::fs::symlink_metadata(path);
+        if metadata.is_ok()
+            || metadata.is_err_and(|error| error.kind() != std::io::ErrorKind::NotFound)
+        {
+            return Err(EXACT_READ_STORAGE_ERROR.into());
+        }
+    }
+    let args = ["config", "--no-includes", "--list", "--name-only"];
+    let names = successful_git_text(git_output_in(&repository, &args, None)?, &args)?;
+    if names.lines().any(|name| {
+        let name = name.to_ascii_lowercase();
+        name == "extensions.partialclone"
+            || name.starts_with("remote.")
+                && (name.ends_with(".promisor") || name.ends_with(".partialclonefilter"))
+    }) {
+        return Err(EXACT_READ_STORAGE_ERROR.into());
+    }
+    Ok(repository)
+}
+
 fn resolve_git_repository(path: &Path) -> Result<GitRepository, String> {
     let path = path
         .canonicalize()
@@ -1296,7 +1363,6 @@ fn isolated_git_command(repository: &GitRepository, index: Option<&Path>) -> Com
         .arg("commit.gpgSign=false")
         .arg("-C")
         .arg(&repository.worktree)
-        .env("GIT_NO_LAZY_FETCH", "1")
         .env("GIT_EDITOR", "true")
         .env("GIT_SEQUENCE_EDITOR", "true")
         .env("GIT_CEILING_DIRECTORIES", &repository.worktree);
@@ -1314,6 +1380,11 @@ mod tests {
 
     const HOSTILE_CHILD: &str = "VELA_GIT_PUBLISH_HOSTILE_CHILD";
     const HOSTILE_REPOSITORY: &str = "VELA_GIT_PUBLISH_HOSTILE_REPOSITORY";
+    const PROMISOR_CHILD: &str = "VELA_GIT_EXACT_READ_PROMISOR_CHILD";
+    const PROMISOR_REPOSITORY: &str = "VELA_GIT_EXACT_READ_PROMISOR_REPOSITORY";
+    const EXPECTED_EXACT_READ_STORAGE_ERROR: &str = "Git repository storage is unsupported for exact offline reads; use a complete local repository without shallow or grafted history, config includes, partial-clone/promisor settings, or object alternates";
+    const EXPECTED_EXACT_ROOT_ERROR: &str =
+        "exact Git reads require the requested root to be its resolved worktree";
 
     fn git(root: &Path, args: &[&str]) {
         let output = Command::new("git")
@@ -1542,6 +1613,38 @@ mod tests {
         std::fs::set_permissions(path, permissions).unwrap();
     }
 
+    #[cfg(unix)]
+    fn child_output_before_deadline(mut command: Command) -> std::process::Output {
+        use std::process::Stdio;
+        use std::time::{Duration, Instant};
+
+        command.stdout(Stdio::piped()).stderr(Stdio::piped());
+        let mut child = command.spawn().expect("spawn deadline-bounded child");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            match child.try_wait() {
+                Ok(Some(_)) => return child.wait_with_output().expect("collect child output"),
+                Ok(None) if Instant::now() < deadline => {
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                Ok(None) => {
+                    let _ = child.kill();
+                    let output = child.wait_with_output().expect("reap timed-out child");
+                    panic!(
+                        "exact Git read child exceeded its deadline:\nstdout:\n{}\nstderr:\n{}",
+                        String::from_utf8_lossy(&output.stdout),
+                        String::from_utf8_lossy(&output.stderr)
+                    );
+                }
+                Err(error) => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    panic!("poll exact Git read child: {error}");
+                }
+            }
+        }
+    }
+
     #[test]
     fn write_command_retains_only_cli_owned_extensions() {
         let temp = tempfile::tempdir().unwrap();
@@ -1553,11 +1656,7 @@ mod tests {
             .get_envs()
             .map(|(name, value)| (name.to_os_string(), value.map(OsStr::to_os_string)))
             .collect::<BTreeMap<_, _>>();
-        for (name, value) in [
-            ("GIT_EDITOR", "true"),
-            ("GIT_NO_LAZY_FETCH", "1"),
-            ("GIT_SEQUENCE_EDITOR", "true"),
-        ] {
+        for (name, value) in [("GIT_EDITOR", "true"), ("GIT_SEQUENCE_EDITOR", "true")] {
             assert_eq!(
                 environment.get(OsStr::new(name)),
                 Some(&Some(OsString::from(value))),
@@ -1597,6 +1696,14 @@ mod tests {
             format!("{}\n", sentinel.path().join(".git/objects").display()),
         )
         .unwrap();
+        let intended_before = snapshot_files(intended.path());
+
+        assert_eq!(
+            exact_git_output(intended.path(), &["show", "HEAD:a.txt"])
+                .expect_err("on-disk object alternates must fail exact reads"),
+            EXPECTED_EXACT_READ_STORAGE_ERROR
+        );
+        assert_eq!(snapshot_files(intended.path()), intended_before);
 
         let error = exact_publication_preflight(
             intended.path(),
@@ -1615,6 +1722,7 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[test]
     fn local_config_include_cannot_redirect_discovery() {
         let intended = tempfile::tempdir().unwrap();
@@ -1623,13 +1731,25 @@ mod tests {
         std::fs::write(intended.path().join("a.txt"), b"before").unwrap();
         git(intended.path(), &["add", "."]);
         git(intended.path(), &["commit", "-m", "initial"]);
+        let side_effect = sentinel.path().join("included-filter-ran");
+        let helper = sentinel.path().join("included-filter");
+        write_executable(
+            &helper,
+            &format!("#!/bin/sh\n: > '{}'\ncat\n", side_effect.display()),
+        );
+        std::fs::write(
+            intended.path().join(".gitattributes"),
+            b"a.txt filter=hostile\n",
+        )
+        .unwrap();
         let sentinel_files = snapshot_files(sentinel.path());
         let hostile_config = intended.path().join("hostile-include.gitconfig");
         std::fs::write(
             &hostile_config,
             format!(
-                "[core]\n\tworktree = {}\n[extensions]\n\tobjectFormat = sha256\n",
-                sentinel.path().display()
+                "[core]\n\tworktree = {}\n[extensions]\n\tobjectFormat = sha256\n[filter \"hostile\"]\n\tclean = {}\n",
+                sentinel.path().display(),
+                helper.display()
             ),
         )
         .unwrap();
@@ -1642,6 +1762,16 @@ mod tests {
                 hostile_config.to_str().unwrap(),
             ],
         );
+        let intended_before = snapshot_files(intended.path());
+
+        assert_eq!(
+            exact_git_output(intended.path(), &["show", "HEAD:a.txt"])
+                .expect_err("local includes must fail exact reads"),
+            EXPECTED_EXACT_READ_STORAGE_ERROR
+        );
+        assert_eq!(snapshot_files(intended.path()), intended_before);
+        assert_eq!(snapshot_files(sentinel.path()), sentinel_files);
+        assert!(!side_effect.exists(), "included filter must not execute");
 
         let error = exact_publication_preflight(
             intended.path(),
@@ -1655,6 +1785,196 @@ mod tests {
                 if reason.contains("config includes are unsupported")
         ));
         assert_eq!(snapshot_files(sentinel.path()), sentinel_files);
+        assert!(
+            !side_effect.exists(),
+            "publication must not execute the filter"
+        );
+    }
+
+    #[test]
+    fn nested_directory_cannot_discover_an_ancestor_repository() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        setup_repository(root);
+        std::fs::write(root.join("a.txt"), b"retained").unwrap();
+        std::fs::create_dir_all(root.join("nested/child")).unwrap();
+        git(root, &["add", "."]);
+        git(root, &["commit", "-m", "initial"]);
+        let before = snapshot_files(root);
+
+        assert_eq!(
+            exact_git_output(&root.join("nested/child"), &["show", "HEAD:a.txt"])
+                .expect_err("nested exact read must not discover an ancestor repository"),
+            EXPECTED_EXACT_ROOT_ERROR
+        );
+        assert_eq!(snapshot_files(root), before);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn worktree_config_include_fails_exact_reads_without_mutation() {
+        let intended = tempfile::tempdir().unwrap();
+        let sentinel = tempfile::tempdir().unwrap();
+        setup_repository(intended.path());
+        std::fs::write(intended.path().join("a.txt"), b"retained").unwrap();
+        git(intended.path(), &["add", "."]);
+        git(intended.path(), &["commit", "-m", "initial"]);
+        let side_effect = sentinel.path().join("worktree-filter-ran");
+        let helper = sentinel.path().join("worktree-filter");
+        write_executable(
+            &helper,
+            &format!("#!/bin/sh\n: > '{}'\ncat\n", side_effect.display()),
+        );
+        std::fs::write(
+            intended.path().join(".gitattributes"),
+            b"a.txt filter=hostile\n",
+        )
+        .unwrap();
+        let hostile_config = intended.path().join("worktree-include.gitconfig");
+        std::fs::write(
+            &hostile_config,
+            format!(
+                "[core]\n\tworktree = {}\n[filter \"hostile\"]\n\tclean = {}\n",
+                sentinel.path().display(),
+                helper.display()
+            ),
+        )
+        .unwrap();
+        git(
+            intended.path(),
+            &["config", "extensions.worktreeConfig", "true"],
+        );
+        git(
+            intended.path(),
+            &[
+                "config",
+                "--worktree",
+                "include.path",
+                hostile_config.to_str().unwrap(),
+            ],
+        );
+        let intended_before = snapshot_files(intended.path());
+        let sentinel_before = snapshot_files(sentinel.path());
+
+        assert_eq!(
+            exact_git_output(intended.path(), &["show", "HEAD:a.txt"])
+                .expect_err("worktree includes must fail exact reads"),
+            EXPECTED_EXACT_READ_STORAGE_ERROR
+        );
+        assert_eq!(snapshot_files(intended.path()), intended_before);
+        assert_eq!(snapshot_files(sentinel.path()), sentinel_before);
+        assert!(!side_effect.exists(), "worktree filter must not execute");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn promisor_missing_object_fails_before_lazy_fetch_and_leaves_repository_exact() {
+        if std::env::var_os(PROMISOR_CHILD).is_some() {
+            let root = PathBuf::from(std::env::var_os(PROMISOR_REPOSITORY).unwrap());
+            assert_eq!(
+                exact_git_output(&root, &["show", "HEAD:a.txt"])
+                    .expect_err("promisor storage must fail before object reads"),
+                EXPECTED_EXACT_READ_STORAGE_ERROR
+            );
+            return;
+        }
+
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("repository");
+        let hostile = temporary.path().join("hostile");
+        std::fs::create_dir(&root).unwrap();
+        std::fs::create_dir(&hostile).unwrap();
+        setup_repository(&root);
+        std::fs::write(root.join("a.txt"), b"promised but unavailable").unwrap();
+        git(&root, &["add", "."]);
+        git(&root, &["commit", "-m", "initial"]);
+        let blob = fixture_git_text(&root, &["rev-parse", "HEAD:a.txt"]);
+        let loose_blob = root.join(".git/objects").join(&blob[..2]).join(&blob[2..]);
+        assert!(loose_blob.is_file(), "fixture blob must begin loose");
+        std::fs::remove_file(&loose_blob).unwrap();
+        assert!(
+            !loose_blob.exists(),
+            "fixture blob must actually be missing"
+        );
+
+        let helper_sentinel = hostile.join("ssh-helper-ran");
+        let helper = hostile.join("ssh-helper");
+        write_executable(
+            &helper,
+            &format!("#!/bin/sh\n: > '{}'\nexit 97\n", helper_sentinel.display()),
+        );
+        git(&root, &["config", "core.repositoryFormatVersion", "1"]);
+        git(&root, &["config", "extensions.partialClone", "origin"]);
+        git(&root, &["config", "remote.origin.promisor", "true"]);
+        git(
+            &root,
+            &["config", "remote.origin.partialCloneFilter", "blob:none"],
+        );
+        git(
+            &root,
+            &[
+                "config",
+                "remote.origin.url",
+                "ssh://example.invalid/repository",
+            ],
+        );
+        git(
+            &root,
+            &["config", "core.sshCommand", helper.to_str().unwrap()],
+        );
+        let before = snapshot_files(&root);
+
+        let test_name = "config::git_publish::tests::promisor_missing_object_fails_before_lazy_fetch_and_leaves_repository_exact";
+        let mut command = Command::new(std::env::current_exe().unwrap());
+        command
+            .args(["--exact", test_name, "--nocapture"])
+            .env(PROMISOR_CHILD, "1")
+            .env(PROMISOR_REPOSITORY, &root)
+            .env("GIT_NO_LAZY_FETCH", "0");
+        let output = child_output_before_deadline(command);
+        assert!(
+            output.status.success(),
+            "promisor child failed:\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(snapshot_files(&root), before);
+        assert!(!helper_sentinel.exists(), "SSH helper must not execute");
+        assert!(!loose_blob.exists(), "missing object must not be populated");
+    }
+
+    #[test]
+    fn shallow_and_grafted_history_fail_exact_reads_without_mutation() {
+        let shallow = tempfile::tempdir().unwrap();
+        setup_repository(shallow.path());
+        std::fs::write(shallow.path().join("a.txt"), b"retained").unwrap();
+        git(shallow.path(), &["add", "."]);
+        git(shallow.path(), &["commit", "-m", "initial"]);
+        let head = fixture_git_text(shallow.path(), &["rev-parse", "HEAD"]);
+        std::fs::write(shallow.path().join(".git/shallow"), format!("{head}\n")).unwrap();
+        let shallow_before = snapshot_files(shallow.path());
+        assert_eq!(
+            exact_git_output(shallow.path(), &["show", "HEAD:a.txt"])
+                .expect_err("shallow history must fail exact reads"),
+            EXPECTED_EXACT_READ_STORAGE_ERROR
+        );
+        assert_eq!(snapshot_files(shallow.path()), shallow_before);
+
+        let grafted = tempfile::tempdir().unwrap();
+        setup_repository(grafted.path());
+        std::fs::write(grafted.path().join("a.txt"), b"retained").unwrap();
+        git(grafted.path(), &["add", "."]);
+        git(grafted.path(), &["commit", "-m", "initial"]);
+        let head = fixture_git_text(grafted.path(), &["rev-parse", "HEAD"]);
+        std::fs::create_dir_all(grafted.path().join(".git/info")).unwrap();
+        std::fs::write(grafted.path().join(".git/info/grafts"), format!("{head}\n")).unwrap();
+        let grafted_before = snapshot_files(grafted.path());
+        assert_eq!(
+            exact_git_output(grafted.path(), &["show", "HEAD:a.txt"])
+                .expect_err("grafted history must fail exact reads"),
+            EXPECTED_EXACT_READ_STORAGE_ERROR
+        );
+        assert_eq!(snapshot_files(grafted.path()), grafted_before);
     }
 
     #[cfg(unix)]
@@ -1663,6 +1983,22 @@ mod tests {
         if std::env::var_os(HOSTILE_CHILD).is_some() {
             let root = PathBuf::from(std::env::var_os(HOSTILE_REPOSITORY).unwrap());
             let repository_path = root.join("repository");
+            let head = exact_git_output(&root, &["show", "HEAD:repository/a.txt"])
+                .expect("read intended HEAD bytes under hostile ambient state");
+            assert!(head.status.success());
+            assert_eq!(head.stdout, b"before");
+            let head_unrelated = exact_git_output(&root, &["show", "HEAD:unrelated.txt"])
+                .expect("read intended unrelated HEAD bytes");
+            assert!(head_unrelated.status.success());
+            assert_eq!(head_unrelated.stdout, b"clean");
+            let index = exact_git_output(&root, &["show", ":unrelated.txt"])
+                .expect("read intended index bytes under hostile ambient state");
+            assert!(index.status.success());
+            assert_eq!(index.stdout, b"staged");
+            assert_eq!(
+                std::fs::read(root.join("unrelated.txt")).unwrap(),
+                b"dirty-after-stage"
+            );
             let delta = one_file_delta("repository/a.txt");
             let preflight =
                 exact_publication_preflight(&repository_path, &delta, &PublishOptions::local())
@@ -1955,6 +2291,10 @@ mod tests {
             fixture_git_text(root, &["show", "HEAD:a.txt"]),
             "replacement"
         );
+        let exact = exact_git_output(root, &["show", "HEAD:a.txt"])
+            .expect("read original bytes despite replacement ref");
+        assert!(exact.status.success());
+        assert_eq!(exact.stdout, b"before");
 
         let delta = one_file_delta("a.txt");
         let preflight =
@@ -2004,6 +2344,10 @@ mod tests {
                 linked.to_str().unwrap(),
             ],
         );
+        let exact = exact_git_output(&linked, &["show", "HEAD:a.txt"])
+            .expect("read through linked worktree binding");
+        assert!(exact.status.success());
+        assert_eq!(exact.stdout, b"before");
 
         let delta = one_file_delta("a.txt");
         let preflight = exact_publication_preflight(&linked, &delta, &PublishOptions::local())

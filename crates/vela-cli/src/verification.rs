@@ -5,6 +5,8 @@
 //! changing authority or Claim standing.
 
 use std::fs;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Component, Path, PathBuf};
 
 use chrono::{SecondsFormat, Utc};
@@ -21,12 +23,16 @@ use vela_protocol::verification_record::{
 
 use crate::authority_transaction::AuthorityObjectDraft;
 use crate::config::git_publish::{
-    PublicationOutcome, PublicationState, PublishOptions, publish_exact_delta,
+    PublicationOutcome, PublicationState, PublishOptions, exact_git_output, publish_exact_delta,
 };
 use crate::repository_ops::VerificationImportOutcome;
 use vela_repository::{ContentDigest, InputBinding, WriteClass};
 
 const METHOD_MANIFEST_MAX_BYTES: u64 = 1024 * 1024;
+const RETAINED_ERROR: &str =
+    "Verification method manifest must be retained in the current Git commit";
+const DIRTY_ERROR: &str =
+    "Verification method manifest differs from the retained current Git bytes";
 const REPOSITORY_OPERATION_KIND: &str = "verification";
 
 #[derive(Debug, Clone)]
@@ -198,31 +204,47 @@ fn method_manifest_binding(
     if bytes.is_empty() {
         return Err("Verification method manifest must not be empty".into());
     }
-    let tracked = vela_edge::git::output(
-        repository_path,
-        &["ls-files", "--error-unmatch", "--", &implementation],
-    )?;
-    if !tracked.status.success() {
-        return Err(
-            "Verification method manifest must be retained in the current Git commit".into(),
-        );
+    let git = |args: &[&str]| exact_git_output(repository_path, args);
+    let index_mode = git(&["ls-files", "-s", "-z", "--", &implementation])?;
+    if !index_mode.status.success() || index_mode.stdout.is_empty() {
+        return Err(RETAINED_ERROR.into());
     }
-    let dirt = vela_edge::git::text(
-        repository_path,
-        &[
-            "status",
-            "--porcelain=v1",
-            "--untracked-files=no",
-            "--",
-            &implementation,
-        ],
-    )?;
-    if !dirt.is_empty() {
-        return Err(
-            "Verification method manifest differs from the retained current Git bytes".into(),
-        );
+    let index_spec = format!(":./{implementation}");
+    let index = git(&["cat-file", "blob", &index_spec])?;
+    let head_spec = format!("HEAD:./{implementation}");
+    let head = git(&["cat-file", "blob", &head_spec])?;
+    let head_mode = git(&["ls-tree", "-z", "HEAD", "--", &implementation])?;
+    let index_executable = tracked_blob_executable(&index_mode);
+    let modes_match =
+        index_executable.is_some() && tracked_blob_executable(&head_mode) == index_executable;
+    #[cfg(unix)]
+    let worktree_executable = fs::symlink_metadata(repository_path.join(method_path))
+        .map_err(|error| format!("inspect Verification method manifest mode: {error}"))?
+        .permissions()
+        .mode()
+        & 0o111
+        != 0;
+    #[cfg(unix)]
+    let modes_match = modes_match && index_executable == Some(worktree_executable);
+    if !index.status.success()
+        || !head.status.success()
+        || !modes_match
+        || head.stdout != bytes
+        || index.stdout != bytes
+    {
+        return Err(DIRTY_ERROR.into());
     }
     Ok((implementation, sha256_root(&bytes)))
+}
+
+fn tracked_blob_executable(output: &std::process::Output) -> Option<bool> {
+    let entry = output.stdout.strip_suffix(&[0])?;
+    (output.status.success() && !entry.contains(&0)).then_some(())?;
+    match entry.get(..7)? {
+        b"100644 " => Some(false),
+        b"100755 " => Some(true),
+        _ => None,
+    }
 }
 
 fn resolve_property(
@@ -1003,70 +1025,147 @@ mod tests {
     fn method_manifest_bytes_bind_the_environment_and_fail_closed() {
         let directory = TempDir::new().unwrap();
         let path = Path::new("verification/method.json");
-        let initialized = std::process::Command::new("git")
-            .current_dir(directory.path())
-            .args(["init", "-q"])
-            .status()
-            .unwrap();
-        assert!(initialized.success());
+        let git = |args: &[&str]| {
+            let output = std::process::Command::new("git")
+                .current_dir(directory.path())
+                .args(args)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "git {}: {}",
+                args.join(" "),
+                String::from_utf8_lossy(&output.stderr)
+            );
+        };
+        git(&["init", "-q"]);
         fs::create_dir_all(directory.path().join("verification")).unwrap();
-        fs::write(
-            directory.path().join(path),
-            br#"{"schema":"fixture.method.v1","version":1}"#,
-        )
-        .unwrap();
-        let committed = std::process::Command::new("git")
-            .current_dir(directory.path())
-            .args(["add", "verification/method.json"])
-            .status()
-            .unwrap();
-        assert!(committed.success());
-        let committed = std::process::Command::new("git")
-            .current_dir(directory.path())
-            .args([
-                "-c",
-                "user.name=Vela Test",
-                "-c",
-                "user.email=vela@example.invalid",
-                "commit",
-                "-qm",
-                "method v1",
-            ])
-            .status()
-            .unwrap();
-        assert!(committed.success());
+        let first = br#"{"schema":"fixture.method.v1","version":1}"#;
+        let second = br#"{"schema":"fixture.method.v1","version":2}"#;
+        fs::write(directory.path().join(path), first).unwrap();
+        git(&["add", "verification/method.json"]);
+        git(&[
+            "-c",
+            "user.name=Vela Test",
+            "-c",
+            "user.email=vela@example.invalid",
+            "commit",
+            "-qm",
+            "method v1",
+        ]);
         let (implementation, first_root) = method_manifest_binding(directory.path(), path).unwrap();
         assert_eq!(implementation, "verification/method.json");
 
-        fs::write(
-            directory.path().join(path),
-            br#"{"schema":"fixture.method.v1","version":2}"#,
-        )
-        .unwrap();
+        let untracked = Path::new("verification/untracked.json");
+        fs::write(directory.path().join(untracked), b"untracked").unwrap();
+        assert_eq!(
+            method_manifest_binding(directory.path(), untracked).unwrap_err(),
+            RETAINED_ERROR
+        );
+        git(&["add", "verification/untracked.json"]);
+        assert_eq!(
+            method_manifest_binding(directory.path(), untracked).unwrap_err(),
+            DIRTY_ERROR
+        );
+        git(&["reset", "--", "verification/untracked.json"]);
+        fs::remove_file(directory.path().join(untracked)).unwrap();
+
+        fs::write(directory.path().join(path), second).unwrap();
         let error = method_manifest_binding(directory.path(), path).unwrap_err();
-        assert!(error.contains("differs from the retained"), "{error}");
-        let committed = std::process::Command::new("git")
-            .current_dir(directory.path())
-            .args(["add", "verification/method.json"])
-            .status()
-            .unwrap();
-        assert!(committed.success());
-        let committed = std::process::Command::new("git")
-            .current_dir(directory.path())
-            .args([
-                "-c",
-                "user.name=Vela Test",
-                "-c",
-                "user.email=vela@example.invalid",
-                "commit",
-                "-qm",
-                "method v2",
-            ])
-            .status()
-            .unwrap();
-        assert!(committed.success());
+        assert_eq!(error, DIRTY_ERROR);
+        git(&["add", "verification/method.json"]);
+        fs::write(directory.path().join(path), first).unwrap();
+        assert_eq!(
+            method_manifest_binding(directory.path(), path).unwrap_err(),
+            DIRTY_ERROR
+        );
+        git(&["reset", "--hard", "HEAD"]);
+
+        #[cfg(unix)]
+        {
+            git(&["update-index", "--chmod=+x", "verification/method.json"]);
+            assert_eq!(
+                method_manifest_binding(directory.path(), path).unwrap_err(),
+                DIRTY_ERROR
+            );
+            git(&["update-index", "--chmod=-x", "verification/method.json"]);
+
+            let absolute = directory.path().join(path);
+            let mut permissions = fs::metadata(&absolute).unwrap().permissions();
+            let original_mode = permissions.mode();
+            permissions.set_mode(original_mode | 0o111);
+            fs::set_permissions(&absolute, permissions).unwrap();
+            assert_eq!(
+                method_manifest_binding(directory.path(), path).unwrap_err(),
+                DIRTY_ERROR
+            );
+            let mut permissions = fs::metadata(&absolute).unwrap().permissions();
+            permissions.set_mode(original_mode);
+            fs::set_permissions(&absolute, permissions).unwrap();
+        }
+
+        fs::write(directory.path().join(path), second).unwrap();
+        git(&["add", "verification/method.json"]);
+        git(&[
+            "-c",
+            "user.name=Vela Test",
+            "-c",
+            "user.email=vela@example.invalid",
+            "commit",
+            "-qm",
+            "method v2",
+        ]);
         let (_, second_root) = method_manifest_binding(directory.path(), path).unwrap();
         assert_ne!(first_root, second_root);
+
+        fs::write(directory.path().join(path), first).unwrap();
+        git(&["add", "verification/method.json"]);
+        assert_eq!(
+            method_manifest_binding(directory.path(), path).unwrap_err(),
+            DIRTY_ERROR
+        );
+        fs::write(directory.path().join(path), second).unwrap();
+        git(&["add", "verification/method.json"]);
+
+        git(&["rm", "--cached", "--", "verification/method.json"]);
+        assert_eq!(
+            method_manifest_binding(directory.path(), path).unwrap_err(),
+            RETAINED_ERROR
+        );
+        git(&["add", "verification/method.json"]);
+
+        #[cfg(unix)]
+        {
+            let sentinel = directory.path().join("filter-executed");
+            let helper = directory.path().join("hostile-filter");
+            fs::write(
+                &helper,
+                format!("#!/bin/sh\n: > '{}'\ncat\n", sentinel.display()),
+            )
+            .unwrap();
+            let mut permissions = fs::metadata(&helper).unwrap().permissions();
+            permissions.set_mode(0o755);
+            fs::set_permissions(&helper, permissions).unwrap();
+            fs::create_dir_all(directory.path().join(".git/info")).unwrap();
+            for attributes in [
+                directory.path().join(".gitattributes"),
+                directory.path().join(".git/info/attributes"),
+            ] {
+                fs::write(attributes, b"verification/method.json filter=hostile\n").unwrap();
+            }
+            git(&["config", "filter.hostile.clean", helper.to_str().unwrap()]);
+            git(&["config", "filter.hostile.smudge", helper.to_str().unwrap()]);
+
+            method_manifest_binding(directory.path(), path).unwrap();
+            assert!(!sentinel.exists(), "raw method reads executed a Git filter");
+            fs::write(directory.path().join(path), b"dirty without filters").unwrap();
+            assert_eq!(
+                method_manifest_binding(directory.path(), path).unwrap_err(),
+                DIRTY_ERROR
+            );
+            assert!(!sentinel.exists(), "refusal executed a Git filter");
+            fs::write(directory.path().join(path), second).unwrap();
+        }
 
         fs::write(directory.path().join(path), []).unwrap();
         let error = method_manifest_binding(directory.path(), path).unwrap_err();
