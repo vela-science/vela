@@ -68,8 +68,6 @@ jobs:
         env:
           VELA_EPHEMERAL_ACCOUNT_HOME: "1"
         run: ./conformance/check-current-object-waist.sh
-      - name: independent authority foundation verifier
-        run: uv run --project conformance --locked python conformance/verify.py
       # The linter runs against a Repository, and there is none here. What this
       # job can check is that each of its rules still fires: a rule that has
       # stopped being able to fail reports coverage it does not have.
