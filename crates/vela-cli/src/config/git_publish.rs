@@ -390,9 +390,9 @@ fn build_native_genesis_tree(
     }
     let tree =
         git_with_index_and_objects(repository, index, object_directory, &["write-tree"], None)?;
-    let expected_index = git_output_with_index_and_objects(
+    let expected_index = run_git_owned(
         repository,
-        index,
+        Some(index),
         object_directory,
         &["ls-files", "--stage", "-z"],
         None,
@@ -1231,7 +1231,7 @@ fn git_with_index(
     args: &[&str],
     stdin: Option<&[u8]>,
 ) -> Result<String, String> {
-    let output = git_output_with_index(repository, index, args, stdin)?;
+    let output = run_git_owned(repository, Some(index), None, args, stdin)?;
     successful_git_text(output, args)
 }
 
@@ -1240,16 +1240,7 @@ fn git_output_in(
     args: &[&str],
     stdin: Option<&[u8]>,
 ) -> Result<std::process::Output, String> {
-    run_git(repository, None, args, stdin)
-}
-
-fn git_output_with_index(
-    repository: &GitRepository,
-    index: &Path,
-    args: &[&str],
-    stdin: Option<&[u8]>,
-) -> Result<std::process::Output, String> {
-    run_git(repository, Some(index), args, stdin)
+    run_git_owned(repository, None, None, args, stdin)
 }
 
 fn git_with_index_and_objects(
@@ -1259,28 +1250,8 @@ fn git_with_index_and_objects(
     args: &[&str],
     stdin: Option<&[u8]>,
 ) -> Result<String, String> {
-    let output =
-        git_output_with_index_and_objects(repository, index, object_directory, args, stdin)?;
+    let output = run_git_owned(repository, Some(index), object_directory, args, stdin)?;
     successful_git_text(output, args)
-}
-
-fn git_output_with_index_and_objects(
-    repository: &GitRepository,
-    index: &Path,
-    object_directory: Option<&Path>,
-    args: &[&str],
-    stdin: Option<&[u8]>,
-) -> Result<std::process::Output, String> {
-    run_git_owned(repository, Some(index), object_directory, args, stdin)
-}
-
-fn run_git(
-    repository: &GitRepository,
-    index: Option<&Path>,
-    args: &[&str],
-    stdin: Option<&[u8]>,
-) -> Result<std::process::Output, String> {
-    run_git_owned(repository, index, None, args, stdin)
 }
 
 fn run_git_owned(
