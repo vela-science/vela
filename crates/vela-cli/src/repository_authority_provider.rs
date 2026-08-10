@@ -242,7 +242,7 @@ impl SshAgentRepositoryAuthoritySigner {
     ///
     /// This constructor validates only the static authority-key configuration.
     /// It deliberately defers endpoint resolution, identity enumeration, and
-    /// agent access until `sign`, after transaction authentication and Cedar
+    /// agent access until `sign`, after transaction authentication and
     /// authorization have passed. The endpoint itself is process-local
     /// configuration and never enters a repository, an authority record, a
     /// journal, or a diagnostic payload.

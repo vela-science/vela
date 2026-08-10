@@ -56,18 +56,6 @@ use crate::repository_txn::{ContentDigest, RepositoryTxn, WriteClass};
 
 use super::{fail_return, print_json};
 
-/// The Cedar entity is `Repository`, which is what it has always bounded.
-///
-/// `authority_transaction.rs` hashes this exact text and refuses the write when
-/// the runtime root differs from `authorization_model.cedar_schema_root` retained in
-/// history, so changing one character here makes every subsequent authority
-/// write fail on any repository holding a bundle computed over the old bytes.
-/// It said `Frontier` until 0.970.0 for exactly that reason: ADR 0039 had
-/// retired the noun, and the one live repository could not be rewritten to
-/// match. `vela-science/math` was re-genesised in that release, so there is no
-/// retained bundle carrying the old spelling and the entity now names the
-/// boundary it is actually the resource of. The entities JSON and the
-/// `Repository::` resource UID below are bound by the same schema.
 /// The authorization model a fresh repository starts with.
 ///
 /// This used to mint a Cedar policy bundle: an entity snapshot, a schema
@@ -416,8 +404,8 @@ pub(crate) fn initialize_repository_authority(
             bytes of future authority records only — replay of existing ones
             reads their own retained bytes and `validate_semantic_approvals`
             checks `role` for non-emptiness rather than against a vocabulary —
-            but it is still a wire change, so it moves with the Cedar migration
-            above rather than ahead of it. */
+            but it is still a wire change, so it waits for one that has a
+            reason of its own rather than riding a comment. */
             semantic_approvals: vec![SemanticApprovalV1 {
                 principal_id: principal.principal_id.clone(),
                 role: "repository_administrator".into(),
