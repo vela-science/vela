@@ -174,12 +174,6 @@ pub struct StatusCounts {
     pub artifacts: u64,
 }
 
-/// Producer-facing inventory.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-pub struct StatusWork {
-    pub ready_target_count: u64,
-}
-
 /// The Decision Inbox summary, rooted so a consumer can bind to the exact
 /// projection this count was taken over.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -210,15 +204,8 @@ pub struct StatusReviewAction {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "mode", rename_all = "snake_case")]
 pub enum StatusWorkAction {
-    /// A Target Index is configured and its open Targets are fresh.
-    Target {
-        ready_target_count: u64,
-        #[schemars(schema_with = "crate::wire_schema::text")]
-        command: String,
-    },
-    /// No Target Index is configured; bounded evidence is submitted directly.
+    /// Bounded evidence is submitted directly.
     DirectSubmission {
-        ready_target_count: u64,
         #[schemars(schema_with = "crate::wire_schema::text")]
         command: String,
         #[schemars(schema_with = "crate::wire_schema::text")]
@@ -228,7 +215,6 @@ pub enum StatusWorkAction {
     /// produce, verify, or decide until `vela init` completes, so this mode
     /// names that one command and no work is offered.
     AuthorityUninitialized {
-        ready_target_count: u64,
         #[schemars(schema_with = "crate::wire_schema::text")]
         command: String,
         #[schemars(schema_with = "crate::wire_schema::text")]
@@ -242,8 +228,7 @@ impl StatusWorkAction {
     /// rather than matching three times.
     pub fn command(&self) -> &str {
         match self {
-            Self::Target { command, .. }
-            | Self::DirectSubmission { command, .. }
+            Self::DirectSubmission { command, .. }
             | Self::AuthorityUninitialized { command, .. } => command,
         }
     }
@@ -273,7 +258,6 @@ pub struct StatusV4 {
     pub integrity: StatusIntegrity,
     pub roots: StatusRoots,
     pub counts: StatusCounts,
-    pub work: StatusWork,
     pub decision_inbox: StatusDecisionInbox,
     pub actions: StatusActions,
 }
@@ -287,7 +271,6 @@ impl StatusV4 {
         integrity: StatusIntegrity,
         roots: StatusRoots,
         counts: StatusCounts,
-        work: StatusWork,
         decision_inbox: StatusDecisionInbox,
         actions: StatusActions,
     ) -> Self {
@@ -300,7 +283,6 @@ impl StatusV4 {
             integrity,
             roots,
             counts,
-            work,
             decision_inbox,
             actions,
         }
@@ -405,9 +387,6 @@ mod tests {
                 authority_policy: None,
             },
             super::StatusCounts::default(),
-            super::StatusWork {
-                ready_target_count: 0,
-            },
             super::StatusDecisionInbox {
                 pending_count: 0,
                 protocol_ready_count: 0,
@@ -418,7 +397,6 @@ mod tests {
             super::StatusActions {
                 review: None,
                 work: super::StatusWorkAction::AuthorityUninitialized {
-                    ready_target_count: 0,
                     command: "vela init . --json".into(),
                     note: "fixture".into(),
                 },

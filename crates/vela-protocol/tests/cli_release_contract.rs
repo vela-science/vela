@@ -332,8 +332,6 @@ fn advanced_help_uses_current_product_commands() {
     for command in [
         "init",
         "status",
-        "next",
-        "start",
         "submit",
         "show",
         "why",

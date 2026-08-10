@@ -19,8 +19,8 @@ use vela_protocol::repository::{
 use vela_protocol::repository_origin::RepositoryOriginV1;
 use vela_protocol::status::{
     REPOSITORY_HEAD_ROLE, ReplayState, StatusActions, StatusCounts, StatusDecisionInbox, StatusGit,
-    StatusIntegrity, StatusRepository, StatusReviewAction, StatusRoots, StatusV4, StatusWork,
-    StatusWorkAction, StrictState,
+    StatusIntegrity, StatusRepository, StatusReviewAction, StatusRoots, StatusV4, StatusWorkAction,
+    StrictState,
 };
 use vela_protocol::submission::SubmissionRecordV2;
 use vela_protocol::verification_record::VerificationRecordEnvelopeV2;
@@ -250,9 +250,6 @@ pub(crate) fn cmd_status(repository_path: &Path, json_out: bool) {
                 authority_policy: None,
             },
             StatusCounts::default(),
-            StatusWork {
-                ready_target_count: 0,
-            },
             StatusDecisionInbox {
                 pending_count: 0,
                 protocol_ready_count: 0,
@@ -263,7 +260,6 @@ pub(crate) fn cmd_status(repository_path: &Path, json_out: bool) {
             StatusActions {
                 review: None,
                 work: StatusWorkAction::AuthorityUninitialized {
-                    ready_target_count: 0,
                     command: format!("vela init {} --json", repository_path.display()),
                     note: "The retained repository profile has no repository authority yet. Resume `vela init`; nothing else can produce, verify, or decide until it completes.".into(),
                 },
@@ -312,18 +308,6 @@ pub(crate) fn cmd_status(repository_path: &Path, json_out: bool) {
         .values()
         .filter(|standing| standing.as_str() == "withdrawn")
         .count();
-    let target_assessment = vela_edge::target_index::assess_target_index(
-        &repository_path,
-        &repository.repository_id,
-        &repository.origin_id,
-        &repository_root,
-    )
-    .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let target_index_configured = target_assessment.is_some();
-    let ready_target_count = target_assessment
-        .as_ref()
-        .map(|assessment| assessment.fresh_open_targets().len())
-        .unwrap_or(0);
     let inbox_projection = crate::decision_inbox::project(&repository_path)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let (decision_inbox, pending_decision_count) = decision_inbox_status_summary(&inbox_projection);
@@ -331,17 +315,9 @@ pub(crate) fn cmd_status(repository_path: &Path, json_out: bool) {
         pending_count: pending_decision_count as u64,
         command: format!("vela review inbox {} --json", repository_path.display()),
     });
-    let work_action = if target_index_configured {
-        StatusWorkAction::Target {
-            ready_target_count: ready_target_count as u64,
-            command: format!("vela next {} --limit 1 --json", repository_path.display()),
-        }
-    } else {
-        StatusWorkAction::DirectSubmission {
-            ready_target_count: 0,
-            command: format!("vela submit --repo {} --help", repository_path.display()),
-            note: "No Target Index is configured. Submit bounded evidence directly or use a repository-owned adapter to generate targets.json.".into(),
-        }
+    let work_action = StatusWorkAction::DirectSubmission {
+        command: format!("vela submit --repo {} --help", repository_path.display()),
+        note: "Submit bounded evidence directly.".into(),
     };
     let payload = StatusV4::new(
         StatusRepository {
@@ -383,9 +359,6 @@ pub(crate) fn cmd_status(repository_path: &Path, json_out: bool) {
             verifications: repository.verifications.len() as u64,
             artifacts: repository.artifacts.len() as u64,
         },
-        StatusWork {
-            ready_target_count: ready_target_count as u64,
-        },
         decision_inbox,
         StatusActions {
             review: review_action,
@@ -421,7 +394,6 @@ pub(crate) fn cmd_status(repository_path: &Path, json_out: bool) {
         println!("  replay    matched · signatures, roots, canonical bytes");
         println!("  strict    pass");
         println!("  claims    {}", payload.counts.claims);
-        println!("  targets   {} ready", payload.work.ready_target_count);
         println!(
             "  inbox     {} pending · {} protocol-ready · {} protocol-blocked",
             payload.decision_inbox.pending_count,
@@ -484,114 +456,6 @@ pub(crate) fn verify_bootstrap_at(root: &Path) -> Result<RepositoryProfileV1, St
         }
     }
     Ok(profile)
-}
-
-pub(crate) fn cmd_next(repository_path: &Path, limit: usize, json_out: bool) {
-    crate::ui::set_mode("next", json_out);
-    let repository_path = crate::ui::canonicalize_repo(repository_path);
-    let repository = load_repository_at(&repository_path, true)
-        .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let repository_root = repository
-        .canonical_root()
-        .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let assessment = vela_edge::target_index::assess_target_index(
-        &repository_path,
-        &repository.repository_id,
-        &repository.origin_id,
-        &repository_root,
-    )
-    .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let Some(assessment) = assessment else {
-        let payload = json!({
-            "schema": "vela.offer.v1",
-            "ok": true,
-            "command": "next",
-            "repository_id": repository.repository_id,
-            "repository_root": repository_root,
-            "availability": {
-                "configured": 0,
-                "stale": 0,
-                "fresh": 0,
-                "returned": 0
-            },
-            "targets": [],
-            "next_action": format!("vela submit --repo {} --help", repository_path.display()),
-            "note": "No Target Index is configured. Submit bounded evidence directly or use a repository-owned adapter to generate targets.json.",
-        });
-        if json_out {
-            crate::cli::print_json(&payload);
-        } else {
-            println!("next · no configured Target Offers");
-            println!(
-                "  direct    vela submit --repo {} --help",
-                repository_path.display()
-            );
-            println!("  adapter   generate tracked targets.json for ranked repository-owned work");
-        }
-        return;
-    };
-    let configured = assessment.configured_open();
-    let fresh = assessment.fresh_open_targets();
-    let fresh_count = fresh.len();
-    let limit = limit.clamp(1, 128);
-    let offers = fresh
-        .into_iter()
-        .take(limit)
-        .enumerate()
-        .map(|(position, target)| {
-            json!({
-                "queue_position": position + 1,
-                "rank": target.rank,
-                "lane": "produce",
-                "target_id": target.id,
-                "title": target.title,
-                "objective": target.objective,
-                "why": target.why,
-                "labels": target.labels,
-                "packet": target.packet,
-                "verifier_profile": assessment.packet_value(&target.id)
-                    .and_then(|packet| packet.get("verifier_profile"))
-                    .or_else(|| assessment.packet_value(&target.id)
-                        .and_then(|packet| packet.get("verifier"))),
-                "next_command": format!(
-                    "vela start {} --repo {} --json",
-                    target.id,
-                    repository_path.display()
-                )
-            })
-        })
-        .collect::<Vec<_>>();
-    let payload = json!({
-        "schema": "vela.offer.v1",
-        "ok": true,
-        "command": "next",
-        "repository_id": repository.repository_id,
-        "origin_id": repository.origin_id,
-        "repository_root": repository_root,
-        "target_index_root": assessment.index.index_root,
-        "availability": {
-            "configured": configured,
-            "stale": configured.saturating_sub(fresh_count),
-            "fresh": fresh_count,
-            "returned": offers.len()
-        },
-        "targets": offers,
-    });
-    if json_out {
-        crate::cli::print_json(&payload);
-    } else {
-        let returned = payload["availability"]["returned"].as_u64().unwrap_or(0);
-        println!("next · {returned} Target Offer(s)");
-        for offer in payload["targets"].as_array().into_iter().flatten() {
-            println!(
-                "  {}  {}",
-                offer["target_id"].as_str().unwrap_or(""),
-                offer["title"].as_str().unwrap_or("")
-            );
-            println!("      {}", offer["why"].as_str().unwrap_or(""));
-            println!("      {}", offer["next_command"].as_str().unwrap_or(""));
-        }
-    }
 }
 
 fn authority_event_by_semantic_id<'a>(
@@ -1485,53 +1349,6 @@ pub(crate) fn verify_repository_at(
     let origin_bytes = fs::read(root.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;
     let origin = RepositoryOriginV1::parse(&origin_bytes)?;
-    let repository_root = repository.canonical_root()?;
-    if root.join("targets.json").is_file() {
-        let bytes = fs::read(root.join("targets.json"))
-            .map_err(|error| format!("read current Target Index: {error}"))?;
-        let index: vela_edge::target_index::TargetIndexV5 = serde_json::from_slice(&bytes)
-            .map_err(|error| format!("parse current Target Index: {error}"))?;
-        index.validate()?;
-        if index.canonical_bytes()?.as_slice() != bytes.as_slice()
-            || index.repository_id != repository.repository_id
-            || index.repository.origin_id != repository.origin_id
-            || index.repository.repository_root != repository_root
-        {
-            return Err(
-                "current Target Index does not bind the exact current repository".to_string(),
-            );
-        }
-        if require_authority_record {
-            let assessment = vela_edge::target_index::assess_target_index(
-                root,
-                &repository.repository_id,
-                &repository.origin_id,
-                &repository_root,
-            )?
-            .ok_or_else(|| "current Target Index disappeared during verification".to_string())?;
-            let mut codes = assessment
-                .global_issues
-                .iter()
-                .map(|issue| issue.code)
-                .collect::<Vec<_>>();
-            codes.extend(
-                assessment
-                    .target_issues
-                    .values()
-                    .flatten()
-                    .map(|issue| issue.code),
-            );
-            codes.sort_unstable();
-            codes.dedup();
-            if !codes.is_empty() {
-                return Err(format!(
-                    "current Target Index fails closed: {}",
-                    codes.join(", ")
-                ));
-            }
-        }
-    }
-
     let object_bytes = read_object_set(root, &repository)?;
     for reference in repository
         .accepted_claims

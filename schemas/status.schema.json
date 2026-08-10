@@ -42,31 +42,6 @@
                   "type": "string"
                 },
                 "mode": {
-                  "const": "target",
-                  "type": "string"
-                },
-                "ready_target_count": {
-                  "format": "uint64",
-                  "minimum": 0,
-                  "type": "integer"
-                }
-              },
-              "required": [
-                "mode",
-                "ready_target_count",
-                "command"
-              ],
-              "type": "object"
-            },
-            {
-              "properties": {
-                "command": {
-                  "maxLength": 16384,
-                  "minLength": 1,
-                  "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
-                  "type": "string"
-                },
-                "mode": {
                   "const": "direct_submission",
                   "type": "string"
                 },
@@ -75,16 +50,10 @@
                   "minLength": 1,
                   "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
                   "type": "string"
-                },
-                "ready_target_count": {
-                  "format": "uint64",
-                  "minimum": 0,
-                  "type": "integer"
                 }
               },
               "required": [
                 "mode",
-                "ready_target_count",
                 "command",
                 "note"
               ],
@@ -107,16 +76,10 @@
                   "minLength": 1,
                   "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
                   "type": "string"
-                },
-                "ready_target_count": {
-                  "format": "uint64",
-                  "minimum": 0,
-                  "type": "integer"
                 }
               },
               "required": [
                 "mode",
-                "ready_target_count",
                 "command",
                 "note"
               ],
@@ -380,19 +343,6 @@
     "schema": {
       "const": "vela.status.v4",
       "type": "string"
-    },
-    "work": {
-      "properties": {
-        "ready_target_count": {
-          "format": "uint64",
-          "minimum": 0,
-          "type": "integer"
-        }
-      },
-      "required": [
-        "ready_target_count"
-      ],
-      "type": "object"
     }
   },
   "required": [
@@ -404,7 +354,6 @@
     "integrity",
     "roots",
     "counts",
-    "work",
     "decision_inbox",
     "actions"
   ],

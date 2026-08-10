@@ -212,30 +212,6 @@ pub(crate) enum Commands {
     },
     /// THE offer: ranked open targets with the compounding payload
     /// pre-loaded (premises, banked routes, attempts, dead channels).
-    /// `--json` is the agent contract. Take one with `vela start`.
-    #[command(after_long_help = crate::cli::help_text::NEXT)]
-    Next {
-        #[arg(value_name = "REPO", help = HELP_REPO)]
-        repository: Option<PathBuf>,
-        #[arg(long = "repo", value_name = "PATH", help = HELP_REPO)]
-        repo_flag: Option<PathBuf>,
-        #[arg(long, default_value_t = 5)]
-        limit: usize,
-        #[arg(long, help = HELP_JSON)]
-        json: bool,
-    },
-
-    /// Print a write-free briefing for one exact current Target.
-    #[command(after_long_help = crate::cli::help_text::START)]
-    Start {
-        /// The target (obligation id, e.g. erdos:617).
-        target: String,
-        #[arg(long = "repo", value_name = "PATH", help = HELP_REPO)]
-        repository: Option<PathBuf>,
-        #[arg(long, help = HELP_JSON)]
-        json: bool,
-    },
-
     /// Retain one authenticated Submission and create a pending Proposal.
     /// This producer action cannot create Verification, a Decision, an Event,
     /// or accepted scientific state.

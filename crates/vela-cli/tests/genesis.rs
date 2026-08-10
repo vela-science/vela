@@ -90,19 +90,6 @@ impl Drop for RemoveOnDrop {
     }
 }
 
-fn git_text(repository_path: &Path, args: &[&str]) -> String {
-    let output = Command::new("git")
-        .current_dir(repository_path)
-        .args(args)
-        .output()
-        .expect("run git");
-    assert!(output.status.success());
-    String::from_utf8(output.stdout)
-        .expect("UTF-8 git output")
-        .trim()
-        .to_string()
-}
-
 fn configure_test_git_identity(repository_path: &Path) {
     for (key, value) in [
         ("user.name", "Vela Test"),
@@ -115,129 +102,6 @@ fn configure_test_git_identity(repository_path: &Path) {
             .expect("configure test Git identity");
         assert!(configured.success());
     }
-}
-
-fn install_target_index(repository_path: &Path, _socket: &Path) {
-    std::fs::create_dir_all(repository_path.join("domain")).expect("domain directory");
-    std::fs::write(
-        repository_path.join("domain/source.json"),
-        br#"{"open":[1056]}"#,
-    )
-    .expect("target source");
-    std::fs::create_dir_all(repository_path.join("site/problems")).expect("packet directory");
-    std::fs::write(
-        repository_path.join("site/problems/1056.json"),
-        br#"{"problem":1056,"schema":"erdos-frontier.problem-work.v1","verifier_profile":"exact-replay-v1"}"#,
-    )
-    .expect("target packet");
-    let committed = Command::new("git")
-        .current_dir(repository_path)
-        .args(["add", "domain/source.json", "site/problems/1056.json"])
-        .status()
-        .expect("stage target source");
-    assert!(committed.success());
-    let committed = Command::new("git")
-        .current_dir(repository_path)
-        .args([
-            "-c",
-            "user.name=Vela Test",
-            "-c",
-            "user.email=vela@example.invalid",
-            "commit",
-            "-qm",
-            "target source",
-        ])
-        .status()
-        .expect("commit target source");
-    assert!(committed.success());
-    let source = git_text(repository_path, &["rev-parse", "HEAD^{commit}"]);
-    let source_tree = git_text(repository_path, &["rev-parse", "HEAD^{tree}"]);
-    let profile_source =
-        std::fs::read_to_string(repository_path.join("vela.toml")).expect("repository profile");
-    let repository_id =
-        vela_protocol::repository::RepositoryProfileV1::from_toml_str(&profile_source)
-            .expect("current profile")
-            .repository_id;
-    let repository_bytes =
-        std::fs::read(repository_path.join(".vela/repository.json")).expect("repository manifest");
-    let repository = vela_protocol::repository::RepositoryV4::parse(&repository_bytes)
-        .expect("current repository");
-    let source_bytes =
-        std::fs::read(repository_path.join("domain/source.json")).expect("source bytes");
-    let mut inputs = vela_edge::target_index::TargetIndexInputManifestV1 {
-        schema: vela_edge::target_index::TARGET_INDEX_INPUT_MANIFEST_SCHEMA_V1.to_string(),
-        input_root: format!("sha256:{}", "0".repeat(64)),
-        entries: vec![vela_protocol::repository_inputs::RetainedObjectEntryV1 {
-            path: "domain/source.json".to_string(),
-            git_mode: "100644".to_string(),
-            size: source_bytes.len() as u64,
-            sha256: hex::encode(Sha256::digest(&source_bytes)),
-        }],
-    };
-    inputs.input_root = inputs.computed_root().expect("input root");
-    let packet_bytes =
-        std::fs::read(repository_path.join("site/problems/1056.json")).expect("packet bytes");
-    let mut index = vela_edge::target_index::TargetIndexV5 {
-        schema: vela_edge::target_index::TARGET_INDEX_SCHEMA_V5.to_string(),
-        repository_id,
-        source: vela_edge::target_index::TargetIndexSourceV2 {
-            git_object_format: vela_protocol::repository_inputs::GitObjectFormat::Sha1,
-            git_commit: source,
-            git_tree: source_tree,
-        },
-        inputs,
-        repository: vela_edge::target_index::TargetIndexRepositoryV4 {
-            origin_id: repository.origin_id.clone(),
-            repository_root: repository.canonical_root().expect("repository root"),
-        },
-        claim_boundary: vela_edge::target_index::TargetIndexClaimBoundaryV2 {
-            derived: true,
-            authoritative: false,
-            deletable: true,
-        },
-        targets: vec![vela_edge::target_index::TargetIndexEntryV2 {
-            id: "erdos:1056".to_string(),
-            title: "Erdős 1056".to_string(),
-            why: "First exact bounded target.".to_string(),
-            presence: "open".to_string(),
-            rank: 1,
-            objective: "Produce one bounded artifact.".to_string(),
-            labels: vec!["erdos".to_string(), "open".to_string()],
-            packet: vela_edge::target_index::TargetPacketRefV2 {
-                schema: "erdos-frontier.problem-work.v1".to_string(),
-                path: "site/problems/1056.json".to_string(),
-                size: packet_bytes.len() as u64,
-                sha256: format!("sha256:{}", hex::encode(Sha256::digest(&packet_bytes))),
-            },
-        }],
-        index_root: format!("sha256:{}", "0".repeat(64)),
-    };
-    index.index_root = index.computed_index_root().expect("index root");
-    std::fs::write(
-        repository_path.join("targets.json"),
-        index.canonical_bytes().expect("canonical Target Index"),
-    )
-    .expect("write Target Index");
-    let committed = Command::new("git")
-        .current_dir(repository_path)
-        .args(["add", "targets.json", "site/problems/1056.json"])
-        .status()
-        .expect("stage Target Index");
-    assert!(committed.success());
-    let committed = Command::new("git")
-        .current_dir(repository_path)
-        .args([
-            "-c",
-            "user.name=Vela Test",
-            "-c",
-            "user.email=vela@example.invalid",
-            "commit",
-            "-qm",
-            "add target index",
-        ])
-        .status()
-        .expect("commit Target Index");
-    assert!(committed.success());
 }
 
 #[test]
@@ -296,7 +160,6 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
     assert_eq!(status["schema"], "vela.status.v4");
     assert_eq!(status["integrity"]["replay"], "verified");
     assert_eq!(status["integrity"]["strict"], "pass");
-    assert_eq!(status["work"]["ready_target_count"], 0);
     assert_eq!(status["decision_inbox"]["pending_count"], 0);
     assert!(
         status["decision_inbox"]["projection_root"]
@@ -476,79 +339,8 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             .expect("trust anchor path"),
     );
     let _anchor = RemoveOnDrop(anchor_path.clone());
-    install_target_index(&repository_path, agent.socket());
     std::fs::remove_file(&anchor_path).expect("remove routine writer trust pin");
     let actor = "agent:current-submission-regression";
-    let offer = success_json(&run(&repository_path, None, &["next", ".", "--json"]));
-    assert_eq!(offer["targets"][0]["queue_position"], 1);
-    assert_eq!(offer["targets"][0]["rank"], 1);
-    let briefing = success_json(&run(
-        &repository_path,
-        None,
-        &["start", "erdos:1056", "--repo", ".", "--json"],
-    ));
-    assert_eq!(briefing["schema"], "vela.start-briefing.v2");
-    assert_eq!(briefing["target"]["id"], "erdos:1056");
-    assert_eq!(briefing["objective"], "Produce one bounded artifact.");
-    assert_eq!(
-        briefing["scope"]["question"],
-        "Commit and replay one current authenticated Submission."
-    );
-    assert_eq!(briefing["packet"]["problem"], 1056);
-    assert_eq!(briefing["verifier"], "exact-replay-v1");
-    assert!(vela_protocol::is_full_sha256_root(
-        briefing["packet_root"].as_str().expect("packet root")
-    ));
-    assert!(
-        briefing["repository"]["origin_id"]
-            .as_str()
-            .expect("origin id")
-            .starts_with("vro_")
-    );
-    assert!(briefing["target_index_root"].as_str().is_some());
-    assert_eq!(briefing["git"]["role"], "target_index_source");
-    /* The one place in the suite with a live Target Index, so the one place
-    that can reach `start`'s miss rather than the earlier "no Target Index"
-    domain failure. tests/exit_code_contract.rs covers the rest of the codes. */
-    let absent = run(
-        &repository_path,
-        None,
-        &["start", "erdos:0", "--repo", ".", "--json"],
-    );
-    assert_eq!(absent.status.code(), Some(3), "start on an absent Target");
-    let absent: Value = serde_json::from_slice(&absent.stdout).expect("decode start failure");
-    assert_eq!(absent["error"]["kind"], "not_found");
-    assert!(briefing["git"]["commit"].as_str().is_some());
-    assert!(briefing["git"]["tree"].as_str().is_some());
-    assert!(
-        briefing["authority_ceiling"]
-            .as_str()
-            .expect("authority ceiling")
-            .contains("human Decision")
-    );
-    let keys = briefing
-        .as_object()
-        .expect("start briefing object")
-        .keys()
-        .map(String::as_str)
-        .collect::<std::collections::BTreeSet<_>>();
-    assert_eq!(
-        keys,
-        std::collections::BTreeSet::from([
-            "authority_ceiling",
-            "git",
-            "objective",
-            "packet",
-            "packet_root",
-            "repository",
-            "schema",
-            "scope",
-            "target",
-            "target_index_root",
-            "verifier",
-        ])
-    );
-
     let artifact = b"{\"bounded\":true}\n";
     let artifact_digest = format!("sha256:{}", hex::encode(Sha256::digest(artifact)));
     let artifact_stem = artifact_digest.trim_start_matches("sha256:").to_string();
@@ -951,7 +743,6 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert_eq!(status["schema"], "vela.status.v4");
     assert_eq!(status["git"]["role"], "repository_head");
     assert_eq!(status["integrity"]["strict"], "pass");
-    assert_eq!(status["work"]["ready_target_count"], 1);
     assert_eq!(status["decision_inbox"]["pending_count"], 1);
     assert_eq!(status["decision_inbox"]["protocol_ready_count"], 1);
     assert_eq!(status["decision_inbox"]["protocol_blocked_count"], 0);
@@ -974,8 +765,8 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let work_action = status["actions"]["work"]["command"]
         .as_str()
         .expect("status work action");
-    assert_eq!(status["actions"]["work"]["mode"], "target");
-    assert!(work_action.starts_with("vela next "));
+    assert_eq!(status["actions"]["work"]["mode"], "direct_submission");
+    assert!(work_action.starts_with("vela submit "));
     assert!(
         serde_json::to_vec(&status).expect("encode status").len() <= 16 * 1024,
         "status exceeds the compact projection budget"
@@ -988,8 +779,10 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert!(!human_status.contains("review reject"));
     let parallel_status = success_json(&run(&repository_path, None, &["status", ".", "--json"]));
     assert_eq!(parallel_status["decision_inbox"]["pending_count"], 1);
-    assert_eq!(parallel_status["actions"]["work"]["mode"], "target");
-    assert_eq!(parallel_status["actions"]["work"]["ready_target_count"], 1);
+    assert_eq!(
+        parallel_status["actions"]["work"]["mode"],
+        "direct_submission"
+    );
     assert!(
         parallel_status["actions"]["review"]["command"]
             .as_str()
@@ -998,7 +791,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert!(
         parallel_status["actions"]["work"]["command"]
             .as_str()
-            .is_some_and(|command| command.starts_with("vela next "))
+            .is_some_and(|command| command.starts_with("vela submit "))
     );
     let human_inbox = run(&repository_path, None, &["review", "inbox", "."]);
     assert!(human_inbox.status.success());
@@ -1072,17 +865,6 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert_eq!(
         after_stale_refusal["repository_root"],
         after_inspection["repository_root"]
-    );
-    let target_index: Value = serde_json::from_slice(
-        &std::fs::read(repository_path.join("targets.json")).expect("rebound Target Index"),
-    )
-    .expect("Target Index JSON");
-    assert_eq!(target_index["schema"], "vela.target-index.v5");
-    assert_eq!(target_index["targets"][0]["presence"], "open");
-    assert!(target_index["targets"][0].get("state").is_none());
-    assert_eq!(
-        target_index["repository"]["repository_root"],
-        checked["repository_root"]
     );
 
     let clone = temporary.path().join("submission-clone");
@@ -1205,36 +987,5 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert_eq!(
         replayed_decision["repository_root"],
         decided["repository_root"]
-    );
-
-    std::fs::write(
-        decided_clone.join("domain/source.json"),
-        br#"{"open":[1056,1057]}"#,
-    )
-    .expect("mutate declared Target Index input");
-    let stale_input = run(&decided_clone, None, &["replay", ".", "--json"]);
-    assert!(!stale_input.status.success());
-    assert!(
-        String::from_utf8_lossy(&stale_input.stdout).contains("target_index_output_not_tracked"),
-        "unexpected stale-input output: {}",
-        String::from_utf8_lossy(&stale_input.stdout)
-    );
-
-    std::fs::write(
-        decided_clone.join("domain/source.json"),
-        br#"{"open":[1056]}"#,
-    )
-    .expect("restore declared Target Index input");
-    std::fs::write(
-        decided_clone.join("site/problems/1056.json"),
-        br#"{"problem":1056,"schema":"changed.packet.v1"}"#,
-    )
-    .expect("mutate Target packet");
-    let stale_packet = run(&decided_clone, None, &["replay", ".", "--json"]);
-    assert!(!stale_packet.status.success());
-    assert!(
-        String::from_utf8_lossy(&stale_packet.stdout).contains("target_index_output_not_tracked"),
-        "unexpected stale-packet output: {}",
-        String::from_utf8_lossy(&stale_packet.stdout)
     );
 }

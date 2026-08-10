@@ -247,7 +247,6 @@ pub(crate) fn withdraw(
         },
     )?;
     next.verify()?;
-    let derived = crate::submission::rebind_target_index(repository_path, &next)?;
     let request_root = request_root(
         &held,
         &proposal_root,
@@ -295,7 +294,7 @@ pub(crate) fn withdraw(
         created_at,
         read_set,
         objects,
-        derived,
+        Vec::new(),
     )?;
     let precommit = (|| {
         let public = prepared

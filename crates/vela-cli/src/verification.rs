@@ -569,7 +569,6 @@ fn import_inner(
         },
     )?;
     next_repository.verify()?;
-    let derived_drafts = crate::submission::rebind_target_index(repository_path, &next_repository)?;
 
     let recorded_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
     let mut prepared = crate::routine_evidence_transaction::prepare_routine_evidence_transaction(
@@ -618,7 +617,7 @@ fn import_inner(
                 postimage: Some(next_repository.canonical_bytes()?),
             },
         ],
-        derived_drafts,
+        Vec::new(),
     )?;
 
     let precommit = (|| {

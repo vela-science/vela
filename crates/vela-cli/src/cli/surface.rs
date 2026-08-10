@@ -27,9 +27,9 @@ Version control for scientific state.
 
 Usage: vela <COMMAND>
 
-  init       status     claims     next
-  start      submit     show       why
-  review     replay     reproduce  log
+  init       status     claims     submit
+  show       why        review     replay
+  reproduce  log
 
 Run `vela help advanced` for setup and verification commands.
 "#,
@@ -56,8 +56,6 @@ Daily product:
   init          Create a signed, replayable Git-native repository
   status        Compact repository identity, roots, counts, and next action
   claims        What this repository holds: id, assertion, Standing, origin era
-  next          Ranked Target Offers
-  start         Inspect one exact Target and its bounded completion contract
   submit        Retain authenticated producer input for review
   show          One exact object, its root, era, and authority effect
   why           Root-bound explanation of one Claim's Standing
