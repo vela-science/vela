@@ -403,6 +403,12 @@ The authority record distinguishes:
 Producer identities cannot acquire review, administration, or recovery
 authority by signing producer objects.
 
+The current Vela binary authors sequence-one authority initialization and
+`review accept` or `review reject` Decisions. Keyset rotation, authorization
+model update, and terminal-close objects remain in the protocol reader so
+retained or foreign histories can be verified, but a verification-only
+consumer does not need to produce those actions.
+
 ### 4.3 Decision
 
 `review accept` and `review reject` are direct semantic actions. Their Decision

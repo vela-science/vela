@@ -807,8 +807,6 @@ pub(crate) fn execute_prepared(
                 class: WriteClass::CanonicalEvidence,
                 postimage: Some(next.canonical_bytes()?),
             }],
-            next_authority_keyset: None,
-            next_authorization_model: None,
             read_set,
             vela_version: env!("CARGO_PKG_VERSION").into(),
             binary_sha256,

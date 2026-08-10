@@ -924,9 +924,449 @@ fn require_repository(repository_id: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::authentication::{
+        AUTHENTICATION_OBSERVATION_SCHEMA_V1, AuthenticationAssurance, AuthenticationMethod,
+    };
+    use crate::authority::{
+        AUTHORITY_KEY_ALGORITHM, AUTHORITY_KEY_PURPOSE, AUTHORITY_KEYSET_SCHEMA_V1, AUTHORITY_MODE,
+        AUTHORITY_PAYLOAD_TYPE_V1, AuthenticationClaimV1, AuthorityEventContentV1, AuthorityKeyV1,
+        AuthorityRecordContentV1, AuthorityRecordV1, AuthorizationClaimV1, ExecutionClaimV1,
+        ObjectDeltaV1, PrincipalClass, PrincipalSnapshotV1, SemanticApprovalV1,
+    };
+    use crate::authorization::{
+        AUTHORIZATION_MODEL_SCHEMA_V1, AUTHORIZATION_PROFILE_V1, AUTHORIZATION_REQUEST_SCHEMA_V1,
+        AuthorityActionV1, AuthorityMemberV1, AuthorityResourceTypeV1, AuthorityRoleV1,
+        AuthorizationRequestV1, AuthorizationResourceV1,
+    };
+    use crate::canonical::to_canonical_bytes;
+    use crate::events::{EventKind, StateActor, StateTarget};
+    use ed25519_dalek::SigningKey;
+
+    const REPOSITORY_ID: &str = "11111111-1111-4111-8111-111111111111";
+    const PRINCIPAL_ID: &str = "local:fixture|uid:501";
+    const RECORDED_AT: &str = "2026-07-24T12:00:00Z";
 
     fn root(byte: char) -> String {
         format!("sha256:{}", byte.to_string().repeat(64))
+    }
+
+    fn keyset(key: &SigningKey, generation: u64) -> AuthorityKeysetV1 {
+        AuthorityKeysetV1 {
+            schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
+            repository_id: REPOSITORY_ID.into(),
+            generation,
+            threshold: 1,
+            keys: vec![AuthorityKeyV1 {
+                key_id: hex::encode(key.verifying_key().to_bytes()),
+                algorithm: AUTHORITY_KEY_ALGORITHM.into(),
+                public_key: hex::encode(key.verifying_key().to_bytes()),
+                valid_from_sequence: if generation == 1 { 1 } else { 3 },
+                valid_through_sequence: None,
+                purpose: AUTHORITY_KEY_PURPOSE.into(),
+            }],
+            previous_keyset_root: None,
+            activation_record_root: None,
+            closed: false,
+        }
+    }
+
+    fn model() -> AuthorizationModelV1 {
+        AuthorizationModelV1 {
+            schema: AUTHORIZATION_MODEL_SCHEMA_V1.into(),
+            profile: AUTHORIZATION_PROFILE_V1.into(),
+            repository_id: REPOSITORY_ID.into(),
+            members: vec![AuthorityMemberV1 {
+                principal_id: PRINCIPAL_ID.into(),
+                principal_class: PrincipalClass::Human,
+                role: AuthorityRoleV1::Administrator,
+            }],
+            previous_model_root: None,
+        }
+    }
+
+    fn authentication() -> AuthenticationClaimV1 {
+        AuthenticationClaimV1 {
+            schema: AUTHENTICATION_OBSERVATION_SCHEMA_V1.into(),
+            principal_id: PRINCIPAL_ID.into(),
+            principal_class: PrincipalClass::Human,
+            issuer: "fixture".into(),
+            subject: "uid:501".into(),
+            method: AuthenticationMethod::LocalOsSession,
+            assurance: AuthenticationAssurance::LocalSession,
+            session_root: root('1'),
+            authenticated_at: RECORDED_AT.into(),
+            observed_at: RECORDED_AT.into(),
+            expires_at: "2026-07-24T13:00:00Z".into(),
+            user_presence: false,
+            user_verification: false,
+            recovery_recent: false,
+            revocation_ref: None,
+        }
+    }
+
+    fn snapshot_delta(directory: &str, root: &str, object_kind: &str) -> ObjectDeltaV1 {
+        ObjectDeltaV1 {
+            path: format!(
+                ".vela/authority/{directory}/{}.json",
+                root.strip_prefix("sha256:").unwrap()
+            ),
+            before_root: None,
+            after_root: Some(root.into()),
+            object_kind: object_kind.into(),
+        }
+    }
+
+    fn authority_event(
+        sequence: u64,
+        kind: &str,
+        reason: &str,
+        state_root: &str,
+        payload: serde_json::Value,
+    ) -> AuthorityEventV1 {
+        AuthorityEventV1::new(AuthorityEventContentV1 {
+            transaction_id: format!("vtx_reader_{sequence}"),
+            principal_id: PRINCIPAL_ID.into(),
+            authority_mode: AUTHORITY_MODE.into(),
+            kind: EventKind::Other(kind.into()),
+            target: StateTarget {
+                r#type: "repository".into(),
+                id: REPOSITORY_ID.into(),
+            },
+            actor: StateActor {
+                r#type: "human".into(),
+                id: PRINCIPAL_ID.into(),
+            },
+            timestamp: RECORDED_AT.into(),
+            reason: reason.into(),
+            before_hash: state_root.into(),
+            after_hash: state_root.into(),
+            payload,
+            caveats: Vec::new(),
+        })
+        .unwrap()
+    }
+
+    fn signed_record(
+        sequence: u64,
+        previous_root: Option<String>,
+        event_roots: (&str, &str),
+        events: &[AuthorityEventV1],
+        mut object_delta: Vec<ObjectDeltaV1>,
+        action: (AuthorityActionV1, &str),
+        authority: (&AuthorityKeysetV1, &AuthorizationModelV1, &SigningKey),
+    ) -> (AuthorityEnvelopeV1, String) {
+        let (active_keyset, active_model, signing_key) = authority;
+        object_delta.extend(events.iter().map(|event| ObjectDeltaV1 {
+            path: format!(".vela/authority/events/{}.json", event.id),
+            before_root: None,
+            after_root: Some(event.root().unwrap()),
+            object_kind: "event".into(),
+        }));
+        object_delta.sort_by(|left, right| left.path.cmp(&right.path));
+        let authentication = authentication();
+        let intent_digest = root('c');
+        let request = AuthorizationRequestV1 {
+            schema: AUTHORIZATION_REQUEST_SCHEMA_V1.into(),
+            profile: AUTHORIZATION_PROFILE_V1.into(),
+            model_root: active_model.root().unwrap(),
+            repository_id: REPOSITORY_ID.into(),
+            principal_id: PRINCIPAL_ID.into(),
+            principal_class: PrincipalClass::Human,
+            action: action.0,
+            resource: AuthorizationResourceV1 {
+                repository_id: REPOSITORY_ID.into(),
+                resource_type: AuthorityResourceTypeV1::Repository,
+                resource_id: REPOSITORY_ID.into(),
+            },
+            authentication_root: authentication.root().unwrap(),
+            transaction_read_set_root: root('d'),
+            intent_digest: intent_digest.clone(),
+            recovery_recent: false,
+        };
+        let authorization = AuthorizationClaimV1 {
+            model_root: active_model.root().unwrap(),
+            evaluation: evaluate_authorization_v1(active_model, &request).unwrap(),
+            request,
+        };
+        let record = AuthorityRecordV1::new(AuthorityRecordContentV1 {
+            repository_id: REPOSITORY_ID.into(),
+            sequence,
+            previous_authority_record_root: previous_root,
+            operation_id: format!("vop_reader_fixture_{sequence}"),
+            transaction_id: format!("vtx_reader_{sequence}"),
+            intent_digest: intent_digest.clone(),
+            before_event_log_root: event_roots.0.into(),
+            after_event_log_root: event_roots.1.into(),
+            event_ids: events.iter().map(|event| event.id.clone()).collect(),
+            object_delta,
+            principal: PrincipalSnapshotV1 {
+                principal_id: PRINCIPAL_ID.into(),
+                principal_class: PrincipalClass::Human,
+                display_name: None,
+                affiliation: None,
+                account_links: vec![PRINCIPAL_ID.into()],
+            },
+            authentication,
+            delegation: None,
+            authorization,
+            semantic_approvals: vec![SemanticApprovalV1 {
+                principal_id: PRINCIPAL_ID.into(),
+                role: "repository_administrator".into(),
+                action: action.1.into(),
+                reason: action.1.into(),
+                approved_at: RECORDED_AT.into(),
+                intent_digest,
+            }],
+            execution: ExecutionClaimV1 {
+                vela_version: "0.972.1".into(),
+                binary_sha256: root('e'),
+                transaction_read_set_root: root('d'),
+                transaction_write_set_root: root('f'),
+                completed_at: RECORDED_AT.into(),
+            },
+            authority_keyset_root: active_keyset.root().unwrap(),
+            recorded_at: RECORDED_AT.into(),
+        })
+        .unwrap();
+        let record_root = record.root().unwrap();
+        let envelope = AuthorityEnvelopeV1::seal_single(
+            signing_key,
+            AUTHORITY_PAYLOAD_TYPE_V1,
+            &to_canonical_bytes(&record).unwrap(),
+        );
+        (envelope, record_root)
+    }
+
+    struct TransitionHistory {
+        initial_event_root: String,
+        initial_actor_root: String,
+        keysets: Vec<AuthorityKeysetV1>,
+        models: Vec<AuthorizationModelV1>,
+        events: Vec<AuthorityEventV1>,
+        envelopes: Vec<AuthorityEnvelopeV1>,
+    }
+
+    impl TransitionHistory {
+        fn verify_prefix(&self, record_count: usize) -> AuthorityHistoryVerification {
+            let (keyset_count, model_count, event_count) = match record_count {
+                2 => (2, 1, 1),
+                3 => (2, 2, 1),
+                4 => (3, 2, 2),
+                _ => panic!("transition fixture has two through four records"),
+            };
+            verify_authority_history(AuthorityHistoryInput {
+                repository_id: REPOSITORY_ID,
+                initial_event_log_root: &self.initial_event_root,
+                initial_actor_registry_root: &self.initial_actor_root,
+                authority_keysets: &self.keysets[..keyset_count],
+                authorization_models: &self.models[..model_count],
+                authority_events: &self.events[..event_count],
+                authority_envelopes: &self.envelopes[..record_count],
+            })
+            .unwrap()
+        }
+    }
+
+    fn transition_history() -> TransitionHistory {
+        let initial_event_root = root('a');
+        let initial_actor_root = root('b');
+        let first_signing_key = SigningKey::from_bytes(&[7; 32]);
+        let second_signing_key = SigningKey::from_bytes(&[8; 32]);
+        let first_keyset = keyset(&first_signing_key, 1);
+        let first_model = model();
+        let initialization = AuthorityInitializationV1 {
+            schema: AUTHORITY_INITIALIZATION_SCHEMA_V1.into(),
+            repository_id: REPOSITORY_ID.into(),
+            initial_event_log_root: initial_event_root.clone(),
+            initial_actor_registry_root: initial_actor_root.clone(),
+            new_authority_keyset_root: first_keyset.root().unwrap(),
+            new_authorization_model_root: first_model.root().unwrap(),
+            new_principal_id: PRINCIPAL_ID.into(),
+            minimum_writer_version: "0.972.1".into(),
+            reason: AUTHORITY_INITIALIZE_ACTION.into(),
+        };
+        let initialization_event = authority_event(
+            1,
+            AUTHORITY_INITIALIZED_EVENT_KIND,
+            AUTHORITY_INITIALIZE_ACTION,
+            NULL_HASH,
+            serde_json::to_value(initialization).unwrap(),
+        );
+        let initialized_event_root =
+            authority_event_log_root(&initial_event_root, &[&initialization_event]).unwrap();
+        let (initial_envelope, initial_record_root) = signed_record(
+            1,
+            None,
+            (&initial_event_root, &initialized_event_root),
+            std::slice::from_ref(&initialization_event),
+            vec![
+                snapshot_delta("keysets", &first_keyset.root().unwrap(), "authority_keyset"),
+                snapshot_delta(
+                    "models",
+                    &first_model.root().unwrap(),
+                    "authorization_model",
+                ),
+            ],
+            (
+                AuthorityActionV1::AuthorityInitialize,
+                AUTHORITY_INITIALIZE_ACTION,
+            ),
+            (&first_keyset, &first_model, &first_signing_key),
+        );
+
+        let mut second_keyset = keyset(&second_signing_key, 2);
+        second_keyset.previous_keyset_root = Some(first_keyset.root().unwrap());
+        second_keyset.activation_record_root = Some(initial_record_root.clone());
+        let (rotation_envelope, rotation_record_root) = signed_record(
+            2,
+            Some(initial_record_root),
+            (&initialized_event_root, &initialized_event_root),
+            &[],
+            vec![snapshot_delta(
+                "keysets",
+                &second_keyset.root().unwrap(),
+                "authority_keyset",
+            )],
+            (AuthorityActionV1::AuthorityRotate, AUTHORITY_ROTATE_ACTION),
+            (&first_keyset, &first_model, &first_signing_key),
+        );
+
+        let mut second_model = first_model.clone();
+        second_model.previous_model_root = Some(first_model.root().unwrap());
+        let (model_envelope, model_record_root) = signed_record(
+            3,
+            Some(rotation_record_root),
+            (&initialized_event_root, &initialized_event_root),
+            &[],
+            vec![snapshot_delta(
+                "models",
+                &second_model.root().unwrap(),
+                "authorization_model",
+            )],
+            (
+                AuthorityActionV1::AuthorityModelUpdate,
+                AUTHORITY_MODEL_UPDATE_ACTION,
+            ),
+            (&second_keyset, &first_model, &second_signing_key),
+        );
+
+        let closed_keyset = AuthorityKeysetV1 {
+            schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
+            repository_id: REPOSITORY_ID.into(),
+            generation: 3,
+            threshold: 0,
+            keys: Vec::new(),
+            previous_keyset_root: Some(second_keyset.root().unwrap()),
+            activation_record_root: Some(model_record_root.clone()),
+            closed: true,
+        };
+        let close = AuthorityCloseV1 {
+            schema: AUTHORITY_CLOSE_SCHEMA_V1.into(),
+            repository_id: REPOSITORY_ID.into(),
+            last_trusted_sequence: 3,
+            last_trusted_authority_record_root: model_record_root.clone(),
+            previous_authority_keyset_root: second_keyset.root().unwrap(),
+            closed_authority_keyset_root: closed_keyset.root().unwrap(),
+            authorization_model_root: second_model.root().unwrap(),
+            incident_id: "incident:reader-fixture".into(),
+            reason: AUTHORITY_CLOSE_ACTION.into(),
+        };
+        let close_event = authority_event(
+            4,
+            AUTHORITY_CLOSED_EVENT_KIND,
+            AUTHORITY_CLOSE_ACTION,
+            &root('0'),
+            serde_json::to_value(close).unwrap(),
+        );
+        let closed_event_root =
+            authority_event_log_root(&initial_event_root, &[&initialization_event, &close_event])
+                .unwrap();
+        let (close_envelope, _) = signed_record(
+            4,
+            Some(model_record_root),
+            (&initialized_event_root, &closed_event_root),
+            std::slice::from_ref(&close_event),
+            vec![snapshot_delta(
+                "keysets",
+                &closed_keyset.root().unwrap(),
+                "authority_keyset",
+            )],
+            (AuthorityActionV1::AuthorityClose, AUTHORITY_CLOSE_ACTION),
+            (&second_keyset, &second_model, &second_signing_key),
+        );
+
+        TransitionHistory {
+            initial_event_root,
+            initial_actor_root,
+            keysets: vec![first_keyset, second_keyset, closed_keyset],
+            models: vec![first_model, second_model],
+            events: vec![initialization_event, close_event],
+            envelopes: vec![
+                initial_envelope,
+                rotation_envelope,
+                model_envelope,
+                close_envelope,
+            ],
+        }
+    }
+
+    #[test]
+    fn retained_authority_transitions_replay_and_close_is_terminal() {
+        let history = transition_history();
+        let rotated = history.verify_prefix(2);
+        assert_eq!(
+            rotated.final_authority_keyset_root,
+            Some(history.keysets[1].root().unwrap()),
+            "keyset activation must advance the verified head"
+        );
+        assert_eq!(
+            rotated.final_authorization_model_root,
+            Some(history.models[0].root().unwrap()),
+            "keyset activation must preserve the active model"
+        );
+
+        let updated = history.verify_prefix(3);
+        assert_eq!(
+            updated.final_authority_keyset_root,
+            Some(history.keysets[1].root().unwrap()),
+            "model activation must preserve the active keyset"
+        );
+        assert_eq!(
+            updated.final_authorization_model_root,
+            Some(history.models[1].root().unwrap()),
+            "model activation must advance the verified head"
+        );
+
+        let closed = history.verify_prefix(4);
+        assert!(closed.closed, "the exact terminal close must be reported");
+        assert_eq!(closed.closure_event_id, Some(history.events[1].id.clone()));
+        assert_eq!(
+            closed.final_authority_keyset_root,
+            Some(history.keysets[2].root().unwrap()),
+            "terminal close must activate the empty successor keyset"
+        );
+        assert_eq!(
+            closed.final_authorization_model_root,
+            Some(history.models[1].root().unwrap()),
+            "terminal close must preserve the active model"
+        );
+
+        let mut envelopes = history.envelopes.clone();
+        envelopes.push(history.envelopes[3].clone());
+        let error = verify_authority_history(AuthorityHistoryInput {
+            repository_id: REPOSITORY_ID,
+            initial_event_log_root: &history.initial_event_root,
+            initial_actor_registry_root: &history.initial_actor_root,
+            authority_keysets: &history.keysets,
+            authorization_models: &history.models,
+            authority_events: &history.events,
+            authority_envelopes: &envelopes,
+        })
+        .unwrap_err();
+        assert_eq!(
+            error, "authority history continues after its terminal close",
+            "no record may follow a terminal close"
+        );
     }
 
     #[test]
