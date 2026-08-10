@@ -169,11 +169,11 @@ renaming them would change durable roots. The runtime orders those labels but
 does not attach Vela authority or scientific meaning to them.
 
 `vela-authority` remains the restricted authorization and service-signing
-implementation, `vela-edge` remains derived read machinery, and `vela-verify`
-remains package-plane compatibility code outside the semantic kernel. All are
-internal implementation crates released through the single `vela` product
-identity; the crate split creates neither a plugin system nor another public
-product.
+implementation, `vela-edge` remains derived read machinery and small
+non-authoritative process adapters, and `vela-verify` remains package-plane
+compatibility code outside the semantic kernel. All are internal implementation
+crates released through the single `vela` product identity; the crate split
+creates neither a plugin system nor another public product.
 
 Mathematics is the first complete domain proving ground, not a second Kernel.
 Lean and other proof assistants retain proof checking, native package managers

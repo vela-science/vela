@@ -20,7 +20,6 @@
 //! network operation and grants no scientific authority.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::ffi::OsString;
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -28,8 +27,6 @@ use std::process::{Command, Stdio};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use vela_repository::{ValidatedPrivateResidue, ValidatedPrivateResidueKind};
-
-const NULL_DEVICE: &str = "/dev/null";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "state", rename_all = "snake_case")]
@@ -188,29 +185,10 @@ pub(crate) fn initialize_native_git_repository(path: &Path) -> Result<(), String
     let templates = tempfile::tempdir()
         .map_err(|error| format!("create empty trusted Git template directory: {error}"))?;
     let mut command = Command::new("git");
-    remove_inherited_git_environment(&mut command, std::env::vars_os().map(|(name, _)| name));
+    vela_edge::git::isolate_ambient(&mut command);
     command
         .current_dir(&root)
-        .arg("--no-pager")
-        .arg("--no-optional-locks")
-        .arg("--no-replace-objects")
         .arg("--literal-pathspecs")
-        .arg("-c")
-        .arg("core.bare=false")
-        .arg("-c")
-        .arg("core.fsmonitor=false")
-        .arg("-c")
-        .arg(format!("core.hooksPath={NULL_DEVICE}"))
-        .arg("-c")
-        .arg(format!("core.attributesFile={NULL_DEVICE}"))
-        .arg("-c")
-        .arg(format!("core.excludesFile={NULL_DEVICE}"))
-        .arg("-c")
-        .arg("diff.external=")
-        .arg("-c")
-        .arg("submodule.recurse=false")
-        .arg("-c")
-        .arg("protocol.file.allow=never")
         .arg("-c")
         .arg("commit.gpgSign=false")
         .arg("-c")
@@ -218,9 +196,11 @@ pub(crate) fn initialize_native_git_repository(path: &Path) -> Result<(), String
         .args(["init", "--quiet", "--object-format=sha1", "--template"])
         .arg(templates.path())
         .args(["-b", "main", "--"])
-        .arg(&root);
-    set_owned_git_environment(&mut command);
-    command.env("GIT_CEILING_DIRECTORIES", &root);
+        .arg(&root)
+        .env("GIT_NO_LAZY_FETCH", "1")
+        .env("GIT_EDITOR", "true")
+        .env("GIT_SEQUENCE_EDITOR", "true")
+        .env("GIT_CEILING_DIRECTORIES", &root);
     let output = command
         .output()
         .map_err(|error| format!("run isolated git init: {error}"))?;
@@ -1310,8 +1290,7 @@ fn run_git_owned(
     args: &[&str],
     stdin: Option<&[u8]>,
 ) -> Result<std::process::Output, String> {
-    let mut command =
-        isolated_git_command(repository, index, std::env::vars_os().map(|(name, _)| name));
+    let mut command = isolated_git_command(repository, index);
     if let Some(object_directory) = object_directory {
         command.env("GIT_OBJECT_DIRECTORY", object_directory);
     }
@@ -1348,8 +1327,7 @@ fn run_git_discovery(worktree: &Path, args: &[&str]) -> Result<std::process::Out
         object_dir: worktree.join(".git").join("objects"),
         object_format: String::new(),
     };
-    let mut command =
-        isolated_git_command(&repository, None, std::env::vars_os().map(|(name, _)| name));
+    let mut command = isolated_git_command(&repository, None);
     command
         .args(args)
         .stdin(Stdio::null())
@@ -1359,19 +1337,12 @@ fn run_git_discovery(worktree: &Path, args: &[&str]) -> Result<std::process::Out
         .map_err(|error| format!("run git {}: {error}", args.join(" ")))
 }
 
-fn isolated_git_command(
-    repository: &GitRepository,
-    index: Option<&Path>,
-    inherited_environment: impl IntoIterator<Item = OsString>,
-) -> Command {
+fn isolated_git_command(repository: &GitRepository, index: Option<&Path>) -> Command {
     let mut command = Command::new("git");
-    remove_inherited_git_environment(&mut command, inherited_environment);
+    vela_edge::git::isolate_ambient(&mut command);
 
     command
         .current_dir(&repository.worktree)
-        .arg("--no-pager")
-        .arg("--no-optional-locks")
-        .arg("--no-replace-objects")
         .arg("--literal-pathspecs")
         .arg("--work-tree")
         .arg(&repository.worktree);
@@ -1380,70 +1351,24 @@ fn isolated_git_command(
     }
     command
         .arg("-c")
-        .arg("core.bare=false")
-        .arg("-c")
-        .arg("core.fsmonitor=false")
-        .arg("-c")
-        .arg(format!("core.hooksPath={NULL_DEVICE}"))
-        .arg("-c")
-        .arg(format!("core.attributesFile={NULL_DEVICE}"))
-        .arg("-c")
-        .arg(format!("core.excludesFile={NULL_DEVICE}"))
-        .arg("-c")
-        .arg("diff.external=")
-        .arg("-c")
-        .arg("submodule.recurse=false")
-        .arg("-c")
-        .arg("protocol.file.allow=never")
-        .arg("-c")
         .arg("commit.gpgSign=false")
         .arg("-C")
-        .arg(&repository.worktree);
-    set_owned_git_environment(&mut command);
-    command.env("GIT_CEILING_DIRECTORIES", &repository.worktree);
+        .arg(&repository.worktree)
+        .env("GIT_NO_LAZY_FETCH", "1")
+        .env("GIT_EDITOR", "true")
+        .env("GIT_SEQUENCE_EDITOR", "true")
+        .env("GIT_CEILING_DIRECTORIES", &repository.worktree);
     if let Some(index) = index {
         command.env("GIT_INDEX_FILE", index);
     }
     command
 }
 
-fn set_owned_git_environment(command: &mut Command) {
-    command
-        .env("GIT_CONFIG_NOSYSTEM", "1")
-        .env("GIT_CONFIG_SYSTEM", NULL_DEVICE)
-        .env("GIT_CONFIG_GLOBAL", NULL_DEVICE)
-        .env("GIT_OPTIONAL_LOCKS", "0")
-        .env("GIT_NO_LAZY_FETCH", "1")
-        .env("GIT_NO_REPLACE_OBJECTS", "1")
-        .env("GIT_LITERAL_PATHSPECS", "1")
-        .env("GIT_ATTR_NOSYSTEM", "1")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_PAGER", "cat")
-        .env("GIT_EDITOR", "true")
-        .env("GIT_SEQUENCE_EDITOR", "true")
-        .env("PAGER", "cat")
-        .env("LC_ALL", "C");
-}
-
-fn remove_inherited_git_environment(
-    command: &mut Command,
-    inherited_environment: impl IntoIterator<Item = OsString>,
-) {
-    // Git grows new repository and configuration environment variables over
-    // time. Remove the namespace rather than trying to maintain a denylist;
-    // this also covers indexed GIT_CONFIG_KEY_n / GIT_CONFIG_VALUE_n entries.
-    for name in inherited_environment {
-        if name.as_encoded_bytes().starts_with(b"GIT_") {
-            command.env_remove(name);
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::collections::BTreeMap;
-    use std::ffi::OsStr;
+    use std::ffi::{OsStr, OsString};
 
     const HOSTILE_CHILD: &str = "VELA_GIT_PUBLISH_HOSTILE_CHILD";
     const HOSTILE_REPOSITORY: &str = "VELA_GIT_PUBLISH_HOSTILE_REPOSITORY";
@@ -1676,82 +1601,25 @@ mod tests {
     }
 
     #[test]
-    fn write_command_removes_all_git_environment_and_restores_only_owned_values() {
+    fn write_command_retains_only_cli_owned_extensions() {
         let temp = tempfile::tempdir().unwrap();
         setup_repository(temp.path());
         let repository = resolve_git_repository(temp.path()).unwrap();
         let index = temp.path().join("owned-index");
-        let inherited = [
-            "GIT_DIR",
-            "GIT_WORK_TREE",
-            "GIT_INDEX_FILE",
-            "GIT_COMMON_DIR",
-            "GIT_OBJECT_DIRECTORY",
-            "GIT_ALTERNATE_OBJECT_DIRECTORIES",
-            "GIT_REPLACE_REF_BASE",
-            "GIT_NO_LAZY_FETCH",
-            "GIT_NAMESPACE",
-            "GIT_SHALLOW_FILE",
-            "GIT_CONFIG_COUNT",
-            "GIT_CONFIG_KEY_0",
-            "GIT_CONFIG_VALUE_0",
-            "GIT_CONFIG_KEY_99",
-            "GIT_CONFIG_VALUE_99",
-            "GIT_CONFIG_PARAMETERS",
-            "GIT_ASKPASS",
-            "GIT_EDITOR",
-            "GIT_PAGER",
-            "GIT_ATTR_SOURCE",
-            "GIT_ALLOW_PROTOCOL",
-            "GIT_PROTOCOL_FROM_USER",
-        ];
-        let command = isolated_git_command(
-            &repository,
-            Some(&index),
-            inherited.iter().map(OsString::from),
-        );
+        let command = isolated_git_command(&repository, Some(&index));
         let environment = command
             .get_envs()
             .map(|(name, value)| (name.to_os_string(), value.map(OsStr::to_os_string)))
             .collect::<BTreeMap<_, _>>();
-        let owned = [
-            ("GIT_ATTR_NOSYSTEM", "1"),
-            ("GIT_CONFIG_GLOBAL", NULL_DEVICE),
-            ("GIT_CONFIG_NOSYSTEM", "1"),
-            ("GIT_CONFIG_SYSTEM", NULL_DEVICE),
+        for (name, value) in [
             ("GIT_EDITOR", "true"),
-            ("GIT_LITERAL_PATHSPECS", "1"),
             ("GIT_NO_LAZY_FETCH", "1"),
-            ("GIT_NO_REPLACE_OBJECTS", "1"),
-            ("GIT_OPTIONAL_LOCKS", "0"),
-            ("GIT_PAGER", "cat"),
             ("GIT_SEQUENCE_EDITOR", "true"),
-            ("GIT_TERMINAL_PROMPT", "0"),
-        ];
-        for (name, value) in &environment {
-            if value.is_some() && name.to_str().is_some_and(|name| name.starts_with("GIT_")) {
-                assert!(
-                    name == OsStr::new("GIT_INDEX_FILE")
-                        || name == OsStr::new("GIT_CEILING_DIRECTORIES")
-                        || owned.iter().any(|(owned, _)| name == OsStr::new(owned)),
-                    "unowned Git environment was restored: {name:?}"
-                );
-            }
-        }
-        for name in inherited {
-            if name != "GIT_INDEX_FILE" && !owned.iter().any(|(owned, _)| *owned == name) {
-                assert_eq!(
-                    environment.get(OsStr::new(name)),
-                    Some(&None),
-                    "inherited Git environment was not removed: {name}"
-                );
-            }
-        }
-        for (name, value) in owned {
+        ] {
             assert_eq!(
                 environment.get(OsStr::new(name)),
                 Some(&Some(OsString::from(value))),
-                "missing owned Git environment: {name}"
+                "missing CLI-owned Git environment: {name}"
             );
         }
         assert_eq!(
@@ -1759,23 +1627,10 @@ mod tests {
             Some(&Some(index.into_os_string()))
         );
         assert_eq!(
-            environment.get(OsStr::new("PAGER")),
-            Some(&Some(OsString::from("cat")))
+            environment.get(OsStr::new("GIT_CEILING_DIRECTORIES")),
+            Some(&Some(repository.worktree.into_os_string()))
         );
-        assert_eq!(
-            environment.get(OsStr::new("LC_ALL")),
-            Some(&Some(OsString::from("C")))
-        );
-        for required in [
-            "--no-pager",
-            "--no-optional-locks",
-            "--no-replace-objects",
-            "--literal-pathspecs",
-            "core.hooksPath=/dev/null",
-            "core.attributesFile=/dev/null",
-            "core.excludesFile=/dev/null",
-            "protocol.file.allow=never",
-        ] {
+        for required in ["--literal-pathspecs", "commit.gpgSign=false", "--work-tree"] {
             assert!(
                 command.get_args().any(|arg| arg == required),
                 "missing Git argument: {required}"
