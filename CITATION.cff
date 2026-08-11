@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use Vela, cite the software and the exact release you used."
+title: "Vela: Git-native protocol and CLI for exact scientific state"
+type: software
+authors:
+  - family-names: Blair
+    given-names: William
+version: 0.972.1
+date-released: 2026-08-09
+repository-code: "https://github.com/vela-science/vela"
+url: "https://github.com/vela-science/vela"
+license: "Apache-2.0 OR MIT"

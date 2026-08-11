@@ -10,6 +10,7 @@ for byte.
 from __future__ import annotations
 
 import filecmp
+import json
 import shutil
 import subprocess
 import sys
@@ -28,6 +29,16 @@ def main() -> int:
     clients = (
         ("JavaScript", [node, str(emitters / "javascript.mjs")]),
         ("Python", [sys.executable, str(emitters / "python.py")]),
+    )
+    readers = (
+        (
+            "JavaScript",
+            [node, str(root / "conformance/readers/javascript/object.mjs")],
+        ),
+        (
+            "Python",
+            [sys.executable, str(root / "conformance/readers/python/object.py")],
+        ),
     )
 
     # The signer identity is the emitter's argument, not a draft field: a
@@ -67,6 +78,7 @@ def main() -> int:
                     capture_output=True,
                     text=True,
                     timeout=60,
+                    check=False,
                 )
                 if result.returncode != 0:
                     print(result.stderr, file=sys.stderr)
@@ -78,6 +90,25 @@ def main() -> int:
                     )
                     return 1
                 print(f"  ok: independent {language} {kind}")
+
+        for kind in ("submission", "verification"):
+            results = []
+            for language, command in readers:
+                result = subprocess.run(
+                    [*command, str(fixtures / f"{kind}.json")],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    check=False,
+                )
+                if result.returncode != 0:
+                    print(result.stderr, file=sys.stderr)
+                    return 1
+                results.append(json.loads(result.stdout))
+                print(f"  ok: independent {language} {kind} reader")
+            if results[0] != results[1]:
+                print(f"{kind} reader summaries disagree", file=sys.stderr)
+                return 1
     return 0
 
 

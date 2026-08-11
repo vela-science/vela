@@ -103,6 +103,9 @@ class ProviderIndependentInstall(unittest.TestCase):
                 "--rustc", "rustc 0.0.0",
                 "--target-triple", "x86_64-unknown-linux-gnu",
                 "--build-command", "cargo auditable build --locked --release",
+                "--source-date-epoch", "1786406400",
+                "--binary-build-count", "2",
+                "--archive-build-count", "2",
                 "--cargo-auditable-version", "0.0.0",
                 "--sbom-tool", "syft",
                 "--sbom-tool-version", "0.0.0",
@@ -148,7 +151,7 @@ class ProviderIndependentInstall(unittest.TestCase):
         )
         return subprocess.run(
             ["bash", str(INSTALLER), "install"],
-            capture_output=True, text=True, env=environment,
+            capture_output=True, text=True, env=environment, check=False,
         )
 
     def copy_release(self) -> Path:
@@ -228,7 +231,7 @@ class ProviderIndependentInstall(unittest.TestCase):
         )
         result = subprocess.run(
             ["bash", str(INSTALLER), "install"],
-            capture_output=True, text=True, env=environment,
+            capture_output=True, text=True, env=environment, check=False,
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("VELA_REQUIRE_SIGNED_MANIFEST", result.stderr)

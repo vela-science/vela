@@ -10,11 +10,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parent.parent
 CONFORMANCE = ROOT / "conformance"
 sys.path.insert(0, str(CONFORMANCE / "readers" / "python"))
-from canonical import canonical_bytes  # noqa: E402
+from canonical import canonical_bytes
 
 
 def verify_sidon_witness(witness: object) -> bool:
@@ -106,6 +105,7 @@ def run_script(script: Path, *arguments: str) -> int:
         cwd=ROOT,
         text=True,
         timeout=180,
+        check=False,
     )
     return result.returncode
 
@@ -116,12 +116,15 @@ def run_check(script_name: str) -> int:
 
 def main() -> int:
     checks = (
+        "verify_protocol_1.py",
         "verify_canonical_hashing.py",
         "verify_current_objects.py",
         "verify_wire_schemas.py",
         "verify_correction_impact.py",
         "verify_claim_dependency_profile.py",
         "verify_authority_chain.py",
+        "verify_reference_flows.py",
+        "verify_release_reproducibility.py",
     )
     for script in checks:
         print(f"\n== {script.removeprefix('verify_').removesuffix('.py')} ==")

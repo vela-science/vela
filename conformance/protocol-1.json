@@ -1,0 +1,648 @@
+{
+  "authority_effect": "none",
+  "entries": [
+    {
+      "bytes": 1240,
+      "normative": false,
+      "path": ".github/release/check-sbom.py",
+      "role": "release-sbom-gate",
+      "sha256": "sha256:61bc6469e097ae34ca5a5037ed6c1aee4ef8c7534765cdb0b9be9597d82abfcc"
+    },
+    {
+      "bytes": 3474,
+      "normative": false,
+      "path": ".github/release/create-deterministic-archive.py",
+      "role": "release-archiver",
+      "sha256": "sha256:1bf59176bf94a482cbf1c6f6c5528a1f3e38fb91b970d7850bf1d7227c3c615e"
+    },
+    {
+      "bytes": 4651,
+      "normative": false,
+      "path": ".github/release/smoke-bundle.sh",
+      "role": "release-smoke-gate",
+      "sha256": "sha256:4f0312e1bb49eaa5a60924ee84d74d44ed47ddb4a818cb6639497e133411ff62"
+    },
+    {
+      "bytes": 8870,
+      "normative": false,
+      "path": ".github/workflows/release.yml",
+      "role": "hosted-release-gate",
+      "sha256": "sha256:ff65e0db2909fe3bc677d8dadd6815e73237ff9da52af95ae96e96f2504e8cbb"
+    },
+    {
+      "bytes": 412,
+      "normative": false,
+      "path": "CITATION.cff",
+      "role": "citation-metadata",
+      "sha256": "sha256:9091ea813e589d92e74d2a4ec33aad178acc814014e69535a7e31fd9ea031747"
+    },
+    {
+      "bytes": 643,
+      "normative": false,
+      "path": "LICENSE",
+      "role": "license-boundary",
+      "sha256": "sha256:dcfa071fa15664e4f14251a964838811ecc7d0ef07f1982e9aae50330472fbea"
+    },
+    {
+      "bytes": 768,
+      "normative": false,
+      "path": "allowed_signers",
+      "role": "release-trust-root",
+      "sha256": "sha256:dc471fc1ff1960879f39cc52cbe46b87142e1ccfb3b4d567eaae9ac4d26d0d10"
+    },
+    {
+      "bytes": 8337,
+      "normative": true,
+      "path": "conformance/canonical-hashing.json",
+      "role": "canonical-vector",
+      "sha256": "sha256:9c1dd98c04d6bb971901b752a969ec1df1e8262f8c05ca0d6c60fe52bf6e3aa8"
+    },
+    {
+      "bytes": 717,
+      "normative": false,
+      "path": "conformance/check-core.sh",
+      "role": "core-certification-entrypoint",
+      "sha256": "sha256:67f6725a5671f8e7163bc64a9c1350f3e4d05608de69b2b42d44501009632eb5"
+    },
+    {
+      "bytes": 1140,
+      "normative": true,
+      "path": "conformance/current-objects/manifest.json",
+      "role": "current-object-vector",
+      "sha256": "sha256:accc5e9f5801ceebf89846b0d57109df06a8d38d3418367c185c79346da79c6c"
+    },
+    {
+      "bytes": 2321,
+      "normative": true,
+      "path": "conformance/current-objects/requested-change-cases.json",
+      "role": "current-object-vector",
+      "sha256": "sha256:d6c84a1ca735a63b01eeeef9122d944853d878efe40104380c2b870cd476dffd"
+    },
+    {
+      "bytes": 1109,
+      "normative": true,
+      "path": "conformance/current-objects/submission-draft.json",
+      "role": "current-object-vector",
+      "sha256": "sha256:f893f5c21bee173648f1b591c4856602135c4d0db80c3af52bcf551fa9dab9a8"
+    },
+    {
+      "bytes": 1823,
+      "normative": true,
+      "path": "conformance/current-objects/submission.json",
+      "role": "current-object-vector",
+      "sha256": "sha256:8779dcb8999d6030c234a14fe3af0e3745b84e513c9791913c128d0750c86830"
+    },
+    {
+      "bytes": 1161,
+      "normative": true,
+      "path": "conformance/current-objects/verification-draft.json",
+      "role": "current-object-vector",
+      "sha256": "sha256:c7d9bac52b48f67f294f770f8c24317e28bef22634f195e8c1222f8fce611c5c"
+    },
+    {
+      "bytes": 1940,
+      "normative": true,
+      "path": "conformance/current-objects/verification.json",
+      "role": "current-object-vector",
+      "sha256": "sha256:e03b1f71c12d79489025dd846aa92a60673a8f7fcf6703935c838d1681b14ba8"
+    },
+    {
+      "bytes": 7182,
+      "normative": true,
+      "path": "conformance/emitters/javascript.mjs",
+      "role": "independent-emitter",
+      "sha256": "sha256:cbb0777d10ad7b5808b7341adaa73a84ae9f3832b3946c5679dec34e8b527c0a"
+    },
+    {
+      "bytes": 7850,
+      "normative": true,
+      "path": "conformance/emitters/python.py",
+      "role": "independent-emitter",
+      "sha256": "sha256:d6dc2b89f2484759e8ba74e9bf4a5c1779834e49f7f1e0bc0633ad5382a87083"
+    },
+    {
+      "bytes": 2197,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/README.md",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:592572352e32cf2679ca0864fff476f1e700346ae884c9f863dc9a7db4201cef"
+    },
+    {
+      "bytes": 1057,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/authority/events/vev_7b333d5b16a70cdd.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:58b4057e552a57660d6d503640e50ac2bf173f28e16d7d2f9e68e4744e23a599"
+    },
+    {
+      "bytes": 1830,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/authority/events/vev_8bc2ab6301663407.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:f7a55a487d442c2e3e1a82d8d2a763819b590c82f736cc21f2330af021234be8"
+    },
+    {
+      "bytes": 1101,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/authority/events/vev_e045ff0592e193fa.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:91279c57c97a22db478c2835db591d2915ae800cab43a999376870c2c86a1325"
+    },
+    {
+      "bytes": 2188,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/authority/events/vev_fa0607b365786fe7.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:00e4e67f40debc116816d05d6de29062a7ffd9726e42c02607e0d6e33e7f398e"
+    },
+    {
+      "bytes": 1201,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/authority/events/vev_fb652e14f2a9323f.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:84d37efa52864f879f2b135147486dde60388b7c2544234e5cd8bdb02d8612d1"
+    },
+    {
+      "bytes": 453,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/authority/keysets/cb06d8d9c2bcb88e0bcdfa908659f06cd6419d07f335ff1c956c1da64942f111.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:cb06d8d9c2bcb88e0bcdfa908659f06cd6419d07f335ff1c956c1da64942f111"
+    },
+    {
+      "bytes": 496,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/authority/models/b9cdcd8061ea0693769b20288590dbb672984f5ff81ea7a7631a4d20eafe3cfe.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:b9cdcd8061ea0693769b20288590dbb672984f5ff81ea7a7631a4d20eafe3cfe"
+    },
+    {
+      "bytes": 6259,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/authority/records/var_3b1390bd9881c965.dsse.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:4cc20615577fac4a6245be0af2b9d2b2ce80703866c7dca2a774a0f977f438a5"
+    },
+    {
+      "bytes": 6319,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/authority/records/var_7730c004926050d2.dsse.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:3d9521b099792f9f9c5648b4d201deef35d23a67f9152bc2614e001da4004a56"
+    },
+    {
+      "bytes": 6675,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/authority/records/var_948ca88ec08032cf.dsse.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:a0b346adec5967941301ea44105648a43318f1c87afd388cfe65c1b00d200653"
+    },
+    {
+      "bytes": 7099,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/authority/records/var_eeb904de922de3f4.dsse.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:b0882e7d22597f0ecbe41bf6d397181dc9e57a076b2496414814e149c9bf8222"
+    },
+    {
+      "bytes": 3158,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/expected.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:7363e5b60274e923170ebfb448bfed6d9b776aeb6c2607402b0db3a325cf98e6"
+    },
+    {
+      "bytes": 3508,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/negative-vectors.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:9bc7bf45b5315f7a31910aeccb60902da9a4d5faf0e8fb1c7be08f27eee49ed7"
+    },
+    {
+      "bytes": 516,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/origin.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:229ce0a08217da5e8bad2059c35070989652ca546ab45b8e699922ba182e8a69"
+    },
+    {
+      "bytes": 600,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/repository-manifests/2f07569c759f097c61bf4c0af201fd959e3734a57e2f94be8195a4080c941868.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:2f07569c759f097c61bf4c0af201fd959e3734a57e2f94be8195a4080c941868"
+    },
+    {
+      "bytes": 5347,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/repository-manifests/4aed9ba56f5608ee782970dbdb96682da03902a96b97dfc69dc9b297bd6d514c.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:4aed9ba56f5608ee782970dbdb96682da03902a96b97dfc69dc9b297bd6d514c"
+    },
+    {
+      "bytes": 5047,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/repository-manifests/bc36be46a09ca4aafd99b20c384bcf6a807e0094e6e7a55879d943cefbf041d5.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:bc36be46a09ca4aafd99b20c384bcf6a807e0094e6e7a55879d943cefbf041d5"
+    },
+    {
+      "bytes": 5041,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/repository-manifests/db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc"
+    },
+    {
+      "bytes": 5647,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/repository-manifests/f89e9b08554d59a7fdaf553104aec1d5d176eb2ccd2f222d56b9fdb0a880d591.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:f89e9b08554d59a7fdaf553104aec1d5d176eb2ccd2f222d56b9fdb0a880d591"
+    },
+    {
+      "bytes": 9534,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/source.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:d053aff53d784c57b4107fb6aa4aaf1a5374cb700ec0e24a477c8065feaa0894"
+    },
+    {
+      "bytes": 202,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-0.972.1/trust-anchor.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:738cebec28a246cf437522361f59ebcec340bd552ddcbfa5f8f0f99c5324b590"
+    },
+    {
+      "bytes": 3811,
+      "normative": true,
+      "path": "conformance/fixtures/claim-relation-vocabulary.json",
+      "role": "vocabulary-vector",
+      "sha256": "sha256:ed24a606eaf571d67c258004edcd5a77e0790f61dd8941beb7f00dee70e7543f"
+    },
+    {
+      "bytes": 3045,
+      "normative": true,
+      "path": "conformance/fixtures/correction/diamond-adversarial.json",
+      "role": "correction-impact-vector",
+      "sha256": "sha256:bec5f77be334e776d629adcefcaae2b1382ecefb41809e4183986027f55517cf"
+    },
+    {
+      "bytes": 3888,
+      "normative": true,
+      "path": "conformance/fixtures/correction/diamond-expected.json",
+      "role": "correction-impact-vector",
+      "sha256": "sha256:a7d2916e41f86f19e95d0c5440ef7246185aded64a58c38df4d711817803e91d"
+    },
+    {
+      "bytes": 3937,
+      "normative": true,
+      "path": "conformance/fixtures/correction/diamond-input.json",
+      "role": "correction-impact-vector",
+      "sha256": "sha256:74cb6104048b3c390d429ca82117148da91107f67086af47f73bd1228c3cdacd"
+    },
+    {
+      "bytes": 15931,
+      "normative": true,
+      "path": "conformance/fixtures/epoch1/authorization-profile-parity.json",
+      "role": "authorization-parity-vector",
+      "sha256": "sha256:e92d56677a39a73b6779521e10154c5e69848961899dc0de125bc90696cae7b3"
+    },
+    {
+      "bytes": 1313,
+      "normative": true,
+      "path": "conformance/fixtures/exact-witness-floor.json",
+      "role": "scientific-vector",
+      "sha256": "sha256:b7fedfd07310dff1cc1e99f265f8c299a144cc605d04f4c101a6885f57384bf9"
+    },
+    {
+      "bytes": 3190,
+      "normative": true,
+      "path": "conformance/jcs-shadow-audit.json",
+      "role": "canonical-negative-vector",
+      "sha256": "sha256:5bef49c125d661e4e1424f09e4b4e86c1575951e5bb87bdcd9f9ecef6487fc15"
+    },
+    {
+      "bytes": 3132,
+      "normative": true,
+      "path": "conformance/readers/javascript/canonical.mjs",
+      "role": "independent-reader",
+      "sha256": "sha256:f03d3d37aa299752f520a96689084a71eca5db56bc10562bf6272e1ab2c10d68"
+    },
+    {
+      "bytes": 11314,
+      "normative": true,
+      "path": "conformance/readers/javascript/claim_dependency_profile.mjs",
+      "role": "independent-reader",
+      "sha256": "sha256:b7d3ed64afc1645da01609e500cdffb43cf66fa44222489b19c9113723dfa034"
+    },
+    {
+      "bytes": 3603,
+      "normative": true,
+      "path": "conformance/readers/javascript/object.mjs",
+      "role": "independent-reader",
+      "sha256": "sha256:2cc880760fb63446207bb8639e8edd447456aeaaa872f38ac96f47a221dc550b"
+    },
+    {
+      "bytes": 273,
+      "normative": true,
+      "path": "conformance/readers/python/canonical.py",
+      "role": "independent-reader",
+      "sha256": "sha256:1859452311515995480c1648ad1ee938aee256671f1c54d87504479b8af800ce"
+    },
+    {
+      "bytes": 4720,
+      "normative": true,
+      "path": "conformance/readers/python/object.py",
+      "role": "independent-reader",
+      "sha256": "sha256:b2073fccead8149459f1f37f994b9cd1721d73170f7b21e293d5e64aff914f57"
+    },
+    {
+      "bytes": 4468,
+      "normative": true,
+      "path": "conformance/readers/python/repository_root.py",
+      "role": "independent-reader",
+      "sha256": "sha256:aa6ed6116ca29e63216b05763ec112cade385fb1a1c3f722fc0f1ee24734abb7"
+    },
+    {
+      "bytes": 10374,
+      "normative": false,
+      "path": "conformance/test_release_install.py",
+      "role": "release-installation-verifier",
+      "sha256": "sha256:c17899a2f631ed23ec6798ee11a23434c4e85fa4a9b5980dd1e12c059b75d397"
+    },
+    {
+      "bytes": 5457,
+      "normative": true,
+      "path": "conformance/verify.py",
+      "role": "conformance-entrypoint",
+      "sha256": "sha256:2b5f72db6d5c84eade64ee025b8693d45238dd2c745cb6c8693bc870c695e47b"
+    },
+    {
+      "bytes": 31099,
+      "normative": true,
+      "path": "conformance/verify_authority_chain.py",
+      "role": "authority-vector-verifier",
+      "sha256": "sha256:7dd3f5e0073dbbdea5ea3a08582fd344da270125c19625afeafcaeca4f0c3b68"
+    },
+    {
+      "bytes": 3005,
+      "normative": true,
+      "path": "conformance/verify_canonical_hashing.py",
+      "role": "vector-verifier",
+      "sha256": "sha256:bcd948312f1988a6f63ec4454c30b2c0fdafe151511fc2deeb7a73ea88acd873"
+    },
+    {
+      "bytes": 16931,
+      "normative": true,
+      "path": "conformance/verify_correction_impact.py",
+      "role": "correction-vector-verifier",
+      "sha256": "sha256:9aa1431d4209312c3717bce662d7ee93dd840449062689ce57656f6960bce2f7"
+    },
+    {
+      "bytes": 4280,
+      "normative": true,
+      "path": "conformance/verify_current_objects.py",
+      "role": "object-interoperability-verifier",
+      "sha256": "sha256:5e0c512f10b2b0a8f6a89bcfc47d47de951589c26f9b85d730b8ac7c74dd88a0"
+    },
+    {
+      "bytes": 6227,
+      "normative": true,
+      "path": "conformance/verify_protocol_1.py",
+      "role": "manifest-verifier",
+      "sha256": "sha256:1633e56fcd92e5e21988647939f990c4a2558108609330b24734459391877494"
+    },
+    {
+      "bytes": 6136,
+      "normative": false,
+      "path": "conformance/verify_reference_flows.py",
+      "role": "reference-flow-verifier",
+      "sha256": "sha256:b9f7a6ce7521e5799c206c5e233edb0a5770146784fe0244992684bbf6eaac51"
+    },
+    {
+      "bytes": 4817,
+      "normative": false,
+      "path": "conformance/verify_release_reproducibility.py",
+      "role": "release-reproducibility-verifier",
+      "sha256": "sha256:8a4f7200d405c43e919210a7e28d403a026dfe3083d8d252593a2fe3da91f600"
+    },
+    {
+      "bytes": 21616,
+      "normative": true,
+      "path": "conformance/verify_wire_schemas.py",
+      "role": "schema-verifier",
+      "sha256": "sha256:e7071be05b1556c4ddabfbbda0789f6b875c0112acfee32c663e982131341cb0"
+    },
+    {
+      "bytes": 31363,
+      "normative": true,
+      "path": "docs/PROTOCOL.md",
+      "role": "specification",
+      "sha256": "sha256:82be3032c3d9086a42c577f555cbfb302344b6cabf74aed28b546d12ad62eaa1"
+    },
+    {
+      "bytes": 2795,
+      "normative": false,
+      "path": "docs/RELEASES.md",
+      "role": "release-qualification",
+      "sha256": "sha256:e54f921eeec45ccb42d2040c5f998e60fa4b7075578db88c696b09fdbb93efbb"
+    },
+    {
+      "bytes": 11152,
+      "normative": true,
+      "path": "docs/interop/scientific-state-profile.md",
+      "role": "conformance-profile",
+      "sha256": "sha256:8dbdad9fead2c075f34b010af9dbeacd2881c53de0ccc0a9faee96a2b8b437d4"
+    },
+    {
+      "bytes": 977,
+      "normative": false,
+      "path": "examples/README.md",
+      "role": "reference-flow",
+      "sha256": "sha256:116e9aa2a66172d1086bb182dfbb7973584b080e567f264fcb8916b087628129"
+    },
+    {
+      "bytes": 1783,
+      "normative": false,
+      "path": "examples/computational-science/README.md",
+      "role": "reference-flow",
+      "sha256": "sha256:0975d5ce3fed8f6f5ee4f6d90a3421098a8fa25ebb56d0c8a9fbb08f1dc9cecb"
+    },
+    {
+      "bytes": 2067,
+      "normative": false,
+      "path": "examples/computational-science/experiment.py",
+      "role": "reference-flow",
+      "sha256": "sha256:eca814a61bcb873ce691eed2a92e05c3f80240291b81ef6a54045ee416d8fd9d"
+    },
+    {
+      "bytes": 546,
+      "normative": false,
+      "path": "examples/computational-science/flow.json",
+      "role": "reference-flow",
+      "sha256": "sha256:8edce3e7718501a20add98b27c4156886f8685faf81d7eddcacae381fd464105"
+    },
+    {
+      "bytes": 1961,
+      "normative": false,
+      "path": "examples/computational-science/result.json",
+      "role": "reference-flow",
+      "sha256": "sha256:f33a884b1bfd0f901b7831ab385fb4866a217f7c671dfde8153d869b8218ade2"
+    },
+    {
+      "bytes": 1334,
+      "normative": false,
+      "path": "examples/computational-science/submission-draft.json",
+      "role": "reference-flow",
+      "sha256": "sha256:5943e9fa133d0d9f7727cf0e0e733eae97e2f9d7be555651c73c5a5e3c956a1b"
+    },
+    {
+      "bytes": 1250,
+      "normative": false,
+      "path": "examples/correction-inheritance/README.md",
+      "role": "reference-flow",
+      "sha256": "sha256:839d43822336b2a357f9b7eac8ed6b5ba062e2bf3ce47e535a7fd1f91f101304"
+    },
+    {
+      "bytes": 862,
+      "normative": false,
+      "path": "examples/correction-inheritance/flow.json",
+      "role": "reference-flow",
+      "sha256": "sha256:ce2f0a2fb7db1810fc105c5c014899dab42e0e51b2ae5de951e09fe882fcfb8e"
+    },
+    {
+      "bytes": 1731,
+      "normative": false,
+      "path": "examples/formal-math/README.md",
+      "role": "reference-flow",
+      "sha256": "sha256:9b4eb1aef746c1cdc90d0a01c5d4365d6431b293e7ce9fd663202463f2ed1b28"
+    },
+    {
+      "bytes": 1256,
+      "normative": false,
+      "path": "examples/formal-math/flow.json",
+      "role": "reference-flow",
+      "sha256": "sha256:f1850982aeac36462f269d397adeacecd31e2aa54430360f096a8cd021081f9a"
+    },
+    {
+      "bytes": 11724,
+      "normative": false,
+      "path": "install.sh",
+      "role": "release-installer",
+      "sha256": "sha256:ce2ec0cab38599896111dec44fccf3362c604fd0dffc97d7c164213d4b39c056"
+    },
+    {
+      "bytes": 2511,
+      "normative": true,
+      "path": "schemas/authorization-evaluation.schema.json",
+      "role": "json-schema-2020-12",
+      "sha256": "sha256:47b6bd7d38d994ff24ee84b562a2d00cc2a0645c2b2598e63921b78ca36931ed"
+    },
+    {
+      "bytes": 3346,
+      "normative": true,
+      "path": "schemas/authorization-request.schema.json",
+      "role": "json-schema-2020-12",
+      "sha256": "sha256:2dbf505d42b4b9721b44451b9b7dfd07652c0b40a579f704d33a26394c9cfa2a"
+    },
+    {
+      "bytes": 2905,
+      "normative": true,
+      "path": "schemas/claim-record.schema.json",
+      "role": "json-schema-2020-12",
+      "sha256": "sha256:64fd03ac5e40fab2dc165cd28aed6d47eef6ce63f4af5df12ff850a91a8ba439"
+    },
+    {
+      "bytes": 989,
+      "normative": true,
+      "path": "schemas/dsse-envelope.schema.json",
+      "role": "json-schema-2020-12",
+      "sha256": "sha256:5711c60867479fe4c71c036b910820dee5c29aa81a1954c9705edd091d7d6b2e"
+    },
+    {
+      "bytes": 3420,
+      "normative": true,
+      "path": "schemas/error.schema.json",
+      "role": "json-schema-2020-12",
+      "sha256": "sha256:b9b0b5af12484d8cd79bc8f1c8b59795313bb36cb5f75e0a5a60204adb45a5fb"
+    },
+    {
+      "bytes": 1183,
+      "normative": true,
+      "path": "schemas/proposal-withdrawal.schema.json",
+      "role": "json-schema-2020-12",
+      "sha256": "sha256:4c8e62511f0040c71b4ac40ffb6062f0df0bc10d4e6eb4f9ebf8e0456a9bd63b"
+    },
+    {
+      "bytes": 1498,
+      "normative": true,
+      "path": "schemas/proposal.schema.json",
+      "role": "json-schema-2020-12",
+      "sha256": "sha256:f1d1c48ab6746b34df56348c7a4b6d879efc3e9f694fe920581252cbdfab6cbe"
+    },
+    {
+      "bytes": 1078,
+      "normative": true,
+      "path": "schemas/repository-origin.schema.json",
+      "role": "json-schema-2020-12",
+      "sha256": "sha256:65b6757de0bc60dbaaee0d197c343bc53cef470c16d9de5c9d245e9c621cf7f3"
+    },
+    {
+      "bytes": 2683,
+      "normative": true,
+      "path": "schemas/repository-profile.schema.json",
+      "role": "json-schema-2020-12",
+      "sha256": "sha256:9c1be351f45aad9515742334f6b4329519f090dc833fc63261577e606900d800"
+    },
+    {
+      "bytes": 8287,
+      "normative": true,
+      "path": "schemas/status.schema.json",
+      "role": "json-schema-2020-12",
+      "sha256": "sha256:27a6b29e2e8fbe6118093a2befad50b6ffa990528037e2154b8dae16b5bacb28"
+    },
+    {
+      "bytes": 7618,
+      "normative": true,
+      "path": "schemas/submission.schema.json",
+      "role": "json-schema-2020-12",
+      "sha256": "sha256:d58dda0ddca3ee01c99b0584c604779d1b10250a5472003e7ea2a7aade872134"
+    },
+    {
+      "bytes": 4838,
+      "normative": true,
+      "path": "schemas/verification-record.schema.json",
+      "role": "json-schema-2020-12",
+      "sha256": "sha256:3ecee2e0c1c10a76c0516b21bf2e2b9ac3667a792036fc5f02056be9b3ead019"
+    },
+    {
+      "bytes": 15601,
+      "normative": false,
+      "path": "scripts/release.sh",
+      "role": "release-entrypoint",
+      "sha256": "sha256:9ac7a7d5597e0b78d25147ae394e141ae085de2fe99e3108fec7cfe44d516d47"
+    },
+    {
+      "bytes": 7691,
+      "normative": false,
+      "path": "scripts/release_manifest.py",
+      "role": "release-manifest-generator",
+      "sha256": "sha256:55cd37dcf857b22d4b0a698e2fc77404de706d28aed1e4449ac79efb4c7394d2"
+    },
+    {
+      "bytes": 10768,
+      "normative": false,
+      "path": "scripts/sign-published-release.sh",
+      "role": "release-signing-gate",
+      "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
+    }
+  ],
+  "manifest_root": "sha256:a7bfae05bd5d13862de932cbbfbfd27f2a15300008be7764159bfb350fc487ab",
+  "protocol": "Vela Protocol 1",
+  "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
+  "schema": "vela.protocol-conformance-manifest.v1",
+  "software_release": null,
+  "status": "release_candidate"
+}

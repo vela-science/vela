@@ -9,9 +9,10 @@
 #
 # Everything that decides what a release *is* — version and tag agreement, the
 # toolchain channel, the auditable build, staging, the SPDX SBOM, the SBOM
-# content check, archiving, checksums, the bundle smoke test, and the signed
-# release manifest — is in the entry point, and runs the same way on a laptop
-# with no network beyond the crate registry.
+# content check, two-build binary comparison, deterministic archive comparison,
+# checksums, the bundle smoke test, and the signed release manifest — is in the
+# entry point, and runs the same way on a laptop with no network beyond the
+# crate registry.
 name: release
 
 on:
@@ -91,8 +92,9 @@ jobs:
         with:
           syft-version: v1.50.0
       # One entry point, in this order: version/tag agreement, toolchain
-      # channel, `cargo auditable build --locked`, staging, the SPDX SBOM,
-      # `check-sbom.py`, archive, checksums, `smoke-bundle.sh`, manifest.
+      # channel, two path-remapped `cargo auditable build --locked` runs,
+      # staging, the SPDX SBOM, `check-sbom.py`, two deterministic archive runs,
+      # checksums, `smoke-bundle.sh`, manifest.
       #
       # The manifest is unsigned here. Signing it needs the distribution
       # identity's private key, and putting that in Actions would make the
@@ -100,9 +102,10 @@ jobs:
       # out of band by `scripts/sign-published-release.sh`, which signs these
       # exact published bytes and then publishes the draft.
       #
-      # Not `scripts/release.sh --sign-key`, which rebuilds: a rebuild is a
-      # different archive, so the manifest would describe bytes no release
-      # carries and `install.sh` would refuse every install.
+      # Not `scripts/release.sh --sign-key`, which rebuilds: even when two
+      # candidate builds agree, a rebuild is not the exact draft archive, so
+      # its manifest could describe bytes no release carries and `install.sh`
+      # would refuse every install.
       - name: Build the release bundle
         shell: bash
         env:

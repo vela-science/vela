@@ -18,11 +18,11 @@
 # It signs the bytes the release already carries. It does not rebuild them, and
 # that distinction is the whole reason this script exists rather than
 # `scripts/release.sh --sign-key`: a local rebuild produces a different archive —
-# different tree, different absolute paths in the debug info, no reproducible
-# build claimed anywhere in this repository — so a locally minted manifest
-# describes an archive nobody can download. Attaching one makes `install.sh`
-# refuse every install, because it compares the published bytes to the digest in
-# the manifest and finds they disagree.
+# different source or toolchain inputs — so a locally minted manifest may
+# describe an archive nobody can download. `release.sh` now proves two binary
+# builds and two archive passes agree, but signing still covers only the exact
+# bytes the draft already carries. Attaching a manifest from any other build
+# makes `install.sh` refuse the install.
 #
 # usage:
 #   scripts/sign-published-release.sh vX.Y.Z ~/.ssh/vela_release_distribution_ed25519.pub
@@ -47,6 +47,8 @@ case "$SIGN_KEY" in
     die "refusing to sign a release with the repository-authority key; see docs/SIGNING.md" ;;
 esac
 command -v gh >/dev/null 2>&1 || die "gh is required to download and upload release assets"
+PYTHON="${VELA_PYTHON:-python3}"
+command -v "$PYTHON" >/dev/null 2>&1 || die "python3 is required to validate release manifests"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ALLOWED_SIGNERS="$ROOT/allowed_signers"
@@ -70,19 +72,101 @@ if [ "$draft_state" != "true" ]; then
        as a draft for exactly this."
 fi
 
+if ! tag_commit="$(gh api "repos/$REPO/commits/$TAG" --jq '.sha' 2>"$WORK/tag.err")"; then
+  die "cannot resolve $TAG to a commit in $REPO: $(tr -d '\n' < "$WORK/tag.err")"
+fi
+[ -n "$tag_commit" ] || die "$TAG resolved to no commit"
+
 # One manifest per built bundle, named after it — the shape `release.yml`
 # publishes and the shape `install.sh` fetches. A bare `release-manifest.json`
 # is what `scripts/release.sh` writes locally by default, and the installer
 # never looks for that name.
-mapfile -t MANIFESTS < <(gh release view "$TAG" --repo "$REPO" --json assets \
+MANIFESTS=()
+while IFS= read -r manifest; do
+  MANIFESTS+=("$manifest")
+done < <(gh release view "$TAG" --repo "$REPO" --json assets \
   --jq '.assets[].name | select(endswith(".release-manifest.json"))')
 [ "${#MANIFESTS[@]}" -gt 0 ] || die "$TAG publishes no <asset>.release-manifest.json.
        Releases cut before the manifest existed cannot be signed after the fact;
        the bytes to sign have to be the ones the release carries."
 
+# Publishing is irreversible. Require the complete supported target set here,
+# even though release.yml already checks it before creating the draft: an
+# operator can otherwise sign and publish a manually altered or partial draft.
+EXPECTED_MANIFESTS=(
+  "vela-linux-x86_64.tar.gz.release-manifest.json"
+  "vela-macos-aarch64.zip.release-manifest.json"
+)
+[ "${#MANIFESTS[@]}" -eq "${#EXPECTED_MANIFESTS[@]}" ] \
+  || die "$TAG has ${#MANIFESTS[@]} release manifests; expected exactly ${#EXPECTED_MANIFESTS[@]}"
+for expected in "${EXPECTED_MANIFESTS[@]}"; do
+  found=""
+  for manifest in "${MANIFESTS[@]}"; do
+    [ "$manifest" = "$expected" ] && found="yes"
+  done
+  [ -n "$found" ] || die "$TAG is missing required manifest $expected"
+done
+
 for manifest in "${MANIFESTS[@]}"; do
   echo "== $manifest =="
   gh release download "$TAG" --repo "$REPO" --pattern "$manifest" --dir "$WORK" --clobber
+
+  manifest_inventory="$WORK/${manifest}.inventory"
+  "$PYTHON" - "$WORK/$manifest" "$TAG" "$manifest" > "$manifest_inventory" <<'PY'
+import json
+import re
+import sys
+
+path, tag, manifest_name = sys.argv[1:]
+with open(path, encoding="utf-8") as source:
+    manifest = json.load(source)
+if manifest.get("schema") != "vela.release-bundle-manifest.v1":
+    raise SystemExit("release manifest has the wrong schema")
+release = manifest.get("release", {})
+if release.get("tag") != tag or release.get("version") != tag.removeprefix("v"):
+    raise SystemExit("release manifest tag/version does not match the draft")
+source = manifest.get("source", {})
+if source.get("available") is not True or source.get("dirty") is not False:
+    raise SystemExit("release manifest does not bind a clean Git source")
+commit = source.get("commit")
+if not isinstance(commit, str) or re.fullmatch(r"[0-9a-f]{40}", commit) is None:
+    raise SystemExit("release manifest has no exact source commit")
+reproducibility = manifest.get("build", {}).get("reproducibility", {})
+if reproducibility.get("binary_builds_compared", 0) < 2:
+    raise SystemExit("release manifest lacks a two-build binary comparison")
+if reproducibility.get("archive_builds_compared", 0) < 2:
+    raise SystemExit("release manifest lacks a two-pass archive comparison")
+if not isinstance(reproducibility.get("source_date_epoch"), int):
+    raise SystemExit("release manifest has no SOURCE_DATE_EPOCH")
+assets = manifest.get("assets")
+if not isinstance(assets, list) or not assets:
+    raise SystemExit("release manifest lists no assets")
+bundle_name = manifest_name.removesuffix(".release-manifest.json")
+expected_assets = {
+    ("archive", bundle_name),
+    ("sbom", bundle_name + ".spdx.json"),
+}
+observed_assets = {(asset.get("kind"), asset.get("name")) for asset in assets}
+if observed_assets != expected_assets:
+    raise SystemExit(
+        f"release manifest assets {sorted(observed_assets)!r} do not match "
+        f"the required bundle and SBOM {sorted(expected_assets)!r}"
+    )
+seen = set()
+print("COMMIT", commit, sep="\t")
+for asset in assets:
+    name, digest = asset.get("name"), asset.get("sha256")
+    if not isinstance(name, str) or "/" in name or name in seen:
+        raise SystemExit("release manifest has an unsafe or duplicate asset name")
+    if not isinstance(digest, str) or re.fullmatch(r"sha256:[0-9a-f]{64}", digest) is None:
+        raise SystemExit(f"release manifest has an invalid digest for {name}")
+    seen.add(name)
+    print("ASSET", name, digest.removeprefix("sha256:"), sep="\t")
+PY
+
+  manifest_commit="$(awk -F '\t' '$1 == "COMMIT" {print $2}' "$manifest_inventory")"
+  [ "$manifest_commit" = "$tag_commit" ] \
+    || die "$manifest names source commit $manifest_commit but $TAG resolves to $tag_commit"
 
   # A manifest that already carries a signature is not re-signed — two
   # signatures over the same bytes is not better evidence, and replacing one
@@ -105,17 +189,16 @@ for manifest in "${MANIFESTS[@]}"; do
     -n "$SIGNATURE_NAMESPACE" -s "$WORK/${manifest}.sig" < "$WORK/$manifest" >/dev/null \
     || die "the signature did not verify against $ALLOWED_SIGNERS; is this the published identity?"
 
-  # The tie-back, checked here rather than discovered by the first person to
-  # install. A manifest whose digests do not match the assets beside it is worse
-  # than no manifest, because `install.sh` trusts the signature and then refuses.
-  asset="${manifest%.release-manifest.json}"
-  gh release download "$TAG" --repo "$REPO" --pattern "$asset" --dir "$WORK" --clobber
-  declared="$(grep -F -A3 "\"name\": \"${asset}\"" "$WORK/$manifest" \
-    | grep '"sha256"' | head -1 | sed -E 's/.*"sha256": "(sha256:)?([0-9a-f]{64})".*/\2/')"
-  observed="$(shasum -a 256 "$WORK/$asset" | awk '{print $1}')"
-  [ "$declared" = "$observed" ] \
-    || die "$manifest declares $declared for $asset and the published asset is $observed"
-  echo "manifest agrees with the published $asset"
+  # Tie the signature to every archive and SBOM the manifest names, not only to
+  # the archive the installer happens to select on this machine.
+  while IFS=$'\t' read -r kind asset declared; do
+    [ "$kind" = "ASSET" ] || continue
+    gh release download "$TAG" --repo "$REPO" --pattern "$asset" --dir "$WORK" --clobber
+    observed="$(shasum -a 256 "$WORK/$asset" | awk '{print $1}')"
+    [ "$declared" = "$observed" ] \
+      || die "$manifest declares $declared for $asset and the published asset is $observed"
+    echo "manifest agrees with the published $asset"
+  done < "$manifest_inventory"
 
   if [ -z "$already_signed" ]; then
     gh release upload "$TAG" --repo "$REPO" "$WORK/${manifest}.sig"

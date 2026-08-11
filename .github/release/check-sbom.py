@@ -7,7 +7,6 @@ import json
 import pathlib
 import sys
 
-
 REQUIRED = {
     "vela-authority",
     "vela-cli",

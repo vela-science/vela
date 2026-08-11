@@ -15,8 +15,8 @@
 #
 # Everything else — version/tag agreement, toolchain channel, the auditable
 # build, staging, the SPDX SBOM, the SBOM content check, archiving, checksums,
-# the bundle smoke test, and the signed manifest — runs here and runs the same
-# way on a laptop with no network.
+# two-build binary comparison, deterministic archiving, the bundle smoke test,
+# and the signed manifest — runs here and runs the same way outside CI.
 #
 # usage:
 #   scripts/release.sh [--tag vX.Y.Z] [--out DIR] [--manifest-name NAME]
@@ -126,19 +126,19 @@ fi
 # Only checked when signing. An unsigned build from a dirty tree is an ordinary
 # thing to do while working.
 if [ -n "$SIGN_KEY" ] && git rev-parse --git-dir >/dev/null 2>&1; then
-  if ! git diff --quiet HEAD 2>/dev/null; then
-    die "refusing to sign a release built from a modified working tree; commit or stash first"
+  if [ -n "$(git status --porcelain --untracked-files=normal)" ]; then
+    die "refusing to sign a release built from a modified or untracked working tree; commit or stash first"
   fi
   release_tag="${TAG:-v$VERSION}"
-  if tagged="$(git rev-parse --verify -q "${release_tag}^{commit}" 2>/dev/null)"; then
-    head="$(git rev-parse HEAD)"
-    if [ "$tagged" != "$head" ]; then
-      behind="$(git rev-list --count "${release_tag}..HEAD" 2>/dev/null || echo '?')"
-      die "HEAD is ${behind} commits from ${release_tag}, so these bytes are not that release.
+  tagged="$(git rev-parse --verify -q "${release_tag}^{commit}" 2>/dev/null)" \
+    || die "refusing to sign before ${release_tag} exists and names the release commit"
+  head="$(git rev-parse HEAD)"
+  if [ "$tagged" != "$head" ]; then
+    behind="$(git rev-list --count "${release_tag}..HEAD" 2>/dev/null || echo '?')"
+    die "HEAD is ${behind} commits from ${release_tag}, so these bytes are not that release.
        Bump the version and tag this commit, or check out ${release_tag} to rebuild it.
        Signing here would attest to an archive no release carries; \`install.sh\` compares
        the published bytes to the manifest and would refuse every install."
-    fi
   fi
 fi
 
@@ -168,17 +168,49 @@ case "$TARGET_TRIPLE" in
 esac
 echo "target: $TARGET_TRIPLE -> $ASSET"
 
+# A release timestamp is source state, not wall-clock state. It controls archive
+# metadata and the manifest timestamp. Clean Git checkouts derive it from the
+# release commit; source archives must supply the retained value explicitly.
+SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-}"
+if [ -z "$SOURCE_DATE_EPOCH" ]; then
+  SOURCE_DATE_EPOCH="$(git log -1 --format=%ct HEAD 2>/dev/null || true)"
+fi
+case "$SOURCE_DATE_EPOCH" in
+  ''|*[!0-9]*) die "SOURCE_DATE_EPOCH must be a nonnegative integer (or build from a Git checkout)" ;;
+esac
+export SOURCE_DATE_EPOCH
+echo "source date epoch: $SOURCE_DATE_EPOCH"
+
 # 3. Auditable build. `cargo auditable` embeds the dependency graph in the
 #    binary; the SBOM step below recovers it, and `check-sbom.py` fails the
 #    release if that recovery came back empty.
-step "build"
+step "build twice"
 installed_auditable="$(cargo install --list 2>/dev/null | sed -n 's/^cargo-auditable v\([0-9][^:]*\):$/\1/p' | head -n 1)"
 if [ "$installed_auditable" != "$CARGO_AUDITABLE_VERSION" ]; then
   echo "installing cargo-auditable $CARGO_AUDITABLE_VERSION (found: ${installed_auditable:-none})"
   cargo install cargo-auditable --version "$CARGO_AUDITABLE_VERSION" --locked
 fi
 BUILD_COMMAND="cargo auditable build --locked --release -p vela-cli --bin vela"
-$BUILD_COMMAND
+BUILD_ONE="$ROOT/target/release-build/one"
+BUILD_TWO="$ROOT/target/release-build/two"
+rm -rf "$BUILD_ONE" "$BUILD_TWO"
+
+build_release() {
+  local target_dir="$1"
+  # Put the more specific target path first: both target directories live under
+  # ROOT, and they must map to the same retained path rather than becoming
+  # /src/vela/target/release-build/{one,two} in debug metadata.
+  local remap_flags="--remap-path-prefix=$target_dir=/build/target --remap-path-prefix=$ROOT=/src/vela"
+  CARGO_INCREMENTAL=0 CARGO_TARGET_DIR="$target_dir" \
+    RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }$remap_flags" \
+    cargo auditable build --locked --release -p vela-cli --bin vela
+}
+
+build_release "$BUILD_ONE"
+build_release "$BUILD_TWO"
+cmp "$BUILD_ONE/release/vela" "$BUILD_TWO/release/vela" \
+  || die "two clean release builds produced different vela binaries"
+echo "binary reproducibility: two independent target directories agree"
 
 # 4. Stage exactly the product bytes. The archive is built from this directory
 #    and the SBOM is scanned over it, so the two describe the same tree.
@@ -189,7 +221,7 @@ DIST="$OUT/dist"
 STAGE="$ROOT/target/release-stage"
 rm -rf "$STAGE"
 mkdir -p "$DIST" "$STAGE"
-cp target/release/vela "$STAGE/"
+cp "$BUILD_ONE/release/vela" "$STAGE/"
 test -x "$STAGE/vela"
 echo "staged: $STAGE/vela"
 
@@ -237,15 +269,20 @@ SBOM="$DIST/$ASSET.spdx.json"
 "$SYFT" scan "dir:$STAGE" -o "spdx-json=$SBOM" --quiet
 "$PYTHON" .github/release/check-sbom.py "$SBOM"
 
-# 6. Archive. tar on Linux, ditto on macOS, matching what `install.sh` unpacks.
+# 6. Deterministic archive, built twice from the same staged bytes. The helper
+#    fixes path order, ownership, modes, and timestamps for both published
+#    formats; `cmp` makes reproducibility an actual release gate.
 step "archive"
 ARCHIVE="$DIST/$ASSET"
-rm -f "$ARCHIVE"
-case "$ASSET" in
-  *.tar.gz) tar -C "$STAGE" -czf "$ARCHIVE" . ;;
-  *.zip)    ditto -c -k --norsrc "$STAGE/" "$ARCHIVE" ;;
-  *) die "no archiver for $ASSET" ;;
-esac
+ARCHIVE_CHECK="$ROOT/target/release-archive-check/$ASSET"
+rm -f "$ARCHIVE" "$ARCHIVE_CHECK"
+"$PYTHON" .github/release/create-deterministic-archive.py \
+  --source "$STAGE" --output "$ARCHIVE" --epoch "$SOURCE_DATE_EPOCH"
+"$PYTHON" .github/release/create-deterministic-archive.py \
+  --source "$STAGE" --output "$ARCHIVE_CHECK" --epoch "$SOURCE_DATE_EPOCH"
+cmp "$ARCHIVE" "$ARCHIVE_CHECK" \
+  || die "two deterministic archive passes produced different bytes"
+echo "archive reproducibility: two independent archive passes agree"
 
 # 7. Checksums, written the way `install.sh` and `smoke-bundle.sh` read them:
 #    relative names, so `shasum -c` works from inside `dist`.
@@ -274,6 +311,9 @@ manifest_arguments=(
   --rustc "$RUSTC_VERSION"
   --target-triple "$TARGET_TRIPLE"
   --build-command "$BUILD_COMMAND"
+  --source-date-epoch "$SOURCE_DATE_EPOCH"
+  --binary-build-count 2
+  --archive-build-count 2
   --cargo-auditable-version "$CARGO_AUDITABLE_VERSION"
   --sbom-tool syft
   --sbom-tool-version "$SYFT_VERSION"

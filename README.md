@@ -14,7 +14,7 @@
   <a href="docs/QUICKSTART.md">Quickstart</a> ·
   <a href="docs/ARCHITECTURE.md">Architecture</a> ·
   <a href="docs/REPOSITORY_BOUNDARIES.md">Repository boundaries</a> ·
-  <a href="docs/PROTOCOL.md">Protocol</a> ·
+    <a href="docs/PROTOCOL.md">Protocol 1</a> ·
   <a href="docs/THREAT_MODEL.md">Security</a>
 </p>
 
@@ -135,6 +135,20 @@ curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.972.1/install.
   VELA_VERSION=v0.972.1 bash
 vela --version
 ```
+
+Read a real Repository—no account or authority key required:
+
+```bash
+git clone https://github.com/vela-science/math.git math
+git -C math checkout 5be513bd0ce2243b59268d9b185da18497505067
+vela replay math --json
+vela claims math --json
+```
+
+Use a complete clone: exact offline reads refuse shallow, partial, alternate,
+or grafted object stores. The pinned Repository replays to one accepted Claim.
+The terminal-variant evidence at this commit changed no Vela Standing; see the
+[formal-math reference flow](examples/formal-math/).
 
 Or build the exact repository revision:
 
@@ -353,6 +367,7 @@ only on a machine you are willing to treat the same way.
 - [Quickstart](docs/QUICKSTART.md)
 - [CLI contract](docs/CLI.md)
 - [Protocol](docs/PROTOCOL.md)
+- [Release qualification](docs/RELEASES.md)
 - [Authority and attribution](docs/SIGNING.md)
 - [Verification Records](docs/VERIFICATION.md)
 - [Terminology](docs/TERMINOLOGY.md)
@@ -368,13 +383,20 @@ only on a machine you are willing to treat the same way.
 
 ## Project status
 
-Vela is pre-1.0. All controlled public Repositories use the current repository
-object model. Archived predecessors remain readable through their tags and the
-binaries of their era; every Repository the current binary writes starts at a
-native genesis. Historical Git revisions preserve earlier contracts, and the
-current binary exposes no migration writer.
+The published Vela binary remains pre-1.0. The current object/kernel contract is
+presented as the Protocol 1 release candidate, with one normative specification,
+generated schemas, a digest-bound conformance manifest, independent Python and
+JavaScript emitters/readers, and three executable examples. This status does not
+publish `v1.0.0`, promise compatibility before the final release authorization,
+or claim external adoption.
 
-The final pre-1.0 standards cut is active across the ecosystem. The
+All controlled public Repositories use the current repository object model.
+Archived predecessors remain readable through their tags and the binaries of
+their era; every Repository the current binary writes starts at a native
+genesis. Historical Git revisions preserve earlier contracts, and the current
+binary exposes no migration writer.
+
+The Protocol 1 standards cut is active across the ecosystem. The
 `vela-science/math` authority re-genesised once under Vela 0.972.1, uses RFC
 9562 UUIDv4 identity `8115c538-7688-40b7-ab75-3c4765bf3c19`, and strictly
 replays its current accepted state. The signed 0.971.0 predecessor remains
@@ -384,5 +406,7 @@ and [ADR 0035](docs/adr/0035-commodity-encoding-signing-and-wire-contracts.md).
 
 ## License
 
-Code is dual-licensed under Apache-2.0 OR MIT. The Vela name and marks are
-trademark rights reserved; see [`assets/brand/LICENSE`](assets/brand/LICENSE).
+Code is dual-licensed under Apache-2.0 OR MIT; see [LICENSE](LICENSE) for the
+license boundary and the full [Apache](LICENSE-APACHE) and [MIT](LICENSE-MIT)
+texts. The Vela name and marks are trademark rights reserved; see
+[`assets/brand/LICENSE`](assets/brand/LICENSE).
