@@ -1,10 +1,10 @@
 //! The two Claim relation vocabularies, bound to the language-neutral fixture.
 //!
-//! Four competing relation sets were in circulation with no test behind any of
-//! them: the seven names PROTOCOL.md declared, the six the repositories retain,
-//! the three the correction-impact experiment recognises, and the two the
-//! acceptance path actually reads. This test makes the reconciled pair the one
-//! a build can fail on.
+//! Before the current cut, four competing relation sets circulated with no test
+//! behind any of them: the seven names PROTOCOL.md declared, the six in the
+//! frozen repository census, the three the correction-impact experiment
+//! recognises, and the two the acceptance path actually reads. This test makes
+//! the reconciled current pair the one a build can fail on.
 
 use std::collections::BTreeMap;
 
@@ -114,8 +114,8 @@ fn every_classification_case_agrees_with_the_parser() {
             case["class"] == "correction",
             "only the correction algebra moves Standing"
         );
-        // Round-trips unchanged: canonicalization is read-side, so recognising
-        // a near-miss can never rewrite a retained record's bytes.
+        // Round-trips unchanged: classification never aliases or rewrites an
+        // unrecognized retained spelling.
         let parsed = ClaimRecordV1::parse(&record.canonical_bytes().expect("canonical bytes"))
             .expect("record round-trips");
         assert_eq!(parsed.relations[0].kind, kind);
@@ -158,12 +158,17 @@ fn every_retained_relation_kind_in_the_census_is_declared() {
         });
     }
 
-    // The names that were declared and never written stay listed, so that
-    // reviving one is a deliberate edit rather than a silent drift.
+    // The withdrawn names that were declared and never written stay listed as
+    // historical negative evidence, so reviving one is a deliberate edit.
     for kind in strings(&fixture["census"]["never_written"]["kinds"]) {
         assert!(
             !census.contains_key(&kind),
             "`{kind}` is recorded as never written but appears in the census"
+        );
+        assert_eq!(
+            claim_relation_class(&kind),
+            ClaimRelationClass::Unrecognized,
+            "withdrawn relation `{kind}` must not regain alias semantics"
         );
     }
 }

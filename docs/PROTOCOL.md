@@ -583,11 +583,11 @@ contradicts depends replicates supports synthesized_from
 
 These are retained context: where a Claim came from, what it agrees or
 disagrees with, what it rests on. No Decision reads them and none of them moves
-Standing. The set is enumerated from what the maintained repositories actually
-hold rather than from intent, and it is open. A repository may record a kind
-this list does not name, and doing so grants that kind no authority. A derived
-reader may give a descriptive relation meaning of its own, such as a dependency
-edge or a support route, but that meaning is the reader's and is never Standing.
+Standing. The set is enumerated from the retained historical repository census
+rather than from intent, and it is open. A repository may record a kind this
+list does not name, and doing so grants that kind no authority. A derived reader
+may give a descriptive relation meaning of its own, such as a dependency edge
+or a support route, but that meaning is the reader's and is never Standing.
 
 A relation kind is lowercase ASCII words joined by single underscores, at most
 64 characters. Anything else fails the parse.
