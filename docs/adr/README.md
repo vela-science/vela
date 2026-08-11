@@ -54,3 +54,5 @@ grounds that it kept its own index, and it did not.
 - [ADR 0040: A producer-declared dependency on `vela.submission.v1`](0040-producer-declared-claim-dependencies.md)
 - [ADR 0041: A language-independent conformance vector for the authority contract](0041-authority-conformance-vector.md)
 - [ADR 0042: Policy-bundle rotation, and what it takes to retire Cedar](0042-policy-bundle-rotation-and-cedar-retirement.md)
+- [ADR 0043: Experiment first with exact, artifact-backed Claim dependencies](0043-experiment-first-exact-claim-dependencies.md)
+- [ADR 0044: Constrain Frontier Calculus to research vocabulary](0044-constrain-frontier-calculus-to-research-vocabulary.md)

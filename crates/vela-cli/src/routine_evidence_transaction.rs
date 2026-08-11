@@ -11,23 +11,18 @@ use std::path::Path;
 
 use serde::Serialize;
 
-use crate::authority_transaction::{AuthorityDerivedDraft, AuthorityObjectDraft};
-use crate::repository_txn::{
+use crate::authority_transaction::AuthorityObjectDraft;
+use crate::config::git_publish::{
+    ExactPublicationPreflight, PublicationDelta, PublishOptions, exact_publication_preflight,
+};
+use crate::repository_ops::{publication_delta, publication_error};
+use vela_repository::{
     CanonicalWriteBarrier, ContentDigest, DeltaDraft, InputBinding, OperationId, OperationKind,
     PlannedWrite, RepoPath, RepositoryBinding, RepositoryTxn, RepositoryTxnError,
     RepositoryTxnPlan, RepositoryTxnPlanSpec, WriteClass,
 };
 
-const LAYOUT_SCHEMA: &str = "vela.routine-evidence-layout.internal.v1";
 const RESULT_SCHEMA: &str = "vela.routine-evidence-transaction-result.internal.v1";
-
-#[derive(Serialize)]
-struct LayoutCommitment<'a> {
-    schema: &'static str,
-    repository_id: &'a str,
-    object_paths: Vec<&'a str>,
-    derived_paths: Vec<&'a str>,
-}
 
 #[derive(Serialize)]
 struct DurableResult<'a> {
@@ -45,7 +40,7 @@ pub(crate) struct PreparedRoutineEvidenceTransaction {
 impl PreparedRoutineEvidenceTransaction {
     pub(crate) fn resolved_public_writes(
         &self,
-    ) -> Result<Vec<crate::repository_txn::ResolvedWrite>, RepositoryTxnError> {
+    ) -> Result<Vec<vela_repository::ResolvedWrite>, RepositoryTxnError> {
         self.transaction.resolved_public_writes()
     }
 
@@ -55,6 +50,34 @@ impl PreparedRoutineEvidenceTransaction {
 
     pub(crate) fn abort_prepared(&mut self) -> Result<(), RepositoryTxnError> {
         self.transaction.abort_prepared()
+    }
+
+    pub(crate) fn preflight_publication(
+        &mut self,
+        repository: &Path,
+        options: impl FnOnce() -> Result<PublishOptions, String>,
+        missing_delta: &str,
+    ) -> Result<(PublicationDelta, ExactPublicationPreflight), String> {
+        let precommit = (|| {
+            let public = self
+                .resolved_public_writes()
+                .map_err(|error| error.to_string())?;
+            let delta_root = self.canonical_delta_root().to_string();
+            let publish_options = options()?;
+            let delta = publication_delta(repository, &delta_root, public)?
+                .ok_or_else(|| missing_delta.to_string())?;
+            let preflight = exact_publication_preflight(repository, &delta, &publish_options)
+                .map_err(publication_error)?;
+            Ok::<_, String>((delta, preflight))
+        })();
+        match precommit {
+            Ok(value) => Ok(value),
+            Err(error) => {
+                self.abort_prepared()
+                    .map_err(|abort| format!("{error}; abort failed: {abort}"))?;
+                Err(error)
+            }
+        }
     }
 
     pub(crate) fn mark_committed(&mut self) -> Result<(), RepositoryTxnError> {
@@ -85,7 +108,6 @@ pub(crate) fn prepare_routine_evidence_transaction(
     fixed_time: String,
     mut read_set: Vec<InputBinding>,
     object_drafts: Vec<AuthorityObjectDraft>,
-    derived_drafts: Vec<AuthorityDerivedDraft>,
 ) -> Result<PreparedRoutineEvidenceTransaction, String> {
     if object_drafts.is_empty() {
         return Err("routine evidence transaction changes no canonical object".into());
@@ -106,39 +128,21 @@ pub(crate) fn prepare_routine_evidence_transaction(
         .map(|(name, digest)| InputBinding { name, digest })
         .collect::<Vec<_>>();
 
-    let mut writes = object_drafts
+    let writes = object_drafts
         .iter()
         .map(routine_object_write)
         .collect::<Result<Vec<_>, _>>()?;
-    writes.extend(
-        derived_drafts
-            .iter()
-            .map(routine_derived_write)
-            .collect::<Result<Vec<_>, _>>()?,
-    );
     let draft = DeltaDraft::prepare(repository, writes).map_err(|error| error.to_string())?;
     if draft.delta.writes().is_empty() {
         return Err("routine evidence transaction changes no bytes".into());
     }
-    let layout = vela_protocol::canonical::to_canonical_bytes(&LayoutCommitment {
-        schema: LAYOUT_SCHEMA,
-        repository_id,
-        object_paths: object_drafts
-            .iter()
-            .map(|draft| draft.path.as_str())
-            .collect(),
-        derived_paths: derived_drafts
-            .iter()
-            .map(|draft| draft.path.as_str())
-            .collect(),
-    })?;
     let plan = RepositoryTxnPlan::new(
         RepositoryTxnPlanSpec {
             kind,
             operation_id: operation_id.clone(),
             request_root: ContentDigest::parse(request_root.to_string())
                 .map_err(|error| error.to_string())?,
-            repository: RepositoryBinding::new(repository, repository_id, &layout)
+            repository: RepositoryBinding::new(repository, repository_id)
                 .map_err(|error| error.to_string())?,
             fixed_time,
             read_set,
@@ -196,24 +200,6 @@ fn routine_object_write(draft: &AuthorityObjectDraft) -> Result<PlannedWrite, St
         ));
     }
     Ok(PlannedWrite::write(path, draft.class, bytes.clone()))
-}
-
-fn routine_derived_write(draft: &AuthorityDerivedDraft) -> Result<PlannedWrite, String> {
-    if draft.path != "targets.json" {
-        return Err(format!(
-            "routine evidence derived path {} is not a Vela materialized view",
-            draft.path
-        ));
-    }
-    let Some(bytes) = &draft.postimage else {
-        return Err("routine evidence transaction cannot delete targets.json".into());
-    };
-    let path = RepoPath::parse(draft.path.clone()).map_err(|error| error.to_string())?;
-    Ok(PlannedWrite::write(
-        path,
-        WriteClass::Derived,
-        bytes.clone(),
-    ))
 }
 
 fn rooted_sha256_path(path: &str, prefix: &str, suffix: &str) -> bool {
@@ -289,24 +275,5 @@ mod tests {
             };
             assert!(routine_object_write(&draft).is_err(), "accepted {path}");
         }
-    }
-
-    #[test]
-    fn routine_derived_writes_are_limited_to_a_present_target_index() {
-        let target_index = AuthorityDerivedDraft {
-            path: "targets.json".into(),
-            postimage: Some(b"targets".to_vec()),
-        };
-        assert!(routine_derived_write(&target_index).is_ok());
-
-        let mut deletion = target_index.clone();
-        deletion.postimage = None;
-        assert!(routine_derived_write(&deletion).is_err());
-
-        let unrelated = AuthorityDerivedDraft {
-            path: "repository.json".into(),
-            postimage: Some(Vec::new()),
-        };
-        assert!(routine_derived_write(&unrelated).is_err());
     }
 }

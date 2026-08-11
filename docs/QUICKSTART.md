@@ -27,13 +27,12 @@ This local public pin grants no authority and changes no repository byte.
 
 ## Produce one bounded result
 
+If the source-owning Repository or a read product publishes an exact next
+obligation and rooted work packet, follow and validate that source-local
+contract. Otherwise select bounded work directly in the native workbench. The
+Vela writer begins when the producer submits the result:
+
 ```bash
-vela next . --limit 1 --json
-# Optional: print the exact stateless Target briefing.
-vela start <target> --json
-
-# Run the exact verifier and retain its artifact.
-
 vela submit \
   --claim "<bounded result>" \
   --type computational \
@@ -44,9 +43,8 @@ vela submit \
   --json
 ```
 
-`next` returns Offers from the fresh Target Index v5. `start` revalidates one
-exact Target and prints a write-free briefing; the native agent, workbench, or
-scientific tool performs the work. `submit` authenticates and retains the
+Vela core owns no work catalogue or planner and no `next`/`start` command pair.
+Source-local orientation remains non-authoritative. `submit` authenticates and retains the
 resulting Submission and creates a pending Proposal. It does not create
 Verification, a Decision, an Event, or accepted scientific state.
 

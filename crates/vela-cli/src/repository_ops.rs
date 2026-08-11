@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
-use sha2::{Digest, Sha256};
+use vela_protocol::canonical::sha256_root;
 use vela_protocol::submission::{
     ProducerCheck, RequestedChange, RequestedChangeTarget, SubmissionArtifact, SubmissionClaim,
     SubmissionDraft, SubmissionProvenance, SubmissionRecordV2,
@@ -131,7 +131,7 @@ pub(crate) fn author_submission(
         artifacts.push(SubmissionArtifact {
             kind: kind.to_string(),
             path: path.to_string(),
-            digest: format!("sha256:{}", hex::encode(Sha256::digest(&bytes))),
+            digest: sha256_root(&bytes),
         });
     }
     let checks = producer_checks
@@ -214,8 +214,8 @@ pub(crate) struct VerificationImportOutcome {
 
 #[derive(Debug)]
 pub(crate) struct PreparedSubmissionArtifacts {
-    pub(crate) writes: Vec<crate::repository_txn::PlannedWrite>,
-    pub(crate) read_set: Vec<crate::repository_txn::InputBinding>,
+    pub(crate) writes: Vec<vela_repository::PlannedWrite>,
+    pub(crate) read_set: Vec<vela_repository::InputBinding>,
 }
 
 pub(crate) fn prepare_submission_artifacts(
@@ -223,7 +223,7 @@ pub(crate) fn prepare_submission_artifacts(
     submission: &SubmissionRecordV2,
     bundle_root: Option<&Path>,
 ) -> Result<PreparedSubmissionArtifacts, String> {
-    use crate::repository_txn::{ContentDigest, InputBinding, PlannedWrite, RepoPath, WriteClass};
+    use vela_repository::{ContentDigest, InputBinding, PlannedWrite, RepoPath, WriteClass};
 
     let mut blobs = BTreeMap::<String, Vec<u8>>::new();
     let mut read_set = Vec::new();
@@ -255,7 +255,7 @@ pub(crate) fn prepare_submission_artifacts(
                 &format!("Submission artifact {index}"),
             )
             .map_err(|error| public_artifact_read_error(error, limit, index))?;
-            let tracked = vela_edge::git::output(
+            let tracked = crate::config::git_publish::exact_git_output(
                 repository_path,
                 &["ls-files", "--error-unmatch", "--", &canonical_path],
             )?
@@ -310,7 +310,7 @@ pub(crate) fn prepare_submission_artifacts(
             .map_err(|error| public_artifact_read_error(error, limit, index))?
         };
         account_public_artifact_bytes(&mut total, bytes.len() as u64, index)?;
-        let observed = format!("sha256:{}", hex::encode(Sha256::digest(&bytes)));
+        let observed = sha256_root(&bytes);
         if observed != artifact.digest {
             return Err(format!(
                 "Submission artifact {index} digest mismatch: declared {}, observed {observed}",
@@ -334,7 +334,7 @@ pub(crate) fn prepare_submission_artifacts(
                 bytes,
             ))
         })
-        .collect::<Result<Vec<_>, crate::repository_txn::RepositoryTxnError>>()
+        .collect::<Result<Vec<_>, vela_repository::RepositoryTxnError>>()
         .map_err(|error| error.to_string())?;
     Ok(PreparedSubmissionArtifacts { writes, read_set })
 }
@@ -377,23 +377,6 @@ fn canonical_submission_input(repository_path: &Path, relative: &Path) -> Option
     (regular && exact).then_some(lexical)
 }
 
-pub(crate) fn submit(
-    repository_path: &Path,
-    submission: &SubmissionRecordV2,
-    executor: &str,
-    bundle_root: Option<&Path>,
-) -> Result<SubmitOutcome, String> {
-    crate::submission::submit(repository_path, submission, executor, bundle_root)
-}
-
-pub(crate) fn import_verification(
-    repository_path: &Path,
-    record: &vela_protocol::verification_record::VerificationRecordEnvelopeV2,
-    executor: &str,
-) -> Result<VerificationImportOutcome, String> {
-    crate::verification::import(repository_path, record, executor)
-}
-
 pub(crate) fn repository_transaction_journal_dir(
     repository_path: &Path,
 ) -> Result<PathBuf, String> {
@@ -426,6 +409,23 @@ pub(crate) fn repository_transaction_journal_dir(
             journal.display()
         )),
     }
+}
+
+/// Take a read-only snapshot of the repository transaction barrier before a
+/// mutating command considers an idempotent current-state result.
+///
+/// The snapshot can race. Every actual write still acquires the authoritative
+/// locked barrier through `vela-repository`; this check only prevents an
+/// incomplete durable transaction from being hidden by an early success.
+pub(crate) fn verify_repository_transaction_barrier_read_only(
+    repository_path: &Path,
+) -> Result<(), String> {
+    let root = repository_path
+        .canonicalize()
+        .map_err(|error| format!("resolve repository transaction root: {error}"))?;
+    let journal_dir = repository_transaction_journal_dir(&root)?;
+    vela_repository::RepositoryTxn::verify_recovery_barrier(&root, &journal_dir)
+        .map_err(|error| error.to_string())
 }
 
 fn account_public_artifact_bytes(
@@ -476,10 +476,10 @@ fn public_artifact_read_error(
 pub(crate) fn publication_delta(
     repository_path: &Path,
     root: &str,
-    writes: Vec<crate::repository_txn::ResolvedWrite>,
+    writes: Vec<vela_repository::ResolvedWrite>,
 ) -> Result<Option<crate::config::git_publish::PublicationDelta>, String> {
     use crate::config::git_publish::{PublicationDelta, PublicationDeltaEntry};
-    use crate::repository_txn::{FileMode, FileState};
+    use vela_repository::{FileMode, FileState};
     if writes.is_empty() {
         return Ok(None);
     }

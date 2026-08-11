@@ -1,6 +1,12 @@
 # ADR 0034: Direct Target Index generation
 
-- Status: Accepted — 2026-08-01
+- Status: Superseded — accepted 2026-08-01; superseded 2026-08-10
+- Supersession: commit `719cbc77` retired the Target Index and the `next` and
+  `start` commands after the one live scientific Repository had no catalogue
+  to read. Source-owning repositories and read products may still expose exact
+  next obligations under their own contracts; Vela core owns no catalogue.
+- Historical note: the decision below is retained unchanged as evidence of the
+  v5 era.
 - Protocol effect: replaces `vela.target-index.v4` with the smaller derived
   `vela.target-index.v5` contract
 - Scientific authority effect: None

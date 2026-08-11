@@ -2,12 +2,12 @@
 
 #![cfg(unix)]
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 use ed25519_dalek::SigningKey;
 use serde_json::Value;
-use sha2::{Digest, Sha256};
+use vela_protocol::canonical::sha256_root;
 use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
 use vela_protocol::submission::{
     RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
@@ -19,7 +19,11 @@ use vela_protocol::verification_record::{
 };
 
 mod support;
-use support::EphemeralAgent;
+use support::{
+    EphemeralAgent, RemoveAnchorOnDrop as RemoveOnDrop,
+    configure_git_identity as configure_test_git_identity, run_with_isolated_home as run_with_home,
+    success_json,
+};
 
 fn run(cwd: &Path, socket: Option<&Path>, args: &[&str]) -> Output {
     let mut command = Command::new(env!("CARGO_BIN_EXE_vela"));
@@ -34,34 +38,6 @@ fn run(cwd: &Path, socket: Option<&Path>, args: &[&str]) -> Output {
         command.env("SSH_AUTH_SOCK", cwd.join("missing-ssh-agent.sock"));
     }
     command.output().expect("run vela")
-}
-
-fn run_with_home(cwd: &Path, socket: Option<&Path>, home: &Path, args: &[&str]) -> Output {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_vela"));
-    command
-        .current_dir(cwd)
-        .args(args)
-        .env("HOME", home)
-        .env("NO_COLOR", "1")
-        .env("VELA_ADVICE", "0")
-        .env_remove("VELA_AGENT_KEY_HEX");
-    if let Some(socket) = socket {
-        command.env("SSH_AUTH_SOCK", socket);
-    } else {
-        command.env("SSH_AUTH_SOCK", cwd.join("missing-ssh-agent.sock"));
-    }
-    command.output().expect("run vela with isolated home")
-}
-
-fn success_json(output: &Output) -> Value {
-    assert!(
-        output.status.success(),
-        "status={:?}\nstdout={}\nstderr={}",
-        output.status.code(),
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    serde_json::from_slice(&output.stdout).expect("decode Vela JSON")
 }
 
 fn exact_directory_snapshot(directory: &Path) -> Vec<(String, Vec<u8>)> {
@@ -82,26 +58,30 @@ fn exact_directory_snapshot(directory: &Path) -> Vec<(String, Vec<u8>)> {
     entries
 }
 
-struct RemoveOnDrop(std::path::PathBuf);
+fn tree_snapshot(root: &Path) -> Vec<(PathBuf, u32, Vec<u8>)> {
+    use std::os::unix::fs::MetadataExt;
 
-impl Drop for RemoveOnDrop {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.0);
+    fn visit(root: &Path, path: &Path, entries: &mut Vec<(PathBuf, u32, Vec<u8>)>) {
+        for entry in std::fs::read_dir(path).expect("read snapshot directory") {
+            let entry = entry.expect("snapshot entry");
+            let path = entry.path();
+            let metadata = std::fs::symlink_metadata(&path).expect("snapshot metadata");
+            if metadata.is_dir() {
+                visit(root, &path, entries);
+            } else {
+                entries.push((
+                    path.strip_prefix(root).unwrap().to_path_buf(),
+                    metadata.mode(),
+                    std::fs::read(path).expect("snapshot bytes"),
+                ));
+            }
+        }
     }
-}
 
-fn configure_test_git_identity(repository_path: &Path) {
-    for (key, value) in [
-        ("user.name", "Vela Test"),
-        ("user.email", "vela@example.invalid"),
-    ] {
-        let configured = Command::new("git")
-            .current_dir(repository_path)
-            .args(["config", key, value])
-            .status()
-            .expect("configure test Git identity");
-        assert!(configured.success());
-    }
+    let mut entries = Vec::new();
+    visit(root, root, &mut entries);
+    entries.sort_by(|left, right| left.0.cmp(&right.0));
+    entries
 }
 
 #[test]
@@ -195,6 +175,32 @@ fn fresh_current_repository_replays_from_a_clean_clone() {
         .expect("inspect clone");
     assert!(dirt.status.success());
     assert!(dirt.stdout.is_empty(), "clean clone must remain clean");
+
+    for (name, value) in [
+        ("remote.origin.promisor", "true"),
+        ("remote.origin.partialclonefilter", "blob:none"),
+    ] {
+        let configured = Command::new("git")
+            .current_dir(&clone)
+            .args(["config", name, value])
+            .output()
+            .expect("configure deferred partial-clone fixture");
+        assert!(configured.status.success());
+    }
+    let before = tree_snapshot(&clone);
+    let refused = run(&clone, None, &["replay", ".", "--json"]);
+    assert_eq!(refused.status.code(), Some(1));
+    let refused: Value =
+        serde_json::from_slice(&refused.stdout).expect("offline storage error JSON");
+    assert_eq!(refused["ok"], false);
+    assert_eq!(refused["command"], "replay");
+    assert_eq!(refused["error"]["kind"], "domain");
+    assert!(refused["error"]["code"].is_null());
+    assert_eq!(
+        refused["error"]["message"],
+        "Git repository storage is unsupported for exact offline reads; use a complete local repository without shallow or grafted history, config includes, partial-clone/promisor settings, or object alternates"
+    );
+    assert_eq!(tree_snapshot(&clone), before);
 }
 
 #[test]
@@ -342,7 +348,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     std::fs::remove_file(&anchor_path).expect("remove routine writer trust pin");
     let actor = "agent:current-submission-regression";
     let artifact = b"{\"bounded\":true}\n";
-    let artifact_digest = format!("sha256:{}", hex::encode(Sha256::digest(artifact)));
+    let artifact_digest = sha256_root(artifact);
     let artifact_stem = artifact_digest.trim_start_matches("sha256:").to_string();
     let bundle = temporary.path().join("bundle");
     std::fs::create_dir_all(&bundle).expect("Submission bundle directory");
@@ -477,6 +483,49 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         .status()
         .expect("stage method manifest");
     assert!(staged.success());
+    let staged_method_home = temporary.path().join("staged-method-home");
+    std::fs::create_dir_all(&staged_method_home).expect("staged method home");
+    let staged_method = run_with_home(
+        &repository_path,
+        Some(agent.socket()),
+        &staged_method_home,
+        &[
+            "verification",
+            "record",
+            ".",
+            submitted["proposal_id"].as_str().expect("proposal id"),
+            "--profile",
+            "exact-replay-v1",
+            "--method",
+            method_path,
+            "--property",
+            "Replay the retained artifact bytes.",
+            "--outcome",
+            "pass",
+            "--does-not-establish",
+            "Scientific acceptance.",
+            "--as",
+            "verifier:staged-method-regression",
+            "--json",
+        ],
+    );
+    assert_eq!(staged_method.status.code(), Some(1));
+    let staged_method: Value =
+        serde_json::from_slice(&staged_method.stdout).expect("staged method error JSON");
+    assert_eq!(staged_method["command"], "verification.record");
+    assert_eq!(
+        staged_method["error"]["message"],
+        "Verification method manifest differs from the retained current Git bytes"
+    );
+    assert!(
+        staged_method["error"]["hint"].as_str().is_some_and(
+            |hint| hint.contains(method_path) && hint.contains("current repository HEAD")
+        )
+    );
+    assert!(
+        !staged_method_home.join(".vela/agents").exists(),
+        "staged method preflight must fail before verifier key creation"
+    );
     let committed = Command::new("git")
         .current_dir(&repository_path)
         .args([
@@ -570,12 +619,8 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         observed_at.clone(),
     )
     .expect("Verifier identity");
-    let method_root = format!(
-        "sha256:{}",
-        hex::encode(Sha256::digest(
-            std::fs::read(repository_path.join(method_path)).expect("method bytes")
-        ))
-    );
+    let method_root =
+        sha256_root(&std::fs::read(repository_path.join(method_path)).expect("method bytes"));
     let verification_record = VerificationRecordEnvelopeV2::seal(
         VerificationRecordDraft {
             subject: VerificationSubject {
@@ -680,12 +725,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert_eq!(retained.record.method.implementation, method_path);
     assert_eq!(
         retained.record.method.environment_root,
-        format!(
-            "sha256:{}",
-            hex::encode(Sha256::digest(
-                std::fs::read(repository_path.join(method_path)).expect("method bytes")
-            ))
-        )
+        sha256_root(&std::fs::read(repository_path.join(method_path)).expect("method bytes"))
     );
     assert_eq!(
         retained.record.independence.declared_independent_of[0],

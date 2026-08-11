@@ -5,7 +5,7 @@ use clap::Parser;
 
 #[derive(Parser)]
 #[command(name = "vela", version)]
-#[command(about = "Portable scientific state")]
+#[command(about = "Version control for scientific state")]
 struct Cli {
     /// Suppress hint/advice lines (VELA_ADVICE=0 does the same).
     #[arg(long, global = true)]
@@ -24,6 +24,7 @@ mod output;
 pub(crate) mod page;
 pub(crate) mod progress;
 pub(crate) mod records;
+mod recovery;
 pub(crate) mod repo_arg;
 pub(crate) mod review_decision;
 pub(crate) mod safe_text;
@@ -162,6 +163,11 @@ pub fn run_command() {
                 }
             },
         },
+        Commands::Recover {
+            repository,
+            operation_id,
+            json,
+        } => recovery::cmd_recover(&repository, &operation_id, json),
         Commands::Init {
             path,
             name,
@@ -263,7 +269,9 @@ pub fn run_command() {
                 }))
                 .unwrap_or_default();
             let preflight_id =
-                crate::operation_journal::operation_id("submit-preflight", &preflight_identity);
+                vela_repository::OperationId::derive("submit-preflight", &preflight_identity)
+                    .as_str()
+                    .to_owned();
             let fail_preflight = |kind, message: String| -> ! {
                 crate::ui::fail_unchanged(kind, &message, &preflight_id, "vela submit --help")
             };
@@ -394,7 +402,7 @@ pub fn run_command() {
                 (authored, None, actor)
             };
             crate::ui::require_initialized_repo(&dir);
-            match crate::repository_ops::submit(&dir, &submission, &actor, bundle_root.as_deref()) {
+            match crate::submission::submit(&dir, &submission, &actor, bundle_root.as_deref()) {
                 Ok(outcome) => {
                     if json {
                         let mut payload = serde_json::to_value(&outcome)
@@ -444,7 +452,10 @@ pub fn run_command() {
                         );
                     }
                 }
-                Err(e) => fail(&e),
+                Err(e) => {
+                    crate::ui::fail_if_recovery_required(&dir);
+                    fail(&e)
+                }
             }
         }
     }
@@ -519,10 +530,11 @@ fn cmd_log(
     }
 }
 
+/// The one Proposal-shaped object every `review` subcommand but `inbox`
+/// and `list` names, so the missing-argument error is written once.
+const PROPOSAL: (&str, &str) = ("a Proposal id (vpr_...)", "PROPOSAL_ID");
+
 fn cmd_review(action: ReviewAction) {
-    /// The one Proposal-shaped object every `review` subcommand but `inbox`
-    /// and `list` names, so the missing-argument error is written once.
-    const PROPOSAL: (&str, &str) = ("a Proposal id (vpr_...)", "PROPOSAL_ID");
     match action {
         ReviewAction::Inbox {
             repository,
@@ -568,58 +580,18 @@ fn cmd_review(action: ReviewAction) {
             );
             crate::repository::cmd_review_show(&repository, &proposal_id, json);
         }
-        ReviewAction::Accept {
-            first,
-            second,
-            repo_flag,
-            if_entry_root,
-            reason,
-            json,
-        } => {
-            crate::ui::set_mode("review.accept", json);
-            let (repository, proposal_id) = repo_arg::bind_repo_and_object(
-                "review accept",
-                PROPOSAL.0,
-                PROPOSAL.1,
-                first,
-                second,
-                repo_flag,
-            );
-            review_decision::cmd_review_decide(
-                repository,
-                &proposal_id,
-                crate::repository_decision::DecisionAction::Accept,
-                if_entry_root.as_deref(),
-                reason,
-                json,
-            );
-        }
-        ReviewAction::Reject {
-            first,
-            second,
-            repo_flag,
-            if_entry_root,
-            reason,
-            json,
-        } => {
-            crate::ui::set_mode("review.reject", json);
-            let (repository, proposal_id) = repo_arg::bind_repo_and_object(
-                "review reject",
-                PROPOSAL.0,
-                PROPOSAL.1,
-                first,
-                second,
-                repo_flag,
-            );
-            review_decision::cmd_review_decide(
-                repository,
-                &proposal_id,
-                crate::repository_decision::DecisionAction::Reject,
-                if_entry_root.as_deref(),
-                reason,
-                json,
-            );
-        }
+        ReviewAction::Accept { args } => dispatch_review_decision(
+            args,
+            "review.accept",
+            "review accept",
+            crate::repository_decision::DecisionAction::Accept,
+        ),
+        ReviewAction::Reject { args } => dispatch_review_decision(
+            args,
+            "review.reject",
+            "review reject",
+            crate::repository_decision::DecisionAction::Reject,
+        ),
         ReviewAction::Withdraw {
             first,
             second,
@@ -640,6 +612,31 @@ fn cmd_review(action: ReviewAction) {
             crate::withdrawal::cmd_withdraw(&repository, &proposal_id, &actor, &reason, json);
         }
     }
+}
+
+fn dispatch_review_decision(
+    args: ReviewDecisionArgs,
+    mode: &str,
+    bind_label: &str,
+    action: crate::repository_decision::DecisionAction,
+) {
+    crate::ui::set_mode(mode, args.json);
+    let (repository, proposal_id) = repo_arg::bind_repo_and_object(
+        bind_label,
+        PROPOSAL.0,
+        PROPOSAL.1,
+        args.first,
+        args.second,
+        args.repo_flag,
+    );
+    review_decision::cmd_review_decide(
+        repository,
+        &proposal_id,
+        action,
+        args.if_entry_root.as_deref(),
+        args.reason,
+        args.json,
+    );
 }
 
 fn cmd_replay(
@@ -678,7 +675,27 @@ mod tests {
             } else {
                 format!("{path} {name}")
             };
-            if leaf && !NOT_REPOSITORY_VERBS.contains(&name) {
+            if leaf && name == "recover" {
+                let flag = command
+                    .get_arguments()
+                    .find(|arg| arg.get_long() == Some("repo"));
+                assert!(
+                    flag.is_some_and(clap::Arg::is_required_set),
+                    "`{path}` must require an explicit --repo"
+                );
+                assert_eq!(
+                    flag.and_then(clap::Arg::get_help)
+                        .map(|help| help.to_string()),
+                    Some(crate::command_spec::HELP_RECOVERY_REPO.to_string()),
+                    "`{path} --repo` must state the exact recovery contract"
+                );
+                assert!(
+                    !command
+                        .get_positionals()
+                        .any(|arg| arg.get_id() == "repository"),
+                    "`{path}` reserves its positional for the exact operation id"
+                );
+            } else if leaf && !NOT_REPOSITORY_VERBS.contains(&name) {
                 let flag = command
                     .get_arguments()
                     .find(|arg| arg.get_long() == Some("repo"));
@@ -699,8 +716,8 @@ mod tests {
                             || arg.get_value_names().is_some_and(|names| names
                                 .iter()
                                 .any(|name| name.as_str() == "REPO")))
-                        || matches!(name, "start" | "submit"),
-                    "`{path}` accepts --repo but has no positional repository, and only start and submit may omit one"
+                        || name == "submit",
+                    "`{path}` accepts --repo but has no positional repository, and only submit may omit one"
                 );
             }
             if leaf && NOT_REPOSITORY_VERBS.contains(&name) {

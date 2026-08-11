@@ -1,6 +1,8 @@
 # ADR 0024: Product monorepo and integration-repository retirement
 
 - Status: Accepted
+- Target-surface disposition: any Vela Target Index or `next`/`start` language
+  below is historical; commit `719cbc77` retired that core surface on 2026-08-10.
 - Current disposition: repository consolidation remains accepted; the public
   Canopus package and independent-release portions were superseded by ADR 0031.
 - Accepted: 2026-07-28

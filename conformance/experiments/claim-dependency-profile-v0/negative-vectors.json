@@ -1,0 +1,364 @@
+{
+  "schema": "vela.claim-dependency-profile-negative-vectors.v0",
+  "vectors": [
+    {
+      "id": "schema",
+      "document": "profile",
+      "mutation": {
+        "op": "set",
+        "path": [
+          "schema"
+        ],
+        "value": "vela.claim-dependency-profile.v1"
+      },
+      "expected_error": "profile_schema_unsupported"
+    },
+    {
+      "id": "unsupported-kind",
+      "document": "profile",
+      "mutation": {
+        "op": "set",
+        "path": [
+          "dependencies",
+          0,
+          "kind"
+        ],
+        "value": "supports"
+      },
+      "expected_error": "profile_dependency_kind_unsupported"
+    },
+    {
+      "id": "foreign-source-repository",
+      "document": "profile",
+      "mutation": {
+        "op": "set",
+        "path": [
+          "dependencies",
+          0,
+          "source",
+          "repository_id"
+        ],
+        "value": "ffffffff-ffff-4fff-8fff-ffffffffffff"
+      },
+      "expected_error": "profile_repository_context_mismatch"
+    },
+    {
+      "id": "foreign-target-origin",
+      "document": "profile",
+      "mutation": {
+        "op": "set",
+        "path": [
+          "dependencies",
+          0,
+          "target",
+          "repository_origin_root"
+        ],
+        "value": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "expected_error": "profile_repository_context_mismatch"
+    },
+    {
+      "id": "wrong-target-root",
+      "document": "profile",
+      "mutation": {
+        "op": "set",
+        "path": [
+          "dependencies",
+          0,
+          "target",
+          "claim_root"
+        ],
+        "value": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected_error": "profile_dependency_endpoint_root_mismatch"
+    },
+    {
+      "id": "missing-profile-endpoint",
+      "document": "profile",
+      "mutation": {
+        "op": "set",
+        "path": [
+          "dependencies",
+          0,
+          "target",
+          "claim_id"
+        ],
+        "value": "vcl_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "expected_error": "profile_dependency_endpoint_missing"
+    },
+    {
+      "id": "duplicate-edge",
+      "document": "profile",
+      "mutation": {
+        "op": "append_copy",
+        "path": [
+          "dependencies"
+        ],
+        "index": 0
+      },
+      "expected_error": "profile_dependency_duplicate"
+    },
+    {
+      "id": "edge-order",
+      "document": "profile",
+      "mutation": {
+        "op": "swap",
+        "path": [
+          "dependencies"
+        ],
+        "indices": [
+          0,
+          1
+        ]
+      },
+      "expected_error": "profile_dependency_order_invalid"
+    },
+    {
+      "id": "cycle",
+      "document": "profile",
+      "mutation": {
+        "op": "append_dependency",
+        "path": [
+          "dependencies"
+        ],
+        "value": {
+          "kind": "requires",
+          "source": {
+            "claim_id": "vcl_24878e1c6851b4e5bf7162efb5dff159ae5eff6174d2c521a0c009799d11c247",
+            "claim_root": "sha256:40dec807844df7badd60cab570b811a1c6137bd0d0a9b6d1408f3b2da33d1f67",
+            "repository_id": "8115c538-7688-40b7-ab75-3c4765bf3c19",
+            "repository_origin_root": "sha256:229ce0a08217da5e8bad2059c35070989652ca546ab45b8e699922ba182e8a69"
+          },
+          "target": {
+            "claim_id": "vcl_3c007818aa5e90103ba3c831a0c666a8c12d77da23677665a520d75e46b2f388",
+            "claim_root": "sha256:c40ad51eb5cd076e5b053ff68e05a39ebfc0c35a7e66a132ab8a521a05582024",
+            "repository_id": "8115c538-7688-40b7-ab75-3c4765bf3c19",
+            "repository_origin_root": "sha256:229ce0a08217da5e8bad2059c35070989652ca546ab45b8e699922ba182e8a69"
+          }
+        }
+      },
+      "expected_error": "dependency_cycle"
+    },
+    {
+      "id": "claim-order",
+      "document": "state",
+      "mutation": {
+        "op": "swap",
+        "path": [
+          "claims"
+        ],
+        "indices": [
+          0,
+          1
+        ]
+      },
+      "expected_error": "state_claim_order_invalid"
+    },
+    {
+      "id": "claim-duplicate",
+      "document": "state",
+      "mutation": {
+        "op": "append_copy",
+        "path": [
+          "claims"
+        ],
+        "index": 0
+      },
+      "expected_error": "state_claim_duplicate"
+    },
+    {
+      "id": "source-and-target-missing",
+      "document": "state",
+      "mutation": {
+        "op": "remove_label",
+        "path": [
+          "claims"
+        ],
+        "label": "B"
+      },
+      "expected_sets": {
+        "review_required": [],
+        "incomplete": [
+          "B",
+          "E"
+        ],
+        "unaffected": [
+          "D"
+        ]
+      }
+    },
+    {
+      "id": "target-unavailable",
+      "document": "state",
+      "mutation": {
+        "op": "set",
+        "path": [
+          "claims",
+          0,
+          "availability"
+        ],
+        "value": "unavailable"
+      },
+      "expected_sets": {
+        "review_required": [],
+        "incomplete": [
+          "B",
+          "E"
+        ],
+        "unaffected": [
+          "D"
+        ]
+      }
+    },
+    {
+      "id": "source-and-target-unaccepted",
+      "document": "state",
+      "mutation": {
+        "op": "set",
+        "path": [
+          "claims",
+          1,
+          "lifecycle"
+        ],
+        "value": "unaccepted"
+      },
+      "expected_sets": {
+        "review_required": [],
+        "incomplete": [
+          "B",
+          "E"
+        ],
+        "unaffected": [
+          "D"
+        ]
+      }
+    },
+    {
+      "id": "claim-set-incomplete",
+      "document": "profile",
+      "mutation": {
+        "op": "set",
+        "path": [
+          "scope",
+          "complete_claim_set"
+        ],
+        "value": false
+      },
+      "expected_sets": {
+        "review_required": [],
+        "incomplete": [
+          "B",
+          "D",
+          "E"
+        ],
+        "unaffected": []
+      }
+    },
+    {
+      "id": "dependency-set-incomplete",
+      "document": "profile",
+      "mutation": {
+        "op": "set",
+        "path": [
+          "scope",
+          "complete_dependency_set"
+        ],
+        "value": false
+      },
+      "expected_sets": {
+        "review_required": [],
+        "incomplete": [
+          "B",
+          "D",
+          "E"
+        ],
+        "unaffected": []
+      }
+    },
+    {
+      "id": "wrong-source-root",
+      "document": "profile",
+      "mutation": {
+        "op": "set",
+        "path": [
+          "dependencies",
+          0,
+          "source",
+          "claim_root"
+        ],
+        "value": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected_error": "profile_dependency_endpoint_root_mismatch"
+    },
+    {
+      "id": "duplicate-profile-node",
+      "document": "profile",
+      "mutation": {
+        "op": "append_copy",
+        "path": [
+          "nodes"
+        ],
+        "index": 0
+      },
+      "expected_error": "profile_node_duplicate"
+    },
+    {
+      "id": "self-loop",
+      "document": "profile",
+      "mutation": {
+        "op": "set",
+        "path": [
+          "dependencies",
+          0,
+          "target"
+        ],
+        "value": {
+          "claim_id": "vcl_292d344d9746bd45037fce522b12fcb540f7585890f3314abf08b419bedec465",
+          "claim_root": "sha256:71386c75ce1e7e492e58877e85e5d083c99435d3e10bafa7dd0749d1d1fc9d0f",
+          "repository_id": "8115c538-7688-40b7-ab75-3c4765bf3c19",
+          "repository_origin_root": "sha256:229ce0a08217da5e8bad2059c35070989652ca546ab45b8e699922ba182e8a69"
+        }
+      },
+      "expected_error": "profile_dependency_self_reference"
+    },
+    {
+      "id": "dependency-bound-overflow",
+      "document": "profile",
+      "mutation": {
+        "op": "set",
+        "path": [
+          "scope",
+          "max_dependencies"
+        ],
+        "value": 1
+      },
+      "expected_error": "profile_dependency_bound_exceeded"
+    },
+    {
+      "id": "empty-does-not-establish",
+      "document": "profile",
+      "mutation": {
+        "op": "set",
+        "path": [
+          "does_not_establish",
+          0
+        ],
+        "value": ""
+      },
+      "expected_error": "profile_does_not_establish_invalid"
+    },
+    {
+      "id": "forbidden-standing-field",
+      "document": "profile",
+      "mutation": {
+        "op": "set",
+        "path": [
+          "standing"
+        ],
+        "value": "accepted"
+      },
+      "expected_error": "profile_schema_unsupported"
+    }
+  ]
+}

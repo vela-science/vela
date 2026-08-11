@@ -1,0 +1,97 @@
+{
+  "schema": "vela.authority-chain-negative-vectors.v1",
+  "fixture_id": "math-0.972.1",
+  "vectors": [
+    {
+      "id": "wrong-trust-anchor",
+      "stage": "chain",
+      "mutation": "replace /first_authority_record_root with sha256 followed by 64 zeroes",
+      "expected_code": "authority_anchor_mismatch",
+      "signed_history": "unchanged"
+    },
+    {
+      "id": "bad-final-signature",
+      "stage": "dsse",
+      "mutation": "decode sequence-4 signature and xor byte 0 with 1",
+      "expected_code": "authority_signature_threshold_not_met",
+      "signed_history": "invalidated"
+    },
+    {
+      "id": "missing-sequence-two",
+      "stage": "chain",
+      "mutation": "omit the sequence-2 envelope",
+      "expected_code": "authority_chain_position_invalid",
+      "signed_history": "unchanged subset"
+    },
+    {
+      "id": "wrong-expected-head",
+      "stage": "chain",
+      "mutation": "replace expected final authority-record root with sha256 followed by 64 zeroes",
+      "expected_code": "authority_head_mismatch",
+      "signed_history": "unchanged"
+    },
+    {
+      "id": "wrong-keyset-public-key",
+      "stage": "keyset",
+      "mutation": "replace the first public-key byte 0x12 with 0x13",
+      "expected_code": "authority_keyset_root_mismatch",
+      "signed_history": "unchanged"
+    },
+    {
+      "id": "missing-reviewer-member",
+      "stage": "model",
+      "mutation": "remove /members/1 from the authorization model",
+      "expected_code": "authorization_model_root_mismatch",
+      "signed_history": "unchanged"
+    },
+    {
+      "id": "unknown-member-evaluation",
+      "stage": "evaluator",
+      "mutation": "replace sequence-4 request principal_id with local:unbound|uid:0",
+      "expected_code": "authorization_denied_unknown_member",
+      "signed_history": "function-level unsigned input"
+    },
+    {
+      "id": "noncanonical-keyset-bytes",
+      "stage": "source",
+      "mutation": "append one LF byte to the retained keyset bytes",
+      "expected_code": "canonical_bytes_mismatch",
+      "signed_history": "unchanged"
+    },
+    {
+      "id": "mutated-accepted-review-event",
+      "stage": "event",
+      "mutation": "replace vev_fb652 payload verdict accepted with rejected",
+      "expected_code": "authority_event_content_address_invalid",
+      "signed_history": "invalidated derived event copy"
+    },
+    {
+      "id": "missing-accepted-review-event",
+      "stage": "coverage",
+      "mutation": "omit vev_fb652e14f2a9323f",
+      "expected_code": "authority_event_coverage_mismatch",
+      "signed_history": "unchanged subset"
+    },
+    {
+      "id": "mutated-sequence-four-preimage",
+      "stage": "repository-delta",
+      "mutation": "replace the last hex digit of bc36 pending_claims[0].claim_root from 6 to 7",
+      "expected_code": "repository_delta_preimage_mismatch",
+      "signed_history": "unchanged record; invalidated manifest copy"
+    },
+    {
+      "id": "mutated-sequence-four-object-delta",
+      "stage": "write-set",
+      "mutation": "remove the final object_delta entry from a parsed sequence-4 record copy",
+      "expected_code": "authority_write_set_root_mismatch",
+      "signed_history": "function-level post-signature copy"
+    },
+    {
+      "id": "wrong-terminal-claim-root",
+      "stage": "terminal",
+      "mutation": "replace the last hex digit of the expected accepted Claim root from 6 to 7",
+      "expected_code": "authority_terminal_state_mismatch",
+      "signed_history": "unchanged"
+    }
+  ]
+}

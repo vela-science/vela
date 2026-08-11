@@ -3,17 +3,28 @@
 The product loop is:
 
 ```text
-map -> target -> work -> submit -> verify -> decide -> remap
+MAP -> ADVANCE -> REMAP
 ```
 
-An ordinary producer agent may inspect the map, select one bounded Target, do
-the work in its native environment, and submit evidence. A separately declared
-verifier may report its scoped check. Only a human authority may decide whether
-the proposed change enters Standing; no agent receives that authority from a
-producer or verifier role.
+Map reads Problems, Claims, Standing, dependencies, Corrections, and open
+Obligations from exact roots. Advance means native work that may produce a
+bounded proposed change. Remap replays Standing and derives what remains
+current, affected, blocked, or open. The exact operator loop inside it is:
 
-For a new repository, initialization is one recoverable operation. Load a
-dedicated Ed25519 identity into the standard OpenSSH agent, then run:
+```text
+init -> submit -> verify -> decide -> replay
+```
+
+An ordinary producer agent may inspect the map, select one bounded obligation,
+do the work in its native environment, and submit evidence. A separately
+declared verifier may report its scoped check. Only a human authority may decide
+whether the proposed change enters Standing; no agent receives that authority
+from a producer or verifier role.
+
+For a new repository, initialization installs its repository filesystem state
+through one recoverable transaction. Its Git commit and local trust anchor are
+separate post-transaction steps and are never performed by `vela recover`.
+Load a dedicated Ed25519 identity into the standard OpenSSH agent, then run:
 
 ```bash
 vela init ./my-repository --name "<name>" --scope "<bounded question>" --json
@@ -29,9 +40,6 @@ Ed25519 identity is loaded, select the intended full fingerprint with
 
 ```bash
 vela status . --json
-vela next . --limit 1 --json
-# Optional write-free Target briefing.
-vela start <target> --repo . --json
 
 vela submit --repo . \
   --claim "<scoped result>" \
@@ -44,11 +52,11 @@ vela submit --repo . \
 ```
 
 The agent, workbench, notebook, proof assistant, or laboratory system performs
-the work directly. Vela does not wrap it. `start` writes no run record, lease,
-budget, or workflow state; it only returns the exact Target briefing. The
-producer retains native files and submits only the
-bounded artifact and Claim needed for review. Benchmarks use Harbor tasks
-directly rather than a Vela-owned runner.
+the work directly. A source-owning Repository or read product may expose an
+exact next obligation and rooted packet under its own contract. Vela does not
+wrap that work, own a work catalogue or planner, or publish `next`/`start`; the
+producer retains native files and submits only the bounded artifact and Claim
+needed for review. Benchmarks use Harbor tasks directly rather than a Vela-owned runner.
 
 Then inspect the exact objects:
 

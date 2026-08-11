@@ -1,0 +1,24 @@
+{
+  "schema": "vela.claim-dependency-observation-excluded-run-custody-source-manifest.v0",
+  "source_observation_commit": "530cb806ad9d219341cf3e5ec168e9683136a427",
+  "files": [
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "bytes": 5587,
+      "raw_root": "sha256:4b2109005df1519b78b3b2c399873a9a039772e929e6dc0c7fe57a889f7d650d"
+    },
+    {
+      "path": "custody.json",
+      "mode": "100644",
+      "bytes": 52237,
+      "raw_root": "sha256:b7dcae0f0d28c728608a3cee4e78562ca411a368859fbf049c0a85fca1771c82"
+    }
+  ],
+  "files_canonical_root": "sha256:0e7c9224cff5799405a912b593b466af7bca536a6cb3d7aab6f2514d577603f1",
+  "excludes": [
+    "manifest.json"
+  ],
+  "authority_effect": "none",
+  "claim_credit": false
+}

@@ -10,22 +10,18 @@ git clone <repository-url>
 cd <repository>
 vela status . --json
 vela replay . --json
-vela next . --limit 1 --json
 ```
 
-Read the returned Offer. It binds the Target, packet, expected outputs,
-verifier profile, and exact next command.
+The source-owning Repository or a read product may separately expose an exact
+next obligation, packet, expected outputs, and verifier profile. Validate that
+projection under its owning contract.
 
-## Read the exact Target briefing
+## Orient bounded work
 
-```bash
-vela start <target> --repo . --json
-```
-
-This optional command revalidates the Target and packet, then prints their
-exact identities, repository scope, verifier profile, and authority ceiling.
-Run the bounded work in the native agent, workbench, proof assistant, notebook,
-or laboratory system.
+Vela core owns no work catalogue or planner and publishes no `next`/`start`
+command pair. Work selection and packet briefing stay in the source Repository, read
+product, or native workbench. Run the bounded work in the native agent,
+workbench, proof assistant, notebook, or laboratory system.
 Retain exact repository-relative Artifacts. A failed or negative result is
 useful only when its scope, search space, algorithm, and limits are explicit.
 

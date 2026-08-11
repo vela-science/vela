@@ -1,0 +1,31 @@
+{
+  "schema": "vela.claim-dependency-reducer-semantics.v0",
+  "profile_version": 0,
+  "relation_kind": "requires",
+  "status_precedence": [
+    "incomplete",
+    "review_required",
+    "satisfied"
+  ],
+  "rules": [
+    {
+      "condition": "source missing, unavailable, or unaccepted",
+      "status": "incomplete"
+    },
+    {
+      "condition": "target missing, unavailable, unaccepted, or either declared completeness bound is false",
+      "status": "incomplete"
+    },
+    {
+      "condition": "target retired or transitively review_required",
+      "status": "review_required"
+    },
+    {
+      "condition": "every exact target is available and accepted with satisfied dependencies",
+      "status": "satisfied"
+    }
+  ],
+  "cycle_result": "dependency_cycle",
+  "repair_order": "target_before_source_topological_batches",
+  "authority_effect": "none"
+}

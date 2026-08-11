@@ -1,6 +1,12 @@
 # ADR 0040: A producer-declared dependency on `vela.submission.v1`
 
-- Status: Proposed
+- Status: Superseded by ADR 0043, 2026-08-10
+- Supersession: this record is preserved as the wire-first question asked before
+  the current `vela.submission.v2` migration closed. ADR 0043 takes none of the
+  options below. It freezes a noncanonical, artifact-backed, `requires`-only
+  experiment first and makes any later canonical field conditional on a
+  demonstrated failure of that representation. The historical body below is
+  unchanged.
 - Protocol effect: any option but the first changes `vela.submission.v1`, which
   moves the canonical bytes and the signature preimage of every Submission
 - Product effect: `vela correction impact` would have edges to traverse on

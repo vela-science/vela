@@ -132,9 +132,6 @@ records/verifications/sha256/
 records/proposals/sha256/
 records/proposal-withdrawals/sha256/
 records/artifacts/sha256/
-targets.json                       optional derived work index
-targets/                           Target packets, wherever targets.json names
-                                   them; every repository that has any uses this
 ```
 
 The repository manifest binds every active canonical object by full root.
@@ -142,8 +139,13 @@ Claim Standing is derived from the manifest and verified Decision history.
 `records/proposal-withdrawals/sha256/` holds `vela.proposal-withdrawal.v2`
 objects, the producer-owned closure of one pending Proposal; the manifest
 carries them as their own object set and `vela replay --json` reports them as
-`counts.proposal_withdrawals`. `targets.json` is a disposable, root-bound work
-projection; it never defines Standing or authority.
+`counts.proposal_withdrawals`.
+
+Vela reserves no Target-catalogue path. In particular, `targets.json` and
+`targets/` are not part of the current Vela layout. A source-owning Repository
+may use those names for its own next-obligation projection, but Vela does not
+scaffold, read, or validate them; they are ordinary domain files under the
+owning repository's contract.
 
 The active current layout does not use these paths, and `vela replay` fails on
 a file at any of them:
@@ -271,7 +273,6 @@ repository decides.
 | `.vela/authority/` | Canonical authentication history | Append through repository authority only |
 | `records/**/sha256/` | Canonical content-addressed objects | Never hand-edit or rename |
 | `vela.toml` | Descriptive profile | Edit deliberately; any root change must be governed before canonical writes continue |
-| `targets.json`, `targets/` | Derived work projection | Generate directly and freshness-check; never treat as Standing |
 | `artifacts/` | Domain evidence, working copy | The canonical copy of anything that matters is the Artifact under `records/artifacts/sha256/`; this path is the readable form beside it and confers nothing. `vela init` does not create it and holds it to `-text` anyway, so evidence put here is byte-stable from the first commit |
 | `witnesses/`, `sources/`, `execution/`, `attack/`, `lean/`, `statements/`, `discoveries/`, `research/`, `reproductions/`, `verification/`, `verifiers/`, `lean-verifications/`, `exports/`, `review/`, and the repository's own `*.yaml` and `*.json` inventories | Source and evidence | Domain-native, one repository's own shape. Keep stable, reviewable identities. Nothing here is read by Vela or validated by replay, so a file that wants a shape needs a reader in the repository that owns it. `exports/` is tracked in two repositories and ignored in two, which is allowed and is why the class is the answer rather than the name |
 | `.vela/operation-journals/`, `.vela/work/`, `.vela/tasks/`, `.vela/workspaces/`, `.vela/tmp/`, `.vela/agents/`, `.vela/keys/`, `.vela/source-inbox/`, `.vela/artifact-blobs/`, `.vela/sign-session.json` | Machine-local runtime | Never scientific state, never tracked. The runtime writes these beside the authority chain, so only an explicit ignore rule keeps a routine `git add .vela` from staging a private key |
@@ -300,10 +301,11 @@ Verification checks:
 - every authority event is covered exactly once;
 - active keyset and authorization model roots match the manifest;
 - Claim and Proposal Standing is deterministic;
-- the optional Target Index, its declared inputs, and packets exactly match
-  tracked `HEAD` bytes and the current repository root; and
 - the enforced retired paths listed above are absent; the rest are not replay's
   to check and are now checked nowhere.
+
+Repository-owned next-obligation projections are outside these checks and must
+be validated by their owning source adapter or read product.
 
 No published repository gates this in CI today. The four that did,
 `erdos-frontier`, `sidon-frontier`, `quantum-codes-frontier` and

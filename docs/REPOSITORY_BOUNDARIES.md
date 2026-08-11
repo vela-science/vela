@@ -6,9 +6,9 @@ mutable state into a second source of truth.
 
 | Repository | Owns | Must not own |
 | --- | --- | --- |
-| `vela` | Protocol semantics, Rust CLI and libraries, wire schemas, conformance fixtures, protocol-wide ADRs, release artifacts, and cross-repository evidence claims in the paper | Scientific-repository Target packets, case-specific execution artifacts, scientific Decisions, web projection code, or deployment state |
-| Scientific repositories such as `vela-science/math` | Source locks, local admission policy, Target packets, Claims, Submissions, Verifications, Decisions, artifacts, replay state, and exact next obligations | Generic Vela protocol behavior, web rendering, or authority over another repository |
-| `vela-web` | Root-bound read projections, Result Dossier declarations, rendering, search, SELECT-only storage, deployment manifests, and product-qualification evidence | Scientific writers, authority credentials, inferred Standing, or duplicate canonical repository records |
+| `vela` | Protocol semantics, Rust CLI and libraries, wire schemas, conformance fixtures, protocol-wide ADRs, release artifacts, and cross-repository evidence claims in the paper | Scientific-repository work packets, case-specific execution artifacts, scientific Decisions, web projection code, or deployment state |
+| Scientific repositories such as `vela-science/math` | Source locks, local admission policy, rooted work packets, Claims, Submissions, Verifications, Decisions, artifacts, replay state, and exact next obligations | Generic Vela protocol behavior, web rendering, or authority over another repository |
+| `vela-web` | Root-bound Dossier and other read projections, rendering, search, SELECT-only storage, deployment manifests, and product-qualification evidence | Scientific writers, authority credentials, inferred Standing, or duplicate canonical repository records |
 | Native source and execution repositories | Proofs, computations, datasets, model runs, and native package/toolchain state | Vela Standing or repository authority unless separately admitted through the protocol |
 | Memos | Research input and recommendations | Canonical product, protocol, or scientific state |
 
@@ -16,7 +16,8 @@ mutable state into a second source of truth.
 
 Put a change in `vela` only when it remains meaningful with every named
 scientific case removed. Put a change in a scientific Repository such as `vela-science/math` when it names a local
-source, Target, verifier, Claim, Decision, artifact, or successor obligation.
+source, work packet, verifier, Claim, Decision, artifact, or successor
+obligation.
 Put a change in `vela-web` when it exists only to read, render, search, export,
 measure, or deploy already-canonical state.
 
@@ -33,3 +34,24 @@ and repository root remain authoritative.
 
 Moving or rendering a record never changes Standing. Only an attributed,
 authorized Decision admitted by the named repository can do that.
+
+## Internal implementation boundary
+
+The unpublished `vela-repository` workspace crate is an internal durability
+boundary inside the `vela` source repository, not another Repository or
+product. It owns generic transaction plans, journals, commit markers,
+installation, and recovery. Concrete Fresh, Routine, and RepositoryAuthority
+write policy remains in `vela-cli`; canonical scientific semantics remain in
+`vela-protocol`. The dependency direction is
+`vela-protocol <- vela-repository <- vela-cli`.
+
+The independently stored sequence-one trust pin is private `vela-cli` local
+configuration: its schema, OS-account path, loading, installation, and exact
+rebind live there. It is neither `vela-edge` analysis nor serialized transaction
+authority in `vela-repository`.
+
+The product exposes recovery only as
+`vela recover --repo <PATH> <OPERATION_ID>`. CLI code parses and renders that
+action, while `vela-repository` owns exact-journal validation, Prepared abort,
+marker-authorized installation, and terminal idempotence. Recovery neither
+re-enters a concrete write policy nor publishes Git state.

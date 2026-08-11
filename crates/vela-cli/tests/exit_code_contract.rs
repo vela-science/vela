@@ -13,7 +13,7 @@ use std::path::Path;
 use std::process::{Command, Output};
 
 mod support;
-use support::EphemeralAgent;
+use support::{EphemeralAgent, RemoveAnchorOnDrop as RemoveOnDrop};
 
 fn run(cwd: &Path, home: &Path, socket: Option<&Path>, args: &[&str]) -> Output {
     let mut command = Command::new(env!("CARGO_BIN_EXE_vela"));
@@ -28,16 +28,6 @@ fn run(cwd: &Path, home: &Path, socket: Option<&Path>, args: &[&str]) -> Output 
         None => command.env("SSH_AUTH_SOCK", cwd.join("missing-ssh-agent.sock")),
     };
     command.output().expect("run vela")
-}
-
-/// `vela init` installs a local trust anchor under the OS account home, which
-/// deliberately ignores `$HOME`, so the fixture has to take it back out.
-struct RemoveOnDrop(std::path::PathBuf);
-
-impl Drop for RemoveOnDrop {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.0);
-    }
 }
 
 /// `code` plus the `error.kind` string, because the JSON envelope and the exit

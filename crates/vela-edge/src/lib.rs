@@ -1,11 +1,6 @@
-//! Operational edge for Vela producer work.
-//!
-//! The protocol crate owns canonical objects and authority. This crate retains
-//! only the replaceable filesystem/Git adapters needed by the current product:
-//! agent identity custody, repository file replacement and trust anchors, and
-//! correction-impact derivation.
+//! Producer identity, Git, and derived correction-impact adapters.
 
 mod analysis;
-pub use analysis::{correction_impact, repository_write};
+pub use analysis::correction_impact;
 pub mod agent_identity;
 pub mod git;

@@ -27,39 +27,10 @@
 #![cfg(unix)]
 
 use std::path::Path;
-use std::process::{Command, Output};
-
-use serde_json::Value;
+use std::process::Command;
 
 mod support;
-use support::{EphemeralAgent, RemoveAnchorOnDrop};
-
-fn run(cwd: &Path, socket: Option<&Path>, home: &Path, args: &[&str]) -> Output {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_vela"));
-    command
-        .current_dir(cwd)
-        .args(args)
-        .env("HOME", home)
-        .env("NO_COLOR", "1")
-        .env("VELA_ADVICE", "0")
-        .env_remove("VELA_AGENT_KEY_HEX");
-    match socket {
-        Some(socket) => command.env("SSH_AUTH_SOCK", socket),
-        None => command.env("SSH_AUTH_SOCK", cwd.join("missing-ssh-agent.sock")),
-    };
-    command.output().expect("run vela")
-}
-
-fn success_json(output: &Output) -> Value {
-    assert!(
-        output.status.success(),
-        "status={:?}\nstdout={}\nstderr={}",
-        output.status.code(),
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    serde_json::from_slice(&output.stdout).expect("decode Vela JSON")
-}
+use support::{EphemeralAgent, RemoveAnchorOnDrop, run_with_isolated_home as run, success_json};
 
 fn git(repository_path: &Path, args: &[&str]) {
     let output = Command::new("git")

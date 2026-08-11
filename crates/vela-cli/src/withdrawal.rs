@@ -11,7 +11,7 @@ use std::path::Path;
 use chrono::{SecondsFormat, Utc};
 use serde::Serialize;
 use serde_json::json;
-use sha2::Digest;
+use vela_protocol::canonical::sha256_root;
 use vela_protocol::proposal::ProposalV1;
 use vela_protocol::proposal_withdrawal::ProposalWithdrawalEnvelopeV2;
 use vela_protocol::repository::{RepositoryObjectRefV1, RepositoryV4};
@@ -19,17 +19,16 @@ use vela_protocol::submission::SubmissionRecordV2;
 
 use crate::authority_transaction::AuthorityObjectDraft;
 use crate::config::git_publish::{
-    PublicationOutcome, PublicationState, PublishOptions, exact_publication_preflight,
-    publish_exact_delta,
+    PublicationOutcome, PublicationState, PublishOptions, publish_exact_delta,
 };
-use crate::repository_ops::publication_delta;
-use crate::repository_txn::{ContentDigest, InputBinding, OperationId, OperationKind, WriteClass};
+use vela_repository::{ContentDigest, InputBinding, OperationId, OperationKind, WriteClass};
 
 /* One name for the verb on every path. The success payload said
 `proposal.withdraw` and the failure envelope said `proposal withdraw`, so a
 caller switching on `command` saw two keys for one invocation, and neither
 named a verb the CLI accepts: the path is `vela review withdraw`. */
 const COMMAND: &str = "review.withdraw";
+const REPOSITORY_OPERATION_KIND: &str = "proposal_withdrawal";
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct ProposalWithdrawalOutcome {
@@ -54,7 +53,7 @@ fn read_exact(
 ) -> Result<Vec<u8>, String> {
     let bytes = fs::read(repository_path.join(&reference.path))
         .map_err(|error| format!("read object {}: {error}", reference.path))?;
-    let root = format!("sha256:{}", hex::encode(sha2::Sha256::digest(&bytes)));
+    let root = sha256_root(&bytes);
     if root != reference.root {
         return Err(format!(
             "current object {} differs from its repository root",
@@ -178,6 +177,7 @@ pub(crate) fn withdraw(
         return Err("proposal withdrawal reason cannot be empty".into());
     }
     let repository = crate::repository::verify_repository_at(repository_path, true)?;
+    crate::repository_ops::verify_repository_transaction_barrier_read_only(repository_path)?;
     if let Some(outcome) =
         existing_outcome(repository_path, &repository, proposal_id, actor, reason)?
     {
@@ -203,7 +203,7 @@ pub(crate) fn withdraw(
     }
 
     let journal_dir = crate::repository_ops::repository_transaction_journal_dir(repository_path)?;
-    let barrier = crate::repository_txn::RepositoryTxn::acquire_routine_evidence_write_barrier(
+    let barrier = crate::repository_write_policy::acquire_routine_evidence_write_barrier(
         repository_path,
         &journal_dir,
     )
@@ -288,49 +288,31 @@ pub(crate) fn withdraw(
         barrier,
         repository_path,
         &held.repository_id,
-        OperationKind::ProposalWithdrawal,
+        OperationKind::new(REPOSITORY_OPERATION_KIND).map_err(|error| error.to_string())?,
         operation_id.clone(),
         &request_root,
         created_at,
         read_set,
         objects,
-        Vec::new(),
     )?;
-    let precommit = (|| {
-        let public = prepared
-            .resolved_public_writes()
-            .map_err(|error| error.to_string())?;
-        let delta_root = prepared.canonical_delta_root().to_string();
-        let delta = publication_delta(repository_path, &delta_root, public)?
-            .ok_or_else(|| "Proposal Withdrawal transaction had no public Git delta".to_string())?;
-        let publish_options = PublishOptions::local();
-        let preflight = exact_publication_preflight(repository_path, &delta, &publish_options)
-            .map_err(crate::repository_ops::publication_error)?;
-        Ok::<_, String>((delta, preflight))
-    })();
-    let (delta, preflight) = match precommit {
-        Ok(value) => value,
-        Err(error) => {
-            prepared
-                .abort_prepared()
-                .map_err(|abort| format!("{error}; abort failed: {abort}"))?;
-            return Err(error);
-        }
-    };
+    let (delta, preflight) = prepared.preflight_publication(
+        repository_path,
+        || Ok(PublishOptions::local()),
+        "Proposal Withdrawal transaction had no public Git delta",
+    )?;
     prepared
         .mark_committed()
         .map_err(|error| error.to_string())?;
     prepared.install().map_err(|error| error.to_string())?;
     prepared.complete().map_err(|error| error.to_string())?;
-    crate::repository::verify_repository_allow_derived_drift_at(repository_path)?;
+    crate::repository::verify_repository_prepublication_at(repository_path)?;
     let publication = publish_exact_delta(
         repository_path,
         "proposal withdraw",
         std::slice::from_ref(&withdrawal.id),
         &delta,
         preflight,
-    )
-    .map_err(|error| error.to_string())?;
+    )?;
     if matches!(
         publication.state,
         PublicationState::Unchanged { .. } | PublicationState::CommittedLocal { .. }
@@ -374,8 +356,10 @@ pub(crate) fn cmd_withdraw(
     crate::ui::set_mode(COMMAND, json_out);
     crate::ui::require_initialized_repo(repository_path);
     let repository_path = crate::ui::canonicalize_repo(repository_path);
-    let outcome = withdraw(&repository_path, proposal_id, actor, reason)
-        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let outcome = withdraw(&repository_path, proposal_id, actor, reason).unwrap_or_else(|error| {
+        crate::ui::fail_if_recovery_required(&repository_path);
+        crate::cli::fail_return(&error)
+    });
     if json_out {
         crate::cli::print_json(&outcome);
     } else {

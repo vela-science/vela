@@ -27,9 +27,11 @@ authority, never because there is a new topic.**
 
 **Repository.** `crates/vela-protocol/src/objects/repository.rs`
 (`RepositoryV4`), the authority history in `crates/vela-authority/`,
-replay in `crates/vela-verify/`. The rename landed in v0.967.0: `vfr_` and
-`frontier_id` are absent from current crate code. The type parses `vela.toml`,
-mints a standard UUIDv4 once at genesis, and answers `vela.status.v4`.
+protocol replay in `crates/vela-protocol/`. Frozen witness reproduction in
+`crates/vela-verify/` is package-plane compatibility, not repository authority
+or Standing. The rename landed in v0.967.0: `vfr_` and `frontier_id` are absent
+from current crate code. The type parses `vela.toml`, mints a standard UUIDv4
+once at genesis, and answers `vela.status.v4`.
 
 **Source.** Declared per repository in `sources.yaml` and locked in
 `sources.lock.json`; the shared lock tooling is
@@ -296,7 +298,7 @@ neutral equivalent.
 Stated plainly. Each of these is either false in the documentation today or
 absent from the code.
 
-### Obligation is vocabulary without an object
+### Repair Obligation is a projection output, not a protocol object
 
 **Problem.** Resolved 2026-08-07, and resolved as ADR 0039 intends rather than
 by adding an object. Problem has no protocol object and should not have one: it
@@ -312,11 +314,13 @@ metadata, where upstream publishes them. The live projection carries 1,217
 Problems against zero Claims, which is a shape the previous derivation could
 not express at all.
 
-**Obligation.** Less far along than this section used to say, and the error was
-worth more than the gap. The rooted wire identity is real:
-`crates/vela-edge/src/analysis/correction_impact.rs:122` declares
+**Repair Obligation.** Less far along than this section used to say, and the
+error was worth more than the gap. The rooted projection identity is real:
+`crates/vela-edge/src/analysis/correction_impact.rs:124` declares
 `RepairObligation`, and the root is computed over an `ObligationPreimage`
-carrying `schema: "vela.correction-repair-obligation.v1"`. Nothing consumes it.
+carrying `schema: "vela.correction-repair-obligation.v1"`. The CLI exposes it
+inline in the correction-impact projection; no downstream product consumes it
+as an action contract.
 
 This section previously claimed a shipped UI surface and named
 `DecisionInboxNextObligation` as the consumer. That is a different object
@@ -328,15 +332,16 @@ by `decision-boundary.tsx`, which documents that it renders on nothing today
 because every Proposal in the current release is terminal. None of its three
 fields appears in `RepairObligation`, and nothing about it is rooted.
 
-What has since changed is the reach, not the consumer. `vela correction impact`
-shipped in 0.969.0 and runs the derivation over the accepted claim index of a
-real repository, so the sentence this section used to carry — that no CLI verb
-reaches it — is no longer true; §7 states the current position. The rooted
-Obligation still has no consumer. Its readers are
-`crates/vela-edge/tests/correction_impact.rs`,
+What has since changed is both the reach and the immediate reader.
+`vela correction impact` shipped in 0.969.0 and runs the derivation over the
+accepted Claim index of a real Repository. The CLI consumes each
+`RepairObligation` as inline projection data, augments its JSON with
+`condition_source`, and renders the obligation count and source. No downstream
+product consumes it as an action contract. The Rust tests and clean-room reader
+remain `crates/vela-edge/tests/correction_impact.rs`,
 `crates/vela-cli/tests/correction_impact.rs` and
-`conformance/verify_correction_impact.py`, and the first and last of those run
-over synthetic fixtures.
+`conformance/verify_correction_impact.py`; the first and last run over
+synthetic fixtures.
 
 **What it lacks is not a schema.** Publishing
 `vela.correction-repair-obligation.v1` into `schemas/` would not be the neutral
@@ -360,23 +365,22 @@ values and canonicalization where a schema would catch names and types. A third
 statement of one shape, held by nothing, is the defect this document names
 elsewhere, not a fix for it.
 
-**The gap is a caller.** Correction impact is the highest-value mechanism
-already built and still unreachable (§7). It needs a verb that feeds it a real
-repository, not a schema, a projection table and a route for output no run has
-ever produced.
+**The remaining gap is authored consequential input, not a caller.**
+`vela correction impact` is the shipped caller and runs the existing
+derivation over a verified Repository. The current writer authors only
+`corrects` or `supersedes`; it cannot author `depends` or `supports`, so a
+current producer-built Repository has no consequential edge to traverse and
+correctly returns an empty cascade. ADR 0043 freezes a separate, noncanonical
+`requires` experiment; it does not fill this protocol gap or demonstrate a
+current-Repository cascade.
 
-**Obligation cannot say "unattributable".** `discharge_condition` is a required
-`String` taken from the affected Claim's `repair_condition`, and
-`correction_impact.rs:345` fails the entire projection with
-`repair_condition_missing_for_affected_claim` when it is absent. A Claim that is
-genuinely affected but for which no one can state what would repair it is
-therefore not recorded as unattributable; it stops the projection being produced
-at all. A protocol that cannot name an unattributable failure will overclaim
-attribution for every failure it does report. Adding the state is a root change
-— the preimage is hashed including keys, so a new field moves every
-`obligation_root`, including the one frozen in
-`conformance/fixtures/correction/diamond-expected.json` — and it belongs with
-the caller, in one deliberate change, rather than ahead of it.
+**Repair-condition provenance is explicit.** The reducer fails closed with
+`repair_condition_missing_for_affected_claim` when direct input omits a
+discharge condition. The Repository caller supplies either the Claim's
+namespaced `vela.correction.repair_condition` or one fixed default and reports
+`condition_source` as `declared` or `protocol_default`. The caller therefore
+does not present its default as producer-authored. This supplies no dependency
+relation and changes no Standing.
 
 ### 1,217 open Problems were stored as accepted Claims
 
@@ -542,25 +546,25 @@ search for instead.
   to the binary rather than to each other.
 - ~~`docs/ROADMAP.md` says `create -> submit -> verify -> decide -> replay`.~~
   Resolved: it says `init -> …`, which is the verb the CLI has.
-- ADR 0017 is "Deferred — research only" and forbids implementing a Frontier
-  calculus. Its two layer names, Frontier Algebra and Discovery Calculus, are
-  live rows in the analysis table of `docs/TERMINOLOGY.md`, and
-  `frontier_algebra_atom` is a permanently-null field in a `vela-web` projection
-  fixture (`packages/observatory-data/tests/support/semantic-correction.ts`).
-  Supersede 0017 or rename its layers; a reserved field that is never filled is
-  worse than an absent one. `Lens` is a third row of the same table and a third
-  entry of §7's delete list, and belongs to the same ruling: the rows are not
-  removed here because which way they go is 0017's to decide, not a sweep's.
+- ~~ADR 0017 left Frontier Algebra, Discovery Calculus, and Lens in current
+  vocabulary despite deferring their implementation.~~ Resolved by ADR 0044:
+  those names are historical research labels, not current Vela layers,
+  objects, fields, or reserved extension points. `Frontier Calculus` remains
+  only the constrained research-program label the canonical framing assigns
+  it. Concrete shipped mechanisms retain concrete names such as `correction
+  impact`; no replacement layer is introduced. The downstream
+  `frontier_algebra_atom` field is a Web-local legacy read-model concern and is
+  not changed here or rewritten in stored projection bytes.
 
-### One open governance question
+### Change-control boundary
 
-ADR 0039 changes the identifier, five Event kinds, a status schema version, and
-quarantines the object types. Under the constitutional-core rule those changes
-require a reproduced gap; the justification offered is an ontology argument plus
-a corpus census. Either the amendment rule is restated to admit ontology
-corrections, or ADR 0039 should say why it does not bind a pre-1.0 epoch change.
-Leaving both standing means the change-control rule is the first thing the reset
-broke. This document does not resolve it.
+Resolved. The reproduced-gap rule forbids a new subsystem without evidence; it
+does not forbid deleting or consolidating a misleading pre-1.0 surface. ADR
+0039 also rested on observed defects: the same scientific territory was split
+along incompatible axes, four repositories represented one authority, and
+catalogue rows were presented as accepted Standing. It made one explicit
+pre-1.0 epoch cut, preserved predecessor history, and added no new authority
+path or subsystem. No amendment exception is required.
 
 ## 7. What is novel, and what is borrowed
 
@@ -569,7 +573,8 @@ broke. This document does not resolve it.
 | Vela term | What it is |
 | --- | --- |
 | Repository | a Git repository under a named authority |
-| Target | an issue |
+| Problem | a bounded issue or milestone |
+| Obligation | an explicit open requirement |
 | Submission | a signed patch |
 | Proposal | a pull request |
 | Verification Record | a check run |
@@ -611,11 +616,14 @@ The three mechanisms that are built and are the defensible part:
    `does_not_establish` list (`crates/vela-protocol/src/objects/verification_record.rs:55-60`,
    with at least one limitation required at `:242-250`). It changes no Standing.
    Only a human Decision does.
-2. **Correction preserves independent support routes.**
+2. **Correction deterministically partitions declared support edges.**
    `crates/vela-edge/src/analysis/correction_impact.rs` partitions
    `lost_support_routes` from `surviving_support_routes` and emits repair
-   obligations. Fixtures at `conformance/fixtures/correction/` run on every CI
-   run through `conformance/verify.py`. `vela correction impact` reaches it over
+   obligations. Those field names describe the reducer's treatment of declared
+   edges; they do not establish route grouping, sufficiency, shared-premise
+   separation or scientific independence. Fixtures at
+   `conformance/fixtures/correction/` run on every CI run through
+   `conformance/verify.py`. `vela correction impact` reaches the reducer over
    the accepted claim index of a real repository, and shipped in 0.969.0.
 
    Driving one correction end to end to get there found two things worth
@@ -628,24 +636,30 @@ The three mechanisms that are built and are the defensible part:
    `supports` claim-to-claim edges, and **the write path authors neither**.
    Every such edge in the corpus was written by the epoch-1 ingest. A
    repository built with today's CLI therefore has no edge to traverse and
-   correctly reports an empty cascade. Closing that means giving the signed
-   Submission schema a place to declare dependencies, which is a protocol
-   change with an ADR, not a CLI change.
+   correctly reports an empty cascade. ADR 0043 freezes a noncanonical,
+   source-owned `requires` profile and matched baseline before considering a
+   signed field. The synthetic experiment is not a producer-authored
+   Repository cascade and moves no Standing.
 3. **Projections cannot silently go stale.** Every projection row is
    root-bound. The disclosure contract is partial: `projector_version`, lens
    identity and truncation rules are not built.
 
 ### Invented and unbuilt. Delete rather than re-base
 
-Executable Frontier Model, Frontier Algebra, Discovery Calculus, Frontier
-Calculus, Verified Frontier Learning, FrontierBench, possible worlds,
+Executable Frontier Model, Frontier Algebra, Discovery Calculus, Verified
+Frontier Learning, FrontierBench, possible worlds,
 distinction partitions, capabilities, the Frontier Inheritance Effect,
 long-horizon transition credit, Constellation, Lens, Translation
 Studio, Atlas-as-application, release modes, risk tiers, sealed commitments.
 
-None of these has an implementation. All of them are named after `Frontier`,
-which no longer has an identity, so re-basing the names on the derived noun
-would preserve a tower whose foundation was removed.
+None of these has an implementation. The Frontier-named entries no longer have
+an authority identity, and the rest never earned a maintained product surface;
+re-basing any of them would preserve an unproved tower.
+
+`Frontier Calculus` remains usable only as a research-program label for
+formalizing support, provenance, correction, transfer and obligations. It is
+not a Vela layer, kernel dependency, product surface or implementation
+commitment.
 
 "Capsules" was on this list and does not belong: the verifier capsule is ADR
 0013's, it is built, and `vela submit --verifier-capsule-root` binds one
@@ -660,30 +674,42 @@ Packet, Frontier map, Attempt (ADR 0039 §5), and Registration Record (ADR
 ## 8. Layering, and what must never depend on what
 
 ```text
-  kernel        crates/vela-protocol, vela-authority, vela-verify
-                  ↑ objects, roots, signatures, authority, replay, Standing
+  kernel        crates/vela-protocol
+                  ↑ canonical objects, roots, Events, replay, Standing
+  authorization crates/vela-authority
+                  ↑ restricted authorization and repository service signing
+  durability    crates/vela-repository
+                  ↑ policy-neutral transactions and recovery; no Decision
+                    or Standing semantics
+  package       crates/vela-verify
+                  ↑ frozen witness reproduction compatibility; no authority
+                    or Standing
+  analysis      crates/vela-edge
+                  ↑ replaceable derived views and process adapters; never
+                    required for replay
   operator      crates/vela-cli
-                  ↑ 14 verbs: replay status claims log verification reproduce
-                    correction authority init review show why submit
+                  ↑ 15 verbs: replay status claims log verification reproduce
+                    correction recover authority init review show why submit
                     completions
   readers       conformance/readers/python, conformance/readers/javascript,
                 conformance/emitters/javascript.mjs, conformance/emitters/python.py
                   ↑ independent implementations of the same bytes
-  analysis      crates/vela-edge
-                  ↑ correction impact, target index; read-only, never required
-                    for replay
   projection    vela-web/packages/observatory-data  (20 tables; the 17 that hold
                     projected rows are root-bound)
   surfaces      vela-web/apps/observatory, vela-web/apps/www
 ```
 
-Dependencies point up the list only. Concretely:
+The compile-time graph is not one vertical product stack. `vela-authority`,
+`vela-repository`, and `vela-edge` each depend on `vela-protocol`;
+`vela-verify` is standalone; and `vela-cli` composes all five. The clean-room
+readers implement the public bytes independently, and Web consumes committed
+roots. No reverse dependency is authorized. Concretely:
 
-- **Nothing above the kernel may change Standing.** Not the CLI, not a reader,
+- **No non-kernel implementation defines Standing.** Not the CLI, not a reader,
   not `vela-edge`, not the projection, not a surface, not a package, not a
-  Source, not an agent, not a benchmark, not an authorization Allow. Only an
-  attributed human Decision, recorded as an Event in the repository's own
-  history.
+  Source, not an agent, not a benchmark, not an authorization Allow. Only
+  protocol admission of an attributed human Decision records an Event from
+  which replay derives Standing.
 - **`vela` must not depend on `vela-web`.** One documented leak:
   `crates/vela-cli/tests/wording_contract.rs:11` records that `vela-web` pins a
   literal, which is knowledge of a downstream consumer inside the protocol
@@ -702,9 +728,10 @@ Dependencies point up the list only. Concretely:
   Decision.** Enforced in SQL, §1.
 - **`vela-edge` is optional.** Deleting it must not affect replay of any
   repository.
-- **No layer may be required to replay.** If a repository cannot be replayed
-  from a clean clone with the kernel and the CLI alone, the layering has been
-  violated.
+- **Canonical replay must not depend on package, analysis, independent-reader,
+  Web, Source, agent, benchmark or projection state.** The CLI invokes kernel
+  validation over canonical Repository bytes; the durability runtime supplies
+  write and recovery mechanics, not alternate scientific semantics.
 
 The former violation is closed. The route under
 `apps/observatory/src/app/repositories/` keeps `math` only as a public

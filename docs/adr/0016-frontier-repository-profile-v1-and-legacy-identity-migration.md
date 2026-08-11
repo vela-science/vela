@@ -1,6 +1,8 @@
 # ADR 0016: Frontier Repository Profile v1 and legacy identity migration
 
 - Status: Accepted — 2026-07-23
+- Target-surface disposition: any Vela Target Index or `next`/`start` language
+  below is historical; commit `719cbc77` retired that core surface on 2026-08-10.
 - Operational settings portion superseded by accepted ADR 0031; retained as
   release history
 - Protocol effect: one signed non-scientific boundary event, versioned state

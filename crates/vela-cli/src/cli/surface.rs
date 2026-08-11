@@ -31,7 +31,7 @@ Usage: vela <COMMAND>
   show       why        review     replay
   reproduce  log
 
-Run `vela help advanced` for setup and verification commands.
+Run `vela help advanced` for setup, verification, and maintenance commands.
 "#,
         env!("CARGO_PKG_VERSION")
     )
@@ -46,7 +46,7 @@ pub(crate) fn advanced_help_text() -> String {
     format!(
         r#"Vela {}
 Version control for scientific state.
-Agents submit evidence. Verifiers establish scoped results. Authorized
+Agents submit evidence. Verifiers report scoped checks. Authorized
 Decisions change Standing. Git preserves and publishes bytes.
 
 Usage:
@@ -67,6 +67,9 @@ Daily product:
 Advanced verification and integration:
   verification  Retain non-authorizing scoped Verification Records
   correction    Project what one correction costs the Claims resting on it
+
+Advanced maintenance:
+  recover       finish or abort one exact durable repository transaction
 
 Advanced setup:
   authority     pin an independently published repository trust root
@@ -164,7 +167,7 @@ mod tests {
     /// but nothing held clap to it, and clap disagreed: `authority` was
     /// `hide = true` while this grid listed it under `Advanced setup:`,
     /// `docs/CLI.md` documented it as an advanced command, and
-    /// `repository_txn.rs` and `cli/lifecycle.rs` both print `vela authority
+    /// the repository write policy and `cli/lifecycle.rs` both print `vela authority
     /// trust pin …` as the next step to run. So the one command the CLI asks a
     /// consumer to run was the one `vela --help` would not show them.
     #[test]

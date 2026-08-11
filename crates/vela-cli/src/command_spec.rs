@@ -5,9 +5,9 @@
 //! - **Acting identity** → `--as` for producer or verifier evidence.
 //!   It may default from `$VELA_ACTOR_ID`; a human Decision never does.
 //! - **Repository** → `--repo <path>`, accepted by every verb that acts on an
-//!   existing repository. All of those verbs but two also take it as the leading
-//!   positional; `start` and `submit` do not, because their leading positional
-//!   is already the Target and the Submission file. Omitted entirely, the
+//!   existing repository. Except for the two explicit-reservation cases below,
+//!   those verbs also take it as the leading positional. `submit` does not
+//!   because its leading positional is already the Submission file. Omitted entirely, the
 //!   repository is discovered upward from the current directory, exactly as
 //!   `vela status` does — one resolution behaviour, everywhere. Where a verb
 //!   takes both a repository and an object the object binds last, so
@@ -24,8 +24,13 @@
 //!   reproduction scope — a witness file, a directory of witnesses, or a
 //!   repository — so a bare `vela reproduce` means "reproduce what is here",
 //!   not "walk up until something replays".
+//!
+//!   `recover` is the one repository action that deliberately requires only
+//!   `--repo`: its positional names the exact durable operation journal, and
+//!   recovery may target an incomplete bootstrap repository that discovery
+//!   must never redirect to an enclosing Repository.
 
-use clap::{ArgGroup, Subcommand};
+use clap::{ArgGroup, Args, Subcommand};
 use std::path::PathBuf;
 
 /// One meaning per flag, everywhere (the audit's top finding was
@@ -42,6 +47,8 @@ pub(crate) const HELP_JSON: &str = "Output stable JSON for programmatic callers"
 /// the reader lands.
 pub(crate) const HELP_REPO: &str =
     "Vela repository. Optional: discovered upward from the current directory";
+pub(crate) const HELP_RECOVERY_REPO: &str =
+    "Exact Vela repository to recover. Required; never discovered upward";
 /// The positional repository on a verb that also takes an object. Stated
 /// explicitly because the slot is only the repository when both are supplied.
 pub(crate) const HELP_REPO_BEFORE_OBJECT: &str = "Vela repository, when both arguments are given. With one argument that argument is the object and the repository is discovered upward";
@@ -150,6 +157,21 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         action: AuthorityAction,
     },
+    /// Recover one exact durable repository transaction and stop.
+    Recover {
+        #[arg(
+            long = "repo",
+            required = true,
+            value_name = "PATH",
+            help = HELP_RECOVERY_REPO
+        )]
+        repository: PathBuf,
+        /// Exact durable repository operation id (`vop_...`).
+        #[arg(value_name = "OPERATION_ID")]
+        operation_id: String,
+        #[arg(long, help = HELP_JSON)]
+        json: bool,
+    },
     /// Create a signed, replayable repository ready for scientific work.
     #[command(after_long_help = crate::cli::help_text::INIT)]
     Init {
@@ -210,8 +232,6 @@ pub(crate) enum Commands {
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },
-    /// THE offer: ranked open targets with the compounding payload
-    /// pre-loaded (premises, banked routes, attempts, dead channels).
     /// Retain one authenticated Submission and create a pending Proposal.
     /// This producer action cannot create Verification, a Decision, an Event,
     /// or accepted scientific state.
@@ -259,7 +279,7 @@ pub(crate) enum Commands {
         /// --supersedes.
         #[arg(long, conflicts_with = "submission", requires = "submission_change")]
         target_root: Option<String>,
-        /// Full root of the exact target packet executed by this producer.
+        /// Full root of the exact bounded-work packet used by this producer.
         #[arg(long, conflicts_with = "submission", requires_all = ["profile_root", "verifier_capsule_root", "result_contract_root"])]
         packet_root: Option<String>,
         /// Full root of the exact producer profile used for this result.
@@ -407,6 +427,25 @@ pub(crate) enum AuthorityTrustAction {
     },
 }
 
+#[derive(Args)]
+pub(crate) struct ReviewDecisionArgs {
+    #[arg(value_name = "REPO", help = HELP_REPO_BEFORE_OBJECT)]
+    pub(crate) first: Option<String>,
+    /// Exact pending Proposal ID (`vpr_...`).
+    #[arg(value_name = "PROPOSAL_ID")]
+    pub(crate) second: Option<String>,
+    #[arg(long = "repo", value_name = "PATH", help = HELP_REPO)]
+    pub(crate) repo_flag: Option<PathBuf>,
+    /// Require the exact Decision Inbox entry that was reviewed.
+    #[arg(long)]
+    pub(crate) if_entry_root: Option<String>,
+    #[arg(long)]
+    /// Human reason covered by the Decision signature.
+    pub(crate) reason: String,
+    #[arg(long, help = HELP_JSON)]
+    pub(crate) json: bool,
+}
+
 #[derive(Subcommand)]
 pub(crate) enum ReviewAction {
     /// Derive the current consequence-only Decision Inbox.
@@ -454,42 +493,16 @@ pub(crate) enum ReviewAction {
         override_usage = "vela review accept [OPTIONS] [REPO] <PROPOSAL_ID> --reason <REASON>"
     )]
     Accept {
-        #[arg(value_name = "REPO", help = HELP_REPO_BEFORE_OBJECT)]
-        first: Option<String>,
-        /// Exact pending Proposal ID (`vpr_...`).
-        #[arg(value_name = "PROPOSAL_ID")]
-        second: Option<String>,
-        #[arg(long = "repo", value_name = "PATH", help = HELP_REPO)]
-        repo_flag: Option<PathBuf>,
-        /// Require the exact Decision Inbox entry that was reviewed.
-        #[arg(long)]
-        if_entry_root: Option<String>,
-        #[arg(long)]
-        /// Human reason covered by the Decision signature.
-        reason: String,
-        #[arg(long, help = HELP_JSON)]
-        json: bool,
+        #[command(flatten)]
+        args: ReviewDecisionArgs,
     },
     /// Reject exactly one Proposal through repository authority.
     #[command(
         override_usage = "vela review reject [OPTIONS] [REPO] <PROPOSAL_ID> --reason <REASON>"
     )]
     Reject {
-        #[arg(value_name = "REPO", help = HELP_REPO_BEFORE_OBJECT)]
-        first: Option<String>,
-        /// Exact pending Proposal ID (`vpr_...`).
-        #[arg(value_name = "PROPOSAL_ID")]
-        second: Option<String>,
-        #[arg(long = "repo", value_name = "PATH", help = HELP_REPO)]
-        repo_flag: Option<PathBuf>,
-        /// Require the exact Decision Inbox entry that was reviewed.
-        #[arg(long)]
-        if_entry_root: Option<String>,
-        #[arg(long)]
-        /// Human reason covered by the Decision signature.
-        reason: String,
-        #[arg(long, help = HELP_JSON)]
-        json: bool,
+        #[command(flatten)]
+        args: ReviewDecisionArgs,
     },
     /// Withdraw your own still-pending Proposal using its Submission identity.
     #[command(

@@ -18,6 +18,7 @@ use vela_protocol::authorization::{
     AUTHORIZATION_PROFILE_V1, AUTHORIZATION_REQUEST_SCHEMA_V1, AuthorityActionV1,
     AuthorityResourceTypeV1, AuthorizationRequestV1, AuthorizationResourceV1,
 };
+use vela_protocol::canonical::sha256_root;
 use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::events::{EventKind, NULL_HASH, StateActor, StateEvent, StateTarget};
 use vela_protocol::principal::PrincipalClass;
@@ -36,7 +37,7 @@ use crate::config::git_publish::{
 };
 use crate::repository_authority_provider::SshAgentRepositoryAuthoritySigner;
 use crate::repository_ops::publication_delta;
-use crate::repository_txn::{
+use vela_repository::{
     ContentDigest, InputBinding, RepositoryRecoveryBarrier, RepositoryTxn, WriteClass,
 };
 
@@ -102,7 +103,7 @@ pub(crate) fn read_exact<T>(
 ) -> Result<T, String> {
     let bytes =
         fs::read(repository_path.join(path)).map_err(|error| format!("read {path}: {error}"))?;
-    if format!("sha256:{}", hex::encode(Sha256::digest(bytes.as_slice()))) != expected_root {
+    if sha256_root(&bytes) != expected_root {
         return Err(format!("{path} differs from its declared full root"));
     }
     let value = parse(&bytes)?;
@@ -678,9 +679,12 @@ pub(crate) fn execute_prepared(
     if expected.action != expected_action {
         return Err("current review plan carries another action".into());
     }
-    let barrier = recovery_barrier
-        .authorize_verified_repository_authority(&prepared.repository, &prepared.authority)
-        .map_err(|error| error.to_string())?;
+    let barrier = crate::repository_write_policy::authorize_repository_authority_write_barrier(
+        recovery_barrier,
+        &prepared.repository,
+        &prepared.authority,
+    )
+    .map_err(|error| error.to_string())?;
     let recorded_at =
         crate::cli::canonical_whole_second_time("current review decision", &expected.observed_at)?;
     let local = crate::cli::local_session(&recorded_at)?;
@@ -804,9 +808,6 @@ pub(crate) fn execute_prepared(
                 class: WriteClass::CanonicalEvidence,
                 postimage: Some(next.canonical_bytes()?),
             }],
-            derived_drafts: Vec::new(),
-            next_authority_keyset: None,
-            next_authorization_model: None,
             read_set,
             vela_version: env!("CARGO_PKG_VERSION").into(),
             binary_sha256,
@@ -831,8 +832,7 @@ pub(crate) fn execute_prepared(
         .map_err(|error| error.to_string())?;
     transaction.install().map_err(|error| error.to_string())?;
     transaction.complete().map_err(|error| error.to_string())?;
-    if let Err(error) = crate::repository::verify_repository_allow_derived_drift_at(repository_path)
-    {
+    if let Err(error) = crate::repository::verify_repository_prepublication_at(repository_path) {
         return Err(format!(
             "repository-authority transaction committed as record {} but postcondition verification failed: {error}; do not retry the Decision",
             result.authority_record_id

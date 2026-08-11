@@ -35,27 +35,43 @@ init -> submit -> verify -> decide -> replay
 
 Work can happen in any native tool. A Submission retains bounded producer
 evidence. Checks remain scoped. Only an authorized Decision changes Standing,
-and the resulting map exposes the next valid Target or an explicit blocker.
-Compounding is a measured outcome, not an automatic property of acceptance.
+and a source-owning Repository or read product may use the resulting state to
+expose an exact next obligation or an explicit blocker. Compounding is a
+measured outcome, not an automatic property of acceptance.
 
-Research navigation wraps that exact loop without adding authority:
+The public navigation loop wraps that exact operator loop without adding
+authority:
 
 ```text
-map -> target -> work -> submit -> verify -> decide -> remap
+MAP -> ADVANCE -> REMAP
 ```
+
+**Map** reads Problems, Claims, Standing, dependencies, Corrections, and open
+Obligations from exact roots. **Advance** means doing native human or machine
+work that may produce a bounded proposed change. **Remap** replays the new
+Standing and derives what remains current, affected, blocked, or open. Vela
+core owns no work catalogue or planner.
 
 The product hierarchy is deliberate:
 
 ```text
-protocol     integrity layer
-map          user-facing product
-movement     measurable outcome
+protocol                     integrity layer
+map                          user-facing product
+verified frontier movement   measurable outcome
 ```
 
 The protocol is useful when it makes a Frontier legible — the derived boundary
 of what is still unresolved — and helps the next valid scientific action
 improve after a result, correction, or useful failure. Record count, graph size, workflow completion, and model activity are
 not product success.
+
+The Vela Protocol is the narrow integrity layer: Claim records, authenticated
+Submissions, scoped Verification Records, Proposals, authorized Decisions,
+Events, exact roots, replay, and Standing. The wider Vela ecosystem includes
+native workbenches, source-owning Repositories, verifiers, and rebuildable read
+products. A Dossier is one such root-bound, reviewer-ready projection; it
+assembles evidence and limitations but is not a protocol object and cannot
+make a Decision.
 
 Its long-range direction is a federated inheritance layer for science:
 different workbenches can produce evidence, different verifiers can report
@@ -191,28 +207,47 @@ When the Submission declares one verification requirement, `verification
 record` uses it directly. Additional observations require an explicit
 `--property ... --complementary` so they cannot be mistaken for evidence that
 satisfies the registered gate.
-`start` writes nothing: Codex, Claude, OpenCode, Harbor, laboratory software,
-or another native tool owns execution. Submission and Verification authenticate
-their own exact records; neither reads repository-authority credentials.
+Work selection and execution stay with the source-owning Repository, a read
+product, or a native tool such as Codex, Claude, OpenCode, Harbor, or laboratory
+software. Those surfaces may expose exact next obligations and rooted work
+packets. Vela core provides no `next`/`start` command pair; Submission and
+Verification authenticate their own exact records, and neither reads
+repository-authority credentials.
 
 ## Command surface
 
 The ordinary CLI is intentionally small:
 
 ```text
-init status claims next start submit show why review replay reproduce log
+init status claims submit show why review replay reproduce log
 ```
 
 Current advanced surfaces:
 
 ```text
-verification authority
+verification correction recover authority
 ```
 
 Run `vela help advanced` for the grouped contract.
 
-Domain adapters write the optional tracked Target Index directly;
-`replay`, `next`, and `start` validate it without a maintenance subcommand.
+`vela recover --repo <PATH> <OPERATION_ID> [--json]` is the explicit operator
+route out of an interrupted repository transaction. It opens only the named
+journal: an exactly Prepared transaction with a definitely absent commit marker
+is aborted, while a valid marker authorizes policy-free exact completion.
+Completed and Aborted journals are idempotent. Recovery stops after the
+repository filesystem transaction; it neither continues the semantic command
+nor publishes Git state. A routine completion names Git status as the next
+inspection. If the exact operation is a verified native genesis, it instead
+names the retained `vela init --key ... --reason ...` continuation; that later
+command verifies and creates or idempotently confirms only the deterministic
+Git/trust tail without a signer or another authority transaction. If that
+advisory proof is unavailable after recovery succeeds, the result stays
+successful, reports a closed `blocked` continuation status, and offers no
+executable continuation until the retained proof is repaired.
+
+Source-owning repositories and read products may expose exact next obligations
+under their own rooted contracts. They are replaceable orientation surfaces,
+not Vela replay state, and cannot change Standing.
 
 ## Repository model
 
@@ -241,7 +276,7 @@ The public product now develops from one repository while retaining separate
 runtime boundaries:
 
 ```text
-crates/             Vela protocol, replay, repository authority, and CLI
+crates/             Protocol, repository runtime, authority, adapters, verifier, and CLI
 conformance/        Independent Python and JavaScript readers, two clean-room emitters,
                     fixtures, and repository-wide checks
 packages/           The shared source-manifest tooling
@@ -251,10 +286,10 @@ scripts/            Release, release manifest, and ecosystem status
 
 The immutable public `@vela-science/canopus@0.8.0` and its Git tag remain
 historical replay evidence. Current Vela ships no agent runner. Codex, Claude,
-OpenCode, laboratory software, and other native tools work from a Target
-packet and register ordinary Submissions or Verification Records. Vela Web and
-the canonical Repositories remain separate because they have independent
-deployment and scientific-history lifecycles.
+OpenCode, laboratory software, and other native tools work directly or from a
+source-local packet and register ordinary Submissions or Verification Records.
+Vela Web and the canonical Repositories remain separate because they have
+independent deployment and scientific-history lifecycles.
 
 Package-local tooling stays with its package. The top-level `scripts/` holds
 four files and is not a bucket for a fifth kind of thing: `release.sh` is the
@@ -264,10 +299,12 @@ the operator step that signs what CI published and then publishes it, and
 public product installer.
 
 The Rust crates are internal implementation boundaries, tested together and
-released as one `vela` binary. Cross-language conformance uses small standalone
-readers instead of a second package. A registry package will exist only after a
-real external consumer needs it. The immutable Canopus `0.8.0` package remains
-historical evidence from `product-v0.8.0`.
+released as one `vela` binary. `vela-repository` is the policy-neutral durable
+transaction runtime below the CLI; it is not a separate product or semantic
+kernel. Cross-language conformance uses small standalone readers instead of a
+second package. A registry package will exist only after a real external
+consumer needs it. The immutable Canopus `0.8.0` package remains historical
+evidence from `product-v0.8.0`.
 
 ## Security model
 

@@ -44,8 +44,12 @@ contracts an outside implementation must satisfy and pairs each with its check.
 `conformance/readers/python`, `conformance/readers/javascript`, and the two emitters,
 `conformance/emitters/javascript.mjs` and `conformance/emitters/python.py`, are
 frozen and run on every CI run. Canonicalization vectors run in Rust, Python,
-and JavaScript. Contract 4, authority, is held by the generated request and
-evaluation schemas plus the language-independent authorization parity corpus.
+and JavaScript. Contract 4, authority, has two deliberately distinct evidence
+paths: the retained epoch-1 corpus is Rust-read evaluator compatibility across
+the vocabulary migration, while
+`conformance/fixtures/authority/math-0.972.1/` and
+`verify_authority_chain.py` are the current retained four-record
+language-independent signed-chain vector from an explicit external anchor.
 
 The JavaScript reader is deliberately narrower than Python: it independently
 checks RFC 8785 bytes and SHA-256 roots, while repository reconstruction stays
@@ -97,6 +101,10 @@ The evidence this cut required, and where it is:
 - prove parity and negative boundary cases across the retained epoch-1 corpus;
   the same test checks seven negative cases for their exact fail-closed
   reasons; and
+- verify the current four-record Math chain independently from an explicit
+  sequence-one anchor; `verify_authority_chain.py` checks DSSE signatures,
+  continuity, authorization, signed deltas, Events, and bounded terminal state
+  with thirteen stable negative cases and no Vela, Rust, Git, or network; and
 - replay the current authority from a clean clone, exercised by
   `vela-science/math@130fc283b99b8c55dea51b5f8f959a6c33a679f6`, yielding
   Repository root
@@ -106,6 +114,10 @@ The deletion followed: `cedar-policy` is out of both manifests, `engine_pin.rs`
 is gone, `PolicyBundleV1` is `AuthorizationModelV1` naming no engine, and
 `AuthorityRecordV1` carries an `AuthorizationEvaluationV1` that strict history
 recomputes instead of trusting.
+
+The independent vector does not claim that current CLI read paths load the
+local authority pin, nor that the production history verifier enforces every
+fixture-level positive cross-link.
 
 ## Optional read edge
 

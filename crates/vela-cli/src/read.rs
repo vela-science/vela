@@ -9,8 +9,8 @@ use std::path::Path;
 
 use serde::Serialize;
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use vela_protocol::authority::AuthorityEventV1;
+use vela_protocol::canonical::sha256_root;
 use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::proposal::ProposalV1;
 use vela_protocol::proposal_withdrawal::ProposalWithdrawalEnvelopeV2;
@@ -32,10 +32,6 @@ struct ReadContext {
     authority_events: Vec<AuthorityEventV1>,
 }
 
-fn root_bytes(bytes: &[u8]) -> String {
-    format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
-}
-
 fn canonical_root<T: Serialize + ?Sized>(value: &T) -> Result<String, String> {
     vela_protocol::canonical::sha256_canonical(value).map(|digest| format!("sha256:{digest}"))
 }
@@ -48,7 +44,7 @@ fn read_exact(repository_path: &Path, path: &str, expected_root: &str) -> Result
         return Err(format!("object {path} must be a regular file"));
     }
     let bytes = fs::read(&candidate).map_err(|error| format!("read object {path}: {error}"))?;
-    if root_bytes(&bytes) != expected_root {
+    if sha256_root(&bytes) != expected_root {
         return Err(format!(
             "current object {path} does not match {expected_root}"
         ));
@@ -843,7 +839,7 @@ mod tests {
     #[test]
     fn byte_root_is_full_sha256() {
         assert_eq!(
-            root_bytes(b"current"),
+            sha256_root(b"current"),
             "sha256:97b0560280ed60a5a1eaa1bc45492543c8a986ad5a25b468c427eb83c3e88191"
         );
     }

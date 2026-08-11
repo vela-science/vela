@@ -1,4 +1,4 @@
-//! Repository verification, reads, work offers, and review views.
+//! Repository verification, status, object reads, and review views.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -6,9 +6,9 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use vela_protocol::authority::AuthorityEventV1;
 use vela_protocol::authority_history::AuthorityInitializationV1;
+use vela_protocol::canonical::sha256_root;
 use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::events::{EventKind, NULL_HASH};
 use vela_protocol::proposal::ProposalV1;
@@ -1528,7 +1528,7 @@ pub(crate) fn verify_repository_at(
         let bytes = object_bytes
             .get(&reference.path)
             .ok_or_else(|| format!("current object {} was not loaded", reference.path))?;
-        if root_bytes(bytes) != reference.root {
+        if sha256_root(bytes) != reference.root {
             return Err(format!(
                 "{} does not contain the declared content-addressed Artifact",
                 reference.path
@@ -1617,15 +1617,11 @@ fn read_object_set(
     Ok(loaded)
 }
 
-/// Verify the complete current repository and its authority history while
-/// allowing a derived Target Index to report its own staleness.
-///
-/// Target-index inspect, repair, and reseal must remain available precisely
-/// when tracked source or packet bytes drift. Canonical repository and
-/// authority objects still fail closed.
-pub(crate) fn verify_repository_allow_derived_drift_at(
-    root: &Path,
-) -> Result<RepositoryV4, String> {
+/// Verify the complete current repository and its authority history after a
+/// transaction installs its files but before the corresponding Git
+/// publication. Canonical repository and authority objects still fail closed;
+/// the strict post-publication check additionally verifies Git ancestry.
+pub(crate) fn verify_repository_prepublication_at(root: &Path) -> Result<RepositoryV4, String> {
     let repository = verify_repository_at(root, false)?;
     let origin_bytes = fs::read(root.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;
@@ -1646,7 +1642,7 @@ pub(crate) fn initial_repository(
     let commit = current_origin_commit(root, origin)?;
     let read_blob = |path: &str| -> Result<Vec<u8>, String> {
         let spec = format!("{commit}:{path}");
-        let output = vela_edge::git::output(root, &["show", &spec])?;
+        let output = crate::config::git_publish::exact_git_output(root, &["show", &spec])?;
         if !output.status.success() {
             return Err(format!(
                 "read origin blob {spec}: {}",
@@ -1682,7 +1678,7 @@ fn current_origin_commit(root: &Path, origin: &RepositoryOriginV1) -> Result<Str
     let mut matching = Vec::new();
     for commit in commits {
         let spec = format!("{commit}:.vela/origin.json");
-        let output = vela_edge::git::output(root, &["show", &spec])?;
+        let output = crate::config::git_publish::exact_git_output(root, &["show", &spec])?;
         if output.status.success() && output.stdout == expected {
             matching.push(commit);
         }
@@ -1724,7 +1720,7 @@ pub(crate) fn read_rooted_object(
 ) -> Result<Vec<u8>, String> {
     let bytes =
         fs::read(root.join(path)).map_err(|error| format!("read object {path}: {error}"))?;
-    if root_bytes(&bytes) != expected_root {
+    if sha256_root(&bytes) != expected_root {
         return Err(format!("object {path} does not match its declared root"));
     }
     let expected_name = expected_root.trim_start_matches("sha256:");
@@ -1744,7 +1740,7 @@ fn verify_repository_authority(
     /* Genesis is the only origin, so the initial roots are the empty ones.
     These read a predecessor's archived roots when one existed. */
     let initial_event_log_root = format!("sha256:{}", vela_protocol::events::event_log_hash(&[]));
-    let initial_actor_registry_root = format!("sha256:{}", hex::encode(Sha256::digest([])));
+    let initial_actor_registry_root = sha256_root(&[]);
     let loaded = crate::cli::load_repository_authority(root, repository, origin)?;
     validate_current_proposal_standing(root, repository, &loaded.history.authority_events)?;
     let initialization_event_id = loaded
@@ -1914,7 +1910,7 @@ fn verify_repository_authority(
             .to_string();
         observed_record_paths.insert(
             relative,
-            root_bytes(
+            sha256_root(
                 &fs::read(&path)
                     .map_err(|error| format!("read current record {}: {error}", path.display()))?,
             ),
@@ -2044,7 +2040,7 @@ fn verify_repository_manifest_delta_chain<'a>(
 
 fn repository_manifest_at_commit(root: &Path, commit: &str) -> Result<RepositoryV4, String> {
     let spec = format!("{commit}:.vela/repository.json");
-    let output = vela_edge::git::output(root, &["show", &spec])?;
+    let output = crate::config::git_publish::exact_git_output(root, &["show", &spec])?;
     if !output.status.success() {
         return Err(format!(
             "read repository manifest at {commit}: {}",
@@ -2373,10 +2369,6 @@ fn authority_store_files(directory: &Path, suffix: &str) -> Result<Vec<PathBuf>,
     Ok(files)
 }
 
-fn root_bytes(bytes: &[u8]) -> String {
-    format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
-}
-
 /// The origin remote as a person refers to it: `vela-science/math`.
 ///
 /// A locator, deliberately — `docs/CONTINUITY.md` §2 is explicit that a URL
@@ -2405,7 +2397,7 @@ fn human_remote(repository: &Path) -> Option<String> {
 }
 
 fn git_text(repository: &Path, args: &[&str]) -> Result<String, String> {
-    vela_edge::git::text(repository, args)
+    crate::config::git_publish::exact_git_text(repository, args)
 }
 
 /// The set of paths a current repository must no longer carry.

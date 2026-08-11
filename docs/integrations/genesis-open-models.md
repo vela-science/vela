@@ -178,6 +178,11 @@ That absence is a standing decision — ADR 0004, *Falsify the need for a
 scientific dependency primitive* — not an oversight, and driving the first
 correction end to end is the first real evidence in that lane.
 
+ADR 0043 adds a frozen, noncanonical `requires`-only experiment and matched
+baseline before any wire decision. Its Erdős-shaped graph is synthetic and
+cannot count as this environment's Class E case, accepted Correction, rooted
+dependent, or producer-authored cascade.
+
 ## What driving this found
 
 Two defects, both surfaced only by making a real decision rather than by

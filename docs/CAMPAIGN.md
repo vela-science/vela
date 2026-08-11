@@ -4,7 +4,7 @@ Vela now has a complete local operator loop. The active programme is to turn
 the exact state already held in Repositories into a useful public problem map and
 reviewer-ready contributions to native scientific commons.
 
-## Active product loop
+## Active campaign workflow
 
 ```text
 map problem -> select bounded work -> preserve evidence -> verify -> decide
@@ -32,7 +32,8 @@ problem pages, candidate profiles, source adapters, or case dossiers.
 
 ## Boundaries
 
-- Scientific campaigns, Target packets, proofs, computations, and local
+- Scientific campaigns, work packets, exact next obligations, proofs,
+  computations, and local
   Decisions belong to their source-owning repositories.
 - Vela Web owns read-only projections and presentation.
 - Vela core owns protocol semantics, the CLI, schemas, conformance, and replay.
@@ -48,9 +49,10 @@ not active product surface.
 ## Acceptance
 
 The public wedge must bind the same source commits, repository roots, Claims,
-Verifications, Decisions, Targets, and release root as the Observatory. The
-first foundry case must retain exact native checks, statement-fidelity scope,
-dependencies, AI attribution, nonclaims, and requested maintainer decisions.
+Verifications, Decisions, source-local next obligations, and release root as
+the Observatory. The first foundry case must retain exact native checks,
+statement-fidelity scope, dependencies, AI attribution, nonclaims, and
+requested maintainer decisions.
 
 Every core change still passes focused crate tests, cold-start lifecycle,
 clean-clone replay, formatting, and `git diff --check`. A release candidate also

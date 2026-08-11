@@ -7,34 +7,27 @@ Historical object names remain valid when describing their exact source era.
 
 > **Vela is version control for scientific state.**
 
-> **Map the territory. Advance one boundary. Leave the next researcher ahead.**
-
 ```text
 init -> submit -> verify -> decide -> replay
 ```
 
-Research navigation wraps that exact operator loop:
+The public navigation loop wraps that exact operator loop:
 
 ```text
-map -> target -> work -> submit -> verify -> decide -> remap
+MAP -> ADVANCE -> REMAP
 ```
 
 These navigation verbs are not renamed protocol objects:
 
 ```text
-map       reads exact state, dependencies, disagreement, and gaps
-target    selects bounded work from current state
-work      happens in any native human or machine environment
-submit    retains authenticated bounded evidence and a requested Claim
-verify    records a scoped check over exact inputs
-decide    lets named local authority accept, reject, or correct
-remap     derives current territory, blockers, and next work from the new root
+map       reads Problems, Claims, Standing, dependencies, Corrections, and gaps
+advance   means native work that may produce a bounded proposed change
+remap     replays Standing and derives affected, blocked, and open state
 ```
 
-`MAP -> ADVANCE -> REMAP` is the shorter product compression. An authorized
-transition is named by the objects that carry it — the Decision, its Event, and
-the exact before and after roots — and by nothing further. A Git merge, a
-verifier result, or a package publication is none of those things.
+An authorized transition is named by the objects that carry it — the Decision,
+its Event, and the exact before and after roots — and by nothing further. A Git
+merge, a verifier result, or a package publication is none of those things.
 
 The operator loop remains:
 
@@ -48,15 +41,21 @@ Four boundaries, and they are not the same boundary. `Frontier` used to be all
 of them at once, which is why the repositories drifted. A **Repository** exists
 because there is a new authority, never because there is a new topic.
 
+The table deliberately places protocol records beside non-authoritative
+navigation, read, and evaluation concepts so a user can distinguish their
+effects. A row does not mint a schema, wire field, identifier, object, or
+required store; only the current Protocol defines those.
+
 | Term | Meaning | Authority effect |
 | --- | --- | ---: |
 | Repository | One independently clonable Git repository with stable identity, trust root, canonical history, named authority, and correction policy | Authority boundary |
 | Source | A declared external system whose native records are observed exactly, never governed | None |
-| Problem | A bounded scientific question organizing Claims, Obligations and Targets | None |
+| Scientific Space | The root-bound read projection of the state and source observations currently in view | None |
+| Problem | A bounded scientific question organizing Claims and Obligations | None |
+| Frontier | A derived query over unresolved, disputed, missing, stale, or actionable state around one or more Problems | None, owns nothing |
 | Obligation | One unresolved requirement needed to assess or advance a Claim | None |
-| Target | One machine-addressable, bounded unit of work | None |
-| Offer | A derived recommendation that a Target is available | None |
-| Run | One execution occurrence in a workbench or verifier | None |
+| Graph | A root-bound or explicitly bounded relational representation of state; an edge does not grant authority | None |
+| Run | One execution occurrence owned by a source workbench or verifier and retained only as provenance | None |
 | Claim | One exact assertion under explicit scope and conditions | None |
 | Claim Record | Canonical record of a Claim revision, conditions, evidence, provenance, and typed relations | None by itself |
 | Artifact | Retained bytes or an immutable locator with exact identity and provenance | None |
@@ -67,9 +66,12 @@ because there is a new authority, never because there is a new topic.
 | Decision | An authorized judgment over one exact Proposal | Defines transition intent |
 | Event | The append-only canonical transition record | Replays authorized effect |
 | Standing | The deterministic current status derived from valid Events | Resulting state |
-| Frontier | The derived boundary of unresolved scientific state around one or more Problems | None, owns nothing |
+| Dependency | A Claim another result materially relied on; the current `depends` relation is descriptive and is not a rooted dependency contract | None by itself |
+| Correction | An append-only proposed or admitted change that preserves the prior Claim and Decision | Only its authorized Decision may change Standing |
+| Reassessment | A bounded review obligation after a basis changes, disclosing affected, unaffected, and basis-unavailable state | None; Standing changes only through a new Decision |
 | Atlas | A projection across Repositories, Sources, Problems and Frontiers | None |
 | Observatory | The first Atlas: a removable read-only projection | None |
+| Dossier | A root-bound reviewer-ready projection of one bounded question or proposed change | None; never replaces Decision |
 
 **A Frontier has no identifier.** It is a query, not an object: the Problems
 with open Obligations, or the Claims lacking Verification, or everything drawn
@@ -89,8 +91,6 @@ is what lets the small genuinely new part be seen.
 | Repository | a Git repository, with a trust root and a named signing authority |
 | Source | an upstream you vendor from, pinned to a revision |
 | Problem | a milestone, or a Benchling project |
-| Target | an issue |
-| Offer | an issue surfacing as ready to pick up |
 | Run | a workflow run |
 | Artifact | a build artifact, or a deposited file |
 | Submission | a pushed branch and its package; a submission in peer review |
@@ -158,6 +158,12 @@ a reader meeting one in an older document knows it is not a current object.
 | Attempt | the workbench's own run identity, as provenance |
 | Registration Record | the signed Submission, which already binds every link it repeated (ADR 0033) |
 
+`Target` and `Offer` may still appear in historical contracts or as ordinary
+source-local language for a work item and its availability. They are not
+current canonical Vela product nouns, protocol objects, or CLI concepts. A
+source owner may publish an exact Obligation or work packet without giving Vela
+a planner.
+
 The Event kinds moved with the words. `finding.asserted`, `finding.noted`,
 `finding.superseded`, `finding.retracted` and `attempt.claimed` are now
 `claim.asserted`, `claim.noted`, `claim.superseded`, `claim.retracted` and
@@ -173,28 +179,28 @@ These terms describe bounded system behavior. They are not protocol objects:
 
 | Property | Meaning |
 | --- | --- |
-| action-complete | Every represented unresolved item yields a fresh exact Target or an explicit blocker, within declared source coverage, compiler, relation, and resource bounds |
+| action-complete | Every represented unresolved item yields an exact next obligation or an explicit blocker in its source-owning or read-product projection, within declared source coverage, compiler, relation, and resource bounds |
 | correction-closed | A declared complete relation slice identifies affected, surviving, and repair-required state after a correction |
 | inheritance-complete | A cold successor can recover current Standing, decisive evidence, and the next valid action without private maintainer context |
-| Frontier closure | State, coverage, Targets, Decisions, corrections, and handoff each close over exact current inputs or fail explicitly |
+| Frontier closure | State, coverage, next obligations, Decisions, corrections, and handoff each close over exact current inputs or fail explicitly |
 | compounding | Inherited Repository state measurably improves later correct scientific work under a matched comparison |
 
 The current **Math Atlas** is the bounded first-party read product over
 `vela-science/math`, the one live mathematics authority. A future federated
-Atlas is an unearned cross-Frontier concept, not a current global authority or
+Atlas is an unearned cross-Repository concept, not a current global authority or
 completeness claim.
 
 ## Daily commands
 
 ```text
-init status next start submit show why review replay reproduce log
+init status claims submit show why review replay reproduce log
 ```
 
 | Command | Meaning |
 | --- | --- |
+| `init` | Create one signed, replayable Repository boundary |
 | `status` | Summarize Repository identity, integrity, blockers, counts, authority readiness, and one next action |
-| `next` | Return ranked Target Offers |
-| `start` | Print a write-free briefing for one exact current Target |
+| `claims` | Page the Repository's Claim index with Standing and origin era |
 | `submit` | Validate and retain a Submission, then create its Proposal |
 | `show` | Inspect one current or historical typed object |
 | `why` | Explain current standing from exact evidence, verification, Decisions, Events, and corrections |
@@ -365,46 +371,6 @@ authentication field.
 All predecessor bytes remain retrievable through the epoch's tag, commit,
 Git-object manifest, and archive digest. They are not current writer objects.
 
-## Controlled verbs
-
-Read:
-
-```text
-status show list why log
-```
-
-Work:
-
-```text
-next start run resume abandon
-```
-
-Evidence:
-
-```text
-submit import reproduce
-```
-
-Evaluation:
-
-```text
-replay verify reproduce
-```
-
-Authority:
-
-```text
-accept reject correct supersede retract authorize revoke
-```
-
-Distribution and recovery:
-
-```text
-export publish repair restore rebuild compact
-```
-
-Lower-power roles never receive higher-power verbs.
-
 ## Product wording
 
 Use:
@@ -436,8 +402,6 @@ writer merely because they are useful:
 
 | Term | Meaning | Authority effect |
 | --- | --- | --- |
-| Frontier Algebra | A root-bound derivation of support/opposition routes, corrections, cut sets, and repair requirements | None |
-| Discovery Calculus | Optional information and decision lenses for choosing research actions | None |
 | Semantic package | A content-addressed set of terms, constraints, mappings, fixtures, licenses, and generated interoperability artifacts | None |
 | Verification scope | The exact Claim, inputs, method, environment, and property covered by one Verification Record | None |
 | Assurance profile | A versioned description of the assurance dimension addressed by a check, its prerequisites, and nonclaims | None |
@@ -445,9 +409,14 @@ writer merely because they are useful:
 | Mapping | A versioned relation between exact package terms with a declared consequence tier | None by itself |
 | Bridge | A maintained set of mappings between domains with every premise and scope needed for transport | None by itself |
 | Adapter | A replaceable translation from an exact workbench export to a Submission and explicit loss report | None |
-| Lens | A rooted view, metric, or action ordering under declared assumptions | None |
 | Package | A versioned, content-addressed unit of reusable language, capability, corpus, verifier, mapping, or adapter; publication has no authority effect | None |
 | Federated Atlas | A future removable cross-repository navigation concept, distinct from the current first-party Math Atlas above | None |
+
+`Frontier Algebra`, `Discovery Calculus`, and `Lens` are historical research
+labels, not current Vela layers, protocol objects, wire fields, or reserved
+extension points. `Frontier Calculus` remains only a constrained research
+program for formalizing support, provenance, correction, transfer and
+obligations; it is not an implementation commitment (ADR 0044).
 
 Mappings state one consequence tier. The default is `discovery`:
 

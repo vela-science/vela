@@ -2,6 +2,7 @@
 # The consolidated Vela workspace:
 #   vela-protocol       current object, root, event, and authority contracts
 #   vela-authority      restricted standard authorization evaluation
+#   vela-repository     policy-neutral durable repository transactions
 #   vela-edge           derived views and adapters over kernel state
 #   vela-cli            the `vela` product binary
 #   vela-verify         frozen, dependency-light exact verifiers; the
@@ -9,6 +10,7 @@
 members = [
     "crates/vela-protocol",
     "crates/vela-authority",
+    "crates/vela-repository",
     "crates/vela-edge",
     "crates/vela-cli",
     "crates/vela-verify",
@@ -64,6 +66,7 @@ libc = "0.2"
 # stayed at 0.966.2.
 vela-protocol = { path = "crates/vela-protocol" }
 vela-authority = { path = "crates/vela-authority" }
+vela-repository = { path = "crates/vela-repository" }
 vela-verify = { path = "crates/vela-verify" }
 vela-edge = { path = "crates/vela-edge" }
 

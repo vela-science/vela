@@ -115,10 +115,13 @@ affected-set precision = 100%
 affected-set recall    = 100%
 ```
 
-The implementations must preserve every independent surviving route. Relation
-types govern consequences; discovery, verification, authority, support,
-opposition, formalization, dependency, and correction may not collapse into
-one generic edge or scalar score. Unknown consequential relations fail closed.
+The implementations must preserve every declared surviving route. A claim of
+route independence additionally requires rooted route grouping, sufficiency,
+shared-premise disclosure, and independence evidence; distinct `supports`
+edges alone never satisfy that gate. Relation types govern consequences;
+discovery, verification, authority, support, opposition, formalization,
+dependency, and correction may not collapse into one generic edge or scalar
+score. Unknown consequential relations fail closed.
 
 ### No silent truncation
 

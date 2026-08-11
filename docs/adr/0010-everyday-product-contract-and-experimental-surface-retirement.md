@@ -1,6 +1,8 @@
 # ADR 0010: Everyday product contract and experimental surface retirement
 
 - Status: Accepted
+- Target-surface disposition: any Vela Target Index or `next`/`start` language
+  below is historical; commit `719cbc77` retired that core surface on 2026-08-10.
 - Product workflow superseded by accepted ADR 0031; retained as release history
 - Accepted: 2026-07-16 at the Vela `v0.900.0` release gate
 - Target release: Vela `v0.900.0`

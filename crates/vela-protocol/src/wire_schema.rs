@@ -59,9 +59,6 @@ pub const SHA256_ROOT_PATTERN: &str = "^sha256:[0-9a-f]{64}$";
 /// Exactly 64 lowercase hex digits, with any prefix already stripped.
 pub const LOWER_HEX_64_PATTERN: &str = "^[0-9a-f]{64}$";
 
-/// A hex Ed25519 signature: 64 bytes, so 128 lowercase hex digits.
-pub const ED25519_SIGNATURE_PATTERN: &str = "^[0-9a-f]{128}$";
-
 /// A Git object name: exactly 40 lowercase hex digits.
 ///
 /// Git's, not Vela's. It appears only on read surfaces, which report where the
@@ -203,11 +200,6 @@ pub fn artifact_reference_id_array(_: &mut SchemaGenerator) -> Schema {
 /// A hex Ed25519 public key.
 pub fn public_key_hex(_: &mut SchemaGenerator) -> Schema {
     json_schema!({ "type": "string", "pattern": LOWER_HEX_64_PATTERN })
-}
-
-/// A hex Ed25519 signature.
-pub fn ed25519_signature(_: &mut SchemaGenerator) -> Schema {
-    json_schema!({ "type": "string", "pattern": ED25519_SIGNATURE_PATTERN })
 }
 
 /// An RFC 3339 timestamp. `format` is an assertion in Vela's conformance
@@ -378,9 +370,6 @@ pub const SUBMISSION_ID_REFERENCE_PATTERN: &str = "^vsb_[0-9a-f]{16}$";
 /// A `vpr_` namespace and a derived handle body.
 pub const PROPOSAL_ID_REFERENCE_PATTERN: &str = "^vpr_[0-9a-f]{16}$";
 
-/// A `vpw_` namespace and a derived handle body.
-pub const WITHDRAWAL_ID_REFERENCE_PATTERN: &str = "^vpw_[0-9a-f]{16}$";
-
 /// The `application/vnd.vela.<name>.<version>+json` shape.
 pub const VELA_PAYLOAD_TYPE_PATTERN: &str = r"^application/vnd\.vela\.[a-z0-9.-]+\+json$";
 
@@ -392,11 +381,6 @@ pub fn submission_id_reference(_: &mut SchemaGenerator) -> Schema {
 /// A `vpr_` namespace only.
 pub fn proposal_id_reference(_: &mut SchemaGenerator) -> Schema {
     json_schema!({ "type": "string", "pattern": PROPOSAL_ID_REFERENCE_PATTERN })
-}
-
-/// A `vpw_` namespace only.
-pub fn withdrawal_id_reference(_: &mut SchemaGenerator) -> Schema {
-    json_schema!({ "type": "string", "pattern": WITHDRAWAL_ID_REFERENCE_PATTERN })
 }
 
 /// A base64 body, permitting both the standard and URL alphabets.

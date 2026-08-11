@@ -1,4 +1,3 @@
-//! Repository and producer-work adapters.
+//! Derived analysis.
 
 pub mod correction_impact;
-pub mod repository_write;

@@ -1,13 +1,14 @@
 # vela-verify
 
-Frozen, independent **exact verifiers** for combinatorial and
-coding-theory witnesses.
+Frozen, dependency-light **exact verifiers** for retained combinatorial and
+coding-theory witness formats. This is package-plane compatibility code, not
+part of Vela's protocol or authority kernel.
 
 A discovery proposer (human or agent) is untrusted: it returns an explicit
-construction, and this crate re-checks it deterministically before any
-claim is recorded. Corrupting a witness must fail the verifier — that is
-the property the tests pin. This is the reference registry `vela reproduce`
-re-runs stored witnesses through.
+construction, and this crate re-checks it deterministically. Corrupting a
+witness must fail the verifier — that is the property the tests pin. This is
+the reference registry `vela reproduce` re-runs for retained packages and
+archives; protocol history replay remains owned by `vela-protocol`.
 
 The verifiers are pure (no I/O, no randomness) and dependency-light (serde
 only), so a third party gets byte-identical verdicts.
@@ -19,16 +20,10 @@ Every `kind` the crate accepts, in `enum Witness` order.
 | kind | check |
 |------|-------|
 | `sidon` | `{0,1}^n`, all pairwise sums distinct |
-| `golomb` | integer marks, all pairwise differences distinct |
-| `cap` | `F_3^n`, no three points collinear |
-| `bh` | `{0,1}^n`, all `h`-fold sums distinct |
-| `covering` | `C(v,k,t)`, every `t`-subset covered |
-| `constant_weight` | `A(n,d,w)`, weight `w`, pairwise distance `>= d` |
 | `costas` | permutation, displacement vectors distinct |
 | `gf2_sidon` | `GF(2)^n` (A394031), all pairwise XORs distinct |
 | `union_free` | A347025, no member is a union of the others; lower bound |
 | `rook_directions` | A321531, distinct rook-pair direction classes; lower bound |
-| `linear_code` | `[n,k,d]_q` (q prime), min weight `>= claimed_d` |
 | `interval_product` | Erdős #1056, consecutive cuts with interval product `== 1 (mod p)` |
 | `balanced_coloring` | Erdős #617, every `(r+1)`-subset of `K_n` sees all `r` colors |
 | `crt_partial_cover` | Erdős #203, prime rows pinning orders of 2 and 3 on an affine line |
@@ -37,7 +32,6 @@ Every `kind` the crate accepts, in `enum Witness` order.
 | `binom_deficiency` | Erdős #1093, ELS93 deficiency `delta(N,k)` recomputed |
 | `binom_exception_enum` | Erdős #1094, candidate re-enumeration equals the claimed exception set |
 | `unsat_cert` | CNF plus an LRAT proof replayed to the empty clause (RUP only) |
-| `diff_triangle` | difference triangle set, all within-row differences globally distinct |
 | `unit_fraction_decomp` | Erdős #242, `4/n = 1/x + 1/y + 1/z` complete over `[3, n_max]` |
 | `distinct_partial_sums` | Erdős #475, distinct partial sums mod `p` for every nonempty subset |
 | `powerful_triples_none` | Erdős #364, no three consecutive powerful integers in `[1, n_max]` |
@@ -48,6 +42,12 @@ Every `kind` the crate accepts, in `enum Witness` order.
 Several kinds certify a **lower bound** or a **finite confirmation** rather
 than a universal statement; the per-variant documentation on `enum Witness`
 states which, and the verifier's own message repeats it.
+
+Twelve retained terminal accepted Erdős Claim records, spanning ten verifier
+families, predate exact evidence attachment and have empty `evidence` arrays.
+Their terminal witnesses and byte-identical archive replay justify keeping
+this compatibility surface; they do not prove the current exact
+Claim-to-artifact admission contract for those records.
 
 ## Witness format
 

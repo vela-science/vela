@@ -6,6 +6,7 @@ use crate::cli::{
 use crate::command_spec::*;
 use serde_json::{Value, json};
 use std::path::{Component, Path, PathBuf};
+use vela_protocol::canonical::sha256_root;
 use vela_protocol::proposal::ProposalV1;
 use vela_protocol::submission::SubmissionRecordV2;
 
@@ -68,8 +69,11 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                 }
                 fail_return(&error)
             });
-            let result = crate::repository_ops::import_verification(&repository, &record, &actor)
-                .unwrap_or_else(|error| fail_return(&error));
+            let result =
+                crate::verification::import(&repository, &record, &actor).unwrap_or_else(|error| {
+                    crate::ui::fail_if_recovery_required(&repository);
+                    fail_return(&error)
+                });
             print_verification_result(&result, "verification record", json);
         }
         VerifyAction::Import {
@@ -104,8 +108,11 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                             record.display()
                         ))
                     });
-            let result = crate::repository_ops::import_verification(&repository, &record, &actor)
-                .unwrap_or_else(|error| fail_return(&error));
+            let result =
+                crate::verification::import(&repository, &record, &actor).unwrap_or_else(|error| {
+                    crate::ui::fail_if_recovery_required(&repository);
+                    fail_return(&error)
+                });
             print_verification_result(&result, "verification import", json);
         }
     }
@@ -158,9 +165,8 @@ fn verified_repository_file(
     if !resolved.starts_with(&repository_root) {
         return Err(format!("{label} resolves outside the repository"));
     }
-    use sha2::{Digest, Sha256};
     let bytes = std::fs::read(&resolved).map_err(|error| format!("read {label}: {error}"))?;
-    let observed = format!("sha256:{}", hex::encode(Sha256::digest(&bytes)));
+    let observed = sha256_root(&bytes);
     if observed != expected_root {
         return Err(format!(
             "{label} content root does not match retained bytes"
@@ -538,43 +544,7 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
                 continue;
             }
         };
-        let mut outcome = witness.verify();
-        // Machine-checked novelty: a witness may declare `improves_on`
-        // (a sibling witness path relative to its own directory). The
-        // claim then verifies ONLY if it also strictly dominates the
-        // referenced witness — dominance is arithmetic, not opinion.
-        if outcome.ok
-            && let Ok(value) = vela_protocol::canonical::parse_json_value_strict(&raw)
-            && let Some(prior_rel) = value.get("improves_on").and_then(Value::as_str)
-        {
-            let prior_path = file
-                .parent()
-                .map(|d| d.join(prior_rel))
-                .unwrap_or_else(|| std::path::PathBuf::from(prior_rel));
-            match crate::bounded_file::read_bounded_file(
-                &prior_path,
-                WITNESS_MAX_BYTES,
-                "improves_on witness",
-            )
-            .map_err(|e| e.to_string())
-            .and_then(|p| parse_witness(&p))
-            .and_then(|prior| witness.dominates(&prior))
-            {
-                Ok(true) => {
-                    outcome.message =
-                        format!("{} · strictly improves on {prior_rel}", outcome.message);
-                }
-                Ok(false) => {
-                    outcome = vela_verify::VerifyResult::fail(format!(
-                        "claims improves_on {prior_rel} but does NOT strictly dominate it"
-                    ));
-                }
-                Err(e) => {
-                    outcome =
-                        vela_verify::VerifyResult::fail(format!("improves_on check failed: {e}"));
-                }
-            }
-        }
+        let outcome = witness.verify();
         if outcome.ok {
             passed += 1;
         } else {
@@ -646,7 +616,6 @@ pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output:
 #[cfg(test)]
 mod gate_tests {
     use super::*;
-    use sha2::{Digest, Sha256};
 
     // The exact-lane vouch gate. An adversarial review showed the prior vouch
     // (a "registered non-agent reviewer" signing a verifier_attachment.added
@@ -662,7 +631,7 @@ mod gate_tests {
         std::fs::create_dir(repository.path().join("records")).unwrap();
         let bytes = br#"{"schema":"fixture"}"#;
         std::fs::write(repository.path().join("records/witness.json"), bytes).unwrap();
-        let root = format!("sha256:{}", hex::encode(Sha256::digest(bytes)));
+        let root = sha256_root(bytes);
         let resolved = verified_repository_file(
             repository.path(),
             "fixture witness",
@@ -704,7 +673,7 @@ mod gate_tests {
         let proposal_bytes = br#"{"schema":"fixture-proposal"}"#;
         let proposal_path = "records/proposals/sha256/proposal.json";
         std::fs::write(repository.path().join(proposal_path), proposal_bytes).unwrap();
-        let proposal_root = format!("sha256:{}", hex::encode(Sha256::digest(proposal_bytes)));
+        let proposal_root = sha256_root(proposal_bytes);
 
         let implementation_bytes = b"#!/usr/bin/env python3\n";
         let implementation_path = "reproductions/example/replay.py";
@@ -713,10 +682,7 @@ mod gate_tests {
             implementation_bytes,
         )
         .unwrap();
-        let implementation_root = format!(
-            "sha256:{}",
-            hex::encode(Sha256::digest(implementation_bytes))
-        );
+        let implementation_root = sha256_root(implementation_bytes);
 
         std::fs::write(
             repository.path().join("reproductions/example/capsule.json"),

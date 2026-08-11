@@ -8,7 +8,6 @@ Standing, and Git preserves the exact repository history.
 
 ```bash
 vela status . --json
-vela next . --limit 1 --json
 
 vela submit --repo . \
   --claim "<bounded result>" \
@@ -49,7 +48,7 @@ init status claims submit show why review replay reproduce log
 | `submit` | Build or import one authenticated Submission and pending Proposal. |
 | `show` | Inspect one exact typed object and its authority effect. |
 | `why` | Explain one Claim's Standing from retained roots and history. |
-| `review` | List, show, accept, or reject one exact Proposal. |
+| `review` | Inspect the Inbox, list or show Proposals, or accept, reject, or withdraw one exact Proposal. |
 | `replay` | Verify repository structure, roots, replay, and authority. |
 | `reproduce` | Run retained evidence through its frozen verifier. |
 | `log` | Read admitted Event history. |
@@ -57,7 +56,7 @@ init status claims submit show why review replay reproduce log
 ## Advanced commands
 
 ```text
-verification correction authority
+verification correction recover authority
 ```
 
 - `why` also resolves a retained superseded Claim through covered authority
@@ -75,6 +74,14 @@ Advanced verification and integration:
   consequence (`depends` as `depends_on`, and `supports`) and reports every
   relation it excluded. See [Corrections](#corrections).
 
+Advanced maintenance:
+
+- `recover` resolves one exact interrupted repository transaction:
+  `vela recover --repo <PATH> <OPERATION_ID> [--json]`. A blocked write names
+  the operation ID and this next action. Recovery never chooses a journal by
+  directory order, resumes the interrupted semantic command, or publishes Git
+  state. See [Repository recovery](#repository-recovery).
+
 Advanced setup:
 
 - `authority` manages independently distributed repository-authority trust
@@ -84,9 +91,10 @@ Advanced setup:
   byte. See [Repository setup](#repository-setup). Writer initialization is
   `vela init`, not `authority`.
 
-Repository-owned domain adapters generate the optional tracked `targets.json`
-catalogue. `replay`, `next`, and `start` validate it; Vela has no separate
-Target Index maintenance command.
+Source-owning repositories and read products may expose exact next obligations
+and rooted work packets under their own contracts. Vela core owns no work
+catalogue or planner and publishes no `next`/`start` command pair. Those
+orientation surfaces are not Vela replay state and cannot change Standing.
 
 `vela help advanced` is the executable source for this grouping.
 
@@ -148,38 +156,21 @@ retained under `records/claims/` but holds no Standing and is not repository
 state; read those through `vela review list --status all` and
 `vela review show`.
 
-## Target briefing and Submissions
+## Source-local work and Submissions
 
-`vela next` returns a ranked Target Offer. `queue_position` is the Target's
-current place among open work; `rank` is its stable configured priority and may
-begin above one after earlier Targets close. Review work never enters that
-producer queue.
-
-`vela start` revalidates the selected Target and returns:
-
-- the exact target and packet;
-- the repository origin and root;
-- the Target Index root;
-- the source Git identity, explicitly labeled `target_index_source` so it is
-  not confused with the current `repository_head` reported by `status`;
-- the repository scope and declared verifier profile; and
-- the explicit boundary that evidence may enter review but only a human
-  Decision changes Standing.
-
-It writes no file, lease, run record, counter, budget, Event, or canonical object
-and reads no authority key.
-
-The default remains one short command:
-
-```bash
-vela start <target> --json
-```
+A source-owning Repository, workbench, or read product may rank bounded work
+and publish an exact packet, verifier profile, and completion contract. It owns
+the schema, freshness check, and user-facing command for that projection. Vela
+does not select or brief the work and `vela replay` does not validate an
+external work catalogue.
 
 Vela does not select, launch, wrap, meter, or schedule a runner. The producer
 uses its native agent, workbench, notebook, proof assistant, or laboratory
 system. Harbor owns benchmark execution. Those systems may retain their own
 run or attempt identities as ordinary provenance, but Vela does not create or
-authorize them.
+authorize them. When all four execution-binding roots are available, `submit`
+can retain the source-local packet, profile, verifier-capsule, and result-contract
+roots as producer-declared provenance; those roots grant no authority.
 
 When a producer supersedes or abandons its own still-pending Proposal, it can
 remove that item from human review without invoking repository authority:
@@ -197,8 +188,8 @@ accepted Standing.
 
 `vela status` is the compact repository summary. Its `decision_inbox` projection
 reports pending, ready, and blocked consequence counts plus rooted projection
-identities. The suggested next action may inspect the Inbox or select and
-brief the next Target; it never accepts or rejects Standing.
+identities. Its work action points to direct Submission; a review action may
+point to the Inbox. Neither accepts or rejects Standing.
 
 `vela review inbox --json` returns `vela.decision-inbox.v2`. Each rooted entry
 contains one explicit `standing_delta`: the affected Claim IDs, accepted
@@ -229,7 +220,7 @@ vela submit --repo . \
   --json
 ```
 
-An observed correction or supersession does not need a synthetic work target.
+An observed correction or supersession does not need a separate planning object.
 New Claims are signed and submitted directly. Submission creates a pending
 Proposal and cannot decide it.
 
@@ -288,11 +279,12 @@ vela review show . <vpr_id> --json
 objects. Each entry binds the Proposal, Claim, Submission, Verification set,
 policy, authority heads, hypothetical accept/reject repository roots, limits,
 blockers, and one deterministic entry root. It writes nothing and cannot
-accept or reject. It classifies exact-target Verification Records as
-requirement-satisfying, complementary, or blocking using the same predicate as
-the protocol gate. Complementary evidence stays visible and root-bound but
-does not silently satisfy the registered requirement. `review list` remains
-the compact record queue; `review show` remains the complete source packet.
+accept or reject. It classifies Verification Records whose exact subjects match
+the Proposal as requirement-satisfying, complementary, or blocking using the
+same predicate as the protocol gate. Complementary evidence stays visible and
+root-bound but does not silently satisfy the registered requirement. The
+compact record queue remains `review list`; `review show` remains the complete
+source packet.
 Entries whose protocol checks are satisfied appear before blocked cleanup;
 each group remains oldest-first. `status` reports `protocol_ready_count` and
 `protocol_blocked_count`; neither field is a scientific recommendation.
@@ -353,10 +345,10 @@ it does not move the answer; the projection is over the transition and the two
 Claim roots, and none of those change when a Decision is recorded.
 
 The projection reads the two relation kinds that carry consequence. `depends`
-is a hard dependency — correcting its target puts the source under a repair
-obligation. `supports` is a support route — a source that loses every route it
-had is under a repair obligation too, and one that loses some but not all is
-reported as `route_changed`. Every other relation kind is retained description
+is a hard dependency — correcting the Claim it points to puts the source under
+a repair obligation. `supports` is a support route — a source that loses every
+route it had is under a repair obligation too, and one that loses some but not
+all is reported as `route_changed`. Every other relation kind is retained description
 that moves no Standing, and the verb reports each one it excluded by kind and
 count rather than dropping it silently.
 
@@ -374,7 +366,10 @@ per obligation which of the two it used.
 `depends` and `supports` claim-to-claim edges exist in retained epoch-1 records
 but no current verb writes one, so a repository built with today's CLI has no
 edge for this projection to traverse and correctly reports an empty cascade.
-Closing that is a change to the signed Submission schema and is not made here.
+ADR 0043 now tests one exact, source-owned `requires` profile outside the
+protocol before considering any signed Submission change. That experiment does
+not make the CLI author an edge or turn this projection into a demonstrated
+current-Repository cascade.
 
 ## Repository setup
 
@@ -392,6 +387,16 @@ OpenSSH agent, installs the repository origin and local trust anchor, and
 commits the verified initial state. If signing fails, the Profile is retained;
 load the key and rerun the same `vela init` command. Use `--key` when the agent
 contains more than one Ed25519 identity.
+
+If the recoverable genesis transaction completed but the process stopped before
+its parentless Git commit or local trust pin, rerun the exact `vela init` with
+the retained `--key` fingerprint and `--reason`. Vela verifies the complete
+sequence-one record, signed read-set commitment, exact Completed journal delta,
+deterministic scaffold, operating-system account, and private journal census,
+then performs only the missing deterministic Git and trust tail. It does not
+contact a signer, create another authority record, or rerun the transaction.
+An interrupted nonterminal transaction still requires the explicit `vela
+recover` action first; `init` never auto-recovers it.
 
 Independent consumers install the returned sequence-one authority-record root after
 obtaining it through a separate channel:
@@ -427,6 +432,63 @@ The command verifies the current manifest, native-genesis or signed-predecessor
 origin, retained authority chain, exact object roots, and rejection of retired
 active paths. The one-time migration writer is not part of the current binary.
 
+## Repository recovery
+
+Canonical writes never auto-recover an interrupted transaction. One valid
+unfinished transaction stops them with the stable `repository_incomplete` code
+and an exact next action:
+
+```bash
+vela recover --repo <PATH> <OPERATION_ID> [--json]
+```
+
+The explicit operation ID binds operator intent to one journal. Under the
+repository-wide lock, recovery has four successful outcomes:
+
+- `aborted_prepared` — the journal was exactly Prepared and its commit marker
+  was definitely absent, so the uncommitted transaction was aborted;
+- `completed` — a valid durable marker authorized policy-free installation and
+  completion of the exact transaction;
+- `already_completed` — the named journal was already terminal; and
+- `already_aborted` — the named journal was already terminal.
+
+Malformed or unreadable markers are never treated as absent. A mismatched
+canonical root, retained Profile identity, or journal binding; a corrupt or
+missing blob; a postimage conflict; a nonregular or substituted path;
+inconsistent state; or an ambiguous incomplete-journal set fails closed. A
+valid marker is sufficient to finish its exact idempotent filesystem
+installation; recovery does not reacquire a signer, repository-authority
+policy, Decision, or serialized permission.
+
+The command reports `vela.recover-result.v1` in JSON mode: repository path and
+identity, operation ID, prior recovery state, closed outcome,
+`repository_blocked_after`, a closed `continuation_status` of
+`not_applicable`, `exact_init_available`, or `blocked`, and `next_command` only
+when one exact action is available. A blocked advisory additionally carries the
+fixed code `native_genesis_continuation_unverified` and a bounded diagnostic;
+it does not turn successful filesystem recovery into an error or set the
+durable repository barrier. The command stops after that one recovery outcome:
+it does not run a new scientific operation or create, move, or publish a Git
+ref. Completed and Aborted journals can be named again without changing
+semantic state. A routine completed result names
+`git -C <PATH> status --short` as the next inspection.
+When the exact Completed operation is a fully verified native genesis whose
+deterministic Git/trust tail can be continued or confirmed idempotently, the
+result instead names the executable continuation, including the retained key
+fingerprint and exact reason:
+
+```bash
+vela init <PATH> --key <FINGERPRINT> --reason <EXACT_REASON> --json
+```
+
+That later `init` invocation verifies and publishes the deterministic genesis
+tail; recovery itself never does. If advisory proof of that continuation is
+unavailable after recovery succeeds, the result reports `blocked`, omits
+`next_command`, and preserves the Completed transaction for repair rather than
+falling back to the routine Git-status hint. Read-only commands such as
+`status`, `show`, `why`, `log`, `replay`, and `reproduce` remain read-only even
+while recovery is required.
+
 ## Machine contracts
 
 - `status --json` returns compact identity, full roots, replay, blocker counts,
@@ -434,11 +496,9 @@ active paths. The one-time migration writer is not part of the current binary.
 - `claims --json` returns one page of the repository claim index, with the
   Standing and origin era of each row and an explicit count of rows whose
   retained bytes could not be read.
-- `next --json` returns ranked producer Targets only.
-- `start --json` returns one exact write-free Target briefing.
 - `review list --json` returns compact Proposal summaries.
 - `review inbox --json` returns rooted consequence-only decision summaries
-  with an explicit target-scoped Standing delta.
+  with an explicit Claim-scoped Standing delta.
 - `review show --json` returns one pending Proposal or terminal Decision.
 
 Default JSON does not embed full packet bodies, review collections, private
@@ -446,7 +506,7 @@ coordination, test telemetry, or secret material.
 
 Every `--json` outcome, success or failure, is one object carrying `ok`,
 `command`, and a versioned `schema`. A failure is `vela.error.v1` and carries an
-`error` with a `kind`, a `code`, a message, and a hint naming the next command.
+`error` with a `kind`, a `code`, a message, and a nullable hint.
 
 The failure fields have different contracts, and mixing them up is
 how a caller ends up parsing English:
@@ -486,11 +546,16 @@ Canonical writes refuse:
 - dirty or drifting inputs;
 - missing or mismatched trust roots;
 - broken authority continuity;
-- stale Proposals, Claims, Targets, or Artifacts;
+- stale Proposals, Claims, or Artifacts;
 - insufficient verification;
 - ambiguous principal or authorization;
 - invalid signatures;
 - active or corrupt recovery state; and
 - a changed read set before commit.
+
+For an unfinished valid transaction, the failure uses code
+`repository_incomplete` and names the exact recovery action shown above.
+Corrupt or ambiguous recovery state fails closed and is never converted into
+permission to abort or complete a different operation.
 
 See [Authority and attribution](SIGNING.md) and [Protocol](PROTOCOL.md).

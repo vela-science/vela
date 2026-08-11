@@ -1,0 +1,123 @@
+{
+  "schema": "vela.claim-dependency-profile-expected.v0",
+  "profile_canonical_root": "sha256:ddba810d3c43806a922d82baa5d32fc9e0321578d6f69393401b648479066675",
+  "state_canonical_root": "sha256:3e41d31836c04a379efe800325673230473f576e66518e42497cef6462241a54",
+  "projection_canonical_root": "sha256:919837d282fcee0d9df98d2fa4a8969a1f540a60fa99f563a50edca651d7e688",
+  "projection": {
+    "schema": "vela.claim-dependency-projection.v0",
+    "experiment_id": "synthetic-counterfactual-erdos-321-v0",
+    "profile_canonical_root": "sha256:ddba810d3c43806a922d82baa5d32fc9e0321578d6f69393401b648479066675",
+    "state_canonical_root": "sha256:3e41d31836c04a379efe800325673230473f576e66518e42497cef6462241a54",
+    "overall_status": "review_required",
+    "claims": [
+      {
+        "label": "B",
+        "claim_id": "vcl_292d344d9746bd45037fce522b12fcb540f7585890f3314abf08b419bedec465",
+        "claim_root": "sha256:71386c75ce1e7e492e58877e85e5d083c99435d3e10bafa7dd0749d1d1fc9d0f",
+        "dependency_status": "review_required",
+        "evidence": [
+          {
+            "code": "target_retired",
+            "target_claim_id": "vcl_24878e1c6851b4e5bf7162efb5dff159ae5eff6174d2c521a0c009799d11c247"
+          }
+        ],
+        "repair_layer": 0
+      },
+      {
+        "label": "D",
+        "claim_id": "vcl_5c757e7a95614bff07d1200249b51333362e1511e011c8caac7072ce79728926",
+        "claim_root": "sha256:5faf7336e27e9a62d8d6b1ff7ab5d394e03fde555813b9b1d874c574affc203c",
+        "dependency_status": "satisfied",
+        "evidence": [],
+        "repair_layer": null
+      },
+      {
+        "label": "E",
+        "claim_id": "vcl_3c007818aa5e90103ba3c831a0c666a8c12d77da23677665a520d75e46b2f388",
+        "claim_root": "sha256:c40ad51eb5cd076e5b053ff68e05a39ebfc0c35a7e66a132ab8a521a05582024",
+        "dependency_status": "review_required",
+        "evidence": [
+          {
+            "code": "transitive_review_required",
+            "target_claim_id": "vcl_292d344d9746bd45037fce522b12fcb540f7585890f3314abf08b419bedec465"
+          }
+        ],
+        "repair_layer": 1
+      }
+    ],
+    "sets": {
+      "satisfied": [
+        "D"
+      ],
+      "review_required": [
+        "B",
+        "E"
+      ],
+      "incomplete": [],
+      "unaffected": [
+        "D"
+      ],
+      "stale_verifications": [
+        "fixture:V_B",
+        "fixture:V_E"
+      ],
+      "repair_required": [
+        "B",
+        "E"
+      ]
+    },
+    "repair_obligations": [
+      {
+        "label": "B",
+        "repair_layer": 0,
+        "obligation_root": "sha256:54bfe85f9a96c08016144c2238bf24ccb1b973ca21e7c2fef755f35c5fb497dd",
+        "claim_id": "vcl_292d344d9746bd45037fce522b12fcb540f7585890f3314abf08b419bedec465",
+        "claim_root": "sha256:71386c75ce1e7e492e58877e85e5d083c99435d3e10bafa7dd0749d1d1fc9d0f",
+        "evidence": [
+          {
+            "code": "target_retired",
+            "target_claim_id": "vcl_24878e1c6851b4e5bf7162efb5dff159ae5eff6174d2c521a0c009799d11c247"
+          }
+        ],
+        "discharge_condition": "Re-establish every exact requires edge against current accepted targets, narrow the Claim, or retract it."
+      },
+      {
+        "label": "E",
+        "repair_layer": 1,
+        "obligation_root": "sha256:d1b6b7c02f1ff769fa55bf98171cf7b5e995a826cca95c05915afd39d5bb5c7b",
+        "claim_id": "vcl_3c007818aa5e90103ba3c831a0c666a8c12d77da23677665a520d75e46b2f388",
+        "claim_root": "sha256:c40ad51eb5cd076e5b053ff68e05a39ebfc0c35a7e66a132ab8a521a05582024",
+        "evidence": [
+          {
+            "code": "transitive_review_required",
+            "target_claim_id": "vcl_292d344d9746bd45037fce522b12fcb540f7585890f3314abf08b419bedec465"
+          }
+        ],
+        "discharge_condition": "Re-establish every exact requires edge against current accepted targets, narrow the Claim, or retract it."
+      }
+    ],
+    "repair_batches": [
+      {
+        "batch": 1,
+        "repair_layer": 0,
+        "labels": [
+          "B"
+        ],
+        "obligation_roots": [
+          "sha256:54bfe85f9a96c08016144c2238bf24ccb1b973ca21e7c2fef755f35c5fb497dd"
+        ]
+      },
+      {
+        "batch": 2,
+        "repair_layer": 1,
+        "labels": [
+          "E"
+        ],
+        "obligation_roots": [
+          "sha256:d1b6b7c02f1ff769fa55bf98171cf7b5e995a826cca95c05915afd39d5bb5c7b"
+        ]
+      }
+    ],
+    "authority_effect": "none"
+  }
+}

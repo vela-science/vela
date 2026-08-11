@@ -5,7 +5,7 @@ Status: current pre-1.0 boundary.
 Vela records a narrow chain of scientific state:
 
 ```text
-Target -> native run -> Submission -> Verification -> Decision -> Standing
+native run -> Submission -> Verification Record -> Decision -> Event -> Standing
 ```
 
 It does not decide whether science is true. It preserves the exact objects,
@@ -95,7 +95,7 @@ A Submission is an authenticated producer package:
 
 ```text
 s = (
-  target,
+  requested change,
   requested Claim,
   artifacts,
   conditions,
@@ -168,7 +168,7 @@ atomically commits:
 - the semantic Decision event;
 - the repository manifest;
 - the authority record and its exact write-set root; and
-- the recoverable publication journal.
+- the recoverable repository transaction journal.
 
 Cancellation or drift writes nothing. Verification never selects the Decision.
 
@@ -203,16 +203,19 @@ with explicit relations to the earlier record.
 
 ### Derived-state non-authority
 
-Targets, rankings, graphs, search indexes, web projections, packets, summaries,
-and caches are rebuildable readers. They can suggest work but cannot change
-Standing.
+Source-local next obligations, rankings, graphs, search indexes, web
+projections, packets, summaries, and caches are rebuildable readers. They can
+suggest work but cannot change Standing. Vela core owns no work catalogue.
 
 ### Transaction and publication separation
 
-The scientific transaction first creates an exact candidate repository state.
-Git publication then moves the intended ref only if its expected head still
-matches. A push failure cannot change the semantic outcome, and the recovery
-journal preserves the exact publication operation.
+The scientific transaction first installs an exact candidate repository state
+through its private journal. Explicit recovery may abort an uncommitted
+Prepared journal or finish the exact installation authorized by a valid commit
+marker. It never moves a Git ref. Git publication is a separate step and moves
+the intended ref only if its expected head still matches. A publication
+failure cannot change the semantic outcome and is not converted into implicit
+repository recovery.
 
 ## 7. Conformance
 

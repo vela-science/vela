@@ -10,4 +10,3 @@ pub mod canonical;
 pub mod dsse;
 pub mod events;
 pub mod principal;
-pub mod sign;

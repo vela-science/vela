@@ -536,8 +536,8 @@ fn derive_entry(inputs: EntryInputs<'_>) -> Result<DecisionInboxEntry, String> {
         },
         next_obligation: DecisionInboxNextObligation {
             now,
-            if_accept: "Replay the accepted successor repository, recompute derived Target obligations, and expose the exact next valid Target.".into(),
-            if_reject: "Replay the rejected successor repository and expose the next valid Target without changing accepted Standing.".into(),
+            if_accept: "Replay the accepted successor repository; source-owning repositories and read products may then recompute exact next obligations.".into(),
+            if_reject: "Replay the rejected successor repository; source-owning repositories and read products may then recompute exact next obligations without changing accepted Standing.".into(),
         },
         entry_root: String::new(),
     };
@@ -1129,8 +1129,29 @@ mod tests {
         .unwrap()
     }
 
-    #[test]
-    fn ready_entry_binds_exact_inputs_and_hypothetical_standing() {
+    struct ReadyAddFixture {
+        requirement: &'static str,
+        subject: ClaimRecordV1,
+        submission: SubmissionRecordV2,
+        proposal: ProposalV1,
+        verification: VerificationRecordEnvelopeV2,
+        repository: RepositoryV4,
+    }
+
+    impl ReadyAddFixture {
+        fn default_entry(&self) -> DecisionInboxEntry {
+            derive_fixture(
+                &self.repository,
+                &self.proposal,
+                &self.subject,
+                &self.submission,
+                &self.verification,
+                &heads(),
+            )
+        }
+    }
+
+    fn ready_add_fixture() -> ReadyAddFixture {
         let requirement = "Replay the exact fixture.";
         let subject = claim("A bounded fixture result.", 1, Vec::new());
         let submission = submission(requirement);
@@ -1143,14 +1164,20 @@ mod tests {
             &submission,
             &verification,
         );
-        let entry = derive_fixture(
-            &repository,
-            &proposal,
-            &subject,
-            &submission,
-            &verification,
-            &heads(),
-        );
+        ReadyAddFixture {
+            requirement,
+            subject,
+            submission,
+            proposal,
+            verification,
+            repository,
+        }
+    }
+
+    #[test]
+    fn ready_entry_binds_exact_inputs_and_hypothetical_standing() {
+        let fixture = ready_add_fixture();
+        let entry = fixture.default_entry();
 
         assert_eq!(
             entry.readiness.protocol_gate,
@@ -1161,22 +1188,25 @@ mod tests {
         assert!(entry.readiness.blockers.is_empty());
         assert!(
             crate::repository_decision::require_acceptance_evidence(
-                &submission,
-                &[(verification.root.clone(), verification.clone())],
+                &fixture.submission,
+                &[(
+                    fixture.verification.root.clone(),
+                    fixture.verification.clone(),
+                )],
             )
             .is_ok()
         );
         assert_eq!(entry.standing_delta.scope.kind, "proposal_affected_claims");
         assert_eq!(
             entry.standing_delta.scope.affected_claim_ids,
-            vec![subject.claim_id.clone()]
+            vec![fixture.subject.claim_id.clone()]
         );
         assert!(entry.standing_delta.before.accepted.is_empty());
         assert_eq!(
             entry.standing_delta.if_accept.accepted,
             vec![AcceptedStanding {
-                claim_id: subject.claim_id.clone(),
-                claim_root: subject.canonical_root().unwrap(),
+                claim_id: fixture.subject.claim_id.clone(),
+                claim_root: fixture.subject.canonical_root().unwrap(),
             }]
         );
         assert!(entry.standing_delta.if_reject.accepted.is_empty());
@@ -1192,11 +1222,15 @@ mod tests {
         );
         assert_eq!(
             entry.inputs.proposal_root,
-            proposal.canonical_root().unwrap()
+            fixture.proposal.canonical_root().unwrap()
         );
         assert_eq!(
             entry.inputs.verification_set_root,
-            verification_set_root(&[(verification.root.clone(), verification.clone())]).unwrap()
+            verification_set_root(&[(
+                fixture.verification.root.clone(),
+                fixture.verification.clone(),
+            )])
+            .unwrap()
         );
         assert_eq!(entry.entry_root, entry_root(&entry).unwrap());
         assert_eq!(entry.authority_heads, heads());
@@ -1206,32 +1240,14 @@ mod tests {
         );
         assert_eq!(
             entry.verification_records[0].satisfies_requirements,
-            vec![requirement]
+            vec![fixture.requirement]
         );
     }
 
     #[test]
     fn inbox_places_actionable_decisions_before_blocked_cleanup() {
-        let requirement = "Replay the exact fixture.";
-        let subject = claim("A bounded fixture result.", 1, Vec::new());
-        let submission = submission(requirement);
-        let proposal = proposal("claim.add", &subject, &submission);
-        let verification = verification(&proposal, &submission, requirement, "pass");
-        let repository = repository(
-            Vec::new(),
-            vec![claim_standing(&subject, "pending_review")],
-            &proposal,
-            &submission,
-            &verification,
-        );
-        let mut ready = derive_fixture(
-            &repository,
-            &proposal,
-            &subject,
-            &submission,
-            &verification,
-            &heads(),
-        );
+        let fixture = ready_add_fixture();
+        let mut ready = fixture.default_entry();
         ready.proposal_id = "vpr_ready000000000".into();
         ready.created_at = "2026-07-31T01:00:00Z".into();
 
@@ -1249,43 +1265,25 @@ mod tests {
 
     #[test]
     fn review_context_embeds_the_matching_root_bound_entry() {
-        let requirement = "Replay the exact fixture.";
-        let subject = claim("A bounded fixture result.", 1, Vec::new());
-        let submission = submission(requirement);
-        let proposal = proposal("claim.add", &subject, &submission);
-        let verification = verification(&proposal, &submission, requirement, "pass");
-        let repository = repository(
-            Vec::new(),
-            vec![claim_standing(&subject, "pending_review")],
-            &proposal,
-            &submission,
-            &verification,
-        );
-        let entry = derive_fixture(
-            &repository,
-            &proposal,
-            &subject,
-            &submission,
-            &verification,
-            &heads(),
-        );
+        let fixture = ready_add_fixture();
+        let entry = fixture.default_entry();
         let mut projection = DecisionInboxProjection {
             schema: PROJECTION_SCHEMA.into(),
-            repository_id: repository.repository_id.clone(),
-            repository_root: repository.canonical_root().unwrap(),
+            repository_id: fixture.repository.repository_id.clone(),
+            repository_root: fixture.repository.canonical_root().unwrap(),
             order: "protocol_ready_first_then_created_at_asc_then_proposal_id".into(),
             entries: vec![entry.clone()],
             projection_root: String::new(),
         };
         projection.projection_root = projection_root(&projection).unwrap();
 
-        let context = review_context_from_projection(&projection, &proposal.id());
+        let context = review_context_from_projection(&projection, &fixture.proposal.id());
         assert_eq!(context["projection_root"], projection.projection_root);
         assert_eq!(context["entry"]["entry_root"], entry.entry_root);
         assert_eq!(context["entry"]["readiness"]["protocol_gate"], "satisfied");
         assert_eq!(
             context["entry"]["standing_delta"]["if_accept"]["accepted"][0]["claim_id"],
-            subject.claim_id
+            fixture.subject.claim_id
         );
         assert_eq!(context["entry"]["staleness"]["state"], "current");
         assert!(
@@ -1384,27 +1382,19 @@ mod tests {
 
     #[test]
     fn same_execution_wording_retry_blocks_acceptance_without_hiding_rejection() {
-        let requirement = "Replay the exact fixture.";
-        let subject = claim("A bounded fixture result.", 1, Vec::new());
-        let submission = submission(requirement);
-        let proposal = proposal("claim.add", &subject, &submission);
-        let verification = verification(&proposal, &submission, requirement, "pass");
-        let repository = repository(
-            Vec::new(),
-            vec![claim_standing(&subject, "pending_review")],
-            &proposal,
-            &submission,
-            &verification,
-        );
-        let proposal_reference = repository.proposals.first().unwrap();
+        let fixture = ready_add_fixture();
+        let proposal_reference = fixture.repository.proposals.first().unwrap();
         let entry = derive_entry(EntryInputs {
-            repository: &repository,
-            repository_root: &repository.canonical_root().unwrap(),
+            repository: &fixture.repository,
+            repository_root: &fixture.repository.canonical_root().unwrap(),
             proposal_reference,
-            proposal: &proposal,
-            claim: &subject,
-            submission: &submission,
-            verifications: &[(verification.root.clone(), verification)],
+            proposal: &fixture.proposal,
+            claim: &fixture.subject,
+            submission: &fixture.submission,
+            verifications: &[(
+                fixture.verification.root.clone(),
+                fixture.verification.clone(),
+            )],
             pending_conflicts: &["vpr_correctedwording".into()],
             authority_heads: &heads(),
         })
@@ -1542,51 +1532,33 @@ mod tests {
 
     #[test]
     fn every_authority_head_changes_the_entry_root_and_marks_old_links_stale() {
-        let requirement = "Replay the exact fixture.";
-        let subject = claim("A bounded fixture result.", 1, Vec::new());
-        let submission = submission(requirement);
-        let proposal = proposal("claim.add", &subject, &submission);
-        let verification = verification(&proposal, &submission, requirement, "pass");
-        let repository = repository(
-            Vec::new(),
-            vec![claim_standing(&subject, "pending_review")],
-            &proposal,
-            &submission,
-            &verification,
-        );
-        let baseline = derive_fixture(
-            &repository,
-            &proposal,
-            &subject,
-            &submission,
-            &verification,
-            &heads(),
-        );
+        let fixture = ready_add_fixture();
+        let baseline = fixture.default_entry();
 
         let mut changed_entries = Vec::new();
-        let mut changed_repository = repository.clone();
+        let mut changed_repository = fixture.repository.clone();
         changed_repository.authority_model_root = root('7');
         let mut changed_heads = heads();
         changed_heads.policy_bundle_root = root('7');
         changed_entries.push(derive_fixture(
             &changed_repository,
-            &proposal,
-            &subject,
-            &submission,
-            &verification,
+            &fixture.proposal,
+            &fixture.subject,
+            &fixture.submission,
+            &fixture.verification,
             &changed_heads,
         ));
 
-        let mut changed_repository = repository.clone();
+        let mut changed_repository = fixture.repository.clone();
         changed_repository.authority_keyset_root = root('8');
         let mut changed_heads = heads();
         changed_heads.authority_keyset_root = root('8');
         changed_entries.push(derive_fixture(
             &changed_repository,
-            &proposal,
-            &subject,
-            &submission,
-            &verification,
+            &fixture.proposal,
+            &fixture.subject,
+            &fixture.submission,
+            &fixture.verification,
             &changed_heads,
         ));
 
@@ -1597,11 +1569,11 @@ mod tests {
             let mut changed_heads = heads();
             mutate(&mut changed_heads);
             changed_entries.push(derive_fixture(
-                &repository,
-                &proposal,
-                &subject,
-                &submission,
-                &verification,
+                &fixture.repository,
+                &fixture.proposal,
+                &fixture.subject,
+                &fixture.submission,
+                &fixture.verification,
                 &changed_heads,
             ));
         }
@@ -1617,26 +1589,8 @@ mod tests {
 
     #[test]
     fn every_scientific_input_root_is_part_of_entry_identity() {
-        let requirement = "Replay the exact fixture.";
-        let subject = claim("A bounded fixture result.", 1, Vec::new());
-        let submission = submission(requirement);
-        let proposal = proposal("claim.add", &subject, &submission);
-        let verification = verification(&proposal, &submission, requirement, "pass");
-        let repository = repository(
-            Vec::new(),
-            vec![claim_standing(&subject, "pending_review")],
-            &proposal,
-            &submission,
-            &verification,
-        );
-        let baseline = derive_fixture(
-            &repository,
-            &proposal,
-            &subject,
-            &submission,
-            &verification,
-            &heads(),
-        );
+        let fixture = ready_add_fixture();
+        let baseline = fixture.default_entry();
 
         for mutate in [
             |entry: &mut DecisionInboxEntry| entry.inputs.repository_root = root('7'),
@@ -1653,26 +1607,8 @@ mod tests {
 
     #[test]
     fn decision_limits_do_not_repeat_verification_scope() {
-        let requirement = "Replay the exact fixture.";
-        let subject = claim("A bounded fixture result.", 1, Vec::new());
-        let submission = submission(requirement);
-        let proposal = proposal("claim.add", &subject, &submission);
-        let verification = verification(&proposal, &submission, requirement, "pass");
-        let repository = repository(
-            Vec::new(),
-            vec![claim_standing(&subject, "pending_review")],
-            &proposal,
-            &submission,
-            &verification,
-        );
-        let entry = derive_fixture(
-            &repository,
-            &proposal,
-            &subject,
-            &submission,
-            &verification,
-            &heads(),
-        );
+        let fixture = ready_add_fixture();
+        let entry = fixture.default_entry();
 
         assert_eq!(entry.requested_decision, "accept_or_reject");
         assert_eq!(entry.staleness.state, "current");

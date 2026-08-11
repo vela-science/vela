@@ -2,8 +2,8 @@
 //!
 //! The writer composes authority records, runtime authentication, and the
 //! existing recoverable repository transaction without introducing a second
-//! journal. Routine work leases and the narrow governed work-policy rotation
-//! use this same core.
+//! journal. Fresh repository initialization and exact human Decisions use this
+//! same core.
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -15,7 +15,6 @@ use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 use vela_authority::runtime_authentication::{
     AuthenticationAdapter, AuthenticationRequest, AuthorityPreflightFailure, RuntimeSessionState,
     preflight_authority_action,
@@ -26,25 +25,23 @@ use vela_protocol::authority::{
     AuthorityEventV1, AuthorityKeysetV1, AuthorityRecordContentV1, AuthorityRecordV1,
     AuthorizationClaimV1, DsseSignatureV1, ExecutionClaimV1, ObjectDeltaV1, PrincipalSnapshotV1,
     SemanticApprovalV1, authority_envelope, verify_authority_envelope,
-    verify_authority_keyset_transition,
 };
 use vela_protocol::authority_history::{
-    AUTHORITY_CLOSE_ACTION, AUTHORITY_CLOSED_EVENT_KIND, AUTHORITY_INITIALIZE_ACTION,
-    AUTHORITY_INITIALIZED_EVENT_KIND, AUTHORITY_MODEL_UPDATE_ACTION, AUTHORITY_ROTATE_ACTION,
-    AuthorityCloseV1, AuthorityHistoryEra, AuthorityHistoryInput, AuthorityHistoryVerification,
-    AuthorityInitializationV1, authority_event_log_root, verify_authority_history,
+    AUTHORITY_INITIALIZE_ACTION, AUTHORITY_INITIALIZED_EVENT_KIND, AuthorityHistoryEra,
+    AuthorityHistoryInput, AuthorityHistoryVerification, AuthorityInitializationV1,
+    authority_event_log_root, verify_authority_history,
 };
 use vela_protocol::authorization::{
     AuthorityActionV1, AuthorizationModelV1, AuthorizationRequestV1,
-    verify_authorization_model_transition,
 };
+use vela_protocol::canonical::sha256_root;
 use vela_protocol::canonical::to_canonical_bytes;
 #[cfg(test)]
 use vela_protocol::events::event_log_hash;
 use vela_protocol::events::{EventKind, StateActor, StateTarget};
 use vela_protocol::principal::HUMAN_ONLY_AUTHORITY_ACTIONS_V1;
 
-use crate::repository_txn::{
+use vela_repository::{
     CanonicalWriteBarrier, ContentDigest, DeltaDraft, InputBinding, OperationId, OperationKind,
     PlannedWrite, RepoPath, RepositoryBinding, RepositoryTxn, RepositoryTxnError,
     RepositoryTxnPlan, RepositoryTxnPlanSpec, WriteClass,
@@ -53,9 +50,9 @@ use crate::repository_txn::{
 const TRANSACTION_ID_SCHEMA: &str = "vela.authority-transaction-id.internal.v1";
 const READ_SET_SCHEMA: &str = "vela.authority-read-set.internal.v1";
 const WRITE_SET_SCHEMA: &str = "vela.authority-write-set.internal.v1";
-const LAYOUT_SCHEMA: &str = "vela.authority-layout.internal.v2";
-const RESULT_SCHEMA: &str = "vela.authority-transaction-result.internal.v1";
-const OPERATION_DOMAIN: &str = "authority_transaction";
+pub(crate) const RESULT_SCHEMA: &str = "vela.authority-transaction-result.internal.v1";
+pub(crate) const OPERATION_DOMAIN: &str = "authority_transaction";
+pub(crate) const REPOSITORY_OPERATION_KIND: &str = "decision";
 
 /// Complete verified-history input for the next transaction.
 ///
@@ -92,25 +89,13 @@ pub(crate) struct AuthorityEventDraft {
 /// Canonical non-event postimage covered by the same authority transaction.
 ///
 /// `None` deletes an existing object. The writer derives before/after roots
-/// from the held repository and refuses no-ops, duplicate paths, derived views,
-/// private coordination, retired protocol paths, or covering-record paths.
+/// from the held repository and refuses no-ops, duplicate paths, private
+/// coordination, retired protocol paths, or covering-record paths.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub(crate) struct AuthorityObjectDraft {
     pub(crate) path: String,
     pub(crate) object_kind: String,
     pub(crate) class: WriteClass,
-    pub(crate) postimage: Option<Vec<u8>>,
-}
-
-/// Non-authoritative materialized postimage installed by the same recoverable
-/// transaction as its covering canonical change.
-///
-/// Derived bytes are bound to the journal and its active recovery checks, but
-/// do not enter the signed scientific object delta or authority write-set
-/// root. `None` deletes an obsolete derived file.
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct AuthorityDerivedDraft {
-    pub(crate) path: String,
     pub(crate) postimage: Option<Vec<u8>>,
 }
 
@@ -127,9 +112,6 @@ pub(crate) struct AuthorityTransactionRequest {
     pub(crate) semantic_approvals: Vec<SemanticApprovalV1>,
     pub(crate) event_drafts: Vec<AuthorityEventDraft>,
     pub(crate) object_drafts: Vec<AuthorityObjectDraft>,
-    pub(crate) derived_drafts: Vec<AuthorityDerivedDraft>,
-    pub(crate) next_authority_keyset: Option<AuthorityKeysetV1>,
-    pub(crate) next_authorization_model: Option<AuthorizationModelV1>,
     pub(crate) read_set: Vec<InputBinding>,
     pub(crate) vela_version: String,
     pub(crate) binary_sha256: String,
@@ -180,7 +162,7 @@ pub(crate) struct PreparedAuthorityTransaction {
 impl PreparedAuthorityTransaction {
     pub(crate) fn resolved_public_writes(
         &self,
-    ) -> Result<Vec<crate::repository_txn::ResolvedWrite>, AuthorityTransactionError> {
+    ) -> Result<Vec<vela_repository::ResolvedWrite>, AuthorityTransactionError> {
         self.transaction
             .resolved_public_writes()
             .map_err(AuthorityTransactionError::Transaction)
@@ -264,29 +246,13 @@ where
     A: AuthenticationAdapter,
     S: RepositoryAuthoritySigner + ?Sized,
 {
-    if request.event_drafts.is_empty()
-        && request.object_drafts.is_empty()
-        && request.next_authority_keyset.is_none()
-        && request.next_authorization_model.is_none()
-    {
+    if request.event_drafts.is_empty() && request.object_drafts.is_empty() {
         return Err(AuthorityTransactionError::Invalid(
-            "authority transaction intent changes no event, object, keyset, or policy bundle"
-                .into(),
-        ));
-    }
-    if request
-        .next_authority_keyset
-        .as_ref()
-        .is_some_and(|keyset| keyset.closed)
-        && !request.object_drafts.is_empty()
-    {
-        return Err(AuthorityTransactionError::Invalid(
-            "authority close cannot include additional object drafts".into(),
+            "authority transaction intent changes no event or object".into(),
         ));
     }
     normalize_authority_snapshots(repository_root, &mut request)?;
     normalize_object_drafts(repository_root, &mut request)?;
-    normalize_derived_drafts(repository_root, &mut request)?;
     validate_request_shape(&request)?;
     let history = verify_authority_history(AuthorityHistoryInput {
         repository_id: &request.history.repository_id,
@@ -319,13 +285,6 @@ where
         }
     } else {
         validate_active_authority_snapshots(&request, &history)?;
-        validate_requested_rotation(
-            &request,
-            sequence,
-            previous_authority_record_root
-                .as_deref()
-                .expect("checked repository-authority history head"),
-        )?;
     }
 
     let preflight = preflight_authority_action(
@@ -507,15 +466,9 @@ where
     if fresh_initialization {
         candidate_keysets.push(request.history.authority_keyset.clone());
     }
-    if let Some(next) = &request.next_authority_keyset {
-        candidate_keysets.push(next.clone());
-    }
     let mut candidate_policies = request.history.retained_authorization_models.clone();
     if fresh_initialization {
         candidate_policies.push(request.history.authorization_model.clone());
-    }
-    if let Some(next) = &request.next_authorization_model {
-        candidate_policies.push(next.clone());
     }
     let mut candidate_events = request.history.authority_events.clone();
     candidate_events.extend(events.iter().cloned());
@@ -531,24 +484,11 @@ where
         authority_envelopes: &candidate_envelopes,
     })
     .map_err(AuthorityTransactionError::History)?;
-    let expected_keyset_root = request
-        .next_authority_keyset
-        .as_ref()
-        .unwrap_or(&request.history.authority_keyset)
-        .root()
-        .map_err(AuthorityTransactionError::Invalid)?;
-    let expected_policy_root = request
-        .next_authorization_model
-        .as_ref()
-        .unwrap_or(&request.history.authorization_model)
-        .root()
-        .map_err(AuthorityTransactionError::Invalid)?;
     if candidate_history.final_authority_record_root.as_deref()
         != Some(verified.record_root.as_str())
         || candidate_history.final_authority_keyset_root.as_deref()
-            != Some(expected_keyset_root.as_str())
-        || candidate_history.final_authorization_model_root.as_deref()
-            != Some(expected_policy_root.as_str())
+            != Some(authority_keyset_root.as_str())
+        || candidate_history.final_authorization_model_root.as_deref() != Some(model_root.as_str())
     {
         return Err(AuthorityTransactionError::History(
             "candidate transaction does not produce the exact expected authority head".into(),
@@ -562,13 +502,6 @@ where
         WriteClass::Authority,
         to_canonical_bytes(&envelope).map_err(AuthorityTransactionError::Invalid)?,
     ));
-    writes.extend(
-        request
-            .derived_drafts
-            .iter()
-            .map(authority_derived_planned_write)
-            .collect::<Result<Vec<_>, _>>()?,
-    );
     let draft = DeltaDraft::prepare(repository_root, writes)
         .map_err(AuthorityTransactionError::Transaction)?;
     let record_path = authority_record_path(&record.record_id);
@@ -582,13 +515,13 @@ where
         .delta
         .writes()
         .iter()
-        .filter(|write| write.path.as_str() != record_path && write.class != WriteClass::Derived)
+        .filter(|write| write.path.as_str() != record_path)
         .cloned()
         .collect::<Vec<_>>();
     if record_writes.len() != 1
         || !matches!(
             record_writes[0].preimage,
-            crate::repository_txn::FileState::Absent
+            vela_repository::FileState::Absent
         )
         || content_delta != unsigned_draft.delta.writes()
         || record.content.object_delta != record_object_delta
@@ -610,38 +543,15 @@ where
         read_set_root,
         write_set_root,
     };
-    let layout_identity = to_canonical_bytes(&LayoutCommitment {
-        schema: LAYOUT_SCHEMA,
-        repository_id: &request.history.repository_id,
-        authority_event_paths: &event_ids
-            .iter()
-            .map(|event_id| authority_event_path(event_id))
-            .collect::<Vec<_>>(),
-        object_paths: &request
-            .object_drafts
-            .iter()
-            .map(|draft| draft.path.clone())
-            .collect::<Vec<_>>(),
-        derived_paths: &request
-            .derived_drafts
-            .iter()
-            .map(|draft| draft.path.clone())
-            .collect::<Vec<_>>(),
-        authority_record_path: &authority_record_path(&record.record_id),
-    })
-    .map_err(AuthorityTransactionError::Invalid)?;
     let plan = RepositoryTxnPlan::new(
         RepositoryTxnPlanSpec {
-            kind: OperationKind::Decision,
+            kind: OperationKind::new(REPOSITORY_OPERATION_KIND)
+                .map_err(AuthorityTransactionError::Transaction)?,
             operation_id,
             request_root: ContentDigest::parse(request.intent_digest.clone())
                 .map_err(AuthorityTransactionError::Transaction)?,
-            repository: RepositoryBinding::new(
-                repository_root,
-                &request.history.repository_id,
-                &layout_identity,
-            )
-            .map_err(AuthorityTransactionError::Transaction)?,
+            repository: RepositoryBinding::new(repository_root, &request.history.repository_id)
+                .map_err(AuthorityTransactionError::Transaction)?,
             fixed_time: request.recorded_at,
             read_set: request.read_set,
             result: serde_json::to_value(DurableAuthorityTransactionResult {
@@ -685,46 +595,12 @@ where
     )?;
     prepared.mark_committed()?;
     prepared.install()?;
+    #[cfg(feature = "test-support")]
+    if std::env::var_os("VELA_TEST_INTERRUPT_INIT_AFTER_INSTALLED").is_some() {
+        std::process::exit(86);
+    }
     prepared.complete()?;
     Ok(prepared.result)
-}
-
-/// Return one already-completed authority result without authenticating or
-/// signing again.
-///
-/// The caller must retain the complete result from the first execution. A
-/// short ID, intent digest, or transaction ID alone is insufficient. The
-/// recovery barrier verifies the completed marker, blobs, canonical
-/// postimages, and historical event commitment before this function compares
-/// the durable result byte-for-byte.
-#[cfg(test)]
-pub(crate) fn retry_completed_authority_transaction(
-    barrier: &CanonicalWriteBarrier,
-    expected: &AuthorityTransactionResult,
-) -> Result<AuthorityTransactionResult, AuthorityTransactionError> {
-    let operation_id = OperationId::parse(expected.operation_id.as_str())
-        .map_err(AuthorityTransactionError::Transaction)?;
-    let plan = barrier
-        .completed_plan(&operation_id)
-        .map_err(AuthorityTransactionError::Transaction)?
-        .ok_or_else(|| {
-            AuthorityTransactionError::Invalid(format!(
-                "authority transaction {} is not completed",
-                expected.operation_id
-            ))
-        })?;
-    let durable: DurableAuthorityTransactionResult = serde_json::from_value(plan.result.clone())
-        .map_err(|error| {
-            AuthorityTransactionError::Invalid(format!(
-                "completed authority transaction result is invalid: {error}"
-            ))
-        })?;
-    if durable.schema != RESULT_SCHEMA || durable.result != *expected {
-        return Err(AuthorityTransactionError::Invalid(
-            "completed authority transaction does not match the exact retained result".into(),
-        ));
-    }
-    Ok(durable.result)
 }
 
 fn validate_semantic_event_links(
@@ -806,8 +682,6 @@ fn validate_fresh_initialization_request(
         || !request.history.authority_envelopes.is_empty()
         || !request.history.retained_authority_keysets.is_empty()
         || !request.history.retained_authorization_models.is_empty()
-        || request.next_authority_keyset.is_some()
-        || request.next_authorization_model.is_some()
         || request.event_drafts.len() != 1
     {
         return Err(AuthorityTransactionError::History(
@@ -934,125 +808,6 @@ fn validate_active_authority_snapshots(
     Ok(())
 }
 
-fn validate_requested_rotation(
-    request: &AuthorityTransactionRequest,
-    record_sequence: u64,
-    previous_authority_record_root: &str,
-) -> Result<(), AuthorityTransactionError> {
-    if request.next_authority_keyset.is_some() && request.next_authorization_model.is_some() {
-        return Err(AuthorityTransactionError::Invalid(
-            "one authority transaction may rotate either the keyset or the policy, not both".into(),
-        ));
-    }
-    let activation_sequence = record_sequence
-        .checked_add(1)
-        .ok_or_else(|| AuthorityTransactionError::Invalid("rotation sequence overflows".into()))?;
-    if let Some(next) = &request.next_authority_keyset {
-        verify_authority_keyset_transition(
-            &request.history.authority_keyset,
-            next,
-            activation_sequence,
-            previous_authority_record_root,
-        )
-        .map_err(AuthorityTransactionError::Invalid)?;
-        let required_action = if next.closed {
-            AUTHORITY_CLOSE_ACTION
-        } else {
-            AUTHORITY_ROTATE_ACTION
-        };
-        if !request
-            .semantic_approvals
-            .iter()
-            .any(|approval| approval.action == required_action)
-        {
-            return Err(AuthorityTransactionError::Invalid(format!(
-                "authority transition lacks {required_action} semantic approval"
-            )));
-        }
-        if next.closed {
-            validate_requested_close(
-                request,
-                next,
-                record_sequence,
-                previous_authority_record_root,
-            )?;
-        }
-    }
-    if let Some(next) = &request.next_authorization_model {
-        verify_authorization_model_transition(&request.history.authorization_model, next)
-            .map_err(AuthorityTransactionError::Invalid)?;
-        if !request
-            .semantic_approvals
-            .iter()
-            .any(|approval| approval.action == AUTHORITY_MODEL_UPDATE_ACTION)
-        {
-            return Err(AuthorityTransactionError::Invalid(
-                "an authorization-model rotation lacks its authority_model_update semantic approval"
-                    .into(),
-            ));
-        }
-    }
-    Ok(())
-}
-
-fn validate_requested_close(
-    request: &AuthorityTransactionRequest,
-    closed_keyset: &AuthorityKeysetV1,
-    record_sequence: u64,
-    previous_authority_record_root: &str,
-) -> Result<(), AuthorityTransactionError> {
-    if request.event_drafts.len() != 1 {
-        return Err(AuthorityTransactionError::Invalid(
-            "authority close must contain exactly one event".into(),
-        ));
-    }
-    let draft = &request.event_drafts[0];
-    if draft.kind.as_str() != AUTHORITY_CLOSED_EVENT_KIND
-        || draft.target.id != request.history.repository_id
-        || draft.actor.r#type != "human"
-        || draft.before_hash != draft.after_hash
-    {
-        return Err(AuthorityTransactionError::Invalid(
-            "authority close event shape is invalid".into(),
-        ));
-    }
-    let payload: AuthorityCloseV1 =
-        serde_json::from_value(draft.payload.clone()).map_err(|error| {
-            AuthorityTransactionError::Invalid(format!(
-                "authority close payload is invalid: {error}"
-            ))
-        })?;
-    payload
-        .validate()
-        .map_err(AuthorityTransactionError::Invalid)?;
-    let closed_root = closed_keyset
-        .root()
-        .map_err(AuthorityTransactionError::Invalid)?;
-    let current_keyset_root = request
-        .history
-        .authority_keyset
-        .root()
-        .map_err(AuthorityTransactionError::Invalid)?;
-    let current_policy_root = request
-        .history
-        .authorization_model
-        .root()
-        .map_err(AuthorityTransactionError::Invalid)?;
-    if payload.repository_id != request.history.repository_id
-        || payload.last_trusted_sequence != record_sequence.saturating_sub(1)
-        || payload.last_trusted_authority_record_root != previous_authority_record_root
-        || payload.previous_authority_keyset_root != current_keyset_root
-        || payload.closed_authority_keyset_root != closed_root
-        || payload.authorization_model_root != current_policy_root
-        || payload.reason != draft.reason
-    {
-        return Err(AuthorityTransactionError::Invalid(
-            "authority close payload does not match the exact terminal transition".into(),
-        ));
-    }
-    Ok(())
-}
-
 fn normalize_authority_snapshots(
     repository_root: &Path,
     request: &mut AuthorityTransactionRequest,
@@ -1073,7 +828,6 @@ fn normalize_authority_snapshots(
         .retained_authority_keysets
         .iter()
         .chain(std::iter::once(&request.history.authority_keyset))
-        .chain(request.next_authority_keyset.iter())
     {
         let root = keyset.root().map_err(AuthorityTransactionError::Invalid)?;
         snapshots.insert(
@@ -1089,7 +843,6 @@ fn normalize_authority_snapshots(
         .retained_authorization_models
         .iter()
         .chain(std::iter::once(&request.history.authorization_model))
-        .chain(request.next_authorization_model.iter())
     {
         let root = bundle.root().map_err(AuthorityTransactionError::Invalid)?;
         snapshots.insert(
@@ -1100,17 +853,11 @@ fn normalize_authority_snapshots(
             ),
         );
     }
-    let terminal_close = request
-        .next_authority_keyset
-        .as_ref()
-        .is_some_and(|keyset| keyset.closed);
     /* The Cedar schema, policy text and entity snapshot were written into
     `.vela/authority/policy-material/` alongside every model, because a bundle
     named them by root and a replaying reader had to re-run them. The model is
     the policy now: it is one canonical object, retained above with the
-    keysets, and there is nothing else to snapshot. `terminal_close` is still
-    read below. */
-    let _ = terminal_close;
+    keysets, and there is nothing else to snapshot. */
 
     for directory in [
         ".vela/authority/keysets",
@@ -1245,47 +992,6 @@ fn normalize_object_drafts(
         );
     }
     for binding in object_inputs {
-        merge_input_binding(&mut request.read_set, binding)?;
-    }
-    Ok(())
-}
-
-fn normalize_derived_drafts(
-    repository_root: &Path,
-    request: &mut AuthorityTransactionRequest,
-) -> Result<(), AuthorityTransactionError> {
-    request
-        .derived_drafts
-        .sort_by(|left, right| left.path.cmp(&right.path));
-    let mut previous_path: Option<&str> = None;
-    let mut derived_inputs = Vec::with_capacity(request.derived_drafts.len());
-    for draft in &request.derived_drafts {
-        if previous_path == Some(draft.path.as_str()) {
-            return Err(AuthorityTransactionError::Invalid(format!(
-                "duplicate derived postimage path {}",
-                draft.path
-            )));
-        }
-        previous_path = Some(&draft.path);
-        if request
-            .object_drafts
-            .iter()
-            .any(|object| object.path == draft.path)
-        {
-            return Err(AuthorityTransactionError::Invalid(format!(
-                "derived postimage path {} overlaps an authority object",
-                draft.path
-            )));
-        }
-        let path =
-            RepoPath::parse(draft.path.clone()).map_err(AuthorityTransactionError::Transaction)?;
-        validate_authority_derived_path(&path)?;
-        derived_inputs.push(
-            InputBinding::current_file(repository_root, path)
-                .map_err(AuthorityTransactionError::Transaction)?,
-        );
-    }
-    for binding in derived_inputs {
         merge_input_binding(&mut request.read_set, binding)?;
     }
     Ok(())
@@ -1440,7 +1146,6 @@ fn validate_authority_object_path(
                 || value.starts_with("records/claims/")
                 || value.starts_with("records/artifacts/")
         }
-        WriteClass::Derived | WriteClass::PrivateCoordination => false,
     };
     if !valid {
         return Err(AuthorityTransactionError::Invalid(format!(
@@ -1448,28 +1153,6 @@ fn validate_authority_object_path(
         )));
     }
     Ok(())
-}
-
-fn validate_authority_derived_path(path: &RepoPath) -> Result<(), AuthorityTransactionError> {
-    let value = path.as_str();
-    if authority_derived_path(value) {
-        return Ok(());
-    }
-    Err(AuthorityTransactionError::Invalid(format!(
-        "authority transaction derived path {value} is not a Vela-owned materialized view"
-    )))
-}
-
-/// The materialized views an authority transaction may rewrite in passing.
-///
-/// One entry, because one is all a current repository has. `frontier.json`,
-/// `vela.lock` and `proof/` were here too, and all three are retired paths the
-/// verifier refuses: a writer that admitted them produced a repository
-/// `vela replay` then rejected. Nothing ever asked for them — every production
-/// derived draft is the Target Index rebound by `rebind_target_index` — so the
-/// entries were a standing invitation to write a repository nobody can verify.
-pub(crate) fn authority_derived_path(value: &str) -> bool {
-    value == "targets.json"
 }
 
 fn authority_object_planned_write(
@@ -1480,17 +1163,6 @@ fn authority_object_planned_write(
     Ok(match &draft.postimage {
         Some(bytes) => PlannedWrite::write(path, draft.class, bytes.clone()),
         None => PlannedWrite::delete(path, draft.class),
-    })
-}
-
-fn authority_derived_planned_write(
-    draft: &AuthorityDerivedDraft,
-) -> Result<PlannedWrite, AuthorityTransactionError> {
-    let path =
-        RepoPath::parse(draft.path.clone()).map_err(AuthorityTransactionError::Transaction)?;
-    Ok(match &draft.postimage {
-        Some(bytes) => PlannedWrite::write(path, WriteClass::Derived, bytes.clone()),
-        None => PlannedWrite::delete(path, WriteClass::Derived),
     })
 }
 
@@ -1548,10 +1220,10 @@ fn authority_object_delta(
         .collect()
 }
 
-fn file_state_root(state: &crate::repository_txn::FileState) -> Option<String> {
+fn file_state_root(state: &vela_repository::FileState) -> Option<String> {
     match state {
-        crate::repository_txn::FileState::Absent => None,
-        crate::repository_txn::FileState::File { digest, .. } => Some(digest.as_str().to_string()),
+        vela_repository::FileState::Absent => None,
+        vela_repository::FileState::File { digest, .. } => Some(digest.as_str().to_string()),
     }
 }
 
@@ -1730,16 +1402,34 @@ fn read_set_root(
     authority_keyset_root: &str,
     model_root: &str,
 ) -> Result<String, AuthorityTransactionError> {
+    authority_read_set_root_for_inputs(
+        &request.history.repository_id,
+        current_event_log_root,
+        previous_authority_record_root,
+        authority_keyset_root,
+        model_root,
+        &request.read_set,
+    )
+}
+
+pub(crate) fn authority_read_set_root_for_inputs(
+    repository_id: &str,
+    current_event_log_root: &str,
+    previous_authority_record_root: Option<&str>,
+    authority_keyset_root: &str,
+    model_root: &str,
+    inputs: &[InputBinding],
+) -> Result<String, AuthorityTransactionError> {
     domain_root(
         b"vela.authority-read-set.internal.v1\0",
         &ReadSetCommitment {
             schema: READ_SET_SCHEMA,
-            repository_id: &request.history.repository_id,
+            repository_id,
             current_event_log_root,
             previous_authority_record_root,
             authority_keyset_root,
             model_root,
-            inputs: &request.read_set,
+            inputs,
         },
     )
 }
@@ -1842,20 +1532,10 @@ struct WriteSetCommitment<'a> {
     object_delta: &'a [ObjectDeltaV1],
 }
 
-#[derive(Serialize)]
-struct LayoutCommitment<'a> {
-    schema: &'static str,
-    repository_id: &'a str,
-    authority_event_paths: &'a [String],
-    object_paths: &'a [String],
-    derived_paths: &'a [String],
-    authority_record_path: &'a str,
-}
-
 pub(crate) fn execution_binary_sha256(path: &Path) -> Result<String, String> {
     let bytes = std::fs::read(path)
         .map_err(|error| format!("read execution binary {}: {error}", path.display()))?;
-    Ok(format!("sha256:{}", hex::encode(Sha256::digest(bytes))))
+    Ok(sha256_root(&bytes))
 }
 
 #[cfg(test)]
@@ -1892,11 +1572,51 @@ mod tests {
     use vela_protocol::principal::PrincipalClass;
 
     use super::*;
-    use crate::repository_txn::{RecoveryOutcome, RepositoryTxnStep};
+    use vela_repository::{
+        RecoveryOutcome, RepositoryTxnStep, TransactionAuthorization,
+        TransactionAuthorizationContext,
+    };
 
     const REPOSITORY_ID: &str = "01234567-89ab-4def-8123-456789abcdef";
     const REPOSITORY_PRINCIPAL: &str = "local:device-1|uid:501";
     const RECORDED_AT: &str = "2026-07-24T12:05:00Z";
+
+    #[derive(Debug, Default)]
+    struct TestTransactionAuthorization(Option<ContentDigest>);
+
+    impl TransactionAuthorization for TestTransactionAuthorization {
+        fn bind_plan(
+            &mut self,
+            context: &mut TransactionAuthorizationContext<'_>,
+        ) -> Result<(), RepositoryTxnError> {
+            if let Some(expected) = &self.0 {
+                if expected != context.plan_root() {
+                    return Err(RepositoryTxnError::WriteAuthorization(
+                        "test authorization plan changed after binding".into(),
+                    ));
+                }
+            } else {
+                self.0 = Some(context.plan_root().clone());
+            }
+            Ok(())
+        }
+
+        fn revalidate_for_marker(
+            &self,
+            context: &mut TransactionAuthorizationContext<'_>,
+        ) -> Result<(), RepositoryTxnError> {
+            if self.0.as_ref() != Some(context.plan_root()) {
+                return Err(RepositoryTxnError::WriteAuthorization(
+                    "test authorization plan changed before marker".into(),
+                ));
+            }
+            Ok(())
+        }
+    }
+
+    fn test_transaction_authorization() -> Box<dyn TransactionAuthorization> {
+        Box::<TestTransactionAuthorization>::default()
+    }
 
     fn root(character: char) -> String {
         format!("sha256:{}", character.to_string().repeat(64))
@@ -2028,11 +1748,9 @@ mod tests {
         }
 
         fn barrier(&self) -> CanonicalWriteBarrier {
-            RepositoryTxn::acquire_write_barrier_for_test(
-                self.temporary.path(),
-                &self.journal_dir(),
-            )
-            .unwrap()
+            RepositoryTxn::acquire_recovery_barrier(self.temporary.path(), &self.journal_dir())
+                .unwrap()
+                .authorize(test_transaction_authorization())
         }
 
         fn adapter(&self) -> LocalOsSession {
@@ -2054,6 +1772,36 @@ mod tests {
                 calls: 0,
                 fail: false,
             }
+        }
+
+        fn prepare(
+            &self,
+            request: AuthorityTransactionRequest,
+            adapter: &mut LocalOsSession,
+            signer: &mut TestSigner,
+        ) -> Result<PreparedAuthorityTransaction, AuthorityTransactionError> {
+            prepare_authority_transaction(
+                self.barrier(),
+                self.temporary.path(),
+                request,
+                adapter,
+                signer,
+            )
+        }
+
+        fn execute(
+            &self,
+            request: AuthorityTransactionRequest,
+            adapter: &mut LocalOsSession,
+            signer: &mut TestSigner,
+        ) -> Result<AuthorityTransactionResult, AuthorityTransactionError> {
+            execute_authority_transaction(
+                self.barrier(),
+                self.temporary.path(),
+                request,
+                adapter,
+                signer,
+            )
         }
     }
 
@@ -2086,7 +1834,7 @@ mod tests {
             closed: false,
         };
         let initial_event_log_root = format!("sha256:{}", event_log_hash(&[]));
-        let initial_actor_registry_root = format!("sha256:{}", hex::encode(Sha256::digest([])));
+        let initial_actor_registry_root = sha256_root(&[]);
         let keyset_root = keyset.root().unwrap();
         let model_root = authorization_model.root().unwrap();
         let initialization = AuthorityInitializationV1 {
@@ -2270,7 +2018,7 @@ mod tests {
         )
         .unwrap();
 
-        let fixture_input = InputBinding::existing_file(
+        let fixture_input = InputBinding::current_file(
             root_path,
             RepoPath::parse(".vela/input.json".to_string()).unwrap(),
         )
@@ -2327,9 +2075,6 @@ mod tests {
                 caveats: Vec::new(),
             }],
             object_drafts: Vec::new(),
-            derived_drafts: Vec::new(),
-            next_authority_keyset: None,
-            next_authorization_model: None,
             read_set: vec![fixture_input],
             vela_version: "0.930.0-rc.1".into(),
             binary_sha256: root('1'),
@@ -2498,14 +2243,9 @@ mod tests {
         }
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let result = execute_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            fixture.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let result = fixture
+            .execute(fixture.request.clone(), &mut adapter, &mut signer)
+            .unwrap();
         assert_eq!(result.before_event_log_root, archived_event_root);
         assert_eq!(signer.calls, 1);
     }
@@ -2538,14 +2278,9 @@ mod tests {
         let fixture = self::fixture();
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let result = execute_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            fixture.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let result = fixture
+            .execute(fixture.request.clone(), &mut adapter, &mut signer)
+            .unwrap();
         assert_eq!(signer.calls, 1);
         assert_eq!(result.event_ids.len(), 1);
         assert!(result.transaction_id.starts_with("vtx_"));
@@ -2673,14 +2408,7 @@ mod tests {
         let (request, semantic_domain, proposal_postimage) = acceptance_request(&fixture);
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let result = execute_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let result = fixture.execute(request, &mut adapter, &mut signer).unwrap();
         assert_eq!(result.event_ids.len(), 2);
         let events = result
             .event_ids
@@ -2756,14 +2484,9 @@ mod tests {
 
             let mut adapter = fixture.adapter();
             let mut signer = fixture.signer();
-            let error = prepare_authority_transaction(
-                fixture.barrier(),
-                fixture.temporary.path(),
-                request,
-                &mut adapter,
-                &mut signer,
-            )
-            .unwrap_err();
+            let error = fixture
+                .prepare(request, &mut adapter, &mut signer)
+                .unwrap_err();
             assert!(
                 error.to_string().contains(if mutation == "missing" {
                     "lacks payload.applied_event_id"
@@ -2816,14 +2539,9 @@ mod tests {
             let fixture = fixture();
             let mut adapter = fixture.adapter();
             let mut signer = fixture.signer();
-            let result = execute_authority_transaction(
-                fixture.barrier(),
-                fixture.temporary.path(),
-                fixture.request.clone(),
-                &mut adapter,
-                &mut signer,
-            )
-            .unwrap();
+            let result = fixture
+                .execute(fixture.request.clone(), &mut adapter, &mut signer)
+                .unwrap();
             assert_eq!(signer.calls, 1);
             // Completed journals are ignored operational state and are absent
             // in a clean clone. The signed authority record must therefore
@@ -2867,14 +2585,9 @@ mod tests {
 
             let mut adapter = fixture.adapter();
             let mut signer = fixture.signer();
-            let error = prepare_authority_transaction(
-                fixture.barrier(),
-                fixture.temporary.path(),
-                request,
-                &mut adapter,
-                &mut signer,
-            )
-            .unwrap_err();
+            let error = fixture
+                .prepare(request, &mut adapter, &mut signer)
+                .unwrap_err();
             if mutation == "delete" {
                 assert!(
                     matches!(error, AuthorityTransactionError::History(_)),
@@ -2896,583 +2609,6 @@ mod tests {
     }
 
     #[test]
-    fn keyset_rotation_writer_installs_one_exact_snapshot_and_replays_offline() {
-        let fixture = fixture();
-        let current = verified_fixture_history(&fixture);
-        let next_key = SigningKey::from_bytes(&[13; 32]);
-        let next_keyset = AuthorityKeysetV1 {
-            schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
-            repository_id: REPOSITORY_ID.into(),
-            generation: 2,
-            threshold: 1,
-            keys: vec![AuthorityKeyV1 {
-                key_id: "repository-key-2".into(),
-                algorithm: AUTHORITY_KEY_ALGORITHM.into(),
-                public_key: hex::encode(next_key.verifying_key().to_bytes()),
-                valid_from_sequence: 3,
-                valid_through_sequence: None,
-                purpose: AUTHORITY_KEY_PURPOSE.into(),
-            }],
-            previous_keyset_root: Some(fixture.request.history.authority_keyset.root().unwrap()),
-            activation_record_root: current.final_authority_record_root.clone(),
-            closed: false,
-        };
-        let intent = root('a');
-        let reason = "Rotate the disposable repository authority.";
-        let mut request = fixture.request.clone();
-        request.intent_digest = intent.clone();
-        request.authorization_request = fixture_authorization_request(
-            &request.history.authorization_model,
-            AuthorityActionV1::AuthorityRotate,
-        );
-        request.semantic_approvals = vec![SemanticApprovalV1 {
-            principal_id: REPOSITORY_PRINCIPAL.into(),
-            role: "repository_administrator".into(),
-            action: AUTHORITY_ROTATE_ACTION.into(),
-            reason: reason.into(),
-            approved_at: RECORDED_AT.into(),
-            intent_digest: intent,
-        }];
-        request.event_drafts = vec![AuthorityEventDraft {
-            kind: EventKind::Other("authority.rotated".into()),
-            target: StateTarget {
-                r#type: "repository".into(),
-                id: REPOSITORY_ID.into(),
-            },
-            actor: StateActor {
-                r#type: "human".into(),
-                id: REPOSITORY_PRINCIPAL.into(),
-            },
-            timestamp: RECORDED_AT.into(),
-            reason: reason.into(),
-            before_hash: root('f'),
-            after_hash: root('f'),
-            payload: json!({"authority_keyset_root": next_keyset.root().unwrap()}),
-            caveats: Vec::new(),
-        }];
-        request.next_authority_keyset = Some(next_keyset.clone());
-
-        let mut missing_approval = request.clone();
-        missing_approval.semantic_approvals.clear();
-        let mut followup_request = request.clone();
-        let mut adapter = fixture.adapter();
-        let mut signer = fixture.signer();
-        let error = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            missing_approval,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
-        assert!(
-            error.to_string().contains("lacks authority_rotate"),
-            "{error}"
-        );
-        assert_eq!(signer.calls, 0);
-        assert!(prepared_journal_absent(&fixture));
-
-        let mut adapter = fixture.adapter();
-        let mut signer = fixture.signer();
-        let result = execute_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
-        assert_eq!(signer.calls, 1);
-
-        let next_path = authority_keyset_path(&next_keyset.root().unwrap()).unwrap();
-        assert_eq!(
-            fs::read(fixture.temporary.path().join(next_path)).unwrap(),
-            to_canonical_bytes(&next_keyset).unwrap()
-        );
-        let event: AuthorityEventV1 = serde_json::from_slice(
-            &fs::read(
-                fixture
-                    .temporary
-                    .path()
-                    .join(authority_event_path(&result.event_ids[0])),
-            )
-            .unwrap(),
-        )
-        .unwrap();
-        let envelope: AuthorityEnvelopeV1 = serde_json::from_slice(
-            &fs::read(
-                fixture
-                    .temporary
-                    .path()
-                    .join(authority_record_path(&result.authority_record_id)),
-            )
-            .unwrap(),
-        )
-        .unwrap();
-        let mut keysets = fixture.request.history.retained_authority_keysets.clone();
-        keysets.push(next_keyset.clone());
-        let mut events = fixture.request.history.authority_events.clone();
-        events.push(event);
-        let mut envelopes = fixture.request.history.authority_envelopes.clone();
-        envelopes.push(envelope);
-        let replay = verify_authority_history(AuthorityHistoryInput {
-            repository_id: REPOSITORY_ID,
-            initial_event_log_root: &fixture.request.history.initial_event_log_root,
-            initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            authority_keysets: &keysets,
-            authorization_models: &fixture.request.history.retained_authorization_models,
-            authority_events: &events,
-            authority_envelopes: &envelopes,
-        })
-        .unwrap();
-        assert_eq!(
-            replay.final_authority_keyset_root,
-            Some(next_keyset.root().unwrap())
-        );
-        assert_eq!(
-            replay.final_authorization_model_root,
-            Some(fixture.request.history.authorization_model.root().unwrap())
-        );
-
-        followup_request.history.authority_keyset = next_keyset.clone();
-        followup_request
-            .history
-            .retained_authority_keysets
-            .push(next_keyset.clone());
-        followup_request.history.authority_events = events.clone();
-        followup_request.history.authority_envelopes = envelopes.clone();
-        followup_request.intent_digest = root('c');
-        followup_request.authentication_request.transaction_at = "2026-07-24T12:06:00Z".into();
-        followup_request.authorization_request = fixture_authorization_request(
-            &followup_request.history.authorization_model,
-            AuthorityActionV1::ReviewReject,
-        );
-        followup_request.semantic_approvals = vec![SemanticApprovalV1 {
-            principal_id: REPOSITORY_PRINCIPAL.into(),
-            role: "repository_administrator".into(),
-            action: "review_reject".into(),
-            reason: "Reject a later proposal under the rotated repository key.".into(),
-            approved_at: "2026-07-24T12:06:00Z".into(),
-            intent_digest: root('c'),
-        }];
-        followup_request.event_drafts = vec![AuthorityEventDraft {
-            kind: EventKind::ReviewRejected,
-            target: StateTarget {
-                r#type: "proposal".into(),
-                id: "vpr_1123456789abcdef".into(),
-            },
-            actor: StateActor {
-                r#type: "human".into(),
-                id: REPOSITORY_PRINCIPAL.into(),
-            },
-            timestamp: "2026-07-24T12:06:00Z".into(),
-            reason: "Reject a later proposal under the rotated repository key.".into(),
-            before_hash: root('f'),
-            after_hash: root('f'),
-            payload: json!({"proposal_id": "vpr_1123456789abcdef"}),
-            caveats: Vec::new(),
-        }];
-        followup_request.next_authority_keyset = None;
-        followup_request.recorded_at = "2026-07-24T12:06:00Z".into();
-
-        let mut adapter = fixture.adapter();
-        let mut next_signer = TestSigner {
-            key: next_key,
-            key_id: "repository-key-2".into(),
-            calls: 0,
-            fail: false,
-        };
-        let followup = execute_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            followup_request,
-            &mut adapter,
-            &mut next_signer,
-        )
-        .unwrap();
-        assert_eq!(next_signer.calls, 1);
-
-        let followup_event: AuthorityEventV1 = serde_json::from_slice(
-            &fs::read(
-                fixture
-                    .temporary
-                    .path()
-                    .join(authority_event_path(&followup.event_ids[0])),
-            )
-            .unwrap(),
-        )
-        .unwrap();
-        let followup_envelope: AuthorityEnvelopeV1 = serde_json::from_slice(
-            &fs::read(
-                fixture
-                    .temporary
-                    .path()
-                    .join(authority_record_path(&followup.authority_record_id)),
-            )
-            .unwrap(),
-        )
-        .unwrap();
-        let mut final_events = events;
-        final_events.push(followup_event);
-        let mut final_envelopes = envelopes;
-        final_envelopes.push(followup_envelope);
-        let final_replay = verify_authority_history(AuthorityHistoryInput {
-            repository_id: REPOSITORY_ID,
-            initial_event_log_root: &fixture.request.history.initial_event_log_root,
-            initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            authority_keysets: &keysets,
-            authorization_models: &fixture.request.history.retained_authorization_models,
-            authority_events: &final_events,
-            authority_envelopes: &final_envelopes,
-        })
-        .unwrap();
-        assert_eq!(final_replay.authority_record_count, 3);
-        assert_eq!(final_replay.authority_event_count, 3);
-        assert_eq!(
-            final_replay.final_authority_keyset_root,
-            Some(next_keyset.root().unwrap())
-        );
-    }
-
-    #[test]
-    fn policy_rotation_writer_installs_one_exact_snapshot_and_replays_offline() {
-        let fixture = fixture();
-        /* A rotation that actually changes something: the reviewer role
-        moves to a second principal. The bundle this replaced could only
-        rotate by swapping opaque Cedar roots. */
-        let mut next_policy = fixture.request.history.authorization_model.clone();
-        next_policy.members[1].principal_id = "local:device-2|uid:502".into();
-        next_policy.previous_model_root =
-            Some(fixture.request.history.authorization_model.root().unwrap());
-        let intent = root('b');
-        let reason = "Rotate the disposable repository policy.";
-        let mut request = fixture.request.clone();
-        request.intent_digest = intent.clone();
-        request.authorization_request = fixture_authorization_request(
-            &request.history.authorization_model,
-            AuthorityActionV1::AuthorityModelUpdate,
-        );
-        request.semantic_approvals = vec![SemanticApprovalV1 {
-            principal_id: REPOSITORY_PRINCIPAL.into(),
-            role: "repository_administrator".into(),
-            action: "authority_model_update".into(),
-            reason: reason.into(),
-            approved_at: RECORDED_AT.into(),
-            intent_digest: intent,
-        }];
-        request.event_drafts = vec![AuthorityEventDraft {
-            kind: EventKind::Other("policy.rotated".into()),
-            target: StateTarget {
-                r#type: "repository".into(),
-                id: REPOSITORY_ID.into(),
-            },
-            actor: StateActor {
-                r#type: "human".into(),
-                id: REPOSITORY_PRINCIPAL.into(),
-            },
-            timestamp: RECORDED_AT.into(),
-            reason: reason.into(),
-            before_hash: root('f'),
-            after_hash: root('f'),
-            payload: json!({"model_root": next_policy.root().unwrap()}),
-            caveats: Vec::new(),
-        }];
-        request.next_authorization_model = Some(next_policy.clone());
-
-        let mut both = request.clone();
-        let current = verified_fixture_history(&fixture);
-        let next_key = SigningKey::from_bytes(&[14; 32]);
-        both.next_authority_keyset = Some(AuthorityKeysetV1 {
-            schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
-            repository_id: REPOSITORY_ID.into(),
-            generation: 2,
-            threshold: 1,
-            keys: vec![AuthorityKeyV1 {
-                key_id: "repository-key-2".into(),
-                algorithm: AUTHORITY_KEY_ALGORITHM.into(),
-                public_key: hex::encode(next_key.verifying_key().to_bytes()),
-                valid_from_sequence: 3,
-                valid_through_sequence: None,
-                purpose: AUTHORITY_KEY_PURPOSE.into(),
-            }],
-            previous_keyset_root: Some(fixture.request.history.authority_keyset.root().unwrap()),
-            activation_record_root: current.final_authority_record_root,
-            closed: false,
-        });
-        let mut adapter = fixture.adapter();
-        let mut signer = fixture.signer();
-        let error = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            both,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
-        assert!(
-            error
-                .to_string()
-                .contains("either the keyset or the policy")
-        );
-        assert_eq!(signer.calls, 0);
-
-        let mut adapter = fixture.adapter();
-        let mut signer = fixture.signer();
-        let result = execute_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
-        assert_eq!(signer.calls, 1);
-
-        let next_path = authority_model_path(&next_policy.root().unwrap()).unwrap();
-        assert_eq!(
-            fs::read(fixture.temporary.path().join(next_path)).unwrap(),
-            to_canonical_bytes(&next_policy).unwrap()
-        );
-        let event: AuthorityEventV1 = serde_json::from_slice(
-            &fs::read(
-                fixture
-                    .temporary
-                    .path()
-                    .join(authority_event_path(&result.event_ids[0])),
-            )
-            .unwrap(),
-        )
-        .unwrap();
-        let envelope: AuthorityEnvelopeV1 = serde_json::from_slice(
-            &fs::read(
-                fixture
-                    .temporary
-                    .path()
-                    .join(authority_record_path(&result.authority_record_id)),
-            )
-            .unwrap(),
-        )
-        .unwrap();
-        let mut policies = fixture
-            .request
-            .history
-            .retained_authorization_models
-            .clone();
-        policies.push(next_policy.clone());
-        let mut events = fixture.request.history.authority_events.clone();
-        events.push(event);
-        let mut envelopes = fixture.request.history.authority_envelopes.clone();
-        envelopes.push(envelope);
-        let replay = verify_authority_history(AuthorityHistoryInput {
-            repository_id: REPOSITORY_ID,
-            initial_event_log_root: &fixture.request.history.initial_event_log_root,
-            initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            authority_keysets: &fixture.request.history.retained_authority_keysets,
-            authorization_models: &policies,
-            authority_events: &events,
-            authority_envelopes: &envelopes,
-        })
-        .unwrap();
-        assert_eq!(
-            replay.final_authority_keyset_root,
-            Some(fixture.request.history.authority_keyset.root().unwrap())
-        );
-        assert_eq!(
-            replay.final_authorization_model_root,
-            Some(next_policy.root().unwrap())
-        );
-    }
-
-    #[test]
-    fn emergency_close_installs_one_terminal_keyset_and_refuses_continuation() {
-        let fixture = fixture();
-        let current = verified_fixture_history(&fixture);
-        let current_record_root = current.final_authority_record_root.clone().unwrap();
-        let current_keyset_root = fixture.request.history.authority_keyset.root().unwrap();
-        let current_policy_root = fixture.request.history.authorization_model.root().unwrap();
-        let closed_keyset = AuthorityKeysetV1 {
-            schema: AUTHORITY_KEYSET_SCHEMA_V1.into(),
-            repository_id: REPOSITORY_ID.into(),
-            generation: 2,
-            threshold: 0,
-            keys: Vec::new(),
-            previous_keyset_root: Some(current_keyset_root.clone()),
-            activation_record_root: Some(current_record_root.clone()),
-            closed: true,
-        };
-        let reason = "Close future authority after the disposable compromise drill.";
-        let payload = AuthorityCloseV1 {
-            schema: vela_protocol::authority_history::AUTHORITY_CLOSE_SCHEMA_V1.into(),
-            repository_id: REPOSITORY_ID.into(),
-            last_trusted_sequence: 1,
-            last_trusted_authority_record_root: current_record_root,
-            previous_authority_keyset_root: current_keyset_root,
-            closed_authority_keyset_root: closed_keyset.root().unwrap(),
-            authorization_model_root: current_policy_root.clone(),
-            incident_id: "incident:disposable-close-1".into(),
-            reason: reason.into(),
-        };
-        let intent = root('d');
-        let mut request = fixture.request.clone();
-        request.intent_digest = intent.clone();
-        request.authorization_request = fixture_authorization_request(
-            &request.history.authorization_model,
-            AuthorityActionV1::AuthorityClose,
-        );
-        request.semantic_approvals = vec![SemanticApprovalV1 {
-            principal_id: REPOSITORY_PRINCIPAL.into(),
-            role: "repository_administrator".into(),
-            action: AUTHORITY_CLOSE_ACTION.into(),
-            reason: reason.into(),
-            approved_at: RECORDED_AT.into(),
-            intent_digest: intent,
-        }];
-        request.event_drafts = vec![AuthorityEventDraft {
-            kind: EventKind::Other(AUTHORITY_CLOSED_EVENT_KIND.into()),
-            target: StateTarget {
-                r#type: "repository".into(),
-                id: REPOSITORY_ID.into(),
-            },
-            actor: StateActor {
-                r#type: "human".into(),
-                id: REPOSITORY_PRINCIPAL.into(),
-            },
-            timestamp: RECORDED_AT.into(),
-            reason: reason.into(),
-            before_hash: root('0'),
-            after_hash: root('0'),
-            payload: serde_json::to_value(payload).unwrap(),
-            caveats: Vec::new(),
-        }];
-        request.next_authority_keyset = Some(closed_keyset.clone());
-
-        let mut missing_approval = request.clone();
-        missing_approval.semantic_approvals.clear();
-        let mut adapter = fixture.adapter();
-        let mut signer = fixture.signer();
-        let error = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            missing_approval,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
-        assert!(
-            error.to_string().contains("lacks authority_close"),
-            "{error}"
-        );
-        assert_eq!(signer.calls, 0);
-        assert!(prepared_journal_absent(&fixture));
-
-        let mut adapter = fixture.adapter();
-        let mut signer = fixture.signer();
-        let result = execute_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
-        assert_eq!(signer.calls, 1);
-
-        let event: AuthorityEventV1 = serde_json::from_slice(
-            &fs::read(
-                fixture
-                    .temporary
-                    .path()
-                    .join(authority_event_path(&result.event_ids[0])),
-            )
-            .unwrap(),
-        )
-        .unwrap();
-        let envelope: AuthorityEnvelopeV1 = serde_json::from_slice(
-            &fs::read(
-                fixture
-                    .temporary
-                    .path()
-                    .join(authority_record_path(&result.authority_record_id)),
-            )
-            .unwrap(),
-        )
-        .unwrap();
-        let mut keysets = fixture.request.history.retained_authority_keysets.clone();
-        keysets.push(closed_keyset.clone());
-        let mut envelopes = fixture.request.history.authority_envelopes.clone();
-        envelopes.push(envelope.clone());
-        let replay = verify_authority_history(AuthorityHistoryInput {
-            repository_id: REPOSITORY_ID,
-            initial_event_log_root: &fixture.request.history.initial_event_log_root,
-            initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            authority_keysets: &keysets,
-            authorization_models: &fixture.request.history.retained_authorization_models,
-            authority_events: &[
-                fixture.request.history.authority_events[0].clone(),
-                event.clone(),
-            ],
-            authority_envelopes: &envelopes,
-        })
-        .unwrap();
-        assert!(replay.closed);
-        assert_eq!(replay.closure_event_id, Some(event.id.clone()));
-        assert_eq!(
-            replay.final_authority_keyset_root,
-            Some(closed_keyset.root().unwrap())
-        );
-        assert_eq!(
-            replay.final_authorization_model_root,
-            Some(current_policy_root)
-        );
-
-        envelopes.push(envelope);
-        let error = verify_authority_history(AuthorityHistoryInput {
-            repository_id: REPOSITORY_ID,
-            initial_event_log_root: &fixture.request.history.initial_event_log_root,
-            initial_actor_registry_root: &fixture.request.history.initial_actor_registry_root,
-            authority_keysets: &keysets,
-            authorization_models: &fixture.request.history.retained_authorization_models,
-            authority_events: &[
-                fixture.request.history.authority_events[0].clone(),
-                event.clone(),
-            ],
-            authority_envelopes: &envelopes,
-        })
-        .unwrap_err();
-        assert!(
-            error.contains("continues after its terminal close"),
-            "{error}"
-        );
-    }
-
-    #[test]
-    fn completed_retry_returns_only_the_exact_durable_result_without_another_signature() {
-        let fixture = fixture();
-        let mut adapter = fixture.adapter();
-        let mut signer = fixture.signer();
-        let result = execute_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            fixture.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
-        assert_eq!(signer.calls, 1);
-
-        let barrier = fixture.barrier();
-        let retried = retry_completed_authority_transaction(&barrier, &result).unwrap();
-        assert_eq!(retried, result);
-        assert_eq!(signer.calls, 1);
-
-        let mut substituted = result.clone();
-        substituted.transaction_id.push('0');
-        let error = retry_completed_authority_transaction(&barrier, &substituted).unwrap_err();
-        assert!(matches!(error, AuthorityTransactionError::Invalid(_)));
-        assert_eq!(signer.calls, 1);
-    }
-
-    #[test]
     fn authority_snapshot_paths_and_store_membership_fail_closed() {
         let fixture = fixture();
         let keyset_path =
@@ -3487,14 +2623,9 @@ mod tests {
         }];
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let error = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
+        let error = fixture
+            .prepare(request, &mut adapter, &mut signer)
+            .unwrap_err();
         assert!(matches!(error, AuthorityTransactionError::Invalid(_)));
         assert_eq!(signer.calls, 0);
 
@@ -3510,14 +2641,9 @@ mod tests {
         .unwrap();
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let error = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            fixture.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
+        let error = fixture
+            .prepare(fixture.request.clone(), &mut adapter, &mut signer)
+            .unwrap_err();
         assert!(
             matches!(
                 error,
@@ -3530,14 +2656,9 @@ mod tests {
         let fixture = self::fixture();
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let mut prepared = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            fixture.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let mut prepared = fixture
+            .prepare(fixture.request.clone(), &mut adapter, &mut signer)
+            .unwrap();
         fs::create_dir_all(fixture.temporary.path().join(".vela/authority/keysets")).unwrap();
         fs::write(
             fixture
@@ -3604,14 +2725,9 @@ mod tests {
         let mut adapter = fixture_two.adapter();
         let mut signer = fixture_two.signer();
         signer.fail = true;
-        let error = prepare_authority_transaction(
-            fixture_two.barrier(),
-            fixture_two.temporary.path(),
-            fixture_two.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
+        let error = fixture_two
+            .prepare(fixture_two.request.clone(), &mut adapter, &mut signer)
+            .unwrap_err();
         assert!(matches!(error, AuthorityTransactionError::Signing(_)));
         assert_eq!(signer.calls, 1);
         assert!(authority_transaction_postimages_absent(&fixture_two));
@@ -3625,14 +2741,9 @@ mod tests {
         request.history.authority_envelopes[0].payload.push('A');
         let mut adapter = fixture_one.adapter();
         let mut signer = fixture_one.signer();
-        let error = prepare_authority_transaction(
-            fixture_one.barrier(),
-            fixture_one.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
+        let error = fixture_one
+            .prepare(request, &mut adapter, &mut signer)
+            .unwrap_err();
         assert!(matches!(error, AuthorityTransactionError::History(_)));
         assert_eq!(signer.calls, 0);
         assert!(authority_transaction_postimages_absent(&fixture_one));
@@ -3647,14 +2758,9 @@ mod tests {
         request.authorization_request.model_root = root('7');
         let mut adapter = fixture_two.adapter();
         let mut signer = fixture_two.signer();
-        let error = prepare_authority_transaction(
-            fixture_two.barrier(),
-            fixture_two.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
+        let error = fixture_two
+            .prepare(request, &mut adapter, &mut signer)
+            .unwrap_err();
         assert!(
             matches!(error, AuthorityTransactionError::Invalid(_)),
             "{error:?}"
@@ -3669,14 +2775,9 @@ mod tests {
         let fixture = fixture();
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let mut prepared = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            fixture.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let mut prepared = fixture
+            .prepare(fixture.request.clone(), &mut adapter, &mut signer)
+            .unwrap();
         assert!(authority_transaction_postimages_absent(&fixture));
         fs::write(
             fixture.temporary.path().join(".vela/actors.json"),
@@ -3689,10 +2790,9 @@ mod tests {
             AuthorityTransactionError::Transaction(RepositoryTxnError::StaleInput { .. })
         ));
         assert!(authority_transaction_postimages_absent(&fixture));
-        assert!(!prepared.transaction.plan().operation_id.as_str().is_empty());
         assert!(matches!(
             prepared.transaction.recovery_state(),
-            crate::repository_txn::RecoveryState::Aborted
+            vela_repository::RecoveryState::Aborted
         ));
     }
 
@@ -3714,14 +2814,7 @@ mod tests {
         }];
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let mut prepared = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let mut prepared = fixture.prepare(request, &mut adapter, &mut signer).unwrap();
         fs::write(&path, to_canonical_bytes(&json!({"version": 3})).unwrap()).unwrap();
         let error = prepared.mark_committed().unwrap_err();
         assert!(matches!(
@@ -3730,71 +2823,6 @@ mod tests {
         ));
         assert_eq!(signer.calls, 1);
         assert!(authority_transaction_postimages_absent(&fixture));
-    }
-
-    #[test]
-    fn derived_postimages_share_recovery_without_entering_authority_delta() {
-        assert!(authority_derived_path("targets.json"));
-        // Every path the verifier retires is refused here too, or the writer
-        // admits a repository replay rejects.
-        for retired in ["frontier.json", "vela.lock", "proof/latest.json"] {
-            assert!(
-                crate::repository::is_retired_path(retired),
-                "{retired} is no longer retired; this test is stale"
-            );
-            assert!(!authority_derived_path(retired));
-        }
-        assert!(!authority_derived_path(".vela/proof-state.json"));
-        assert!(
-            !authority_derived_path("vela.toml"),
-            "repository configuration is not a derived materialized view"
-        );
-        let fixture = fixture();
-        fs::write(fixture.temporary.path().join("targets.json"), b"before\n").unwrap();
-        let mut request = fixture.request.clone();
-        request.derived_drafts = vec![AuthorityDerivedDraft {
-            path: "targets.json".into(),
-            postimage: Some(b"after\n".to_vec()),
-        }];
-        let mut adapter = fixture.adapter();
-        let mut signer = fixture.signer();
-        let mut prepared = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
-        let payload = BASE64_STANDARD.decode(&prepared.envelope.payload).unwrap();
-        let record: AuthorityRecordV1 = serde_json::from_slice(&payload).unwrap();
-        assert!(
-            record
-                .content
-                .object_delta
-                .iter()
-                .all(|object| object.path != "targets.json"),
-            "derived materialization must not become a signed scientific object"
-        );
-        assert!(
-            prepared
-                .transaction
-                .plan()
-                .canonical_delta
-                .writes()
-                .iter()
-                .any(|write| {
-                    write.path.as_str() == "targets.json" && write.class == WriteClass::Derived
-                }),
-            "the recoverable journal must retain the exact derived postimage"
-        );
-        prepared.mark_committed().unwrap();
-        prepared.install().unwrap();
-        prepared.complete().unwrap();
-        assert_eq!(
-            fs::read(fixture.temporary.path().join("targets.json")).unwrap(),
-            b"after\n"
-        );
     }
 
     #[test]
@@ -3843,8 +2871,6 @@ mod tests {
                 WriteClass::Authority,
                 WriteClass::PublicReview,
                 WriteClass::CanonicalEvidence,
-                WriteClass::Derived,
-                WriteClass::PrivateCoordination,
             ] {
                 assert!(
                     validate_authority_object_path(&parsed, class).is_err(),
@@ -3855,98 +2881,13 @@ mod tests {
     }
 
     #[test]
-    fn derived_drift_and_derived_only_authority_attempts_fail_closed() {
-        let drift_fixture = fixture();
-        fs::write(
-            drift_fixture.temporary.path().join("targets.json"),
-            b"before\n",
-        )
-        .unwrap();
-        let mut request = drift_fixture.request.clone();
-        request.derived_drafts = vec![AuthorityDerivedDraft {
-            path: "targets.json".into(),
-            postimage: Some(b"after\n".to_vec()),
-        }];
-        let mut adapter = drift_fixture.adapter();
-        let mut signer = drift_fixture.signer();
-        let mut prepared = prepare_authority_transaction(
-            drift_fixture.barrier(),
-            drift_fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
-        fs::write(
-            drift_fixture.temporary.path().join("targets.json"),
-            b"changed after signing\n",
-        )
-        .unwrap();
-        let error = prepared.mark_committed().unwrap_err();
-        assert!(matches!(
-            error,
-            AuthorityTransactionError::Transaction(RepositoryTxnError::StaleInput { .. })
-        ));
-        assert_eq!(signer.calls, 1);
-
-        let derived_only_fixture = fixture();
-        let mut request = derived_only_fixture.request.clone();
-        request.event_drafts.clear();
-        request.object_drafts.clear();
-        request.derived_drafts = vec![AuthorityDerivedDraft {
-            path: "targets.json".into(),
-            postimage: Some(b"derived only\n".to_vec()),
-        }];
-        let mut adapter = derived_only_fixture.adapter();
-        let mut signer = derived_only_fixture.signer();
-        let error = prepare_authority_transaction(
-            derived_only_fixture.barrier(),
-            derived_only_fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
-        assert!(
-            matches!(error, AuthorityTransactionError::Invalid(message) if message.contains("changes no event, object, keyset, or policy bundle"))
-        );
-        assert_eq!(signer.calls, 0);
-
-        let invalid_path_fixture = fixture();
-        let mut request = invalid_path_fixture.request.clone();
-        request.derived_drafts = vec![AuthorityDerivedDraft {
-            path: ".vela/proposals/forbidden.json".into(),
-            postimage: Some(b"{}\n".to_vec()),
-        }];
-        let mut adapter = invalid_path_fixture.adapter();
-        let mut signer = invalid_path_fixture.signer();
-        let error = prepare_authority_transaction(
-            invalid_path_fixture.barrier(),
-            invalid_path_fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
-        assert!(
-            matches!(error, AuthorityTransactionError::Invalid(message) if message.contains("not a Vela-owned materialized view"))
-        );
-        assert_eq!(signer.calls, 0);
-    }
-
-    #[test]
     fn repository_history_membership_refuses_stale_forks_and_marker_time_additions() {
         let fixture = fixture();
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        execute_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            fixture.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        fixture
+            .execute(fixture.request.clone(), &mut adapter, &mut signer)
+            .unwrap();
 
         let mut adapter = fixture.adapter();
         let mut stale_signer = fixture.signer();
@@ -3968,14 +2909,9 @@ mod tests {
         let fresh = self::fixture();
         let mut adapter = fresh.adapter();
         let mut signer = fresh.signer();
-        let mut prepared = prepare_authority_transaction(
-            fresh.barrier(),
-            fresh.temporary.path(),
-            fresh.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let mut prepared = fresh
+            .prepare(fresh.request.clone(), &mut adapter, &mut signer)
+            .unwrap();
         fs::write(
             fresh
                 .temporary
@@ -4010,14 +2946,9 @@ mod tests {
         fs::write(event_path, b"tampered").unwrap();
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let error = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            fixture.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
+        let error = fixture
+            .prepare(fixture.request.clone(), &mut adapter, &mut signer)
+            .unwrap_err();
         assert!(
             matches!(error, AuthorityTransactionError::History(_)),
             "{error}"
@@ -4040,14 +2971,9 @@ mod tests {
         .unwrap();
         let mut adapter = missing.adapter();
         let mut signer = missing.signer();
-        let error = prepare_authority_transaction(
-            missing.barrier(),
-            missing.temporary.path(),
-            missing.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
+        let error = missing
+            .prepare(missing.request.clone(), &mut adapter, &mut signer)
+            .unwrap_err();
         assert!(
             matches!(error, AuthorityTransactionError::History(_)),
             "{error}"
@@ -4104,14 +3030,7 @@ mod tests {
         ];
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let mut prepared = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let mut prepared = fixture.prepare(request, &mut adapter, &mut signer).unwrap();
         let payload = BASE64_STANDARD.decode(&prepared.envelope.payload).unwrap();
         let record: AuthorityRecordV1 = serde_json::from_slice(&payload).unwrap();
         /* Five, not eight: the three Cedar policy-material snapshots that
@@ -4171,14 +3090,7 @@ mod tests {
         }];
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let result = execute_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let result = fixture.execute(request, &mut adapter, &mut signer).unwrap();
 
         assert!(result.event_ids.is_empty());
         assert_eq!(result.before_event_log_root, result.after_event_log_root);
@@ -4226,14 +3138,9 @@ mod tests {
         request.object_drafts.clear();
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let error = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
+        let error = fixture
+            .prepare(request, &mut adapter, &mut signer)
+            .unwrap_err();
         assert!(matches!(error, AuthorityTransactionError::Invalid(_)));
         assert_eq!(signer.calls, 0);
         assert!(prepared_journal_absent(&fixture));
@@ -4249,14 +3156,9 @@ mod tests {
         }];
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let error = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
+        let error = fixture
+            .prepare(request, &mut adapter, &mut signer)
+            .unwrap_err();
         assert!(matches!(error, AuthorityTransactionError::Invalid(_)));
         assert_eq!(signer.calls, 0);
 
@@ -4271,14 +3173,9 @@ mod tests {
         }];
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let error = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap_err();
+        let error = fixture
+            .prepare(request, &mut adapter, &mut signer)
+            .unwrap_err();
         assert!(matches!(error, AuthorityTransactionError::Invalid(_)));
         assert_eq!(signer.calls, 0);
         assert!(prepared_journal_absent(&fixture));
@@ -4289,48 +3186,33 @@ mod tests {
         let fixture_one = fixture();
         let mut adapter = fixture_one.adapter();
         let mut signer = fixture_one.signer();
-        let baseline = prepare_authority_transaction(
-            fixture_one.barrier(),
-            fixture_one.temporary.path(),
-            fixture_one.request.clone(),
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap()
-        .result
-        .transaction_id;
+        let baseline = fixture_one
+            .prepare(fixture_one.request.clone(), &mut adapter, &mut signer)
+            .unwrap()
+            .result
+            .transaction_id;
 
         let fixture_two = fixture();
         let mut request = fixture_two.request.clone();
         request.read_set[0].digest = ContentDigest::parse(root('a')).unwrap();
         let mut adapter = fixture_two.adapter();
         let mut signer = fixture_two.signer();
-        let changed_read_set = prepare_authority_transaction(
-            fixture_two.barrier(),
-            fixture_two.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap()
-        .result
-        .transaction_id;
+        let changed_read_set = fixture_two
+            .prepare(request, &mut adapter, &mut signer)
+            .unwrap()
+            .result
+            .transaction_id;
 
         let fixture_three = fixture();
         let mut request = fixture_three.request.clone();
         request.binary_sha256 = root('b');
         let mut adapter = fixture_three.adapter();
         let mut signer = fixture_three.signer();
-        let changed_binary = prepare_authority_transaction(
-            fixture_three.barrier(),
-            fixture_three.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap()
-        .result
-        .transaction_id;
+        let changed_binary = fixture_three
+            .prepare(request, &mut adapter, &mut signer)
+            .unwrap()
+            .result
+            .transaction_id;
 
         assert_ne!(baseline, changed_read_set);
         assert_ne!(baseline, changed_binary);
@@ -4349,14 +3231,7 @@ mod tests {
         }];
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let mut prepared = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let mut prepared = fixture.prepare(request, &mut adapter, &mut signer).unwrap();
         let result = prepared.result.clone();
         let events = prepared.events.clone();
         let envelope = prepared.envelope.clone();
@@ -4378,8 +3253,10 @@ mod tests {
                 fixture.temporary.path(),
                 &fixture.journal_dir(),
                 &operation_id,
+                REPOSITORY_ID,
             )
-            .unwrap(),
+            .unwrap()
+            .outcome,
             RecoveryOutcome::Completed
         );
         assert_eq!(signer.calls, 1);
@@ -4412,14 +3289,7 @@ mod tests {
         let before_event_root = verified_fixture_history(&fixture).final_event_log_root;
         let mut adapter = fixture.adapter();
         let mut signer = fixture.signer();
-        let mut prepared = prepare_authority_transaction(
-            fixture.barrier(),
-            fixture.temporary.path(),
-            request,
-            &mut adapter,
-            &mut signer,
-        )
-        .unwrap();
+        let mut prepared = fixture.prepare(request, &mut adapter, &mut signer).unwrap();
         assert!(prepared.result.event_ids.is_empty());
         assert_eq!(prepared.result.before_event_log_root, before_event_root);
         assert_eq!(prepared.result.after_event_log_root, before_event_root);
@@ -4444,8 +3314,10 @@ mod tests {
                 fixture.temporary.path(),
                 &fixture.journal_dir(),
                 &operation_id,
+                REPOSITORY_ID,
             )
-            .unwrap(),
+            .unwrap()
+            .outcome,
             RecoveryOutcome::Completed
         );
         assert_eq!(signer.calls, 1);

@@ -12,7 +12,8 @@ true, novel, important, or ethical.
 - the authenticated principal and semantic action behind each canonical write;
 - exact Git commit/tree, repository origin, object sets, and roots;
 - the independently distributed sequence-one authority-record root;
-- Target, packet, Submission, and Verification bindings; and
+- producer-declared execution-binding roots, Submission, and Verification
+  bindings; and
 - deterministic replay and frozen verifier contracts.
 
 ## Boundary
@@ -68,9 +69,9 @@ shortened digest fails strict validation.
 ### Malicious producer input
 
 `submit` treats the Submission and every Artifact as untrusted. It validates
-closed schemas, sizes, paths, digests, producer identity, Target references,
-current repository context, and declared verification requirements before
-intake.
+closed schemas, sizes, paths, digests, producer identity, exact Claim targets
+for corrections, current receiving-repository context, execution-binding root
+shapes, and declared verification requirements before intake.
 
 A producer signature proves origin only. Intake creates a pending Proposal and
 no accepted Standing.
@@ -125,14 +126,15 @@ copy retains.
 
 ### Stale or malicious work projection
 
-The Target Index is derived but binds the current repository origin/root,
-exact tracked source inputs, tracked packets, task contracts, and deterministic
-rank facts. `next` validates the full index; `start` revalidates the chosen
-Target and prints a write-free briefing. A domain adapter writes the tracked
-index directly; no maintenance command can bless mutable worktree bytes.
+Vela core owns no work catalogue or planner and no `next`/`start` command pair.
+A source-owning Repository or read product may expose exact next obligations,
+packets, and ranking under its own rooted freshness contract. That owner must
+detect stale or substituted source inputs; `vela replay` does not validate the
+projection.
 
-A stale or invalid index yields no Offer. Ranking and graph position never
-create authority.
+No work projection creates authority. A compromised reader can misorient a
+producer, but only an authenticated Submission enters review and only an
+authorized Decision changes Standing.
 
 ### Concurrent writes and recovery
 
@@ -140,9 +142,39 @@ Canonical transactions bind expected repository and Git state, exact path
 sets, read sets, and postimages. They do not consume unrelated staged work or
 silently merge a changed base.
 
-The recoverable journal and commit marker distinguish preflight, active,
-committed, and recoverable states. A failed or cancelled transaction before the
-marker creates no canonical effect.
+The private journal and commit marker distinguish uncommitted Prepared state
+from a committed transaction whose exact installation may be incomplete. A
+failed or cancelled transaction before the marker creates no canonical effect.
+One valid unfinished transaction stops ordinary writes with its exact operation
+ID; corrupt or multiple state supplies no guessed ID. Read-only commands do not
+mutate recovery state and no command auto-recovers a different operation.
+
+`vela recover --repo <PATH> <OPERATION_ID>` acquires the repository-wide lock
+and opens only the named journal. It may abort only an exactly Prepared journal
+whose marker is definitely absent. A valid marker authorizes policy-free,
+idempotent installation of the already-bound postimages; it does not deserialize
+permission or reacquire a signer, trust material, authority policy, or
+Decision. Malformed or unreadable markers, root/Profile-identity binding or
+path substitution, missing or corrupt blobs, postimage conflicts, and
+ambiguous incomplete state fail closed rather than being treated as absence.
+
+Recovery ends after that one filesystem transaction. It does not resume the
+semantic command, begin another write, or create, move, or publish a Git ref.
+Terminal Completed and Aborted journals are safe to name again without
+rewriting semantic state.
+
+Native genesis has a separate post-transaction Git/trust tail. A retry accepts
+only one exact Completed sequence-one operation whose signed request, result,
+read set, canonical delta, repository/account context, scaffold bytes, and
+runtime-validated private residue all agree. Git initialization and publication
+strip ambient `GIT_*` redirection and disable inherited configuration, hooks,
+filters, attributes, alternates, replacement refs, prompts, pagers, signing,
+and transports. The parentless commit uses the recorded transaction time and
+fixed Vela identity, not the retry clock. Unexpected public paths (including
+case or Unicode aliases), mutable ignore-based residue, dirty index/ref state,
+or a colliding trust pin fail before publication; every fallible repository and
+Git verification runs before pin installation. Recovery itself never enters
+this tail and never needs a signer or trust credential.
 
 ### Reader compromise
 

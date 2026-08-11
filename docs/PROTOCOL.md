@@ -25,8 +25,7 @@ authorization, or presentation.
 ## 2. User and object lifecycle
 
 ```text
-Target
-  -> native work
+native work
   -> Submission
   -> pending Proposal
   -> Verification Record(s)
@@ -37,7 +36,6 @@ Target
 
 | Object | Role | Authority effect |
 | --- | --- | --- |
-| Target | Derived bounded unit of work | None |
 | Native run | Execution retained by an external agent or scientific tool | None |
 | Submission | Authenticated producer request and evidence | None |
 | Claim Record | Versioned assertion, conditions, evidence, and provenance | None by itself |
@@ -60,8 +58,7 @@ The canonical closed loop is:
 
 ```text
 Standing
-  -> derived Target Index
-  -> Target
+  -> source-local or read-product orientation
   -> native work or run
   -> Submission
   -> pending Proposal
@@ -70,20 +67,21 @@ Standing
   -> Event
   -> strict replay
   -> Standing
-  -> next Target
 ```
 
-The loop is a product and operating model, not a new authority path. Targets,
-runs, indexes, search, graphs, and Web projections remain non-authoritative.
-Only the Decision admits an Event; replay deterministically derives Standing;
-the repository's domain adapter may then derive the next Target Index.
+The loop is a product and operating model, not a new authority path. Exact next
+obligations, work packets, runs, indexes, search, graphs, and Web projections
+remain source-local or read-only and non-authoritative. Only the Decision
+admits an Event; replay deterministically derives Standing.
 
-Canonical user verbs follow the CLI: `init`, `next`, `start`, `submit`,
-`verification record|import`, `review show|accept|reject|withdraw`, `replay`,
-`reproduce`, `show`, and `why`. `Reproduce` is the user operation; strict
-replay is the validation it performs. Product navigation may group these exact
-objects under Problems, Frontiers, Work, Review, Activity, and Sources, but it
-must not invent substitute protocol nouns or imply authority from a grouping.
+Canonical user verbs follow the shipped CLI: `init`, `status`, `claims`,
+`submit`, `verification record|import`, `show`, `why`,
+`review inbox|list|show|accept|reject|withdraw`, `replay`, `reproduce`, `log`,
+`correction impact`, and `authority trust pin`. `Reproduce` is the user
+operation; strict replay is the validation it performs. Product navigation may
+group these exact objects under Problems, Frontiers, Work, Review, Activity,
+and Sources, but it must not invent substitute protocol nouns or imply
+authority from a grouping.
 
 ## 3. Current repository origin
 
@@ -103,7 +101,6 @@ records/verifications/sha256/
 records/proposals/sha256/
 records/proposal-withdrawals/sha256/
 records/artifacts/sha256/
-targets.json
 ```
 
 `vela.toml` identifies the bounded repository. `.vela/repository.json`
@@ -134,13 +131,22 @@ repository rather than a permanent field on every origin.
 The readable `vro_` handle is derived from the origin's full root, not stored
 in it.
 
-`vela init` creates Repository Profile v1, the genesis origin, repository v4
-manifest,
-keyset, authorization model, sequence-one authority history, local trust
-anchor, and initial Git commit in one recoverable transaction. If signing is
-unavailable, the exact Profile remains and the same `vela init` command resumes
-the operation. Strict repository verification remains blocked until that
-operation completes.
+`vela init` creates Repository Profile v1, then installs the genesis origin,
+repository v4 manifest, keyset, authorization model, and sequence-one authority
+history through one recoverable filesystem transaction. The initial Git commit
+and operating-system-account trust anchor are separate post-transaction steps.
+If signing is unavailable, the exact Profile remains and the same `vela init`
+command resumes the operation. Strict repository verification remains blocked
+until initialization completes.
+
+Once that transaction is exactly Completed, a repeated exact `vela init` may
+finish only its deterministic parentless Git commit and sequence-one local trust
+pin. The continuation revalidates the complete signed genesis, its authority
+read-set commitment, exact durable delta and private residue, retained Profile
+scaffold, key selector, reason, fixed time, and operating-system account. It
+never reacquires a signer, creates a second transaction or authority record, or
+changes the recorded time. A nonterminal journal must first be handled by the
+explicit recovery action below; initialization never recovers it implicitly.
 
 Authorization is confined to repository-authority Decisions and rare authority
 administration. It is not an agent permission system, campaign runtime, or
@@ -228,16 +234,15 @@ So it binds:
   capsule, and result contract the work ran against.
 
 A Submission binds no Repository and no Target. It has carried neither since the
-object was introduced, and both are absent from the live Submission bytes in
-all four controlled repositories. This is what portability costs: the same
-bytes are replayable into any repository by anyone holding them, and the
+object was introduced, and both are absent from current Submission bytes. This
+is what portability costs: the same bytes are replayable into any repository
+by anyone holding them, and the
 association is made by the receiving repository at `vela submit`
 time, not asserted by the producer. An adapter must not add `frontier` or
-`target` keys; the schema is closed and rejects them. The nearest thing to a
-Target reference the object carries is `execution_binding.packet_root`, which
-the producer sets to the Target packet root that `vela start` printed. It is a
-producer declaration checked only for root shape, not a repository-verified
-link back to the Target Index.
+`target` keys; the schema is closed and rejects them.
+`execution_binding.packet_root` may name a source-local work packet, but it is
+a producer declaration checked only for root shape, not a repository-verified
+link to a Vela catalogue.
 
 A workbench can produce Submission bytes without importing Vela internals.
 Submission identity is over the exact closed canonical bytes.
@@ -398,6 +403,12 @@ The authority record distinguishes:
 Producer identities cannot acquire review, administration, or recovery
 authority by signing producer objects.
 
+The current Vela binary authors sequence-one authority initialization and
+`review accept` or `review reject` Decisions. Keyset rotation, authorization
+model update, and terminal-close objects remain in the protocol reader so
+retained or foreign histories can be verified, but a verification-only
+consumer does not need to produce those actions.
+
 ### 4.3 Decision
 
 `review accept` and `review reject` are direct semantic actions. Their Decision
@@ -441,23 +452,7 @@ OpenSSH-agent Ed25519 identity, current keyset, authorization model,
 authenticated OS principal, and reason in the sequence-one authority record. It is resumable
 after signing failure and changes no scientific Standing.
 
-### 5.2 Start
-
-`vela start` is a read-only orientation command. It validates and returns:
-
-- repository origin and root;
-- Target Index root;
-- Target objective and repository scope;
-- exact packet and packet root;
-- source Git identity;
-- declared verifier profile; and
-- the human-Decision authority ceiling.
-
-It creates no file, lease, run record, counter, budget, canonical Event,
-repository record, or authority-key read. Vela does not launch or wrap an
-agent, verifier, or workflow engine.
-
-### 5.3 Submit
+### 5.2 Submit
 
 `vela submit` installs the exact producer-authenticated Submission, declared
 Artifacts, derived Claim Record, and pending Proposal in one bounded
@@ -467,13 +462,13 @@ New Claims enter `pending_claims`. Accepted Standing does not change. The
 transaction reads no repository-authority key and cannot accept or reject a
 Proposal.
 
-### 5.4 Import verification
+### 5.3 Import verification
 
 `vela verification import` accepts only a signed record bound to one current
 pending Proposal and its exact current objects. It advances the repository
 manifest and changes no Standing.
 
-### 5.5 Withdraw a pending Proposal
+### 5.4 Withdraw a pending Proposal
 
 `vela review withdraw` is producer-owned queue hygiene. It appends one
 `vela.proposal-withdrawal.v2` signed by the exact key bound in the Proposal's
@@ -482,7 +477,7 @@ projection. It reads no repository-authority key, emits no Event, and leaves
 accepted Standing unchanged. A decided Proposal cannot be withdrawn, and a
 withdrawn Proposal cannot later be decided or verified.
 
-### 5.6 Decide
+### 5.5 Decide
 
 `vela review accept|reject` rederives the complete Decision Plan, authenticates
 and authorizes the semantic principal, rechecks the read set, requests the
@@ -491,25 +486,50 @@ the recoverable journal.
 
 Any drift or failure before the commit marker produces no canonical mutation.
 
-## 6. Target Index
+### 5.6 Recover one repository transaction
 
-`vela.target-index.v5` is derived and non-authoritative. It binds:
+`vela recover --repo <PATH> <OPERATION_ID>` is an advanced operator action for
+one interrupted canonical transaction. The operation ID is required: under the
+repository-wide lock the runtime opens exactly that journal and never selects
+one by scanning directory order.
 
-- repository origin and root;
-- exact source and input roots;
-- ordered Targets;
-- packet and task contracts; and
-- deterministic rank facts.
+An exactly Prepared journal whose commit marker is definitely absent is
+aborted. A valid durable marker is the authorization to install, verify, and
+complete the exact transaction idempotently; no signer, repository-authority
+policy, Decision, trust material, or serialized write capability is reacquired.
+Completed and Aborted journals return their corresponding idempotent result.
 
-`next` validates the full index and returns producer work only. `start`
-revalidates the selected Target and packet. A stale or invalid index grants no
-Offer.
+Malformed or unreadable markers are not absence. A mismatched repository root,
+retained Profile identity, or journal binding; inconsistent state; a missing or
+corrupt blob; a substituted path; a postimage conflict; or an ambiguous
+incomplete-journal set fails closed. Recovery
+does not run the interrupted semantic command again, start a new operation, or
+publish Git state. Read-only operations never invoke it. When one valid
+unfinished transaction exists, ordinary writes stop with its exact recovery
+action rather than recovering implicitly.
 
-The repository's domain adapter writes the final tracked index directly. Vela
-does not maintain a candidate, seal, apply, inspect, or repair lifecycle for
-this disposable projection.
+For a routine Completed transaction, the recovery result may name ordinary Git
+status as the next inspection. For an exact verified native genesis whose
+deterministic Git/trust tail can be continued or confirmed idempotently, it
+instead names the exact `vela init --key ... --reason ...` continuation.
+This is only a next action: recovery itself remains policy-free and performs no
+Git publication or trust installation. If a native-genesis continuation proof
+is unavailable after filesystem recovery succeeds, the recovery outcome remains
+successful, the advisory continuation status is `blocked`, and no executable
+publication hint is returned. That advisory does not set the durable repository
+barrier.
 
-Ranking and graph position never imply authority.
+## 6. Source-local next obligations
+
+Vela core publishes no Target catalogue and no `next`/`start` command pair. A
+source-owning Repository or read product may derive exact next obligations,
+ranked work, or rooted packets from a verified repository root under its own
+schema and freshness rules. Those projections are not Vela replay state.
+
+A Submission may retain producer-declared execution-binding roots for a packet,
+profile, verifier capsule, and result contract. Vela validates their shape and
+binds them into the Submission; it does not infer work authority or Standing
+from them. Ranking and graph position never imply authority.
 
 ## 7. Replay and Standing
 
@@ -606,6 +626,9 @@ cannot:
 
 Disagreement is resolved from an exact Git checkout with `vela replay`
 and the declared frozen verifiers.
+
+Readers may expose exact next obligations or blockers, but they own the
+projection and its freshness contract. No such view can change Standing.
 
 ## 10. Interoperability
 

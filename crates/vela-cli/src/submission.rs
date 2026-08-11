@@ -19,14 +19,15 @@ use vela_protocol::submission::SubmissionRecordV2;
 
 use crate::authority_transaction::AuthorityObjectDraft;
 use crate::config::git_publish::{
-    PublicationOutcome, PublicationState, PublishOptions, exact_publication_preflight,
-    publish_exact_delta,
+    PublicationOutcome, PublicationState, PublishOptions, publish_exact_delta,
 };
 use crate::repository_ops::{
-    PreparedSubmissionArtifacts, SubmitOutcome, prepare_submission_artifacts, publication_delta,
+    PreparedSubmissionArtifacts, SubmitOutcome, prepare_submission_artifacts,
     submission_publication_inputs,
 };
-use crate::repository_txn::{ContentDigest, InputBinding, WriteClass};
+use vela_repository::{ContentDigest, InputBinding, WriteClass};
+
+const REPOSITORY_OPERATION_KIND: &str = "submission";
 
 pub(crate) fn rooted_path(directory: &str, root: &str) -> Result<String, String> {
     let digest = root
@@ -301,8 +302,7 @@ fn existing_outcome(
     };
     let (_, proposal) = proposal_reference;
     let request_root = submit_request_root(repository, submission_root)?;
-    let operation_id =
-        crate::repository_txn::OperationId::derive("submit", request_root.as_bytes());
+    let operation_id = vela_repository::OperationId::derive("submit", request_root.as_bytes());
     Ok(Some(SubmitOutcome {
         schema: "vela.submit-result.v1",
         operation_id: operation_id.as_str().into(),
@@ -374,15 +374,6 @@ pub(crate) fn submit(
     executor: &str,
     bundle_root: Option<&Path>,
 ) -> Result<SubmitOutcome, String> {
-    submit_inner(repository_path, submission, executor, bundle_root)
-}
-
-fn submit_inner(
-    repository_path: &Path,
-    submission: &SubmissionRecordV2,
-    executor: &str,
-    bundle_root: Option<&Path>,
-) -> Result<SubmitOutcome, String> {
     let executor = executor.trim();
     if executor != submission.submission.provenance.producer
         || executor != submission.submission.identity.actor_id
@@ -391,6 +382,7 @@ fn submit_inner(
     }
     let repository = crate::repository::verify_repository_at(repository_path, true)?;
     let repository_root = repository.canonical_root()?;
+    crate::repository_ops::verify_repository_transaction_barrier_read_only(repository_path)?;
     let submission_root = submission.root.clone();
     if let Some(outcome) =
         existing_outcome(repository_path, &repository, submission, &submission_root)?
@@ -399,7 +391,7 @@ fn submit_inner(
     }
 
     let journal_dir = crate::repository_ops::repository_transaction_journal_dir(repository_path)?;
-    let barrier = crate::repository_txn::RepositoryTxn::acquire_routine_evidence_write_barrier(
+    let barrier = crate::repository_write_policy::acquire_routine_evidence_write_barrier(
         repository_path,
         &journal_dir,
     )
@@ -487,8 +479,7 @@ fn submit_inner(
         )?;
     }
     let request_root = submit_request_root(&held_repository, &submission_root)?;
-    let operation_id =
-        crate::repository_txn::OperationId::derive("submit", request_root.as_bytes());
+    let operation_id = vela_repository::OperationId::derive("submit", request_root.as_bytes());
     next_repository.verify()?;
     object_drafts.extend([
         AuthorityObjectDraft {
@@ -512,7 +503,7 @@ fn submit_inner(
     ]);
     for write in artifact_writes {
         let (path, class, postimage) = write
-            .into_authority_object_parts()
+            .into_regular_object_parts()
             .map_err(|error| error.to_string())?;
         object_drafts.push(AuthorityObjectDraft {
             path,
@@ -526,43 +517,33 @@ fn submit_inner(
         barrier,
         repository_path,
         &held_repository.repository_id,
-        crate::repository_txn::OperationKind::Submission,
+        vela_repository::OperationKind::new(REPOSITORY_OPERATION_KIND)
+            .map_err(|error| error.to_string())?,
         operation_id.clone(),
         &request_root,
         fixed_time,
         read_set,
         object_drafts,
-        Vec::new(),
     )?;
 
-    let precommit = (|| {
-        let public = prepared
-            .resolved_public_writes()
-            .map_err(|error| error.to_string())?;
-        let delta_root = prepared.canonical_delta_root().to_string();
-        let publish_options = PublishOptions::local()
-            .with_preflight_inputs(submission_publication_inputs(repository_path, submission)?);
-        let delta = publication_delta(repository_path, &delta_root, public)?
-            .ok_or_else(|| "Submission transaction had no public Git delta".to_string())?;
-        let preflight = exact_publication_preflight(repository_path, &delta, &publish_options)
-            .map_err(crate::repository_ops::publication_error)?;
-        Ok::<_, String>((delta, preflight))
-    })();
-    let (delta, preflight) = match precommit {
-        Ok(value) => value,
-        Err(error) => {
-            prepared
-                .abort_prepared()
-                .map_err(|abort| format!("{error}; abort failed: {abort}"))?;
-            return Err(error);
-        }
-    };
+    let (delta, preflight) = prepared.preflight_publication(
+        repository_path,
+        || {
+            Ok(PublishOptions::local()
+                .with_preflight_inputs(submission_publication_inputs(repository_path, submission)?))
+        },
+        "Submission transaction had no public Git delta",
+    )?;
     prepared
         .mark_committed()
         .map_err(|error| error.to_string())?;
     prepared.install().map_err(|error| error.to_string())?;
+    #[cfg(feature = "test-support")]
+    if std::env::var_os("VELA_TEST_INTERRUPT_SUBMIT_AFTER_INSTALL").is_some() {
+        return Err("injected product-boundary interruption after durable Installed state".into());
+    }
     prepared.complete().map_err(|error| error.to_string())?;
-    crate::repository::verify_repository_allow_derived_drift_at(repository_path)?;
+    crate::repository::verify_repository_prepublication_at(repository_path)?;
     let proposal_id = proposal.id();
     let publication = publish_exact_delta(
         repository_path,
@@ -570,8 +551,7 @@ fn submit_inner(
         std::slice::from_ref(&proposal_id),
         &delta,
         preflight,
-    )
-    .map_err(|error| error.to_string())?;
+    )?;
     if matches!(
         publication.state,
         PublicationState::Unchanged { .. } | PublicationState::CommittedLocal { .. }

@@ -5,7 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Replaceable filesystem, Git, and non-authoritative analysis adapters for Vela."
+description = "Producer identity, Git, and non-authoritative analysis adapters for Vela."
 readme = "../../README.md"
 publish = false
 [lib]
@@ -14,15 +14,12 @@ path = "src/lib.rs"
 [dependencies]
 vela-protocol.workspace = true
 serde.workspace = true
-serde_json.workspace = true
 sha2.workspace = true
 hex.workspace = true
 ed25519-dalek.workspace = true
 rand_core.workspace = true
-same-file = "1.0.6"
-tempfile.workspace = true
 unicode-normalization.workspace = true
-rustix = { version = "1", features = ["fs", "process"] }
 [dev-dependencies]
+serde_json.workspace = true
 [lints]
 workspace = true

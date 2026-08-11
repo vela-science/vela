@@ -31,7 +31,10 @@ use std::path::Path;
 use std::process::{Command, Output};
 
 mod support;
-use support::EphemeralAgent;
+use support::{
+    EphemeralAgent, configure_git_identity, json_object as json, run_with_home_and_socket as run,
+    successful_stdout as stdout,
+};
 
 /// TERMINOLOGY.md, "Product wording": these are banned unqualified, so the test
 /// looks for them as whole words and lets a qualified compound through.
@@ -109,34 +112,6 @@ fn assert_no_retired_key(surface: &str, document: &serde_json::Value) {
     }
 }
 
-fn run(cwd: &Path, home: &Path, socket: &Path, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_vela"))
-        .current_dir(cwd)
-        .args(args)
-        .env("HOME", home)
-        .env("NO_COLOR", "1")
-        .env("VELA_ADVICE", "0")
-        .env("SSH_AUTH_SOCK", socket)
-        .output()
-        .expect("run vela")
-}
-
-fn stdout(output: &Output) -> String {
-    assert!(
-        output.status.success(),
-        "vela exited {:?}\nstdout: {}\nstderr: {}",
-        output.status.code(),
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    String::from_utf8(output.stdout.clone()).expect("vela output must be UTF-8")
-}
-
-fn json(output: &Output) -> serde_json::Value {
-    serde_json::from_str(String::from_utf8_lossy(&output.stdout).trim())
-        .expect("vela --json must emit one JSON object")
-}
-
 fn assert_no_banned_word(verb: &str, rendered: &str) {
     for word in rendered.split(|character: char| !character.is_ascii_alphanumeric()) {
         let word = word.to_ascii_lowercase();
@@ -144,20 +119,6 @@ fn assert_no_banned_word(verb: &str, rendered: &str) {
             !BANNED_UNQUALIFIED.contains(&word.as_str()),
             "`vela {verb}` prints the unqualified word {word:?}, which TERMINOLOGY.md bans:\n{rendered}"
         );
-    }
-}
-
-fn configure_git_identity(repository_path: &Path) {
-    for (key, value) in [
-        ("user.name", "Vela Test"),
-        ("user.email", "vela@example.invalid"),
-    ] {
-        let configured = Command::new("git")
-            .current_dir(repository_path)
-            .args(["config", key, value])
-            .status()
-            .expect("configure test Git identity");
-        assert!(configured.success());
     }
 }
 
