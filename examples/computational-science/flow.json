@@ -1,0 +1,14 @@
+{
+  "schema": "vela.reference-flow.v1",
+  "name": "periodic-heat-foreign-producer",
+  "authority_effect": "none",
+  "result_sha256": "sha256:f33a884b1bfd0f901b7831ab385fb4866a217f7c671dfde8153d869b8218ade2",
+  "submission_root": "sha256:6bda95dd9142547ba6ee7b9176f2a1eaea82efc0e5053846f2a7d0be4abc29f5",
+  "submission_id": "vsb_6bda95dd9142547b",
+  "producer": "agent:foreign-compute-example",
+  "does_not_establish": [
+    "continuum accuracy",
+    "an independent Verification Record",
+    "an authorized Decision or scientific Standing"
+  ]
+}

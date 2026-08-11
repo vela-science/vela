@@ -1,7 +1,10 @@
 # Vela conformance
 
-This directory contains the small, implementation-independent corpus for
-Vela's current public object boundary.
+This directory contains the small, implementation-independent corpus for the
+Vela Protocol 1 release-candidate boundary. `protocol-1.json` is the
+machine-readable map from the specification to exact schemas, fixtures,
+vectors, independent implementations, and non-normative examples;
+`verify_protocol_1.py` checks its paths and SHA-256 bindings.
 
 Run all checks:
 
@@ -21,7 +24,7 @@ uv run --project conformance --locked ruff check conformance
 uv run --project conformance --locked zizmor --offline --min-severity medium .
 ```
 
-The corpus protects six contract families:
+The corpus protects eight contract families:
 
 1. canonical JSON bytes and SHA-256 roots in Rust, Python, and JavaScript;
 2. byte-identical Submission and Verification emission from an independent
@@ -32,7 +35,12 @@ The corpus protects six contract families:
 5. a non-authoritative correction-impact projection, including independent
    support-route survival and bounded fail-closed diagnostics; and
 6. verification of a retained four-record authority chain from an explicit
-   external sequence-one anchor, including thirteen fail-closed mutations.
+   external sequence-one anchor, including thirteen fail-closed mutations;
+7. byte-identical independent Python and JavaScript object reading, including
+   canonical bytes, DSSE type, Ed25519 signature, full root, handle, and signer;
+   and
+8. three executable reference flows whose authority effect remains explicitly
+   none.
 
 `current-objects/` contains deterministic signed Submission and Verification
 vectors. The seed files are public fixture material only. They are never used

@@ -1,0 +1,16 @@
+{
+  "schema": "vela.reference-flow.v1",
+  "name": "correction-and-inheritance",
+  "real_authority_fixture": "conformance/fixtures/authority/math-0.972.1",
+  "real_terminal_repository_root": "sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc",
+  "real_accepted_claim_count": 1,
+  "cascade_fixture": "conformance/fixtures/correction/diamond-input.json",
+  "cascade_input_root": "sha256:68a5094a5a98d60ab1d34c11c5306a202ea44d126f6dc95f33e20d31b5b1f8da",
+  "cascade_projection_root": "sha256:935e084f8c5c45bcee234d2e9752062ba54493aa1b14f731e0efbbb1ecc01df6",
+  "authority_effect": "none",
+  "does_not_establish": [
+    "that the synthetic diamond occurred in a scientific Repository",
+    "that the real Math correction has dependency edges or a nonempty downstream cascade",
+    "external adoption, reviewer benefit, or scientific lift"
+  ]
+}

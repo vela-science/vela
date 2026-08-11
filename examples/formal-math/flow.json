@@ -1,0 +1,22 @@
+{
+  "schema": "vela.reference-flow.v1",
+  "name": "erdos-321-terminal-variant-evidence",
+  "authority_effect": "none",
+  "repository": "https://github.com/vela-science/math.git",
+  "repository_commit": "5be513bd0ce2243b59268d9b185da18497505067",
+  "repository_tree": "80f86abf45f041d209a50a37b03bfece24c17ea8",
+  "repository_root": "sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc",
+  "accepted_claim_count": 1,
+  "evidence_path": "evidence/erdos-321/terminal-variants",
+  "evidence_bundle_root": "sha256:bd7b7eee6eb5e2e8f654898207bf05168ea6e7dd1d72f3a1a46a685a64f8f322",
+  "comparison_content_root": "sha256:808c9ba973d36b0ed79366ae04357c04e2c5b2c0aa5a04967f90ad09eabba699",
+  "source_lock_root": "sha256:128edd2b0b58597ca05c7c0049ab20c10c9e6ef4e06c2c3ff8371752123a103b",
+  "terminal_source_commit": "a8c2872a27cf8d11cf6744ca4a2c5b49ace5fea0",
+  "terminal_source_sha256": "sha256:63dd7ba024ec235a47c1b90c638acae758a50f2d0ee4267e0f69b22cd5d9c0b5",
+  "does_not_establish": [
+    "that the terminal theorem implies either fixed variant",
+    "that either fixed variant implies the terminal theorem",
+    "that Erdős Problem 321 is resolved or optimal",
+    "a new Submission, Verification Record, Decision, Event, or Standing"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "artifacts": [
+    {
+      "digest": "sha256:f33a884b1bfd0f901b7831ab385fb4866a217f7c671dfde8153d869b8218ade2",
+      "kind": "computational-result",
+      "path": "examples/computational-science/result.json"
+    }
+  ],
+  "caveats": [
+    "This discrete conservation check does not establish continuum accuracy or scientific acceptance."
+  ],
+  "claim": {
+    "assertion": "The exact discrete total is 100 at every retained step of the pinned four-cell periodic heat computation.",
+    "conditions": [
+      "The initial state, 16-step update rule, periodic boundary, and exact rational arithmetic equal the retained artifact."
+    ],
+    "type": "computational"
+  },
+  "producer_checks": [
+    {
+      "authority": "producer_reported",
+      "method": "python3 examples/computational-science/experiment.py --check examples/computational-science/result.json",
+      "outcome": "pass"
+    }
+  ],
+  "provenance": {
+    "emitted_at": "2026-08-11T00:00:00Z",
+    "producer": "agent:foreign-compute-example",
+    "source_run": "periodic-heat-reference-v1",
+    "source_system": "python-stdlib-reference"
+  },
+  "replayability": "exact",
+  "requested_change": {
+    "kind": "add_claim"
+  },
+  "verification_requirements": [
+    "Independently recompute every retained rational state and total from the exact artifact and method."
+  ]
+}

@@ -1,0 +1,15 @@
+Vela source-code license
+
+Except where a file or directory states otherwise, Vela source code is
+available under either of these licenses, at your option:
+
+  * Apache License, Version 2.0 (LICENSE-APACHE)
+  * MIT License (LICENSE-MIT)
+
+The Vela name, logos, and other brand assets are not included in that grant.
+Their terms are in assets/brand/LICENSE.
+
+Third-party components retain their own licenses. Published release bundles
+include an SPDX SBOM that identifies those components. Scientific artifacts
+and referenced repositories are governed by the terms of their source owners;
+this repository does not grant additional rights to them.

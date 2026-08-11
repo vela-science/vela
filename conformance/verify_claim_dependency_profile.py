@@ -23,7 +23,7 @@ from cryptography.hazmat.primitives.serialization import load_der_public_key
 ROOT = Path(__file__).resolve().parent.parent
 EXPERIMENT = ROOT / "conformance/experiments/claim-dependency-profile-v0"
 sys.path.insert(0, str(ROOT / "conformance/readers/python"))
-from canonical import canonical_bytes  # noqa: E402
+from canonical import canonical_bytes
 
 SHA256 = re.compile(r"sha256:[0-9a-f]{64}\Z")
 CLAIM_ID = re.compile(r"vcl_[0-9a-f]{64}\Z")
@@ -132,8 +132,8 @@ def validate_profile(value: object) -> dict:
     context = (scope["repository_id"], scope["repository_origin_root"])
     nodes: dict[str, dict] = {}
     node_order = []
-    for value in profile["nodes"]:
-        item = claim_ref(value, node=True)
+    for raw_node in profile["nodes"]:
+        item = claim_ref(raw_node, node=True)
         if (item["repository_id"], item["repository_origin_root"]) != context:
             fail("profile_repository_context_mismatch")
         if item["claim_id"] in nodes:
@@ -149,9 +149,11 @@ def validate_profile(value: object) -> dict:
     ):
         fail("profile_dependency_bound_exceeded")
     dependency_order = []
-    for value in dependencies:
+    for raw_dependency in dependencies:
         item = exact(
-            value, {"kind", "source", "target"}, "profile_dependency_kind_unsupported"
+            raw_dependency,
+            {"kind", "source", "target"},
+            "profile_dependency_kind_unsupported",
         )
         if item["kind"] != "requires":
             fail("profile_dependency_kind_unsupported")
@@ -619,7 +621,7 @@ def verify_vectors(profile: dict, state: dict) -> None:
     for vector in load("negative-vectors.json")["vectors"]:
         changed = mutate(profile, state, vector)
         if "expected_error" in vector:
-            expect_error(vector["expected_error"], lambda: derive(*changed))
+            expect_error(vector["expected_error"], lambda changed=changed: derive(*changed))
             continue
         projection = derive(*changed)
         for key, expected in vector["expected_sets"].items():
@@ -839,6 +841,7 @@ def main() -> int:
         ],
         cwd=ROOT,
         timeout=30,
+        check=False,
     )
     if result.returncode:
         return result.returncode

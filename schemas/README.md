@@ -1,4 +1,9 @@
-# Vela JSON Schemas
+# Vela Protocol 1 JSON Schemas
+
+These JSON Schema 2020-12 documents are the structural part of the Protocol 1
+release-candidate surface. The exact selected files and digests are bound by
+`conformance/protocol-1.json`. Schema validity never proves a signature,
+Decision, or Standing.
 
 One document describes the signed transport. `dsse-envelope.schema.json` is the
 DSSE envelope every signed Vela

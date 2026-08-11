@@ -29,7 +29,6 @@ import pathlib
 import subprocess
 import sys
 
-
 ATTESTATION_NOTE = (
     "actions/attest-build-provenance is bound to a GitHub Actions OIDC identity "
     "and has no provider-neutral equivalent, so it stays in "
@@ -95,6 +94,9 @@ def main() -> int:
     parser.add_argument("--rustc", required=True)
     parser.add_argument("--target-triple", required=True)
     parser.add_argument("--build-command", required=True)
+    parser.add_argument("--source-date-epoch", required=True, type=int)
+    parser.add_argument("--binary-build-count", required=True, type=int)
+    parser.add_argument("--archive-build-count", required=True, type=int)
     parser.add_argument("--cargo-auditable-version", required=True)
     parser.add_argument("--sbom-tool", required=True)
     parser.add_argument("--sbom-tool-version", required=True)
@@ -107,6 +109,11 @@ def main() -> int:
         help="one released file; repeat per asset",
     )
     arguments = parser.parse_args()
+
+    if arguments.source_date_epoch < 0:
+        raise SystemExit("release_manifest: --source-date-epoch must be nonnegative")
+    if arguments.binary_build_count < 2 or arguments.archive_build_count < 2:
+        raise SystemExit("release_manifest: reproducibility counts must each be at least 2")
 
     assets = []
     for entry in arguments.asset:
@@ -157,8 +164,16 @@ def main() -> int:
                 "tool": arguments.sbom_tool,
                 "tool_version": arguments.sbom_tool_version,
             },
+            "reproducibility": {
+                "archive_builds_compared": arguments.archive_build_count,
+                "binary_builds_compared": arguments.binary_build_count,
+                "build_path": "/src/vela",
+                "source_date_epoch": arguments.source_date_epoch,
+            },
         },
-        "generated_at": dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "generated_at": dt.datetime.fromtimestamp(
+            arguments.source_date_epoch, dt.UTC
+        ).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "release": {
             "tag": arguments.tag,
             "version": arguments.version,

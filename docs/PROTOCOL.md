@@ -1,11 +1,47 @@
-# Vela protocol
+# Vela Protocol 1
 
-Status: pre-1.0 current repository-origin contract.
+Status: release candidate. This document is the normative Protocol 1
+specification; it does not publish a `v1.0.0` software release or claim external
+adoption.
 
 Vela is version control for scientific state. The protocol defines how exact
 Claims, evidence, Verification Records, Proposals, Decisions, and Standing are
 preserved in one Git repository without confusing production, verification,
 authorization, or presentation.
+
+## Protocol 1 surface
+
+The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, and **MAY** in
+this document are interpreted as described by RFC 2119 and RFC 8174 when, and
+only when, they appear in capitals.
+
+Protocol 1 is a fixed interoperability selection over versioned objects. The
+protocol number does not replace their schema tags: a Protocol 1 producer emits
+`vela.submission.v2`, and a future object-shape change still requires a new
+object schema even if the protocol selection remains Protocol 1.
+
+| Surface | Protocol 1 selection | Executable publication |
+| --- | --- | --- |
+| Canonical bytes | RFC 8785 JCS over I-JSON | `conformance/canonical-hashing.json` |
+| Content identity | SHA-256 over exact canonical bytes, rendered `sha256:<64 lowercase hex>` | Rust, Python, and JavaScript vector readers |
+| Signed transport | DSSE 1.0.2 PAE with one Ed25519 signature for current producer and verifier objects | `schemas/dsse-envelope.schema.json`, independent emitters and readers |
+| Portable structure | JSON Schema 2020-12 descriptions of the closed rooted payloads and selected read surfaces | `schemas/*.schema.json`, generated from live Rust types |
+| Scientific state | Submission → Verification Record → Decision → Event → Standing | this specification and the authority-chain vector |
+| Repository transport | complete ordinary Git object history | strict replay and repository-root readers |
+| Release evidence | SPDX SBOM, checksums, build provenance, deterministic archive, signed provider-neutral manifest | `scripts/release.sh`, `install.sh`, release conformance tests |
+
+The machine-readable selection is `conformance/protocol-1.json`. It binds this
+specification, the conformance profile, published schemas, positive fixtures,
+negative vectors, independent implementations, and the three non-normative
+reference flows by path and SHA-256. `conformance/verify_protocol_1.py` fails if
+that surface drifts.
+
+Normative interoperability material is limited to this specification, the
+published schemas, and the vectors the Protocol 1 manifest marks normative.
+Examples, projections, release metadata, and explanatory documents are
+informative and carry no scientific authority. Passing every conformance check
+demonstrates implementation agreement only; it is not a human Decision,
+scientific Standing, external adoption, or a final 1.0 release.
 
 ## 1. Invariants
 

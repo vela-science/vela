@@ -4,26 +4,48 @@ Vela is version control for scientific state. Git publishes exact bytes;
 agents submit authenticated evidence; Verification Records report scoped
 checks; only an authorized human Decision changes Standing.
 
-## Read an existing repository
+## Two-minute flagship: read exact scientific state
 
 ```bash
-git clone <repository-url>
-cd <repository>
-vela replay . --json
-vela status . --json
-vela reproduce .
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.972.1/install.sh | \
+  VELA_VERSION=v0.972.1 bash
+
+git clone https://github.com/vela-science/math.git math
+git -C math checkout 5be513bd0ce2243b59268d9b185da18497505067
+vela replay math --json
+vela claims math --json
 ```
 
-Strict checking validates the current repository origin, exact Git anchors and
-ancestry, retained canonical objects, authority-history continuity, and the
-consumer's independent sequence-one trust anchor. Obtain the full first
-authority-record root through an independent channel and install it with:
+That is the whole first experience: install one signed binary, clone one
+complete ordinary Git repository, replay it, and read its Claims. No account,
+daemon, hosted writer, SDK, or authority key is required. At the pinned commit,
+replay returns Repository root
+`sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc`
+and the Claim index reports one accepted Claim.
+
+Do not use a shallow or partial clone for exact offline reads: missing Git
+history is indistinguishable from missing scientific history. The terminal
+evidence added at this commit is source-local and changed no `.vela/` or
+`records/` byte; the [formal-math reference flow](../examples/formal-math/)
+shows the boundary.
+
+For strict consumer trust, obtain the full sequence-one authority-record root
+through an independent channel and pin it locally:
 
 ```bash
 vela authority trust pin . --record-root sha256:... --json
 ```
 
-This local public pin grants no authority and changes no repository byte.
+This public pin grants no authority and changes no repository byte.
+
+## Read another repository
+
+```bash
+git clone <repository-url>
+vela replay <repository> --json
+vela status <repository> --json
+vela reproduce <repository>
+```
 
 ## Produce one bounded result
 

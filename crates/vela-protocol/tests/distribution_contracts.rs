@@ -15,6 +15,7 @@ const CONFORMANCE_WORKFLOW: &str = include_str!("../../../.github/workflows/conf
 clean checkout can run with no CI provider. This test moved with them: what it
 protects is the order and the pins, not which file happens to hold them. */
 const RELEASE_SCRIPT: &str = include_str!("../../../scripts/release.sh");
+const SIGN_PUBLISHED_RELEASE: &str = include_str!("../../../scripts/sign-published-release.sh");
 
 fn parse_yaml(source: &str) -> Value {
     serde_saphyr::from_str(source).expect("source must be valid YAML")
@@ -268,6 +269,55 @@ fn the_release_manifest_is_distribution_evidence_not_repository_authority() {
     assert!(
         RELEASE_SCRIPT.contains("*repository_authority*|*repository-authority*"),
         "the entry point must refuse to sign a release with the repository-authority key"
+    );
+}
+
+#[test]
+fn release_bytes_are_compared_before_the_manifest_is_emitted() {
+    assert!(RELEASE_SCRIPT.contains("SOURCE_DATE_EPOCH"));
+    assert!(RELEASE_SCRIPT.contains("--remap-path-prefix=$target_dir=/build/target"));
+    assert!(RELEASE_SCRIPT.contains("build_release \"$BUILD_ONE\""));
+    assert!(RELEASE_SCRIPT.contains("build_release \"$BUILD_TWO\""));
+    assert!(RELEASE_SCRIPT.contains("cmp \"$BUILD_ONE/release/vela\" \"$BUILD_TWO/release/vela\""));
+
+    let archiver = ".github/release/create-deterministic-archive.py";
+    assert_eq!(
+        RELEASE_SCRIPT.matches(archiver).count(),
+        2,
+        "the release must independently archive the staged tree twice"
+    );
+    assert!(RELEASE_SCRIPT.contains("cmp \"$ARCHIVE\" \"$ARCHIVE_CHECK\""));
+    assert!(RELEASE_SCRIPT.contains("--binary-build-count 2"));
+    assert!(RELEASE_SCRIPT.contains("--archive-build-count 2"));
+}
+
+#[test]
+fn signing_refuses_a_partial_or_mismatched_draft() {
+    for manifest in [
+        "vela-linux-x86_64.tar.gz.release-manifest.json",
+        "vela-macos-aarch64.zip.release-manifest.json",
+    ] {
+        assert!(
+            SIGN_PUBLISHED_RELEASE.contains(manifest),
+            "the signing gate must require {manifest}"
+        );
+    }
+    assert!(SIGN_PUBLISHED_RELEASE.contains("expected exactly ${#EXPECTED_MANIFESTS[@]}"));
+    assert!(SIGN_PUBLISHED_RELEASE.contains("observed_assets != expected_assets"));
+    assert!(SIGN_PUBLISHED_RELEASE.contains("binary_builds_compared"));
+    assert!(SIGN_PUBLISHED_RELEASE.contains("archive_builds_compared"));
+    assert!(SIGN_PUBLISHED_RELEASE.contains("[ \"$manifest_commit\" = \"$tag_commit\" ]"));
+    assert!(SIGN_PUBLISHED_RELEASE.contains("gh release download"));
+
+    let publish = SIGN_PUBLISHED_RELEASE
+        .rfind("gh release edit \"$TAG\" --repo \"$REPO\" --draft=false")
+        .expect("the operator gate must publish the checked draft");
+    let digest_check = SIGN_PUBLISHED_RELEASE
+        .rfind("[ \"$declared\" = \"$observed\" ]")
+        .expect("the operator gate must check every manifest asset digest");
+    assert!(
+        digest_check < publish,
+        "all draft asset digests must be checked before irreversible publication"
     );
 }
 

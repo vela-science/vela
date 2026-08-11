@@ -207,13 +207,14 @@ exists to be independent of, so the signature is applied by a human on a machine
 holding the identity — with `scripts/sign-published-release.sh`, which signs the
 bytes CI published.
 
-Not `scripts/release.sh --sign-key`, which rebuilds. A rebuild is a different
-archive: a different tree, different absolute paths in the debug info, and no
-reproducible build claimed anywhere here. The manifest it signs describes bytes
-nobody can download, and attaching it makes `install.sh` refuse every install,
-because the installer compares the published archive to the digest in the
-manifest and finds they disagree. `release.sh` now refuses to sign from a tree
-that is not the tag it names, for that reason.
+Not `scripts/release.sh --sign-key`, which rebuilds. The release entry point
+proves that two builds of one source and target agree, but an operator rebuild
+is still not the exact draft archive Actions published. The manifest it signs
+would describe bytes nobody can download, and attaching it would make
+`install.sh` refuse every install because the installer compares the published
+archive to the digest in the manifest and finds they disagree. `release.sh`
+therefore refuses to sign from a tree that is not the tag it names, and
+`sign-published-release.sh` signs and verifies the exact draft assets instead.
 
 The signature goes on while the release is still a draft. A published release is
 immutable and refuses new assets, so `release.yml` leaves it unpublished and

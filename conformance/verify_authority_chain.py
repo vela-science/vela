@@ -19,7 +19,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = ROOT / "conformance/fixtures/authority/math-0.972.1"
 sys.path.insert(0, str(ROOT / "conformance/readers/python"))
-from canonical import canonical_bytes  # noqa: E402
+from canonical import canonical_bytes
 
 COMMIT = "9bdabbcc1f77d0dd60458e3e9d91d2ffa01fd476"
 TREE = "3c99d1b9c969a8559605a664bdd7280e9729169f"
@@ -122,7 +122,7 @@ def root(value):
 
 def blob_id(data):
     header = f"blob {len(data)}\0".encode()
-    return hashlib.sha1(header + data).hexdigest()  # noqa: S324 - Git identity
+    return hashlib.sha1(header + data).hexdigest()  # Git object identity, not security.
 
 
 def relative(value):

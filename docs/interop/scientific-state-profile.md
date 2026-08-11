@@ -1,6 +1,6 @@
-# Scientific State Profile v1
+# Vela Protocol 1 conformance profile
 
-A conformance target for implementations outside this repository.
+A conformance target for Protocol 1 implementations outside this repository.
 
 This document selects; it does not describe. Every contract below is already
 defined in `docs/PROTOCOL.md`, `docs/INTEROPERABILITY.md` or a schema in
@@ -11,6 +11,10 @@ with the check that decides whether it does.
 
 If a statement here and a statement in `PROTOCOL.md` disagree, `PROTOCOL.md` is
 correct and this file is a bug.
+
+The machine-readable selection, including exact file digests, is
+`conformance/protocol-1.json`. This page explains the bar; the manifest makes
+the release-candidate surface auditable.
 
 ## Why a profile at all
 
