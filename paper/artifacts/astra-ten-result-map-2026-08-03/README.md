@@ -1,9 +1,16 @@
 # Astra ten-result release-map replay
 
-This directory retains the reproducible environment for the complete
-`openai/ten-proofs` Comparator profile pass. It is cross-release campaign
-evidence, not a Vela protocol object, an Astra Frontier, or a scientific
-Decision.
+This directory retains the historical environment recipe and rooted outputs
+for the complete `openai/ten-proofs` Comparator profile pass. It is
+cross-release campaign evidence, not a Vela protocol object, an Astra Frontier,
+or a scientific Decision.
+
+The recipe is not a supply-chain-reproducible rebuild. Its base image and final
+source commit are pinned, but the image resolved operating-system packages and
+downloaded the `elan` installer from a mutable branch at observation time. A
+new build may therefore acquire different toolchain bytes; any new result needs
+a separately versioned recipe with fully pinned inputs or retained build
+artifacts.
 
 The rooted result is `result.json`:
 
@@ -19,11 +26,11 @@ Every profile passed Comparator, Nanoda, and Lean's default kernel. A separate
 `#print axioms` audit found the same exact axiom set for all 41 declarations:
 `propext`, `Classical.choice`, and `Quot.sound`.
 
-The image build is allowed network access to acquire exact pinned sources and
-toolchains. The retained replay runs only after the image is complete, as UID
+The historical image build used network access to acquire its named sources and
+toolchains. The retained replay ran only after that image was complete, as UID
 10001, with all Linux capabilities dropped, no new privileges, private IPC,
 bounded processes, and Docker networking disabled. Comparator additionally
-confines each build, export, and Nanoda invocation with real Landrun/Landlock.
+confined each build, export, and Nanoda invocation with real Landrun/Landlock.
 
 The pinned Landrun release strips Lean4Export's nested `--` delimiter. The
 small retained wrapper restores only that delimiter before invoking the exact
@@ -31,8 +38,9 @@ Lean4Export binary. This compatibility boundary is explicit and means the
 result is not an unmodified zero-shim Comparator invocation.
 
 The exact release commit is no longer reachable from an advertised current
-head or tag. The build therefore fetches the exact SHA directly and checks both
-the commit and tree before compiling. That fetch passed at observation time.
+head or tag. The build therefore fetched the exact SHA directly. The later
+replay checked both the commit and tree before scoring; that fetch and check
+passed at observation time.
 
 Build:
 
