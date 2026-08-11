@@ -2,7 +2,7 @@
   "schema": "vela.claim-relation-vocabulary-fixture.v1",
   "subject": "vela.claim-record.v1 relations[].kind",
   "not_this_field": "`evidence[].relation` is a different axis: it names the role an Artifact plays for one Claim, never a link between two Claims. Every retained Claim Record spells it `supports`. Nothing here applies to it.",
-  "note": "Two vocabularies over one field. The correction algebra is closed and authoritative: acceptance acts on it and Standing moves. Descriptive relations are retained context that no Decision reads. Near-miss spellings resolve to one canonical name so a consumer matching the canonical form cannot silently miss retained records.",
+  "note": "Two declared semantic classes over one field. The correction algebra is closed and authoritative: acceptance acts on it and Standing moves. Descriptive relations are retained context that no Decision reads. Every well-formed spelling is matched exactly as stored; an unknown name remains unrecognized description and is never rewritten into a declared kind.",
   "correction_relations": {
     "authoritative": true,
     "closed": true,
@@ -16,7 +16,7 @@
     "authoritative": false,
     "closed": false,
     "moves_standing": false,
-    "enumerated_from": "the four maintained Frontiers, not from intent",
+    "enumerated_from": "the frozen 2026-08-06 four-repository census, not from intent",
     "kinds": [
       "contradicts",
       "depends",
@@ -41,6 +41,10 @@
     {
       "kind": "depends",
       "class": "descriptive"
+    },
+    {
+      "kind": "depends_on",
+      "class": "unrecognized"
     },
     {
       "kind": "contradicts",
@@ -85,7 +89,7 @@
     "synthesized from"
   ],
   "census": {
-    "note": "Descriptive observation, not an assertion this fixture verifies. The Frontiers are separate repositories; a checker inside this one cannot reach them. Reproduce with the command below and expect drift as Frontiers advance.",
+    "note": "Frozen historical observation, not a live census this fixture verifies. The four topic repositories are archived; the checker verifies only that every retained kind in this 2026-08-06 census remains classified and parseable.",
     "observed_at": "2026-08-06",
     "repositories": [
       "erdos-frontier",
@@ -102,9 +106,9 @@
       "contradicts": 9,
       "supersedes": 3
     },
-    "separation": "Every `supersedes` sits on a revision-2 Claim whose sole provenance is a `submission`. Every other relation sits on a revision-1 Claim imported from a corpus. No correction relation has ever been written by an import, and no descriptive relation has ever appeared on a revised Claim.",
+    "separation": "Every `supersedes` sits on a revision-2 Claim whose sole provenance is a `submission`. Every descriptive relation sits on a revision-1 Claim retained before the correction path. No correction relation was imported, and no descriptive relation appears on a revised Claim.",
     "never_written": {
-      "note": "Spellings PROTOCOL.md declared through 0.966.3 that no repository has ever recorded. `opposes` and `depends_on` survive as recognised aliases of the spellings that are recorded. `revises` and `retracts` are dropped: retraction moves Standing through the `claim.withdraw` Proposal action and needs no relation, and nothing ever emitted or read `revises`.",
+      "note": "Spellings PROTOCOL.md declared through 0.966.3 that no repository has ever recorded. All four are withdrawn: if retained as a well-formed Claim relation they are exact unrecognized description, never aliases. `depends_on` remains only a derived correction-impact rule kind; retraction moves Standing through the `claim.withdraw` Proposal action and needs no relation.",
       "kinds": [
         "depends_on",
         "opposes",

@@ -334,16 +334,17 @@ Descriptive relations, which no Decision reads and which move no Standing:
 contradicts depends replicates supports synthesized_from
 ```
 
-**This one does match the repositories, and it is the only lifecycle
-vocabulary on this page that does.** All 1,284 relations retained across the
-four repositories fall in these two sets, and the split is visible in the records
-themselves: every `supersedes` sits on a revision-2 Claim submitted through the
-correction path, and every descriptive relation sits on a revision-1 Claim
-imported from a corpus. The descriptive set is enumerated from those records
-rather than declared ahead of them, so it is open — a repository may write a kind
-it does not name, and that kind gains no authority by being written.
+**This one matches the frozen repository census, and it is the only lifecycle
+vocabulary on this page that does.** All 1,284 relations in the retained
+four-repository census fall in these two sets, and the split is visible in the
+records themselves: every `supersedes` sits on a revision-2 Claim submitted
+through the correction path, and every descriptive relation sits on a
+revision-1 Claim retained before that path. The descriptive set is enumerated
+from those records rather than declared ahead of them, so it is open — a
+repository may write a kind it does not name, and that kind gains no authority
+by being written.
 
-There are no near-miss spellings. A kind is matched as the record stores it.
+No spelling is aliased or normalized. A kind is matched as the record stores it.
 `revises`, `retracts`, `opposes` and `depends_on` were declared and written into
 no record; all four are withdrawn.
 `conformance/fixtures/claim-relation-vocabulary.json` fixes the vocabulary, and

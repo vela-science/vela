@@ -63,10 +63,10 @@ pub const CORRECTION_RELATION_KINDS: &[&str] = &["corrects", "supersedes"];
 
 /// Relations retained as description. Acceptance never reads them.
 ///
-/// Enumerated from what the four maintained repositories actually retain, not from
-/// intent. A derived reader may give one of these a meaning of its own, such as
-/// a graph edge or a support route, but no reading of them changes Standing,
-/// and a kind absent from this list is not thereby invalid.
+/// Enumerated from the retained historical repository census, not from intent.
+/// A derived reader may give one of these a meaning of its own, such as a graph
+/// edge or a support route, but no reading of them changes Standing, and a kind
+/// absent from this list is not thereby invalid.
 pub const DESCRIPTIVE_RELATION_KINDS: &[&str] = &[
     "contradicts",
     "depends",
