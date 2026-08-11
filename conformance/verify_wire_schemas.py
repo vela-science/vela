@@ -13,12 +13,11 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator, FormatChecker
 
-
 ROOT = Path(__file__).resolve().parent.parent
 CONFORMANCE = ROOT / "conformance"
 SCHEMAS = ROOT / "schemas"
 sys.path.insert(0, str(CONFORMANCE / "readers" / "python"))
-from canonical import canonical_bytes  # noqa: E402
+from canonical import canonical_bytes
 
 
 def load_json(path: Path) -> object:
@@ -77,7 +76,7 @@ def verify_manifest() -> None:
     path = CONFORMANCE / "current-objects" / "manifest.json"
     manifest = load_json(path)
     if not isinstance(manifest, dict):
-        raise AssertionError("fixture manifest must be an object")
+        raise TypeError("fixture manifest must be an object")
     declared_root = manifest.pop("manifest_root", None)
     rebuilt_root = "sha256:" + hashlib.sha256(canonical_bytes(manifest)).hexdigest()
     if declared_root != rebuilt_root:

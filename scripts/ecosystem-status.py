@@ -45,8 +45,8 @@ import re
 import shlex
 import subprocess
 import sys
-import tomllib
 
+import tomllib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ARTIFACT = ROOT / "ecosystem-status.json"

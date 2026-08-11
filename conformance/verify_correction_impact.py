@@ -7,10 +7,9 @@ import hashlib
 import json
 import re
 import sys
-from copy import deepcopy
 from collections import defaultdict
+from copy import deepcopy
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "conformance" / "fixtures" / "correction"
@@ -25,7 +24,7 @@ EXPECTED_RULES = {
     "supports": "support_route",
 }
 sys.path.insert(0, str(ROOT / "conformance" / "readers" / "python"))
-from canonical import canonical_bytes  # noqa: E402
+from canonical import canonical_bytes
 
 
 class ContractError(ValueError):
