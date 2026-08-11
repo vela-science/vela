@@ -1,0 +1,113 @@
+{
+  "schema": "vela.claim-dependency-matched-observation-plan.v1",
+  "experiment_id": "synthetic-counterfactual-erdos-321-v0",
+  "decision_owner": "docs/adr/0043-experiment-first-exact-claim-dependencies.md",
+  "scientific_fixture_commit": "4e3f942dfff55ca5fd00b16f5e2ff41c156c3be6",
+  "scientific_fixture_artifact_path": "conformance/experiments/claim-dependency-profile-v0",
+  "scientific_fixture_artifact_tree": "02bac2c905f7bf773313dea0096818a80fee2166",
+  "frozen_v0_packet": {
+    "commit": "530cb806ad9d219341cf3e5ec168e9683136a427",
+    "artifact_path": "paper/artifacts/claim-dependency-profile-v0-observation",
+    "artifact_tree": "e8eb017239535aa86d56e322ea98a5d4fd00fea4",
+    "manifest_raw_root": "sha256:7caedc9c981d7c2012b7de73895479a4a615f231fda08ee43cadb760b6ac04f4",
+    "files_canonical_root": "sha256:40e495f3e75a608cea1001a5407e2c18013275f726d372c823be4fb6e8900665"
+  },
+  "reused_contract": {
+    "input_manifests": "byte-identical copies from the frozen v0 packet",
+    "answer_schema": "byte-identical copy from the frozen v0 packet",
+    "answer_key": "byte-identical held-out copy from the frozen v0 packet",
+    "scorer": "byte-identical copy from the frozen v0 packet",
+    "task_prompt": "byte-identical copy from the frozen v0 packet",
+    "shared_scope": "byte-identical copy; arm manifests continue to bind the frozen v0 source path",
+    "ground_truth_affected": ["B", "E"],
+    "ground_truth_unaffected": ["D"],
+    "ground_truth_incomplete": []
+  },
+  "executor_reset": {
+    "reason": "The four v0 Harbor/Codex runs were excluded from registered scientific and result interpretation after custody review found executor_contract_drift.",
+    "excluded_custody_packet": "paper/artifacts/claim-dependency-profile-v0-excluded-run-custody-530cb806",
+    "excluded_custody_commit": "a3e09e472c7a12654ee613cd93e996dcfe3e6859",
+    "excluded_custody_artifact_tree": "7fa03d6c4c69008b1111a3a93a9b0e77b0d6e7df",
+    "excluded_custody_manifest_raw_root": "sha256:eb978034ad48d5319384a5918b6ed2c80aa2f5f68c3bc8c7b8355931b1eeadb1",
+    "prior_participant_outputs_available_to_v1_participant": false,
+    "prior_participant_outputs_imported_into_v1": false,
+    "prior_participant_outputs_scientifically_interpreted": false,
+    "custody_review_observed_output_shape": true,
+    "prior_metrics_imported": false,
+    "rerun_under_v0_packet": false,
+    "new_authorization": "This v1 packet is a fresh preregistration and does not amend or validate the v0 runs."
+  },
+  "experimental_unit": "one synthetic counterfactual task",
+  "arms": [
+    {
+      "id": "disciplined-git-ro-crate",
+      "embedded_input_count": 7,
+      "description": "Exact rooted source facts, state, reducer semantics, RO-Crate/review context, and common scope embedded in one user message."
+    },
+    {
+      "id": "rooted-source-plus-profile",
+      "embedded_input_count": 8,
+      "description": "The byte-identical common context plus the frozen requires-only dependency profile, embedded in one user message."
+    }
+  ],
+  "arm_difference": "Only the exact profile.json section is present in rooted-source-plus-profile.",
+  "assignment": {
+    "seed": "synthetic-counterfactual-erdos-321-v0|55d1b53324bd1c68605aa7689155bdd6b7e7cf33|arm-order",
+    "seed_sha256": "sha256:9f59f01da712c8f36ffe7b5453d38140a28d174083d3fd45a17fbb561f4b922d",
+    "run_order": [
+      {"run_id":"block-1-profile","block":1,"position":1,"arm":"rooted-source-plus-profile","session_id":"1f823974-9f91-44c8-8fb5-19db463b2993"},
+      {"run_id":"block-1-baseline","block":1,"position":2,"arm":"disciplined-git-ro-crate","session_id":"bb98b175-f6df-440f-9352-01be011b9518"},
+      {"run_id":"block-2-baseline","block":2,"position":1,"arm":"disciplined-git-ro-crate","session_id":"9194d3e6-f16a-4a87-a1e2-6a6a3af16612"},
+      {"run_id":"block-2-profile","block":2,"position":2,"arm":"rooted-source-plus-profile","session_id":"560064c2-1177-4539-954b-7209c3fc501d"}
+    ]
+  },
+  "execution": {
+    "adapter": "packet-local Pi SDK adapter",
+    "pi_version": "0.84.1",
+    "provider": "openai-codex",
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "high",
+    "reasoning_summary": "auto",
+    "n_attempts": 1,
+    "max_retries": 0,
+    "fresh_in_memory_session_per_run": true,
+    "run_order_must_be_sequential": true,
+    "system_messages": 0,
+    "provider_instruction_fields": 1,
+    "user_messages": 1,
+    "prompt_calls": 1,
+    "participant_tools": 0,
+    "model_visible_filesystem_inputs": 0,
+    "harness_filesystem_inputs": ["exact compact request JSON", "derived read-only OAuth JSON"],
+    "participant_output_files": 0,
+    "result_capture": "stdout is the raw last assistant text; stderr is deterministic secret-free Pi event and final custody JSONL"
+  },
+  "retry_and_exclusion": {
+    "automatic_retry": "forbidden",
+    "infrastructure_failure_before_output": "new retained job permitted only after proof of no usable participant output",
+    "usable_participant_output": "never retry or exclude",
+    "contamination_detected": "exclude and rerun the entire counterbalanced block later",
+    "eligible_content_failures": ["answer_missing","answer_malformed","answer_schema_invalid","answer_inexact","agent_timeout_after_any_usable_output"],
+    "exclusion_codes": ["pre_output_infrastructure_failure","arm_contamination","executor_contract_drift"]
+  },
+  "milestones": [
+    {"name":"time_to_identify_correction","status":"not_measured","value":null,"unit":"seconds","denominator":null,"source_run_ids":[]},
+    {"name":"time_to_identify_affected_and_unaffected","status":"not_measured","value":null,"unit":"seconds","denominator":null,"source_run_ids":[]},
+    {"name":"time_to_locate_decisive_evidence","status":"not_measured","value":null,"unit":"seconds","denominator":null,"source_run_ids":[]},
+    {"name":"time_to_state_next_valid_repair","status":"not_measured","value":null,"unit":"seconds","denominator":null,"source_run_ids":[]}
+  ],
+  "unmeasured": {
+    "exact_projection_root_agreement": "not_measured",
+    "cold_successor_correctness": "not_measured",
+    "cold_successor_time_to_valid_action": "not_measured",
+    "correct_reusable_scientific_state_transitions_per_expert_minute": "not_computable"
+  },
+  "claim_limits": [
+    "Four sessions over one synthetic task are instrumentation, not four independent experimental units.",
+    "No causal, productivity, adoption, external-independence, scientific, protocol, authority, Standing, accepted-state Correction, rooted-dependent, or Class E claim is permitted.",
+    "Participant timing is agent elapsed time, never human reviewer minutes.",
+    "No observation may retrofit this plan, prompts, answer contract, ground truth, arm order, or scorer."
+  ],
+  "authority_effect": "none",
+  "claim_credit": false
+}
