@@ -4,7 +4,7 @@ Vela now has a complete local operator loop. The active programme is to turn
 the exact state already held in Repositories into a useful public problem map and
 reviewer-ready contributions to native scientific commons.
 
-## Active product loop
+## Active campaign workflow
 
 ```text
 map problem -> select bounded work -> preserve evidence -> verify -> decide

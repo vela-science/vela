@@ -188,7 +188,10 @@ rules.
 
 Impact is a read projection over the accepted claim index. It reads the two
 relation kinds that carry consequence (`depends`, `supports`) and reports every
-relation it excluded, so a reader can check the judgement rather than take it.";
+relation it excluded, so a reader can check the judgement rather than take it.
+This projection is experimental: a Repository built solely with today's
+writer cannot author `depends` or `supports` and correctly reports an empty
+cascade.";
 
 #[cfg(test)]
 mod tests {

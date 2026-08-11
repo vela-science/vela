@@ -402,8 +402,6 @@ writer merely because they are useful:
 
 | Term | Meaning | Authority effect |
 | --- | --- | --- |
-| Frontier Algebra | A root-bound derivation of support/opposition routes, corrections, cut sets, and repair requirements | None |
-| Discovery Calculus | Optional information and decision lenses for choosing research actions | None |
 | Semantic package | A content-addressed set of terms, constraints, mappings, fixtures, licenses, and generated interoperability artifacts | None |
 | Verification scope | The exact Claim, inputs, method, environment, and property covered by one Verification Record | None |
 | Assurance profile | A versioned description of the assurance dimension addressed by a check, its prerequisites, and nonclaims | None |
@@ -411,9 +409,14 @@ writer merely because they are useful:
 | Mapping | A versioned relation between exact package terms with a declared consequence tier | None by itself |
 | Bridge | A maintained set of mappings between domains with every premise and scope needed for transport | None by itself |
 | Adapter | A replaceable translation from an exact workbench export to a Submission and explicit loss report | None |
-| Lens | A rooted view, metric, or action ordering under declared assumptions | None |
 | Package | A versioned, content-addressed unit of reusable language, capability, corpus, verifier, mapping, or adapter; publication has no authority effect | None |
 | Federated Atlas | A future removable cross-repository navigation concept, distinct from the current first-party Math Atlas above | None |
+
+`Frontier Algebra`, `Discovery Calculus`, and `Lens` are historical research
+labels, not current Vela layers, protocol objects, wire fields, or reserved
+extension points. `Frontier Calculus` remains only a constrained research
+program for formalizing support, provenance, correction, transfer and
+obligations; it is not an implementation commitment (ADR 0044).
 
 Mappings state one consequence tier. The default is `discovery`:
 
