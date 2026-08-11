@@ -1,0 +1,120 @@
+{
+  "schema": "vela.claim-dependency-observation-source-manifest.v0",
+  "source_parent_commit": "55d1b53324bd1c68605aa7689155bdd6b7e7cf33",
+  "files": [
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "bytes": 6352,
+      "raw_root": "sha256:d3d617c488907a84dadee1fdc1025d7722301b5e009bc54e07ba487b89bcc562"
+    },
+    {
+      "path": "answer-key.json",
+      "mode": "100644",
+      "bytes": 2839,
+      "raw_root": "sha256:1ed7ef3b2bcc69137d11ccfd7338d92ec2473ecbbe23081d04b5205f5974e0dd"
+    },
+    {
+      "path": "answer.schema.json",
+      "mode": "100644",
+      "bytes": 5211,
+      "raw_root": "sha256:4491318ec74b0b04b01a18cfdb29e4610128952c461fc8a46782c7a280211d13"
+    },
+    {
+      "path": "canned-answer.json",
+      "mode": "100644",
+      "bytes": 4813,
+      "raw_root": "sha256:8fe7783d82251a4d08cbf700153b121ff33ceb21625a903a80113f5ca603b57b"
+    },
+    {
+      "path": "input-manifests/disciplined-git-ro-crate.json",
+      "mode": "100644",
+      "bytes": 2267,
+      "raw_root": "sha256:843e1f2319646c169ab9ce8a64548106e70a75cf88000665b319f6e99135c966"
+    },
+    {
+      "path": "input-manifests/rooted-source-plus-profile.json",
+      "mode": "100644",
+      "bytes": 2546,
+      "raw_root": "sha256:2cd607ab6057c21ca639eb5819b2fa3a5541a9216c8ce6fbddce8eaac6bca890"
+    },
+    {
+      "path": "materialize.py",
+      "mode": "100755",
+      "bytes": 40894,
+      "raw_root": "sha256:a6b105c9a71adf17b3bdfe783c650127d900a8296961d8b370b97438c588647d"
+    },
+    {
+      "path": "plan.json",
+      "mode": "100644",
+      "bytes": 9432,
+      "raw_root": "sha256:a0ea2855b02284b40c798b179489516e5a415c1b60dca0789f3f865726f80ecf"
+    },
+    {
+      "path": "prompts/system.txt",
+      "mode": "100644",
+      "bytes": 836,
+      "raw_root": "sha256:0a5d850bb0eb5cc891055dbb004ceae922bf527a057ac215171967e8ff8b3e1a"
+    },
+    {
+      "path": "prompts/task.txt",
+      "mode": "100644",
+      "bytes": 2049,
+      "raw_root": "sha256:9e52d4a9e6726b66417b22f9135f00dc3734ada31f4184a40598cdfbca460227"
+    },
+    {
+      "path": "scorer.py",
+      "mode": "100755",
+      "bytes": 22681,
+      "raw_root": "sha256:1ffe31ab5cc89d348c6bf0bbf4295b08049a8a0d9e7883d07e214eb37ae0b78a"
+    },
+    {
+      "path": "shared-scope.json",
+      "mode": "100644",
+      "bytes": 1121,
+      "raw_root": "sha256:5343828f248dbe1e82f17eed9f2ba17f0463aac779e0f3ee4eb032c1a3912526"
+    },
+    {
+      "path": "task/environment/Dockerfile",
+      "mode": "100644",
+      "bytes": 673,
+      "raw_root": "sha256:98f9581e11e55686fab1072eb08d88f0014083cd64bae143828508ccf96f7883"
+    },
+    {
+      "path": "task/instruction.md",
+      "mode": "100644",
+      "bytes": 3092,
+      "raw_root": "sha256:fabb67d8567bd00c69d3e0b119c1dda45589ba24863493f3c2a9e441c29f9474"
+    },
+    {
+      "path": "task/task.toml",
+      "mode": "100644",
+      "bytes": 918,
+      "raw_root": "sha256:be9a56298bf2ba4a095ba50555ba08692449cf15cdb8604197860f4394ae18e0"
+    },
+    {
+      "path": "task/tests/Dockerfile",
+      "mode": "100644",
+      "bytes": 532,
+      "raw_root": "sha256:a9d802a7fc1125073a9c69f589fb2cb321d8712d7e01cbfeee67ea1a53ec6a84"
+    },
+    {
+      "path": "task/tests/test.sh",
+      "mode": "100755",
+      "bytes": 333,
+      "raw_root": "sha256:4aee7f4d7d900b2b3ef0f778f5998353e5dc7c8a5a2578ded585bb5e8ac54f57"
+    },
+    {
+      "path": "test_observation.py",
+      "mode": "100755",
+      "bytes": 18999,
+      "raw_root": "sha256:5e8ed14f370ebb9dc573d2da55b63b0d53c3ecdc568488c323d73600a77ae92d"
+    }
+  ],
+  "files_canonical_root": "sha256:40e495f3e75a608cea1001a5407e2c18013275f726d372c823be4fb6e8900665",
+  "excludes": [
+    "manifest.json"
+  ],
+  "authority_effect": "none",
+  "claim_credit": false
+}
