@@ -774,18 +774,60 @@ pub(crate) fn authorize_repository_authority_write_barrier(
     })))
 }
 
+#[cfg(unix)]
+fn account_home_from_passwd_buffer(
+    directory: *const libc::c_char,
+    buffer: &[u8],
+) -> Result<PathBuf, RepositoryTxnError> {
+    use std::os::unix::ffi::OsStringExt;
+
+    if directory.is_null() {
+        return Err(RepositoryTxnError::WriteAuthorization(
+            "operating-system account has no home directory".to_string(),
+        ));
+    }
+    let buffer_start = buffer.as_ptr().addr();
+    let buffer_end = buffer_start.checked_add(buffer.len()).ok_or_else(|| {
+        RepositoryTxnError::WriteAuthorization(
+            "operating-system account buffer address overflow".to_string(),
+        )
+    })?;
+    let directory_address = directory.cast::<u8>().addr();
+    if directory_address < buffer_start || directory_address >= buffer_end {
+        return Err(RepositoryTxnError::WriteAuthorization(
+            "operating-system account home directory is outside the password-database buffer"
+                .to_string(),
+        ));
+    }
+    let directory = &buffer[directory_address - buffer_start..];
+    let length = directory
+        .iter()
+        .position(|byte| *byte == 0)
+        .ok_or_else(|| {
+            RepositoryTxnError::WriteAuthorization(
+                "operating-system account home directory is not NUL-terminated".to_string(),
+            )
+        })?;
+    if length == 0 {
+        return Err(RepositoryTxnError::WriteAuthorization(
+            "operating-system account has an empty home directory".to_string(),
+        ));
+    }
+    Ok(PathBuf::from(OsString::from_vec(
+        directory[..length].to_vec(),
+    )))
+}
+
 /// Resolve the current operating-system account home without consulting
 /// `HOME`, repository configuration, or a process-local override.
 #[cfg(unix)]
 #[allow(unsafe_code)]
 pub(crate) fn operating_system_account_home() -> Result<PathBuf, RepositoryTxnError> {
-    use std::ffi::CStr;
-    use std::os::unix::ffi::OsStringExt;
-
     // SAFETY: `geteuid` has no preconditions. `getpwuid_r` receives a live
     // passwd allocation, an owned writable buffer, and a result pointer for
-    // the duration of each call. The returned `pw_dir` is copied before the
-    // buffer is dropped.
+    // the duration of each call. A successful call must return that same
+    // passwd pointer; the returned `pw_dir` pointer is validated against the buffer
+    // before its bytes are copied.
     let uid = unsafe { libc::geteuid() };
     let suggested = unsafe { libc::sysconf(libc::_SC_GETPW_R_SIZE_MAX) };
     let mut capacity = if suggested > 0 {
@@ -797,11 +839,12 @@ pub(crate) fn operating_system_account_home() -> Result<PathBuf, RepositoryTxnEr
     loop {
         let mut buffer = vec![0_u8; capacity];
         let mut passwd = std::mem::MaybeUninit::<libc::passwd>::uninit();
+        let passwd_ptr = passwd.as_mut_ptr();
         let mut result = std::ptr::null_mut();
         let status = unsafe {
             libc::getpwuid_r(
                 uid,
-                passwd.as_mut_ptr(),
+                passwd_ptr,
                 buffer.as_mut_ptr().cast(),
                 buffer.len(),
                 &mut result,
@@ -821,15 +864,15 @@ pub(crate) fn operating_system_account_home() -> Result<PathBuf, RepositoryTxnEr
                 "operating-system account for effective uid {uid} has no password-database entry"
             )));
         }
-        let directory = unsafe { CStr::from_ptr((*result).pw_dir) };
-        if directory.to_bytes().is_empty() {
-            return Err(RepositoryTxnError::WriteAuthorization(
-                "operating-system account has an empty home directory".to_string(),
-            ));
+        if result != passwd_ptr {
+            return Err(RepositoryTxnError::WriteAuthorization(format!(
+                "password database returned an unexpected entry pointer for effective uid {uid}"
+            )));
         }
-        return Ok(PathBuf::from(OsString::from_vec(
-            directory.to_bytes().to_vec(),
-        )));
+        // SAFETY: `getpwuid_r` returned success and identified the exact
+        // caller-provided allocation as its initialized result.
+        let passwd = unsafe { passwd.assume_init() };
+        return account_home_from_passwd_buffer(passwd.pw_dir, &buffer);
     }
 }
 
@@ -1162,6 +1205,56 @@ mod tests {
                 initialization_event_root: root('9'),
             },
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn account_home_copy_retains_exact_in_buffer_bytes() {
+        use std::os::unix::ffi::OsStrExt;
+
+        let buffer = b"prefix/tmp/\xff\0ignored".to_vec();
+        let directory = buffer
+            .as_ptr()
+            .wrapping_add(b"prefix".len())
+            .cast::<libc::c_char>();
+        let home = account_home_from_passwd_buffer(directory, &buffer).unwrap();
+        assert_eq!(home.as_os_str().as_bytes(), b"/tmp/\xff");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn account_home_copy_rejects_null_and_out_of_buffer_pointers() {
+        let buffer = b"/home/operator\0".to_vec();
+        assert!(matches!(
+            account_home_from_passwd_buffer(std::ptr::null(), &buffer),
+            Err(RepositoryTxnError::WriteAuthorization(error))
+                if error == "operating-system account has no home directory"
+        ));
+
+        let outside = b"/outside\0";
+        assert!(matches!(
+            account_home_from_passwd_buffer(outside.as_ptr().cast(), &buffer),
+            Err(RepositoryTxnError::WriteAuthorization(error))
+                if error.contains("outside the password-database buffer")
+        ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn account_home_copy_rejects_unterminated_and_empty_directories() {
+        let unterminated = b"/home/operator".to_vec();
+        assert!(matches!(
+            account_home_from_passwd_buffer(unterminated.as_ptr().cast(), &unterminated),
+            Err(RepositoryTxnError::WriteAuthorization(error))
+                if error.contains("not NUL-terminated")
+        ));
+
+        let empty = vec![0_u8];
+        assert!(matches!(
+            account_home_from_passwd_buffer(empty.as_ptr().cast(), &empty),
+            Err(RepositoryTxnError::WriteAuthorization(error))
+                if error == "operating-system account has an empty home directory"
+        ));
     }
 
     #[test]
