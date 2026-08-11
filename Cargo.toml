@@ -48,7 +48,7 @@ sha2 = "0.10"
 chrono = "0.4"
 hex = "0.4"
 colored = "3"
-ed25519-dalek = { version = "2", features = ["rand_core", "zeroize"] }
+ed25519-dalek = { version = "3", features = ["rand_core", "zeroize"] }
 base64 = "0.23"
 ssh-key = { version = "0.6", default-features = false, features = ["std"] }
 ssh-encoding = { version = "0.2", features = ["std"] }
