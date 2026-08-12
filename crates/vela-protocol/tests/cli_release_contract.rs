@@ -55,47 +55,123 @@ fn run_expect_failure(args: &[&str]) -> String {
     )
 }
 
-/// The README's install block advertises a release, so it is release contract.
+/// The public install blocks advertise a published release, so they are a
+/// release contract distinct from the workspace candidate identity.
 ///
 /// It had been left on `v0.966.2` through the whole of `v0.966.3`, which is the
 /// one drift a reader meets first: the quick start installs a binary older than
 /// everything the page goes on to describe. Nothing checked it, because the tag
 /// lived only in prose.
 ///
-/// This asserts agreement rather than restating the tag. The workspace version
-/// is the declaration; every `v…` the install block carries is read out of the
-/// README and held to it, so bumping the version is the only edit that moves
-/// this test, and forgetting the README is what fails.
+/// A candidate bump creates the opposite failure if these blocks follow it
+/// before publication: both examples become matching 404s. The root-bound
+/// projection names the current published software release independently of
+/// this checkout, so every install tag is held to that declaration instead.
 #[test]
-fn readme_install_block_advertises_the_released_version() {
-    const README: &str = include_str!("../../../README.md");
-    let expected = format!("v{}", env!("CARGO_PKG_VERSION"));
-
-    let advertised: Vec<&str> = README
-        .match_indices("https://raw.githubusercontent.com/vela-science/vela/")
-        .map(|(at, prefix)| &README[at + prefix.len()..])
-        .chain(
-            README
-                .match_indices("VELA_VERSION=")
-                .map(|(at, prefix)| &README[at + prefix.len()..]),
-        )
-        .map(|rest| {
-            rest.split(['/', ' ', '\n'])
-                .next()
-                .expect("split always yields one field")
-        })
-        .collect();
-
-    assert!(
-        advertised.len() >= 2,
-        "the README no longer carries an install block to check"
+fn install_blocks_advertise_the_published_projection_release() {
+    const INSTALL_GUIDES: [(&str, &str); 2] = [
+        ("README.md", include_str!("../../../README.md")),
+        (
+            "docs/QUICKSTART.md",
+            include_str!("../../../docs/QUICKSTART.md"),
+        ),
+    ];
+    let status: serde_json::Value =
+        serde_json::from_str(include_str!("../../../ecosystem-status.json"))
+            .expect("ecosystem-status.json must be valid JSON");
+    let projected = status["projection"]["vela_version"]
+        .as_str()
+        .expect("the published projection must name its Vela release");
+    let expected = format!(
+        "v{}",
+        projected
+            .strip_prefix("vela ")
+            .expect("the projection release must use `vela X.Y.Z`")
     );
-    for tag in advertised {
-        assert_eq!(
-            tag, expected,
-            "the README install block advertises {tag}, not the released {expected}"
+
+    for (name, guide) in INSTALL_GUIDES {
+        let advertised: Vec<&str> = guide
+            .match_indices("https://raw.githubusercontent.com/vela-science/vela/")
+            .map(|(at, prefix)| &guide[at + prefix.len()..])
+            .chain(
+                guide
+                    .match_indices("VELA_VERSION=")
+                    .map(|(at, prefix)| &guide[at + prefix.len()..]),
+            )
+            .map(|rest| {
+                rest.split(['/', ' ', '\n'])
+                    .next()
+                    .expect("split always yields one field")
+            })
+            .collect();
+
+        assert!(
+            advertised.len() >= 2,
+            "{name} no longer carries an install block to check"
+        );
+        for tag in advertised {
+            assert_eq!(
+                tag, expected,
+                "{name} advertises {tag}, not the published projection release {expected}"
+            );
+        }
+    }
+}
+
+/// The live Math source is private. These are the four current acquisition
+/// surfaces a reader meets, and anonymous-clone wording turns each into a dead
+/// first run while misrepresenting the access boundary. The status artifact is
+/// checked against the generator separately by `scripts/ecosystem-status.py`;
+/// asserting its access declaration here binds the prose to the same fact.
+#[test]
+fn current_math_acquisition_requires_authorized_access() {
+    const ACQUISITION_GUIDES: [(&str, &str); 4] = [
+        ("README.md", include_str!("../../../README.md")),
+        (
+            "docs/QUICKSTART.md",
+            include_str!("../../../docs/QUICKSTART.md"),
+        ),
+        (
+            "examples/formal-math/README.md",
+            include_str!("../../../examples/formal-math/README.md"),
+        ),
+        (
+            "docs/integrations/genesis-open-models.md",
+            include_str!("../../../docs/integrations/genesis-open-models.md"),
+        ),
+    ];
+
+    for (name, guide) in ACQUISITION_GUIDES {
+        assert!(
+            guide.contains("gh auth status")
+                && guide.contains("gh repo clone vela-science/math math"),
+            "{name} must show authenticated acquisition of the private Math source"
+        );
+        assert!(
+            !guide.contains("git clone https://github.com/vela-science/math"),
+            "{name} must not present the private Math source as an anonymous clone"
+        );
+        assert!(
+            !guide.to_ascii_lowercase().contains("no account"),
+            "{name} must not claim that Math source acquisition needs no account"
         );
     }
+
+    let status: serde_json::Value =
+        serde_json::from_str(include_str!("../../../ecosystem-status.json"))
+            .expect("ecosystem-status.json must be valid JSON");
+    let math = &status["declaration"]["vela-science/math"];
+    assert_eq!(math["visibility"].as_str(), Some("private"));
+    assert_eq!(
+        math["read_replicas"].as_array().map(Vec::len),
+        Some(0),
+        "Math has no current declared read replica"
+    );
+
+    let continuity = include_str!("../../../docs/CONTINUITY.md");
+    let integration = include_str!("../../../docs/integrations/genesis-open-models.md");
+    assert!(continuity.contains("declares no\nMath read replica"));
+    assert!(integration.contains("declares no Math read replica"));
 }
 
 /// The documentation index covers the documentation directory.

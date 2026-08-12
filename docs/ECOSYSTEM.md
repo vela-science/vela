@@ -734,7 +734,7 @@ roots. No reverse dependency is authorized. Concretely:
   write and recovery mechanics, not alternate scientific semantics.
 
 The former violation is closed. The route under
-`apps/observatory/src/app/repositories/` keeps `math` only as a public
+`apps/observatory/src/app/repositories/` keeps `math` only as a route and
 presentation handle; `packages/observatory-data/src/registry.ts` maps it to the
 Repository UUID. Canonical rows and joins use `repository_id`, while
 `repository_slugs` fields describe declared route coverage and confer no

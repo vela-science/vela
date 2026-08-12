@@ -9,6 +9,8 @@
 use serde_json::Value;
 
 const INSTALLER: &str = include_str!("../../../install.sh");
+const CITATION: &str = include_str!("../../../CITATION.cff");
+const ECOSYSTEM_STATUS: &str = include_str!("../../../ecosystem-status.json");
 const RELEASE_WORKFLOW: &str = include_str!("../../../.github/workflows/release.yml");
 const CONFORMANCE_WORKFLOW: &str = include_str!("../../../.github/workflows/conformance.yml");
 /* The release semantics moved out of the workflow and into an entry point a
@@ -342,6 +344,28 @@ fn every_hosted_action_is_pinned_by_commit() {
         ("release", RELEASE_WORKFLOW),
     ] {
         assert_immutable_action_pins(name, workflow);
+    }
+}
+
+#[test]
+fn citation_metadata_names_the_workspace_release() {
+    let citation = parse_yaml(CITATION);
+    assert_eq!(
+        citation["version"].as_str(),
+        Some(env!("CARGO_PKG_VERSION")),
+        "CITATION.cff and the workspace package identity must move together"
+    );
+
+    let status: Value =
+        serde_json::from_str(ECOSYSTEM_STATUS).expect("ecosystem status must be valid JSON");
+    let published = status["projection"]["vela_version"]
+        .as_str()
+        .expect("the projection must name its published Vela release");
+    if published != format!("vela {}", env!("CARGO_PKG_VERSION")) {
+        assert!(
+            citation.get("date-released").is_none(),
+            "an unpublished workspace candidate must not claim a release date"
+        );
     }
 }
 

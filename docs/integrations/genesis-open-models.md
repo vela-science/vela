@@ -14,10 +14,12 @@ at the pages commit named below. Three clones, each pinned.
 - **Retained predecessor:** the 0.971.0 decisions discussed below remain signed continuity evidence and carry no Standing into the UUIDv4 genesis
 - **Target submission date:** 24 August 2026
 
-Every claim below is reproducible with:
+Every claim below is reproducible by an authorized source reader with:
 
 ```bash
-git clone https://github.com/vela-science/math && vela replay math --json
+gh auth status
+gh repo clone vela-science/math math
+vela replay math --json
 ```
 
 ## The problem, in one case
@@ -238,10 +240,14 @@ would need to preserve. That started this month.
 
 ## Verification
 
-Everything above is checkable without contacting us.
+Everything above is checkable from exact acquired sources. The canonical Math
+source currently requires an authorized GitHub account for acquisition; after
+that acquisition, these checks are local and require neither a hosted Vela
+service nor a repository-authority key.
 
 ```bash
-git clone https://github.com/vela-science/math
+gh auth status
+gh repo clone vela-science/math math
 git -C math checkout 130fc283b99b8c55dea51b5f8f959a6c33a679f6
 vela replay math --json          # ok: true, repository_root: sha256:db4d435c…
 vela status math --json          # integrity.replay: verified, strict: pass
@@ -269,5 +275,9 @@ by — and says so on its own output. It is the anchor the rest hangs from, and
 it is the number a reader would otherwise have to take from the tool being
 checked.
 
-The mirror at `codeberg.org/vela-science/math` is a full replica on
-independent infrastructure, verified ref-for-ref on every run.
+The Codeberg Math locator used by the dated 2026-08-09 provider-loss
+qualification is historical evidence, not a current read replica. The current
+ecosystem declaration records the private GitHub repository as the active
+writer and declares no Math read replica. That topology change moves no
+Repository root and changes no Standing, but independent-provider Math
+retrieval is again an open operational obligation.

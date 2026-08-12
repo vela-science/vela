@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 import os
+import tomllib
 from pathlib import Path
 
 import jsonschema
 import pytest
+import vela_source_manifest
 
 from vela_source_manifest import (
     DECLARATION_SCHEMA,
@@ -23,6 +25,13 @@ from vela_source_manifest.schema import validate
 
 COMMIT = "a" * 40
 GOOD_ROOT = "sha256:" + "0" * 64
+
+
+def test_runtime_version_matches_project_metadata():
+    project = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    with project.open("rb") as source:
+        declared = tomllib.load(source)["project"]["version"]
+    assert vela_source_manifest.__version__ == declared
 
 
 @pytest.mark.parametrize(

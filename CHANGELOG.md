@@ -10,6 +10,49 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+## 0.973.0
+
+- **Repository writes have one exact authorization and recovery boundary.**
+  The policy-neutral `vela-repository` runtime now owns durable transaction
+  plans, commit markers, installation, and idempotent recovery, while the CLI
+  binds and revalidates a move-only authorization immediately around the
+  marker. `vela recover --repo <PATH> <OPERATION_ID>` opens only the named
+  journal, aborts an exactly uncommitted plan, or completes an already
+  authorized installation without reacquiring a signer or replaying the
+  semantic command. Native genesis can resume only its fully revalidated,
+  deterministic Git and trust-pin tail.
+
+- **Git publication and repository reads fail closed over exact ordinary
+  history.** Publication rechecks the prepared delta at descriptor and Git
+  boundaries and rejects a post-preflight transplant. Offline reads reject
+  shallow, partial, alternate, grafted, or promisor-backed object stores and
+  ignore replacement refs instead of allowing ambient Git state, missing
+  history, or network retrieval to change an exact result.
+
+- **The shipped product surface is smaller.** The unused Target Index and its
+  `next` and `start` commands, the composite repository Action, the standalone
+  verifier binary, the retired Lean replay candidate, and other unconsumed
+  compatibility layers are removed. Workspace crates remain internal
+  implementation boundaries released as one `vela` binary.
+
+- **Protocol 1 remains a release candidate with executable conformance.** The
+  normative specification, JSON Schema selection, digest-bound manifest,
+  independent Python and JavaScript readers and emitters, current-object and
+  authority-chain vectors, three reference flows, and deterministic release
+  checks now run as one qualification surface. A green result demonstrates
+  implementation agreement only; it is not `v1.0.0`, external adoption, a
+  scientific Decision, or a change in Standing.
+
+- **Candidate and published-release metadata are explicit and truthful.**
+  Workspace packages, citation metadata, and the local ecosystem declaration
+  name candidate `0.973.0`, while install examples remain on the latest signed
+  published release, `v0.972.1`, and the candidate citation withholds a release
+  date. Current acquisition docs and ecosystem status also record Math's
+  authenticated private source access and the absence of a current Math read
+  replica. The separately versioned `vela-source-manifest` runtime now reports
+  the same `2.0.0` version as its package metadata after removal of the unused
+  `home` schema alias.
+
 ## 0.972.1
 
 - **Release smoke accepts the UUID authority trust-pin layout.** The `v0.972.0`

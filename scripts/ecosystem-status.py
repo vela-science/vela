@@ -73,12 +73,12 @@ PROJECTION_SCHEMA = "vela.observatory-release-manifest"
 # promotion nobody wrote down or a mistake, and the check does not try to tell
 # them apart: it stops and asks.
 #
-# The codeberg.org entries are replicas that exist and are verified, not
-# aspirations. `vela-web`'s `mirror-replicas.yml` pushes to them twice daily and
-# then reads them back over the public URL with no credential, failing if they
-# hold different refs from the primary. Listing a replica that nothing refreshes
-# would be worse than listing none: it answers the continuity question with a
-# URL instead of a copy.
+# The remaining codeberg.org entry is a replica that exists and is verified,
+# not an aspiration. `vela-web`'s `mirror-replicas.yml` pushes Vela core to it
+# and then reads it back over the public URL with no credential, failing if it
+# holds different refs from the primary. Listing a replica that nothing
+# refreshes would be worse than listing none: it answers the continuity
+# question with a URL instead of a copy.
 DECLARED_REPOSITORIES: dict[str, dict[str, object]] = {
     "vela-science/vela": {
         "active_writer": "https://github.com/vela-science/vela.git",
@@ -103,8 +103,8 @@ DECLARED_REPOSITORIES: dict[str, dict[str, object]] = {
     },
     "vela-science/math": {
         "active_writer": "https://github.com/vela-science/math.git",
-        "visibility": "public",
-        "read_replicas": ["https://codeberg.org/vela-science/math.git"],
+        "visibility": "private",
+        "read_replicas": [],
         "responsibility": "The one live mathematics authority: sources, Claims, Decisions, replay state",
         "state": "active",
     },

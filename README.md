@@ -126,9 +126,11 @@ it does not prove that a Claim is true.
 
 ## Quick start
 
-Install the signed release:
+Install the current signed release:
 
 Vela supports Linux x86-64 and macOS Apple-silicon release bundles.
+This source tree prepares `0.973.0`; it is not yet a tag or published bundle,
+so the install path remains pinned to the published `v0.972.1` release.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.972.1/install.sh | \
@@ -136,10 +138,12 @@ curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.972.1/install.
 vela --version
 ```
 
-Read a real Repository—no account or authority key required:
+Read a real Repository with authorized GitHub source access. Reading and
+replay require no repository-authority key:
 
 ```bash
-git clone https://github.com/vela-science/math.git math
+gh auth status
+gh repo clone vela-science/math math
 git -C math checkout 5be513bd0ce2243b59268d9b185da18497505067
 vela replay math --json
 vela claims math --json

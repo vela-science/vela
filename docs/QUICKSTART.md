@@ -6,20 +6,25 @@ checks; only an authorized human Decision changes Standing.
 
 ## Two-minute flagship: read exact scientific state
 
+Install the current signed release. This source tree prepares `0.973.0`, which
+is not yet a tag or published bundle; the install path therefore remains on
+published release `v0.972.1`.
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.972.1/install.sh | \
   VELA_VERSION=v0.972.1 bash
 
-git clone https://github.com/vela-science/math.git math
+gh auth status
+gh repo clone vela-science/math math
 git -C math checkout 5be513bd0ce2243b59268d9b185da18497505067
 vela replay math --json
 vela claims math --json
 ```
 
 That is the whole first experience: install one signed binary, clone one
-complete ordinary Git repository, replay it, and read its Claims. No account,
-daemon, hosted writer, SDK, or authority key is required. At the pinned commit,
-replay returns Repository root
+complete ordinary Git repository with authorized source access, replay it, and
+read its Claims. No daemon, hosted writer, SDK, or repository-authority key is
+required after acquisition. At the pinned commit, replay returns Repository root
 `sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc`
 and the Claim index reports one accepted Claim.
 
@@ -36,7 +41,7 @@ through an independent channel and pin it locally:
 vela authority trust pin . --record-root sha256:... --json
 ```
 
-This public pin grants no authority and changes no repository byte.
+This pin grants no authority and changes no repository byte.
 
 ## Read another repository
 

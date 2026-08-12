@@ -25,7 +25,7 @@ from .schema import (
 )
 from .verify import check
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 
 __all__ = [
     "DECLARATION_FILE",

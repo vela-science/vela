@@ -232,20 +232,20 @@ clean machine with GitHub unreachable.
 
 ### Where it stands today
 
-Steps 1 through 3 pass for the repositories. `vela` and `math` each have a read
-replica at `codeberg.org/vela-science`, declared in `ecosystem-status.json` and
-refreshed twice daily by `mirror-replicas.yml` in `vela-science/vela-web`, which
-pushes every ref and tag and then reads the replica back over its public URL
-with no credential, failing if it holds different refs from the primary. The
-scheduled refresh is the point: a mirror updated when someone remembers is not a
-replica, it is a stale copy discovered at the worst moment.
+The acceptance test does not pass end to end today. Vela core retains its
+declared Codeberg read replica and signed release assets. Math's active writer
+is now the private GitHub repository and `ecosystem-status.json` declares no
+Math read replica, so step 1 currently has no independent-provider Math path.
+Steps 2 and 3 still pass after an authorized acquisition, but that does not
+satisfy the provider-loss condition in step 1.
 
-The retrieval was exercised rather than assumed. After the UUIDv4 re-genesis
-and human Decisions, `math` was cloned anonymously from Codeberg with no GitHub
-involvement and replayed to
+The independent retrieval was exercised on 2026-08-09 under the topology in
+force that day. After the UUIDv4 re-genesis and human Decisions, `math` was
+cloned anonymously from Codeberg with no GitHub involvement and replayed to
 `sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc`,
 the same Repository, origin, authorization-model, and authority-keyset roots as
-the active writer.
+the active writer. That retained qualification is historical evidence; it does
+not present the former locator as a current replica.
 
 `install.sh` no longer fails step 1. It prefers the signed release manifest —
 `ssh-keygen -Y verify` against the `vela-release` namespace, then a digest
@@ -286,13 +286,16 @@ Mirroring stays scoped to the release the Observatory pins rather than the
 historical archive. Section 11.1 asks for what it takes to install and reproduce
 the current system, which `vela-release.v1.json` names exactly.
 
-Steps 4 and 5 now pass. The human Decisions were signed through the local
-OpenSSH-agent authority path; a Codeberg-only clone of their published state
-then rebuilt twice into fresh local PostgreSQL clusters from one retained
-source-adapter artifact, verified identical manifest and table roots, enforced
-a SELECT-only reader, and exported the root-bound `erdos-321` Dossier. Exact
-inputs, roots, limitations, and the public mirror run are retained in
-`docs/PROVIDER_LOSS_QUALIFICATION_2026-08-09.md`.
+Steps 4 and 5 passed in the 2026-08-09 exercise. The human Decisions were
+signed through the local OpenSSH-agent authority path; a Codeberg-only clone of
+their published state then rebuilt twice into fresh local PostgreSQL clusters
+from one retained source-adapter artifact, verified identical manifest and
+table roots, enforced a SELECT-only reader, and exported the root-bound
+`erdos-321` Dossier. Exact inputs, roots, limitations, and the historical
+mirror run are retained in
+`docs/PROVIDER_LOSS_QUALIFICATION_2026-08-09.md`. That result does not close the
+present step-1 gap after the Math replica was removed from the declared
+topology.
 
 ## What this document does not do
 
