@@ -513,11 +513,11 @@
       "sha256": "sha256:ce2f0a2fb7db1810fc105c5c014899dab42e0e51b2ae5de951e09fe882fcfb8e"
     },
     {
-      "bytes": 1889,
+      "bytes": 1869,
       "normative": false,
       "path": "examples/formal-math/README.md",
       "role": "reference-flow",
-      "sha256": "sha256:53795c71590727f89ed3579528d150435cb66417a9c6670d2897c199917321d8"
+      "sha256": "sha256:1613ac8153e035ddd964c294fae8126938e5909e53bc10a206eea3f645200686"
     },
     {
       "bytes": 1256,
@@ -639,7 +639,7 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:c3db20aed059f2e84c6bf0de72b4a1f18a01458331420a73f61914c68ab1a435",
+  "manifest_root": "sha256:b93f359a435e9c7f5d48e6a123ee823644bbe6117e162815c6f967a11eef2e84",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",
