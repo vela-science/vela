@@ -103,7 +103,7 @@ DECLARED_REPOSITORIES: dict[str, dict[str, object]] = {
     },
     "vela-science/math": {
         "active_writer": "https://github.com/vela-science/math.git",
-        "visibility": "private",
+        "visibility": "public",
         "read_replicas": [],
         "responsibility": "The one live mathematics authority: sources, Claims, Decisions, replay state",
         "state": "active",

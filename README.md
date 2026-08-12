@@ -138,12 +138,11 @@ curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.972.1/install.
 vela --version
 ```
 
-Read a real Repository with authorized GitHub source access. Reading and
-replay require no repository-authority key:
+Read a real public Repository. Reading and replay require neither an account
+nor a repository-authority key:
 
 ```bash
-gh auth status
-gh repo clone vela-science/math math
+git clone https://github.com/vela-science/math.git math
 git -C math checkout 5be513bd0ce2243b59268d9b185da18497505067
 vela replay math --json
 vela claims math --json

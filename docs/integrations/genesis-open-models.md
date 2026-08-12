@@ -14,11 +14,10 @@ at the pages commit named below. Three clones, each pinned.
 - **Retained predecessor:** the 0.971.0 decisions discussed below remain signed continuity evidence and carry no Standing into the UUIDv4 genesis
 - **Target submission date:** 24 August 2026
 
-Every claim below is reproducible by an authorized source reader with:
+Every claim below is reproducible from the public source with:
 
 ```bash
-gh auth status
-gh repo clone vela-science/math math
+git clone https://github.com/vela-science/math.git math
 vela replay math --json
 ```
 
@@ -241,13 +240,11 @@ would need to preserve. That started this month.
 ## Verification
 
 Everything above is checkable from exact acquired sources. The canonical Math
-source currently requires an authorized GitHub account for acquisition; after
-that acquisition, these checks are local and require neither a hosted Vela
-service nor a repository-authority key.
+source is public; these checks are local after acquisition and require neither
+an account, a hosted Vela service, nor a repository-authority key.
 
 ```bash
-gh auth status
-gh repo clone vela-science/math math
+git clone https://github.com/vela-science/math.git math
 git -C math checkout 130fc283b99b8c55dea51b5f8f959a6c33a679f6
 vela replay math --json          # ok: true, repository_root: sha256:db4d435c…
 vela status math --json          # integrity.replay: verified, strict: pass
@@ -277,7 +274,8 @@ checked.
 
 The Codeberg Math locator used by the dated 2026-08-09 provider-loss
 qualification is historical evidence, not a current read replica. The current
-ecosystem declaration records the private GitHub repository as the active
-writer and declares no Math read replica. That topology change moves no
-Repository root and changes no Standing, but independent-provider Math
-retrieval is again an open operational obligation.
+ecosystem declaration records the public GitHub repository as the active
+writer and declares no Math read replica. Public access does not supply an
+independent provider: that topology moves no Repository root and changes no
+Standing, while provider-loss Math retrieval remains an open operational
+obligation.

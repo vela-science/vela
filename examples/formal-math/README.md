@@ -8,16 +8,14 @@ cold-reader protocol. It does **not** prove implication or equivalence, and its
 Clone the complete Repository at the pinned merge and replay its actual state:
 
 ```bash
-gh auth status
-gh repo clone vela-science/math math
+git clone https://github.com/vela-science/math.git math
 git -C math checkout 5be513bd0ce2243b59268d9b185da18497505067
 vela replay math --json
 vela claims math --json
 ```
 
-The canonical Math source is private and requires an authorized GitHub account
-for acquisition. Replay itself is local and requires no repository-authority
-key.
+The canonical Math source is public. Acquisition requires no account, and
+replay remains local and requires no repository-authority key.
 
 Expected replay facts are frozen in [`flow.json`](flow.json): Repository root
 `sha256:db4d435…e90ebdc` and one accepted Claim. The terminal-evidence merge

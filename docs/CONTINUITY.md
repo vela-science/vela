@@ -234,10 +234,10 @@ clean machine with GitHub unreachable.
 
 The acceptance test does not pass end to end today. Vela core retains its
 declared Codeberg read replica and signed release assets. Math's active writer
-is now the private GitHub repository and `ecosystem-status.json` declares no
-Math read replica, so step 1 currently has no independent-provider Math path.
-Steps 2 and 3 still pass after an authorized acquisition, but that does not
-satisfy the provider-loss condition in step 1.
+is the public GitHub repository, but `ecosystem-status.json` declares no Math
+read replica, so step 1 still has no independent-provider Math path. Steps 2
+and 3 pass after ordinary acquisition, but public access through the active
+writer does not satisfy the provider-loss condition in step 1.
 
 The independent retrieval was exercised on 2026-08-09 under the topology in
 force that day. After the UUIDv4 re-genesis and human Decisions, `math` was

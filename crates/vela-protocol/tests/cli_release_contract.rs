@@ -118,13 +118,13 @@ fn install_blocks_advertise_the_published_projection_release() {
     }
 }
 
-/// The live Math source is private. These are the four current acquisition
-/// surfaces a reader meets, and anonymous-clone wording turns each into a dead
-/// first run while misrepresenting the access boundary. The status artifact is
-/// checked against the generator separately by `scripts/ecosystem-status.py`;
-/// asserting its access declaration here binds the prose to the same fact.
+/// The live Math source is public. These are the four current acquisition
+/// surfaces a reader meets, and an account-gated recipe would turn a public
+/// source into a false first-run prerequisite. The status artifact is checked
+/// against the generator separately by `scripts/ecosystem-status.py`; asserting
+/// its access declaration here binds the prose to the same fact.
 #[test]
-fn current_math_acquisition_requires_authorized_access() {
+fn current_math_acquisition_is_public_and_credential_free() {
     const ACQUISITION_GUIDES: [(&str, &str); 4] = [
         ("README.md", include_str!("../../../README.md")),
         (
@@ -143,17 +143,12 @@ fn current_math_acquisition_requires_authorized_access() {
 
     for (name, guide) in ACQUISITION_GUIDES {
         assert!(
-            guide.contains("gh auth status")
-                && guide.contains("gh repo clone vela-science/math math"),
-            "{name} must show authenticated acquisition of the private Math source"
+            guide.contains("git clone https://github.com/vela-science/math.git math"),
+            "{name} must show anonymous acquisition of the public Math source"
         );
         assert!(
-            !guide.contains("git clone https://github.com/vela-science/math"),
-            "{name} must not present the private Math source as an anonymous clone"
-        );
-        assert!(
-            !guide.to_ascii_lowercase().contains("no account"),
-            "{name} must not claim that Math source acquisition needs no account"
+            !guide.contains("gh auth status") && !guide.contains("gh repo clone vela-science/math"),
+            "{name} must not require a GitHub credential for the public Math source"
         );
     }
 
@@ -161,16 +156,16 @@ fn current_math_acquisition_requires_authorized_access() {
         serde_json::from_str(include_str!("../../../ecosystem-status.json"))
             .expect("ecosystem-status.json must be valid JSON");
     let math = &status["declaration"]["vela-science/math"];
-    assert_eq!(math["visibility"].as_str(), Some("private"));
+    assert_eq!(math["visibility"].as_str(), Some("public"));
     assert_eq!(
         math["read_replicas"].as_array().map(Vec::len),
         Some(0),
-        "Math has no current declared read replica"
+        "public Math still has no independent read replica"
     );
 
     let continuity = include_str!("../../../docs/CONTINUITY.md");
     let integration = include_str!("../../../docs/integrations/genesis-open-models.md");
-    assert!(continuity.contains("declares no\nMath read replica"));
+    assert!(continuity.contains("declares no Math\nread replica"));
     assert!(integration.contains("declares no Math read replica"));
 }
 

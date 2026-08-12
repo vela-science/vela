@@ -26,7 +26,7 @@
       "read_replicas": [],
       "responsibility": "The one live mathematics authority: sources, Claims, Decisions, replay state",
       "state": "active",
-      "visibility": "private"
+      "visibility": "public"
     },
     "vela-science/quantum-codes-frontier": {
       "active_writer": "https://github.com/vela-science/quantum-codes-frontier.git",
@@ -235,7 +235,7 @@
         "archived": false,
         "default_branch": "main",
         "method": "github-api repos/vela-science/.github",
-        "observed_at": "2026-08-12T12:25:45Z",
+        "observed_at": "2026-08-12T20:39:03Z",
         "pushed_at": "2026-08-09T05:33:14Z",
         "visibility": "public"
       }
@@ -245,7 +245,7 @@
         "archived": true,
         "default_branch": "main",
         "method": "github-api repos/vela-science/erdos-frontier",
-        "observed_at": "2026-08-12T12:25:46Z",
+        "observed_at": "2026-08-12T20:39:04Z",
         "pushed_at": "2026-08-07T14:25:48Z",
         "visibility": "public"
       }
@@ -255,7 +255,7 @@
         "archived": true,
         "default_branch": "main",
         "method": "github-api repos/vela-science/formal-conjectures-frontier",
-        "observed_at": "2026-08-12T12:25:47Z",
+        "observed_at": "2026-08-12T20:39:06Z",
         "pushed_at": "2026-08-07T14:25:52Z",
         "visibility": "public"
       }
@@ -271,12 +271,12 @@
         "verifications": 7
       },
       "git": {
-        "commit": "a8f607af2b0274c87186791900e7aeebd1382e5a",
+        "commit": "79998d341606892e435caf3ec53cedd384b5b52f",
         "remote": "https://github.com/vela-science/math.git",
-        "tree": "180c60e3add30e89bbfc05b4d1abece8140a360c"
+        "tree": "974c5e1412512061f3a46899c8cc6f4f53834ff0"
       },
       "method": "local-checkout",
-      "observed_at": "2026-08-12T12:25:39Z",
+      "observed_at": "2026-08-12T20:38:49Z",
       "origin": {
         "generation": 1,
         "origin_id": "vro_229ce0a08217da5e",
@@ -287,9 +287,9 @@
         "archived": false,
         "default_branch": "main",
         "method": "github-api repos/vela-science/math",
-        "observed_at": "2026-08-12T12:25:45Z",
-        "pushed_at": "2026-08-12T11:14:20Z",
-        "visibility": "private"
+        "observed_at": "2026-08-12T20:39:04Z",
+        "pushed_at": "2026-08-12T20:38:15Z",
+        "visibility": "public"
       },
       "replay": {
         "integrity": {
@@ -308,7 +308,7 @@
         "archived": true,
         "default_branch": "main",
         "method": "github-api repos/vela-science/quantum-codes-frontier",
-        "observed_at": "2026-08-12T12:25:47Z",
+        "observed_at": "2026-08-12T20:39:05Z",
         "pushed_at": "2026-08-07T14:25:54Z",
         "visibility": "public"
       }
@@ -318,7 +318,7 @@
         "archived": true,
         "default_branch": "main",
         "method": "github-api repos/vela-science/sidon-frontier",
-        "observed_at": "2026-08-12T12:25:46Z",
+        "observed_at": "2026-08-12T20:39:05Z",
         "pushed_at": "2026-08-07T14:25:49Z",
         "visibility": "public"
       }
@@ -328,8 +328,8 @@
         "archived": false,
         "default_branch": "main",
         "method": "github-api repos/vela-science/vela",
-        "observed_at": "2026-08-12T12:25:44Z",
-        "pushed_at": "2026-08-12T09:51:23Z",
+        "observed_at": "2026-08-12T20:39:02Z",
+        "pushed_at": "2026-08-12T17:22:20Z",
         "visibility": "public"
       }
     },
@@ -345,8 +345,8 @@
         "archived": false,
         "default_branch": "main",
         "method": "github-api repos/vela-science/vela-web",
-        "observed_at": "2026-08-12T12:25:45Z",
-        "pushed_at": "2026-08-12T12:09:19Z",
+        "observed_at": "2026-08-12T20:39:03Z",
+        "pushed_at": "2026-08-12T19:41:04Z",
         "visibility": "private"
       }
     }
