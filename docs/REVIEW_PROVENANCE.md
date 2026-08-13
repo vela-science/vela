@@ -1,4 +1,4 @@
-# Review provenance for human and AI verification
+# Review provenance for attributed Verification
 
 Status: current implementation memo
 Date: 2026-08-13
@@ -17,6 +17,11 @@ portable profile for the method bytes: `vela.review-method.v1`.
 The profile answers a question the Verification Record deliberately does not:
 who or what actually performed the review?
 
+The four reviewer kinds are peers. The profile records provenance. Evidence
+earns weight from its named method, exact inputs, independence and shared
+dependencies, retained outputs, scope, outcome, and limitations. Reviewer kind
+grants neither a quality rank nor Repository authority.
+
 For example:
 
 - `AI model · GPT-5.6 Sol · OpenAI · gpt-5.6-sol`;
@@ -32,17 +37,17 @@ the performer and the attesting actor together without collapsing them.
 
 ## Why this shape
 
-Entire provides a useful product precedent. Its session header shows agent
-surface, model, human account, elapsed time, checkpoints, file changes, and
-token use before exposing the transcript. Its commit view keeps the human
-author, AI co-author, checkpoint, and exact commit together. Its review command
-runs named reviewer agents separately and then uses a named judge to
-consolidate their reports.
+Entire provides a useful product precedent. It retains per-agent sessions and
+checkpoints, and surfaces the agent, model, runtime, tools, token or resource use,
+elapsed time, file changes, human account, and exact commit when those facts are
+available. Its review flow keeps named reviewers separate before a named judge
+consolidates their reports.
 
-Vela adopts the visible attribution and separate reviewer records. It does not
-adopt the phrase “final verdict” as an authority concept. A judge or synthesis
-model may produce another scoped Verification, but it cannot create a Decision
-or Standing.
+Vela adopts visible provenance and separately retained reviewers. Session and
+checkpoint details remain links to source-owned activity evidence. Protocol 1
+adds no fields for them. A judge, panel, or synthesis model produces another
+attributed review. Consolidation preserves its inputs and creates no Decision
+or Standing. Vela does not adopt “final verdict” as an authority concept.
 
 References:
 
@@ -52,15 +57,15 @@ References:
 
 ## Research basis
 
-AI review is useful as a scalable second reader, not as an anonymous oracle.
-Controlled studies report that language-model feedback can overlap materially
-with human review and can improve reviewer coverage, while also showing
-different error patterns and continued value from expert adjudication. Separate
-work on model-as-judge systems finds systematic position, verbosity, and
-self-preference biases. Prompt-injection research further shows that content
-being reviewed can attempt to influence a model reviewer. These findings favor
-separate rooted observations, explicit performer identity, disclosed methods,
-and policy-based escalation over one blended score.
+Reviewer kinds can overlap materially and fail differently. Controlled studies
+report useful language-model feedback and improved coverage in some settings,
+while model-as-judge work finds systematic position, verbosity, and self-
+preference biases. Prompt-injection research further shows that reviewed content
+can influence a model reviewer. Human and organizational review also vary with
+expertise, conflicts, procedure, and access to the exact basis. These findings
+favor separate rooted observations, explicit performer identity, disclosed
+methods, and evidence-specific adjudication over a kind hierarchy or blended
+score.
 
 The policy also follows the broader risk-management direction in NIST's
 Generative AI Profile: document provenance and limitations, evaluate in the
@@ -140,23 +145,22 @@ Unknown, malformed, or unsupported review profiles fail closed in projection.
 A Verification whose method is not a review profile remains visible with its
 signed actor and method profile, explicitly labeled as legacy provenance.
 
-## Review policy
+## Review composition policy
 
-AI-first review is the default operating path for scalable screening:
+1. Select reviewer methods for the property and risk, not for a preferred kind.
+2. Retain each human, AI-model, organization, or deterministic-tool review as a
+   separate attributed observation.
+3. Preserve disagreements, unsupported claims, and shared dependencies instead
+   of averaging them away.
+4. Attribute a judge, panel, or synthesis as another review and retain the input
+   review roots it considered.
+5. Evaluate weight from method fitness, exact basis, independence, outputs,
+   scope, and limitations.
+6. Keep the authorized human Repository Decision separate from every review.
 
-1. run one or more exact, separately attributed AI or deterministic reviews;
-2. preserve disagreements and unsupported claims instead of averaging them
-   away;
-3. escalate to a human when policy requires human judgment, reviewers
-   disagree materially, source fidelity remains uncertain, the evidence is
-   incomplete, the impact is high, or the proposed Decision would exceed the
-   declared automated scope;
-4. record the human review separately; and
-5. keep the authorized human Decision separate from all review records.
-
-Human review is therefore selective, not universal. A repository may admit a
-Proposal under its own policy with one authorized human Decision, but it must
-not relabel AI evidence as human evidence or treat review count as authority.
+A repository may require any bounded combination of reviewer methods. It must
+not relabel one reviewer kind as another, treat review count as authority, or
+infer that a human review is independent merely because a person performed it.
 
 ## Ecosystem ownership
 

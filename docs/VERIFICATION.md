@@ -25,6 +25,11 @@ known version, attesting actor, procedure, output contract, and nonclaims. The
 Verification Record still carries the outcome and signature. See
 [`REVIEW_PROVENANCE.md`](REVIEW_PROVENANCE.md).
 
+Those four reviewer kinds are peers. Evidentiary weight comes from the fitness
+of the named method, exact inputs, independence and shared dependencies,
+retained outputs, scope, outcome, and limitations. Reviewer kind establishes no
+quality rank. Only an authorized human Repository Decision may change Standing.
+
 ## Frozen reproduction
 
 `vela reproduce [<path>]` re-runs the stored frozen verifiers against the

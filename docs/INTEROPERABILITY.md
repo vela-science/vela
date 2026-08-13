@@ -74,6 +74,11 @@ An adapter:
 5. retains explicit caveats and nonclaims; and
 6. never infers acceptance from tool success.
 
+The [non-normative integration-profile
+template](integrations/integration-profile-template.md) records these facts,
+reviewer or verifier scope, rights and availability, and explicit semantic loss.
+It is package-plane guidance, not another protocol object or authority surface.
+
 Any external runner or workbench may be a producer. It may consume a
 source-local work packet and emit ordinary Submissions or Verification
 Records. Vela does not own or wrap the runner, publish a work catalogue or
