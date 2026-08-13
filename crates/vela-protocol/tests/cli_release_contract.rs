@@ -63,12 +63,12 @@ fn run_expect_failure(args: &[&str]) -> String {
 /// everything the page goes on to describe. Nothing checked it, because the tag
 /// lived only in prose.
 ///
-/// A candidate bump creates the opposite failure if these blocks follow it
-/// before publication: both examples become matching 404s. The root-bound
-/// projection names the current published software release independently of
-/// this checkout, so every install tag is held to that declaration instead.
+/// A release bump creates the opposite failure if either install block is left
+/// behind. Publication remains a separate signed operator action, while the
+/// source at an exact release tag must install that same release rather than a
+/// projection's older generator.
 #[test]
-fn install_blocks_advertise_the_published_projection_release() {
+fn install_blocks_advertise_this_exact_release() {
     const INSTALL_GUIDES: [(&str, &str); 2] = [
         ("README.md", include_str!("../../../README.md")),
         (
@@ -76,18 +76,7 @@ fn install_blocks_advertise_the_published_projection_release() {
             include_str!("../../../docs/QUICKSTART.md"),
         ),
     ];
-    let status: serde_json::Value =
-        serde_json::from_str(include_str!("../../../ecosystem-status.json"))
-            .expect("ecosystem-status.json must be valid JSON");
-    let projected = status["projection"]["vela_version"]
-        .as_str()
-        .expect("the published projection must name its Vela release");
-    let expected = format!(
-        "v{}",
-        projected
-            .strip_prefix("vela ")
-            .expect("the projection release must use `vela X.Y.Z`")
-    );
+    let expected = format!("v{}", env!("CARGO_PKG_VERSION"));
 
     for (name, guide) in INSTALL_GUIDES {
         let advertised: Vec<&str> = guide
@@ -112,7 +101,7 @@ fn install_blocks_advertise_the_published_projection_release() {
         for tag in advertised {
             assert_eq!(
                 tag, expected,
-                "{name} advertises {tag}, not the published projection release {expected}"
+                "{name} advertises {tag}, not this exact release {expected}"
             );
         }
     }

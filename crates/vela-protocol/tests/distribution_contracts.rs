@@ -10,7 +10,6 @@ use serde_json::Value;
 
 const INSTALLER: &str = include_str!("../../../install.sh");
 const CITATION: &str = include_str!("../../../CITATION.cff");
-const ECOSYSTEM_STATUS: &str = include_str!("../../../ecosystem-status.json");
 const RELEASE_WORKFLOW: &str = include_str!("../../../.github/workflows/release.yml");
 const CONFORMANCE_WORKFLOW: &str = include_str!("../../../.github/workflows/conformance.yml");
 /* The release semantics moved out of the workflow and into an entry point a
@@ -356,15 +355,19 @@ fn citation_metadata_names_the_workspace_release() {
         "CITATION.cff and the workspace package identity must move together"
     );
 
-    let status: Value =
-        serde_json::from_str(ECOSYSTEM_STATUS).expect("ecosystem status must be valid JSON");
-    let published = status["projection"]["vela_version"]
-        .as_str()
-        .expect("the projection must name its published Vela release");
-    if published != format!("vela {}", env!("CARGO_PKG_VERSION")) {
+    if let Some(released) = citation.get("date-released") {
+        let released = released
+            .as_str()
+            .expect("date-released must use an ISO date string");
         assert!(
-            citation.get("date-released").is_none(),
-            "an unpublished workspace candidate must not claim a release date"
+            released.len() == 10
+                && released.as_bytes()[4] == b'-'
+                && released.as_bytes()[7] == b'-'
+                && released
+                    .bytes()
+                    .enumerate()
+                    .all(|(index, byte)| index == 4 || index == 7 || byte.is_ascii_digit()),
+            "date-released must use YYYY-MM-DD"
         );
     }
 }

@@ -10,6 +10,14 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+## 0.973.1
+
+- **Published acquisition guidance names the release that actually exists.**
+  The README, quickstart, citation, release qualification, and ecosystem
+  declaration now point to the signed `v0.973.1` patch release instead of
+  retaining the pre-publication 0.972.1 fallback text shipped in 0.973.0. The
+  protocol and scientific-state semantics are unchanged.
+
 ## 0.973.0
 
 - **Repository writes have one exact authorization and recovery boundary.**

@@ -4,14 +4,12 @@ Vela has two related but distinct release surfaces:
 
 - **Protocol 1** is the current release-candidate specification, schemas,
   conformance vectors, and independent readers.
-- **Vela 0.973.0** is the pre-1.0 implementation identity prepared by this
-  tree. The version and release notes do not themselves create a tag, signed
-  bundle, or publication. A future `v1.0.0` publication requires a separate,
-  explicit release authorization.
+- **Vela 0.973.1** is the current signed pre-1.0 implementation release. It
+  carries the same Protocol 1 candidate as 0.973.0 and corrects the published
+  acquisition guidance.
 
-The latest signed published release remains `v0.972.1`. User-facing installer
-examples stay pinned to that version until a later release is actually signed
-and published; they do not follow the workspace candidate version.
+The latest signed published release is `v0.973.1`. User-facing installer
+examples pin that exact tag rather than following a moving branch.
 
 Neither a protocol conformance result nor a signed software bundle is a
 scientific Decision. Neither changes Standing or demonstrates external

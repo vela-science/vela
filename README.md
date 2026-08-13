@@ -129,12 +129,11 @@ it does not prove that a Claim is true.
 Install the current signed release:
 
 Vela supports Linux x86-64 and macOS Apple-silicon release bundles.
-This source tree prepares `0.973.0`; it is not yet a tag or published bundle,
-so the install path remains pinned to the published `v0.972.1` release.
+Install the current signed release, `v0.973.1`.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.972.1/install.sh | \
-  VELA_VERSION=v0.972.1 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.973.1/install.sh | \
+  VELA_VERSION=v0.973.1 bash
 vela --version
 ```
 

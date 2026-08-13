@@ -6,13 +6,11 @@ checks; only an authorized human Decision changes Standing.
 
 ## Two-minute flagship: read exact scientific state
 
-Install the current signed release. This source tree prepares `0.973.0`, which
-is not yet a tag or published bundle; the install path therefore remains on
-published release `v0.972.1`.
+Install the current signed release, `v0.973.1`.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.972.1/install.sh | \
-  VELA_VERSION=v0.972.1 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.973.1/install.sh | \
+  VELA_VERSION=v0.973.1 bash
 
 git clone https://github.com/vela-science/math.git math
 git -C math checkout 5be513bd0ce2243b59268d9b185da18497505067
