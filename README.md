@@ -131,11 +131,11 @@ it does not prove that a Claim is true.
 Install the current signed release:
 
 Vela supports Linux x86-64 and macOS Apple-silicon release bundles.
-Install the current signed release, `v0.974.0`.
+Install the current signed release, `v0.974.1`.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.974.0/install.sh | \
-  VELA_VERSION=v0.974.0 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.974.1/install.sh | \
+  VELA_VERSION=v0.974.1 bash
 vela --version
 ```
 

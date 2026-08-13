@@ -10,6 +10,13 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+## 0.974.1
+
+- **Decision read surfaces preserve performer provenance.** Proposal and
+  `review show` output now carry the performer class, optional source-owned
+  session reference, and distinct Repository authority principal so downstream
+  readers never infer them from an actor name.
+
 ## 0.974.0
 
 - **Decision authority is capability-based and performer-attributed.**

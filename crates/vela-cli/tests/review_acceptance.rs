@@ -551,6 +551,20 @@ fn review_accept_admits_the_event_that_moves_standing() {
         "the covering record must name exactly the admitted Events"
     );
 
+    let reviewed = success_json(&run(
+        &repository_path,
+        None,
+        &producer_home,
+        &["review", "show", ".", &proposal_id, "--json"],
+    ));
+    assert_eq!(reviewed["decision"]["actor"], decision_actor);
+    assert_eq!(reviewed["decision"]["actor_class"], "agent");
+    assert_eq!(reviewed["decision"]["session_ref"], session_ref);
+    assert_eq!(
+        reviewed["decision"]["authority_principal_id"],
+        accepted["authority_principal_id"]
+    );
+
     // Replay still verifies, in place and from a clean clone that has only the
     // published bytes.
     let clone = temporary.path().join("decided-clone");

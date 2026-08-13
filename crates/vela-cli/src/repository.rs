@@ -32,6 +32,9 @@ pub(crate) struct ProposalDecision {
     pub(crate) event_root: String,
     pub(crate) decided_at: String,
     pub(crate) actor: String,
+    pub(crate) actor_class: String,
+    pub(crate) session_ref: Option<String>,
+    pub(crate) authority_principal_id: String,
     pub(crate) reason: String,
     pub(crate) applied_event_id: Option<String>,
 }
@@ -566,12 +569,27 @@ fn current_proposal_decisions(
         } else {
             None
         };
+        let performer = event.content.payload.get("decision_performer");
         let decision = ProposalDecision {
             standing: standing.into(),
             event_id: event.id.clone(),
             event_root: event.root()?,
             decided_at: event.content.timestamp.clone(),
             actor: event.content.actor.id.clone(),
+            actor_class: performer
+                .and_then(|value| value.get("actor_class"))
+                .and_then(Value::as_str)
+                .unwrap_or(event.content.actor.r#type.as_str())
+                .to_owned(),
+            session_ref: performer
+                .and_then(|value| value.get("session_ref"))
+                .and_then(Value::as_str)
+                .map(str::to_owned),
+            authority_principal_id: performer
+                .and_then(|value| value.get("authority_principal_id"))
+                .and_then(Value::as_str)
+                .unwrap_or(event.content.principal_id.as_str())
+                .to_owned(),
             reason: event.content.reason.clone(),
             applied_event_id,
         };
