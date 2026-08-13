@@ -25,6 +25,16 @@ def paths() -> list[tuple[str, str, bool]]:
         ("conformance/fixtures/exact-witness-floor.json", "scientific-vector", True),
         ("conformance/fixtures/claim-relation-vocabulary.json", "vocabulary-vector", True),
         (
+            "conformance/fixtures/read-surfaces/decision-inbox-v2.json",
+            "cli-read-contract-vector",
+            False,
+        ),
+        (
+            "conformance/fixtures/read-surfaces/README.md",
+            "cli-read-contract-documentation",
+            False,
+        ),
+        (
             "conformance/fixtures/epoch1/authorization-profile-parity.json",
             "authorization-parity-vector",
             True,

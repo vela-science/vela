@@ -1174,6 +1174,43 @@ mod tests {
         }
     }
 
+    fn ready_projection(fixture: &ReadyAddFixture) -> DecisionInboxProjection {
+        let entry = fixture.default_entry();
+        let mut projection = DecisionInboxProjection {
+            schema: PROJECTION_SCHEMA.into(),
+            repository_id: fixture.repository.repository_id.clone(),
+            repository_root: fixture.repository.canonical_root().unwrap(),
+            order: "protocol_ready_first_then_created_at_asc_then_proposal_id".into(),
+            entries: vec![entry],
+            projection_root: String::new(),
+        };
+        projection.projection_root = projection_root(&projection).unwrap();
+        projection
+    }
+
+    #[test]
+    fn decision_inbox_v2_contract_fixture_is_byte_stable() {
+        let fixture = ready_add_fixture();
+        let render = || {
+            let projection = ready_projection(&fixture);
+            let mut envelope = serde_json::to_value(projection).unwrap();
+            let object = envelope.as_object_mut().unwrap();
+            object.insert("ok".into(), serde_json::Value::Bool(true));
+            object.insert(
+                "command".into(),
+                serde_json::Value::String("review.inbox".into()),
+            );
+            format!("{}\n", serde_json::to_string_pretty(&envelope).unwrap())
+        };
+        let first = render();
+        let second = render();
+        assert_eq!(first, second);
+        assert_eq!(
+            first,
+            include_str!("../../../conformance/fixtures/read-surfaces/decision-inbox-v2.json")
+        );
+    }
+
     #[test]
     fn ready_entry_binds_exact_inputs_and_hypothetical_standing() {
         let fixture = ready_add_fixture();

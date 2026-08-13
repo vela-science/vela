@@ -15,6 +15,85 @@ CONFORMANCE = ROOT / "conformance"
 sys.path.insert(0, str(CONFORMANCE / "readers" / "python"))
 from canonical import canonical_bytes
 
+DECISION_INBOX_ENTRY_SCHEMA = "vela.decision-inbox-entry.v2"
+DECISION_INBOX_ENTRY_DOMAIN = b"vela.decision-inbox-entry.v2\0"
+DECISION_INBOX_SCHEMA = "vela.decision-inbox.v2"
+DECISION_INBOX_DOMAIN = b"vela.decision-inbox.v2\0"
+
+
+def rooted_canonical_json(domain: bytes, value: dict[str, object], field: str) -> str:
+    rooted = dict(value)
+    rooted[field] = ""
+    return "sha256:" + hashlib.sha256(domain + canonical_bytes(rooted)).hexdigest()
+
+
+def validate_decision_inbox_read_surface(envelope: object) -> str | None:
+    if not isinstance(envelope, dict):
+        return "CLI envelope must be an object"
+    if envelope.get("ok") is not True or envelope.get("command") != "review.inbox":
+        return "CLI envelope metadata drift"
+    if envelope.get("schema") != DECISION_INBOX_SCHEMA:
+        return "unsupported projection schema"
+
+    entries = envelope.get("entries")
+    if not isinstance(entries, list):
+        return "entries must be an array"
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            return f"entry {index} must be an object"
+        if entry.get("schema") != DECISION_INBOX_ENTRY_SCHEMA:
+            return f"entry {index} uses an unsupported schema"
+        if entry.get("entry_root") != rooted_canonical_json(
+            DECISION_INBOX_ENTRY_DOMAIN, entry, "entry_root"
+        ):
+            return f"entry {index} root drift"
+        standing_delta = entry.get("standing_delta")
+        if not isinstance(standing_delta, dict):
+            return f"entry {index} standing delta must be an object"
+        if not all(key in standing_delta for key in ("before", "if_accept", "if_reject")):
+            return f"entry {index} omits a required hypothetical state"
+        readiness = entry.get("readiness")
+        if not isinstance(readiness, dict) or readiness.get("human_decision_required") is not True:
+            return f"entry {index} must preserve the human Decision boundary"
+
+    projection = {
+        key: value for key, value in envelope.items() if key not in {"ok", "command"}
+    }
+    if envelope.get("projection_root") != rooted_canonical_json(
+        DECISION_INBOX_DOMAIN, projection, "projection_root"
+    ):
+        return "projection root drift"
+    return None
+
+
+def verify_decision_inbox_read_surface() -> int:
+    path = CONFORMANCE / "fixtures" / "read-surfaces" / "decision-inbox-v2.json"
+    try:
+        fixture = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        print(f"decision-inbox-v2: fixture load failed: {error}", file=sys.stderr)
+        return 1
+
+    error = validate_decision_inbox_read_surface(fixture)
+    if error is not None:
+        print(f"decision-inbox-v2: {error}", file=sys.stderr)
+        return 1
+
+    unsupported = dict(fixture)
+    unsupported["schema"] = "vela.decision-inbox.v3"
+    if validate_decision_inbox_read_surface(unsupported) is None:
+        print("decision-inbox-v2: unsupported schema passed", file=sys.stderr)
+        return 1
+
+    tampered = json.loads(json.dumps(fixture))
+    tampered["entries"][0]["standing_delta"]["transition"] = "forged transition"
+    if validate_decision_inbox_read_surface(tampered) is None:
+        print("decision-inbox-v2: rooted mutation passed", file=sys.stderr)
+        return 1
+
+    print("decision-inbox-v2: ok")
+    return 0
+
 
 def verify_sidon_witness(witness: object) -> bool:
     if not isinstance(witness, dict) or witness.get("kind") != "sidon":
@@ -135,6 +214,10 @@ def main() -> int:
     print("\n== exact_witness_floor ==")
     if verify_exact_witness_floor() != 0:
         print("vela conformance: FAIL (exact-witness-floor)", file=sys.stderr)
+        return 1
+    print("\n== decision_inbox_v2 ==")
+    if verify_decision_inbox_read_surface() != 0:
+        print("vela conformance: FAIL (decision-inbox-v2)", file=sys.stderr)
         return 1
     # Not a vector check: it holds `ecosystem-status.json` to the checkout it
     # claims to describe. Four repositories were documented as archived while

@@ -317,6 +317,20 @@
       "sha256": "sha256:b7fedfd07310dff1cc1e99f265f8c299a144cc605d04f4c101a6885f57384bf9"
     },
     {
+      "bytes": 1020,
+      "normative": false,
+      "path": "conformance/fixtures/read-surfaces/README.md",
+      "role": "cli-read-contract-documentation",
+      "sha256": "sha256:40e8c579c1e8163a45af9a054dc7a7622e60686561e83c38b53124283a950057"
+    },
+    {
+      "bytes": 5339,
+      "normative": false,
+      "path": "conformance/fixtures/read-surfaces/decision-inbox-v2.json",
+      "role": "cli-read-contract-vector",
+      "sha256": "sha256:2fa4eab2a53bc0f82507789a3851e8a9b566878c6dadf86994b39e1452406a0d"
+    },
+    {
       "bytes": 3190,
       "normative": true,
       "path": "conformance/jcs-shadow-audit.json",
@@ -373,11 +387,11 @@
       "sha256": "sha256:c17899a2f631ed23ec6798ee11a23434c4e85fa4a9b5980dd1e12c059b75d397"
     },
     {
-      "bytes": 5457,
+      "bytes": 9004,
       "normative": true,
       "path": "conformance/verify.py",
       "role": "conformance-entrypoint",
-      "sha256": "sha256:2b5f72db6d5c84eade64ee025b8693d45238dd2c745cb6c8693bc870c695e47b"
+      "sha256": "sha256:79acc4ed3cea111df44813676abaff358ee3578fcfb23c40f7f5825df3b0a817"
     },
     {
       "bytes": 31099,
@@ -408,11 +422,11 @@
       "sha256": "sha256:5e0c512f10b2b0a8f6a89bcfc47d47de951589c26f9b85d730b8ac7c74dd88a0"
     },
     {
-      "bytes": 6227,
+      "bytes": 6527,
       "normative": true,
       "path": "conformance/verify_protocol_1.py",
       "role": "manifest-verifier",
-      "sha256": "sha256:1633e56fcd92e5e21988647939f990c4a2558108609330b24734459391877494"
+      "sha256": "sha256:83f94cca72a52b422627889730401e4f85b8528aad0e7d9b9667ab7c923c28d2"
     },
     {
       "bytes": 6136,
@@ -639,7 +653,7 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:b93f359a435e9c7f5d48e6a123ee823644bbe6117e162815c6f967a11eef2e84",
+  "manifest_root": "sha256:5f12267d461d57f96bedb7179622852c14464f18df563ec05da75031f796c579",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",

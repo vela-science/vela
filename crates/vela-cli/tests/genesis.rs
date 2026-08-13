@@ -833,15 +833,17 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             .as_str()
             .is_some_and(|command| command.starts_with("vela submit "))
     );
+    let inbox_state_before = tree_snapshot(&repository_path.join(".vela"));
     let human_inbox = run(&repository_path, None, &["review", "inbox", "."]);
     assert!(human_inbox.status.success());
     let human_inbox = String::from_utf8(human_inbox.stdout).expect("inbox text");
     assert_eq!(human_inbox.matches("Inspect:").count(), 1);
-    let inbox = success_json(&run(
-        &repository_path,
-        None,
-        &["review", "inbox", ".", "--json"],
-    ));
+    let inbox_output = run(&repository_path, None, &["review", "inbox", ".", "--json"]);
+    assert!(inbox_output.status.success());
+    let repeated_inbox_output = run(&repository_path, None, &["review", "inbox", ".", "--json"]);
+    assert!(repeated_inbox_output.status.success());
+    assert_eq!(inbox_output.stdout, repeated_inbox_output.stdout);
+    let inbox = success_json(&inbox_output);
     assert_eq!(inbox["schema"], "vela.decision-inbox.v2");
     assert_eq!(inbox["entries"].as_array().map(Vec::len), Some(1));
     let reviewed_entry_root = inbox["entries"][0]["entry_root"]
@@ -876,6 +878,11 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         checked["repository_root"]
     );
     assert_eq!(after_inspection["counts"]["accepted_claims"], 0);
+    assert_eq!(
+        tree_snapshot(&repository_path.join(".vela")),
+        inbox_state_before,
+        "Decision Inbox inspection must not write canonical or authority state"
+    );
     let stale_entry_root = format!("sha256:{}", "0".repeat(64));
     let stale_decision = run(
         &repository_path,

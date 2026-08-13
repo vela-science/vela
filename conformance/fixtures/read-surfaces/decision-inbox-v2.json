@@ -1,0 +1,124 @@
+{
+  "command": "review.inbox",
+  "entries": [
+    {
+      "assertion": "A bounded fixture result.",
+      "authority_heads": {
+        "authority_event_log_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "authority_keyset_root": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "authority_record_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+        "policy_bundle_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+      },
+      "claim_id": "vcl_1d37ceacc7adb7c4625c8b0fe82e3dde47418a70cf7f37ec2f02c96d22e3935c",
+      "conditions": [
+        "Exact fixture scope."
+      ],
+      "created_at": "2026-07-30T00:00:01Z",
+      "entry_root": "sha256:c91b6d8f1b3608f7085a9780a2546a504f437814c4f0c26e4cc19558f13a2d1c",
+      "inputs": {
+        "claim_root": "sha256:28326be07fa7df3d8db5785f16082a3f33c135885e879d66302beb062be6111a",
+        "proposal_root": "sha256:a11114e4dca589ddddaa32ad1985bb2569748466182b45af68d2a47020994a67",
+        "repository_root": "sha256:f8d58081f6ec88ac00f7b52be94fb03c1e9fec4df44a4027c73fe533b138c1bc",
+        "submission_root": "sha256:91ec2e118de6ec5662fb7a5d4fff40e2ffdb3b1d21465143fd4ed92fb8de84d7",
+        "verification_set_root": "sha256:dbf693ddd4628d7f977ab7834b9c961b7710e1c6e6b486fd60053913aa8016fd"
+      },
+      "limits": [
+        "Does not establish an unrestricted result.",
+        "Scientific acceptance remains separate."
+      ],
+      "next_obligation": {
+        "if_accept": "Replay the accepted successor repository; source-owning repositories and read products may then recompute exact next obligations.",
+        "if_reject": "Replay the rejected successor repository; source-owning repositories and read products may then recompute exact next obligations without changing accepted Standing.",
+        "now": "Human repository authority may inspect and accept or reject this exact rooted entry."
+      },
+      "proposal_action": "claim.add",
+      "proposal_actor": "agent:fixture-producer",
+      "proposal_id": "vpr_a11114e4dca589dd",
+      "proposal_reason": "Review the exact bounded fixture evidence.",
+      "readiness": {
+        "blockers": [],
+        "human_decision_required": true,
+        "protocol_gate": "satisfied",
+        "rejection_available": true
+      },
+      "repository_id": "01234567-89ab-4def-8123-456789abcdef",
+      "requested_decision": "accept_or_reject",
+      "schema": "vela.decision-inbox-entry.v2",
+      "staleness": {
+        "invalidated_by": [
+          "repository_root",
+          "proposal_root",
+          "claim_root",
+          "submission_root",
+          "verification_set_root",
+          "policy_bundle_root",
+          "authority_keyset_root",
+          "authority_record_root",
+          "authority_event_log_root"
+        ],
+        "state": "current"
+      },
+      "standing_delta": {
+        "before": {
+          "accepted": [],
+          "repository_root": "sha256:f8d58081f6ec88ac00f7b52be94fb03c1e9fec4df44a4027c73fe533b138c1bc"
+        },
+        "counts": {
+          "global_accepted_claims": {
+            "before": 0,
+            "if_accept": 1,
+            "if_reject": 0
+          },
+          "unchanged_accepted_claims": 0
+        },
+        "if_accept": {
+          "accepted": [
+            {
+              "claim_id": "vcl_1d37ceacc7adb7c4625c8b0fe82e3dde47418a70cf7f37ec2f02c96d22e3935c",
+              "claim_root": "sha256:28326be07fa7df3d8db5785f16082a3f33c135885e879d66302beb062be6111a"
+            }
+          ],
+          "repository_root": "sha256:024b2c2d1f495026c4b353a6b7defa30b9169b4bf7b1b7cd42e63373da0c7a5a"
+        },
+        "if_reject": {
+          "accepted": [],
+          "repository_root": "sha256:e7957a60c534dea448dbc141844e9335e2f3eb98d0b61689a1282c25be7b04ea"
+        },
+        "scope": {
+          "affected_claim_ids": [
+            "vcl_1d37ceacc7adb7c4625c8b0fe82e3dde47418a70cf7f37ec2f02c96d22e3935c"
+          ],
+          "kind": "proposal_affected_claims",
+          "target_claim_id": "vcl_1d37ceacc7adb7c4625c8b0fe82e3dde47418a70cf7f37ec2f02c96d22e3935c"
+        },
+        "transition": "add accepted Claim"
+      },
+      "verification_records": [
+        {
+          "does_not_establish": [
+            "Scientific acceptance."
+          ],
+          "independent_of_producer": true,
+          "outcome": "pass",
+          "property": "Replay the exact fixture.",
+          "protocol_evidence_role": "requirement_satisfying",
+          "satisfies_requirements": [
+            "Replay the exact fixture."
+          ],
+          "verification_record_id": "vvr_b5c3120ee9755ac4",
+          "verification_record_root": "sha256:b5c3120ee9755ac4d9c01e85112a86b7ad64922caaea3318884e7d68f1edf5ac",
+          "verifier": "service:fixture-verifier"
+        }
+      ],
+      "verification_requirements": [
+        "Replay the exact fixture."
+      ]
+    }
+  ],
+  "ok": true,
+  "order": "protocol_ready_first_then_created_at_asc_then_proposal_id",
+  "projection_root": "sha256:5a95efb0fa8fc3d8880e0cf2587f677d5b031400b2ed24cd2e8d3a68156facc8",
+  "repository_id": "01234567-89ab-4def-8123-456789abcdef",
+  "repository_root": "sha256:f8d58081f6ec88ac00f7b52be94fb03c1e9fec4df44a4027c73fe533b138c1bc",
+  "schema": "vela.decision-inbox.v2"
+}

@@ -199,6 +199,14 @@ are deterministic previews of the existing Decision semantics, not retained
 objects or recommendations. Derivation fails closed if a hypothetical
 Decision changes accepted Standing outside the declared Claim scope.
 
+The exact v2 envelope is frozen by
+`conformance/fixtures/read-surfaces/decision-inbox-v2.json` and the live Rust
+fixture that produces it. Consumers must require `vela.decision-inbox.v2`,
+ignore unknown additive fields within v2, and refuse unsupported schema
+versions. `entry_root`, `repository_root`, and `projection_root` remain distinct
+typed identities. The outer `ok` and `command` fields are not included in the
+projection root.
+
 `vela submit` accepts either explicit flags or a portable Submission file. For
 a file import, each declared Artifact travels beside the Submission at
 `artifacts/sha256/<digest>`. Vela verifies those bytes before installing the
