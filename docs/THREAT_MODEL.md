@@ -94,15 +94,17 @@ One `review accept` or `review reject` action binds the exact Proposal, action,
 reason, principal, policy, authority head, ordered Verification Records, read
 set, binary identity, and canonical delta.
 
-Any drift aborts before the commit marker. Agent producer identities are
-refused as human review principals. The repository-authority service key is
-loaded once into the standard OpenSSH agent for the authenticated local OS
-session. There is no batch approval, wildcard, copied confirmation root,
-custom signer, or Vela-managed human key. A trusted native agent may execute a
-named Decision or campaign the operator explicitly authorized; the native
-runner supplies that workflow authorization while Vela still checks each exact
-Decision. Forwarding the unconstrained authority-agent socket to remote,
-untrusted, or proposal-supplied code remains a custody failure.
+Any drift aborts before the commit marker. Producer or verifier identity does
+not implicitly grant Decision authority. A human or agent performer may decide
+only through an exact principal that the retained Repository policy authorizes.
+The repository-authority service key is loaded once into the standard OpenSSH
+agent for the authenticated local OS session. There is no batch approval,
+wildcard, copied confirmation root, custom signer, or Vela-managed performer
+key. A trusted native agent may execute a named Decision or campaign under its
+own attributed identity and session reference; Vela still checks each exact
+Decision and records the distinct authority principal. Forwarding the
+unconstrained authority-agent socket to remote, untrusted, or proposal-supplied
+code remains a custody failure.
 
 ### Repository-authority substitution
 

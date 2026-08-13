@@ -135,7 +135,7 @@ evidence available to a reviewer, not a Decision.
 
 ## 5. Decision and authority
 
-One human semantic action targets one exact pending Proposal:
+One attributed human or agent semantic action targets one exact pending Proposal:
 
 ```text
 d = (

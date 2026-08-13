@@ -4,8 +4,9 @@
 //! at `~/.vela/agents/<actor>/private.key` on first use (the CLI resolves the
 //! exact actor before calling this boundary); `VELA_AGENT_KEY_HEX`
 //! overrides when an explicit key is wanted. Minting is refused for
-//! non-agent actors; human authority uses the platform principal and the
-//! repository-authority signer.
+//! non-agent actors. Repository Decisions use a separately configured
+//! authority principal and repository-authority signer; this producer key does
+//! not grant that capability.
 //! **No silent unsigned submissions, and no key ceremony either.**
 
 use ed25519_dalek::SigningKey;
@@ -20,9 +21,9 @@ const AGENT_KEY_ENV: &str = "VELA_AGENT_KEY_HEX";
 ///    MINTED on first use.
 ///
 /// Custody: minting is refused for anything but `agent:`/`ci:` actors —
-/// human authority is never a side effect. The minted key signs only
-/// agent-grade objects (leases,
-/// records); every decision verb still refuses agent actors outright.
+/// Repository authority is never a side effect. The minted key signs only
+/// producer-grade objects (leases and records); an agent Decision requires a
+/// separately authorized authority principal and covering Repository signature.
 pub fn agent_signing_key(actor: &str) -> Result<SigningKey, String> {
     if let Some(key) = environment_key()? {
         return Ok(key);
@@ -30,7 +31,7 @@ pub fn agent_signing_key(actor: &str) -> Result<SigningKey, String> {
     if !actor.starts_with("agent:") && !actor.starts_with("ci:") && !actor.starts_with("verifier:")
     {
         return Err(format!(
-            "agent key auto-mint is for agent:/ci:/verifier: actors, not '{actor}' — human authority uses the authenticated platform principal"
+            "agent key auto-mint is for agent:/ci:/verifier: actors, not '{actor}' — Repository authority uses a separately configured principal"
         ));
     }
     let home = std::env::var("HOME").map_err(|_| "HOME unset".to_string())?;
@@ -75,7 +76,7 @@ fn validate_agent_actor(actor: &str) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!(
-            "agent key custody is for agent:/ci:/verifier: actors, not '{actor}' — human authority uses the authenticated platform principal"
+            "agent key custody is for agent:/ci:/verifier: actors, not '{actor}' — Repository authority uses a separately configured principal"
         ))
     }
 }

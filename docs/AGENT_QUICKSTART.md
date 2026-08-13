@@ -17,9 +17,11 @@ init -> submit -> verify -> decide -> replay
 
 An ordinary producer agent may inspect the map, select one bounded obligation,
 do the work in its native environment, and submit evidence. A separately
-declared verifier may report its scoped check. Only a human authority may decide
-whether the proposed change enters Standing; no agent receives that authority
-from a producer or verifier role.
+declared verifier may report its scoped check. An eligible human or agent may
+decide whether the proposed change enters Standing through Repository
+authority. No performer receives that authority merely from a producer or
+verifier role; an agent Decision must name its `agent:` identity and should bind
+the source-owned session or checkpoint with `--session-ref`.
 
 For a new repository, initialization installs its repository filesystem state
 through one recoverable transaction. Its Git commit and local trust anchor are

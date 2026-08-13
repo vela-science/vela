@@ -917,7 +917,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert!(repeated_inbox_output.status.success());
     assert_eq!(inbox_output.stdout, repeated_inbox_output.stdout);
     let inbox = success_json(&inbox_output);
-    assert_eq!(inbox["schema"], "vela.decision-inbox.v2");
+    assert_eq!(inbox["schema"], "vela.decision-inbox.v3");
     assert_eq!(inbox["entries"].as_array().map(Vec::len), Some(1));
     let reviewed_entry_root = inbox["entries"][0]["entry_root"]
         .as_str()

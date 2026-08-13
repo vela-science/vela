@@ -2,8 +2,8 @@
 //!
 //! The writer composes authority records, runtime authentication, and the
 //! existing recoverable repository transaction without introducing a second
-//! journal. Fresh repository initialization and exact human Decisions use this
-//! same core.
+//! journal. Fresh repository initialization and exact attributed Decisions use
+//! this same core.
 
 use std::collections::BTreeMap;
 use std::fmt;

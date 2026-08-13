@@ -131,11 +131,11 @@ it does not prove that a Claim is true.
 Install the current signed release:
 
 Vela supports Linux x86-64 and macOS Apple-silicon release bundles.
-Install the current signed release, `v0.974.1`.
+Install the current signed release, `v0.974.2`.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.974.1/install.sh | \
-  VELA_VERSION=v0.974.1 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.974.2/install.sh | \
+  VELA_VERSION=v0.974.2 bash
 vela --version
 ```
 
@@ -331,8 +331,9 @@ principal, authorization decision, semantic action, exact read set, and
 canonical write. It does not replace scientific judgment.
 
 - Producer identities can authenticate bounded work only.
-- Human semantic actions are direct `review accept` or `review reject`
-  commands.
+- Authorized Decision actions are direct `review accept` or `review reject`
+  commands. `--as` records a human or agent performer separately from the
+  Repository authority principal and signer.
 - Vela reads no human seed file and ships no custom signer daemon.
 - The OpenSSH agent signs the exact repository-authority record.
 - Preflight or signing failure creates no committed transaction.

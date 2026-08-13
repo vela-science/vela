@@ -173,7 +173,7 @@ can retain the source-local packet, profile, verifier-capsule, and result-contra
 roots as producer-declared provenance; those roots grant no authority.
 
 When a producer supersedes or abandons its own still-pending Proposal, it can
-remove that item from human review without invoking repository authority:
+remove that item from the Decision Inbox without invoking repository authority:
 
 ```bash
 vela review withdraw . <vpr_id> \
@@ -191,7 +191,7 @@ reports pending, ready, and blocked consequence counts plus rooted projection
 identities. Its work action points to direct Submission; a review action may
 point to the Inbox. Neither accepts or rejects Standing.
 
-`vela review inbox --json` returns `vela.decision-inbox.v2`. Each rooted entry
+`vela review inbox --json` returns `vela.decision-inbox.v3`. Each rooted entry
 contains one explicit `standing_delta`: the affected Claim IDs, accepted
 Standing now, accepted Standing under accept or reject, the corresponding
 repository roots, and counts of unchanged and global accepted Claims. These
@@ -199,10 +199,10 @@ are deterministic previews of the existing Decision semantics, not retained
 objects or recommendations. Derivation fails closed if a hypothetical
 Decision changes accepted Standing outside the declared Claim scope.
 
-The exact v2 envelope is frozen by
-`conformance/fixtures/read-surfaces/decision-inbox-v2.json` and the live Rust
-fixture that produces it. Consumers must require `vela.decision-inbox.v2`,
-ignore unknown additive fields within v2, and refuse unsupported schema
+The exact v3 envelope is frozen by
+`conformance/fixtures/read-surfaces/decision-inbox-v3.json` and the live Rust
+fixture that produces it. Consumers must require `vela.decision-inbox.v3`,
+ignore unknown additive fields within v3, and refuse unsupported schema
 versions. `entry_root`, `repository_root`, and `projection_root` remain distinct
 typed identities. The outer `ok` and `command` fields are not included in the
 projection root.

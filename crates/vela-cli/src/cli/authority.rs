@@ -1506,8 +1506,10 @@ mod tests {
         assert!(device_error.contains("different operating-system account"));
     }
 
-    /// The model a fresh repository starts with authorizes exactly the human
-    /// decision and administration actions, and nothing else.
+    /// The model a fresh repository starts with authorizes exactly the local
+    /// authority principal's decision and administration actions, and nothing
+    /// else. Decision performer attribution is bound separately at the CLI
+    /// boundary and may name a human or agent.
     ///
     /// This used to read the generated Cedar schema text for the absence of
     /// `entity Agent`, `action "work_claim"`, `action "verification_import"`
@@ -1516,7 +1518,7 @@ mod tests {
     /// enum now, so those four cannot be named at all, and what is worth
     /// checking is what the model decides.
     #[test]
-    fn a_fresh_model_authorizes_only_human_decision_and_administration() {
+    fn a_fresh_model_authorizes_only_local_decision_and_administration() {
         use vela_protocol::authorization::{
             AUTHORIZATION_REQUEST_SCHEMA_V1, AuthorizationDecisionV1, evaluate_authorization_v1,
         };

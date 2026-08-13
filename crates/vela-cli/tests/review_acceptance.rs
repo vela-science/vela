@@ -1,8 +1,8 @@
 //! End-to-end `vela review accept` through the product binary.
 //!
 //! Acceptance is the only write in the protocol that moves a Claim's Standing,
-//! and the authority argument rests on it: an authorized human Decision, signed
-//! by the repository authority over a contiguous record chain, is the sole
+//! and the authority argument rests on it: an authorized attributed Decision,
+//! signed by the repository authority over a contiguous record chain, is the sole
 //! thing that admits the scientific Event. Nothing else in the suite executes a
 //! successful accept, so nothing else holds that argument to its claims.
 //!

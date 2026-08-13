@@ -24,10 +24,10 @@ use crate::repository_decision::{
     verification_set_root,
 };
 
-const ENTRY_SCHEMA: &str = "vela.decision-inbox-entry.v2";
-const ENTRY_DOMAIN: &[u8] = b"vela.decision-inbox-entry.v2\0";
-const PROJECTION_SCHEMA: &str = "vela.decision-inbox.v2";
-const PROJECTION_DOMAIN: &[u8] = b"vela.decision-inbox.v2\0";
+const ENTRY_SCHEMA: &str = "vela.decision-inbox-entry.v3";
+const ENTRY_DOMAIN: &[u8] = b"vela.decision-inbox-entry.v3\0";
+const PROJECTION_SCHEMA: &str = "vela.decision-inbox.v3";
+const PROJECTION_DOMAIN: &[u8] = b"vela.decision-inbox.v3\0";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -85,7 +85,7 @@ pub(crate) enum DecisionInboxProtocolGate {
 #[serde(deny_unknown_fields)]
 pub(crate) struct DecisionInboxReadiness {
     pub(crate) protocol_gate: DecisionInboxProtocolGate,
-    pub(crate) human_decision_required: bool,
+    pub(crate) attributed_decision_required: bool,
     pub(crate) rejection_available: bool,
     pub(crate) blockers: Vec<DecisionInboxBlocker>,
 }
@@ -455,7 +455,7 @@ fn derive_entry(inputs: EntryInputs<'_>) -> Result<DecisionInboxEntry, String> {
         DecisionInboxProtocolGate::Blocked
     };
     let now = if blockers.is_empty() {
-        "Human repository authority may inspect and accept or reject this exact rooted entry."
+        "An eligible human or agent performer may inspect and accept or reject this exact rooted entry through Repository authority."
             .into()
     } else {
         format!(
@@ -487,7 +487,7 @@ fn derive_entry(inputs: EntryInputs<'_>) -> Result<DecisionInboxEntry, String> {
         verification_records,
         readiness: DecisionInboxReadiness {
             protocol_gate,
-            human_decision_required: true,
+            attributed_decision_required: true,
             rejection_available: true,
             blockers,
         },
@@ -791,7 +791,7 @@ pub(crate) fn cmd_decision_inbox(repository_path: &Path, json_output: bool) {
     println!("  Repository: {}", projection.repository_root);
     println!("  Projection: {}", projection.projection_root);
     if projection.entries.is_empty() {
-        println!("\nNo scientific Decision requires human review.");
+        println!("\nNo scientific Decision is awaiting review.");
         return;
     }
 
@@ -1189,7 +1189,7 @@ mod tests {
     }
 
     #[test]
-    fn decision_inbox_v2_contract_fixture_is_byte_stable() {
+    fn decision_inbox_v3_contract_fixture_is_byte_stable() {
         let fixture = ready_add_fixture();
         let render = || {
             let projection = ready_projection(&fixture);
@@ -1207,7 +1207,7 @@ mod tests {
         assert_eq!(first, second);
         assert_eq!(
             first,
-            include_str!("../../../conformance/fixtures/read-surfaces/decision-inbox-v2.json")
+            include_str!("../../../conformance/fixtures/read-surfaces/decision-inbox-v3.json")
         );
     }
 
@@ -1220,7 +1220,7 @@ mod tests {
             entry.readiness.protocol_gate,
             DecisionInboxProtocolGate::Satisfied
         );
-        assert!(entry.readiness.human_decision_required);
+        assert!(entry.readiness.attributed_decision_required);
         assert!(entry.readiness.rejection_available);
         assert!(entry.readiness.blockers.is_empty());
         assert!(
@@ -1393,7 +1393,7 @@ mod tests {
             entry.readiness.protocol_gate,
             DecisionInboxProtocolGate::Blocked
         );
-        assert!(entry.readiness.human_decision_required);
+        assert!(entry.readiness.attributed_decision_required);
         assert!(entry.readiness.rejection_available);
         assert!(
             crate::repository_decision::require_acceptance_evidence(
@@ -1664,7 +1664,7 @@ mod tests {
             entry
                 .next_obligation
                 .now
-                .starts_with("Human repository authority")
+                .starts_with("An eligible human or agent performer")
         );
     }
 }

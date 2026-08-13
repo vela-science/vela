@@ -34,7 +34,7 @@
       "normative": false,
       "path": "CITATION.cff",
       "role": "citation-metadata",
-      "sha256": "sha256:20c061f13393340f2c448aab5c645735e0b7a7e386c988eb0463d8ed6346e372"
+      "sha256": "sha256:683a9858eb24ca908fb301fc8c618fe8e1ef778c8d528ab703cc56007998e0f7"
     },
     {
       "bytes": 643,
@@ -321,14 +321,14 @@
       "normative": false,
       "path": "conformance/fixtures/read-surfaces/README.md",
       "role": "cli-read-contract-documentation",
-      "sha256": "sha256:40e8c579c1e8163a45af9a054dc7a7622e60686561e83c38b53124283a950057"
+      "sha256": "sha256:b654061e1184601a13244814b32ccd0ebdc25fca201b36322d75cf78efe6ba85"
     },
     {
-      "bytes": 5339,
+      "bytes": 5383,
       "normative": false,
-      "path": "conformance/fixtures/read-surfaces/decision-inbox-v2.json",
+      "path": "conformance/fixtures/read-surfaces/decision-inbox-v3.json",
       "role": "cli-read-contract-vector",
-      "sha256": "sha256:2fa4eab2a53bc0f82507789a3851e8a9b566878c6dadf86994b39e1452406a0d"
+      "sha256": "sha256:eb038a60cad7d9d89e1e06ac22e72d685bd8ab468ae777a64d316ec45fde0be9"
     },
     {
       "bytes": 3190,
@@ -387,11 +387,11 @@
       "sha256": "sha256:c17899a2f631ed23ec6798ee11a23434c4e85fa4a9b5980dd1e12c059b75d397"
     },
     {
-      "bytes": 9004,
+      "bytes": 9014,
       "normative": true,
       "path": "conformance/verify.py",
       "role": "conformance-entrypoint",
-      "sha256": "sha256:79acc4ed3cea111df44813676abaff358ee3578fcfb23c40f7f5825df3b0a817"
+      "sha256": "sha256:2d0f657db923b0822506b1c1aad127e8ada8b5f25a3b5d795b3e34c4b97ac0f4"
     },
     {
       "bytes": 31099,
@@ -426,7 +426,7 @@
       "normative": true,
       "path": "conformance/verify_protocol_1.py",
       "role": "manifest-verifier",
-      "sha256": "sha256:83f94cca72a52b422627889730401e4f85b8528aad0e7d9b9667ab7c923c28d2"
+      "sha256": "sha256:2343e46fe0404586fae06fe66374a40047cb93500688c10a3c5c45810f38af8f"
     },
     {
       "bytes": 6136,
@@ -461,7 +461,7 @@
       "normative": false,
       "path": "docs/RELEASES.md",
       "role": "release-qualification",
-      "sha256": "sha256:e0a533cc840b2e4e68c03107272eb6ca4e715fdf8eec3da2120a8511ca2800ed"
+      "sha256": "sha256:dd831c5abb30ae187b748e2f2c458fa5f6b7677a363d3eccc427c9283a733c4a"
     },
     {
       "bytes": 11152,
@@ -660,7 +660,7 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:05ce4d4203d91631d7cc52d8de49c44a37e115a5e8c86db515e2938eacac1026",
+  "manifest_root": "sha256:849a88641c0901ed1d2ba89f9e84fe6ab74010ba946f07365c035715f1e9e64d",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",

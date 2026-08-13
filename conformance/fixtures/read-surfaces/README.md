@@ -1,11 +1,11 @@
 # Read-surface conformance fixtures
 
-`decision-inbox-v2.json` freezes the exact JSON envelope emitted by
+`decision-inbox-v3.json` freezes the exact JSON envelope emitted by
 `vela review inbox --json` for one deterministic, protocol-ready fixture. The
 checked-in bytes are generated from the live Rust types and compared on every
 `vela-cli` test run.
 
-The fixture qualifies `vela.decision-inbox.v2` as a stable read contract. It is
+The fixture qualifies `vela.decision-inbox.v3` as a stable read contract. It is
 not a protocol object, a Decision, a recommendation, or retained Standing. Its
 `entry_root` and `projection_root` use the domains implemented in
 `crates/vela-cli/src/decision_inbox.rs`; the outer `ok` and `command` fields are

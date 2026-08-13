@@ -93,7 +93,7 @@ a schema that quietly describes the previous release.
 They are also checked against deterministic fixtures in `conformance/`. They do
 not replace the Rust readers and do not verify canonical bytes, object-derived
 identifiers, Ed25519 signatures, referenced objects, actor relationships,
-repository invariants, human Decision authority, or Standing. The schemas use
+repository invariants, attributed Decision authority, or Standing. The schemas use
 `format: date-time` as an assertion in Vela's conformance check.
 
 `status.schema.json` states one rule its consumer does not have to restate:

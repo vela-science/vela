@@ -10,6 +10,14 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+## 0.974.2
+
+- **Decision Inbox language matches capability-based authority.** The rooted
+  read contract is now `vela.decision-inbox.v3` and records
+  `attributed_decision_required`, removing the last human-only gate label while
+  preserving the same exact Proposal, Verification, policy, root, and signing
+  requirements for human and agent performers.
+
 ## 0.974.1
 
 - **Decision read surfaces preserve performer provenance.** Proposal and
