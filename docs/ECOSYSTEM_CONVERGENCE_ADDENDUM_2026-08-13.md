@@ -2,14 +2,15 @@
 
 ## Status
 
-This addendum governs the remaining internal work from these exact revisions:
+This addendum governed the remaining internal work from the following entry
+revisions and now records its bounded internal closeout:
 
 | Repository | Revision | Relevant state |
 | --- | --- | --- |
-| Vela Core | `0264d0d34f35441468419a0a8fadb8df05d45c85` | signed release `v0.974.2` |
-| Vela Math | `f09e93ef7c78d2e0ab58b9b7b7ec4d9e4ff27a5d` | strict replay; two accepted Claims; empty Decision Inbox |
-| Vela Web | `ceda91f1c9de9c25770194391249385e09aacada` | current Campaign and Work Offer projection |
-| Formal Conjectures audit fork | `96eeecf40bc06ddc8bae6d106f461d4fd774858a` | bounded audit and Comparator prototype |
+| Vela Core | `1e760fac4f07296b02b9b8122254588bb0e94507` | governed addendum over signed release `v0.974.2` |
+| Vela Math | `c654010cfc7eb09d0f93f68c6792982d38f28b99` | strict replay; correction and Campaign remaps complete |
+| Vela Web | `063092cd8feff45be83c75f9403750938134442b` | `v0.436.1`; scoped Workspace and touch release |
+| Formal Conjectures audit fork | `96eeecf40bc06ddc8bae6d106f461d4fd774858a` | bounded audit, source-faithful fixture, missing-tool evidence, and Comparator pilot |
 
 The source program memo, `VELA_ECOSYSTEM_CONVERGENCE_EXECUTION_MEMO_2026-08-12.md`,
 is retained as a historical planning input with SHA-256
@@ -106,34 +107,59 @@ EVAL-01A. EVAL-01H is a conditional external evidence lane.
 | `MATH-00` through `MATH-03` | complete for their stated internal exits | Math imports the audit, retains clean and failure cases, and roots the Erdős 321 correction slice at `sha256:e43ca42426ca54c55703baaee351657015019fae36e7e627f6cda0d44b22d513`. |
 | `WEB-01` through `WEB-04` | implemented and deployed | Target-bound activity, exact execution lineage, FC projection, and bounded draft selection are present. Authenticated interaction coverage remains a release-quality task, not a missing protocol interface. |
 | `EVAL-01` | complete internally through EVAL-01A | Exact agent dataset and `revise` disposition recorded above. EVAL-01H remains conditional and separate. |
-| `PILOT-01` | partially complete | Exact source execution, review provenance, Submission, Verification, Decision, replay, Work Offer, and Campaign evidence exist. Preserve and finish a concise hosted stale-root and successor-path record rather than rebuilding the scientific case. |
-| `PILOT-02` | incomplete | The prior/current replay, bounded correction slice, and cold-reader report exist. The terminal-to-fixed-variant repair obligation is still open and has no Verification or Decision. |
+| `PILOT-01` | complete internally | Exact source execution, attributed review, Submission, Verification, Decision, replay, Work Offer, Campaign, hosted bound-lineage, and stale-anchor evidence are retained. The superseded Work Offer is closed rather than rebound again. |
+| `PILOT-02` | complete internally | The bounded terminal-to-fixed question has an exact `unsupported_by_retained_basis` disposition, two attributed agent Verifications, an authorized attributed agent Decision, clean replay, and a complete relation/obligation remap. |
 | `PILOT-03`, `FC-08`, `EXT-02` | external | Keep exact handoffs and outcomes. Do not describe pending or declined external work as internal failure or adoption. |
-| `CLOSE-01` | incomplete | It depends on the three remaining internal items below and durable external dispositions. |
+| `CLOSE-01` | complete internally | Final revisions, roots, negative results, deployment evidence, and external dispositions are pinned below. External adoption and further comparative evidence remain separate. |
 
-## Remaining internal critical path
+## Internal critical path closure
 
-Only work that changes the completion result stays on the critical path:
+The four internal closeout items have exact dispositions:
 
-1. **Receiver handoff revision.** Build and measure one smaller provenance-safe
-   handoff. A result that still crosses parity is a valid `retain_source_locally`
-   or `retire` decision, not a reason to add process.
-2. **PILOT-02 repair disposition.** Construct and kernel-check the declared
-   real-log to `Nat.log` bridges for the bounded terminal-to-fixed comparison,
-   or produce exact evidence that the bridge is unsupported under the retained
-   statements. Submit, verify, decide under an authorized attributed performer,
-   replay, and remap every relation in the declared slice.
-3. **Hosted lineage evidence.** Retain one authenticated current-root success
-   and one deliberate stale-root refusal across Target, Approach, Attempt,
-   Artifact, and draft. This is evidence for the implemented Web path, not a new
-   workflow feature.
-4. **Closeout.** Pin final repository revisions and roots, record external
-   package dispositions, rerun the cross-layer conformance union, and publish
-   the final handoff.
+1. **Receiver handoff revision: adopted with a negative threshold result.** The
+   compact handoff preserved all measured verdict, issue, provenance, and
+   authority outcomes while using less than half the input tokens. Its elapsed
+   ratio `0.9138522863671479` missed the frozen 20 percent improvement threshold,
+   so the hypothesis remains unsupported. The program still adopts the compact
+   receiver input on bounded utility grounds and retains the full rooted audit
+   as fallback. Results root:
+   `sha256:939dea44230b5f8dce0c3d948b255351caec64d0e640b7cc9ad4f6512df78f35`;
+   disposition root:
+   `sha256:30b6bf62eea20234b0296c7a92b882be8b6f07317a0340556e45480d02a19a8a`.
+2. **PILOT-02 repair: closed as unsupported by the retained basis.** The exact
+   terminal and fixed sources do not supply the cross-source port, hypotheses,
+   or bridge theorem needed for either implication. Two attributed agent
+   reviews passed the bounded scope, including the declared independent review.
+   An authorized attributed agent Decision accepted only that negative scope;
+   both scientific relations remain unresolved. Remap root:
+   `sha256:b0aeb164a1cc9b5e6110186631703f9e104e0f8e9942f538848a49534ba2f8c9`;
+   resulting Math Repository root:
+   `sha256:ae41be4a91265d91967344459fa12583314ec05c5a0ebc74d8b0136195879511`.
+3. **Hosted lineage evidence: retained and bounded.** Production already
+   retained exact Target packet lineage through Approach, Attempt, Research
+   Block, and unsigned draft, plus current/stale anchor refusals. The final
+   audit found and corrected a cross-Problem Workspace-selection defect: a
+   Workspace is now selected only by account membership and the exact
+   Repository plus Problem. Migration
+   `20260813_problem_scoped_workspaces` is live at
+   `sha256:f10321db042198a32e7c6d77dedf83f9aa1ac52eb24ae97bc86240d297a5f6ce`.
+   Authenticated production then showed Erdős 321 without the unrelated Erdős
+   887 Workspace. Browser checks covered 320, 390, 768, 1024, and 1440 layouts,
+   reduced motion, forced colors, print, coarse-pointer controls, and the
+   programmatic main-content destination. These are hosted activity and release
+   facts only; no scientific Standing changed.
+4. **Closeout: recorded.** The source-controlled repos are clean at the pinned
+   revisions above. Vela Web production deployment
+   `dpl_9kiD38q9DMpMiF4YMg4bmdRcnRwp` is Ready from exact `v0.436.1` Git commit
+   `063092cd8feff45be83c75f9403750938134442b` while preserving projection release
+   `sha256:5c0df33530097a06a3be49cc26eb79fa65d3db5e9bc9aa7c89ecc646ec95256b`.
+   The cross-layer conformance union is the final mechanical gate for this
+   closeout record, not a substitute for external adoption or scientific lift.
 
-The first two tasks may proceed independently. The hosted lineage record must
-use the deployed binding-aware application and must not change scientific
-Standing.
+The hosted evidence did not require a new scientific candidate or repeat a
+Decision. The source-owned Erdős 887 Work Offer is closed and its remaining
+proof-discharge item is identified but not offered, so the absence of a current
+production Target form is the truthful terminal state rather than missing work.
 
 ## Campaign and institutional coordination
 
@@ -148,6 +174,23 @@ Mechanism, Resource, or Repository to primary navigation, create a global
 registry, or add payment and procurement machinery. Extract a reusable
 Mechanism Profile only after a second materially different Campaign shows a
 stable shared contract.
+
+## External package disposition
+
+- **FC-08, upstream Formal Conjectures adoption:** the deterministic audit is
+  published on the contributor branch `codex/pr-audit-v1` at
+  `96eeecf40bc06ddc8bae6d106f461d4fd774858a`. No upstream PR, comment, or claim
+  of maintainer adoption is part of this program closeout.
+- **PILOT-03, independent external run:** retained as an optional external
+  validation lane. It is not needed to establish internal software completion,
+  and no unconsented participant execution is inferred from the agent studies.
+- **EXT-02, second workbench or standards adapter:** deferred until a second
+  live workflow presents a concrete loss-accounted integration need. Entire,
+  RO-Crate, PROV, and related systems remain reference patterns, not silently
+  adopted protocol dependencies.
+
+These are durable `external_wait` or `deferred` dispositions, not successful
+adoption and not internal blockers.
 
 ## Closure rule
 
