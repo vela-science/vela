@@ -15,6 +15,7 @@
 - [Architecture](ARCHITECTURE.md)
 - [Authority and attribution](SIGNING.md)
 - [Verification](VERIFICATION.md)
+- [Human and AI review provenance](REVIEW_PROVENANCE.md)
 - [Roots](ROOTS.md)
 - [Repository profile](REPOSITORY_PROFILE.md)
 - [Protocol 1 conformance profile](interop/scientific-state-profile.md)

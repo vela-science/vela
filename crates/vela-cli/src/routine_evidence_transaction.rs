@@ -179,6 +179,9 @@ fn routine_object_write(draft: &AuthorityObjectDraft) -> Result<PlannedWrite, St
         ("submission_artifact", WriteClass::CanonicalEvidence) => {
             rooted_sha256_path(&draft.path, "records/artifacts/sha256/", "")
         }
+        ("verification_output_artifact", WriteClass::CanonicalEvidence) => {
+            rooted_sha256_path(&draft.path, "records/artifacts/sha256/", "")
+        }
         ("proposal", WriteClass::PublicReview) => {
             rooted_sha256_path(&draft.path, "records/proposals/sha256/", ".json")
         }
@@ -236,6 +239,13 @@ mod tests {
             postimage: Some(b"withdrawal".to_vec()),
         };
         assert!(routine_object_write(&withdrawal).is_ok());
+        let output = AuthorityObjectDraft {
+            path: rooted("records/artifacts/sha256/", ""),
+            object_kind: "verification_output_artifact".into(),
+            class: WriteClass::CanonicalEvidence,
+            postimage: Some(b"review output".to_vec()),
+        };
+        assert!(routine_object_write(&output).is_ok());
 
         let mut deletion = submission.clone();
         deletion.postimage = None;

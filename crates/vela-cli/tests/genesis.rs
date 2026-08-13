@@ -428,12 +428,16 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         .expect("remove producer-side transport path after canonical retention");
 
     let method_path = "verification/exact-replay-v1.json";
+    let review_output_path = "reviews/exact-replay-report.json";
     std::fs::create_dir_all(repository_path.join("verification")).expect("method directory");
+    std::fs::create_dir_all(repository_path.join("reviews")).expect("review output directory");
     std::fs::write(
         repository_path.join(method_path),
         br#"{"command":"sha256sum records/artifacts/sha256/<digest>","schema":"vela.test-method.v1"}"#,
     )
     .expect("method manifest");
+    let review_output = b"{\"finding\":\"The retained fixture digest replayed exactly.\",\"schema\":\"vela.test-review-output.v1\"}\n";
+    std::fs::write(repository_path.join(review_output_path), review_output).expect("review output");
     let untracked_method_home = temporary.path().join("untracked-method-home");
     std::fs::create_dir_all(&untracked_method_home).expect("untracked method home");
     let untracked_method = run_with_home(
@@ -479,7 +483,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     );
     let staged = Command::new("git")
         .current_dir(&repository_path)
-        .args(["add", method_path])
+        .args(["add", method_path, review_output_path])
         .status()
         .expect("stage method manifest");
     assert!(staged.success());
@@ -608,6 +612,75 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     assert!(
         !verifier_home.join(".vela/agents").exists(),
         "method preflight must fail before verifier key creation"
+    );
+
+    let output_verifier = format!(
+        "verifier:current-output-record-{}",
+        temporary
+            .path()
+            .file_name()
+            .and_then(|value| value.to_str())
+            .unwrap_or("fixture")
+    );
+    let output_verifier_home = temporary.path().join("output-verifier-home");
+    std::fs::create_dir_all(&output_verifier_home).expect("output verifier home");
+    let output_record = success_json(&run_with_home(
+        &repository_path,
+        Some(agent.socket()),
+        &output_verifier_home,
+        &[
+            "verification",
+            "record",
+            ".",
+            submitted["proposal_id"].as_str().expect("proposal id"),
+            "--profile",
+            "exact-replay-v1",
+            "--method",
+            method_path,
+            "--property",
+            "Replay the retained artifact bytes.",
+            "--outcome",
+            "pass",
+            "--does-not-establish",
+            "Scientific acceptance.",
+            "--output",
+            review_output_path,
+            "--as",
+            &output_verifier,
+            "--json",
+        ],
+    ));
+    assert_eq!(output_record["accepted_event_delta"], 0);
+    assert_eq!(output_record["idempotent"], false);
+    assert_eq!(output_record["publication"]["state"], "committed_local");
+    let output_artifact_id = sha256_root(review_output)
+        .trim_start_matches("sha256:")
+        .to_string();
+    assert_eq!(
+        std::fs::read(
+            repository_path
+                .join("records/artifacts/sha256")
+                .join(&output_artifact_id)
+        )
+        .expect("retained review output Artifact"),
+        review_output
+    );
+    let output_record_root = output_record["verification_record_root"]
+        .as_str()
+        .expect("output Verification root")
+        .trim_start_matches("sha256:");
+    let retained_output_record = VerificationRecordEnvelopeV2::parse(
+        &std::fs::read(
+            repository_path
+                .join("records/verifications/sha256")
+                .join(format!("{output_record_root}.json")),
+        )
+        .expect("output Verification Record"),
+    )
+    .expect("parse output Verification Record");
+    assert_eq!(
+        retained_output_record.record.output_artifact_ids,
+        vec![output_artifact_id]
     );
 
     let observed_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
@@ -778,7 +851,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let checked = success_json(&run(&repository_path, None, &["replay", ".", "--json"]));
     assert_eq!(checked["counts"]["accepted_claims"], 0);
     assert_eq!(checked["counts"]["pending_claims"], 1);
-    assert_eq!(checked["counts"]["verifications"], 1);
+    assert_eq!(checked["counts"]["verifications"], 2);
     let status = success_json(&run(&repository_path, None, &["status", ".", "--json"]));
     assert_eq!(status["schema"], "vela.status.v4");
     assert_eq!(status["git"]["role"], "repository_head");

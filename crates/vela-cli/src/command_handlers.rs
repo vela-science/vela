@@ -27,6 +27,7 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
             does_not_establish,
             independent_of,
             shared_dependency,
+            output,
             actor,
             json,
         } => {
@@ -52,6 +53,7 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                     does_not_establish,
                     independent_of,
                     shared_dependencies: shared_dependency,
+                    output_paths: output.clone(),
                     actor: actor.clone(),
                 },
             )
@@ -70,10 +72,11 @@ pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
                 fail_return(&error)
             });
             let result =
-                crate::verification::import(&repository, &record, &actor).unwrap_or_else(|error| {
-                    crate::ui::fail_if_recovery_required(&repository);
-                    fail_return(&error)
-                });
+                crate::verification::import_with_outputs(&repository, &record, &actor, &output)
+                    .unwrap_or_else(|error| {
+                        crate::ui::fail_if_recovery_required(&repository);
+                        fail_return(&error)
+                    });
             print_verification_result(&result, "verification record", json);
         }
         VerifyAction::Import {

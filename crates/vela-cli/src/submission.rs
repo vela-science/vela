@@ -57,7 +57,7 @@ pub(crate) fn add_object_ref(
     Ok(())
 }
 
-fn add_artifact_ref(
+pub(crate) fn add_artifact_ref(
     references: &mut Vec<RepositoryObjectRefV1>,
     digest: &str,
     path: &str,

@@ -356,6 +356,11 @@ pub(crate) enum VerifyAction {
         /// Dependency shared with the producer. Repeat when applicable.
         #[arg(long = "shared-dependency")]
         shared_dependency: Vec<String>,
+        /// Repository-relative, tracked review output to retain as a
+        /// content-addressed Artifact and bind from the Verification Record.
+        /// Repeat for multiple output files.
+        #[arg(long = "output")]
+        output: Vec<PathBuf>,
         /// Actor attesting the result. Human and organization reviewers use
         /// human: and org:; agents, CI, and deterministic verifiers use their
         /// existing namespaces.

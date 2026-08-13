@@ -97,6 +97,7 @@ vela verification record . <vpr_id> \
   --method verification/method.json \
   --outcome pass \
   --does-not-establish "Scientific acceptance." \
+  --output reviews/exact-review-report.json \
   --independent-of agent:<producer> \
   --as verifier:<name> \
   --json

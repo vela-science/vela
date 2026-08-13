@@ -457,6 +457,7 @@ fn verification_help_exposes_ordinary_authoring_without_key_flags() {
         "--does-not-establish",
         "--independent-of",
         "--shared-dependency",
+        "--output",
         "--as",
         "--json",
     ] {

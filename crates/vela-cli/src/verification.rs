@@ -30,6 +30,7 @@ use crate::repository_ops::VerificationImportOutcome;
 use vela_repository::{ContentDigest, InputBinding, WriteClass};
 
 const METHOD_MANIFEST_MAX_BYTES: u64 = 1024 * 1024;
+const REVIEW_OUTPUT_MAX_BYTES: u64 = 16 * 1024 * 1024;
 const RETAINED_ERROR: &str =
     "Verification method manifest must be retained in the current Git commit";
 const DIRTY_ERROR: &str =
@@ -47,7 +48,116 @@ pub(crate) struct VerificationRecordRequest {
     pub(crate) does_not_establish: Vec<String>,
     pub(crate) independent_of: Vec<String>,
     pub(crate) shared_dependencies: Vec<String>,
+    pub(crate) output_paths: Vec<PathBuf>,
     pub(crate) actor: String,
+}
+
+#[derive(Debug, Clone)]
+struct ReviewOutputArtifact {
+    id: String,
+    root: String,
+    canonical_path: String,
+    source_path: PathBuf,
+    bytes: Vec<u8>,
+    already_retained: bool,
+}
+
+fn prepare_review_outputs(
+    repository_path: &Path,
+    paths: &[PathBuf],
+) -> Result<Vec<ReviewOutputArtifact>, String> {
+    let mut outputs = Vec::with_capacity(paths.len());
+    let mut seen = std::collections::BTreeSet::new();
+    for (index, path) in paths.iter().enumerate() {
+        let normalized = path
+            .components()
+            .map(|component| match component {
+                Component::Normal(value) => value
+                    .to_str()
+                    .map(ToString::to_string)
+                    .ok_or_else(|| format!("Verification output {index} path must be UTF-8")),
+                _ => Err(format!(
+                    "Verification output {index} must be a normalized repository-relative file"
+                )),
+            })
+            .collect::<Result<Vec<_>, _>>()?
+            .join("/");
+        if normalized.is_empty() || !seen.insert(normalized.clone()) {
+            return Err(format!(
+                "Verification output {index} path is empty or repeated"
+            ));
+        }
+        let bytes = crate::bounded_file::read_bounded_repository_file(
+            repository_path,
+            path,
+            REVIEW_OUTPUT_MAX_BYTES,
+            &format!("Verification output {index}"),
+        )
+        .map_err(|error| error.to_string())?;
+        if bytes.is_empty() {
+            return Err(format!("Verification output {index} must not be empty"));
+        }
+        let git = |args: &[&str]| exact_git_output(repository_path, args);
+        let tracked = git(&["ls-files", "-s", "-z", "--", &normalized])?;
+        let index_spec = format!(":./{normalized}");
+        let index_bytes = git(&["cat-file", "blob", &index_spec])?;
+        let head_spec = format!("HEAD:./{normalized}");
+        let head_bytes = git(&["cat-file", "blob", &head_spec])?;
+        if !tracked.status.success()
+            || tracked.stdout.is_empty()
+            || !index_bytes.status.success()
+            || !head_bytes.status.success()
+            || index_bytes.stdout != bytes
+            || head_bytes.stdout != bytes
+        {
+            return Err(format!(
+                "Verification output {index} must be tracked, clean, and retained in the current Git commit"
+            ));
+        }
+        let root = sha256_root(&bytes);
+        let id = root
+            .strip_prefix("sha256:")
+            .expect("sha256_root always returns sha256")
+            .to_string();
+        let canonical_path = format!("records/artifacts/sha256/{id}");
+        let canonical_target = repository_path.join(&canonical_path);
+        let already_retained = if canonical_target.exists() {
+            let retained = crate::bounded_file::read_bounded_repository_file(
+                repository_path,
+                Path::new(&canonical_path),
+                REVIEW_OUTPUT_MAX_BYTES,
+                &format!("Verification output {index} canonical Artifact"),
+            )
+            .map_err(|error| error.to_string())?;
+            let canonical_tracked = git(&["ls-files", "--error-unmatch", "--", &canonical_path])?;
+            let canonical_head = git(&["cat-file", "blob", &format!("HEAD:./{canonical_path}")])?;
+            if retained != bytes
+                || !canonical_tracked.status.success()
+                || !canonical_head.status.success()
+                || canonical_head.stdout != bytes
+            {
+                return Err(format!(
+                    "Verification output {index} canonical Artifact must be tracked, exact, and retained in the current Git commit"
+                ));
+            }
+            true
+        } else {
+            false
+        };
+        outputs.push(ReviewOutputArtifact {
+            canonical_path,
+            id,
+            root,
+            source_path: path.clone(),
+            bytes,
+            already_retained,
+        });
+    }
+    outputs.sort_by(|left, right| left.id.cmp(&right.id));
+    if outputs.windows(2).any(|pair| pair[0].id == pair[1].id) {
+        return Err("Verification outputs contain duplicate exact bytes".into());
+    }
+    Ok(outputs)
 }
 
 fn ensure_pending_proposal(
@@ -349,6 +459,7 @@ fn matches_request(
     outcome: &str,
     verifier: &str,
     independence: &IndependenceDisclosure,
+    output_artifact_ids: &[String],
 ) -> bool {
     record.record.subject == *subject
         && record.record.method == *method
@@ -356,7 +467,7 @@ fn matches_request(
         && record.record.outcome == outcome
         && record.record.verifier() == verifier
         && record.record.independence == *independence
-        && record.record.output_artifact_ids.is_empty()
+        && record.record.output_artifact_ids == output_artifact_ids
 }
 
 fn existing_semantic_record(
@@ -368,6 +479,7 @@ fn existing_semantic_record(
     outcome: &str,
     verifier: &str,
     independence: &IndependenceDisclosure,
+    output_artifact_ids: &[String],
 ) -> Result<Option<VerificationRecordEnvelopeV2>, String> {
     for reference in &repository.verifications {
         let record = read_exact_object(
@@ -384,6 +496,7 @@ fn existing_semantic_record(
             outcome,
             verifier,
             independence,
+            output_artifact_ids,
         ) {
             return Ok(Some(record));
         }
@@ -430,6 +543,11 @@ pub(crate) fn author_record(
         declared_independent_of: request.independent_of,
         shared_dependencies: request.shared_dependencies,
     };
+    let outputs = prepare_review_outputs(repository_path, &request.output_paths)?;
+    let output_artifact_ids = outputs
+        .iter()
+        .map(|output| output.id.clone())
+        .collect::<Vec<_>>();
     if let Some(record) = existing_semantic_record(
         repository_path,
         &repository,
@@ -439,6 +557,7 @@ pub(crate) fn author_record(
         &request.outcome,
         actor,
         &independence,
+        &output_artifact_ids,
     )? {
         return Ok(record);
     }
@@ -453,7 +572,7 @@ pub(crate) fn author_record(
             scope,
             outcome: request.outcome,
             independence,
-            output_artifact_ids: Vec::new(),
+            output_artifact_ids,
             started_at: observed_at.clone(),
             completed_at: observed_at,
         },
@@ -480,10 +599,11 @@ fn read_exact_object<T>(
     Ok(object)
 }
 
-fn load_subject(
+fn load_subject_with_pending_outputs(
     repository_path: &Path,
     repository: &RepositoryV4,
     record: &VerificationRecordEnvelopeV2,
+    pending_output_ids: &std::collections::BTreeSet<String>,
 ) -> Result<(ProposalV1, String, SubmissionRecordV2), String> {
     let package = load_proposal_package(
         repository_path,
@@ -510,6 +630,7 @@ fn load_subject(
             .artifacts
             .iter()
             .any(|reference| reference.id == *artifact_id)
+            && !pending_output_ids.contains(artifact_id)
         {
             return Err(format!(
                 "Verification Record names Artifact {artifact_id} outside the current repository"
@@ -517,6 +638,20 @@ fn load_subject(
         }
     }
     Ok((package.proposal, package.proposal_root, package.submission))
+}
+
+#[cfg(test)]
+fn load_subject(
+    repository_path: &Path,
+    repository: &RepositoryV4,
+    record: &VerificationRecordEnvelopeV2,
+) -> Result<(ProposalV1, String, SubmissionRecordV2), String> {
+    load_subject_with_pending_outputs(
+        repository_path,
+        repository,
+        record,
+        &std::collections::BTreeSet::new(),
+    )
 }
 
 fn existing_outcome(
@@ -569,6 +704,15 @@ pub(crate) fn import(
     record: &VerificationRecordEnvelopeV2,
     executor: &str,
 ) -> Result<VerificationImportOutcome, String> {
+    import_with_outputs(repository_path, record, executor, &[])
+}
+
+pub(crate) fn import_with_outputs(
+    repository_path: &Path,
+    record: &VerificationRecordEnvelopeV2,
+    executor: &str,
+    output_paths: &[PathBuf],
+) -> Result<VerificationImportOutcome, String> {
     let executor = executor.trim();
     if executor != record.record.verifier() || executor != record.record.identity.actor_id {
         return Err("verification import actor must match the Verification Record verifier".into());
@@ -577,8 +721,26 @@ pub(crate) fn import(
     let repository = crate::repository::verify_repository_at(repository_path, true)?;
     let repository_root = repository.canonical_root()?;
     crate::repository_ops::verify_repository_transaction_barrier_read_only(repository_path)?;
-    let (_proposal, proposal_root, submission) =
-        load_subject(repository_path, &repository, record)?;
+    let outputs = prepare_review_outputs(repository_path, output_paths)?;
+    let output_ids = outputs
+        .iter()
+        .map(|output| output.id.clone())
+        .collect::<Vec<_>>();
+    if record.record.output_artifact_ids != output_ids {
+        return Err(
+            "Verification Record output Artifacts differ from the supplied exact outputs".into(),
+        );
+    }
+    let pending_output_ids = output_ids
+        .iter()
+        .cloned()
+        .collect::<std::collections::BTreeSet<_>>();
+    let (_proposal, proposal_root, submission) = load_subject_with_pending_outputs(
+        repository_path,
+        &repository,
+        record,
+        &pending_output_ids,
+    )?;
     let record_bytes = record.bytes.clone();
     let record_root = record.root.clone();
     let request_root = format!(
@@ -626,7 +788,12 @@ pub(crate) fn import(
         &held_repository,
         &record.record.subject.proposal_id,
     )?;
-    let (_, _, held_submission) = load_subject(repository_path, &held_repository, record)?;
+    let (_, _, held_submission) = load_subject_with_pending_outputs(
+        repository_path,
+        &held_repository,
+        record,
+        &pending_output_ids,
+    )?;
     if held_submission.root.clone() != submission.root.clone() {
         return Err(
             "Verification source Submission changed while acquiring the import barrier".into(),
@@ -644,6 +811,13 @@ pub(crate) fn import(
             path: record_path.clone(),
         },
     )?;
+    for output in &outputs {
+        crate::submission::add_artifact_ref(
+            &mut next_repository.artifacts,
+            &output.root,
+            &output.canonical_path,
+        )?;
+    }
     next_repository.verify()?;
 
     let recorded_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
@@ -657,7 +831,7 @@ pub(crate) fn import(
         &request_root,
         recorded_at,
         {
-            vec![
+            let mut inputs = vec![
                 InputBinding {
                     name: "verification_record".into(),
                     digest: ContentDigest::parse(record_root.clone())
@@ -678,27 +852,55 @@ pub(crate) fn import(
                     digest: ContentDigest::parse(repository_root)
                         .map_err(|error| error.to_string())?,
                 },
-            ]
+            ];
+            for (index, output) in outputs.iter().enumerate() {
+                inputs.push(InputBinding {
+                    name: format!("verification_output[{index}]"),
+                    digest: ContentDigest::parse(output.root.clone())
+                        .map_err(|error| error.to_string())?,
+                });
+            }
+            inputs
         },
-        vec![
-            AuthorityObjectDraft {
-                path: record_path,
-                object_kind: "verification_record".into(),
-                class: WriteClass::PublicReview,
-                postimage: Some(record_bytes),
-            },
-            AuthorityObjectDraft {
-                path: ".vela/repository.json".into(),
-                object_kind: "repository_manifest".into(),
-                class: WriteClass::CanonicalEvidence,
-                postimage: Some(next_repository.canonical_bytes()?),
-            },
-        ],
+        {
+            let mut drafts = vec![
+                AuthorityObjectDraft {
+                    path: record_path,
+                    object_kind: "verification_record".into(),
+                    class: WriteClass::PublicReview,
+                    postimage: Some(record_bytes),
+                },
+                AuthorityObjectDraft {
+                    path: ".vela/repository.json".into(),
+                    object_kind: "repository_manifest".into(),
+                    class: WriteClass::CanonicalEvidence,
+                    postimage: Some(next_repository.canonical_bytes()?),
+                },
+            ];
+            for output in &outputs {
+                if !output.already_retained {
+                    drafts.push(AuthorityObjectDraft {
+                        path: output.canonical_path.clone(),
+                        object_kind: "verification_output_artifact".into(),
+                        class: WriteClass::CanonicalEvidence,
+                        postimage: Some(output.bytes.clone()),
+                    });
+                }
+            }
+            drafts
+        },
     )?;
 
     let (delta, preflight) = prepared.preflight_publication(
         repository_path,
-        || Ok(PublishOptions::local()),
+        || {
+            Ok(PublishOptions::local().with_preflight_inputs(
+                outputs
+                    .iter()
+                    .map(|output| output.source_path.clone())
+                    .collect(),
+            ))
+        },
         "Verification import had no public Git delta",
     )?;
     prepared
@@ -1025,6 +1227,7 @@ mod tests {
             &fixture.record.record.outcome,
             fixture.record.record.verifier(),
             &fixture.record.record.independence,
+            &fixture.record.record.output_artifact_ids,
         ));
 
         let mut changed_scope = fixture.record.record.scope.clone();
@@ -1037,6 +1240,7 @@ mod tests {
             &fixture.record.record.outcome,
             fixture.record.record.verifier(),
             &fixture.record.record.independence,
+            &fixture.record.record.output_artifact_ids,
         ));
     }
 
@@ -1275,6 +1479,65 @@ mod tests {
             review_method_if_declared(&pretty)
                 .unwrap_err()
                 .contains("canonical JSON")
+        );
+    }
+
+    #[test]
+    fn review_outputs_are_exact_tracked_artifacts_and_dirty_bytes_refuse() {
+        let directory = TempDir::new().unwrap();
+        let git = |args: &[&str]| {
+            let output = std::process::Command::new("git")
+                .current_dir(directory.path())
+                .args(args)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "git {}: {}",
+                args.join(" "),
+                String::from_utf8_lossy(&output.stderr)
+            );
+        };
+        git(&["init", "-q"]);
+        fs::create_dir_all(directory.path().join("reviews")).unwrap();
+        let path = PathBuf::from("reviews/ai-review.json");
+        let bytes = b"{\"outcome\":\"pass\",\"schema\":\"example.review.v1\"}\n";
+        fs::write(directory.path().join(&path), bytes).unwrap();
+        git(&["add", "reviews/ai-review.json"]);
+        git(&[
+            "-c",
+            "user.name=Vela Test",
+            "-c",
+            "user.email=vela@example.invalid",
+            "commit",
+            "-qm",
+            "retain review",
+        ]);
+
+        let outputs =
+            prepare_review_outputs(directory.path(), std::slice::from_ref(&path)).unwrap();
+        assert_eq!(outputs.len(), 1);
+        assert_eq!(outputs[0].root, sha256_root(bytes));
+        assert_eq!(outputs[0].id, outputs[0].root.trim_start_matches("sha256:"));
+        assert_eq!(
+            outputs[0].canonical_path,
+            format!("records/artifacts/sha256/{}", outputs[0].id)
+        );
+
+        fs::write(directory.path().join(&path), b"changed").unwrap();
+        let error =
+            prepare_review_outputs(directory.path(), std::slice::from_ref(&path)).unwrap_err();
+        assert!(error.contains("tracked, clean, and retained"), "{error}");
+        git(&["reset", "--hard", "HEAD"]);
+
+        let repeated =
+            prepare_review_outputs(directory.path(), &[path.clone(), path.clone()]).unwrap_err();
+        assert!(repeated.contains("empty or repeated"), "{repeated}");
+        let escaped = prepare_review_outputs(directory.path(), &[PathBuf::from("../review.json")])
+            .unwrap_err();
+        assert!(
+            escaped.contains("normalized repository-relative"),
+            "{escaped}"
         );
     }
 

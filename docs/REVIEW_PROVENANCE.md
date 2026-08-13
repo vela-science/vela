@@ -108,6 +108,13 @@ must fail closed unless:
 4. `--as` equals the profile's `attested_by_actor_id`; and
 5. the Verification Record repeats every method-level nonclaim.
 
+`vela verification record --output <path>` retains each tracked, clean review
+report as a content-addressed Artifact in the same transaction and binds its
+digest through `output_artifact_ids`. A report cannot be supplied from dirty or
+untracked bytes. This keeps model findings, human notes, and synthesis outputs
+auditable without putting prose or model transcripts in the canonical
+Verification schema.
+
 Other retained verifier methods remain valid. They project as legacy
 provenance until migrated or superseded; readers must not invent a model or
 person from an opaque profile name.
