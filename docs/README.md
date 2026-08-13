@@ -25,6 +25,7 @@
 - [Provider-loss qualification, 2026-08-09](PROVIDER_LOSS_QUALIFICATION_2026-08-09.md)
 - [Ecosystem completion ledger, 2026-08-09](ECOSYSTEM_COMPLETION_2026-08-09.md)
 - [External-validation and reversible-publication program, 2026-08-12](EXTERNAL_VALIDATION_PROGRAM_2026-08-12.md)
+- [Ecosystem convergence addendum, 2026-08-13](ECOSYSTEM_CONVERGENCE_ADDENDUM_2026-08-13.md)
 - [Gittuf authority deletion spike](GITTUF_AUTHORITY_DELETION_SPIKE.md)
 - [Current repository origin ADR](adr/0027-pre-release-current-state-compaction.md)
 - [Math-first compounding product architecture ADR](adr/0025-math-first-compounding-product-architecture.md)
