@@ -292,6 +292,8 @@ Submission identity is over the exact closed canonical bytes.
   its derived handle beside it, and the Artifact ids under scope;
 - only retained content-addressed Artifacts, including `output_artifact_ids`;
 - verifier identity, as `vela.signer-identity.v1`, and independence disclosure;
+- optional typed performer provenance through the exact retained
+  `vela.review-method.v1` method bytes;
 - method profile, implementation, and one `environment_root`;
 - scoped property and explicit nonclaims (`scope.does_not_establish`);
 - outcome; and

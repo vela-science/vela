@@ -14,6 +14,7 @@ use serde_json::json;
 use vela_protocol::canonical::sha256_root;
 use vela_protocol::proposal::ProposalV1;
 use vela_protocol::repository::{RepositoryObjectRefV1, RepositoryV4};
+use vela_protocol::review_method::{REVIEW_METHOD_V1_SCHEMA, ReviewMethodV1};
 use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
 use vela_protocol::submission::SubmissionRecordV2;
 use vela_protocol::verification_record::{
@@ -174,7 +175,7 @@ fn subject_for_package(
 fn method_manifest_binding(
     repository_path: &Path,
     method_path: &Path,
-) -> Result<(String, String), String> {
+) -> Result<(String, String, Option<ReviewMethodV1>), String> {
     let implementation = method_path
         .components()
         .map(|component| match component {
@@ -234,7 +235,72 @@ fn method_manifest_binding(
     {
         return Err(DIRTY_ERROR.into());
     }
-    Ok((implementation, sha256_root(&bytes)))
+    let review_method = review_method_if_declared(&bytes)?;
+    Ok((implementation, sha256_root(&bytes), review_method))
+}
+
+fn review_method_if_declared(bytes: &[u8]) -> Result<Option<ReviewMethodV1>, String> {
+    let strict = vela_protocol::canonical::from_json_slice_strict::<serde_json::Value>(bytes);
+    match strict {
+        Ok(value)
+            if value.get("schema").and_then(serde_json::Value::as_str)
+                == Some(REVIEW_METHOD_V1_SCHEMA) =>
+        {
+            ReviewMethodV1::parse_canonical(bytes).map(Some)
+        }
+        Ok(_) => Ok(None),
+        Err(error)
+            if bytes
+                .windows(REVIEW_METHOD_V1_SCHEMA.len())
+                .any(|window| window == REVIEW_METHOD_V1_SCHEMA.as_bytes()) =>
+        {
+            Err(format!("invalid declared Review Method v1: {error}"))
+        }
+        Err(_) => Ok(None),
+    }
+}
+
+fn verification_actor_class(actor: &str) -> Result<ActorClass, String> {
+    if actor.starts_with("human:") {
+        Ok(ActorClass::Human)
+    } else if actor.starts_with("org:") {
+        Ok(ActorClass::Org)
+    } else if actor.starts_with("agent:")
+        || actor.starts_with("ci:")
+        || actor.starts_with("verifier:")
+    {
+        Ok(ActorClass::Agent)
+    } else {
+        Err(
+            "verification record author must be an exact human:, org:, agent:, ci:, or verifier: identity"
+                .into(),
+        )
+    }
+}
+
+fn ensure_review_method_binding(
+    review_method: &ReviewMethodV1,
+    method: &VerificationMethod,
+    scope: &VerificationScope,
+    actor: &str,
+) -> Result<(), String> {
+    if review_method.profile != method.profile {
+        return Err("Review Method profile differs from --profile".into());
+    }
+    if review_method.property != scope.property {
+        return Err("Review Method property differs from the observed property".into());
+    }
+    if review_method.attested_by_actor_id != actor {
+        return Err("Review Method attesting actor differs from --as".into());
+    }
+    for nonclaim in &review_method.does_not_establish {
+        if !scope.does_not_establish.contains(nonclaim) {
+            return Err(format!(
+                "Verification Record omits Review Method nonclaim {nonclaim:?}"
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn tracked_blob_executable(output: &std::process::Output) -> Option<bool> {
@@ -330,15 +396,10 @@ pub(crate) fn author_record(
     request: VerificationRecordRequest,
 ) -> Result<VerificationRecordEnvelopeV2, String> {
     let actor = request.actor.trim();
-    if actor != request.actor
-        || !(actor.starts_with("agent:")
-            || actor.starts_with("ci:")
-            || actor.starts_with("verifier:"))
-    {
-        return Err(
-            "verification record author must be an exact agent:, ci:, or verifier: identity".into(),
-        );
+    if actor != request.actor {
+        return Err("verification record author must be an exact trimmed identity".into());
     }
+    let actor_class = verification_actor_class(actor)?;
 
     // Complete every repository and method preflight before the local agent
     // key resolver is allowed to mint or load a signer.
@@ -351,7 +412,7 @@ pub(crate) fn author_record(
         &package.submission.submission.verification_requirements,
     )?;
     let subject = subject_for_package(&repository, &package)?;
-    let (implementation, environment_root) =
+    let (implementation, environment_root, review_method) =
         method_manifest_binding(repository_path, &request.method_path)?;
     let method = VerificationMethod {
         profile: request.profile,
@@ -362,6 +423,9 @@ pub(crate) fn author_record(
         property,
         does_not_establish: request.does_not_establish,
     };
+    if let Some(review_method) = &review_method {
+        ensure_review_method_binding(review_method, &method, &scope, actor)?;
+    }
     let independence = IndependenceDisclosure {
         declared_independent_of: request.independent_of,
         shared_dependencies: request.shared_dependencies,
@@ -381,7 +445,7 @@ pub(crate) fn author_record(
 
     let observed_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
     let key = vela_edge::agent_identity::agent_signing_key(actor)?;
-    let identity = SignerIdentityV1::new(actor, ActorClass::Agent, &key, observed_at.clone())?;
+    let identity = SignerIdentityV1::new(actor, actor_class, &key, observed_at.clone())?;
     VerificationRecordEnvelopeV2::seal(
         VerificationRecordDraft {
             subject,
@@ -1053,8 +1117,10 @@ mod tests {
             "-qm",
             "method v1",
         ]);
-        let (implementation, first_root) = method_manifest_binding(directory.path(), path).unwrap();
+        let (implementation, first_root, review_method) =
+            method_manifest_binding(directory.path(), path).unwrap();
         assert_eq!(implementation, "verification/method.json");
+        assert!(review_method.is_none());
 
         let untracked = Path::new("verification/untracked.json");
         fs::write(directory.path().join(untracked), b"untracked").unwrap();
@@ -1115,7 +1181,7 @@ mod tests {
             "-qm",
             "method v2",
         ]);
-        let (_, second_root) = method_manifest_binding(directory.path(), path).unwrap();
+        let (_, second_root, _) = method_manifest_binding(directory.path(), path).unwrap();
         assert_ne!(first_root, second_root);
 
         fs::write(directory.path().join(path), first).unwrap();
@@ -1177,6 +1243,131 @@ mod tests {
             error.contains("normalized and repository-relative"),
             "{error}"
         );
+    }
+
+    #[test]
+    fn standard_review_method_is_typed_and_canonical() {
+        let method = vela_protocol::review_method::ReviewMethodV1 {
+            schema: REVIEW_METHOD_V1_SCHEMA.into(),
+            profile: "statement-fidelity-gpt-5.6-sol-v1".into(),
+            property: "statement_fidelity".into(),
+            question: "Does the formal statement preserve the source question?".into(),
+            reviewer: vela_protocol::review_method::ReviewPerformerV1 {
+                kind: "ai_model".into(),
+                display_name: "GPT-5.6 Sol".into(),
+                identifier: "gpt-5.6-sol".into(),
+                provider: Some("OpenAI".into()),
+                version: None,
+            },
+            attested_by_actor_id: "agent:codex-review".into(),
+            procedure: vec!["Compare the exact source and formal statement.".into()],
+            required_output: vec!["Retain a witness for the first material mismatch.".into()],
+            does_not_establish: vec!["Scientific acceptance or Standing.".into()],
+        };
+        let bytes = vela_protocol::canonical::to_canonical_bytes(&method).unwrap();
+        assert_eq!(review_method_if_declared(&bytes).unwrap(), Some(method));
+
+        let pretty = serde_json::to_vec_pretty(
+            &serde_json::from_slice::<serde_json::Value>(&bytes).unwrap(),
+        )
+        .unwrap();
+        assert!(
+            review_method_if_declared(&pretty)
+                .unwrap_err()
+                .contains("canonical JSON")
+        );
+    }
+
+    #[test]
+    fn standard_review_method_refuses_profile_property_actor_and_nonclaim_drift() {
+        let review_method = vela_protocol::review_method::ReviewMethodV1 {
+            schema: REVIEW_METHOD_V1_SCHEMA.into(),
+            profile: "statement-fidelity-gpt-5.6-sol-v1".into(),
+            property: "statement_fidelity".into(),
+            question: "Does the formal statement preserve the source question?".into(),
+            reviewer: vela_protocol::review_method::ReviewPerformerV1 {
+                kind: "ai_model".into(),
+                display_name: "GPT-5.6 Sol".into(),
+                identifier: "gpt-5.6-sol".into(),
+                provider: Some("OpenAI".into()),
+                version: None,
+            },
+            attested_by_actor_id: "agent:codex-review".into(),
+            procedure: vec!["Compare the exact source and formal statement.".into()],
+            required_output: vec!["Retain a scoped finding.".into()],
+            does_not_establish: vec!["Scientific acceptance or Standing.".into()],
+        };
+        let method = VerificationMethod {
+            profile: review_method.profile.clone(),
+            implementation: "methods/review.json".into(),
+            environment_root: root('e'),
+        };
+        let scope = VerificationScope {
+            property: review_method.property.clone(),
+            does_not_establish: review_method.does_not_establish.clone(),
+        };
+        assert!(
+            ensure_review_method_binding(&review_method, &method, &scope, "agent:codex-review")
+                .is_ok()
+        );
+
+        let mut wrong_method = method.clone();
+        wrong_method.profile = "other".into();
+        assert!(
+            ensure_review_method_binding(
+                &review_method,
+                &wrong_method,
+                &scope,
+                "agent:codex-review"
+            )
+            .is_err()
+        );
+        let mut wrong_scope = scope.clone();
+        wrong_scope.property = "other".into();
+        assert!(
+            ensure_review_method_binding(
+                &review_method,
+                &method,
+                &wrong_scope,
+                "agent:codex-review"
+            )
+            .is_err()
+        );
+        assert!(
+            ensure_review_method_binding(&review_method, &method, &scope, "agent:other").is_err()
+        );
+        let mut missing_nonclaim = scope;
+        missing_nonclaim.does_not_establish.clear();
+        assert!(
+            ensure_review_method_binding(
+                &review_method,
+                &method,
+                &missing_nonclaim,
+                "agent:codex-review"
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn verification_actor_class_preserves_human_model_runner_and_org_provenance() {
+        assert_eq!(
+            verification_actor_class("human:william-blair").unwrap(),
+            ActorClass::Human
+        );
+        assert_eq!(
+            verification_actor_class("agent:codex-review").unwrap(),
+            ActorClass::Agent
+        );
+        assert_eq!(
+            verification_actor_class("verifier:lean").unwrap(),
+            ActorClass::Agent
+        );
+        assert_eq!(
+            verification_actor_class("org:example-lab").unwrap(),
+            ActorClass::Org
+        );
+        assert!(verification_actor_class("reviewed-by-someone").is_err());
     }
 
     #[test]

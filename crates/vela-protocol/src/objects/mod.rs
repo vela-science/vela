@@ -10,6 +10,7 @@ pub mod proposal;
 pub mod proposal_withdrawal;
 pub mod repository;
 pub mod repository_origin;
+pub mod review_method;
 pub mod signer_identity;
 pub mod submission;
 pub mod verification_record;

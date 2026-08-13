@@ -18,6 +18,13 @@ A signature alone does not prove correctness. A passing verifier alone does not
 prove novelty, significance, statement faithfulness, or acceptance. Admission
 does not retroactively broaden what a verifier checked.
 
+Human, AI-model, organization, and deterministic-tool reviews use the same
+Verification boundary. When the retained method is a canonical
+`vela.review-method.v1`, it names the performer, provider, stable identifier,
+known version, attesting actor, procedure, output contract, and nonclaims. The
+Verification Record still carries the outcome and signature. See
+[`REVIEW_PROVENANCE.md`](REVIEW_PROVENANCE.md).
+
 ## Frozen reproduction
 
 `vela reproduce [<path>]` re-runs the stored frozen verifiers against the

@@ -330,8 +330,9 @@ pub(crate) enum VerifyAction {
         #[arg(long)]
         profile: String,
         /// Repository-relative method manifest whose exact bytes bind the
-        /// Verification environment. It must be tracked, clean, and retained
-        /// in the current Git commit.
+        /// Verification environment. A canonical vela.review-method.v1 also
+        /// binds human, model, organization, or tool provenance. It must be
+        /// tracked, clean, and retained in the current Git commit.
         #[arg(long)]
         method: PathBuf,
         /// Exact property observed by the verifier. Omit to use the Proposal's
@@ -355,6 +356,9 @@ pub(crate) enum VerifyAction {
         /// Dependency shared with the producer. Repeat when applicable.
         #[arg(long = "shared-dependency")]
         shared_dependency: Vec<String>,
+        /// Actor attesting the result. Human and organization reviewers use
+        /// human: and org:; agents, CI, and deterministic verifiers use their
+        /// existing namespaces.
         #[arg(long = "as", help = HELP_REQUIRED_AS)]
         actor: String,
         #[arg(long, help = HELP_JSON)]

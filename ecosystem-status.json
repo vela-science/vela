@@ -91,6 +91,7 @@
       "proposal.schema.json",
       "repository-origin.schema.json",
       "repository-profile.schema.json",
+      "review-method.schema.json",
       "status.schema.json",
       "submission.schema.json",
       "verification-record.schema.json"

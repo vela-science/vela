@@ -37,6 +37,7 @@ use crate::execution_binding::EXECUTION_BINDING_SCHEMA;
 use crate::proposal_withdrawal::PROPOSAL_WITHDRAWAL_V2_SCHEMA;
 use crate::repository::REPOSITORY_PROFILE_SCHEMA_V1;
 use crate::repository_origin::REPOSITORY_ORIGIN_V1_SCHEMA;
+use crate::review_method::{REVIEW_METHOD_V1_SCHEMA, REVIEWER_KINDS};
 use crate::signer_identity::SIGNER_IDENTITY_V1_SCHEMA;
 use crate::status::{REPOSITORY_HEAD_ROLE, STATUS_V4_COMMAND, STATUS_V4_SCHEMA};
 use crate::submission::{
@@ -129,6 +130,13 @@ fn text_fragment() -> Value {
 /// Text bounded at 16 KiB, as `require_text` bounds it.
 pub fn text(_: &mut SchemaGenerator) -> Schema {
     Schema::try_from(text_fragment()).expect("text fragment is an object schema")
+}
+
+/// Nullable bounded text for provider and version facts that may be unknown.
+pub fn nullable_text(_: &mut SchemaGenerator) -> Schema {
+    let mut fragment = text_fragment();
+    fragment["type"] = serde_json::json!(["string", "null"]);
+    Schema::try_from(fragment).expect("nullable text fragment is an object schema")
 }
 
 /// Text with no declared ceiling, matching the Proposal Withdrawal reader,
@@ -413,6 +421,16 @@ pub fn verification_record_schema_tag(_: &mut SchemaGenerator) -> Schema {
     tag(VERIFICATION_RECORD_V2_SCHEMA)
 }
 
+/// `vela.review-method.v1`.
+pub fn review_method_schema_tag(_: &mut SchemaGenerator) -> Schema {
+    tag(REVIEW_METHOD_V1_SCHEMA)
+}
+
+/// Who or what performed one review.
+pub fn reviewer_kind(_: &mut SchemaGenerator) -> Schema {
+    vocabulary(REVIEWER_KINDS)
+}
+
 /// `vela.proposal-withdrawal.v2`.
 pub fn proposal_withdrawal_schema_tag(_: &mut SchemaGenerator) -> Schema {
     tag(PROPOSAL_WITHDRAWAL_V2_SCHEMA)
@@ -622,6 +640,13 @@ pub fn published() -> Vec<(&'static str, Value)> {
             document::<crate::verification_record::VerificationRecordV2>(
                 "verification-record.schema.json",
                 "Vela Verification Record v2",
+            ),
+        ),
+        (
+            "review-method.schema.json",
+            document::<crate::review_method::ReviewMethodV1>(
+                "review-method.schema.json",
+                "Vela Review Method v1",
             ),
         ),
         (

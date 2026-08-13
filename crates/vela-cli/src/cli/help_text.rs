@@ -130,6 +130,12 @@ The record binds the exact Submission, Proposal, Claim, artifacts, method,
 manifest bytes, environment, scope, outcome, and verifier identity. It never
 accepts the Proposal or changes Standing.
 
+A canonical vela.review-method.v1 manifest additionally names whether the
+review was performed by a human, AI model, organization, or deterministic
+tool, plus the exact display identity, provider, identifier, known version,
+and attesting actor. Use separate Verification Records for separate reviewers;
+an AI synthesis is another scoped review, not a Decision.
+
 The repository is optional and discovered upward; name it first
 (`vela verification record . vpr_8b49… …`) to act on another.
 

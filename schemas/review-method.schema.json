@@ -1,0 +1,130 @@
+{
+  "$id": "https://vela.science/schemas/review-method.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "attested_by_actor_id": {
+      "maxLength": 16384,
+      "minLength": 1,
+      "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+      "type": "string"
+    },
+    "does_not_establish": {
+      "items": {
+        "maxLength": 16384,
+        "minLength": 1,
+        "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "procedure": {
+      "items": {
+        "maxLength": 16384,
+        "minLength": 1,
+        "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "profile": {
+      "maxLength": 16384,
+      "minLength": 1,
+      "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+      "type": "string"
+    },
+    "property": {
+      "maxLength": 16384,
+      "minLength": 1,
+      "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+      "type": "string"
+    },
+    "question": {
+      "maxLength": 16384,
+      "minLength": 1,
+      "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+      "type": "string"
+    },
+    "required_output": {
+      "items": {
+        "maxLength": 16384,
+        "minLength": 1,
+        "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "reviewer": {
+      "additionalProperties": false,
+      "properties": {
+        "display_name": {
+          "maxLength": 16384,
+          "minLength": 1,
+          "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+          "type": "string"
+        },
+        "identifier": {
+          "maxLength": 16384,
+          "minLength": 1,
+          "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "human",
+            "ai_model",
+            "organization",
+            "deterministic_tool"
+          ],
+          "type": "string"
+        },
+        "provider": {
+          "maxLength": 16384,
+          "minLength": 1,
+          "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "maxLength": 16384,
+          "minLength": 1,
+          "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "display_name",
+        "identifier",
+        "provider",
+        "version"
+      ],
+      "type": "object"
+    },
+    "schema": {
+      "const": "vela.review-method.v1",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "profile",
+    "property",
+    "question",
+    "reviewer",
+    "attested_by_actor_id",
+    "procedure",
+    "required_output",
+    "does_not_establish"
+  ],
+  "title": "Vela Review Method v1",
+  "type": "object"
+}

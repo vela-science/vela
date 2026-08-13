@@ -45,6 +45,13 @@ defines `profile_root`. Authorization request and evaluation are exact payloads
 retained inside repository-authority records; an Allow remains authorization
 evidence and is not a scientific Decision.
 
+`review-method.schema.json` describes the optional
+`vela.review-method.v1` method profile retained beside a Verification Record.
+It distinguishes a human, AI model, organization, or deterministic tool from
+the Vela actor that attested the observation. The profile carries no outcome;
+the signed Verification Record does. Neither carries Decision authority. See
+`docs/REVIEW_PROVENANCE.md` for the cross-ecosystem policy.
+
 ## Two are read surfaces
 
 `status.schema.json` describes `vela.status.v4`, the document
