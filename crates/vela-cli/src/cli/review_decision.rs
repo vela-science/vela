@@ -1,9 +1,10 @@
 //! Repository-authority review decisions.
 //!
-//! Human Vela keys, batch signing, detached signing, copied root ceremonies,
-//! and the local signer helper are deliberately absent. The exact command is
-//! the semantic action, the local operating-system session authenticates the
-//! principal, and the repository authority signs the covering transaction.
+//! Performer-held repository keys, batch signing, detached signing, copied root
+//! ceremonies, and the local signer helper are deliberately absent. The exact
+//! command is the semantic action, the local operating-system session
+//! authenticates the authority principal, an attributed human or agent is
+//! recorded as the performer, and repository authority signs the transaction.
 
 use std::path::PathBuf;
 
@@ -17,6 +18,8 @@ pub(crate) fn cmd_review_decide(
     proposal_id: &str,
     action: DecisionAction,
     expected_entry_root: Option<&str>,
+    actor: Option<String>,
+    session_ref: Option<String>,
     reason: String,
     json: bool,
 ) {
@@ -29,6 +32,8 @@ pub(crate) fn cmd_review_decide(
         proposal_id,
         action,
         expected_entry_root,
+        actor,
+        session_ref,
         reason,
         json,
     );
@@ -39,6 +44,8 @@ fn run_review_decision(
     proposal_id: &str,
     action: DecisionAction,
     expected_entry_root: Option<&str>,
+    actor: Option<String>,
+    session_ref: Option<String>,
     reason: String,
     json: bool,
 ) {
@@ -49,6 +56,8 @@ fn run_review_decision(
         action,
         &reason,
         &observed_at,
+        actor.as_deref(),
+        session_ref.as_deref(),
     )
     .unwrap_or_else(|error| {
         ui::fail_if_recovery_required(&repository_path);
@@ -68,6 +77,14 @@ fn run_review_decision(
         println!("  repository: {}", safe_inline(&plan.repository_name));
         println!("  claim: {}", safe_inline(&plan.claim_id));
         println!("  reason: {}", safe_inline(&plan.reason));
+        println!(
+            "  performer: {} · {}",
+            safe_inline(&plan.actor_class),
+            safe_inline(&plan.actor_id)
+        );
+        if let Some(reference) = &plan.session_ref {
+            println!("  session: {}", safe_inline(reference));
+        }
         println!("  authority: local OS session → repository authority");
         println!(
             "  scientific state change: {}",
@@ -92,7 +109,7 @@ fn run_review_decision(
     let payload = serde_json::json!({
         "ok": true,
         "command": format!("review.{}", action.as_str()),
-        "schema": "vela.review-decision.v4",
+        "schema": "vela.review-decision.v5",
         "repository_path": repository_path.display().to_string(),
         "repository_id": plan.repository_id,
         "repository_before": plan.repository_root,
@@ -101,7 +118,11 @@ fn run_review_decision(
         "claim_id": plan.claim_id,
         "claim_root": plan.claim_root,
         "verification_set_root": plan.verification_set_root,
-        "principal_id": plan.principal_id,
+        "actor_id": plan.actor_id,
+        "actor_class": plan.actor_class,
+        "session_ref": plan.session_ref,
+        "principal_id": plan.principal_id.clone(),
+        "authority_principal_id": plan.principal_id,
         "action": action.as_str(),
         "reason": plan.reason,
         "decision_plan_root": plan.plan_root,
@@ -113,7 +134,7 @@ fn run_review_decision(
         "scientific_state_changed": action == DecisionAction::Accept,
         "authentication": "local_os_session",
         "transaction_signer": "repository_authority",
-        "human_key_read": false,
+        "performer_key_read": false,
     });
     if json {
         println!(

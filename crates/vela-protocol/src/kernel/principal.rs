@@ -3,11 +3,12 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-pub const HUMAN_ONLY_AUTHORITY_ACTIONS_V1: &[&str] = &[
+pub const HUMAN_ONLY_GOVERNANCE_ACTIONS_V1: &[&str] = &[
     "authority_initialize",
     "authority_close",
     "authority_revoke",
     "authority_rotate",
+    "authority_model_update",
     "bulk_correct",
     "destroy",
     "membership_manage",
@@ -16,8 +17,6 @@ pub const HUMAN_ONLY_AUTHORITY_ACTIONS_V1: &[&str] = &[
     "policy_rotate",
     "quorum_manage",
     "recovery_approve",
-    "review_accept",
-    "review_reject",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -34,7 +33,7 @@ pub fn principal_class_may_request(principal_class: PrincipalClass, action: &str
     !matches!(
         principal_class,
         PrincipalClass::Agent | PrincipalClass::Workload
-    ) || !HUMAN_ONLY_AUTHORITY_ACTIONS_V1.contains(&action)
+    ) || !HUMAN_ONLY_GOVERNANCE_ACTIONS_V1.contains(&action)
 }
 
 #[cfg(test)]
@@ -42,8 +41,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn every_human_governance_action_is_structurally_forbidden_to_machines() {
-        for action in HUMAN_ONLY_AUTHORITY_ACTIONS_V1 {
+    fn governance_stays_human_only_while_attributed_agents_may_decide() {
+        for action in HUMAN_ONLY_GOVERNANCE_ACTIONS_V1 {
             assert!(!principal_class_may_request(PrincipalClass::Agent, action));
             assert!(!principal_class_may_request(
                 PrincipalClass::Workload,
@@ -54,6 +53,14 @@ mod tests {
         assert!(principal_class_may_request(
             PrincipalClass::Agent,
             "evidence_submit"
+        ));
+        assert!(principal_class_may_request(
+            PrincipalClass::Agent,
+            "review_accept"
+        ));
+        assert!(principal_class_may_request(
+            PrincipalClass::Agent,
+            "review_reject"
         ));
     }
 }

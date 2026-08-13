@@ -4,11 +4,11 @@ Vela has two related but distinct release surfaces:
 
 - **Protocol 1** is the current release-candidate specification, schemas,
   conformance vectors, and independent readers.
-- **Vela 0.973.1** is the current signed pre-1.0 implementation release. It
-  carries the same Protocol 1 candidate as 0.973.0 and corrects the published
-  acquisition guidance.
+- **Vela 0.974.0** is the current signed pre-1.0 implementation release. It
+  permits capability-authorized human and agent Decision performers while
+  retaining exact actor, session, authority, root, and replay provenance.
 
-The latest signed published release is `v0.973.1`. User-facing installer
+The latest signed published release is `v0.974.0`. User-facing installer
 examples pin that exact tag rather than following a moving branch.
 
 Neither a protocol conformance result nor a signed software bundle is a

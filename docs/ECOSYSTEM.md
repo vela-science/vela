@@ -593,7 +593,7 @@ distribution, GitHub carries releases and attestation.
 Four terms, and three shipped mechanisms.
 
 **Claim.** A scientific assertion whose Standing is repository-local and only
-ever moves on an attributed human Decision.
+ever moves on an attributed, authorized Decision.
 
 **Evidence as a typed role.** Not a file attached to a record; a role a rooted
 object plays with respect to a Claim, which can be lost when the object it
@@ -615,7 +615,7 @@ The three mechanisms that are built and are the defensible part:
    its inputs, method, environment, outcome and an explicit
    `does_not_establish` list (`crates/vela-protocol/src/objects/verification_record.rs:55-60`,
    with at least one limitation required at `:242-250`). It changes no Standing.
-   Only a human Decision does.
+   Only an attributed, authorized Decision does.
 2. **Correction deterministically partitions declared support edges.**
    `crates/vela-edge/src/analysis/correction_impact.rs` partitions
    `lost_support_routes` from `surviving_support_routes` and emits repair
@@ -708,7 +708,7 @@ roots. No reverse dependency is authorized. Concretely:
 - **No non-kernel implementation defines Standing.** Not the CLI, not a reader,
   not `vela-edge`, not the projection, not a surface, not a package, not a
   Source, not an agent, not a benchmark, not an authorization Allow. Only
-  protocol admission of an attributed human Decision records an Event from
+  protocol admission of an attributed human or agent Decision records an Event from
   which replay derives Standing.
 - **`vela` must not depend on `vela-web`.** One documented leak:
   `crates/vela-cli/tests/wording_contract.rs:11` records that `vela-web` pins a

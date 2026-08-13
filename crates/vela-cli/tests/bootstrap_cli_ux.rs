@@ -415,7 +415,9 @@ fn init_creates_a_signed_ready_repository_in_one_command() {
     assert!(agent_charter.contains("tracked, clean, and retained"));
     assert!(agent_charter.contains("vela verification record"));
     assert!(agent_charter.contains("vela review inbox"));
-    assert!(agent_charter.contains("do not decide it yourself"));
+    assert!(agent_charter.contains("An agent selected to decide uses"));
+    assert!(agent_charter.contains("--as agent:<name>"));
+    assert!(agent_charter.contains("must not copy or export repository-authority credentials"));
 
     let status = run(&repository_path, None, &["status", "--json"]);
     assert!(status.status.success());

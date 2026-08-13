@@ -384,6 +384,8 @@ fn review_accept_admits_the_event_that_moves_standing() {
     let chain_before_decision = contiguous_authority_chain(&repository_path);
 
     let reason = "Accept the exact bounded fixture Claim on its independent passing Verification.";
+    let decision_actor = "agent:review-acceptance-fixture";
+    let session_ref = "entire:checkpoint:review-acceptance-fixture";
     let accepted = success_json(&run(
         &repository_path,
         Some(agent.socket()),
@@ -397,30 +399,37 @@ fn review_accept_admits_the_event_that_moves_standing() {
             &entry_root,
             "--reason",
             reason,
+            "--as",
+            decision_actor,
+            "--session-ref",
+            session_ref,
             "--json",
         ],
     ));
-    assert_eq!(accepted["schema"], "vela.review-decision.v4");
+    assert_eq!(accepted["schema"], "vela.review-decision.v5");
     /* `.v3` carried the reviewed path under `"repository"`, beside a
     `repository_id` naming the thing at that path — one document with two
     vocabularies, in the only place where the retired noun had a consumer.
-    `.v4` publishes it as `repository_path`, the key `replay` already uses.
+    `.v5` preserves `repository_path` and adds the attributed performer.
     Both halves are asserted so a revert fails here. */
     assert!(
         accepted["repository_path"].is_string(),
-        "`repository_path` is the published path key of .v4:\n{accepted}"
+        "`repository_path` is the published path key of .v5:\n{accepted}"
     );
     assert!(
         accepted.get("frontier").is_none(),
-        "`.v4` retired the `repository_path` key:\n{accepted}"
+        "`.v5` retains no retired route noun:\n{accepted}"
     );
     assert_eq!(accepted["command"], "review.accept");
     assert_eq!(accepted["action"], "accept");
     assert_eq!(accepted["scientific_state_changed"], true);
     assert_eq!(accepted["claim_id"], claim_id.as_str());
     assert_eq!(accepted["reason"], reason);
+    assert_eq!(accepted["actor_id"], decision_actor);
+    assert_eq!(accepted["actor_class"], "agent");
+    assert_eq!(accepted["session_ref"], session_ref);
     assert_eq!(accepted["transaction_signer"], "repository_authority");
-    assert_eq!(accepted["human_key_read"], false);
+    assert_eq!(accepted["performer_key_read"], false);
     assert_eq!(
         accepted["repository_before"], evidenced["repository_root"],
         "the Decision must be planned against the exact reviewed repository"
@@ -482,6 +491,12 @@ fn review_accept_admits_the_event_that_moves_standing() {
     assert_eq!(asserted["content"]["target"]["id"], claim_id.as_str());
     assert_eq!(asserted["content"]["after_hash"], accepted["claim_root"]);
     assert_eq!(asserted["content"]["reason"], reason);
+    assert_eq!(asserted["content"]["actor"]["type"], "agent");
+    assert_eq!(asserted["content"]["actor"]["id"], decision_actor);
+    assert_eq!(
+        asserted["content"]["payload"]["decision_performer"]["session_ref"],
+        session_ref
+    );
     let review = admitted
         .iter()
         .find(|event| event["content"]["kind"] == "review.accepted")

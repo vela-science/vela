@@ -40,7 +40,7 @@ Normative interoperability material is limited to this specification, the
 published schemas, and the vectors the Protocol 1 manifest marks normative.
 Examples, projections, release metadata, and explanatory documents are
 informative and carry no scientific authority. Passing every conformance check
-demonstrates implementation agreement only; it is not a human Decision,
+demonstrates implementation agreement only; it is not an attributed Decision,
 scientific Standing, external adoption, or a final 1.0 release.
 
 ## 1. Invariants
@@ -49,7 +49,8 @@ scientific Standing, external adoption, or a final 1.0 release.
 2. Git commits and trees identify published repository bytes.
 3. Producer authentication grants no verification or review authority.
 4. Verification reports one scoped outcome and changes no Standing.
-5. Only an authorized human Decision admits a state transition.
+5. Only an authorized, attributed Decision admits a state transition. The
+   performer may be human or agent; reviewer kind grants no authority by itself.
 6. Repository authority records the exact authenticated and authorized write;
    it does not supply scientific judgment.
 7. Canonical history is append-only. Corrections add relations and Events
@@ -99,7 +100,7 @@ Standing
   -> Submission
   -> pending Proposal
   -> Verification Record(s)
-  -> human Decision
+  -> attributed Decision
   -> Event
   -> strict replay
   -> Standing
@@ -347,8 +348,8 @@ So it binds the requested transition (`action`), the exact Claim it acts on
 (`producer_package`).
 
 It binds no status and no verification requirement. Invariants 3 and 5 are why:
-a producer's signature grants no review authority, and only an authorized human
-Decision admits a transition, so status is not state the producer can write and
+a producer's signature grants no review authority, and only an authorized,
+attributed Decision admits a transition, so status is not state the producer can write and
 therefore is not a field. Status is read back by evaluating the Proposal
 against the covering authority Events; the object carries only the request. A
 producer that writes a `status` key gets a parse rejection, because the schema

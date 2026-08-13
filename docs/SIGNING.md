@@ -42,7 +42,7 @@ explicit so a future keyset profile can add a qualified P-256 hardware provider
 or ML-DSA archival co-signature without guessing or reinterpreting v1 history.
 Passkeys authenticate people; repository keys authenticate the service role.
 
-## Human Decisions
+## Attributed Decisions
 
 Inspect one pending Proposal:
 
@@ -55,6 +55,8 @@ Then perform exactly one action:
 ```bash
 vela review reject . <vpr_id> \
   --reason "The retained evidence does not satisfy the stated conditions." \
+  --as agent:<name> \
+  --session-ref entire:checkpoint:<id> \
   --json
 ```
 
@@ -63,6 +65,7 @@ or, when the Proposal says acceptance is eligible:
 ```bash
 vela review accept . <vpr_id> \
   --reason "The exact claim, evidence, verification, and conditions support acceptance." \
+  --as human:<name> \
   --json
 ```
 
@@ -80,9 +83,11 @@ ssh-add -t 8h ~/.ssh/vela_repository_authority_ed25519
 
 Do not add `-c` unless you deliberately want OpenSSH to prompt for every
 signature. Vela does not require that prompt. The authenticated operating-
-system session establishes the human principal; the exact CLI action,
-authorization evaluation, compare-and-swap root, reason, read set, and signed
-postimage establish the Decision.
+system session establishes the Repository authority principal; `--as` records
+the human or agent performer, and `--session-ref` may retain its source-owned
+session or checkpoint. The exact CLI action, authorization evaluation,
+compare-and-swap root, reason, read set, performer, and signed postimage
+establish the Decision.
 
 On macOS, Vela consults launchd for the standard login-session agent when a
 long-running GUI process has no inherited `SSH_AUTH_SOCK`. An explicitly set
@@ -136,7 +141,7 @@ Submission intake creates no Verification Record, Decision, Event, or accepted
 Standing. Submission and Verification intake verify the producer or verifier
 signature, retain append-only content-addressed evidence, and rebuild the
 deterministic repository projection without reading the repository-authority
-key. Only a later human Decision creates an Authority Record.
+key. Only a later authorized, attributed Decision creates an Authority Record.
 
 ## Initialize a new Repository
 

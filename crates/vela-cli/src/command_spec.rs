@@ -2,8 +2,9 @@
 //! dispatch stay in `cli.rs` and `command_handlers.rs`.
 //!
 //! ## Flag-naming conventions (one name per concept, no aliases)
-//! - **Acting identity** → `--as` for producer or verifier evidence.
-//!   It may default from `$VELA_ACTOR_ID`; a human Decision never does.
+//! - **Acting identity** → `--as` for producer, verifier, or Decision performer.
+//!   It may default from `$VELA_ACTOR_ID`; omission on a Decision preserves the
+//!   local operator identity for compatibility.
 //! - **Repository** → `--repo <path>`, accepted by every verb that acts on an
 //!   existing repository. Except for the two explicit-reservation cases below,
 //!   those verbs also take it as the leading positional. `submit` does not
@@ -448,8 +449,14 @@ pub(crate) struct ReviewDecisionArgs {
     /// Require the exact Decision Inbox entry that was reviewed.
     #[arg(long)]
     pub(crate) if_entry_root: Option<String>,
+    /// Attributed Decision performer. Defaults to VELA_ACTOR_ID, then the local operator.
+    #[arg(long = "as", value_name = "ACTOR")]
+    pub(crate) actor: Option<String>,
+    /// Optional source-owned agent session or checkpoint reference.
+    #[arg(long, value_name = "REF")]
+    pub(crate) session_ref: Option<String>,
     #[arg(long)]
-    /// Human reason covered by the Decision signature.
+    /// Performer reason covered by the Decision signature.
     pub(crate) reason: String,
     #[arg(long, help = HELP_JSON)]
     pub(crate) json: bool,

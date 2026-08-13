@@ -10,9 +10,9 @@ and presentation. Conflating them is the central failure this gate prevents.
    bytes and inputs.
 3. **Claim binding:** the checked property matches the scoped claim recorded in
    Submission v2 envelope.
-4. **Admission:** an attributed, authorized human Decision admitted the exact
-   state transition. Historical signed-policy outcomes remain replay facts,
-   not a current writer.
+4. **Admission:** an attributed, authorized Decision admitted the exact state
+   transition. Its performer is explicitly human or agent. Historical
+   signed-policy outcomes remain replay facts, not a current writer.
 
 A signature alone does not prove correctness. A passing verifier alone does not
 prove novelty, significance, statement faithfulness, or acceptance. Admission
@@ -28,7 +28,8 @@ Verification Record still carries the outcome and signature. See
 Those four reviewer kinds are peers. Evidentiary weight comes from the fitness
 of the named method, exact inputs, independence and shared dependencies,
 retained outputs, scope, outcome, and limitations. Reviewer kind establishes no
-quality rank. Only an authorized human Repository Decision may change Standing.
+quality rank. Only an authorized Repository Decision may change Standing;
+human and agent performers use the same exact-root, policy, and replay checks.
 
 ## Frozen reproduction
 
@@ -168,24 +169,31 @@ Unperformed or unavailable verification yields no current Verification Record
 and therefore also cannot satisfy the gate. These checks constrain an
 authorized Decision; they do not perform one.
 
-## Human decision
+## Attributed Decision
 
-Direct `vela review accept|reject` commands are the human Decision surface. A
-command binds one Proposal, action, reason, principal, policy, authority
-head, read set, binary identity, and exact canonical delta. The command is the
-semantic human action. The local operating-system session authenticates the
-principal, the closed authorization profile authorizes the action, and the
-standard OpenSSH agent repository-authority key signs the covering DSSE
-record. Vela reads no
-human scientific key and accepts no copied root, timestamp, batch answer, or
+Direct `vela review accept|reject` commands are the Decision surface. A command
+binds one Proposal, action, reason, attributed performer, performer class,
+optional source-owned session reference, authority principal, policy, authority
+head, read set, binary identity, and exact canonical delta. The local
+operating-system session authenticates the Repository authority principal, the
+closed authorization profile authorizes the action, and the standard OpenSSH
+agent Repository-authority key signs the covering DSSE record. Vela reads no
+personal scientific key and accepts no copied root, timestamp, batch answer, or
 custom-helper response.
+
+Use `--as human:<id>` or `--as agent:<id>` to state who performed the Decision.
+Agents SHOULD also retain a source-owned checkpoint or session with
+`--session-ref <ref>`. `VELA_ACTOR_ID` and `VELA_SESSION_REF` provide the same
+values for native integrations. Reviewer kind neither weakens nor strengthens
+the Decision; the exact method, evidence, independence, limitations, reason,
+policy, and roots remain inspectable separately.
 
 Any drift aborts before the commit marker. Acceptance additionally requires an
 eligible Proposal and strict aggregate Engine gate, then verifies that
 the covered scientific domain event and explicit review event replay together
 across both histories. Rejection changes no accepted scientific state.
 
-Human acceptance is a statement of scoped judgment, not a claim that every
+Acceptance is a statement of scoped judgment, not a claim that every
 possible property was verified. The decision record should retain the relevant
 scope and caveats, especially for formal results where kernel checking and
 informal statement faithfulness are separate questions.

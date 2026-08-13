@@ -26,7 +26,7 @@ portable producer boundary. The TypeScript package that used to be named here wa
 | Canonical object | exact schema, bytes, identity, and root | truth or authority |
 | Repository verification | exact object membership and authority-chain validity | scientific correctness |
 | Verification Record | one named verifier's result over exact inputs | acceptance or generality |
-| Human Decision | an authorized accept or reject action over one Proposal | universal truth |
+| Attributed Decision | an authorized accept or reject action by a named human or agent performer over one Proposal | universal truth |
 | Git publication | that exact repository bytes reached a ref | acceptance by itself |
 
 Use the narrow sentence supported by the evidence. “The Submission parsed,”

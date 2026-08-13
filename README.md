@@ -118,7 +118,9 @@ Vela keeps four boundaries explicit:
 1. **Git preserves bytes and ancestry.**
 2. **A Submission preserves producer intent and evidence.**
 3. **A Verification Record reports one scoped check.**
-4. **Only an authorized human Decision changes Standing.**
+4. **Only an authorized, attributed Decision changes Standing.** The
+   performer may be human or agent; Repository authority and exact replay, not
+   actor kind, govern admission.
 
 A verifier pass is not scientific acceptance. Git publication is not
 scientific acceptance. A signature proves control of a key over exact bytes;
@@ -129,11 +131,11 @@ it does not prove that a Claim is true.
 Install the current signed release:
 
 Vela supports Linux x86-64 and macOS Apple-silicon release bundles.
-Install the current signed release, `v0.973.1`.
+Install the current signed release, `v0.974.0`.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.973.1/install.sh | \
-  VELA_VERSION=v0.973.1 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.974.0/install.sh | \
+  VELA_VERSION=v0.974.0 bash
 vela --version
 ```
 

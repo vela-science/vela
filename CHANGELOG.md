@@ -10,6 +10,15 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+## 0.974.0
+
+- **Decision authority is capability-based and performer-attributed.**
+  `vela review accept|reject` now records a human or agent performer, optional
+  source-owned session reference, and the distinct Repository authority
+  principal. Both performer classes use the same Proposal, Verification,
+  policy, current-root, signing, and replay gates. Agent reviewer principals
+  remain structurally barred from Repository governance actions.
+
 ## 0.973.1
 
 - **Published acquisition guidance names the release that actually exists.**

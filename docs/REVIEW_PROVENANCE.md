@@ -7,7 +7,9 @@ Date: 2026-08-13
 
 Vela permits Verification by people, AI models, organizations, and
 deterministic software. Every such result is evidence. None is acceptance.
-Only an authorized human Decision and its canonical Event can change Standing.
+Only an authorized, attributed Decision and its canonical Event can change
+Standing. A Decision performer may be human or agent; performer kind is
+provenance, not a quality or authority rank.
 
 The existing `vela.verification-record.v2` remains the canonical carrier. It
 already binds the signer, exact subject, method path and root, scope, outcome,
@@ -156,7 +158,8 @@ signed actor and method profile, explicitly labeled as legacy provenance.
    review roots it considered.
 5. Evaluate weight from method fitness, exact basis, independence, outputs,
    scope, and limitations.
-6. Keep the authorized human Repository Decision separate from every review.
+6. Keep the authorized Repository Decision separate from every review, and
+   retain the Decision performer's human or agent identity and session reference.
 
 A repository may require any bounded combination of reviewer methods. It must
 not relabel one reviewer kind as another, treat review count as authority, or
@@ -172,8 +175,9 @@ infer that a human review is independent merely because a person performed it.
   projected commit, checks their root, and emits typed reviewer provenance.
 - **problems.science** shows the provenance summary before hashes and exposes
   the exact record without changing scientific authority.
-- **Hosted activity** may link to review records but cannot manufacture a Vela
-  Verification, sign for a reviewer, decide, or change Standing.
+- **Hosted activity** may link to review records and Decision provenance but
+  cannot manufacture a Vela Verification, impersonate a reviewer or Decision
+  performer, hold Repository authority credentials, or change Standing itself.
 
 ## Acceptance gates
 

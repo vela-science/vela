@@ -39,7 +39,6 @@ use vela_protocol::canonical::to_canonical_bytes;
 #[cfg(test)]
 use vela_protocol::events::event_log_hash;
 use vela_protocol::events::{EventKind, StateActor, StateTarget};
-use vela_protocol::principal::HUMAN_ONLY_AUTHORITY_ACTIONS_V1;
 
 use vela_repository::{
     CanonicalWriteBarrier, ContentDigest, DeltaDraft, InputBinding, OperationId, OperationKind,
@@ -1283,7 +1282,7 @@ fn validate_request_shape(
         ));
     }
     for draft in &request.event_drafts {
-        if draft.actor.id != request.principal.principal_id
+        if !event_performer_matches_authority_principal(request, draft)
             || draft.timestamp != request.recorded_at
             || draft.reason.trim().is_empty()
         {
@@ -1293,6 +1292,48 @@ fn validate_request_shape(
         }
     }
     Ok(())
+}
+
+fn event_performer_matches_authority_principal(
+    request: &AuthorityTransactionRequest,
+    draft: &AuthorityEventDraft,
+) -> bool {
+    if draft.actor.id == request.principal.principal_id {
+        return true;
+    }
+    if !matches!(
+        request.authorization_request.action,
+        AuthorityActionV1::ReviewAccept | AuthorityActionV1::ReviewReject
+    ) || !matches!(draft.actor.r#type.as_str(), "human" | "agent")
+    {
+        return false;
+    }
+    let Some(provenance) = draft.payload.get("decision_performer") else {
+        return false;
+    };
+    provenance.get("schema").and_then(serde_json::Value::as_str)
+        == Some("vela.decision-performer.v1")
+        && provenance
+            .get("actor_id")
+            .and_then(serde_json::Value::as_str)
+            == Some(draft.actor.id.as_str())
+        && provenance
+            .get("actor_class")
+            .and_then(serde_json::Value::as_str)
+            == Some(draft.actor.r#type.as_str())
+        && provenance
+            .get("authority_principal_id")
+            .and_then(serde_json::Value::as_str)
+            == Some(request.principal.principal_id.as_str())
+        && provenance.get("session_ref").is_some_and(|value| {
+            value.is_null()
+                || value.as_str().is_some_and(|reference| {
+                    !reference.trim().is_empty()
+                        && reference == reference.trim()
+                        && reference.len() <= 2048
+                        && !reference.chars().any(char::is_control)
+                })
+        })
 }
 
 fn validate_preflight_attribution(
@@ -1322,10 +1363,9 @@ fn validate_semantic_approvals(
         .ok_or_else(|| {
             AuthorityTransactionError::Invalid("authorization action does not name itself".into())
         })?;
-    let requires_human_approval = HUMAN_ONLY_AUTHORITY_ACTIONS_V1.contains(&action.as_str());
-    if requires_human_approval && request.semantic_approvals.is_empty() {
+    if request.semantic_approvals.is_empty() {
         return Err(AuthorityTransactionError::Invalid(
-            "human-only authority action lacks a semantic approval".into(),
+            "authority action lacks a semantic approval".into(),
         ));
     }
     for approval in &request.semantic_approvals {

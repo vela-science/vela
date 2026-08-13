@@ -634,6 +634,8 @@ fn dispatch_review_decision(
         &proposal_id,
         action,
         args.if_entry_root.as_deref(),
+        args.actor,
+        args.session_ref,
         args.reason,
         args.json,
     );

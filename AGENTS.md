@@ -89,7 +89,7 @@ Keep these distinctions exact:
 
 - a Submission is authenticated producer input;
 - a Verification Record reports one scoped check;
-- a Decision is the only operation that changes Standing;
+- an authorized Decision is the only operation that changes Standing;
 - a green check, signature, Git commit, or Web badge is not acceptance.
 
 Vela uses the standard OpenSSH agent for the repository service identity. Do
@@ -98,7 +98,9 @@ or a second approval system. Never forward the authority-agent socket to
 remote, untrusted, or proposal-supplied code.
 
 Do not invent panels, reviewer counts, enrollment gates, or multi-person
-ceremony. One authorized operator may make an exact Decision. Preserve the
+ceremony. One authorized human or agent performer may make an exact Decision
+through Repository authority. Record the performer with `--as` and, when
+available, a source-owned `--session-ref`. Preserve the
 cryptographic, policy, current-root, read-set, and replay checks that make that
 Decision attributable and fail closed.
 

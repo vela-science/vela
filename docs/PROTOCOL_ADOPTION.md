@@ -41,8 +41,9 @@ authority.
   has `authority_effect = none`.
 - Assurance labels are source-local presentation vocabulary. They do not
   overload protocol Standing.
-- Only an attributed, authorized human Decision admitted by one Repository
-  changes that Repository's Standing.
+- Only an attributed, authorized Decision admitted by one Repository changes
+  that Repository's Standing. Human and agent performers use the same exact
+  transition checks; their class and method provenance remain visible.
 
 ## Adoption test
 

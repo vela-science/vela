@@ -1,8 +1,8 @@
 //! Closed, dependency-free repository authorization values.
 //!
-//! Authorization answers whether an authenticated human may request one exact
-//! repository-authority action. It never verifies scientific evidence, makes a
-//! human Decision, or changes Standing.
+//! Authorization answers whether an authenticated principal may request one
+//! exact repository-authority action. It never verifies scientific evidence,
+//! chooses a Decision, or changes Standing.
 
 use std::collections::BTreeMap;
 
@@ -10,7 +10,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::canonical::sha256_canonical;
-use crate::principal::PrincipalClass;
+use crate::principal::{PrincipalClass, principal_class_may_request};
 
 pub const AUTHORIZATION_PROFILE_V1: &str = "vela.repository-authorization.v1";
 pub const AUTHORIZATION_MODEL_SCHEMA_V1: &str = "vela.authorization-model.v1";
@@ -41,6 +41,17 @@ pub enum AuthorityActionV1 {
 }
 
 impl AuthorityActionV1 {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::AuthorityInitialize => "authority_initialize",
+            Self::AuthorityRotate => "authority_rotate",
+            Self::AuthorityClose => "authority_close",
+            Self::AuthorityModelUpdate => "authority_model_update",
+            Self::ReviewAccept => "review_accept",
+            Self::ReviewReject => "review_reject",
+        }
+    }
+
     pub fn required_role(self) -> AuthorityRoleV1 {
         match self {
             Self::AuthorityInitialize
@@ -119,8 +130,13 @@ impl AuthorizationModelV1 {
                 &member.principal_id,
                 2048,
             )?;
-            if member.principal_class != PrincipalClass::Human {
-                return Err("repository-authority membership is human-only".into());
+            if !matches!(
+                member.principal_class,
+                PrincipalClass::Human | PrincipalClass::Agent
+            ) {
+                return Err(
+                    "repository-authority membership supports human or agent principals".into(),
+                );
             }
             if let Some(principal_class) =
                 principal_classes.insert(member.principal_id.as_str(), member.principal_class)
@@ -425,12 +441,6 @@ pub fn evaluate_authorization_v1(
             AuthorizationReasonV1::ResourceRepositoryMismatch,
             None,
         )
-    } else if request.principal_class != PrincipalClass::Human {
-        (
-            AuthorizationDecisionV1::Deny,
-            AuthorizationReasonV1::PrincipalClassMismatch,
-            None,
-        )
     } else if request.recovery_recent {
         (
             AuthorizationDecisionV1::Deny,
@@ -443,22 +453,30 @@ pub fn evaluate_authorization_v1(
             AuthorizationReasonV1::ResourceTypeMismatch,
             None,
         )
+    } else if !principal_class_may_request(request.principal_class, request.action.as_str()) {
+        (
+            AuthorizationDecisionV1::Deny,
+            AuthorizationReasonV1::PrincipalClassMismatch,
+            None,
+        )
     } else {
-        let members = model
+        let same_id = model
             .members
             .iter()
             .filter(|member| member.principal_id == request.principal_id)
             .collect::<Vec<_>>();
-        if members.is_empty() {
+        let members = same_id
+            .iter()
+            .copied()
+            .filter(|member| member.principal_class == request.principal_class)
+            .collect::<Vec<_>>();
+        if same_id.is_empty() {
             (
                 AuthorizationDecisionV1::Deny,
                 AuthorizationReasonV1::UnknownMember,
                 None,
             )
-        } else if members
-            .iter()
-            .all(|member| member.principal_class != request.principal_class)
-        {
+        } else if members.is_empty() {
             (
                 AuthorizationDecisionV1::Deny,
                 AuthorizationReasonV1::PrincipalClassMismatch,
@@ -570,14 +588,19 @@ mod tests {
     }
 
     #[test]
-    fn model_requires_sorted_human_members() {
+    fn model_requires_sorted_human_or_agent_members() {
         let mut unsorted = model();
         unsorted.members.swap(0, 1);
         assert!(unsorted.validate().unwrap_err().contains("strictly sorted"));
 
         let mut machine = model();
         machine.members[0].principal_class = PrincipalClass::Agent;
-        assert!(machine.validate().unwrap_err().contains("human-only"));
+        machine.members[1].principal_class = PrincipalClass::Agent;
+        machine.validate().unwrap();
+
+        let mut workload = model();
+        workload.members[0].principal_class = PrincipalClass::Workload;
+        assert!(workload.validate().unwrap_err().contains("human or agent"));
     }
 
     #[test]
@@ -708,6 +731,32 @@ mod tests {
         machine.principal_class = PrincipalClass::Agent;
         assert_eq!(
             evaluate_authorization_v1(&model, &machine).unwrap().reason,
+            AuthorizationReasonV1::PrincipalClassMismatch
+        );
+
+        let mut agent_model = closed_model();
+        for member in &mut agent_model.members {
+            member.principal_id = "agent:repository-reviewer".into();
+            member.principal_class = PrincipalClass::Agent;
+        }
+        let mut agent_request = closed_request(&agent_model);
+        agent_request.principal_id = "agent:repository-reviewer".into();
+        agent_request.principal_class = PrincipalClass::Agent;
+        let agent = evaluate_authorization_v1(&agent_model, &agent_request).unwrap();
+        assert_eq!(agent.decision, AuthorizationDecisionV1::Allow);
+        assert_eq!(agent.matched_role, Some(AuthorityRoleV1::Reviewer));
+
+        let mut agent_governance = agent_request.clone();
+        agent_governance.action = AuthorityActionV1::AuthorityModelUpdate;
+        agent_governance.resource = AuthorizationResourceV1 {
+            repository_id: "11111111-1111-4111-8111-111111111111".into(),
+            resource_type: AuthorityResourceTypeV1::Repository,
+            resource_id: "11111111-1111-4111-8111-111111111111".into(),
+        };
+        assert_eq!(
+            evaluate_authorization_v1(&agent_model, &agent_governance)
+                .unwrap()
+                .reason,
             AuthorizationReasonV1::PrincipalClassMismatch
         );
 

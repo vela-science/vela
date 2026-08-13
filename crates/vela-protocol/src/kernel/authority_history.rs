@@ -354,7 +354,7 @@ pub fn verify_authority_history(
                 }
                 let event = era_one_by_id[event_id];
                 if event.content.principal_id != verified.record.content.principal.principal_id
-                    || event.content.actor.id != event.content.principal_id
+                    || !event_performer_matches_record(&verified, event)
                 {
                     return Err(format!(
                         "authority event {event_id} attribution does not match its authority record"
@@ -466,6 +466,52 @@ pub fn verify_authority_history(
         closed,
         closure_event_id,
     })
+}
+
+fn event_performer_matches_record(
+    verified: &VerifiedAuthorityRecord,
+    event: &AuthorityEventV1,
+) -> bool {
+    if event.content.actor.id == event.content.principal_id {
+        return true;
+    }
+    if !matches!(event.content.actor.r#type.as_str(), "human" | "agent")
+        || verified.record.content.semantic_approvals.len() != 1
+        || !matches!(
+            verified.record.content.semantic_approvals[0]
+                .action
+                .as_str(),
+            "review_accept" | "review_reject"
+        )
+    {
+        return false;
+    }
+    let Some(provenance) = event.content.payload.get("decision_performer") else {
+        return false;
+    };
+    provenance.get("schema").and_then(serde_json::Value::as_str)
+        == Some("vela.decision-performer.v1")
+        && provenance
+            .get("actor_id")
+            .and_then(serde_json::Value::as_str)
+            == Some(event.content.actor.id.as_str())
+        && provenance
+            .get("actor_class")
+            .and_then(serde_json::Value::as_str)
+            == Some(event.content.actor.r#type.as_str())
+        && provenance
+            .get("authority_principal_id")
+            .and_then(serde_json::Value::as_str)
+            == Some(event.content.principal_id.as_str())
+        && provenance.get("session_ref").is_some_and(|value| {
+            value.is_null()
+                || value.as_str().is_some_and(|reference| {
+                    !reference.trim().is_empty()
+                        && reference == reference.trim()
+                        && reference.len() <= 2048
+                        && !reference.chars().any(char::is_control)
+                })
+        })
 }
 
 fn index_authority_keysets<'a>(

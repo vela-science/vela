@@ -61,10 +61,13 @@ vela reproduce .
 
 ## Authority boundary
 
-Agents and producers do not run `vela review accept` or
-`vela review reject`, access repository-authority credentials, mint a
-Verification Record for their own output, or describe Git publication as
-scientific acceptance.
+Producing evidence does not itself authorize acceptance. A human or agent may
+run `vela review accept|reject` only when selected as the Decision performer
+under the Repository's retained policy. The performer records `--as
+human:<id>` or `--as agent:<id>` and, for agents, SHOULD bind a source-owned
+`--session-ref`. Performers do not access or copy Repository-authority
+credentials, mint an independent Verification Record for their own output, or
+describe Git publication as scientific acceptance.
 
 `vela init` creates the structural Profile and establishes the repository
 boundary in one command. A failed signing attempt remains resumable by rerunning

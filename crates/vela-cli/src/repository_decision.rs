@@ -1,8 +1,9 @@
 //! Repository review decisions.
 //!
-//! A human supplies the exact semantic command and is authenticated by the
-//! local operating-system session. Repository authority signs the covering
-//! transaction. No human scientific key is read.
+//! A human or agent supplies the exact semantic command and is recorded as the
+//! performer. The local operating-system session authenticates the repository
+//! authority principal, and repository authority signs the covering
+//! transaction. The performer never receives a separate scientific key.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -75,11 +76,64 @@ pub(crate) struct ReviewDecisionPlan {
     pub(crate) verification_set_root: String,
     pub(crate) action: String,
     pub(crate) reason: String,
+    pub(crate) actor_id: String,
+    pub(crate) actor_class: String,
+    pub(crate) session_ref: Option<String>,
     pub(crate) principal_id: String,
     pub(crate) observed_at: String,
     pub(crate) authority_event_log_root: String,
     pub(crate) model_root: String,
     pub(crate) plan_root: String,
+}
+
+fn resolve_decision_actor(
+    explicit_actor: Option<&str>,
+    local_principal_id: &str,
+) -> Result<(String, String), String> {
+    let actor_id = explicit_actor
+        .map(str::to_owned)
+        .or_else(|| std::env::var("VELA_ACTOR_ID").ok())
+        .unwrap_or_else(|| local_principal_id.to_owned());
+    if actor_id.trim().is_empty()
+        || actor_id != actor_id.trim()
+        || actor_id.chars().any(char::is_control)
+    {
+        return Err("Decision actor must be non-empty, trimmed text".into());
+    }
+    if actor_id.len() > 2048 {
+        return Err("Decision actor exceeds 2048 bytes".into());
+    }
+    let actor_class = if actor_id.starts_with("agent:") {
+        "agent"
+    } else if actor_id.starts_with("human:")
+        || actor_id.starts_with("reviewer:")
+        || actor_id.starts_with("local:")
+    {
+        "human"
+    } else {
+        return Err(
+            "Decision actor must use agent:, human:, reviewer:, or local: identity syntax".into(),
+        );
+    };
+    Ok((actor_id, actor_class.into()))
+}
+
+fn resolve_session_ref(explicit: Option<&str>) -> Result<Option<String>, String> {
+    let reference = explicit
+        .map(str::to_owned)
+        .or_else(|| std::env::var("VELA_SESSION_REF").ok());
+    if let Some(reference) = &reference {
+        if reference.trim().is_empty()
+            || reference != reference.trim()
+            || reference.chars().any(char::is_control)
+        {
+            return Err("Decision session reference must be non-empty, trimmed text".into());
+        }
+        if reference.len() > 2048 {
+            return Err("Decision session reference exceeds 2048 bytes".into());
+        }
+    }
+    Ok(reference)
 }
 
 pub(crate) struct PreparedReviewDecision {
@@ -345,6 +399,8 @@ pub(crate) fn prepare(
     action: DecisionAction,
     reason: &str,
     observed_at: &str,
+    explicit_actor: Option<&str>,
+    explicit_session_ref: Option<&str>,
 ) -> Result<PreparedReviewDecision, String> {
     if reason.trim().is_empty() || reason != reason.trim() {
         return Err("current review reason must be non-empty trimmed text".into());
@@ -402,6 +458,8 @@ pub(crate) fn prepare(
             .map_err(|error| format!("read repository profile: {error}"))?,
     )?;
     let local = crate::cli::local_session(observed_at)?;
+    let (actor_id, actor_class) = resolve_decision_actor(explicit_actor, &local.principal_id)?;
+    let session_ref = resolve_session_ref(explicit_session_ref)?;
     let mut plan = ReviewDecisionPlan {
         schema: PLAN_SCHEMA.into(),
         repository_id: repository.repository_id.clone(),
@@ -419,6 +477,9 @@ pub(crate) fn prepare(
         }
         .into(),
         reason: reason.into(),
+        actor_id,
+        actor_class,
+        session_ref,
         principal_id: local.principal_id,
         observed_at: observed_at.into(),
         authority_event_log_root: authority.verification.final_event_log_root.clone(),
@@ -447,11 +508,21 @@ pub(crate) fn prepare_locked(
     action: DecisionAction,
     reason: &str,
     observed_at: &str,
+    explicit_actor: Option<&str>,
+    explicit_session_ref: Option<&str>,
 ) -> Result<(PreparedReviewDecision, RepositoryRecoveryBarrier), String> {
     let journal_dir = crate::repository_ops::repository_transaction_journal_dir(repository_path)?;
     let barrier = RepositoryTxn::acquire_recovery_barrier(repository_path, &journal_dir)
         .map_err(|error| error.to_string())?;
-    let prepared = prepare(repository_path, proposal_id, action, reason, observed_at)?;
+    let prepared = prepare(
+        repository_path,
+        proposal_id,
+        action,
+        reason,
+        observed_at,
+        explicit_actor,
+        explicit_session_ref,
+    )?;
     Ok((prepared, barrier))
 }
 
@@ -557,9 +628,16 @@ fn decision_events(
     recorded_at: &str,
 ) -> Result<Vec<AuthorityEventDraft>, String> {
     let actor = StateActor {
-        r#type: "human".into(),
-        id: plan.principal_id.clone(),
+        r#type: plan.actor_class.clone(),
+        id: plan.actor_id.clone(),
     };
+    let provenance = json!({
+        "schema": "vela.decision-performer.v1",
+        "actor_id": plan.actor_id,
+        "actor_class": plan.actor_class,
+        "session_ref": plan.session_ref,
+        "authority_principal_id": plan.principal_id,
+    });
     if action == DecisionAction::Reject {
         return Ok(vec![AuthorityEventDraft {
             kind: EventKind::ReviewRejected,
@@ -578,6 +656,7 @@ fn decision_events(
                 "verdict": "rejected",
                 "repository_before": plan.repository_root,
                 "repository_after": next_repository_root,
+                "decision_performer": provenance,
             }),
             caveats: Vec::new(),
         }]);
@@ -637,6 +716,7 @@ fn decision_events(
             "proposal_id": proposal.id(),
             "repository_before": plan.repository_root,
             "repository_after": next_repository_root,
+            "decision_performer": provenance,
         }),
         caveats: proposal.caveats.clone(),
     };
@@ -659,6 +739,7 @@ fn decision_events(
             "applied_event_id": applied_event_id,
             "repository_before": plan.repository_root,
             "repository_after": next_repository_root,
+            "decision_performer": provenance,
         }),
         caveats: Vec::new(),
     };
@@ -1099,6 +1180,9 @@ mod tests {
             verification_set_root: root('6'),
             action: "review_accept".into(),
             reason: "Accept the exact fixture evidence.".into(),
+            actor_id: "agent:fixture-reviewer".into(),
+            actor_class: "agent".into(),
+            session_ref: Some("entire:checkpoint:fixture".into()),
             principal_id: "local:fixture".into(),
             observed_at: "2026-07-27T00:00:04Z".into(),
             authority_event_log_root: root('7'),
@@ -1304,10 +1388,35 @@ mod tests {
             |plan: &mut ReviewDecisionPlan| plan.reason = "Another reason.".into(),
             |plan: &mut ReviewDecisionPlan| plan.observed_at = "2026-07-27T00:00:05Z".into(),
             |plan: &mut ReviewDecisionPlan| plan.claim_root = root('9'),
+            |plan: &mut ReviewDecisionPlan| plan.actor_id = "human:fixture".into(),
+            |plan: &mut ReviewDecisionPlan| plan.actor_class = "human".into(),
+            |plan: &mut ReviewDecisionPlan| plan.session_ref = None,
         ] {
             let mut changed = baseline.clone();
             mutate(&mut changed);
             assert_ne!(plan_root(&changed).unwrap(), baseline.plan_root);
+        }
+    }
+
+    #[test]
+    fn decision_actor_and_session_provenance_fail_closed() {
+        assert_eq!(
+            resolve_decision_actor(Some("agent:fixture"), "local:fixture").unwrap(),
+            ("agent:fixture".into(), "agent".into())
+        );
+        assert_eq!(
+            resolve_decision_actor(Some("human:fixture"), "local:fixture").unwrap(),
+            ("human:fixture".into(), "human".into())
+        );
+        for invalid in ["", "agent:fixture ", "model:fixture", "agent:\nfixture"] {
+            assert!(resolve_decision_actor(Some(invalid), "local:fixture").is_err());
+        }
+        assert_eq!(
+            resolve_session_ref(Some("entire:checkpoint:fixture")).unwrap(),
+            Some("entire:checkpoint:fixture".into())
+        );
+        for invalid in ["", " session", "session ", "session\nref"] {
+            assert!(resolve_session_ref(Some(invalid)).is_err());
         }
     }
 
@@ -1334,6 +1443,12 @@ mod tests {
         assert_eq!(events.len(), 2);
         assert_eq!(events[0].kind, EventKind::ClaimAsserted);
         assert_eq!(events[1].kind, EventKind::ReviewAccepted);
+        assert_eq!(events[0].actor.r#type, "agent");
+        assert_eq!(events[0].actor.id, "agent:fixture-reviewer");
+        assert_eq!(
+            events[1].payload["decision_performer"]["session_ref"],
+            "entire:checkpoint:fixture"
+        );
         assert_eq!(
             events[1].payload["applied_event_id"],
             semantic_event_id(&events[0])

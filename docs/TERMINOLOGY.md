@@ -237,8 +237,9 @@ Submission whose requested change binds the exact historical Claim ID and full
 Claim Record root. It never edits the prior Submission, Event, Claim Record, or
 Decision.
 
-An acceptance must name the exact Proposal, authorized human principal,
-Repository authority, Event, and before/after state roots.
+An acceptance must name the exact Proposal, attributed human or agent
+performer, authorized Repository authority principal, Event, and before/after
+state roots.
 
 ## Lifecycle vocabularies
 

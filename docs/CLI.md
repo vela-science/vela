@@ -1,8 +1,8 @@
 # Vela CLI
 
 Vela is a Git-native scientific-state tool. Producers submit evidence,
-verifiers report scoped results, only an authorized human Decision changes
-Standing, and Git preserves the exact repository history.
+verifiers report scoped results, only an authorized, attributed Decision
+changes Standing, and Git preserves the exact repository history.
 
 ## Ordinary workflow
 
@@ -297,12 +297,14 @@ Entries whose protocol checks are satisfied appear before blocked cleanup;
 each group remains oldest-first. `status` reports `protocol_ready_count` and
 `protocol_blocked_count`; neither field is a scientific recommendation.
 
-An authorized human performs one semantic action:
+An authorized human or agent performer performs one semantic action:
 
 ```bash
 vela review reject . <vpr_id> \
   --if-entry-root sha256:<entry-root-from-review-show> \
   --reason "The retained evidence does not satisfy the stated conditions." \
+  --as agent:<name> \
+  --session-ref entire:checkpoint:<id> \
   --json
 ```
 
@@ -312,19 +314,23 @@ or, when eligible:
 vela review accept . <vpr_id> \
   --if-entry-root sha256:<entry-root-from-review-show> \
   --reason "The exact claim, evidence, verification, and conditions support acceptance." \
+  --as human:<name> \
   --json
 ```
 
 `--if-entry-root` is an optional compare-and-swap guard over the exact Decision
-Inbox packet the human inspected. Observatory and automated review surfaces
+Inbox packet the performer inspected. Observatory and automated review surfaces
 should always pass it. If the Proposal, evidence, policy, authority head, or
 Standing changed, Vela refuses the command before requesting an authority
 signature. A person working entirely in one terminal may omit it; the Decision
 transaction still re-prepares and fail-closes against the current repository.
+`--as` records the performer; `--session-ref` optionally binds its source-owned
+session or checkpoint. `VELA_ACTOR_ID` and `VELA_SESSION_REF` are equivalent
+integration inputs.
 
 The action, reason, principal, Proposal, policy, authority head, read set, and
 canonical delta are covered by one repository-authority transaction. There is
-no batch mode, copied confirmation root, custom signer, or Vela-managed human
+no batch mode, copied confirmation root, custom signer, or Vela-managed personal
 key. Load the dedicated authority key once for the current operating-system
 session (`ssh-add --apple-use-keychain` on macOS or `ssh-add -t 8h` on Linux).
 Vela does not require OpenSSH's per-signature `-c` confirmation.
