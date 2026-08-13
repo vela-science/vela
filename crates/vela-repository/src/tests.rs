@@ -16,6 +16,27 @@ fn fixture_root(byte: char) -> String {
     format!("sha256:{}", byte.to_string().repeat(64))
 }
 
+#[test]
+fn release_0972_repository_binding_retains_its_rooted_legacy_field() {
+    let value = json!({
+        "canonical_root": "/exact/repository",
+        "layout_root": fixture_root('a'),
+        "repository_id": TEST_REPOSITORY_ID,
+    });
+    let binding: RepositoryBinding = serde_json::from_value(value.clone()).unwrap();
+    assert_eq!(binding.repository_id(), TEST_REPOSITORY_ID);
+    assert_eq!(serde_json::to_value(binding).unwrap(), value);
+
+    let current = RepositoryBinding::new(Path::new("."), TEST_REPOSITORY_ID).unwrap();
+    assert!(
+        !serde_json::to_value(current)
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .contains_key("layout_root")
+    );
+}
+
 fn fixture_plan(root: &Path, draft: &DeltaDraft, identity: &[u8]) -> RepositoryTxnPlan {
     let operation_id = OperationId::derive("submission", identity);
     let request_root = ContentDigest::hash(identity);
@@ -589,6 +610,7 @@ fn post_phase_one_transaction_wire_fixture_is_byte_exact() {
             repository: RepositoryBinding {
                 canonical_root: "/__vela_repository_txn_wire_fixture__/repository".into(),
                 repository_id: "33333333-3333-4333-8333-333333333333".into(),
+                legacy_layout_root: None,
             },
             fixed_time: "2026-08-10T00:00:00Z".into(),
             read_set: vec![

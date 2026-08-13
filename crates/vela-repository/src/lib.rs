@@ -529,6 +529,12 @@ impl DeltaDraft {
 pub struct RepositoryBinding {
     canonical_root: String,
     repository_id: String,
+    #[serde(
+        default,
+        rename = "layout_root",
+        skip_serializing_if = "Option::is_none"
+    )]
+    legacy_layout_root: Option<ContentDigest>,
 }
 
 const MAX_REPOSITORY_ID_BYTES: usize = 256;
@@ -543,6 +549,7 @@ impl RepositoryBinding {
         let binding = Self {
             canonical_root: root.to_string_lossy().into_owned(),
             repository_id,
+            legacy_layout_root: None,
         };
         binding.verify_shape()?;
         Ok(binding)
