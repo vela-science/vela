@@ -98,7 +98,7 @@
     ],
     "release": {
       "toolchain_channel": "1.97.1",
-      "version": "0.975.0"
+      "version": "0.975.1"
     },
     "repository": "vela-science/vela",
     "surfaces": {

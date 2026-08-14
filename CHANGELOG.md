@@ -10,6 +10,16 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+## 0.975.1
+
+- **Superseded Claims now report their current Standing.** `vela why` and
+  `vela show` give an admitted predecessor supersession precedence over the
+  retained accepted Proposal that first introduced it. Machine output keeps
+  current Claim Standing (`superseded`) distinct from historical Proposal
+  status (`accepted`), and human output names the exact successor Claim. This
+  is a read-projection repair; it changes no Protocol 1 object, Decision,
+  authority rule, Event, accepted set, or repository root.
+
 ## 0.975.0
 
 - **Native repositories have one stable, non-authoritative integration

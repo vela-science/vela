@@ -4,12 +4,12 @@ Vela has two related but distinct release surfaces:
 
 - **Protocol 1** is the current release-candidate specification, schemas,
   conformance vectors, and independent readers.
-- **Vela 0.975.0** is the current signed pre-1.0 implementation release. It
-  adds structural checking and exact inventory inspection for the stable
-  package-plane native-integration waist while retaining capability-authorized
-  human and agent Decision performers and exact provenance.
+- **Vela 0.975.1** is the current signed pre-1.0 implementation release. It
+  reports a superseded Claim's current Standing distinctly from the historical
+  accepted status of the Proposal that first admitted it, while retaining the
+  stable package-plane native-integration waist and exact provenance.
 
-The latest signed published release is `v0.975.0`. User-facing installer
+The latest signed published release is `v0.975.1`. User-facing installer
 examples pin that exact tag rather than following a moving branch.
 
 `vela integration check` validates the shared Manifest, Profile, Binding,
