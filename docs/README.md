@@ -47,6 +47,7 @@
 - [Genesis: open models and the scientific-state control point](integrations/genesis-open-models.md)
 - [Native repository integration draft v0.1](integrations/native-repository-integration-v0.1.md)
 - [Non-normative integration-profile template](integrations/integration-profile-template.md)
+- [Phase 1 native consumer comparison, 2026-08-14](integrations/phase-one-native-consumer-comparison-2026-08-14.md)
 - [Roadmap](ROADMAP.md)
 - [Interoperability boundary](INTEROPERABILITY.md)
 - [Protocol adoption and interoperability](PROTOCOL_ADOPTION.md)
