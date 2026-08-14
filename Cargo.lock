@@ -1470,24 +1470,9 @@ dependencies = [
  "unicode-normalization",
  "uuid",
  "vela-authority",
- "vela-edge",
  "vela-protocol",
  "vela-repository",
  "vela-verify",
-]
-
-[[package]]
-name = "vela-edge"
-version = "0.975.1"
-dependencies = [
- "ed25519-dalek",
- "hex",
- "rand_core",
- "serde",
- "serde_json",
- "sha2",
- "unicode-normalization",
- "vela-protocol",
 ]
 
 [[package]]

@@ -424,20 +424,21 @@ cross-machine performance claim.
 
 ## 5. Implementation
 
-Vela is a Rust workspace with four separable layers:
+Vela's Rust product path has four separable implementation boundaries:
 
 ```text
 vela-protocol   canonical public objects and validation
 vela-authority  policy, authentication adapters, and authority replay
-vela-edge       replaceable Git/filesystem and derived analysis adapters
-vela-cli        porcelain and repository transactions
+vela-repository policy-neutral durable transactions and recovery
+vela-cli        porcelain, write policy, publication, and sole-consumer adapters
 ```
 
 Canopus `0.8.0` is retained historical evidence from the earlier producer
-harness. The current workspace keeps one internal TypeScript reader for
-cross-language object conformance. Neither is required for canonical replay.
+harness. `vela-verify` remains separate package-plane compatibility code. The
+current workspace keeps one internal TypeScript reader for cross-language
+object conformance. None is required for canonical replay.
 
-The correction-impact reference reader is Rust in `vela-edge`. The clean-room
+The correction-impact reference reducer is Rust in `vela-cli`. The clean-room
 reader is independently implemented Python and imports no Rust implementation.
 Both consume the same public JSON fixture bytes.
 
@@ -1216,7 +1217,7 @@ reader should be deleted rather than promoted into a protocol primitive.
 Current implementation qualification:
 
 ```bash
-cargo test -p vela-edge --test correction_impact
+cargo test -p vela-cli correction_impact::reducer_tests
 uv run --project conformance --locked python \
   conformance/verify_correction_impact.py
 uv run --project conformance --locked python \

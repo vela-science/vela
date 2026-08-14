@@ -1,6 +1,6 @@
 //! `vela correction impact` — what one correction costs the Claims that rest on it.
 //!
-//! `vela-edge`'s `correction_impact` module has implemented
+//! The CLI-owned correction-impact reducer implements
 //! `vela.correction-impact-projection.v1` — dependency traversal, lost and
 //! surviving support routes, repair obligations — since it was written, and
 //! until now nothing reached it. Its only caller was a test holding synthetic
@@ -91,16 +91,22 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use serde::Serialize;
-use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
-use vela_edge::correction_impact::{
+use self::reducer::{
     ClaimRef, CorrectionBounds, CorrectionClaim, CorrectionImpactInputV1, CorrectionRelation,
     CorrectionRelationRule, CorrectionTransition, correction_impact_projection_root,
     derive_correction_impact,
 };
+use serde::Serialize;
+use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use vela_protocol::claim_record::{CORRECTION_RELATION_KINDS, ClaimRecordV1};
 use vela_protocol::repository::ClaimStandingRefV1;
+
+#[cfg(test)]
+mod claim_dependency_profile_v0_tests;
+mod reducer;
+#[cfg(test)]
+mod reducer_tests;
 
 #[derive(Debug)]
 pub(crate) struct CorrectionImpactError {
@@ -181,13 +187,7 @@ pub(crate) fn cmd_correction_impact(repository_path: &Path, claim_arg: &str, jso
 pub(crate) fn correction_impact_payload(
     repository_path: &Path,
     claim_arg: &str,
-) -> Result<
-    (
-        Value,
-        vela_edge::correction_impact::CorrectionImpactProjectionV1,
-    ),
-    CorrectionImpactError,
-> {
+) -> Result<(Value, reducer::CorrectionImpactProjectionV1), CorrectionImpactError> {
     let repository_path = crate::ui::canonicalize_repo(repository_path);
 
     let repository = crate::repository::load_repository_at(&repository_path, true)?;
@@ -347,7 +347,7 @@ pub(crate) fn correction_impact_payload(
         .collect::<Vec<_>>();
 
     let input = CorrectionImpactInputV1 {
-        schema: vela_edge::correction_impact::CORRECTION_IMPACT_INPUT_SCHEMA_V1.to_string(),
+        schema: reducer::CORRECTION_IMPACT_INPUT_SCHEMA_V1.to_string(),
         /* The schema calls this `fixture_id` because its only producer until
         now was a fixture. The field is an opaque identity for the input, so a
         repository names itself and the correction it is being asked about. */
@@ -567,10 +567,7 @@ fn read_retained_claim(repository_path: &Path, claim_id: &str) -> Result<HeldCla
     }
 }
 
-fn render(
-    payload: &Value,
-    projection: &vela_edge::correction_impact::CorrectionImpactProjectionV1,
-) {
+fn render(payload: &Value, projection: &reducer::CorrectionImpactProjectionV1) {
     println!(
         "correction impact · {} · {}",
         projection.transition.kind,

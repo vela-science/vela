@@ -1,12 +1,12 @@
-use sha2::{Digest, Sha256};
-use vela_edge::correction_impact::{
+use super::reducer::{
     CorrectionImpactInputV1, CorrectionImpactProjectionV1, correction_impact_projection_root,
     derive_correction_impact,
 };
+use sha2::{Digest, Sha256};
 
 fn fixture() -> CorrectionImpactInputV1 {
     serde_json::from_str(include_str!(
-        "../../../conformance/fixtures/correction/diamond-input.json"
+        "../../../../conformance/fixtures/correction/diamond-input.json"
     ))
     .expect("parse correction fixture")
 }
@@ -54,7 +54,7 @@ fn apply_mutation(
                 .retain(|relation| relation.relation_id != mutation["relation_id"]);
         }
         "add_connected_cycle" => {
-            use vela_edge::correction_impact::CorrectionRelation;
+            use super::reducer::CorrectionRelation;
             input.relations.extend([
                 CorrectionRelation {
                     relation_id: "relation-b-depends-on-c".to_string(),
@@ -88,7 +88,7 @@ fn apply_mutation(
 fn correction_impact_preserves_the_independent_route_and_opens_one_repair() {
     let projection = derive_correction_impact(&fixture()).expect("derive correction impact");
     let expected: serde_json::Value = serde_json::from_str(include_str!(
-        "../../../conformance/fixtures/correction/diamond-expected.json"
+        "../../../../conformance/fixtures/correction/diamond-expected.json"
     ))
     .expect("parse expected correction projection");
     let expected_projection: CorrectionImpactProjectionV1 =
@@ -186,7 +186,7 @@ fn adversarial_vectors_have_identical_bounded_outcomes() {
         ))
     );
     let vectors: serde_json::Value = serde_json::from_str(include_str!(
-        "../../../conformance/fixtures/correction/diamond-adversarial.json"
+        "../../../../conformance/fixtures/correction/diamond-adversarial.json"
     ))
     .expect("parse adversarial vectors");
     assert_eq!(vectors["schema"], "vela.correction-impact-adversarial.v1");

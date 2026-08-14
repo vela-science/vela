@@ -143,7 +143,7 @@ pub(crate) fn author_submission(
             ProducerCheck::new(method.to_string(), outcome.to_string())
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let key = vela_edge::agent_identity::agent_signing_key(actor)?;
+    let key = crate::agent_identity::agent_signing_key(actor)?;
     let identity = SignerIdentityV1::new(
         actor.to_string(),
         ActorClass::Agent,

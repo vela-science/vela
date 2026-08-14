@@ -563,7 +563,7 @@ pub(crate) fn author_record(
     }
 
     let observed_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
-    let key = vela_edge::agent_identity::agent_signing_key(actor)?;
+    let key = crate::agent_identity::agent_signing_key(actor)?;
     let identity = SignerIdentityV1::new(actor, actor_class, &key, observed_at.clone())?;
     VerificationRecordEnvelopeV2::seal(
         VerificationRecordDraft {

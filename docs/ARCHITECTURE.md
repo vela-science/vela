@@ -214,18 +214,19 @@ trust pin. No signer or write authorization participates. `vela recover`
 merely names that later exact `vela init` action and never performs the tail.
 The private `vela-cli` `config::authority_trust` module owns the trust schema,
 OS-account-local path, exact loading, installation, and rebind. Those mechanics
-are neither derived `vela-edge` analysis nor `vela-repository` transaction state.
+are neither CLI-owned derived analysis nor `vela-repository` transaction state.
 
 The three `WriteClass` spellings remain frozen journal vocabulary because
 renaming them would change durable roots. The runtime orders those labels but
 does not attach Vela authority or scientific meaning to them.
 
 `vela-authority` remains the restricted authorization and service-signing
-implementation, `vela-edge` remains derived read machinery and small
-non-authoritative process adapters, and `vela-verify` remains package-plane
-compatibility code outside the semantic kernel. All are internal implementation
-crates released through the single `vela` product identity; the crate split
-creates neither a plugin system nor another public product.
+implementation, and `vela-verify` remains package-plane compatibility code
+outside the semantic kernel. Derived correction analysis and small
+non-authoritative process adapters live directly with their sole `vela-cli`
+consumer. All workspace crates are internal implementation boundaries released
+through the single `vela` product identity; the crate split creates neither a
+plugin system nor another public product.
 
 Mathematics is the first complete domain proving ground, not a second Kernel.
 Lean and other proof assistants retain proof checking, native package managers

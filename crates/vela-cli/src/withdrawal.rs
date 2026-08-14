@@ -214,7 +214,7 @@ pub(crate) fn withdraw(
     }
 
     let created_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
-    let key = vela_edge::agent_identity::existing_agent_signing_key(actor)?;
+    let key = crate::agent_identity::existing_agent_signing_key(actor)?;
     let withdrawal = ProposalWithdrawalEnvelopeV2::seal(
         &proposal,
         &submission,

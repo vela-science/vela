@@ -51,7 +51,7 @@ the schemas document structure and carry no authority or Standing effect.
 
 `fixtures/correction/diamond-input.json`,
 `diamond-expected.json`, and `diamond-adversarial.json` are synthetic
-conformance vectors only. They let the Rust reader in `vela-edge` and the
+conformance vectors only. They let the Rust reducer in `vela-cli` and the
 clean-room Python reader agree on exact bytes before a real correction fixture
 exists. They earn no scientific or protocol-breakthrough credit.
 

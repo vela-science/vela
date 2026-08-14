@@ -17,7 +17,7 @@
 //! after making one.
 //!
 //! The second half of this test is `vela correction impact`, which reaches
-//! `vela-edge`'s correction-impact derivation. Its interesting property here is
+//! the CLI-owned correction-impact reducer. Its interesting property here is
 //! that the projection root is identical before and after the Decision: the
 //! transition and the two Claim roots are what the projection is over, and
 //! ruling on it changes none of them. The verb resolves the predecessor from

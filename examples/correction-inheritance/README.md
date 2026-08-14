@@ -16,7 +16,7 @@ exercises hard dependencies, lost and surviving support routes, repair
 obligations, bounds, and fail-closed mutations in both implementations:
 
 ```bash
-cargo test --locked -p vela-edge --test correction_impact
+cargo test --locked -p vela-cli correction_impact::reducer_tests
 uv run --project conformance --locked \
   python conformance/verify_correction_impact.py
 ```

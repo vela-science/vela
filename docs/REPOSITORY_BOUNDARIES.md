@@ -47,8 +47,8 @@ write policy remains in `vela-cli`; canonical scientific semantics remain in
 
 The independently stored sequence-one trust pin is private `vela-cli` local
 configuration: its schema, OS-account path, loading, installation, and exact
-rebind live there. It is neither `vela-edge` analysis nor serialized transaction
-authority in `vela-repository`.
+rebind live there. It is neither CLI-owned derived analysis nor serialized
+transaction authority in `vela-repository`.
 
 The product exposes recovery only as
 `vela recover --repo <PATH> <OPERATION_ID>`. CLI code parses and renders that

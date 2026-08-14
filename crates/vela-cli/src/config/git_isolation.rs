@@ -1,4 +1,4 @@
-//! Shared ambient-process isolation for Git callers.
+//! Shared ambient-process isolation for CLI Git callers.
 //!
 //! An ordinary Git subprocess is not a trust boundary: inherited `GIT_*`
 //! variables and process configuration can redirect repository discovery,

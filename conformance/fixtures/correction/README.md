@@ -52,13 +52,13 @@ semantic rule substitution, and exceeded bounds are errors.
   `sha256:68a5094a5a98d60ab1d34c11c5306a202ea44d126f6dc95f33e20d31b5b1f8da`;
 - expected projection root:
   `sha256:935e084f8c5c45bcee234d2e9752062ba54493aa1b14f731e0efbbb1ecc01df6`;
-- Rust reader: `vela_edge::correction_impact`;
+- Rust reducer: `crates/vela-cli/src/correction_impact/reducer.rs`;
 - clean-room reader: `conformance/verify_correction_impact.py`.
 
 Run both:
 
 ```bash
-cargo test -p vela-edge --test correction_impact
+cargo test -p vela-cli correction_impact::reducer_tests
 python3 conformance/verify_correction_impact.py
 ```
 

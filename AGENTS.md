@@ -170,7 +170,6 @@ unaffected suites locally.
 - `vela-protocol`: current objects, canonicalization, roots, events, replay.
 - `vela-authority`: restricted authorization and repository service signing.
 - `vela-repository`: policy-neutral durable repository transactions and recovery.
-- `vela-edge`: derived views and adapters over canonical state.
 - `vela-cli`: the single user-facing product binary.
 - `vela-verify`: frozen package-plane witness compatibility outside the
   protocol and authority kernel.

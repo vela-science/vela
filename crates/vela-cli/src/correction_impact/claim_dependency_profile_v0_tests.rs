@@ -1,18 +1,18 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use serde_json::Value;
-use vela_edge::correction_impact::{
+use super::reducer::{
     ClaimRef, CorrectionBounds, CorrectionClaim, CorrectionImpactInputV1, CorrectionRelation,
     CorrectionRelationRule, CorrectionTransition, derive_correction_impact,
 };
+use serde_json::Value;
 use vela_protocol::{canonical, is_full_sha256_root, is_repository_id};
 
 const PROFILE: &[u8] =
-    include_bytes!("../../../conformance/experiments/claim-dependency-profile-v0/profile.json");
+    include_bytes!("../../../../conformance/experiments/claim-dependency-profile-v0/profile.json");
 const STATE: &[u8] =
-    include_bytes!("../../../conformance/experiments/claim-dependency-profile-v0/state.json");
+    include_bytes!("../../../../conformance/experiments/claim-dependency-profile-v0/state.json");
 const EXPECTED: &[u8] =
-    include_bytes!("../../../conformance/experiments/claim-dependency-profile-v0/expected.json");
+    include_bytes!("../../../../conformance/experiments/claim-dependency-profile-v0/expected.json");
 const REPAIR: &str = "Re-establish every exact requires edge against current accepted targets, narrow the Claim, or retract it.";
 
 fn parse(bytes: &[u8]) -> Value {

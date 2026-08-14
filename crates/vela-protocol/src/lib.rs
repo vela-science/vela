@@ -13,7 +13,7 @@ mod shape;
 /// were reachable from outside only through a one-line `pub fn` in
 /// `execution_binding` that existed for no other purpose — so the rule
 /// `shape.rs` was written to write down once was written down eleven more
-/// times, in two different spellings, in `vela-edge` and `vela-cli`.
+/// times, in two different spellings, above the protocol kernel.
 pub use shape::{
     HANDLE_HEX_LEN, REPOSITORY_ID_CONTRACT, derive_handle, is_full_sha256_root, is_lower_hex,
     is_lower_hex_64, is_prefixed_lower_hex, is_repository_id,

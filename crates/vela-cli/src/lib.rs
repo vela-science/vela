@@ -3,6 +3,7 @@
 // Keep the protocol crate read/replay focused. Product commands and concrete
 // repository write policy live here; the policy-neutral durability engine is
 // `vela-repository`. Vela exposes no server or workbench runtime.
+mod agent_identity;
 pub(crate) mod authority_transaction;
 mod bounded_file;
 pub(crate) mod claim_standing;

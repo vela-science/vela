@@ -1,4 +1,4 @@
-//! Experimental, non-authoritative correction-impact projection.
+//! Non-authoritative correction-impact reducer for the CLI projection.
 //!
 //! This reader deliberately consumes a closed, root-bound causal slice rather
 //! than interpreting a whole repository. It cannot write Standing, infer a

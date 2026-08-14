@@ -162,7 +162,7 @@ pub(crate) fn initialize_native_git_repository(path: &Path) -> Result<(), String
     let templates = tempfile::tempdir()
         .map_err(|error| format!("create empty trusted Git template directory: {error}"))?;
     let mut command = Command::new("git");
-    vela_edge::git::isolate_ambient(&mut command);
+    super::git_isolation::isolate_ambient(&mut command);
     command
         .current_dir(&root)
         .arg("--literal-pathspecs")
@@ -1348,7 +1348,7 @@ fn run_git_discovery(worktree: &Path, args: &[&str]) -> Result<std::process::Out
 
 fn isolated_git_command(repository: &GitRepository, index: Option<&Path>) -> Command {
     let mut command = Command::new("git");
-    vela_edge::git::isolate_ambient(&mut command);
+    super::git_isolation::isolate_ambient(&mut command);
 
     command
         .current_dir(&repository.worktree)

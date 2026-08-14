@@ -11,8 +11,8 @@ import sys
 REQUIRED = {
     "vela-authority",
     "vela-cli",
-    "vela-edge",
     "vela-protocol",
+    "vela-repository",
     "vela-verify",
 }
 

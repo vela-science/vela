@@ -315,7 +315,7 @@ not express at all.
 
 **Repair Obligation.** Less far along than this section used to say, and the
 error was worth more than the gap. The rooted projection identity is real:
-`crates/vela-edge/src/analysis/correction_impact.rs:124` declares
+`crates/vela-cli/src/correction_impact/reducer.rs` declares
 `RepairObligation`, and the root is computed over an `ObligationPreimage`
 carrying `schema: "vela.correction-repair-obligation.v1"`. The CLI exposes it
 inline in the correction-impact projection; no downstream product consumes it
@@ -337,7 +337,7 @@ accepted Claim index of a real Repository. The CLI consumes each
 `RepairObligation` as inline projection data, augments its JSON with
 `condition_source`, and renders the obligation count and source. No downstream
 product consumes it as an action contract. The Rust tests and clean-room reader
-remain `crates/vela-edge/tests/correction_impact.rs`,
+remain `crates/vela-cli/src/correction_impact/reducer_tests.rs`,
 `crates/vela-cli/tests/correction_impact.rs` and
 `conformance/verify_correction_impact.py`; the first and last run over
 synthetic fixtures.
@@ -348,11 +348,11 @@ act of documenting bytes that already exist. `schemas/` is defined
 mechanically as the kernel's generated wire surface: every file is produced by
 `wire_schema::published()` in `vela-protocol`, and
 `crates/vela-protocol/tests/wire_schemas.rs` asserts the directory holds that
-set exactly. `vela-protocol` cannot see `vela-edge` — §8's dependencies point
-one way — so a file in `schemas/` first requires moving the type into the
-kernel, and the kernel is where a canonical protocol object is defined. That is
-the promotion the standing rule withholds, arrived at through a directory
-rather than through a decision.
+set exactly. `vela-protocol` cannot see the CLI-owned reducer — §8's
+dependencies point one way — so a file in `schemas/` first requires moving the
+type into the kernel, and the kernel is where a canonical protocol object is
+defined. That is the promotion the standing rule withholds, arrived at through
+a directory rather than through a decision.
 
 Two further reasons. The preimage never travels: it exists to be hashed, and
 the document that does travel is `vela.correction-impact-projection.v1`, which
@@ -610,7 +610,7 @@ The three mechanisms that are built and are the defensible part:
    with at least one limitation required at `:242-250`). It changes no Standing.
    Only an attributed, authorized Decision does.
 2. **Correction deterministically partitions declared support edges.**
-   `crates/vela-edge/src/analysis/correction_impact.rs` partitions
+   `crates/vela-cli/src/correction_impact/reducer.rs` partitions
    `lost_support_routes` from `surviving_support_routes` and emits repair
    obligations. Those field names describe the reducer's treatment of declared
    edges; they do not establish route grouping, sufficiency, shared-premise
@@ -677,13 +677,11 @@ Packet, Frontier map, Attempt (ADR 0039 §5), and Registration Record (ADR
   package       crates/vela-verify
                   ↑ frozen witness reproduction compatibility; no authority
                     or Standing
-  analysis      crates/vela-edge
-                  ↑ replaceable derived views and process adapters; never
-                    required for replay
   operator      crates/vela-cli
                   ↑ 16 verbs: replay status claims log verification reproduce
                     correction integration recover authority init review show
-                    why submit completions
+                    why submit completions; also owns its sole-consumer derived
+                    correction reducer and process adapters
   readers       conformance/readers/python, conformance/readers/javascript,
                 conformance/emitters/javascript.mjs, conformance/emitters/python.py
                   ↑ independent implementations of the same bytes
@@ -692,15 +690,15 @@ Packet, Frontier map, Attempt (ADR 0039 §5), and Registration Record (ADR
   surfaces      vela-web/apps/observatory, vela-web/apps/www
 ```
 
-The compile-time graph is not one vertical product stack. `vela-authority`,
-`vela-repository`, and `vela-edge` each depend on `vela-protocol`;
-`vela-verify` is standalone; and `vela-cli` composes all five. The clean-room
+The compile-time graph is not one vertical product stack. `vela-authority` and
+`vela-repository` each depend on `vela-protocol`; `vela-verify` is standalone;
+and `vela-cli` composes all four. The clean-room
 readers implement the public bytes independently, and Web consumes committed
 roots. No reverse dependency is authorized. Concretely:
 
 - **No non-kernel implementation defines Standing.** Not the CLI, not a reader,
-  not `vela-edge`, not the projection, not a surface, not a package, not a
-  Source, not an agent, not a benchmark, not an authorization Allow. Only
+  not the correction reducer, not the projection, not a surface, not a package,
+  not a Source, not an agent, not a benchmark, not an authorization Allow. Only
   protocol admission of an attributed human or agent Decision records an Event from
   which replay derives Standing.
 - **`vela` must not depend on `vela-web`.** One documented leak:
@@ -719,8 +717,8 @@ roots. No reverse dependency is authorized. Concretely:
   browser; identity does.
 - **A Source may be referenced or snapshotted freely and admitted only through a
   Decision.** Enforced in SQL, §1.
-- **`vela-edge` is optional.** Deleting it must not affect replay of any
-  repository.
+- **CLI-owned derived analysis is optional.** Removing the correction reducer
+  or process adapters must not affect replay of any repository.
 - **Canonical replay must not depend on package, analysis, independent-reader,
   Web, Source, agent, benchmark or projection state.** The CLI invokes kernel
   validation over canonical Repository bytes; the durability runtime supplies

@@ -72,7 +72,7 @@ Advanced verification and integration:
 
 - `verification import` retains a non-authorizing scoped Verification Record.
 - `correction impact` projects what one correction costs the Claims resting on
-  it, through the correction-impact derivation in `vela-edge`. The argument is
+  it, through the CLI-owned correction-impact reducer. The argument is
   the successor — the Claim carrying `corrects` or `supersedes` — so the
   question can be asked of a correction still in the review queue as readily as
   of one already ruled on. It reads the two relation kinds that carry
