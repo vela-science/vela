@@ -70,8 +70,7 @@ required store; only the current Protocol defines those.
 | Correction | An append-only proposed or admitted change that preserves the prior Claim and Decision | Only its authorized Decision may change Standing |
 | Reassessment | A bounded review obligation after a basis changes, disclosing affected, unaffected, and basis-unavailable state | None; Standing changes only through a new Decision |
 | Atlas | A projection across Repositories, Sources, Problems and Frontiers | None |
-| Observatory | The first Atlas: a removable read-only projection | None |
-| Dossier | A root-bound reviewer-ready projection of one bounded question or proposed change | None; never replaces Decision |
+| Problems projection | The first-party, root-bound public read product over current scientific state | None |
 
 **A Frontier has no identifier.** It is a query, not an object: the Problems
 with open Obligations, or the Claims lacking Verification, or everything drawn
@@ -154,7 +153,7 @@ a reader meeting one in an older document knows it is not a current object.
 | Finding | accepted Claim |
 | Frontier Commit | the Decision, its Event, and the before/after roots |
 | Review Packet | the Proposal |
-| Frontier map | `vela status`, or the Observatory |
+| Frontier map | `vela status`, or a root-bound read projection |
 | Attempt | the workbench's own run identity, as provenance |
 | Registration Record | the signed Submission, which already binds every link it repeated (ADR 0033) |
 

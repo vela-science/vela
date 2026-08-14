@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://www.vela.space">Website</a> ·
-  <a href="https://app.vela.space">Observatory</a> ·
+  <a href="https://problems.science">Problems</a> ·
   <a href="docs/QUICKSTART.md">Quickstart</a> ·
   <a href="docs/ARCHITECTURE.md">Architecture</a> ·
   <a href="docs/REPOSITORY_BOUNDARIES.md">Repository boundaries</a> ·
@@ -69,9 +69,9 @@ The Vela Protocol is the narrow integrity layer: Claim records, authenticated
 Submissions, scoped Verification Records, Proposals, authorized Decisions,
 Events, exact roots, replay, and Standing. The wider Vela ecosystem includes
 native workbenches, source-owning Repositories, verifiers, and rebuildable read
-products. A Dossier is one such root-bound, reviewer-ready projection; it
-assembles evidence and limitations but is not a protocol object and cannot
-make a Decision.
+products. The Problems projection assembles exact scientific state, evidence,
+limitations, and next actions without becoming a protocol object or making a
+Decision.
 
 Its long-range direction is a federated inheritance layer for science:
 different workbenches can produce evidence, different verifiers can report
@@ -110,7 +110,7 @@ verifier ── Verification Record ──────────┤
                                     Event + Standing
                                           │
                                           ▼
-                                 read-only Observatory
+                                  read-only Problems
 ```
 
 Vela keeps four boundaries explicit:
@@ -131,11 +131,11 @@ it does not prove that a Claim is true.
 Install the current signed release:
 
 Vela supports Linux x86-64 and macOS Apple-silicon release bundles.
-Install the current signed release, `v0.976.0`.
+Install the current signed release, `v0.975.1`.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.976.0/install.sh | \
-  VELA_VERSION=v0.976.0 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.975.1/install.sh | \
+  VELA_VERSION=v0.975.1 bash
 vela --version
 ```
 

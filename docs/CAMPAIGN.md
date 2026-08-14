@@ -50,7 +50,7 @@ not active product surface.
 
 The public wedge must bind the same source commits, repository roots, Claims,
 Verifications, Decisions, source-local next obligations, and release root as
-the Observatory. The first foundry case must retain exact native checks,
+Problems. The first foundry case must retain exact native checks,
 statement-fidelity scope, dependencies, AI attribution, nonclaims, and
 requested maintainer decisions.
 

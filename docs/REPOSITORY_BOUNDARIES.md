@@ -8,7 +8,7 @@ mutable state into a second source of truth.
 | --- | --- | --- |
 | `vela` | Protocol semantics, Rust CLI and libraries, wire schemas, conformance fixtures, protocol-wide ADRs, release artifacts, and cross-repository evidence claims in the paper | Scientific-repository work packets, case-specific execution artifacts, scientific Decisions, web projection code, or deployment state |
 | Scientific repositories such as `vela-science/math` | Source locks, local admission policy, rooted work packets, Claims, Submissions, Verifications, Decisions, artifacts, replay state, and exact next obligations | Generic Vela protocol behavior, web rendering, or authority over another repository |
-| `vela-web` | Root-bound Dossier and other read projections, rendering, search, SELECT-only storage, deployment manifests, and product-qualification evidence | Scientific writers, authority credentials, inferred Standing, or duplicate canonical repository records |
+| `vela-web` | Root-bound Problems and other read projections, rendering, search, SELECT-only storage, deployment manifests, and product-qualification evidence | Scientific writers, authority credentials, inferred Standing, or duplicate canonical repository records |
 | Native source and execution repositories | Proofs, computations, datasets, model runs, and native package/toolchain state | Vela Standing or repository authority unless separately admitted through the protocol |
 | Memos | Research input and recommendations | Canonical product, protocol, or scientific state |
 

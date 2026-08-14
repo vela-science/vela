@@ -268,7 +268,7 @@ provider-coupled fallback refused.
 `v0.968.0` is immutable and unsigned and cannot be repaired; it stands as the
 last unsigned release.
 
-The current `v0.976.0` release follows the same signed-before-publication path.
+The current `v0.975.1` release follows the same signed-before-publication path.
 Its two published manifests and assets agree, both signatures verify under the
 out-of-band distribution identity, and a clean consumer installation with
 `VELA_REQUIRE_SIGNED_MANIFEST=1` reports provider-independent verification.

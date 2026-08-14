@@ -71,7 +71,7 @@ The trust pin reads no key, grants no authority, and changes no Repository byte.
 
 ## Reader publication
 
-The Observatory and other projections must bind:
+Problems and other projections must bind:
 
 - exact Repository source URL, commit, and tree;
 - repository origin and root;

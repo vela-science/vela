@@ -13,7 +13,7 @@ authority.
 | Portable structure | JSON Schema 2020-12 | Checked descriptions of current producer/verifier objects | None |
 | Scientific state | Vela protocol | Claim lineage, scoped Verification, Decision, correction, Standing | Only an authorized Repository Decision changes Standing |
 | Admission policy | Each Repository | Closed local authority profile and exact human checkpoint | Repository-local |
-| Orientation | Observatory and other read projections | Root-bound, reconstructable, SELECT-only views | None |
+| Orientation | Problems and other read projections | Root-bound, reconstructable, SELECT-only views | None |
 
 ## Current, experimental, and absent surfaces
 
@@ -23,7 +23,6 @@ authority.
 | Submission, Verification Record, Withdrawal JSON | Current | Versioned payloads in DSSE envelopes; semantic validation is authoritative |
 | JSON Schema descriptions | Current documentation | Structural validation only; no signature, reference, Decision, or Standing inference |
 | Common DSSE signed-object boundary | Current | Submission, Verification Record, Withdrawal, and authority transport; never scientific admission by itself |
-| Result Dossier | Current read projection | Exact rooted case record; no Vela object and no authority |
 | Common DSSE producer/verifier v2 | Current | Independently emitted and checked in Rust, Python, and JavaScript |
 | AuthZEN-shaped closed evaluator | Current | The only writer-side evaluator; exact current boundaries are tested directly and in the independent signed-chain vector |
 | MCP or A2A edge | Absent | No support claim, server, tool, resource, or write contract |

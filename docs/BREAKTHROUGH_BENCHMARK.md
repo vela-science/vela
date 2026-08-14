@@ -38,7 +38,7 @@ cold successor
   -> correct useful continuation materially faster
 ```
 
-No participant may require Vela's hosted read model, Observatory, Canopus,
+No participant may require Vela's hosted read model, Problems, Canopus,
 private implementation state, original agent session, maintainer credentials,
 or repository-authority credentials.
 

@@ -652,7 +652,7 @@ The vocabulary is fixed by
 
 ## 9. Derived readers
 
-The Observatory, Neon, search, graphs, embeddings, exports, and local indexes
+Problems, projection storage, search, graphs, exports, and local indexes
 are projections over verified repository roots. They may improve discovery but
 cannot:
 

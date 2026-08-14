@@ -32,11 +32,11 @@ authorized semantic principal
   -> canonical Event and Standing
 
 verified Git Repository
-  -> disposable Observatory and indexes
+  -> disposable Problems projection and indexes
 ```
 
 Git hosts distribute bytes and control repository access. Vela authority
-records authenticate canonical repository writes. The Observatory, Neon,
+records authenticate canonical repository writes. Problems, projection storage,
 search, graphs, exports, and caches are not trust roots.
 
 ## Attacker classes

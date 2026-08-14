@@ -33,7 +33,7 @@ The paper will not claim that:
 - one Repository's Decision governs another Repository;
 - all scientific relations fit one ontology or graph;
 - Canopus is required to produce or replay Vela state;
-- the Observatory, Neon, a Registry, or any hosted service is canonical;
+- Problems, projection storage, a Registry, or any hosted service is canonical;
 - mathematics establishes transfer to every scientific domain;
 - first-party repetitions establish independent adoption; or
 - a benchmark win predicts the social impact of a foundational system.
@@ -65,7 +65,7 @@ plus the same files and verifier?
 ### RQ5: Cost and removability
 
 What storage, validation, authoring, review, and operational cost does Vela
-add? Does replay still work after Canopus, the Observatory, Neon, caches, and
+add? Does replay still work after Canopus, Problems, projection storage, caches, and
 the original producer session are removed?
 
 ### RQ6: Product legibility

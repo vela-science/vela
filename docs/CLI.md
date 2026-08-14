@@ -326,7 +326,7 @@ vela review accept . <vpr_id> \
 ```
 
 `--if-entry-root` is an optional compare-and-swap guard over the exact Decision
-Inbox packet the performer inspected. Observatory and automated review surfaces
+Inbox packet the performer inspected. Problems and automated review surfaces
 should always pass it. If the Proposal, evidence, policy, authority head, or
 Standing changed, Vela refuses the command before requesting an authority
 signature. A person working entirely in one terminal may omit it; the Decision
