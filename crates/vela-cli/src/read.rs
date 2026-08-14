@@ -213,6 +213,18 @@ fn load_claim(
         };
         return Ok(Some((claim, reference.claim_root.clone(), standing)));
     }
+    /* A retained accepted Proposal records the historical ruling on this
+    Claim, but a later `claim.superseded` Event determines its current
+    Standing. Resolve that Event before falling back to Proposal history so a
+    retired predecessor cannot be projected as accepted merely because the
+    Proposal that first admitted it is still retained. */
+    if let Some((claim, root)) = superseded_claim(repository_path, context, claim_id)? {
+        let standing = ClaimStanding {
+            standing: claim_standing::SUPERSEDED,
+            proposal_status,
+        };
+        return Ok(Some((claim, root, standing)));
+    }
     if let Some(claim) = proposal_claim(repository_path, context, claim_id)? {
         let root = canonical_root(&claim)?;
         let standing = ClaimStanding {
@@ -231,13 +243,6 @@ fn load_claim(
                 }
                 _ => claim_standing::UNASSESSED,
             },
-            proposal_status,
-        };
-        return Ok(Some((claim, root, standing)));
-    }
-    if let Some((claim, root)) = superseded_claim(repository_path, context, claim_id)? {
-        let standing = ClaimStanding {
-            standing: claim_standing::SUPERSEDED,
             proposal_status,
         };
         return Ok(Some((claim, root, standing)));
@@ -819,7 +824,7 @@ fn render_why(projection: &Value) {
     let events = chain["authority_events"].as_array().map_or(0, Vec::len);
     println!("  authority {events} event(s) directly explain this Claim");
 
-    if let Some(by) = chain["supersession"]["superseded_by"].as_str() {
+    if let Some(by) = chain["supersession"]["successor_claim_id"].as_str() {
         println!("  superseded by {by}");
     }
 

@@ -235,6 +235,74 @@ fn an_accepted_correction_leaves_the_repository_readable_and_projectable() {
     ));
     assert_eq!(listed["indexed"]["accepted"], 1);
     assert_eq!(listed["items"][0]["claim_id"], correction_claim.as_str());
+    let correction_root = listed["items"][0]["claim_root"]
+        .as_str()
+        .expect("accepted correction Claim root");
+
+    // The retained predecessor has historical Proposal status `accepted`, but
+    // its current Claim Standing comes from the later supersession Event. The
+    // two axes must not collapse in either machine or human read projections.
+    let predecessor_why = success_json(&run(
+        &repository_path,
+        None,
+        &home,
+        &["why", ".", &base_claim, "--json"],
+    ));
+    assert_eq!(predecessor_why["claim_id"], base_claim.as_str());
+    assert_eq!(predecessor_why["claim_root"], base_root.as_str());
+    assert_eq!(predecessor_why["standing"], "superseded");
+    assert_eq!(predecessor_why["proposal_status"], "accepted");
+    assert_eq!(
+        predecessor_why["chain"]["supersession"]["predecessor_claim_id"],
+        base_claim.as_str()
+    );
+    assert_eq!(
+        predecessor_why["chain"]["supersession"]["predecessor_claim_root"],
+        base_root.as_str()
+    );
+    assert_eq!(
+        predecessor_why["chain"]["supersession"]["successor_claim_id"],
+        correction_claim.as_str()
+    );
+    assert_eq!(
+        predecessor_why["chain"]["supersession"]["successor_claim_root"],
+        correction_root
+    );
+
+    let successor_why = success_json(&run(
+        &repository_path,
+        None,
+        &home,
+        &["why", ".", &correction_claim, "--json"],
+    ));
+    assert_eq!(successor_why["standing"], "accepted");
+    assert_eq!(successor_why["proposal_status"], "accepted");
+    assert!(successor_why["chain"]["supersession"].is_null());
+
+    let predecessor_show = success_json(&run(
+        &repository_path,
+        None,
+        &home,
+        &["show", ".", &base_claim, "--json"],
+    ));
+    assert_eq!(predecessor_show["object_kind"], "claim");
+    assert_eq!(predecessor_show["content_root"], base_root.as_str());
+    assert_eq!(
+        predecessor_show["authority_effect"],
+        "scientific standing is superseded, derived from current authority; the Proposal about it is accepted"
+    );
+
+    let human_why = run(&repository_path, None, &home, &["why", ".", &base_claim]);
+    assert!(
+        human_why.status.success(),
+        "human why failed: {}",
+        String::from_utf8_lossy(&human_why.stderr)
+    );
+    let human_why = String::from_utf8(human_why.stdout).expect("human why is UTF-8");
+    assert!(human_why.contains(&format!(
+        "why · {base_claim} · superseded · proposal accepted"
+    )));
+    assert!(human_why.contains(&format!("superseded by {correction_claim}")));
 
     // Asked after the ruling. The predecessor now has to come from the
     // content-addressed store, and the answer has to be the same one.
