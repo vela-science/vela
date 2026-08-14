@@ -24,7 +24,7 @@ the portable boundary and deterministic transition sequence:
 
 ```text
 Submission -> Proposal -> Verification Record(s)
-           -> authorized human Decision -> Event -> replay -> Standing
+           -> authorized attributed Decision -> Event -> replay -> Standing
 ```
 
 Core does not own execution scheduling. `Run`, `Task`, `Experiment`, and
@@ -54,8 +54,10 @@ it creates. Capability discovery remains a replaceable, read-only projection.
 Reviewer kinds are peers at the Verification boundary. A human, AI model,
 organization, or deterministic tool does not receive evidentiary weight from
 its category. Weight follows the named method, exact inputs, independence,
-retained outputs, scope, and limitations. Only the separate authorized human
-Repository Decision can change Standing.
+retained outputs, scope, and limitations. Only the separate authorized and
+attributed Repository Decision can change Standing. The performer may be a
+human or agent when current Repository policy permits it; authorization,
+signatures, exact inputs, and replay remain unchanged.
 
 ## Consequences
 
@@ -81,7 +83,7 @@ meaning or broad enough to become a workflow engine.
 
 Rejected. A correct execution may check the wrong statement, use a misspecified
 model, or execute a flawed physical procedure. Verification remains scoped and
-admission remains an authorized human Decision.
+admission remains an authorized, attributed Repository Decision.
 
 ### Make capability discovery authoritative
 
