@@ -1666,10 +1666,6 @@ fn the_scaffold_never_normalizes_a_content_addressed_path() {
         );
     }
 
-    /* The other half of the same failure. The profile line said
-    `frontier.toml` while `vela init` wrote `vela.toml`, so the one file here a
-    human is expected to edit was declared under a name that never existed and
-    the rule matched nothing. */
     let profile = attributes
         .lines()
         .find(|line| line.starts_with("vela.toml "))
@@ -1677,9 +1673,5 @@ fn the_scaffold_never_normalizes_a_content_addressed_path() {
     assert!(
         profile.contains("text eol=lf"),
         "the profile is human-edited configuration and keeps eol normalization: {profile}"
-    );
-    assert!(
-        !attributes.contains("frontier.toml"),
-        "the scaffold declares a profile filename `vela init` does not write:\n{attributes}"
     );
 }

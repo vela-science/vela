@@ -25,7 +25,7 @@ authority.
 | Common DSSE signed-object boundary | Current | Submission, Verification Record, Withdrawal, and authority transport; never scientific admission by itself |
 | Result Dossier | Current read projection | Exact rooted case record; no Vela object and no authority |
 | Common DSSE producer/verifier v2 | Current | Independently emitted and checked in Rust, Python, and JavaScript |
-| AuthZEN-shaped closed evaluator | Current | The only writer-side evaluator; retained Cedar Allows and negative boundaries are recomputed in conformance |
+| AuthZEN-shaped closed evaluator | Current | The only writer-side evaluator; exact current boundaries are tested directly and in the independent signed-chain vector |
 | MCP or A2A edge | Absent | No support claim, server, tool, resource, or write contract |
 | Package manager or Registry | Absent | Source-local experiments only after a second real consumer |
 | Hosted writer or automatic Decision | Prohibited by current boundary | Requires a later explicit authority and threat-model decision |

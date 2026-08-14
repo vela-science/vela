@@ -175,13 +175,6 @@ DECLARED_SURFACES: dict[str, bool] = {
 }
 
 
-# The identifier spellings ADR 0039 retired, and the trees they must be absent
-# from. `docs/ROOTS.md` keeps `vfr_` bound to epoch 1 on purpose, so the prose
-# that names the retired prefix is not a violation; these trees are code.
-RETIRED_SPELLINGS = ("vfr_", "frontier_id", "frontier.toml")
-RETIRED_SPELLING_TREES = ("crates", "schemas", "packages")
-
-
 class Failure(Exception):
     """A checked assertion disagreed with what is on disk."""
 
@@ -249,33 +242,6 @@ def repository_id_contract() -> str:
     return matches.pop()
 
 
-def retired_spelling_sites() -> list[str]:
-    """Every file under the code trees that still writes a retired spelling.
-
-    A count would be brittle and a boolean would be false. `docs/ECOSYSTEM.md`
-    claims these are at zero "and the occurrences that remain are deliberate
-    references to the retired spelling" — the retired-path predicate and the
-    tests that hold the new wording in place. A list is the only form of that
-    claim a reader can check: a new path appearing is drift, and a path
-    disappearing means a test stopped guarding something.
-    """
-    sites: list[str] = []
-    for tree in RETIRED_SPELLING_TREES:
-        directory = ROOT / tree
-        if not directory.is_dir():
-            continue
-        for path in sorted(directory.rglob("*")):
-            if not path.is_file() or "__pycache__" in path.parts:
-                continue
-            try:
-                text = path.read_text(encoding="utf-8")
-            except (OSError, UnicodeDecodeError):
-                continue
-            if any(spelling in text for spelling in RETIRED_SPELLINGS):
-                sites.append(path.relative_to(ROOT).as_posix())
-    return sorted(sites)
-
-
 def local_block() -> dict[str, object]:
     schemas = sorted(path.name for path in (ROOT / "schemas").glob("*.schema.json"))
     workflows = sorted(path.name for path in (ROOT / ".github/workflows").glob("*.yml"))
@@ -284,18 +250,13 @@ def local_block() -> dict[str, object]:
         present = (ROOT / name).exists()
         surfaces[name] = {"declared": DECLARED_SURFACES[name], "present": present}
     return {
-        "epoch": {
-            "repository_id_contract": repository_id_contract(),
-            "retired_spelling_sites": retired_spelling_sites(),
-            "retired_spellings": list(RETIRED_SPELLINGS),
-            "retired_spelling_trees": list(RETIRED_SPELLING_TREES),
-        },
         "published_schemas": schemas,
         "release": {
             "toolchain_channel": toolchain_channel(),
             "version": workspace_version(),
         },
         "repository": "vela-science/vela",
+        "repository_id_contract": repository_id_contract(),
         "surfaces": surfaces,
         "workflows": workflows,
         "workspace_crates": workspace_crates(),

@@ -474,11 +474,9 @@ fn verification_help_exposes_ordinary_authoring_without_key_flags() {
 
 /// The profile contract's example TOML must parse as a profile.
 ///
-/// `docs/REPOSITORY_PROFILE.md` documented `frontier_id = "vfr_…"` against
-/// `RepositoryProfileV1`, whose field is `repository_id` under
-/// `#[serde(deny_unknown_fields)]`. A reader who copied the documented block
-/// got a hard parse rejection from the schema the same document describes, and
-/// nothing read the block, so it could say anything.
+/// This reads the documented example through `RepositoryProfileV1` under
+/// `#[serde(deny_unknown_fields)]`, so prose and the current parser cannot
+/// silently diverge.
 #[test]
 fn the_profile_contract_documents_a_profile_that_parses() {
     let document = std::fs::read_to_string(

@@ -125,15 +125,7 @@ cargo test --locked -p vela-cli --test bootstrap_cli_ux
 cargo test --locked -p vela-cli --test genesis
 cargo test --locked -p vela-protocol --test canonical_hashing_conformance
 cargo test --locked -p vela-protocol --test engine_pin
-cargo test --locked -p vela-authority --test authorization_profile_parity
 ```
-
-The authority parity test reads
-`conformance/fixtures/epoch1/authorization-profile-parity.json`, translates its
-retired epoch-1 identifiers into the current vocabulary, reproduces all seven
-retained Cedar Allows with the closed evaluator, and checks seven exact negative
-boundaries. It does not claim byte-root parity across the vocabulary and UUID
-migration.
 
 If a shared type or behavior changed, test its direct consumer crates as well.
 If canonical bytes, roots, schemas, or the current interoperability waist

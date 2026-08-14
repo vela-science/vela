@@ -8,10 +8,9 @@
 //! holding one of two roles may request one of six actions on one exact
 //! resource.
 //!
-//! That rule is now stated directly by `vela_protocol::authorization`, and
-//! proven equal to every Cedar decision this ecosystem ever published by
-//! `tests/authorization_profile_parity.rs`. What remains here is the part
-//! Cedar never did: establishing that there is an authenticated human at all.
+//! That rule is now stated and tested directly by
+//! `vela_protocol::authorization`. What remains here is the part Cedar never
+//! did: establishing that there is an authenticated human at all.
 
 pub mod runtime_authentication;
 

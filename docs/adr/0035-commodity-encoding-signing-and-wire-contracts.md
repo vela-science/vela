@@ -105,16 +105,13 @@ reader uses pinned `rfc8785 0.1.4` through the committed uv lock. The four
 canonical Frontier roots remained unchanged through the switch. Authority
 records now use DSSE 1.0.2-compatible envelope parsing and threshold behavior.
 
-The dependency-free Vela Authorization Profile evaluator now exists in shadow
-mode. It has two human roles, six closed actions, explicit Frontier-owned
-resource identity, exact authentication/read-set/intent bindings, and stable
-fail-closed reason codes. The frozen
-`conformance/fixtures/epoch1/authorization-profile-parity.json` corpus binds the
-epoch-1 Frontier heads and all seven retained authority transactions. It
-independently reproduces every legacy Cedar request root, golden-locks the four
-candidate model roots and seven candidate request roots, and proves Allow
-parity plus seven negative boundary cases. No denied Cedar evaluation was ever
-published, and the shadow evaluator is not called by the writer.
+At proposal time the dependency-free Vela Authorization Profile evaluator
+existed only in shadow mode. A frozen migration corpus bound the epoch-1 heads
+and all seven retained authority transactions, reproduced each Cedar request
+root, and proved Allow parity plus seven negative boundary cases. No denied
+Cedar evaluation was ever published, and the shadow evaluator was not called
+by the writer. That temporary corpus was removed after the current authority
+model and independent signed-chain vector replaced the migration boundary.
 
 This ADR remains Proposed because the common DSSE boundary for Submission and
 Verification, portable JSON Schema 2020-12 contracts, retained model/request
@@ -149,10 +146,11 @@ rooted model instead of trusting a retained `Allow`. `PolicyBundleV1` is
 `AuthorizationModelV1`, which names no engine and no engine version, so a
 future evaluator change is a code change rather than a signature problem.
 Before any of that was deleted, the epoch-1 parity corpus that ADR 0042 noted
-"is read by nothing" was wired into
-`crates/vela-authority/tests/authorization_profile_parity.rs`, which recomputes
-all seven retained Cedar Allows under the closed profile and checks seven
-negative boundary cases for their exact reasons.
+"is read by nothing" was wired into a temporary Rust test. It recomputed all
+seven retained Cedar Allows under the closed profile and checked seven negative
+boundary cases for their exact reasons. Once the current signed-chain vector
+covered the live authority contract, the migration-only corpus and test were
+removed rather than retained as a compatibility path.
 
 This ADR also supersedes ADR 0042, and it is worth saying why, because 0042
 asked the right question and this cut answered it by accident. 0042 holds that
@@ -396,7 +394,8 @@ The migration is complete only when tests prove:
 - `keyid` alone never authorizes a signer;
 - every public payload passes both its JSON Schema and Rust semantic validator;
 - unknown nested payload fields fail, including identity fields;
-- the closed evaluator matches every retained Cedar fixture and transaction;
+- before the cut, the closed evaluator matches every retained Cedar fixture
+  and transaction;
 - wrong principal/class/frontier/resource/root, unknown action/role/model,
   stale model, changed read set, and missing or mismatched semantic approval
   fail closed;

@@ -409,11 +409,10 @@ pub fn verify_authorization_model_transition(
 /// Evaluate one exact request under Vela's closed repository-authorization
 /// profile.
 ///
-/// This pure evaluator is a shadow implementation until current repository
-/// parity and an explicit repository-epoch cut are complete. It acquires no
-/// authentication, signer, filesystem, clock, or network capability. Valid
-/// but unauthorized requests return a content-addressed Deny; malformed model
-/// or request bytes return an error and cannot produce an authority record.
+/// This pure evaluator acquires no authentication, signer, filesystem, clock,
+/// or network capability. Valid but unauthorized requests return a
+/// content-addressed Deny; malformed model or request bytes return an error and
+/// cannot produce an authority record.
 pub fn evaluate_authorization_v1(
     model: &AuthorizationModelV1,
     request: &AuthorizationRequestV1,

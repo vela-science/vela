@@ -61,26 +61,6 @@
   },
   "generator": "scripts/ecosystem-status.py",
   "local": {
-    "epoch": {
-      "repository_id_contract": "rfc9562-uuidv4",
-      "retired_spelling_sites": [
-        "crates/vela-authority/tests/authorization_profile_parity.rs",
-        "crates/vela-cli/src/init.rs",
-        "crates/vela-cli/tests/bootstrap_cli_ux.rs",
-        "crates/vela-cli/tests/wording_contract.rs",
-        "crates/vela-protocol/tests/cli_release_contract.rs"
-      ],
-      "retired_spelling_trees": [
-        "crates",
-        "schemas",
-        "packages"
-      ],
-      "retired_spellings": [
-        "vfr_",
-        "frontier_id",
-        "frontier.toml"
-      ]
-    },
     "published_schemas": [
       "authorization-evaluation.schema.json",
       "authorization-request.schema.json",
@@ -102,6 +82,7 @@
       "version": "0.975.1"
     },
     "repository": "vela-science/vela",
+    "repository_id_contract": "rfc9562-uuidv4",
     "surfaces": {
       ".github/release/check-sbom.py": {
         "declared": true,

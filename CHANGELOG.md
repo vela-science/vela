@@ -217,14 +217,12 @@ not a note per commit, so they are shorter than the releases were.
   attestation over exact commits, trees and roots — not as eleven permanent
   fields on every origin that will never be a compaction.
 
-- **Cedar is retired, and the parity corpus that nothing read now decides it.**
-  `conformance/fixtures/epoch1/authorization-profile-parity.json` held every
-  retained epoch-1 authorization request and was, by `AGENTS.md`'s own account,
-  read by no code. `crates/vela-authority/tests/authorization_profile_parity.rs`
-  reads it: it recomputes all seven historical Allows under the closed Vela
-  Authorization Profile and checks seven negative boundary cases for their exact
-  fail-closed reasons. The test was written before the deletions, so a
-  disagreement would have stopped the cut with Cedar still in the tree.
+- **Cedar is retired, and current authority conformance is direct.** Before the
+  deletion, the closed Vela Authorization Profile reproduced the retained
+  epoch-1 Allows and negative boundaries. That migration-only corpus is now
+  removed: current evaluator unit tests hold the exact fail-closed reasons, and
+  the independent Math authority-chain vector checks signed current requests,
+  Events, deltas, roots, and thirteen negative mutations.
 
   Then the deletions. `cedar-policy` is out of both manifests,
   `crates/vela-protocol/tests/engine_pin.rs` is gone, and `PolicyBundleV1` is

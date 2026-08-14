@@ -19,12 +19,11 @@
 //!
 //! The retired-vocabulary half is here because it drifted invisibly. ADR 0039
 //! made the Repository the authority boundary and left the Frontier derived and
-//! identifier-free, and v0.967.0 took `vfr_` and `frontier_id` to zero — but
-//! nothing was reading the help output, so `vela help advanced`, thirteen
-//! `--help` bodies and about thirty runtime error strings went on naming a
-//! Frontier where they meant a Repository. This walks the whole help tree the
-//! binary actually prints and both sides of the error surface, rather than a
-//! list of the places that were wrong once.
+//! identifier-free, but nothing was reading the help output, so
+//! `vela help advanced`, thirteen `--help` bodies and about thirty runtime error
+//! strings went on naming a Frontier where they meant a Repository. This walks
+//! the whole help tree the binary actually prints and both sides of the error
+//! surface, rather than a list of the places that were wrong once.
 
 use std::collections::BTreeSet;
 use std::path::Path;

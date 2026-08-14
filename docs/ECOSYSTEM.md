@@ -431,16 +431,12 @@ different facts.
   (`crates/vela-protocol/src/kernel/events.rs`) and six vocabulary terms are
   documented as retired (`docs/TERMINOLOGY.md`) — the five ADR 0039 §5 retired
   plus Registration Record, which ADR 0033 retired and that table had been
-  missing, leaving §7 below naming six against its five. `frontier_id` → `repository_id`,
-  `vfr_` → `vrepo_`, `frontier.toml` → `vela.toml`, `--frontier` → `--repo` and
-  `vela.status.v3` → `v4` all landed: each is at zero across `crates/`,
-  `schemas/`, `packages/` and the top level of `docs/`, and the occurrences that
-  remain are deliberate references to the retired spelling — the retired-path
-  predicate, `docs/ROOTS.md` stating that a prefix is never reused, and the
-  tests that hold the new wording in place. This list previously called all five
-  "not done" while §1 of this same document said the rename landed in v0.967.0,
-  and it stated two of them as `vela.toml` → `vela.toml` and `--repo` → `--repo`
-  after a sweep rewrote both sides of the arrow.
+  missing, leaving §7 below naming six against its five. The current runtime,
+  schemas, configuration, and CLI use Repository identity, `vela.toml`,
+  `--repo`, and `vela.status.v4`; no compatibility reader, writer, alias, or
+  translation path remains. Historical ADRs and `docs/ROOTS.md` retain the old
+  identifiers only to bind archived bytes and prevent prefix reuse. Tests guard
+  the live CLI wording, not the absence of deleted source.
 
   `crates/vela-protocol/src/epoch1/` and the read-only `vela history <path>`
   are absent because they were withdrawn, not because they are outstanding.

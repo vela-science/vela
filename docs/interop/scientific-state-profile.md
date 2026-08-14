@@ -120,13 +120,6 @@ than claiming read-side enforcement. The vector readers also assert some
 positive request, Event, delta, and terminal-state cross-links that the
 production history verifier does not itself enforce.
 
-`conformance/fixtures/epoch1/authorization-profile-parity.json` remains a
-different contract. `crates/vela-authority/tests/authorization_profile_parity.rs`
-translates its retired identifiers, recomputes all seven retained evaluator
-decisions, and checks seven negative boundaries. That is Rust evaluator
-compatibility across the vocabulary migration, not current canonical-root or
-signed-chain parity.
-
 ### 5. Correction
 
 `corrects` and `supersedes` are the two relation kinds acceptance acts on

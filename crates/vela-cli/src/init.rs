@@ -463,11 +463,8 @@ pub(crate) fn expected_scaffold(
         // comment explaining the fix. `vela.toml` keeps `text eol=lf` because
         // it is configuration a human edits and is not hashed by content.
         //
-        // That profile line named `frontier.toml` until now, and `vela init`
-        // has never written a file by that name — the profile is `vela.toml`,
-        // as the paragraph above always said. The rule therefore matched
-        // nothing, and the one file here a human is expected to edit was left
-        // to `* text=auto`. Live repositories carry the dead line too.
+        // The profile is human-edited configuration rather than a
+        // content-addressed record, so it keeps normalized line endings.
         "* text=auto eol=lf\n.vela/** -filter -ident -working-tree-encoding -merge -text\nrecords/** -filter -ident -working-tree-encoding -merge -text\nartifacts/** -filter -ident -working-tree-encoding -merge -text\nvela.toml -filter -ident -working-tree-encoding -merge diff text eol=lf\n"
             .as_bytes()
             .to_vec(),

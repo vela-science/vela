@@ -506,11 +506,9 @@ fn the_installer_can_verify_without_the_provider() {
 /// The distribution surface speaks the current vocabulary too.
 ///
 /// `wording_contract.rs` walks the binary's whole help tree and both sides of
-/// its error surface, and `ecosystem-status.py` scans `crates/`, `schemas/` and
-/// `packages/` for the retired identifier spellings. Between them sits the one
-/// script every consumer runs before the binary exists, which neither reads: it
-/// told anyone who uninstalled Vela that "Frontier data was preserved" for as
-/// long as there had been no Frontier to hold data.
+/// its error surface. Beside it sits the one script every consumer runs before
+/// the binary exists: it once described derived state as though it were an
+/// authority-bearing object.
 ///
 /// This used to cover `action.yml` for the same reason — the other file a
 /// consumer met first. There is no longer an action to meet.

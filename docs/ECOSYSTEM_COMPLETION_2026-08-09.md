@@ -19,7 +19,7 @@ requires a real consumer, exact evidence, and net deletion.
 | --- | --- |
 | One final standards cut | Vela 0.972.1 uses UUIDv4 Repository identity, genesis-only origin, full canonical roots, one DSSE implementation, generated JSON Schema, and one closed authorization evaluator. Retired writers and compatibility paths are absent. |
 | Independent wire reading | Rust, Python, and JavaScript reproduce the current portable objects and canonical roots. The hosted conformance union passes. |
-| Retained authorization parity | The closed evaluator reproduces all seven retained Cedar Allows and denies seven boundary mutations for their exact reasons. The test does not claim root parity across the vocabulary migration. |
+| Current authorization conformance | Direct evaluator tests cover every closed-profile boundary; the independent Math vector verifies the signed current chain and thirteen fail-closed mutations. |
 | Complete authority loop | `vela-science/math` completed genesis, three Submissions, seven Verification Records, two human rejections, one human acceptance, strict replay, and an empty review inbox. |
 | Corrected projection ownership | `vela-web` keys canonical projection data by Repository UUID, keeps `math` only as a route slug, and uses `@vela/observatory-data`. The reader has no scientific write authority. |
 | Science-translation experiment | The Erdős 321 Dossier carries exact Reference annotations, deterministic semantic facts, explicit loss, provenance, RO-Crate material, and five nonclaims. None is a new Vela protocol object. |

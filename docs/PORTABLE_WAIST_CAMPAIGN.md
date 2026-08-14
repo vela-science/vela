@@ -91,17 +91,13 @@ authority chain and its model fresh, so no retained bundle survives to
 contradict a Cedar-free reader. ADR 0042 is Superseded and the rotation writer
 was never needed.
 
-The evidence this cut required, and where it is:
+Before Cedar was deleted, a migration-only corpus retained the exact epoch-1
+model, request, entity, engine, and profile inputs. The closed profile
+recomputed every historical Allow and seven negative boundary cases. That
+one-time migration evidence was removed after the current authority contract
+replaced it. Current conformance now:
 
-- retain exact model, request, entity, engine, and profile inputs —
-  `conformance/fixtures/epoch1/authorization-profile-parity.json`;
-- recompute every historical Allow result with the closed profile —
-  `crates/vela-authority/tests/authorization_profile_parity.rs`, which drives
-  `evaluate_authorization_v1` over all seven retained transactions;
-- prove parity and negative boundary cases across the retained epoch-1 corpus;
-  the same test checks seven negative cases for their exact fail-closed
-  reasons; and
-- verify the current four-record Math chain independently from an explicit
+- verifies the current four-record Math chain independently from an explicit
   sequence-one anchor; `verify_authority_chain.py` checks DSSE signatures,
   continuity, authorization, signed deltas, Events, and bounded terminal state
   with thirteen stable negative cases and no Vela, Rust, Git, or network; and

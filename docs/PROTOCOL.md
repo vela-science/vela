@@ -393,9 +393,9 @@ members, and for each a principal class and one of two roles. It replaced
 `vela.policy-bundle.v1`, which named a Cedar schema, policy text and entity
 snapshot by root, plus the engine, version and profile that would evaluate
 them. Everything the bundle identified existed to express what the model says
-directly, and every published Cedar decision reproduces under it —
-`crates/vela-authority/tests/authorization_profile_parity.rs` re-decides the
-seven retained Allows and seven negative boundary cases.
+directly. Current evaluator tests cover every closed authorization boundary,
+and the independent Math authority-chain vector checks signed current requests
+and thirteen fail-closed mutations.
 
 Each authority record retains the exact `vela.authorization-request.v1` it was
 written under, so strict replay recomputes the decision under the rooted model

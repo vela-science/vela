@@ -30,13 +30,12 @@ At proposal time this was confirmed at the code level, not only in prose.
 `verify_wire_schemas.py`, `verify_correction_impact.py`, an inline exact-witness
 floor, and the ecosystem check. Nothing then exercised an authority chain.
 
-`conformance/fixtures/epoch1/authorization-profile-parity.json` looks like it
-might. At the time this ADR was drafted, its README recorded that its test had
-been removed with the epoch-1 reader. It is now read by
-`crates/vela-authority/tests/authorization_profile_parity.rs`, which translates
-the retired identifiers, recomputes the seven retained evaluator decisions,
-and checks seven negative boundaries. That is evaluator compatibility in Rust,
-not a language-independent signed-chain vector.
+A temporary epoch-1 parity corpus looked like it might fill the gap. It was
+later wired into a Rust test that translated retired identifiers, recomputed
+the seven retained evaluator decisions, and checked seven negative boundaries.
+That established evaluator compatibility during migration, not a
+language-independent signed-chain contract. The temporary corpus and test were
+removed after the current vector shipped.
 
 The asymmetry matters more here than anywhere else in the profile. Producing and
 verifying are unprivileged; deciding is not. Contract 4 is the one that says only
@@ -198,10 +197,10 @@ why this ADR could be written from the document itself, and that is the property
 worth preserving: a profile that claimed a check it did not have would be worse
 than the gap.
 
-`conformance/verify.py` runs the clean-room signed-chain check. The epoch-1
-authorization fixture remains separately useful and is read by the Rust
-authorization-profile parity test; it proves evaluator compatibility across
-retired vocabulary, not canonical-root or signed-chain parity.
+`conformance/verify.py` runs the clean-room signed-chain check. The temporary
+epoch-1 authorization fixture proved evaluator compatibility across the
+vocabulary migration; it was not canonical-root or signed-chain parity and is
+not part of the current conformance surface.
 
 If none ships, that is a decision too, and it belongs in the profile beside the
 gap: the contract is verified by this implementation's Rust tests and no foreign
@@ -216,13 +215,12 @@ purpose is to be checkable by something that shares no code with the reference,
 and naming an in-tree test as the check would be the overstatement this document
 exists to avoid.
 
-**Use `authorization-profile-parity.json` as the signed-chain vector.** It pins
-the epoch-1 repositories' commits and is now exercised by a Rust evaluator
-parity test. It still describes `frontier_id` and `resource_type: "frontier"`,
-which is the shape those repositories genuinely have and not the shape a
-current implementation must satisfy. Rewriting it to current spelling would
-assert a shape the measured data does not have. It therefore remains evaluator
-compatibility evidence, not the current signed-chain vector.
+**Use the epoch-1 parity corpus as the signed-chain vector.** It pinned the old
+repositories' commits and was exercised by a Rust evaluator-parity test, but it
+described the retired repository shape rather than one a current
+implementation must satisfy. Rewriting it would have asserted a shape the
+measured data did not have. It therefore served only as temporary migration
+evidence and was removed after the current signed-chain vector shipped.
 
 **Generate the vector from the live `vela-science/math` authority.** Its chain
 is real signed history and its trust root is pinned by real consumers. A

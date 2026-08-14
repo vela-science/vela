@@ -133,13 +133,11 @@ argues for deciding this ADR and 0035 together rather than in either order.
   is sufficient and Option A is speculative surface. With a second, an operator
   needs a general verb.
 - **Whether Cut C's parity work is reachable.** Cedar's removal additionally
-  needs every historical Allow recomputed against the closed profile.
-  `evaluate_authorization_v1` exists and has no production caller;
-  `conformance/fixtures/epoch1/authorization-profile-parity.json` holds the
-  epoch-1 corpus and is read by nothing, and its own README says the replacement
-  is "measured against `vela-science/math` once that repository has a genesis" —
-  which it now has. That fixture is the cheapest available test of whether the
-  closed evaluator agrees with Cedar.
+  needed every historical Allow recomputed against the closed profile. At
+  proposal time `evaluate_authorization_v1` existed without a production
+  caller and the epoch-1 corpus was read by nothing. The later implementation
+  exercised that corpus before deleting Cedar, then removed the temporary
+  migration evidence once the current signed-chain vector shipped.
 - **What rotating actually costs.** Nobody has performed one. A rehearsal on a
   disposable repository created by `vela init` would establish the real
   ceremony, and would do it without touching the live authority.

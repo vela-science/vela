@@ -34,11 +34,6 @@ def paths() -> list[tuple[str, str, bool]]:
             "cli-read-contract-documentation",
             False,
         ),
-        (
-            "conformance/fixtures/epoch1/authorization-profile-parity.json",
-            "authorization-parity-vector",
-            True,
-        ),
         ("conformance/verify.py", "conformance-entrypoint", True),
         ("conformance/check-core.sh", "core-certification-entrypoint", False),
         ("conformance/verify_protocol_1.py", "manifest-verifier", True),
