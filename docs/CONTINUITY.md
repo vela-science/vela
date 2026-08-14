@@ -91,7 +91,7 @@ publication under `docs/PUBLISHING.md`:
 - a bare mirror on an independent provider;
 - a periodic `git bundle` carrying all refs;
 - an object-storage snapshot of the working tree;
-- a hosted read projection such as the Observatory; or
+- a hosted read projection such as problems.science; or
 - an archived tag, release asset, or source archive.
 
 A mirror that carries a Decision carries it because the Decision was already
@@ -189,7 +189,7 @@ under verification, which is why it can be written down in advance.
 ## 6. Every hosted projection is reconstructible from exact retained state
 
 A projection is disposable by construction. `docs/THREAT_MODEL.md` puts the
-Observatory, Neon, search, graphs, exports, and caches outside the trust
+Problems surface, Neon, search, graphs, exports, and caches outside the trust
 boundary, and `docs/ROOTS.md` requires a derived projection to name its exact
 source roots and never substitute its own digest for a canonical root.
 
@@ -268,7 +268,7 @@ provider-coupled fallback refused.
 `v0.968.0` is immutable and unsigned and cannot be repaired; it stands as the
 last unsigned release.
 
-The current `v0.972.1` release follows the same signed-before-publication path.
+The current `v0.975.1` release follows the same signed-before-publication path.
 Its two published manifests and assets agree, both signatures verify under the
 out-of-band distribution identity, and a clean consumer installation with
 `VELA_REQUIRE_SIGNED_MANIFEST=1` reports provider-independent verification.
@@ -278,11 +278,11 @@ against the committed digests by `mirror-replicas.yml`.
 The mirror mechanism carries signatures too. It reads each retained asset back
 over the anonymous public URL and compares it to the SHA-256 committed in
 vela-web's `vela-release.v1.json`, rather than to the copy just uploaded. The
-current fully exercised replica path is `v0.972.1`: its retained assets and
+current fully exercised replica path is `v0.975.1`: its retained assets and
 signatures pass anonymous Codeberg readback with no GitHub dependency in the
 retrieval or verification path.
 
-Mirroring stays scoped to the release the Observatory pins rather than the
+Mirroring stays scoped to the release the Problems projection pins rather than the
 historical archive. Section 11.1 asks for what it takes to install and reproduce
 the current system, which `vela-release.v1.json` names exactly.
 
@@ -291,7 +291,7 @@ signed through the local OpenSSH-agent authority path; a Codeberg-only clone of
 their published state then rebuilt twice into fresh local PostgreSQL clusters
 from one retained source-adapter artifact, verified identical manifest and
 table roots, enforced a SELECT-only reader, and exported the root-bound
-`erdos-321` Dossier. Exact inputs, roots, limitations, and the historical
+Erdős 321 read projection. Exact inputs, roots, limitations, and the historical
 mirror run are retained in
 `docs/PROVIDER_LOSS_QUALIFICATION_2026-08-09.md`. That result does not close the
 present step-1 gap after the Math replica was removed from the declared

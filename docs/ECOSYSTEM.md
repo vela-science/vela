@@ -223,7 +223,7 @@ and compares bytes, so a `#[serde(alias)]` would still fail the canonical-bytes
 check.
 
 That is a deliberate cost, not an oversight, and it is a real one — the
-accepted Claims those four hold (ADR 0039 records 2,782 as the Observatory
+accepted Claims those four hold (ADR 0039 records 2,782 as the former projection
 reported them) are retained and unreadable by the tool that wrote them.
 Re-admitting valuable state through ordinary Submission → Verification →
 Decision remains the sanctioned path, with the old roots kept as provenance.
@@ -394,7 +394,7 @@ and the live release publishes 1,217 Problems with no Claim behind any of them.
 
 The catalogue corpus has no Standing, and that is the point rather than a gap:
 a Claim in `math` arrives by Decision on evidence, one at a time. Math now holds
-one accepted Claim, three Proposals and three Submissions, none of which turns
+two accepted Claims, three Proposals and three Submissions, none of which turns
 the 1,217 catalogue entries into Claims. They remain a read projection over
 Source observations and nothing in that catalogue was bulk-adjudicated.
 
@@ -412,7 +412,8 @@ Verification Records. A figure of 8,532 accepted Claims with 162 carrying
 evidence has been circulating. It is roughly three times the ADR's count and
 does not reproduce from this repository; the likely cause is a count unfiltered
 by `release_root` against a projection that retains three activated releases
-(`packages/observatory-data/scripts/prune-releases.mjs` uses `LIMIT 3`). Use the
+(`packages/projection-data/scripts/prune-releases.mjs` retains the current
+release and two predecessors). Use the
 ADR's numbers. Re-measure with an explicit `release_root` filter before any of
 these figures is published.
 
@@ -470,10 +471,10 @@ different facts.
   current architecture remains the one closed native evaluator; gittuf stays an
   optional external publication check.
 - ~~One repository has to re-genesis before it can be read.~~ Resolved by the
-  single Vela 0.972.1 Math genesis and explicit re-admission. The current binary
-  strictly replays the UUIDv4 Repository and its one accepted Claim; the
-  retained 0.971.0 predecessor remains readable with its pinned binary and does
-  not carry Standing forward.
+  current Math genesis and explicit re-admission under Vela 0.975.1. The
+  current binary strictly replays the UUIDv4 Repository, its two accepted
+  Claims, and the signed 321 correction transition. The pre-genesis Git tag is
+  a development rollback point, not a shipped compatibility mode.
 - ~~`serde_yaml_ng` is a `serde_yaml` fork.~~ Resolved: the sole YAML consumer,
   the dev-only GitHub Action contract test, now uses maintained pure-Rust
   `serde-saphyr` 1.0.1. No runtime protocol path parses YAML.
@@ -519,7 +520,7 @@ while the contradictions themselves stood. Each item quotes the wording to
 search for instead.
 
 - ~~`docs/ARCHITECTURE.md` binds the Atlas to "the four declared" Frontiers in
-  one place and to the Observatory in another.~~ Resolved: both read the one
+  one place and to the public projection in another.~~ Resolved: both read the one
   live mathematics authority, which is what `vela-science/math` is.
 - ~~`docs/TERMINOLOGY.md` scopes the Math Atlas to "three maintained
   mathematical Frontiers" and later reports that "All four Frontiers hold every
@@ -678,9 +679,9 @@ Packet, Frontier map, Attempt (ADR 0039 §5), and Registration Record (ADR
   readers       conformance/readers/python, conformance/readers/javascript,
                 conformance/emitters/javascript.mjs, conformance/emitters/python.py
                   ↑ independent implementations of the same bytes
-  projection    vela-web/packages/observatory-data  (20 tables; the 17 that hold
-                    projected rows are root-bound)
-  surfaces      vela-web/apps/observatory, vela-web/apps/www
+  projection    vela-web/packages/projection-data
+                  ↑ root-bound derived scientific state
+  surfaces      vela-web/apps/problems, vela-web/apps/www
 ```
 
 The CLI also owns its sole-consumer derived correction reducer and small process
@@ -695,16 +696,12 @@ roots. No reverse dependency is authorized. Concretely:
   not a Source, not an agent, not a benchmark, not an authorization Allow. Only
   protocol admission of an attributed human or agent Decision records an Event from
   which replay derives Standing.
-- **`vela` must not depend on `vela-web`.** One documented leak:
-  `crates/vela-cli/tests/wording_contract.rs:11` records that `vela-web` pins a
-  literal, which is knowledge of a downstream consumer inside the protocol
-  repository. Direction of the pin is correct (`vela-web` pins
-  `vela-science/vela@26e7afa2`, `v0.972.1`); the test comment is a soft reverse
-  coupling and should be stated as a note, not enforced as a contract.
+- **`vela` must not depend on `vela-web`.** Web pins one released Core identity;
+  Core contains no consumer-specific compatibility branch or downstream pin.
 - **The projection must never hold a repository-authority credential** and must
   never be the source of a fact the repository does not already contain.
 - **A surface may show the command an authorized operator would run. It may
-  never run it.** The Observatory's read-only boundary is enforced by
+  never run it.** The Problems surface's read-only boundary is enforced by
   `vela-web/scripts/read-only-boundary.mjs`. It permits exactly one
   mutating Server Action, `signOutAccount`, pinned to a single line of its own
   body, plus three identity routes. Scientific state has no write path from a
@@ -719,8 +716,8 @@ roots. No reverse dependency is authorized. Concretely:
   write and recovery mechanics, not alternate scientific semantics.
 
 The former violation is closed. The route under
-`apps/observatory/src/app/repositories/` keeps `math` only as a route and
-presentation handle; `packages/observatory-data/src/registry.ts` maps it to the
+`apps/problems/src/app/repositories/` keeps `math` only as a route and
+presentation handle; `packages/projection-data/src/registry.ts` maps it to the
 Repository UUID. Canonical rows and joins use `repository_id`, while
 `repository_slugs` fields describe declared route coverage and confer no
 protocol identity or authority.

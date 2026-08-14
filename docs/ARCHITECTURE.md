@@ -113,7 +113,7 @@ Package plane
   optional schemas, corpora, verifiers, mappings, adapters, and locks
 
 Discovery plane
-  Observatory, search, graphs, rankings, and generated explanations
+  problems.science, search, graphs, rankings, and generated explanations
 ```
 
 Vela owns the scientific-state boundary. Workbenches own activity. Packages
@@ -131,9 +131,9 @@ ecosystem component does not enter the Protocol merely because Vela ships or
 links to it.
 
 First-party products are ordinary components with the same boundaries as
-third-party ones. The Observatory is a rebuildable Atlas; a Dossier is a
-root-bound reviewer-ready projection; source registries and generated graphs
-are disposable readers; and any first-party workbench owns activity only.
+third-party ones. The Problems surface is a rebuildable root-bound projection;
+source registries and generated graphs are disposable readers; and any
+first-party workbench owns activity only.
 Deleting or replacing one changes no canonical object, Decision, or Standing.
 The CLI is the one operator product over the Protocol, not a second authority.
 
@@ -284,10 +284,10 @@ release-scoped relations that state whether one Repository object references,
 snapshots, or admits a native record. They do not alter the observation or
 transport Standing.
 
-## Math Atlas read boundary
+## Problems read boundary
 
-The existing Observatory is the first-party Math Atlas. The Git Repositories
-remain canonical. `@vela/observatory-data` acquires and validates source-native
+The Problems surface is the first-party root-bound public reader. Git Repositories
+remain canonical. `@vela/projection-data` acquires and validates source-native
 observations, projects their exact state, and loads one disposable PostgreSQL
 read model.
 
@@ -319,7 +319,7 @@ The target public topology is intentionally small:
 | Repository | Sole responsibility |
 | --- | --- |
 | `vela-science/vela` | Product monorepo: Rust implementation, independent conformance readers and fixtures, releases, architecture |
-| `vela-science/vela-web` | Editorial site and read-only Observatory |
+| `vela-science/vela-web` | problems.science and its read-only projection |
 | `vela-science/math` | The mathematics authority: one repository, one trust root |
 | `vela-science/.github` | Organization profile, reusable workflows, security policy, repository templates |
 
@@ -389,7 +389,7 @@ observation must bind native source identity, rights, snapshots, adapters,
 coverage, and omissions before any Atlas view is trustworthy. That deployed
 inventory does not distribute semantic packages or confer Standing.
 
-The first-party Math Atlas is the existing Observatory over the one live
+The first-party Problems projection reads the one live
 mathematics authority, `vela-science/math`, and the registered native sources.
 It read "the four declared Frontiers" until this line was corrected, which bound
 the Atlas to the four repositories ADR 0039 archived. A later federated Atlas
@@ -426,7 +426,7 @@ model activity. The useful performance functions remain separate:
 4. map correctness: coverage disclosure, stale-state rate, valid
    next-obligation rate, Decision-to-remap latency, and cold-user comprehension.
 
-The current read path is `status`, `show`, and `why`; the existing Observatory
+The current read path is `status`, `show`, and `why`; problems.science
 is the public map surface. A new map, diff, or comparison feature is worth
 adding only when it answers one named scientific question and a registered
 cold-use test shows that it reduces evidence-location, correction, or

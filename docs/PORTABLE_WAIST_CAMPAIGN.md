@@ -1,11 +1,11 @@
 # Portable-waist and interoperability campaign
 
-Status: **Complete, 2026-08-09.** All three cuts landed, and Cut B and Cut C
-shipped together as one wire break because separately each would have forced
-another `vela-science/math` re-genesis. The operator then completed that one
-re-genesis under Vela 0.972.1 and re-admitted only the bounded corrected Claim.
-The current Math head strictly replays with no blocker; the signed 0.971.0
-predecessor remains retained and contributes no Standing to the new genesis.
+Status: **Complete, updated 2026-08-14.** All three cuts landed. The current
+`math-coh-00` Repository was created under Vela 0.975.1 and deliberately
+re-admits only two bounded current Claims: the corrected Erdős 321 successor
+and the scoped Erdős 887 cache-replay result. Its four-record authority chain
+strictly replays. Pre-genesis Git history is a development rollback point, not
+a shipped protocol reader or Standing input.
 
 ## Objective
 
@@ -77,7 +77,7 @@ every payload type and schema tag moved with the signature, so an old object
 fails to parse rather than parsing differently.
 
 All of it landed, including the explicit current-epoch cut exercised by the
-Math 0.972.1 genesis. Independent verification is Rust, Python, and JavaScript:
+current Math 0.975.1 genesis. Independent verification is Rust, Python, and JavaScript:
 `conformance/emitters/python.py` and
 `conformance/emitters/javascript.mjs` construct DSSE envelopes from first
 principles and reproduce the frozen fixture bytes exactly.

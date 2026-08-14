@@ -4,7 +4,8 @@ This reference flow keeps two facts separate.
 
 First, the retained Math authority fixture is real signed Repository history.
 The independent reader verifies its four-record authority chain from a separate
-sequence-one trust anchor and reaches one accepted corrected Claim:
+sequence-one trust anchor and reaches two accepted Claims, including the
+corrected Erdős 321 successor:
 
 ```bash
 uv run --project conformance --locked \
