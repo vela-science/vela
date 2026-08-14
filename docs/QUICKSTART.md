@@ -7,11 +7,13 @@ agent performers are recorded distinctly and use the same exact-root gates.
 
 ## Two-minute flagship: read exact scientific state
 
-Install the current signed release, `v0.975.1`.
+`v0.976.0` is the qualified release candidate. The command below becomes valid
+only after that tag is signed and published; until then the current signed
+release remains `v0.975.1`.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.975.1/install.sh | \
-  VELA_VERSION=v0.975.1 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.976.0/install.sh | \
+  VELA_VERSION=v0.976.0 bash
 
 git clone https://github.com/vela-science/math.git math
 git -C math checkout 08a0e6d327e1ae9937ab2e0e5002192815eac69a

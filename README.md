@@ -128,14 +128,16 @@ it does not prove that a Claim is true.
 
 ## Quick start
 
-Install the current signed release:
+Install the exact release candidate after it is signed and published:
 
 Vela supports Linux x86-64 and macOS Apple-silicon release bundles.
-Install the current signed release, `v0.975.1`.
+`v0.976.0` is qualified but not yet published. Until publication, the current
+signed release remains `v0.975.1`; the candidate command below is intentionally
+not claimed to work before its tag becomes public.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.975.1/install.sh | \
-  VELA_VERSION=v0.975.1 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.976.0/install.sh | \
+  VELA_VERSION=v0.976.0 bash
 vela --version
 ```
 
