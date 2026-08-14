@@ -117,8 +117,9 @@ The current Verification Record requires the exact Claim, Submission,
 Proposal, and Artifact bindings it bears on; a named method and implementation;
 full execution-evidence roots; an outcome; scope; and explicit nonclaims. It
 rejects stale or substituted inputs and cannot accept, reject, or finalize the
-Proposal. `vela review show` reports reproduction, verification, and
-attributed Decision state as separate facts.
+Proposal. `vela review show` reports the bound method and scoped Verification
+separately from the attributed Decision. Re-executing a source-owned method is
+not a Core runtime or a Decision.
 
 ## Submission and admission
 

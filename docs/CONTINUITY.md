@@ -200,8 +200,9 @@ host, its database, and its build history all gone.
 The test is not "the projection can be regenerated." It is:
 
 - every input the projection reads is either a canonical object in an authority
-  repository or a pinned external source declared in that repository's
-  `sources.yaml` and locked in `sources.lock.json`;
+  Repository or a pinned external source acquired through a source-owned exact
+  contract whose adapter, native identity, retained occurrence evidence, and
+  input roots are bound by the projection release;
 - the release the projection was built from names its source roots, so a rebuild
   can be compared against the published one rather than merely produced; and
 - the rebuild path runs without any credential that only the projection host

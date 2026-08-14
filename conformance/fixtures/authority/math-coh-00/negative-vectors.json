@@ -1,6 +1,6 @@
 {
   "schema": "vela.authority-chain-negative-vectors.v1",
-  "fixture_id": "math-0.972.1",
+  "fixture_id": "math-coh-00",
   "vectors": [
     {
       "id": "wrong-trust-anchor",
@@ -61,21 +61,21 @@
     {
       "id": "mutated-accepted-review-event",
       "stage": "event",
-      "mutation": "replace vev_fb652 payload verdict accepted with rejected",
+      "mutation": "replace vev_cd938718b5750d22 payload verdict accepted with rejected",
       "expected_code": "authority_event_content_address_invalid",
       "signed_history": "invalidated derived event copy"
     },
     {
       "id": "missing-accepted-review-event",
       "stage": "coverage",
-      "mutation": "omit vev_fb652e14f2a9323f",
+      "mutation": "omit vev_cd938718b5750d22",
       "expected_code": "authority_event_coverage_mismatch",
       "signed_history": "unchanged subset"
     },
     {
       "id": "mutated-sequence-four-preimage",
       "stage": "repository-delta",
-      "mutation": "replace the last hex digit of bc36 pending_claims[0].claim_root from 6 to 7",
+      "mutation": "replace the last hex digit of 1ebb pending_claims[0].claim_root from 4 to 5",
       "expected_code": "repository_delta_preimage_mismatch",
       "signed_history": "unchanged record; invalidated manifest copy"
     },
@@ -89,7 +89,7 @@
     {
       "id": "wrong-terminal-claim-root",
       "stage": "terminal",
-      "mutation": "replace the last hex digit of the expected accepted Claim root from 6 to 7",
+      "mutation": "replace the last hex digit of the expected Erdos 887 accepted Claim root from 4 to 5",
       "expected_code": "authority_terminal_state_mismatch",
       "signed_history": "unchanged"
     }

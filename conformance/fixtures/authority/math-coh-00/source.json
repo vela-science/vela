@@ -1,0 +1,213 @@
+{
+  "schema": "vela.authority-chain-source.v1",
+  "fixture_id": "math-coh-00",
+  "source_repository": "https://github.com/vela-science/math.git",
+  "terminal": {
+    "commit": "08a0e6d327e1ae9937ab2e0e5002192815eac69a",
+    "tree": "f58de302dcaf96e41e4836732dc5446f4eeb8c61"
+  },
+  "rights": "NOASSERTION",
+  "copied_bytes": 54772,
+  "files": [
+    {
+      "path": "authority/events/vev_12f645975bc04c2a.json",
+      "source_path": ".vela/authority/events/vev_12f645975bc04c2a.json",
+      "commit": "08a0e6d327e1ae9937ab2e0e5002192815eac69a",
+      "tree": "f58de302dcaf96e41e4836732dc5446f4eeb8c61",
+      "git_blob_sha1": "f6a54979500b3df106dcb663049b0a7f6a0a07ce",
+      "mode": "100644",
+      "size": 1254,
+      "raw_sha256": "sha256:3c54ba67909daf3c46f396efa8fe6ca5aaf98fb514242a77120e6aaf0e53d0b2"
+    },
+    {
+      "path": "authority/events/vev_5fae2fed846b8050.json",
+      "source_path": ".vela/authority/events/vev_5fae2fed846b8050.json",
+      "commit": "08a0e6d327e1ae9937ab2e0e5002192815eac69a",
+      "tree": "f58de302dcaf96e41e4836732dc5446f4eeb8c61",
+      "git_blob_sha1": "1f6607f5c095639910b94846fd992e2dd5cd79da",
+      "mode": "100644",
+      "size": 1582,
+      "raw_sha256": "sha256:3f2a11b195ab6725d9d2386c99bb6e12c274757cd5b5474b48f622c51c374edb"
+    },
+    {
+      "path": "authority/events/vev_a14bcb84de3d3e31.json",
+      "source_path": ".vela/authority/events/vev_a14bcb84de3d3e31.json",
+      "commit": "08a0e6d327e1ae9937ab2e0e5002192815eac69a",
+      "tree": "f58de302dcaf96e41e4836732dc5446f4eeb8c61",
+      "git_blob_sha1": "783a28b756f7517ab4fc08dd2b4d791490334d3f",
+      "mode": "100644",
+      "size": 1518,
+      "raw_sha256": "sha256:3e6519f3d2216312c445fa25e140edbfa635c07b721ace6dfe5757136f8a00b3"
+    },
+    {
+      "path": "authority/events/vev_b7eb6ae61e7e701b.json",
+      "source_path": ".vela/authority/events/vev_b7eb6ae61e7e701b.json",
+      "commit": "08a0e6d327e1ae9937ab2e0e5002192815eac69a",
+      "tree": "f58de302dcaf96e41e4836732dc5446f4eeb8c61",
+      "git_blob_sha1": "beeb9686bb925ffef1ae4b0d8a4b8ecd5054eb61",
+      "mode": "100644",
+      "size": 1670,
+      "raw_sha256": "sha256:8aaa9c1fec666d200af2372582b5e64251e4d6e26879e54a64953cf015ec3a42"
+    },
+    {
+      "path": "authority/events/vev_cd938718b5750d22.json",
+      "source_path": ".vela/authority/events/vev_cd938718b5750d22.json",
+      "commit": "08a0e6d327e1ae9937ab2e0e5002192815eac69a",
+      "tree": "f58de302dcaf96e41e4836732dc5446f4eeb8c61",
+      "git_blob_sha1": "fcefc3af1173b13e87abdf7d76bca872043ba409",
+      "mode": "100644",
+      "size": 1221,
+      "raw_sha256": "sha256:64ef5974f70537cb32b3c2488d3df6b902b2a561cca1482f6348bb7d4b47b75c"
+    },
+    {
+      "path": "authority/events/vev_dc1b92c21506390c.json",
+      "source_path": ".vela/authority/events/vev_dc1b92c21506390c.json",
+      "commit": "08a0e6d327e1ae9937ab2e0e5002192815eac69a",
+      "tree": "f58de302dcaf96e41e4836732dc5446f4eeb8c61",
+      "git_blob_sha1": "1f6150826f8042ef6eb73c13818f94738db8f76f",
+      "mode": "100644",
+      "size": 1238,
+      "raw_sha256": "sha256:09256df8e381f6ec39769091e2b978ddbe7ad7adda18bfef0f264c9724813850"
+    },
+    {
+      "path": "authority/events/vev_dffff48ea60d9334.json",
+      "source_path": ".vela/authority/events/vev_dffff48ea60d9334.json",
+      "commit": "08a0e6d327e1ae9937ab2e0e5002192815eac69a",
+      "tree": "f58de302dcaf96e41e4836732dc5446f4eeb8c61",
+      "git_blob_sha1": "e0113f7c1300354be5d77377077a680857447096",
+      "mode": "100644",
+      "size": 1853,
+      "raw_sha256": "sha256:3605dbdf05bca77a39d7b553f3d1f2267de992519ee45b4460d3370faa3389d8"
+    },
+    {
+      "path": "authority/keysets/43762983e444ec2a8b7fc906b05e45d66e9af469024db0691324707d5306deb1.json",
+      "source_path": ".vela/authority/keysets/43762983e444ec2a8b7fc906b05e45d66e9af469024db0691324707d5306deb1.json",
+      "commit": "08a0e6d327e1ae9937ab2e0e5002192815eac69a",
+      "tree": "f58de302dcaf96e41e4836732dc5446f4eeb8c61",
+      "git_blob_sha1": "3c5ec77c3fc93c263793293c8be26982e01ac5be",
+      "mode": "100644",
+      "size": 453,
+      "raw_sha256": "sha256:43762983e444ec2a8b7fc906b05e45d66e9af469024db0691324707d5306deb1"
+    },
+    {
+      "path": "authority/models/4d6d5e283577dde287b743871a67cb84bf1346d61ad8786c320d70f1af7e8965.json",
+      "source_path": ".vela/authority/models/4d6d5e283577dde287b743871a67cb84bf1346d61ad8786c320d70f1af7e8965.json",
+      "commit": "08a0e6d327e1ae9937ab2e0e5002192815eac69a",
+      "tree": "f58de302dcaf96e41e4836732dc5446f4eeb8c61",
+      "git_blob_sha1": "f745b8fd19768900bb9b43b2c189e7fec087bfc8",
+      "mode": "100644",
+      "size": 496,
+      "raw_sha256": "sha256:4d6d5e283577dde287b743871a67cb84bf1346d61ad8786c320d70f1af7e8965"
+    },
+    {
+      "path": "authority/records/var_35723928f18bfe6a.dsse.json",
+      "source_path": ".vela/authority/records/var_35723928f18bfe6a.dsse.json",
+      "commit": "08a0e6d327e1ae9937ab2e0e5002192815eac69a",
+      "tree": "f58de302dcaf96e41e4836732dc5446f4eeb8c61",
+      "git_blob_sha1": "54057c493303353a2d8a90db3ae4fabccf115681",
+      "mode": "100644",
+      "size": 6495,
+      "raw_sha256": "sha256:43362ca073749d5b3bbd82ebabecb1fe28baf387da9a98e5cd0d429421694966"
+    },
+    {
+      "path": "authority/records/var_bd6c2bf089c566ce.dsse.json",
+      "source_path": ".vela/authority/records/var_bd6c2bf089c566ce.dsse.json",
+      "commit": "08a0e6d327e1ae9937ab2e0e5002192815eac69a",
+      "tree": "f58de302dcaf96e41e4836732dc5446f4eeb8c61",
+      "git_blob_sha1": "60c4fb5b13d0c826ca1b907c65665eb608197c25",
+      "mode": "100644",
+      "size": 6479,
+      "raw_sha256": "sha256:9b07c396d813153f9850c029b3604b6568e33ba0c943d4f3206cb3e702cf9fae"
+    },
+    {
+      "path": "authority/records/var_e181c2f16ae7e4b8.dsse.json",
+      "source_path": ".vela/authority/records/var_e181c2f16ae7e4b8.dsse.json",
+      "commit": "08a0e6d327e1ae9937ab2e0e5002192815eac69a",
+      "tree": "f58de302dcaf96e41e4836732dc5446f4eeb8c61",
+      "git_blob_sha1": "4a99bc341ef528d01b7f71c30af2f44405752e32",
+      "mode": "100644",
+      "size": 6891,
+      "raw_sha256": "sha256:49f685e87109e8b63ee79c1e866724c8497d597b3d29639e65df336b9218592d"
+    },
+    {
+      "path": "authority/records/var_febc222c01ea38ce.dsse.json",
+      "source_path": ".vela/authority/records/var_febc222c01ea38ce.dsse.json",
+      "commit": "08a0e6d327e1ae9937ab2e0e5002192815eac69a",
+      "tree": "f58de302dcaf96e41e4836732dc5446f4eeb8c61",
+      "git_blob_sha1": "a10772af6c015cff0fc2cc04bb8cdadeaaf81aaa",
+      "mode": "100644",
+      "size": 6455,
+      "raw_sha256": "sha256:ed19497e85e9af20fcfb34eee368b669204d76a2b97e9f05a08a0a579f98b67a"
+    },
+    {
+      "path": "origin.json",
+      "source_path": ".vela/origin.json",
+      "commit": "08a0e6d327e1ae9937ab2e0e5002192815eac69a",
+      "tree": "f58de302dcaf96e41e4836732dc5446f4eeb8c61",
+      "git_blob_sha1": "472d6bd673e4d5fb64cfa2dcd5d9e4dce5b6eea3",
+      "mode": "100644",
+      "size": 360,
+      "raw_sha256": "sha256:be556724950533252af6aea398836ffe35717ffcda1f7d609fa6735413941e14"
+    },
+    {
+      "path": "repository-manifests/1ebbdae0827abb20f01ec8716e595072eafb24346ad8c6fe297e0c80480bddf7.json",
+      "source_path": ".vela/repository.json",
+      "commit": "09777410166f8272384b638cd39f05f282111110",
+      "tree": "a1b2a71df7452781c2a77acc05e26c0245a72714",
+      "git_blob_sha1": "1d330d3b27bcee39ae0443c3d2b6aaf17895e228",
+      "mode": "100644",
+      "size": 4016,
+      "raw_sha256": "sha256:1ebbdae0827abb20f01ec8716e595072eafb24346ad8c6fe297e0c80480bddf7"
+    },
+    {
+      "path": "repository-manifests/3e2236510923277c1e363d2d28c3d84d86a1d698bafd576b79308b18ae0cf0d2.json",
+      "source_path": ".vela/repository.json",
+      "commit": "08a0e6d327e1ae9937ab2e0e5002192815eac69a",
+      "tree": "f58de302dcaf96e41e4836732dc5446f4eeb8c61",
+      "git_blob_sha1": "9c5bad27707784c0b7e331d5c55e9b8f68d441fe",
+      "mode": "100644",
+      "size": 4011,
+      "raw_sha256": "sha256:3e2236510923277c1e363d2d28c3d84d86a1d698bafd576b79308b18ae0cf0d2"
+    },
+    {
+      "path": "repository-manifests/489286ed0254de84bf9092da32bc17d76755ca92a045ac562c0c85a3b30a5fb0.json",
+      "source_path": ".vela/repository.json",
+      "commit": "c3090b438ec202ad8ba437da5ea427b836d0a355",
+      "tree": "e9f9fa5b29356ee988467606792b7f1bce593502",
+      "git_blob_sha1": "00747df1cf97091257a045b44616bd76c4a3f569",
+      "mode": "100644",
+      "size": 4316,
+      "raw_sha256": "sha256:489286ed0254de84bf9092da32bc17d76755ca92a045ac562c0c85a3b30a5fb0"
+    },
+    {
+      "path": "repository-manifests/b2940ab6b59ba228b9c7cb06de9f21be1f315737a3a3d5afc95da52d489b9311.json",
+      "source_path": ".vela/repository.json",
+      "commit": "80f300647ec07ae14f44c3db09467d14a94e0c89",
+      "tree": "f1c76309f9bc57b2263defad00944d9e2fe00b4f",
+      "git_blob_sha1": "f298ebc3851b931d944792b13946c44401125798",
+      "mode": "100644",
+      "size": 1935,
+      "raw_sha256": "sha256:b2940ab6b59ba228b9c7cb06de9f21be1f315737a3a3d5afc95da52d489b9311"
+    },
+    {
+      "path": "repository-manifests/b5c1598c53f7a4303d93bb29b023c95085c7896840f042a6d01d6a60e6784e9d.json",
+      "source_path": ".vela/repository.json",
+      "commit": "58025af1defb793b188c22fadb576ca4e0557cf2",
+      "tree": "49390b89a0b54d76ad9d30705cb5662bcb63f378",
+      "git_blob_sha1": "8d3f668524c05648bc66e59ff4741e178c43865d",
+      "mode": "100644",
+      "size": 600,
+      "raw_sha256": "sha256:b5c1598c53f7a4303d93bb29b023c95085c7896840f042a6d01d6a60e6784e9d"
+    },
+    {
+      "path": "repository-manifests/b9f268bc6a9ca4b59675a7720fad9897a21a43af9ab8e291a9245fc6de276f1a.json",
+      "source_path": ".vela/repository.json",
+      "commit": "a5dc2d2ebb9900c587ce134801b22ec88cab76b3",
+      "tree": "8c329232b493c0cc61576dcb005f9f727739fb4a",
+      "git_blob_sha1": "df2aa71ff5737d5250e320b62ab63c67866f23ee",
+      "mode": "100644",
+      "size": 1929,
+      "raw_sha256": "sha256:b9f268bc6a9ca4b59675a7720fad9897a21a43af9ab8e291a9245fc6de276f1a"
+    }
+  ]
+}

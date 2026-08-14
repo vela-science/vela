@@ -30,7 +30,7 @@ complete. Answering it as a table of contract → schema → check does not.
 | 1 | Producer | `vela.submission.v2` in a DSSE envelope | PROTOCOL.md §3.3 | `conformance/current-objects/submission-draft.json`, `verify_current_objects.py` |
 | 2 | Artifact | Content address only — `sha256:<64 hex>` under `records/artifacts/sha256/` | PROTOCOL.md §3.6, ROOTS.md | `verify_canonical_hashing.py` |
 | 3 | Verification | `vela.verification-record.v2` in a DSSE envelope | PROTOCOL.md §3.4 | `conformance/current-objects/verification-draft.json`, `verify_current_objects.py` |
-| 4 | Authority | `vela.authority-record.v1`, `vela.authorization-model.v1` | THREAT_MODEL.md, SIGNING.md | `conformance/fixtures/authority/math-0.972.1/`, `verify_authority_chain.py` |
+| 4 | Authority | `vela.authority-record.v1`, `vela.authorization-model.v1` | THREAT_MODEL.md, SIGNING.md | `conformance/fixtures/authority/math-coh-00/`, `verify_authority_chain.py` |
 | 5 | Correction | `vela.correction-impact-input.v1` → `vela.correction-impact-projection.v1` | ADR 0004, CLI.md § Corrections | `conformance/fixtures/correction/`, `verify_correction_impact.py` |
 | 6 | Projection | Root-bound derived rows | INTEROPERABILITY.md § Public read contracts | `conformance/readers/python/repository_root.py` |
 | 7 | Canonical bytes | RFC 8785 JCS, SHA-256 | ROOTS.md | `verify_canonical_hashing.py`, `conformance/emitters/` |
@@ -105,13 +105,14 @@ Producing and verifying are unprivileged; deciding is not. That asymmetry is
 the point of the boundary, and a profile that let a producer sign its own
 acceptance would be describing a different system.
 
-`conformance/fixtures/authority/math-0.972.1/` is the language-independent
+`conformance/fixtures/authority/math-coh-00/` is the language-independent
 verification vector. Its clean-room Python reader takes the sequence-one root
 as a separate explicit input and, without Vela, Rust, Git, or network access,
-verifies the retained four-record chain, five Events, keyset, authorization
-model, signed deltas, and bounded terminal state. Thirteen stable negative
-vectors exercise the proved layers without retaining corrupted history. The
-companion Rust test checks the same fixture through the public history verifier.
+verifies the retained four-record chain, seven Events, keyset, authorization
+model, signed deltas, signed correction transition, and bounded two-Claim
+terminal state. Thirteen stable negative vectors exercise the proved layers
+without retaining corrupted history. The companion Rust test checks the same
+fixture through the public history verifier.
 
 This closes the independent-vector gap, not every authority implementation
 gap. Current CLI read and replay paths do not consult the local trust pin; the

@@ -1,17 +1,19 @@
-# Math 0.972.1 authority-chain verification fixture
+# Math COH-00 authority-chain verification fixture
 
 This verification-only fixture copies the complete four-record public
 repository-authority chain for `vela-science/math` at commit
-`9bdabbcc1f77d0dd60458e3e9d91d2ffa01fd476`, tree
-`3c99d1b9c969a8559605a664bdd7280e9729169f`. The copied authority bytes,
-origin, and terminal repository manifest remain byte-identical at the later
-Erdős 321 carrier commit `a6a31a528ee86ab79c2aaf4e71e43fc63f4a4e98`.
+`08a0e6d327e1ae9937ab2e0e5002192815eac69a`, tree
+`f58de302dcaf96e41e4836732dc5446f4eeb8c61`. The chain initializes the
+current compact Repository, accepts an Erdős 321 predecessor, accepts its
+explicit correction, and accepts the bounded Erdős 887 Claim.
 
-`source.json` is the exact allowlist and provenance ledger for 56,876 copied
-bytes: four records, five events, the generation-one keyset and authorization
-model, the origin, and five repository-manifest snapshots. `trust-anchor.json`
-is a separate verifier input, not a value inferred from the Repository under
-test. `expected.json` freezes the supported chain and terminal-state results.
+`source.json` is the exact allowlist and provenance ledger for 54,772 copied
+bytes: four records, seven events, the generation-one keyset and authorization
+model, the origin, and six repository-manifest snapshots. Each copied file is
+pinned to its source commit, tree, Git blob, size, and raw SHA-256 digest.
+`trust-anchor.json` is a separate verifier input, not a value inferred from the
+Repository under test. `expected.json` freezes the supported chain,
+predecessor-to-correction transition, and terminal-state results.
 `negative-vectors.json` names thirteen in-memory mutations and their stable
 failure codes; no corrupted history is retained.
 
@@ -27,9 +29,10 @@ scientific truth, commit signatures, full-tree reconstruction, or the actual
 out-of-band distribution of the trust anchor. It also does not claim that the
 current CLI read path loads its local authority trust pin. The independent
 reader takes the sequence-one anchor as an explicit separate input. The reader
-also checks signed read-set, authorization, Event, write-set, and terminal-state
-cross-links at fixture level; the production history verifier does not enforce
-every one of those links, and this fixture does not claim that it does.
+also checks signed read-set, authorization, Event, write-set, correction, and
+terminal-state cross-links at fixture level; the production history verifier
+does not enforce every one of those links, and this fixture does not claim that
+it does.
 
 Run the clean-room reader without Vela, Rust, Git, or network access:
 

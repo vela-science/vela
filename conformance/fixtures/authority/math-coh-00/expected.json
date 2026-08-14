@@ -1,0 +1,109 @@
+{
+  "schema": "vela.authority-chain-expectation.v1",
+  "fixture_id": "math-coh-00",
+  "repository_id": "8138c6da-46c4-47ee-b493-5bbfbec09b1e",
+  "trust_anchor_root": "sha256:76b12bd6d4f697a84e58f8858165ca733e5ef710dd0c080dc92d5ef30c4801b6",
+  "initial_event_log_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "initial_actor_registry_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "authority_keyset_root": "sha256:43762983e444ec2a8b7fc906b05e45d66e9af469024db0691324707d5306deb1",
+  "authorization_model_root": "sha256:4d6d5e283577dde287b743871a67cb84bf1346d61ad8786c320d70f1af7e8965",
+  "records": [
+    {
+      "sequence": 1,
+      "path": "authority/records/var_e181c2f16ae7e4b8.dsse.json",
+      "record_id": "var_e181c2f16ae7e4b8",
+      "record_root": "sha256:978e78326c9cd0c665b958696a0255e76fd50cc2d699651fbd7edd95aed418ef",
+      "action": "authority_initialize",
+      "event_ids": [
+        "vev_a14bcb84de3d3e31"
+      ],
+      "write_set_root": "sha256:bdb1c7af557fc0fad13c70b37b3bcc9b4252eaa5cd84f557f903bfffe3fa732a"
+    },
+    {
+      "sequence": 2,
+      "path": "authority/records/var_bd6c2bf089c566ce.dsse.json",
+      "record_id": "var_bd6c2bf089c566ce",
+      "record_root": "sha256:14337ee4ceed11644943de64b147cf9e3de14ffc187fe034afc64bc665a296b1",
+      "action": "review_accept",
+      "event_ids": [
+        "vev_5fae2fed846b8050",
+        "vev_dc1b92c21506390c"
+      ],
+      "write_set_root": "sha256:4c7464270463ece4d5c3787e7f785c16bd8c2e91e78e027347717d4453e70dbb"
+    },
+    {
+      "sequence": 3,
+      "path": "authority/records/var_35723928f18bfe6a.dsse.json",
+      "record_id": "var_35723928f18bfe6a",
+      "record_root": "sha256:8d2e4e19197aa0f82dc81fa422614f88cc2964ed9f9fb3b6880b0ca0c8f36e5f",
+      "action": "review_accept",
+      "event_ids": [
+        "vev_12f645975bc04c2a",
+        "vev_dffff48ea60d9334"
+      ],
+      "write_set_root": "sha256:c5c6c44e6528e884adf89a8988018a229955c1572216b18a14b3cd4639c2733d"
+    },
+    {
+      "sequence": 4,
+      "path": "authority/records/var_febc222c01ea38ce.dsse.json",
+      "record_id": "var_febc222c01ea38ce",
+      "record_root": "sha256:079888e8e4cdf7d63d08ecc216296e977c289631b01bc5f7c5168acf1dd54ade",
+      "action": "review_accept",
+      "event_ids": [
+        "vev_b7eb6ae61e7e701b",
+        "vev_cd938718b5750d22"
+      ],
+      "write_set_root": "sha256:0aa4594831c8c0e5c50cd8a325327ff11a44df54e8828ef4b11246d5092ee970"
+    }
+  ],
+  "final_authority_record_root": "sha256:079888e8e4cdf7d63d08ecc216296e977c289631b01bc5f7c5168acf1dd54ade",
+  "final_event_log_root": "sha256:0a9bda4f1fc695e9daedb500fb5c23071c39876f1fbbbfc3941fea250712ff4a",
+  "terminal": {
+    "repository_manifest_root": "sha256:3e2236510923277c1e363d2d28c3d84d86a1d698bafd576b79308b18ae0cf0d2",
+    "accepted_claims": [
+      {
+        "claim_id": "vcl_0d3f0fa5b619afd182e83d8a52347b7e6531554837a8e83e580d9e85e0817e31",
+        "claim_root": "sha256:844635af8c5bf3c75984362e5c94b827f041cc7d7dfd059d7c30fe31c0dafc32"
+      },
+      {
+        "claim_id": "vcl_7a84a1f878f6a6ca835566c7219376e15b52269e3d2436f725906e44116e683a",
+        "claim_root": "sha256:9a1ca35aa2a5d1ef6bdb045a2ea81aa78bf7d9322050c88efc7427cbced81a44"
+      }
+    ],
+    "applied_transitions": [
+      {
+        "sequence": 2,
+        "event_id": "vev_5fae2fed846b8050",
+        "semantic_event_id": "vev_ff522a9365da5144",
+        "kind": "claim.asserted",
+        "claim_id": "vcl_97de71a97b57c7fe4c115e9d632e7c997de90f935963a3058913ba37812a18ba",
+        "claim_root": "sha256:f40ee9f34b40468b4f125d8adf913d135067383cd3bb74da288c4cb6999b0228"
+      },
+      {
+        "sequence": 3,
+        "event_id": "vev_dffff48ea60d9334",
+        "semantic_event_id": "vev_5a0ffd90152124f3",
+        "kind": "claim.superseded",
+        "claim_id": "vcl_0d3f0fa5b619afd182e83d8a52347b7e6531554837a8e83e580d9e85e0817e31",
+        "claim_root": "sha256:844635af8c5bf3c75984362e5c94b827f041cc7d7dfd059d7c30fe31c0dafc32"
+      },
+      {
+        "sequence": 4,
+        "event_id": "vev_b7eb6ae61e7e701b",
+        "semantic_event_id": "vev_3b13a9e938167e8a",
+        "kind": "claim.asserted",
+        "claim_id": "vcl_7a84a1f878f6a6ca835566c7219376e15b52269e3d2436f725906e44116e683a",
+        "claim_root": "sha256:9a1ca35aa2a5d1ef6bdb045a2ea81aa78bf7d9322050c88efc7427cbced81a44"
+      }
+    ],
+    "counts": {
+      "accepted_claims": 2,
+      "pending_claims": 0,
+      "proposals": 3,
+      "withdrawals": 0,
+      "submissions": 3,
+      "verifications": 3,
+      "artifacts": 2
+    }
+  }
+}

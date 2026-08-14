@@ -17,14 +17,14 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 ROOT = Path(__file__).resolve().parent.parent
-FIXTURE = ROOT / "conformance/fixtures/authority/math-0.972.1"
+FIXTURE = ROOT / "conformance/fixtures/authority/math-coh-00"
 sys.path.insert(0, str(ROOT / "conformance/readers/python"))
 from canonical import canonical_bytes
 
-COMMIT = "9bdabbcc1f77d0dd60458e3e9d91d2ffa01fd476"
-TREE = "3c99d1b9c969a8559605a664bdd7280e9729169f"
-LATER = "a6a31a528ee86ab79c2aaf4e71e43fc63f4a4e98"
-REPOSITORY = "8115c538-7688-40b7-ab75-3c4765bf3c19"
+FIXTURE_ID = "math-coh-00"
+COMMIT = "08a0e6d327e1ae9937ab2e0e5002192815eac69a"
+TREE = "f58de302dcaf96e41e4836732dc5446f4eeb8c61"
+REPOSITORY = "8138c6da-46c4-47ee-b493-5bbfbec09b1e"
 PAYLOAD_TYPE = "application/vnd.vela.authority-record.v1+json"
 ZERO_ROOT = "sha256:" + "0" * 64
 ACTION = {
@@ -41,10 +41,10 @@ METADATA = {
 }
 MAX_BYTES = 8 * 1024 * 1024
 PINS = {
-    "source.json": "sha256:d053aff53d784c57b4107fb6aa4aaf1a5374cb700ec0e24a477c8065feaa0894",
-    "expected.json": "sha256:7363e5b60274e923170ebfb448bfed6d9b776aeb6c2607402b0db3a325cf98e6",
-    "negative-vectors.json": "sha256:9bc7bf45b5315f7a31910aeccb60902da9a4d5faf0e8fb1c7be08f27eee49ed7",
-    "trust-anchor.json": "sha256:738cebec28a246cf437522361f59ebcec340bd552ddcbfa5f8f0f99c5324b590",
+    "source.json": "sha256:5473beb1ad84bcab46c6c4a7ac63bc0d5504c7fdc5b5e90bdcd00eaaf9538dda",
+    "expected.json": "sha256:e9bc5e6e2e3eb62286d34224e5af7248ac78773215d68e5a093cb4754cc9cff7",
+    "negative-vectors.json": "sha256:6353658a6ebb8118c7cdfb62eec1bb6c09fec1b2ae17b40b739ca25424a9e752",
+    "trust-anchor.json": "sha256:76b12bd6d4f697a84e58f8858165ca733e5ef710dd0c080dc92d5ef30c4801b6",
 }
 
 
@@ -156,25 +156,21 @@ def load_fixture():
     source = pinned("source.json", 256 * 1024)
     entries = source.get("files")
     require(
-        isinstance(entries, list) and len(entries) == 17,
+        isinstance(entries, list) and len(entries) == 20,
         "source_manifest_files_invalid",
     )
     paths = [
         relative(entry.get("path")) for entry in entries if isinstance(entry, dict)
     ]
     require(
-        len(paths) == 17 and paths == sorted(set(paths)),
+        len(paths) == 20 and paths == sorted(set(paths)),
         "source_manifest_files_invalid",
     )
-    terminal_path = "repository-manifests/db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc.json"
-    terminal_subset = [
-        path for path in paths if not path.startswith("repository-manifests/")
-    ]
-    terminal_subset.append(terminal_path)
-    later = source.get("confirmed_terminal_subset_byte_identical_through")
     require(
-        later == {"commit": LATER, "paths": terminal_subset},
-        "source_manifest_later_confirmation_invalid",
+        source.get("fixture_id") == FIXTURE_ID
+        and source.get("terminal") == {"commit": COMMIT, "tree": TREE}
+        and source.get("copied_bytes") == 54772,
+        "source_manifest_identity_invalid",
     )
     require(fixture_files() == set(paths) | METADATA, "source_allowlist_mismatch")
 
@@ -194,7 +190,7 @@ def load_fixture():
         require(blob_id(data) == entry["git_blob_sha1"], "source_entry_blob_mismatch")
         documents[path] = parse_json(data, canonical=True)
         copied += len(data)
-    require(copied == 56876, "source_copied_bytes_mismatch")
+    require(copied == 54772, "source_copied_bytes_mismatch")
 
     anchor = pinned("trust-anchor.json", 4096, canonical=True)
     expected = pinned("expected.json")
@@ -458,7 +454,14 @@ def event_log_root(initial, events):
 
 
 def verify_events(records, events, expected):
-    require(len(events) == 5, "authority_event_coverage_mismatch")
+    expected_event_ids = [
+        event_id for item in expected["records"] for event_id in item["event_ids"]
+    ]
+    require(
+        len(expected_event_ids) == len(set(expected_event_ids))
+        and set(expected_event_ids) == set(events),
+        "authority_event_coverage_mismatch",
+    )
     current = expected["initial_event_log_root"]
     cumulative = []
     covered = set()
@@ -487,12 +490,29 @@ def verify_events(records, events, expected):
         for event in transaction_events:
             event_content = event["content"]
             equal(
-                fields(event_content, "transaction_id", "principal_id")
-                + fields(event_content["actor"], "id"),
-                (content["transaction_id"], principal, principal),
+                fields(event_content, "transaction_id", "principal_id"),
+                (content["transaction_id"], principal),
                 "authority_event_coverage_mismatch",
             )
             payload = event_content["payload"]
+            performer = payload.get("decision_performer")
+            if performer is None:
+                equal(
+                    event_content["actor"]["id"],
+                    principal,
+                    "authority_event_coverage_mismatch",
+                )
+            else:
+                equal(
+                    fields(event_content["actor"], "id", "type"),
+                    fields(performer, "actor_id", "actor_class"),
+                    "authority_event_coverage_mismatch",
+                )
+                equal(
+                    fields(performer, "schema", "authority_principal_id"),
+                    ("vela.decision-performer.v1", principal),
+                    "authority_event_coverage_mismatch",
+                )
             if "proposal_id" in payload:
                 equal(
                     payload["proposal_id"],
@@ -635,35 +655,65 @@ def verify_terminal(manifest, events, expected):
     }
     counts = {name: len(manifest.get(key, [])) for name, key in collections.items()}
     equal(counts, terminal["counts"], "authority_terminal_state_mismatch")
-    claim_root = terminal["accepted_claim_root"]
     accepted = [
         {
-            "claim_id": terminal["accepted_claim_id"],
-            "claim_root": claim_root,
-            "path": f"records/claims/sha256/{claim_root[7:]}.json",
+            "claim_id": item["claim_id"],
+            "claim_root": item["claim_root"],
+            "path": f"records/claims/sha256/{item['claim_root'][7:]}.json",
             "standing": "accepted",
         }
+        for item in terminal["accepted_claims"]
     ]
     equal(manifest["accepted_claims"], accepted, "authority_terminal_state_mismatch")
-    applied = event_with_kind(events.values(), "claim.asserted")
-    review = event_with_kind(events.values(), "review.accepted")
-    semantic = terminal["applied_semantic_event_id"]
-    content = applied["content"]
-    equal(
-        fields(content["target"], "id")
-        + fields(content["payload"], "claim_id", "claim_root")
-        + fields(content, "after_hash"),
-        (
-            terminal["accepted_claim_id"],
-            terminal["accepted_claim_id"],
-            claim_root,
-            claim_root,
-        ),
+    transitions = terminal["applied_transitions"]
+    require(
+        [item["sequence"] for item in transitions] == [2, 3, 4],
         "authority_terminal_state_mismatch",
     )
-    equal(semantic_event_id(applied), semantic, "authority_terminal_state_mismatch")
-    applied_id = review["content"]["payload"]["applied_event_id"]
-    equal(applied_id, semantic, "authority_terminal_state_mismatch")
+    previous_claim_id = None
+    for item in transitions:
+        record = expected["records"][item["sequence"] - 1]
+        require(
+            item["event_id"] in record["event_ids"],
+            "authority_terminal_state_mismatch",
+        )
+        applied = events[item["event_id"]]
+        content = applied["content"]
+        target_claim_id = (
+            previous_claim_id
+            if item["kind"] == "claim.superseded"
+            else item["claim_id"]
+        )
+        equal(
+            fields(content, "kind", "after_hash")
+            + fields(content["target"], "id")
+            + fields(content["payload"], "claim_id", "claim_root"),
+            (
+                item["kind"],
+                item["claim_root"],
+                target_claim_id,
+                item["claim_id"],
+                item["claim_root"],
+            ),
+            "authority_terminal_state_mismatch",
+        )
+        equal(
+            semantic_event_id(applied),
+            item["semantic_event_id"],
+            "authority_terminal_state_mismatch",
+        )
+        reviews = [
+            events[event_id]
+            for event_id in record["event_ids"]
+            if events[event_id]["content"]["kind"] == "review.accepted"
+        ]
+        require(len(reviews) == 1, "authority_terminal_state_mismatch")
+        equal(
+            reviews[0]["content"]["payload"]["applied_event_id"],
+            item["semantic_event_id"],
+            "authority_terminal_state_mismatch",
+        )
+        previous_claim_id = item["claim_id"]
 
 
 def materialize(bundle):
@@ -756,22 +806,25 @@ def run_negatives(bundle, positive):
     bad_request["principal_id"] = "local:unbound|uid:0"
     key_path = f"authority/keysets/{expected['authority_keyset_root'][7:]}.json"
     noncanonical_keyset = read_regular(FIXTURE / key_path) + b"\n"
-    bad_event = copy.deepcopy(events["vev_fb652e14f2a9323f"])
+    bad_event = copy.deepcopy(events["vev_cd938718b5750d22"])
     bad_event["content"]["payload"]["verdict"] = "rejected"
     missing_event = {
-        key: value for key, value in events.items() if key != "vev_fb652e14f2a9323f"
+        key: value for key, value in events.items() if key != "vev_cd938718b5750d22"
     }
     bad_documents = copy.deepcopy(bundle["documents"])
-    bc36 = "repository-manifests/bc36be46a09ca4aafd99b20c384bcf6a807e0094e6e7a55879d943cefbf041d5.json"
-    claim = bad_documents[bc36]["pending_claims"][0]
-    claim["claim_root"] = claim["claim_root"][:-1] + "7"
+    sequence_four_preimage = (
+        "repository-manifests/"
+        "1ebbdae0827abb20f01ec8716e595072eafb24346ad8c6fe297e0c80480bddf7.json"
+    )
+    claim = bad_documents[sequence_four_preimage]["pending_claims"][0]
+    claim["claim_root"] = claim["claim_root"][:-1] + "5"
     bad_record = copy.deepcopy(records[3])
     bad_record["content"]["object_delta"].pop()
     terminal = expected["terminal"]["repository_manifest_root"]
     manifest = bundle["documents"][f"repository-manifests/{terminal[7:]}.json"]
     bad_terminal = copy.deepcopy(expected)
-    claim_root = bad_terminal["terminal"]["accepted_claim_root"]
-    bad_terminal["terminal"]["accepted_claim_root"] = claim_root[:-1] + "7"
+    accepted = bad_terminal["terminal"]["accepted_claims"][1]
+    accepted["claim_root"] = accepted["claim_root"][:-1] + "5"
     history = (keyset, model, bundle["anchor"], expected)
     cases = [
         (
@@ -839,7 +892,7 @@ def main():
         expected = bundle["expected"]
         output = {
             "schema": "vela.authority-chain-verification-result.v1",
-            "fixture_id": "math-0.972.1",
+            "fixture_id": FIXTURE_ID,
             "result": "pass",
             "source_commit": COMMIT,
             "source_tree": TREE,

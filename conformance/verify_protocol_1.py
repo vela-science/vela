@@ -69,7 +69,11 @@ def paths() -> list[tuple[str, str, bool]]:
             selected.append((str(path.relative_to(ROOT)), "json-schema-2020-12", True))
     for pattern, role, normative in (
         ("conformance/current-objects/*.json", "current-object-vector", True),
-        ("conformance/fixtures/authority/math-0.972.1/**/*", "authority-chain-vector", True),
+        (
+            "conformance/fixtures/authority/math-coh-00/**/*",
+            "authority-chain-vector",
+            True,
+        ),
         ("conformance/fixtures/correction/*.json", "correction-impact-vector", True),
         ("conformance/emitters/*", "independent-emitter", True),
         ("conformance/readers/python/*.py", "independent-reader", True),

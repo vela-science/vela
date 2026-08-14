@@ -226,7 +226,7 @@ The current finite corpus checks:
 - optional source-workbench run or attempt provenance;
 - principals and delegated capabilities;
 - independent JavaScript emission of Submission and Verification bytes; and
-- exact witness and bounded-Claim agreement.
+- bounded-Claim and authority-chain agreement.
 
 Run:
 

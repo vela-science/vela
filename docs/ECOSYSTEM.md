@@ -36,23 +36,23 @@ once at genesis, and answers `vela.status.v4`.
 **Source.** Declared by the source-owning integration and bound to exact native
 identities. Core ships no source acquisition or lock package. Source state is
 projected by `vela-web` into its derived source declarations,
-`observatory.source_observations`, `observatory.native_records` and
-`observatory.release_sources` (`packages/observatory-data/schema.sql`). Thirteen
-sources are declared in
-`packages/observatory-data/config/math-sources.v1.ts`, which is the same thirteen
-§2 says `math` declares. Adapters live in
-`packages/observatory-data/src/source-adapters/` (fifteen files, including
+`projection.source_observations`, `projection.native_records` and
+`projection.release_sources` (`packages/projection-data/schema.sql`). Thirteen
+sources are declared by the current Web projection in
+`packages/projection-data/config/math-sources.v1.ts`; they are not declarations
+inside the Math Repository. Adapters live in
+`packages/projection-data/src/source-adapters/` (fifteen files, including
 `formal-conjectures.ts`, `oeis.ts`, `physlib.ts`, `openai-ten-proofs.ts` and
 `vibemathed.ts`).
 
 The containment property is enforced in SQL, not prose.
-`observatory.frontier_source_bindings` carries
+`projection.repository_source_bindings` carries
 `CHECK (binding_kind = 'admission' OR local_standing_effect = 'none')`. A
 reference or snapshot of an external source cannot carry Standing.
 
 **Problem.** No protocol object. No projection table. The surface at
-`apps/observatory/src/app/repositories/[slug]/problems/` is derived, in
-`packages/observatory-data/src/index.ts`, from `observatory.native_records` scoped
+`apps/problems/src/app/repositories/[slug]/problems/` is derived, in
+`packages/projection-data/src/index.ts`, from `projection.native_records` scoped
 through `release_sources`, with the Claim a `LEFT JOIN LATERAL` and the declared
 status, formalization, prize and subject tags read from the Source record's
 metadata. It used to be an inner join from `observatory.graph_nodes` to
@@ -63,22 +63,18 @@ described its replacement, and this paragraph is the one a reader reaches first.
 
 **Frontier.** Derived, and no longer minted in the protocol. In `vela-web`,
 `registry.ts` pins one slug, `math`, against `repository_id`
-`8115c538-7688-40b7-ab75-3c4765bf3c19`. The Vela 0.972.1 Math genesis and the
-one-way Web migration are active. No `vfr_` or `vrepo_` identity survives in
-the current reader. The keying is finished too: canonical projection joins key
-on `repository_id`, and the slug is a
+`8138c6da-46c4-47ee-b493-5bbfbec09b1e`. The compact Vela 0.975.1 Math genesis
+is current. No `vfr_` or `vrepo_` identity survives in the current reader.
+Canonical projection joins key on `repository_id`, and the slug is a
 presentation fact that lives only in the registry, where a URL handle meets a
-protocol identity. It was a root migration rather than a rename — `rooted()`
-hashes `canonicalJson(row)` including keys, so every renamed column moved a
-`row_root` — and the release it produced was rebuilt from an empty database and
-compared root for root.
+protocol identity.
 
-**Atlas.** The Observatory, `apps/observatory/` in `vela-web`. There is no
+**Atlas.** The replaceable Problems projection, `apps/problems/` in `vela-web`. There is no
 separate Atlas application, no Atlas compiler, no per-view ontology. Every
-projection row is root-bound. `packages/observatory-data/schema.sql` declares 20
-tables, of which 17 carry `row_root`; the other three — `releases`,
+projection row is root-bound. `packages/projection-data/schema.sql` declares 19
+tables, of which 16 carry `row_root`; the other three — `releases`,
 `schema_migrations` and `current_release` — are the projection's own bookkeeping
-and hold no projected row. Of the 17, all but three also carry `release_root`,
+and hold no projected row. Of the 16, all but three also carry `release_root`,
 and those three are `source_declarations`, `source_observations` and
 `native_records`, which are content-addressed and reach a release through
 `release_sources`. The count of tables and the count of root-bound rows were
@@ -178,7 +174,7 @@ package manager, package repository, or hosted registry.
 | Repository | Sole responsibility | Status |
 | --- | --- | --- |
 | `vela-science/vela` | Protocol, CLI, conformance readers and fixtures, releases, architecture | exists |
-| `vela-science/vela-web` | Editorial site and read-only Observatory | exists |
+| `vela-science/vela-web` | Editorial site and root-bound Problems projection | exists |
 | `vela-science/.github` | Organization profile, reusable workflows, security policy | exists |
 | `vela-science/math` | The one live mathematics authority, fresh genesis | exists |
 

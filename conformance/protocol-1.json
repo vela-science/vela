@@ -121,158 +121,179 @@
       "sha256": "sha256:d6dc2b89f2484759e8ba74e9bf4a5c1779834e49f7f1e0bc0633ad5382a87083"
     },
     {
-      "bytes": 2197,
+      "bytes": 2332,
       "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/README.md",
+      "path": "conformance/fixtures/authority/math-coh-00/README.md",
       "role": "authority-chain-vector",
-      "sha256": "sha256:592572352e32cf2679ca0864fff476f1e700346ae884c9f863dc9a7db4201cef"
+      "sha256": "sha256:b4bd1c4dda46fca9d9baf80712dc1da11a7a4744ee1caa88956851054f8d3cf2"
     },
     {
-      "bytes": 1057,
+      "bytes": 1254,
       "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/authority/events/vev_7b333d5b16a70cdd.json",
+      "path": "conformance/fixtures/authority/math-coh-00/authority/events/vev_12f645975bc04c2a.json",
       "role": "authority-chain-vector",
-      "sha256": "sha256:58b4057e552a57660d6d503640e50ac2bf173f28e16d7d2f9e68e4744e23a599"
+      "sha256": "sha256:3c54ba67909daf3c46f396efa8fe6ca5aaf98fb514242a77120e6aaf0e53d0b2"
     },
     {
-      "bytes": 1830,
+      "bytes": 1582,
       "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/authority/events/vev_8bc2ab6301663407.json",
+      "path": "conformance/fixtures/authority/math-coh-00/authority/events/vev_5fae2fed846b8050.json",
       "role": "authority-chain-vector",
-      "sha256": "sha256:f7a55a487d442c2e3e1a82d8d2a763819b590c82f736cc21f2330af021234be8"
+      "sha256": "sha256:3f2a11b195ab6725d9d2386c99bb6e12c274757cd5b5474b48f622c51c374edb"
     },
     {
-      "bytes": 1101,
+      "bytes": 1518,
       "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/authority/events/vev_e045ff0592e193fa.json",
+      "path": "conformance/fixtures/authority/math-coh-00/authority/events/vev_a14bcb84de3d3e31.json",
       "role": "authority-chain-vector",
-      "sha256": "sha256:91279c57c97a22db478c2835db591d2915ae800cab43a999376870c2c86a1325"
+      "sha256": "sha256:3e6519f3d2216312c445fa25e140edbfa635c07b721ace6dfe5757136f8a00b3"
     },
     {
-      "bytes": 2188,
+      "bytes": 1670,
       "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/authority/events/vev_fa0607b365786fe7.json",
+      "path": "conformance/fixtures/authority/math-coh-00/authority/events/vev_b7eb6ae61e7e701b.json",
       "role": "authority-chain-vector",
-      "sha256": "sha256:00e4e67f40debc116816d05d6de29062a7ffd9726e42c02607e0d6e33e7f398e"
+      "sha256": "sha256:8aaa9c1fec666d200af2372582b5e64251e4d6e26879e54a64953cf015ec3a42"
     },
     {
-      "bytes": 1201,
+      "bytes": 1221,
       "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/authority/events/vev_fb652e14f2a9323f.json",
+      "path": "conformance/fixtures/authority/math-coh-00/authority/events/vev_cd938718b5750d22.json",
       "role": "authority-chain-vector",
-      "sha256": "sha256:84d37efa52864f879f2b135147486dde60388b7c2544234e5cd8bdb02d8612d1"
+      "sha256": "sha256:64ef5974f70537cb32b3c2488d3df6b902b2a561cca1482f6348bb7d4b47b75c"
+    },
+    {
+      "bytes": 1238,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-coh-00/authority/events/vev_dc1b92c21506390c.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:09256df8e381f6ec39769091e2b978ddbe7ad7adda18bfef0f264c9724813850"
+    },
+    {
+      "bytes": 1853,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-coh-00/authority/events/vev_dffff48ea60d9334.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:3605dbdf05bca77a39d7b553f3d1f2267de992519ee45b4460d3370faa3389d8"
     },
     {
       "bytes": 453,
       "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/authority/keysets/cb06d8d9c2bcb88e0bcdfa908659f06cd6419d07f335ff1c956c1da64942f111.json",
+      "path": "conformance/fixtures/authority/math-coh-00/authority/keysets/43762983e444ec2a8b7fc906b05e45d66e9af469024db0691324707d5306deb1.json",
       "role": "authority-chain-vector",
-      "sha256": "sha256:cb06d8d9c2bcb88e0bcdfa908659f06cd6419d07f335ff1c956c1da64942f111"
+      "sha256": "sha256:43762983e444ec2a8b7fc906b05e45d66e9af469024db0691324707d5306deb1"
     },
     {
       "bytes": 496,
       "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/authority/models/b9cdcd8061ea0693769b20288590dbb672984f5ff81ea7a7631a4d20eafe3cfe.json",
+      "path": "conformance/fixtures/authority/math-coh-00/authority/models/4d6d5e283577dde287b743871a67cb84bf1346d61ad8786c320d70f1af7e8965.json",
       "role": "authority-chain-vector",
-      "sha256": "sha256:b9cdcd8061ea0693769b20288590dbb672984f5ff81ea7a7631a4d20eafe3cfe"
+      "sha256": "sha256:4d6d5e283577dde287b743871a67cb84bf1346d61ad8786c320d70f1af7e8965"
     },
     {
-      "bytes": 6259,
+      "bytes": 6495,
       "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/authority/records/var_3b1390bd9881c965.dsse.json",
+      "path": "conformance/fixtures/authority/math-coh-00/authority/records/var_35723928f18bfe6a.dsse.json",
       "role": "authority-chain-vector",
-      "sha256": "sha256:4cc20615577fac4a6245be0af2b9d2b2ce80703866c7dca2a774a0f977f438a5"
+      "sha256": "sha256:43362ca073749d5b3bbd82ebabecb1fe28baf387da9a98e5cd0d429421694966"
     },
     {
-      "bytes": 6319,
+      "bytes": 6479,
       "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/authority/records/var_7730c004926050d2.dsse.json",
+      "path": "conformance/fixtures/authority/math-coh-00/authority/records/var_bd6c2bf089c566ce.dsse.json",
       "role": "authority-chain-vector",
-      "sha256": "sha256:3d9521b099792f9f9c5648b4d201deef35d23a67f9152bc2614e001da4004a56"
+      "sha256": "sha256:9b07c396d813153f9850c029b3604b6568e33ba0c943d4f3206cb3e702cf9fae"
     },
     {
-      "bytes": 6675,
+      "bytes": 6891,
       "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/authority/records/var_948ca88ec08032cf.dsse.json",
+      "path": "conformance/fixtures/authority/math-coh-00/authority/records/var_e181c2f16ae7e4b8.dsse.json",
       "role": "authority-chain-vector",
-      "sha256": "sha256:a0b346adec5967941301ea44105648a43318f1c87afd388cfe65c1b00d200653"
+      "sha256": "sha256:49f685e87109e8b63ee79c1e866724c8497d597b3d29639e65df336b9218592d"
     },
     {
-      "bytes": 7099,
+      "bytes": 6455,
       "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/authority/records/var_eeb904de922de3f4.dsse.json",
+      "path": "conformance/fixtures/authority/math-coh-00/authority/records/var_febc222c01ea38ce.dsse.json",
       "role": "authority-chain-vector",
-      "sha256": "sha256:b0882e7d22597f0ecbe41bf6d397181dc9e57a076b2496414814e149c9bf8222"
+      "sha256": "sha256:ed19497e85e9af20fcfb34eee368b669204d76a2b97e9f05a08a0a579f98b67a"
     },
     {
-      "bytes": 3158,
+      "bytes": 4592,
       "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/expected.json",
+      "path": "conformance/fixtures/authority/math-coh-00/expected.json",
       "role": "authority-chain-vector",
-      "sha256": "sha256:7363e5b60274e923170ebfb448bfed6d9b776aeb6c2607402b0db3a325cf98e6"
+      "sha256": "sha256:e9bc5e6e2e3eb62286d34224e5af7248ac78773215d68e5a093cb4754cc9cff7"
     },
     {
-      "bytes": 3508,
+      "bytes": 3528,
       "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/negative-vectors.json",
+      "path": "conformance/fixtures/authority/math-coh-00/negative-vectors.json",
       "role": "authority-chain-vector",
-      "sha256": "sha256:9bc7bf45b5315f7a31910aeccb60902da9a4d5faf0e8fb1c7be08f27eee49ed7"
+      "sha256": "sha256:6353658a6ebb8118c7cdfb62eec1bb6c09fec1b2ae17b40b739ca25424a9e752"
     },
     {
-      "bytes": 516,
+      "bytes": 360,
       "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/origin.json",
+      "path": "conformance/fixtures/authority/math-coh-00/origin.json",
       "role": "authority-chain-vector",
-      "sha256": "sha256:229ce0a08217da5e8bad2059c35070989652ca546ab45b8e699922ba182e8a69"
+      "sha256": "sha256:be556724950533252af6aea398836ffe35717ffcda1f7d609fa6735413941e14"
+    },
+    {
+      "bytes": 4016,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-coh-00/repository-manifests/1ebbdae0827abb20f01ec8716e595072eafb24346ad8c6fe297e0c80480bddf7.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:1ebbdae0827abb20f01ec8716e595072eafb24346ad8c6fe297e0c80480bddf7"
+    },
+    {
+      "bytes": 4011,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-coh-00/repository-manifests/3e2236510923277c1e363d2d28c3d84d86a1d698bafd576b79308b18ae0cf0d2.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:3e2236510923277c1e363d2d28c3d84d86a1d698bafd576b79308b18ae0cf0d2"
+    },
+    {
+      "bytes": 4316,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-coh-00/repository-manifests/489286ed0254de84bf9092da32bc17d76755ca92a045ac562c0c85a3b30a5fb0.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:489286ed0254de84bf9092da32bc17d76755ca92a045ac562c0c85a3b30a5fb0"
+    },
+    {
+      "bytes": 1935,
+      "normative": true,
+      "path": "conformance/fixtures/authority/math-coh-00/repository-manifests/b2940ab6b59ba228b9c7cb06de9f21be1f315737a3a3d5afc95da52d489b9311.json",
+      "role": "authority-chain-vector",
+      "sha256": "sha256:b2940ab6b59ba228b9c7cb06de9f21be1f315737a3a3d5afc95da52d489b9311"
     },
     {
       "bytes": 600,
       "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/repository-manifests/2f07569c759f097c61bf4c0af201fd959e3734a57e2f94be8195a4080c941868.json",
+      "path": "conformance/fixtures/authority/math-coh-00/repository-manifests/b5c1598c53f7a4303d93bb29b023c95085c7896840f042a6d01d6a60e6784e9d.json",
       "role": "authority-chain-vector",
-      "sha256": "sha256:2f07569c759f097c61bf4c0af201fd959e3734a57e2f94be8195a4080c941868"
+      "sha256": "sha256:b5c1598c53f7a4303d93bb29b023c95085c7896840f042a6d01d6a60e6784e9d"
     },
     {
-      "bytes": 5347,
+      "bytes": 1929,
       "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/repository-manifests/4aed9ba56f5608ee782970dbdb96682da03902a96b97dfc69dc9b297bd6d514c.json",
+      "path": "conformance/fixtures/authority/math-coh-00/repository-manifests/b9f268bc6a9ca4b59675a7720fad9897a21a43af9ab8e291a9245fc6de276f1a.json",
       "role": "authority-chain-vector",
-      "sha256": "sha256:4aed9ba56f5608ee782970dbdb96682da03902a96b97dfc69dc9b297bd6d514c"
+      "sha256": "sha256:b9f268bc6a9ca4b59675a7720fad9897a21a43af9ab8e291a9245fc6de276f1a"
     },
     {
-      "bytes": 5047,
+      "bytes": 10016,
       "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/repository-manifests/bc36be46a09ca4aafd99b20c384bcf6a807e0094e6e7a55879d943cefbf041d5.json",
+      "path": "conformance/fixtures/authority/math-coh-00/source.json",
       "role": "authority-chain-vector",
-      "sha256": "sha256:bc36be46a09ca4aafd99b20c384bcf6a807e0094e6e7a55879d943cefbf041d5"
-    },
-    {
-      "bytes": 5041,
-      "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/repository-manifests/db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc.json",
-      "role": "authority-chain-vector",
-      "sha256": "sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc"
-    },
-    {
-      "bytes": 5647,
-      "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/repository-manifests/f89e9b08554d59a7fdaf553104aec1d5d176eb2ccd2f222d56b9fdb0a880d591.json",
-      "role": "authority-chain-vector",
-      "sha256": "sha256:f89e9b08554d59a7fdaf553104aec1d5d176eb2ccd2f222d56b9fdb0a880d591"
-    },
-    {
-      "bytes": 9534,
-      "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/source.json",
-      "role": "authority-chain-vector",
-      "sha256": "sha256:d053aff53d784c57b4107fb6aa4aaf1a5374cb700ec0e24a477c8065feaa0894"
+      "sha256": "sha256:5473beb1ad84bcab46c6c4a7ac63bc0d5504c7fdc5b5e90bdcd00eaaf9538dda"
     },
     {
       "bytes": 202,
       "normative": true,
-      "path": "conformance/fixtures/authority/math-0.972.1/trust-anchor.json",
+      "path": "conformance/fixtures/authority/math-coh-00/trust-anchor.json",
       "role": "authority-chain-vector",
-      "sha256": "sha256:738cebec28a246cf437522361f59ebcec340bd552ddcbfa5f8f0f99c5324b590"
+      "sha256": "sha256:76b12bd6d4f697a84e58f8858165ca733e5ef710dd0c080dc92d5ef30c4801b6"
     },
     {
       "bytes": 3811,
@@ -380,11 +401,11 @@
       "sha256": "sha256:96b2c7f46fb6324c539bb5f04edf48e053fad846328b6249a4e0488bffa30c5a"
     },
     {
-      "bytes": 31099,
+      "bytes": 32717,
       "normative": true,
       "path": "conformance/verify_authority_chain.py",
       "role": "authority-vector-verifier",
-      "sha256": "sha256:7dd3f5e0073dbbdea5ea3a08582fd344da270125c19625afeafcaeca4f0c3b68"
+      "sha256": "sha256:eea15100a7fa70659b7243c257ad9cf1f7b32c1803d1b4d4e30d822f532ddd64"
     },
     {
       "bytes": 3005,
@@ -408,18 +429,18 @@
       "sha256": "sha256:5e0c512f10b2b0a8f6a89bcfc47d47de951589c26f9b85d730b8ac7c74dd88a0"
     },
     {
-      "bytes": 6612,
+      "bytes": 6658,
       "normative": true,
       "path": "conformance/verify_protocol_1.py",
       "role": "manifest-verifier",
-      "sha256": "sha256:08d4c4bdb3f26c9dbaf91a82aac6320255a644763eaa76550b871dc424ab2666"
+      "sha256": "sha256:2d2bb0d1d50b5b8cfbde448b8fafa9f7d541b54c8d0949c9ab492d04264fb37a"
     },
     {
-      "bytes": 6309,
+      "bytes": 6338,
       "normative": false,
       "path": "conformance/verify_reference_flows.py",
       "role": "reference-flow-verifier",
-      "sha256": "sha256:111a472f40d07d245708f42b2044a20ffaeb3be963f8f0b4db5a3c181a70d5f2"
+      "sha256": "sha256:a72efb58d83fb9eeace8316499833d3863b2e8c833d3063d33420c7167475508"
     },
     {
       "bytes": 7826,
@@ -450,11 +471,11 @@
       "sha256": "sha256:30a5ce774fddd8b840cd3ea066dddde8a42af95a690a65ca621eb56d4462ca6f"
     },
     {
-      "bytes": 10749,
+      "bytes": 10788,
       "normative": true,
       "path": "docs/interop/scientific-state-profile.md",
       "role": "conformance-profile",
-      "sha256": "sha256:04793384ee462c0ce096d38489790003342e5267af0e416ef71a93c335c5e4b2"
+      "sha256": "sha256:b0b857e3379032ad4074728075ec12b24db45cd61548379758c082666b06f1ff"
     },
     {
       "bytes": 977,
@@ -506,11 +527,11 @@
       "sha256": "sha256:8c11dd176fa8721095b9901f5e3bf839749a3d4159be54526013cbb73c909c9f"
     },
     {
-      "bytes": 862,
+      "bytes": 861,
       "normative": false,
       "path": "examples/correction-inheritance/flow.json",
       "role": "reference-flow",
-      "sha256": "sha256:ce2f0a2fb7db1810fc105c5c014899dab42e0e51b2ae5de951e09fe882fcfb8e"
+      "sha256": "sha256:624eb727f76548d67ccca54418938abcb43778b3f7b1ceeca1d0744a6bd823ca"
     },
     {
       "bytes": 1484,
@@ -653,7 +674,7 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:4ab12814b0fcfc436289ebfe5e379e74f7b0100b7e18ac30e974666c6ec0537a",
+  "manifest_root": "sha256:8672fc94cb00ce03a39ebf66ecffc337717a10aed6242db7794a60a468549a05",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",

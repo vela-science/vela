@@ -121,8 +121,8 @@ def check_correction_flow() -> None:
     authority = load(ROOT / flow["real_authority_fixture"] / "expected.json")
     if authority["terminal"]["repository_manifest_root"] != flow["real_terminal_repository_root"]:
         raise AssertionError("real correction terminal root drift")
-    if authority["terminal"]["accepted_claim_id"] is None:
-        raise AssertionError("real correction fixture has no accepted Claim")
+    if len(authority["terminal"]["accepted_claims"]) != flow["real_accepted_claim_count"]:
+        raise AssertionError("real correction accepted Claim count drift")
     input_value = load(ROOT / flow["cascade_fixture"])
     input_root = "sha256:" + hashlib.sha256(canonical_bytes(input_value)).hexdigest()
     if input_root != flow["cascade_input_root"]:

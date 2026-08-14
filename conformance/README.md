@@ -33,8 +33,9 @@ The corpus protects seven contract families:
    roots;
 4. a non-authoritative correction-impact projection, including independent
    support-route survival and bounded fail-closed diagnostics; and
-5. verification of a retained four-record authority chain from an explicit
-   external sequence-one anchor, including thirteen fail-closed mutations;
+5. verification of the current four-record, seven-Event Math authority chain
+   from an explicit external sequence-one anchor, including thirteen
+   fail-closed mutations and the signed correction transition;
 6. byte-identical independent Python and JavaScript object reading, including
    canonical bytes, DSSE type, Ed25519 signature, full root, handle, and signer;
    and
@@ -52,12 +53,13 @@ conformance vectors only. They let the Rust reducer in `vela-cli` and the
 clean-room Python reader agree on exact bytes before a real correction fixture
 exists. They earn no scientific or protocol-breakthrough credit.
 
-`fixtures/authority/math-0.972.1/` retains public signed history and no private
-key. Its Python reader independently verifies the exact chain and terminal
-state without Vela, Rust, Git, or network access. The explicit trust anchor is
-a separate verifier input; this vector does not claim that current CLI read
-paths load the local trust pin or that the production history verifier checks
-every fixture-level cross-link.
+`fixtures/authority/math-coh-00/` retains public signed history and no private
+key. Its Python reader independently verifies the exact chain, the Erdős 321
+predecessor-to-correction transition, and the two-Claim terminal state without
+Vela, Rust, Git, or network access. The explicit trust anchor is a separate
+verifier input; this vector does not claim that current CLI read paths load the
+local trust pin or that the production history verifier checks every
+fixture-level cross-link.
 
 Historical reducer cascades, AcceptancePolicy experiments, actor-registration
 previews, and their duplicate Python/TypeScript readers remain available in

@@ -47,9 +47,11 @@ frozen and run on every CI run. Canonicalization vectors run in Rust, Python,
 and JavaScript. Contract 4, authority, has two deliberately distinct evidence
 paths: the retained epoch-1 corpus is Rust-read evaluator compatibility across
 the vocabulary migration, while
-`conformance/fixtures/authority/math-0.972.1/` and
+`conformance/fixtures/authority/math-coh-00/` and
 `verify_authority_chain.py` are the current retained four-record
-language-independent signed-chain vector from an explicit external anchor.
+seven-Event language-independent signed-chain vector from an explicit external
+anchor. It also binds the signed Erdős 321 predecessor-to-correction transition
+and the two-Claim terminal state.
 
 The JavaScript reader is deliberately narrower than Python: it independently
 checks RFC 8785 bytes and SHA-256 roots, while repository reconstruction stays
@@ -97,14 +99,15 @@ recomputed every historical Allow and seven negative boundary cases. That
 one-time migration evidence was removed after the current authority contract
 replaced it. Current conformance now:
 
-- verifies the current four-record Math chain independently from an explicit
-  sequence-one anchor; `verify_authority_chain.py` checks DSSE signatures,
-  continuity, authorization, signed deltas, Events, and bounded terminal state
-  with thirteen stable negative cases and no Vela, Rust, Git, or network; and
+- verifies the current four-record, seven-Event Math chain independently from
+  an explicit sequence-one anchor; `verify_authority_chain.py` checks DSSE
+  signatures, continuity, authorization, signed deltas, the correction
+  transition, and bounded terminal state with thirteen stable negative cases
+  and no Vela, Rust, Git, or network; and
 - replay the current authority from a clean clone, exercised by
-  `vela-science/math@130fc283b99b8c55dea51b5f8f959a6c33a679f6`, yielding
+  `vela-science/math@08a0e6d327e1ae9937ab2e0e5002192815eac69a`, yielding
   Repository root
-  `sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc`.
+  `sha256:3e2236510923277c1e363d2d28c3d84d86a1d698bafd576b79308b18ae0cf0d2`.
 
 The deletion followed: `cedar-policy` is out of both manifests, `engine_pin.rs`
 is gone, `PolicyBundleV1` is `AuthorizationModelV1` naming no engine, and

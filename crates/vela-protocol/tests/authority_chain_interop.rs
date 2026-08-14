@@ -18,13 +18,13 @@ use vela_protocol::canonical::{from_json_slice_strict, sha256_canonical, to_cano
 use vela_protocol::repository::RepositoryV4;
 use vela_protocol::repository_origin::RepositoryOriginV1;
 
-const FIXTURE_ID: &str = "math-0.972.1";
+const FIXTURE_ID: &str = "math-coh-00";
 const EMPTY_READ_ROOT: &str =
     "sha256:0000000000000000000000000000000000000000000000000000000000000000";
 const KEYSET_PATH: &str =
-    "authority/keysets/cb06d8d9c2bcb88e0bcdfa908659f06cd6419d07f335ff1c956c1da64942f111.json";
+    "authority/keysets/43762983e444ec2a8b7fc906b05e45d66e9af469024db0691324707d5306deb1.json";
 const MODEL_PATH: &str =
-    "authority/models/b9cdcd8061ea0693769b20288590dbb672984f5ff81ea7a7631a4d20eafe3cfe.json";
+    "authority/models/4d6d5e283577dde287b743871a67cb84bf1346d61ad8786c320d70f1af7e8965.json";
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -201,7 +201,7 @@ fn retained_math_authority_chain_verifies_from_an_external_anchor() {
             verified.authority_record_count,
             verified.authority_event_count
         ),
-        (4, 5)
+        (4, 7)
     );
     assert_eq!(
         verified.final_event_log_root,
@@ -268,27 +268,65 @@ fn retained_math_authority_chain_verifies_from_an_external_anchor() {
             terminal.verifications.len(),
             terminal.artifacts.len()
         ),
-        (1, 0, 3, 0, 3, 7, 3)
+        (2, 0, 3, 0, 3, 3, 2)
     );
-    assert_eq!(
-        terminal.accepted_claims[0].claim_id,
-        text(expected, "/terminal/accepted_claim_id")
-    );
-    assert_eq!(
-        terminal.accepted_claims[0].claim_root,
-        text(expected, "/terminal/accepted_claim_root")
-    );
+    for (accepted, item) in terminal
+        .accepted_claims
+        .iter()
+        .zip(array(expected, "/terminal/accepted_claims"))
+    {
+        assert_eq!(accepted.claim_id, text(item, "/claim_id"));
+        assert_eq!(accepted.claim_root, text(item, "/claim_root"));
+    }
     assert_eq!(terminal.repository_id, text(expected, "/repository_id"));
     assert_eq!(terminal.origin_root, origin.canonical_root().unwrap());
-    let applied = &history.events[3];
-    assert_eq!(
-        applied.content.after_hash,
-        text(expected, "/terminal/accepted_claim_root")
-    );
-    assert_eq!(
-        applied.semantic_event_id().unwrap(),
-        text(expected, "/terminal/applied_semantic_event_id")
-    );
+
+    let mut previous_claim_id = None;
+    for item in array(expected, "/terminal/applied_transitions") {
+        let sequence = item["sequence"].as_u64().unwrap() as usize;
+        let record = &array(expected, "/records")[sequence - 1];
+        let applied = history
+            .events
+            .iter()
+            .find(|event| event.id == text(item, "/event_id"))
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(&applied.content.kind).unwrap(),
+            item["kind"]
+        );
+        assert_eq!(applied.content.after_hash, text(item, "/claim_root"));
+        assert_eq!(
+            applied.content.target.id,
+            if text(item, "/kind") == "claim.superseded" {
+                previous_claim_id.unwrap()
+            } else {
+                text(item, "/claim_id")
+            }
+        );
+        assert_eq!(applied.content.payload["claim_id"], item["claim_id"]);
+        assert_eq!(applied.content.payload["claim_root"], item["claim_root"]);
+        assert_eq!(
+            applied.semantic_event_id().unwrap(),
+            text(item, "/semantic_event_id")
+        );
+        let review = array(record, "/event_ids")
+            .iter()
+            .filter_map(Value::as_str)
+            .map(|event_id| {
+                history
+                    .events
+                    .iter()
+                    .find(|event| event.id == event_id)
+                    .unwrap()
+            })
+            .find(|event| serde_json::to_value(&event.content.kind).unwrap() == "review.accepted")
+            .unwrap();
+        assert_eq!(
+            review.content.payload["applied_event_id"],
+            item["semantic_event_id"]
+        );
+        previous_claim_id = Some(text(item, "/claim_id"));
+    }
 }
 
 #[test]
@@ -310,19 +348,25 @@ fn retained_math_authority_falsifiers_fail_closed_without_resigning() {
     history.keysets[0].keys[0].valid_through_sequence = Some(1);
     assert!(fixture.verify_with(&history).is_err());
     history = fixture.history.clone();
-    history.models[0].members.remove(0);
+    history.models[0].members.remove(1);
     assert!(fixture.verify_with(&history).is_err());
 
     history = fixture.history.clone();
     history.events.pop();
     assert!(fixture.verify_with(&history).is_err());
     history = fixture.history.clone();
-    history.events[4].content.reason.push_str(" altered");
+    history
+        .events
+        .iter_mut()
+        .find(|event| event.id == "vev_cd938718b5750d22")
+        .unwrap()
+        .content
+        .payload["verdict"] = Value::String("rejected".into());
     assert!(fixture.verify_with(&history).is_err());
 
     let terminal_root = text(&fixture.expected, "/terminal/repository_manifest_root");
     let mut terminal = manifest(terminal_root);
-    terminal.accepted_claims[0].claim_root = format!("sha256:{}", "0".repeat(64));
-    let expected_root = text(&fixture.expected, "/terminal/accepted_claim_root");
-    assert_ne!(terminal.accepted_claims[0].claim_root, expected_root);
+    terminal.accepted_claims[1].claim_root = format!("sha256:{}", "0".repeat(64));
+    let expected_root = text(&fixture.expected, "/terminal/accepted_claims/1/claim_root");
+    assert_ne!(terminal.accepted_claims[1].claim_root, expected_root);
 }
