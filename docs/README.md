@@ -45,6 +45,7 @@
 - [Protocol breakthrough benchmark](BREAKTHROUGH_BENCHMARK.md)
 - [Whitepaper evidence contract](WHITEPAPER_CONTRACT.md)
 - [Genesis: open models and the scientific-state control point](integrations/genesis-open-models.md)
+- [Native repository integration draft v0.1](integrations/native-repository-integration-v0.1.md)
 - [Non-normative integration-profile template](integrations/integration-profile-template.md)
 - [Roadmap](ROADMAP.md)
 - [Interoperability boundary](INTEROPERABILITY.md)

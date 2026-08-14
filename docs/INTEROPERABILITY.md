@@ -74,10 +74,13 @@ An adapter:
 5. retains explicit caveats and nonclaims; and
 6. never infers acceptance from tool success.
 
-The [non-normative integration-profile
-template](integrations/integration-profile-template.md) records these facts,
-reviewer or verifier scope, rights and availability, and explicit semantic loss.
-It is package-plane guidance, not another protocol object or authority surface.
+The [native repository integration draft
+v0.1](integrations/native-repository-integration-v0.1.md) separates Manifest,
+Profile, Binding, Method, and Exact Reference responsibilities and carries an
+executable hostile corpus. The earlier
+[integration-profile template](integrations/integration-profile-template.md)
+remains general package-plane guidance. Neither is a Protocol object or
+authority surface.
 
 Any external runner or workbench may be a producer. It may consume a
 source-local work packet and emit ordinary Submissions or Verification
