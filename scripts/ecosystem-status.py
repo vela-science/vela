@@ -172,15 +172,6 @@ DECLARED_SURFACES: dict[str, bool] = {
     "scripts/sign-published-release.sh": True,
     ".github/workflows/ecosystem-status.yml": True,
     "scripts/release_manifest.py": True,
-    # Declared absent. A declared-absent surface is worth as much as a
-    # declared-present one: it is how "not built" stops being a claim nobody
-    # rechecks. The two are absent for different reasons, and the reason is the
-    # part worth writing down. `epoch1/` was built, verified against all four
-    # checkouts, and then deleted when ADR
-    # 0039's same-day amendment withdrew §8 — so this row guards a decision
-    # rather than tracking a gap, and a directory reappearing here is the
-    # epoch-1 branch coming back.
-    "crates/vela-protocol/src/epoch1": False,
 }
 
 

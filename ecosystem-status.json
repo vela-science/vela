@@ -91,6 +91,7 @@
       "proposal.schema.json",
       "repository-origin.schema.json",
       "repository-profile.schema.json",
+      "repository-projection.schema.json",
       "review-method.schema.json",
       "status.schema.json",
       "submission.schema.json",
@@ -157,10 +158,6 @@
       "crates/vela-edge/src/analysis/correction_impact.rs": {
         "declared": true,
         "present": true
-      },
-      "crates/vela-protocol/src/epoch1": {
-        "declared": false,
-        "present": false
       },
       "crates/vela-protocol/src/objects/repository.rs": {
         "declared": true,

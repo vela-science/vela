@@ -50,7 +50,7 @@ inputs. These profiles are not interchangeable.
 | Git tree | Exact tracked paths and bytes | Commit ancestry or authority |
 | Origin ID/root `vro_…` | Immutable repository genesis | Repository root or authority head |
 | Repository root | Canonical current object-set commitment | Git commit, authority record, or Claim Standing |
-| Authority-record root | Full DSSE transaction record commitment | Trust-anchor choice or scientific truth |
+| Authority-record root | Canonical decoded `AuthorityRecordV1` payload commitment; its retained DSSE envelope is verified separately | Trust-anchor choice, envelope byte root, or scientific truth |
 | Authority trust-anchor root | Local closed record selecting sequence one | Secret key, later freshness, or Standing |
 | Authority Event root | Exact semantic Event content | Authority-record signature or Event-log root |
 | Authority Event-log root | Ordered current authority Event set | Repository root or accepted Claim set |
