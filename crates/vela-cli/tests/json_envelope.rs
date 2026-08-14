@@ -124,6 +124,30 @@ fn every_json_read_carries_the_envelope() {
     }
 }
 
+#[test]
+fn native_integration_resolution_fails_as_json_without_authority_advice() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    std::fs::create_dir_all(temporary.path().join("home")).unwrap();
+    for args in [
+        vec!["integration", "check", "/tmp", "--repo", "/tmp", "--json"],
+        vec!["integration", "check", "--json"],
+    ] {
+        let (success, out) = run(
+            temporary.path(),
+            &temporary.path().join("unused-agent.sock"),
+            &args,
+        );
+        assert!(!success);
+        let parsed: serde_json::Value = serde_json::from_str(out.trim()).unwrap();
+        assert_eq!(parsed["schema"], "vela.error.v1");
+        assert_eq!(parsed["command"], "integration check");
+        assert_eq!(parsed["ok"], false);
+        let advice = parsed["error"].to_string();
+        assert!(!advice.contains("vela init"));
+        assert!(!advice.contains("vela status"));
+    }
+}
+
 #[cfg(unix)]
 #[test]
 fn reproduce_rejects_semantic_extra_fields_before_any_prior_path_read() {

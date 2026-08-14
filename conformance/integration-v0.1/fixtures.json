@@ -167,13 +167,19 @@
         "outcome",
         0
       ]
+    ],
+    [
+      "binding_method_unknown_field",
+      "binding",
+      "methods.0.unexpected",
+      "shared-envelope-open"
     ]
   ],
   "packet": {
     "binding": {
       "authority_effect": "none",
       "binding_id": "example-proof",
-      "binding_root": "sha256:4a0050ddf6de50884d8e5cf956ece16d8549620bac5a7b60216a2822dc340fe3",
+      "binding_root": "sha256:cd6b1bb7403cbf8fc4e2412b6c5570777a39a26815464302c289cffa57220f1b",
       "mappings": [
         {
           "relation": "exact",
@@ -184,7 +190,7 @@
       "methods": [
         {
           "id": "native-check",
-          "root": "sha256:c554dea085a3ee79f24c2ddb90ba1f1d2de098f80e299d78f95248e362dfee7b"
+          "root": "sha256:e50311bc0c9d345460f761952a0169dbbf8be14188071151395559630f5ae270"
         }
       ],
       "outputs": [
@@ -237,7 +243,7 @@
       "authority_effect": "none",
       "evidence_availability": "available",
       "fixture_kind": "synthetic_check_output",
-      "method_root": "sha256:c554dea085a3ee79f24c2ddb90ba1f1d2de098f80e299d78f95248e362dfee7b",
+      "method_root": "sha256:e50311bc0c9d345460f761952a0169dbbf8be14188071151395559630f5ae270",
       "nonclaims": [
         "This result is not acceptance or Standing."
       ],
@@ -289,15 +295,15 @@
       "bindings": [
         {
           "path": ".vela/bindings/proof.json",
-          "root": "sha256:4a0050ddf6de50884d8e5cf956ece16d8549620bac5a7b60216a2822dc340fe3"
+          "root": "sha256:cd6b1bb7403cbf8fc4e2412b6c5570777a39a26815464302c289cffa57220f1b"
         }
       ],
-      "manifest_root": "sha256:e3aa13640e9b72d1b35495e1243d4d0b9430eb714b3d24a70c0113f51f09c504",
+      "manifest_root": "sha256:65d5ae939f48692f46f1e6b40e6869089c737609475acc9ce0822660381c7ef0",
       "methods": [
         {
           "id": "native-check",
           "path": ".vela/methods/native-check.json",
-          "root": "sha256:c554dea085a3ee79f24c2ddb90ba1f1d2de098f80e299d78f95248e362dfee7b"
+          "root": "sha256:e50311bc0c9d345460f761952a0169dbbf8be14188071151395559630f5ae270"
         }
       ],
       "outputs": [
@@ -332,7 +338,7 @@
         "revision": "1111111111111111111111111111111111111111"
       },
       "implementation": {
-        "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "digest": "sha256:9f56e761d79bfdb34304a012586cb04d16b435ef6130091a97702e559260a2f2",
         "path": "tools/check.py"
       },
       "inputs": [
@@ -342,7 +348,7 @@
         "Checks only the selected declaration."
       ],
       "method_id": "native-check",
-      "method_root": "sha256:c554dea085a3ee79f24c2ddb90ba1f1d2de098f80e299d78f95248e362dfee7b",
+      "method_root": "sha256:e50311bc0c9d345460f761952a0169dbbf8be14188071151395559630f5ae270",
       "nonclaims": [
         "A pass is not acceptance or Standing."
       ],

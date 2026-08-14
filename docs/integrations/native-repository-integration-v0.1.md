@@ -1,8 +1,7 @@
-# Native repository integration draft v0.1
+# Native repository integration v0.1
 
-Status: Phase 0 draft with `authority_effect: none`. This is not a Protocol 1
-object, wire schema, registry entry, endorsement, or authority initializer.
-Source-specific Profiles remain in their native repositories through Phase 1.
+Status: Phase 2 candidate integration waist with `authority_effect: none`; not a
+Protocol object, registry, endorsement, or initializer. Profiles stay source-owned.
 
 ## Contract chain
 
@@ -19,10 +18,12 @@ Manifest -> Profile -> Binding -> Method
 - **Method:** how one property is checked, including exact implementation,
   environment, inputs, outputs, limitations, and nonclaims.
 
-All documents use closed fields, a schema tag ending in `v0.1`, a full
-`sha256:<64 lowercase hex>` root, and the document-specific canonical framing
-defined by `conformance/integration-v0.1/README.md`. Unknown versions and fields
-fail closed.
+Documents use a closed shared envelope, a `v0.1` schema tag, a full lowercase
+SHA-256 root, and the canonical framing in the conformance README. Core closes
+the envelope, inventory, and Exact Reference shapes. It treats optional
+source-owned objects as opaque except for shared authority and unavailable-result
+refusals; native validators close and interpret those objects. Unknown versions
+and fields fail closed at their owning contract.
 
 ## Exact Reference
 
@@ -83,3 +84,12 @@ a result.
 Native repositories must remain usable if all Vela integration files are
 ignored. A cold consumer must need neither Math, authority credentials, private
 maintainer context, a hosted Vela service, nor a mutable `latest` reference.
+
+## Phase 2 extraction
+
+The consumers proved the four rooted documents, Exact Reference, inventories,
+mapping/translation separation, disclosures, and authority refusal in common—not
+a scientific Profile. Lean retains proof/axiom semantics; Formal Conjectures
+retains audit, review, condition, and fidelity semantics. `integration check`
+validates the structure and `integration inspect` renders it. Neither runs
+Methods or replaces source validation; pilots justify no Profile in advance.

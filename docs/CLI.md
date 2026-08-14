@@ -56,7 +56,7 @@ init status claims submit show why review replay reproduce log
 ## Advanced commands
 
 ```text
-verification correction recover authority
+verification correction integration recover authority
 ```
 
 - `why` also resolves a retained superseded Claim through covered authority
@@ -73,6 +73,9 @@ Advanced verification and integration:
   of one already ruled on. It reads the two relation kinds that carry
   consequence (`depends` as `depends_on`, and `supports`) and reports every
   relation it excluded. See [Corrections](#corrections).
+- `integration check` validates the shared rooted Manifest/Profile/Binding/Method
+  waist; `integration inspect` renders it. Neither executes Methods, initializes
+  authority, creates Protocol objects, or establishes acceptance or Standing.
 
 Advanced maintenance:
 
@@ -514,6 +517,9 @@ while recovery is required.
 - `review inbox --json` returns rooted consequence-only decision summaries
   with an explicit Claim-scoped Standing delta.
 - `review show --json` returns one pending Proposal or terminal Decision.
+- `integration check --json` returns the Manifest root and document count;
+  `integration inspect --json` returns the rooted inventory. Both report
+  `authority_effect: none` under their command-specific `v1` schemas.
 
 Default JSON does not embed full packet bodies, review collections, private
 coordination, test telemetry, or secret material.

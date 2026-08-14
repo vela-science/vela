@@ -163,6 +163,30 @@ pub fn run_command() {
                 }
             },
         },
+        Commands::Integration { action } => match action {
+            IntegrationAction::Check {
+                repository,
+                repo_flag,
+                json,
+            } => {
+                crate::ui::set_mode("integration check", json);
+                crate::integration::cmd_integration_check(
+                    &repo_arg::bind_native_repo("integration check", repository, repo_flag),
+                    json,
+                );
+            }
+            IntegrationAction::Inspect {
+                repository,
+                repo_flag,
+                json,
+            } => {
+                crate::ui::set_mode("integration inspect", json);
+                crate::integration::cmd_integration_inspect(
+                    &repo_arg::bind_native_repo("integration inspect", repository, repo_flag),
+                    json,
+                );
+            }
+        },
         Commands::Recover {
             repository,
             operation_id,
@@ -659,9 +683,10 @@ mod tests {
 
     /// The repository convention `command_spec.rs` states, asserted against the
     /// parsed surface rather than against prose, so the module doc cannot go
-    /// back to describing a convention the surface does not have. A verb added
-    /// later must either accept both spellings or be named here as one of the
-    /// two arguments that is deliberately not a repository.
+    /// back to describing a convention the surface does not have. Native
+    /// integration uses the same argument mechanics but names its distinct
+    /// repository kind. A verb added later must either accept both spellings or
+    /// be named here as an argument that is deliberately not a repository.
     #[test]
     fn every_repository_verb_accepts_both_spellings() {
         /// `init <path>` is a destination to create and `reproduce <path>` is a
@@ -705,10 +730,15 @@ mod tests {
                     flag.is_some(),
                     "`{path}` acts on a repository but does not accept --repo"
                 );
+                let expected_help = if path.starts_with("vela integration ") {
+                    crate::command_spec::HELP_NATIVE_REPO
+                } else {
+                    crate::command_spec::HELP_REPO
+                };
                 assert_eq!(
                     flag.and_then(clap::Arg::get_help)
                         .map(|help| help.to_string()),
-                    Some(crate::command_spec::HELP_REPO.to_string()),
+                    Some(expected_help.to_string()),
                     "`{path} --repo` must state the one repository contract"
                 );
                 assert!(

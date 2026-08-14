@@ -688,9 +688,9 @@ Packet, Frontier map, Attempt (ADR 0039 §5), and Registration Record (ADR
                   ↑ replaceable derived views and process adapters; never
                     required for replay
   operator      crates/vela-cli
-                  ↑ 15 verbs: replay status claims log verification reproduce
-                    correction recover authority init review show why submit
-                    completions
+                  ↑ 16 verbs: replay status claims log verification reproduce
+                    correction integration recover authority init review show
+                    why submit completions
   readers       conformance/readers/python, conformance/readers/javascript,
                 conformance/emitters/javascript.mjs, conformance/emitters/python.py
                   ↑ independent implementations of the same bytes

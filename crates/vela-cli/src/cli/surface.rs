@@ -67,6 +67,7 @@ Daily product:
 Advanced verification and integration:
   verification  Retain non-authorizing scoped Verification Records
   correction    Project what one correction costs the Claims resting on it
+  integration   Check or inspect one non-authoritative native integration
 
 Advanced maintenance:
   recover       finish or abort one exact durable repository transaction

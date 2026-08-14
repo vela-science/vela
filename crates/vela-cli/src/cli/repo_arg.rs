@@ -83,6 +83,44 @@ pub(crate) fn bind_repo(verb: &str, positional: Option<PathBuf>, flag: Option<Pa
     }
 }
 
+/// Bind an ordinary native repository without implying Vela authority.
+pub(crate) fn bind_native_repo(
+    verb: &str,
+    positional: Option<PathBuf>,
+    flag: Option<PathBuf>,
+) -> PathBuf {
+    match (positional, flag) {
+        (Some(_), Some(_)) => given_twice(verb),
+        (Some(path), None) => path,
+        (None, Some(path)) => path,
+        (None, None) => {
+            let mut current = std::env::current_dir().unwrap_or_else(|_| {
+                ui::fail_with(
+                    ErrorKind::Usage,
+                    "cannot resolve the current directory",
+                    None,
+                )
+            });
+            let started = current.clone();
+            loop {
+                if current.join("vela.toml").is_file() {
+                    return current;
+                }
+                if !current.pop() {
+                    ui::fail_with(
+                        ErrorKind::NotFound,
+                        &format!(
+                            "no native integration manifest found from {} up to the filesystem root",
+                            started.display()
+                        ),
+                        Some("pass a native repository containing `vela.toml`"),
+                    );
+                }
+            }
+        }
+    }
+}
+
 /// Verbs that take the repository plus exactly one required object:
 /// `show`, `why`, `review show|accept|reject|withdraw`,
 /// `verification record|import`.

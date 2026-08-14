@@ -43,11 +43,13 @@ pub(crate) const HELP_REQUIRED_AS: &str =
     "Exact acting identity for this write (agent:<name>, ci:<name>, or verifier:<name>)";
 pub(crate) const HELP_AS_OF: &str = "Answer as of this RFC3339 instant, e.g. 2026-07-02T16:00:00Z";
 pub(crate) const HELP_JSON: &str = "Output stable JSON for programmatic callers";
-/// The one repository help string. Every verb that acts on an existing repository
-/// carries it on both spellings, so `--help` states the same contract wherever
-/// the reader lands.
+/// The authority-repository help string. Every verb that acts on an existing
+/// Vela Repository carries it on both spellings. Native integration reads use
+/// a distinct string because an ordinary native repository is not thereby a
+/// Vela Authority Repository.
 pub(crate) const HELP_REPO: &str =
     "Vela repository. Optional: discovered upward from the current directory";
+pub(crate) const HELP_NATIVE_REPO: &str = "Native repository containing vela.toml. Optional: discovered upward from the current directory";
 pub(crate) const HELP_RECOVERY_REPO: &str =
     "Exact Vela repository to recover. Required; never discovered upward";
 /// The positional repository on a verb that also takes an object. Stated
@@ -157,6 +159,11 @@ pub(crate) enum Commands {
     Authority {
         #[command(subcommand)]
         action: AuthorityAction,
+    },
+    /// Check or inspect a non-authoritative native-repository integration.
+    Integration {
+        #[command(subcommand)]
+        action: IntegrationAction,
     },
     /// Recover one exact durable repository transaction and stop.
     Recover {
@@ -403,6 +410,30 @@ pub(crate) enum CorrectionAction {
         #[arg(value_name = "CLAIM")]
         second: Option<String>,
         #[arg(long = "repo", value_name = "PATH", help = HELP_REPO)]
+        repo_flag: Option<PathBuf>,
+        #[arg(long, help = HELP_JSON)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum IntegrationAction {
+    /// Validate the shared Manifest, Profile, Binding, Method, and Exact Reference waist.
+    Check {
+        /// Native repository root containing `vela.toml`.
+        #[arg(value_name = "REPO", help = HELP_NATIVE_REPO)]
+        repository: Option<PathBuf>,
+        #[arg(long = "repo", value_name = "PATH", help = HELP_NATIVE_REPO)]
+        repo_flag: Option<PathBuf>,
+        #[arg(long, help = HELP_JSON)]
+        json: bool,
+    },
+    /// Render the exact rooted integration inventory without running native Methods.
+    Inspect {
+        /// Native repository root containing `vela.toml`.
+        #[arg(value_name = "REPO", help = HELP_NATIVE_REPO)]
+        repository: Option<PathBuf>,
+        #[arg(long = "repo", value_name = "PATH", help = HELP_NATIVE_REPO)]
         repo_flag: Option<PathBuf>,
         #[arg(long, help = HELP_JSON)]
         json: bool,

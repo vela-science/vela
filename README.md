@@ -243,7 +243,7 @@ init status claims submit show why review replay reproduce log
 Current advanced surfaces:
 
 ```text
-verification correction recover authority
+verification correction integration recover authority
 ```
 
 Run `vela help advanced` for the grouped contract.

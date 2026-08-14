@@ -13,6 +13,7 @@ mod config;
 pub(crate) mod correction_impact;
 pub(crate) mod decision_inbox;
 pub(crate) mod init;
+pub(crate) mod integration;
 pub(crate) mod read;
 pub(crate) mod repository_authority_provider;
 pub(crate) mod repository_decision;
