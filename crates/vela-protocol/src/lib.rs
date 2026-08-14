@@ -30,4 +30,4 @@ pub use objects::{
     review_method, signer_identity, submission, verification_record,
 };
 mod read_surface;
-pub use read_surface::{error, status};
+pub use read_surface::{error, repository_projection, status};

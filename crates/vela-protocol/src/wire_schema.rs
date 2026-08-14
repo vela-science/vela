@@ -139,6 +139,37 @@ pub fn nullable_text(_: &mut SchemaGenerator) -> Schema {
     Schema::try_from(fragment).expect("nullable text fragment is an object schema")
 }
 
+/// Current Standing tokens emitted by the repository projection.
+pub fn projection_claim_standing(_: &mut SchemaGenerator) -> Schema {
+    vocabulary(&["accepted", "unassessed", "superseded", "retracted"])
+}
+
+/// Historical Proposal-axis tokens emitted beside current Standing.
+pub fn nullable_projection_proposal_status(_: &mut SchemaGenerator) -> Schema {
+    json_schema!({
+        "type": ["string", "null"],
+        "enum": ["pending_review", "accepted", "rejected", "withdrawn", null],
+    })
+}
+
+/// Proposal status tokens in the projection's Proposal catalogue.
+pub fn projection_proposal_status(_: &mut SchemaGenerator) -> Schema {
+    vocabulary(&["pending_review", "accepted", "rejected", "withdrawn"])
+}
+
+/// Scientific domain Event kinds that a projected transition can name.
+pub fn projection_transition_event_kind(_: &mut SchemaGenerator) -> Schema {
+    vocabulary(&["claim.asserted", "claim.retracted", "claim.superseded"])
+}
+
+/// Descriptive correction relation, kept separate from current Standing.
+pub fn nullable_correction_relation_kind(_: &mut SchemaGenerator) -> Schema {
+    json_schema!({
+        "type": ["string", "null"],
+        "enum": ["corrects", "supersedes", null],
+    })
+}
+
 /// Text with no declared ceiling, matching the Proposal Withdrawal reader,
 /// whose `require_text` omits the 16 KiB check its siblings apply.
 pub fn unbounded_text(_: &mut SchemaGenerator) -> Schema {
@@ -486,6 +517,21 @@ pub fn status_command_tag(_: &mut SchemaGenerator) -> Schema {
     tag(STATUS_V4_COMMAND)
 }
 
+/// `vela.repository-projection.v1`.
+pub fn repository_projection_schema_tag(_: &mut SchemaGenerator) -> Schema {
+    tag(crate::repository_projection::REPOSITORY_PROJECTION_V1_SCHEMA)
+}
+
+/// The verb that emits the repository projection.
+pub fn repository_projection_command_tag(_: &mut SchemaGenerator) -> Schema {
+    tag(crate::repository_projection::REPOSITORY_PROJECTION_COMMAND)
+}
+
+/// A read projection has no Repository-authority effect.
+pub fn authority_effect_none_tag(_: &mut SchemaGenerator) -> Schema {
+    tag(crate::repository_projection::REPOSITORY_PROJECTION_AUTHORITY_EFFECT)
+}
+
 /// The one role a repository's tracked Git pointer plays.
 pub fn repository_head_role_tag(_: &mut SchemaGenerator) -> Schema {
     tag(REPOSITORY_HEAD_ROLE)
@@ -659,6 +705,13 @@ pub fn published() -> Vec<(&'static str, Value)> {
         (
             "status.schema.json",
             document::<crate::status::StatusV4>("status.schema.json", "Vela Status v4"),
+        ),
+        (
+            "repository-projection.schema.json",
+            document::<crate::repository_projection::RepositoryProjectionV1>(
+                "repository-projection.schema.json",
+                "Vela Repository Projection v1",
+            ),
         ),
         /* The three objects that carry the science. Until these were derived,
         the schema for a Claim Record could not be generated at all, which

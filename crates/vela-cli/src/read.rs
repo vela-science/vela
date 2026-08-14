@@ -16,6 +16,19 @@ use vela_protocol::proposal::ProposalV1;
 use vela_protocol::proposal_withdrawal::ProposalWithdrawalEnvelopeV2;
 use vela_protocol::repository::{ClaimStandingRefV1, RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::repository_origin::RepositoryOriginV1;
+use vela_protocol::repository_projection::{
+    ProjectionArtifactV1, ProjectionAuthenticatedObjectV1, ProjectionAuthenticationV1,
+    ProjectionAuthorityEventV1, ProjectionClaimV1, ProjectionDecisionV1, ProjectionEventRefV1,
+    ProjectionHandoffV1, ProjectionProposalV1, ProjectionRepositoryV1, ProjectionTransitionV1,
+    REPOSITORY_PROJECTION_AUTHORITY_EFFECT, REPOSITORY_PROJECTION_COMMAND,
+    REPOSITORY_PROJECTION_V1_SCHEMA, RepositoryProjectionV1,
+};
+use vela_protocol::review_method::{REVIEW_METHOD_V1_SCHEMA, ReviewMethodV1};
+use vela_protocol::status::{
+    REPOSITORY_HEAD_ROLE, ReplayState, StatusActions, StatusCounts, StatusDecisionInbox, StatusGit,
+    StatusIntegrity, StatusReviewAction, StatusRoots, StatusWorkAction, StrictState,
+};
+use vela_protocol::submission::SubmissionRecordV2;
 use vela_protocol::verification_record::VerificationRecordEnvelopeV2;
 
 use crate::claim_standing::{self, ClaimStanding};
@@ -30,6 +43,8 @@ struct ReadContext {
     decisions: BTreeMap<String, ProposalDecision>,
     withdrawals: BTreeMap<String, ProposalWithdrawalEnvelopeV2>,
     authority_events: Vec<AuthorityEventV1>,
+    authority_record_root: String,
+    authority_event_log_root: String,
 }
 
 fn canonical_root<T: Serialize + ?Sized>(value: &T) -> Result<String, String> {
@@ -84,6 +99,11 @@ fn load_context(repository_path: &Path) -> Result<ReadContext, String> {
             Ok((reference.clone(), proposal))
         })
         .collect::<Result<Vec<_>, String>>()?;
+    let authority_record_root = authority
+        .verification
+        .final_authority_record_root
+        .clone()
+        .ok_or_else(|| "current Repository has no authority-record head".to_string())?;
     Ok(ReadContext {
         repository,
         repository_root,
@@ -92,6 +112,8 @@ fn load_context(repository_path: &Path) -> Result<ReadContext, String> {
         decisions,
         withdrawals,
         authority_events: authority.history.authority_events,
+        authority_record_root,
+        authority_event_log_root: authority.verification.final_event_log_root,
     })
 }
 
@@ -687,6 +709,628 @@ pub(crate) fn log_payload(
         "as_of": as_of.map(|value| value.to_rfc3339()),
         "events": events,
     }))
+}
+
+fn projection_event_ref(event: &AuthorityEventV1) -> Result<ProjectionEventRefV1, String> {
+    Ok(ProjectionEventRefV1 {
+        authority_event_id: event.id.clone(),
+        authority_event_root: event.root()?,
+        semantic_event_id: event.semantic_event_id()?,
+    })
+}
+
+fn authority_event_by_semantic_id<'a>(
+    context: &'a ReadContext,
+    semantic_id: &str,
+) -> Result<&'a AuthorityEventV1, String> {
+    context
+        .authority_events
+        .iter()
+        .find(|event| event.semantic_event_id().is_ok_and(|id| id == semantic_id))
+        .ok_or_else(|| format!("current authority history has no Event {semantic_id}"))
+}
+
+fn projection_decision(
+    context: &ReadContext,
+    decision: &ProposalDecision,
+) -> Result<ProjectionDecisionV1, String> {
+    let event = context
+        .authority_events
+        .iter()
+        .find(|event| event.id == decision.event_id)
+        .ok_or_else(|| {
+            format!(
+                "current Decision Event {} is absent from authority history",
+                decision.event_id
+            )
+        })?;
+    if event.root()? != decision.event_root {
+        return Err(format!(
+            "current Decision Event {} root drift",
+            decision.event_id
+        ));
+    }
+    let applied_event = decision
+        .applied_event_id
+        .as_deref()
+        .map(|id| authority_event_by_semantic_id(context, id).and_then(projection_event_ref))
+        .transpose()?;
+    Ok(ProjectionDecisionV1 {
+        verdict: decision.standing.clone(),
+        decided_at: decision.decided_at.clone(),
+        reason: decision.reason.clone(),
+        actor_id: decision.actor.clone(),
+        actor_class: decision.actor_class.clone(),
+        session_ref: decision.session_ref.clone(),
+        authority_principal_id: decision.authority_principal_id.clone(),
+        repository_before: event
+            .content
+            .payload
+            .get("repository_before")
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+        repository_after: event
+            .content
+            .payload
+            .get("repository_after")
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+        decision_event: projection_event_ref(event)?,
+        applied_event,
+    })
+}
+
+fn correction_relation_kind(claim: &ClaimRecordV1, predecessor_id: &str) -> Option<String> {
+    claim
+        .relations
+        .iter()
+        .find(|relation| relation.target_claim_id == predecessor_id && relation.moves_standing())
+        .map(|relation| relation.kind.clone())
+}
+
+fn projection_transition(
+    repository_path: &Path,
+    context: &ReadContext,
+    claim: &ClaimRecordV1,
+    claim_root: &str,
+) -> Result<Option<ProjectionTransitionV1>, String> {
+    /* A predecessor's current Standing comes from the admitted domain Event,
+    not from the descriptive spelling on its successor. Preserve both facts. */
+    if let Some(applied) = supersession_event(&context.authority_events, &claim.claim_id) {
+        let successor_claim_id = applied
+            .content
+            .payload
+            .get("claim_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| format!("supersession Event {} has no successor", applied.id))?;
+        let proposal_id = applied
+            .content
+            .payload
+            .get("proposal_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| format!("supersession Event {} has no Proposal", applied.id))?;
+        let (successor, successor_root, _) =
+            load_claim(repository_path, context, successor_claim_id)?
+                .ok_or_else(|| format!("supersession Event {} successor is absent", applied.id))?;
+        let decision = context
+            .decisions
+            .get(proposal_id)
+            .ok_or_else(|| format!("supersession Event {} Decision is absent", applied.id))?;
+        return Ok(Some(ProjectionTransitionV1 {
+            authority_event_kind: applied.content.kind.as_str().to_owned(),
+            relation_kind: correction_relation_kind(&successor, &claim.claim_id),
+            predecessor_claim_id: Some(claim.claim_id.clone()),
+            predecessor_claim_root: Some(claim_root.to_owned()),
+            successor_claim_id: Some(successor_claim_id.to_owned()),
+            successor_claim_root: Some(successor_root),
+            proposal_id: proposal_id.to_owned(),
+            decision_event: projection_decision(context, decision)?.decision_event,
+            applied_event: Some(projection_event_ref(applied)?),
+        }));
+    }
+
+    let Some((_, proposal)) = latest_proposal(context, &claim.claim_id) else {
+        return Ok(None);
+    };
+    let Some(decision) = context.decisions.get(&proposal.id()) else {
+        return Ok(None);
+    };
+    let Some(applied_id) = decision.applied_event_id.as_deref() else {
+        return Ok(None);
+    };
+    let applied = authority_event_by_semantic_id(context, applied_id)?;
+    let (authority_event_kind, relation_kind, predecessor_claim_id, predecessor_claim_root) =
+        match applied.content.kind.as_str() {
+            "claim.asserted" => ("claim.asserted", None, None, None),
+            "claim.retracted" => (
+                "claim.retracted",
+                None,
+                Some(claim.claim_id.clone()),
+                Some(claim_root.to_owned()),
+            ),
+            "claim.superseded" => {
+                let predecessor = claim
+                    .relations
+                    .iter()
+                    .find(|relation| relation.moves_standing())
+                    .ok_or_else(|| {
+                        format!(
+                            "accepted revision {} has no correction relation",
+                            proposal.id()
+                        )
+                    })?;
+                (
+                    "claim.superseded",
+                    Some(predecessor.kind.clone()),
+                    Some(predecessor.target_claim_id.clone()),
+                    Some(applied.content.before_hash.clone()),
+                )
+            }
+            other => return Err(format!("unsupported scientific Event kind {other}")),
+        };
+    Ok(Some(ProjectionTransitionV1 {
+        authority_event_kind: authority_event_kind.into(),
+        relation_kind,
+        predecessor_claim_id,
+        predecessor_claim_root,
+        successor_claim_id: (authority_event_kind != "claim.retracted")
+            .then(|| claim.claim_id.clone()),
+        successor_claim_root: (authority_event_kind != "claim.retracted")
+            .then(|| claim_root.to_owned()),
+        proposal_id: proposal.id(),
+        decision_event: projection_decision(context, decision)?.decision_event,
+        applied_event: Some(projection_event_ref(applied)?),
+    }))
+}
+
+fn projection_review_method(
+    repository_path: &Path,
+    verification_id: &str,
+    verification: &vela_protocol::verification_record::VerificationRecordV2,
+) -> Result<Option<Value>, String> {
+    let relative = Path::new(&verification.method.implementation);
+    let bytes = match crate::bounded_file::read_bounded_repository_file(
+        repository_path,
+        relative,
+        crate::bounded_file::PUBLIC_ARTIFACT_MAX_BYTES,
+        "Review Method",
+    ) {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            return Ok(Some(json!({
+                "state": "unavailable",
+                "source_path": verification.method.implementation,
+                "expected_root": verification.method.environment_root,
+                "blocker_code": error.published_code(),
+            })));
+        }
+    };
+    let observed_root = sha256_root(&bytes);
+    if observed_root != verification.method.environment_root {
+        return Err(format!(
+            "Verification Record {} Review Method root drift",
+            verification_id
+        ));
+    }
+    match ReviewMethodV1::parse_canonical(&bytes) {
+        Ok(method) => {
+            if method.profile != verification.method.profile
+                || method.property != verification.scope.property
+                || method.attested_by_actor_id != verification.identity.actor_id
+                || !method
+                    .does_not_establish
+                    .iter()
+                    .all(|value| verification.scope.does_not_establish.contains(value))
+            {
+                return Err(format!(
+                    "Verification Record {} Review Method binding drift",
+                    verification_id
+                ));
+            }
+            Ok(Some(json!({
+                "state": "verified",
+                "schema": REVIEW_METHOD_V1_SCHEMA,
+                "source_path": verification.method.implementation,
+                "root": observed_root,
+                "method": method,
+            })))
+        }
+        Err(_) => Ok(Some(json!({
+            "state": "opaque",
+            "source_path": verification.method.implementation,
+            "root": observed_root,
+        }))),
+    }
+}
+
+/// Build the one current-checkout semantic snapshot shared with read-only
+/// consumers. It reuses verified Core parsers and performs no writes.
+pub(crate) fn projection_payload(repository_path: &Path) -> Result<RepositoryProjectionV1, String> {
+    let repository_path = crate::ui::canonicalize_repo(repository_path);
+    let context = load_context(&repository_path)?;
+    let profile_bytes = crate::bounded_file::read_bounded_repository_file(
+        &repository_path,
+        Path::new("vela.toml"),
+        crate::bounded_file::PUBLIC_ARTIFACT_MAX_BYTES,
+        "Repository Profile",
+    )
+    .map_err(|error| error.to_string())?;
+    let profile_source = std::str::from_utf8(&profile_bytes)
+        .map_err(|error| format!("repository Profile is not UTF-8: {error}"))?;
+    let profile = vela_protocol::repository::RepositoryProfileV1::from_toml_str(profile_source)?;
+    let git_commit =
+        crate::repository::git_text(&repository_path, &["rev-parse", "HEAD^{commit}"])?;
+    let git_tree = crate::repository::git_text(&repository_path, &["rev-parse", "HEAD^{tree}"])?;
+    let inbox = crate::decision_inbox::project(&repository_path)?;
+
+    let mut claim_ids = context
+        .repository
+        .accepted_claims
+        .iter()
+        .chain(&context.repository.pending_claims)
+        .map(|reference| reference.claim_id.clone())
+        .chain(
+            context
+                .proposals
+                .iter()
+                .map(|(_, proposal)| proposal.subject.id.clone()),
+        )
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut claims = Vec::with_capacity(claim_ids.len());
+    for claim_id in std::mem::take(&mut claim_ids) {
+        let (claim, claim_root, standing) = load_claim(&repository_path, &context, &claim_id)?
+            .ok_or_else(|| format!("current Proposal resolves no Claim {claim_id}"))?;
+        let active_reference = claim_reference(&context, &claim_id);
+        let source_path = active_reference.map_or_else(
+            || crate::submission::rooted_path("records/claims/sha256", &claim_root),
+            |reference| Ok(reference.path.clone()),
+        )?;
+        let transition = projection_transition(&repository_path, &context, &claim, &claim_root)?;
+        claims.push(ProjectionClaimV1 {
+            claim_id: claim.claim_id.clone(),
+            claim_root,
+            source_path,
+            active: active_reference.is_some(),
+            standing: standing.standing.to_owned(),
+            proposal_status: standing.proposal_status,
+            assertion: claim.assertion.text.clone(),
+            assertion_kind: claim.assertion.kind.clone(),
+            record: serde_json::to_value(&claim).map_err(|error| error.to_string())?,
+            transition,
+        });
+    }
+
+    let mut submissions = Vec::new();
+    for reference in &context.repository.submissions {
+        let parsed = SubmissionRecordV2::parse(&read_exact(
+            &repository_path,
+            &reference.path,
+            &reference.root,
+        )?)?;
+        if parsed.id != reference.id || parsed.root != reference.root {
+            return Err(format!(
+                "Submission {} repository binding drift",
+                reference.id
+            ));
+        }
+        submissions.push(ProjectionAuthenticatedObjectV1 {
+            object_id: parsed.id,
+            object_root: parsed.root,
+            source_path: reference.path.clone(),
+            envelope: serde_json::to_value(&parsed.envelope).map_err(|error| error.to_string())?,
+            payload: serde_json::to_value(&parsed.submission).map_err(|error| error.to_string())?,
+            authentication: ProjectionAuthenticationV1 {
+                signature_verified: true,
+                actor_id: parsed.submission.identity.actor_id.clone(),
+            },
+            review_method: None,
+        });
+    }
+
+    let mut parsed_verifications = Vec::new();
+    let mut verifications = Vec::new();
+    for reference in &context.repository.verifications {
+        let parsed = VerificationRecordEnvelopeV2::parse(&read_exact(
+            &repository_path,
+            &reference.path,
+            &reference.root,
+        )?)?;
+        if parsed.id != reference.id || parsed.root != reference.root {
+            return Err(format!(
+                "Verification Record {} repository binding drift",
+                reference.id
+            ));
+        }
+        let review_method = projection_review_method(&repository_path, &parsed.id, &parsed.record)?;
+        verifications.push(ProjectionAuthenticatedObjectV1 {
+            object_id: parsed.id.clone(),
+            object_root: parsed.root.clone(),
+            source_path: reference.path.clone(),
+            envelope: serde_json::to_value(&parsed.envelope).map_err(|error| error.to_string())?,
+            payload: serde_json::to_value(&parsed.record).map_err(|error| error.to_string())?,
+            authentication: ProjectionAuthenticationV1 {
+                signature_verified: true,
+                actor_id: parsed.record.identity.actor_id.clone(),
+            },
+            review_method,
+        });
+        parsed_verifications.push(parsed);
+    }
+
+    let mut proposals = Vec::new();
+    for (reference, proposal) in &context.proposals {
+        let proposal_id = proposal.id();
+        let status = proposal_status(&context, &proposal_id);
+        let (_, _, subject_standing) =
+            load_claim(&repository_path, &context, &proposal.subject.id)?
+                .ok_or_else(|| format!("Proposal {proposal_id} resolves no subject Claim"))?;
+        let verification_record_ids = parsed_verifications
+            .iter()
+            .filter(|record| record.record.subject.proposal_id == proposal_id)
+            .map(|record| record.id.clone())
+            .collect::<Vec<_>>();
+        let decision = context
+            .decisions
+            .get(&proposal_id)
+            .map(|decision| projection_decision(&context, decision))
+            .transpose()?;
+        let entry = inbox
+            .entries
+            .iter()
+            .find(|entry| entry.proposal_id == proposal_id);
+        let consequence = entry.map_or_else(
+            || json!({
+                "state": "historical_base_required",
+                "detail": "The current checkout retains the terminal Decision, but its exact pre-Decision Inbox belongs to the parent checkout.",
+            }),
+            |entry| json!({
+                "state": "current_decision_inbox",
+                "transition": entry.standing_delta.transition,
+                "affected_claim_ids": entry.standing_delta.scope.affected_claim_ids,
+                "before_repository_root": entry.standing_delta.before.repository_root,
+                "if_accept_repository_root": entry.standing_delta.if_accept.repository_root,
+                "if_reject_repository_root": entry.standing_delta.if_reject.repository_root,
+                "blockers": entry.readiness.blockers,
+                "next_obligation": entry.next_obligation,
+            }),
+        );
+        proposals.push(ProjectionProposalV1 {
+            proposal_id: proposal_id.clone(),
+            proposal_root: reference.root.clone(),
+            source_path: reference.path.clone(),
+            status,
+            subject_standing: subject_standing.standing.to_owned(),
+            submission_id: proposal.producer_package.id.clone(),
+            submission_root: proposal.producer_package.root.clone(),
+            verification_record_ids,
+            record: serde_json::to_value(proposal).map_err(|error| error.to_string())?,
+            decision,
+            withdrawal: context
+                .withdrawals
+                .get(&proposal_id)
+                .map(|value| serde_json::to_value(&value.withdrawal))
+                .transpose()
+                .map_err(|error| error.to_string())?,
+            decision_inbox_entry: entry
+                .map(serde_json::to_value)
+                .transpose()
+                .map_err(|error| error.to_string())?,
+            consequence,
+        });
+    }
+
+    let mut artifacts = Vec::new();
+    for reference in &context.repository.artifacts {
+        let bytes = read_exact(&repository_path, &reference.path, &reference.root)?;
+        artifacts.push(ProjectionArtifactV1 {
+            artifact_id: reference.id.clone(),
+            artifact_root: reference.root.clone(),
+            source_path: reference.path.clone(),
+            byte_length: bytes.len() as u64,
+        });
+    }
+
+    let authority_events = context
+        .authority_events
+        .iter()
+        .map(|event| {
+            Ok(ProjectionAuthorityEventV1 {
+                event: projection_event_ref(event)?,
+                kind: event.content.kind.as_str().to_owned(),
+                actor_id: event.content.actor.id.clone(),
+                target_id: event.content.target.id.clone(),
+                target_type: event.content.target.r#type.clone(),
+                timestamp: event.content.timestamp.clone(),
+                record: serde_json::to_value(event).map_err(|error| error.to_string())?,
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+
+    let pending_review = proposals
+        .iter()
+        .filter(|proposal| proposal.status == "pending_review")
+        .count();
+    let protocol_ready_count = inbox
+        .entries
+        .iter()
+        .filter(|entry| entry.readiness.blockers.is_empty())
+        .count();
+    let review_action = (!inbox.entries.is_empty()).then(|| StatusReviewAction {
+        pending_count: inbox.entries.len() as u64,
+        command: "vela review inbox . --json".into(),
+    });
+    let actions = StatusActions {
+        review: review_action,
+        work: StatusWorkAction::DirectSubmission {
+            command: "vela submit --repo . --help".into(),
+            note: "Submit bounded evidence directly.".into(),
+        },
+    };
+
+    let mut accepted_claim_ids = Vec::new();
+    let mut unassessed_claim_ids = Vec::new();
+    let mut retired_claim_ids = Vec::new();
+    let mut correction_successor_ids = Vec::new();
+    for claim in &claims {
+        match claim.standing.as_str() {
+            "accepted" => accepted_claim_ids.push(claim.claim_id.clone()),
+            "unassessed" => unassessed_claim_ids.push(claim.claim_id.clone()),
+            "superseded" | "retracted" => retired_claim_ids.push(claim.claim_id.clone()),
+            other => return Err(format!("unsupported projected Claim Standing {other}")),
+        }
+        if claim.transition.as_ref().is_some_and(|transition| {
+            transition.relation_kind.is_some()
+                && transition.successor_claim_id.as_deref() == Some(&claim.claim_id)
+        }) {
+            correction_successor_ids.push(claim.claim_id.clone());
+        }
+    }
+    let mut limitations = parsed_verifications
+        .iter()
+        .flat_map(|record| record.record.scope.does_not_establish.iter().cloned())
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    limitations.sort();
+    let failed_routes =
+        inbox
+            .entries
+            .iter()
+            .flat_map(|entry| {
+                entry.readiness.blockers.iter().map(|blocker| {
+                    format!("{}:{}:{}", blocker.code, blocker.subject, blocker.detail)
+                })
+            })
+            .collect::<Vec<_>>();
+    let exact_next_actions = actions
+        .review
+        .iter()
+        .map(|action| action.command.clone())
+        .chain(std::iter::once(actions.work.command().to_owned()))
+        .collect::<Vec<_>>();
+    let correction_impacts = correction_successor_ids
+        .iter()
+        .map(|claim_id| {
+            crate::correction_impact::correction_impact_payload(&repository_path, claim_id)
+                .map(|(payload, _)| payload)
+                .map_err(|error| error.to_string())
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+
+    Ok(RepositoryProjectionV1 {
+        schema: REPOSITORY_PROJECTION_V1_SCHEMA.into(),
+        ok: true,
+        command: REPOSITORY_PROJECTION_COMMAND.into(),
+        authority_effect: REPOSITORY_PROJECTION_AUTHORITY_EFFECT.into(),
+        reader_version: env!("CARGO_PKG_VERSION").into(),
+        repository: ProjectionRepositoryV1 {
+            repository_id: context.repository.repository_id.clone(),
+            name: profile.name,
+            profile_root: context.repository.profile_root.clone(),
+            origin_id: context.repository.origin_id.clone(),
+            origin_root: context.repository.origin_root.clone(),
+            origin_generation: context.origin.generation,
+            initial_object_set_root: context.origin.initial_object_set_root.clone(),
+            repository_index_path: ".vela/repository.json".into(),
+            repository_root: context.repository_root.clone(),
+            authority_keyset_root: context.repository.authority_keyset_root.clone(),
+            authority_policy_root: context.repository.authority_model_root.clone(),
+            authority_record_root: context.authority_record_root.clone(),
+            authority_event_log_root: context.authority_event_log_root.clone(),
+        },
+        git: StatusGit {
+            role: REPOSITORY_HEAD_ROLE.into(),
+            commit: Some(git_commit),
+            tree: Some(git_tree),
+        },
+        integrity: StatusIntegrity {
+            replay: ReplayState::Verified,
+            strict: StrictState::Pass,
+            blocker_count: 0,
+            blockers_by_code: BTreeMap::new(),
+        },
+        roots: StatusRoots {
+            origin: Some(context.repository.origin_root.clone()),
+            repository: Some(context.repository_root.clone()),
+            authority_keyset: Some(context.repository.authority_keyset_root.clone()),
+            authority_policy: Some(context.repository.authority_model_root.clone()),
+        },
+        counts: StatusCounts {
+            claims: (context.repository.accepted_claims.len()
+                + context.repository.pending_claims.len()) as u64,
+            accepted_claims: accepted_claim_ids.len() as u64,
+            pending_claims: context.repository.pending_claims.len() as u64,
+            pending_review: pending_review as u64,
+            accepted_review: proposals
+                .iter()
+                .filter(|value| value.status == "accepted")
+                .count() as u64,
+            rejected_review: proposals
+                .iter()
+                .filter(|value| value.status == "rejected")
+                .count() as u64,
+            withdrawn_review: proposals
+                .iter()
+                .filter(|value| value.status == "withdrawn")
+                .count() as u64,
+            submissions: submissions.len() as u64,
+            verifications: verifications.len() as u64,
+            artifacts: artifacts.len() as u64,
+        },
+        decision_inbox_summary: StatusDecisionInbox {
+            pending_count: inbox.entries.len() as u64,
+            protocol_ready_count: protocol_ready_count as u64,
+            protocol_blocked_count: (inbox.entries.len() - protocol_ready_count) as u64,
+            projection_root: Some(inbox.projection_root.clone()),
+            first_entry_root: inbox.entries.first().map(|entry| entry.entry_root.clone()),
+        },
+        actions,
+        claims,
+        proposals,
+        submissions,
+        verifications,
+        artifacts,
+        authority_events,
+        correction_impacts,
+        decision_inbox: serde_json::to_value(&inbox).map_err(|error| error.to_string())?,
+        handoff: ProjectionHandoffV1 {
+            accepted_claim_ids,
+            unassessed_claim_ids,
+            retired_claim_ids,
+            pending_proposal_ids: inbox
+                .entries
+                .iter()
+                .map(|entry| entry.proposal_id.clone())
+                .collect(),
+            correction_successor_ids,
+            exact_next_actions,
+            failed_routes,
+            limitations,
+            nonclaims: vec![
+                "This read projection does not execute a Method or reproduce scientific evidence."
+                    .into(),
+                "A Submission, Verification, Git commit, or projection does not change Standing."
+                    .into(),
+                "Only an authorized Repository Decision changes accepted Standing.".into(),
+            ],
+        },
+    })
+}
+
+pub(crate) fn cmd_projection(repository_path: &Path, json_out: bool) {
+    crate::ui::set_mode("projection", json_out);
+    crate::ui::require_initialized_repo(repository_path);
+    let payload =
+        projection_payload(repository_path).unwrap_or_else(|error| crate::cli::fail_return(&error));
+    if json_out {
+        print_json(&payload);
+    } else {
+        println!("{}", payload.repository.name);
+        println!("  state   {}", payload.repository.repository_root);
+        println!("  claims  {}", payload.claims.len());
+        println!("  inbox   {}", payload.decision_inbox_summary.pending_count);
+        println!("  effect  none");
+    }
 }
 
 pub(crate) fn cmd_show(repository_path: &Path, object_id: &str, json_out: bool) {

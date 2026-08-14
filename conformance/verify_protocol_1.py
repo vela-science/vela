@@ -65,7 +65,14 @@ def paths() -> list[tuple[str, str, bool]]:
     ]
 
     for path in sorted((ROOT / "schemas").glob("*.schema.json")):
-        selected.append((str(path.relative_to(ROOT)), "json-schema-2020-12", True))
+        if path.name == "repository-projection.schema.json":
+            # This is a stable software read contract, not a new Protocol 1
+            # object or authority-bearing wire format.
+            selected.append(
+                (str(path.relative_to(ROOT)), "software-read-schema", False)
+            )
+        else:
+            selected.append((str(path.relative_to(ROOT)), "json-schema-2020-12", True))
     for pattern, role, normative in (
         ("conformance/current-objects/*.json", "current-object-vector", True),
         ("conformance/fixtures/authority/math-0.972.1/**/*", "authority-chain-vector", True),

@@ -52,7 +52,7 @@ the Vela actor that attested the observation. The profile carries no outcome;
 the signed Verification Record does. Neither carries Decision authority. See
 `docs/REVIEW_PROVENANCE.md` for the cross-ecosystem policy.
 
-## Two are read surfaces
+## Three are read surfaces
 
 `status.schema.json` describes `vela.status.v4`, the document
 `vela status --json` answers with. It signs nothing and roots nothing. It is
@@ -66,6 +66,22 @@ week — `counts.withdrawn_review` and `git.role` arriving, and
 Everything a read surface reports is derived, so nothing here is evidence of
 anything. `integrity.replay` says what replay found on the machine that ran it;
 a consumer that needs to establish that for itself runs `vela replay`.
+
+`repository-projection.schema.json` describes
+`vela.repository-projection.v1`, the deterministic current-checkout document
+emitted by `vela projection --json`. It composes the current scientific state,
+authenticated producer and verifier inputs, Decision and applied Event axes,
+corrections, limitations, Decision Inbox consequences, and exact next actions
+already verified by Core. It is the state-to-discovery boundary: Git history
+selection, source-specific joins, graph/search layout, and product presentation
+remain consumer-owned. Unknown additive fields are permitted, while every v1
+field is present and nullable values are explicit nulls. Embedded canonical
+objects keep their own closed schemas.
+
+The Protocol 1 manifest binds those schema bytes as an informative software
+read contract, not a new canonical Protocol object. The embedded canonical
+records and their existing schemas remain the normative source of every
+authority-bearing fact.
 
 `error.schema.json` describes `vela.error.v1`, the failure object every CLI
 command emits under `--json`. Its stable `kind` selects the exit-code class and

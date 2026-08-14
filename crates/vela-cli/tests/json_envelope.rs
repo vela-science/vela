@@ -77,6 +77,7 @@ fn every_json_read_carries_the_envelope() {
     test the error envelope instead, which is a different contract. */
     for args in [
         vec!["status", repository_path_text.as_str()],
+        vec!["projection", repository_path_text.as_str()],
         vec!["log", repository_path_text.as_str(), "--limit", "5"],
         vec!["replay", repository_path_text.as_str()],
         vec!["reproduce", repository_path_text.as_str()],

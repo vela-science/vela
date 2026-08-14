@@ -102,6 +102,36 @@ use vela_edge::correction_impact::{
 use vela_protocol::claim_record::{CORRECTION_RELATION_KINDS, ClaimRecordV1};
 use vela_protocol::repository::ClaimStandingRefV1;
 
+#[derive(Debug)]
+pub(crate) struct CorrectionImpactError {
+    message: String,
+    usage: bool,
+}
+
+impl CorrectionImpactError {
+    fn usage(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            usage: true,
+        }
+    }
+}
+
+impl From<String> for CorrectionImpactError {
+    fn from(message: String) -> Self {
+        Self {
+            message,
+            usage: false,
+        }
+    }
+}
+
+impl std::fmt::Display for CorrectionImpactError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.message)
+    }
+}
+
 /// The extension namespace a Claim Record declares a repair condition under.
 ///
 /// `extensions` is where the protocol puts namespaced domain detail that cannot
@@ -134,13 +164,34 @@ struct HeldClaim {
 pub(crate) fn cmd_correction_impact(repository_path: &Path, claim_arg: &str, json_out: bool) {
     crate::ui::set_mode("correction impact", json_out);
     crate::ui::require_initialized_repo(repository_path);
+    let (payload, projection) = match correction_impact_payload(repository_path, claim_arg) {
+        Ok(result) => result,
+        Err(error) if error.usage => {
+            crate::cli::fail_kind_return(crate::ui::ErrorKind::Usage, &error.to_string())
+        }
+        Err(error) => crate::cli::fail_return(&error.to_string()),
+    };
+    if json_out {
+        crate::cli::print_json(&payload);
+        return;
+    }
+    render(&payload, &projection);
+}
+
+pub(crate) fn correction_impact_payload(
+    repository_path: &Path,
+    claim_arg: &str,
+) -> Result<
+    (
+        Value,
+        vela_edge::correction_impact::CorrectionImpactProjectionV1,
+    ),
+    CorrectionImpactError,
+> {
     let repository_path = crate::ui::canonicalize_repo(repository_path);
 
-    let repository = crate::repository::load_repository_at(&repository_path, true)
-        .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let repository_root = repository
-        .canonical_root()
-        .unwrap_or_else(|error| crate::cli::fail_return(&error));
+    let repository = crate::repository::load_repository_at(&repository_path, true)?;
+    let repository_root = repository.canonical_root()?;
 
     /* The successor is resolved over both lists so a correction can be asked
     its cost while it is still in the review queue. Everything else is drawn
@@ -151,12 +202,11 @@ pub(crate) fn cmd_correction_impact(repository_path: &Path, claim_arg: &str, jso
             .iter()
             .chain(&repository.pending_claims),
         claim_arg,
-    );
+    )?;
 
     let mut held: BTreeMap<String, HeldClaim> = BTreeMap::new();
     for reference in &repository.accepted_claims {
-        let record = crate::repository::read_claim(&repository_path, reference)
-            .unwrap_or_else(|error| crate::cli::fail_return(&error));
+        let record = crate::repository::read_claim(&repository_path, reference)?;
         held.insert(
             reference.claim_id.clone(),
             HeldClaim {
@@ -166,8 +216,7 @@ pub(crate) fn cmd_correction_impact(repository_path: &Path, claim_arg: &str, jso
         );
     }
     if !held.contains_key(&successor_reference.claim_id) {
-        let record = crate::repository::read_claim(&repository_path, &successor_reference)
-            .unwrap_or_else(|error| crate::cli::fail_return(&error));
+        let record = crate::repository::read_claim(&repository_path, &successor_reference)?;
         held.insert(
             successor_reference.claim_id.clone(),
             HeldClaim {
@@ -186,15 +235,12 @@ pub(crate) fn cmd_correction_impact(repository_path: &Path, claim_arg: &str, jso
             .relations
             .iter()
             .find(|relation| CORRECTION_RELATION_KINDS.contains(&relation.kind.as_str()))
-            .unwrap_or_else(|| {
-                crate::cli::fail_kind_return(
-                    crate::ui::ErrorKind::Usage,
-                    &format!(
-                        "Claim {} carries no `corrects` or `supersedes` relation, so it corrects nothing. Name the Claim that carries the correction, not the one it corrects.",
-                        successor.reference.claim_id
-                    ),
-                )
-            });
+            .ok_or_else(|| {
+                CorrectionImpactError::usage(format!(
+                    "Claim {} carries no `corrects` or `supersedes` relation, so it corrects nothing. Name the Claim that carries the correction, not the one it corrects.",
+                    successor.reference.claim_id
+                ))
+            })?;
         let kind = match correction.kind.as_str() {
             "corrects" => "correct_claim",
             _ => "supersede_claim",
@@ -207,10 +253,8 @@ pub(crate) fn cmd_correction_impact(repository_path: &Path, claim_arg: &str, jso
     their own root, which is what the content-addressed store is for. */
     let predecessor_retired = !held.contains_key(&predecessor_id);
     if predecessor_retired {
-        let retained =
-            read_retained_claim(&repository_path, &predecessor_id).unwrap_or_else(|error| {
-                crate::cli::fail_kind_return(crate::ui::ErrorKind::Usage, &error)
-            });
+        let retained = read_retained_claim(&repository_path, &predecessor_id)
+            .map_err(CorrectionImpactError::usage)?;
         held.insert(predecessor_id.clone(), retained);
     }
     let predecessor_reference = held
@@ -262,8 +306,7 @@ pub(crate) fn cmd_correction_impact(repository_path: &Path, claim_arg: &str, jso
                     &claim.reference.claim_root,
                     rule_kind,
                     &relation.target_claim_id,
-                )
-                .unwrap_or_else(|error| crate::cli::fail_return(&error)),
+                )?,
                 relation_id,
                 kind: rule_kind.to_string(),
                 source_claim_id: claim.reference.claim_id.clone(),
@@ -334,13 +377,11 @@ pub(crate) fn cmd_correction_impact(repository_path: &Path, claim_arg: &str, jso
         },
     };
 
-    let projection = derive_correction_impact(&input).unwrap_or_else(|error| {
-        crate::cli::fail_return(&format!("derive correction impact: {error}"))
-    });
-    let projection_root = correction_impact_projection_root(&projection)
-        .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let projection_value = serde_json::to_value(&projection)
-        .unwrap_or_else(|error| crate::cli::fail_return(&format!("render projection: {error}")));
+    let projection = derive_correction_impact(&input)
+        .map_err(|error| format!("derive correction impact: {error}"))?;
+    let projection_root = correction_impact_projection_root(&projection)?;
+    let projection_value =
+        serde_json::to_value(&projection).map_err(|error| format!("render projection: {error}"))?;
 
     let obligations = projection
         .repair_obligations
@@ -388,11 +429,7 @@ pub(crate) fn cmd_correction_impact(repository_path: &Path, claim_arg: &str, jso
         "repair_conditions": obligations,
     });
 
-    if json_out {
-        crate::cli::print_json(&payload);
-        return;
-    }
-    render(&payload, &projection);
+    Ok((payload, projection))
 }
 
 fn declared_repair_condition(record: &ClaimRecordV1) -> Option<String> {
@@ -437,15 +474,12 @@ fn relation_root(
 fn resolve_claim<'a>(
     mut references: impl Iterator<Item = &'a ClaimStandingRefV1>,
     argument: &str,
-) -> ClaimStandingRefV1 {
+) -> Result<ClaimStandingRefV1, CorrectionImpactError> {
     match references.find(|reference| reference.claim_id == argument) {
-        Some(reference) => reference.clone(),
-        None => crate::cli::fail_kind_return(
-            crate::ui::ErrorKind::Usage,
-            &format!(
-                "this repository holds no Claim {argument}. `vela claims --status all` lists the full ids."
-            ),
-        ),
+        Some(reference) => Ok(reference.clone()),
+        None => Err(CorrectionImpactError::usage(format!(
+            "this repository holds no Claim {argument}. `vela claims --status all` lists the full ids."
+        ))),
     }
 }
 

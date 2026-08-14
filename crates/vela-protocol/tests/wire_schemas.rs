@@ -144,3 +144,54 @@ fn each_document_declares_the_id_it_is_published_under() {
         );
     }
 }
+
+/// A stable read export cannot make a consumer guess whether a missing field
+/// means `null`, empty, unsupported, or a producer bug. The projection stays
+/// open to additive fields, but every field v1 already names is always present.
+#[test]
+fn repository_projection_v1_requires_every_declared_field() {
+    fn visit(node: &serde_json::Value, path: &str) {
+        if let Some(properties) = node
+            .get("properties")
+            .and_then(serde_json::Value::as_object)
+        {
+            let required = node
+                .get("required")
+                .and_then(serde_json::Value::as_array)
+                .unwrap_or_else(|| panic!("{path} declares properties without required fields"));
+            let required: BTreeSet<&str> = required
+                .iter()
+                .map(|value| {
+                    value
+                        .as_str()
+                        .unwrap_or_else(|| panic!("{path}.required contains non-text"))
+                })
+                .collect();
+            for key in properties.keys() {
+                assert!(
+                    required.contains(key.as_str()),
+                    "{path}.{key} is optional; v1 nullable fields must be explicit nulls"
+                );
+            }
+        }
+        match node {
+            serde_json::Value::Object(values) => {
+                for (key, value) in values {
+                    visit(value, &format!("{path}.{key}"));
+                }
+            }
+            serde_json::Value::Array(values) => {
+                for (index, value) in values.iter().enumerate() {
+                    visit(value, &format!("{path}[{index}]"));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let (_, projection) = wire_schema::published()
+        .into_iter()
+        .find(|(file, _)| *file == "repository-projection.schema.json")
+        .expect("repository projection schema is published");
+    visit(&projection, "repository-projection");
+}

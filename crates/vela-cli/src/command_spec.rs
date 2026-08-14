@@ -81,6 +81,16 @@ pub(crate) enum Commands {
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },
+    /// Export one verified, authority-neutral semantic snapshot of the current
+    /// Repository checkout for read-only consumers.
+    Projection {
+        #[arg(value_name = "REPO", help = HELP_REPO)]
+        repository: Option<PathBuf>,
+        #[arg(long = "repo", value_name = "PATH", help = HELP_REPO)]
+        repo_flag: Option<PathBuf>,
+        #[arg(long, help = HELP_JSON)]
+        json: bool,
+    },
     /// List the Claims this repository holds: id, one-line assertion, Standing,
     /// and origin era. The one verb that produces the full `vcl_` ids `show`
     /// and `why` require.

@@ -1,0 +1,1119 @@
+{
+  "$id": "https://vela.science/schemas/repository-projection.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "actions": {
+      "properties": {
+        "review": {
+          "anyOf": [
+            {
+              "properties": {
+                "command": {
+                  "maxLength": 16384,
+                  "minLength": 1,
+                  "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                  "type": "string"
+                },
+                "pending_count": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "pending_count",
+                "command"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "work": {
+          "oneOf": [
+            {
+              "properties": {
+                "command": {
+                  "maxLength": 16384,
+                  "minLength": 1,
+                  "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                  "type": "string"
+                },
+                "mode": {
+                  "const": "direct_submission",
+                  "type": "string"
+                },
+                "note": {
+                  "maxLength": 16384,
+                  "minLength": 1,
+                  "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mode",
+                "command",
+                "note"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "command": {
+                  "maxLength": 16384,
+                  "minLength": 1,
+                  "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                  "type": "string"
+                },
+                "mode": {
+                  "const": "authority_uninitialized",
+                  "type": "string"
+                },
+                "note": {
+                  "maxLength": 16384,
+                  "minLength": 1,
+                  "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mode",
+                "command",
+                "note"
+              ],
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "required": [
+        "review",
+        "work"
+      ],
+      "type": "object"
+    },
+    "artifacts": {
+      "items": {
+        "properties": {
+          "artifact_id": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          },
+          "artifact_root": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "byte_length": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "source_path": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "artifact_id",
+          "artifact_root",
+          "source_path",
+          "byte_length"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "authority_effect": {
+      "const": "none",
+      "type": "string"
+    },
+    "authority_events": {
+      "items": {
+        "properties": {
+          "actor_id": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          },
+          "event": {
+            "properties": {
+              "authority_event_id": {
+                "maxLength": 16384,
+                "minLength": 1,
+                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                "type": "string"
+              },
+              "authority_event_root": {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              "semantic_event_id": {
+                "maxLength": 16384,
+                "minLength": 1,
+                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "authority_event_id",
+              "authority_event_root",
+              "semantic_event_id"
+            ],
+            "type": "object"
+          },
+          "kind": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          },
+          "record": true,
+          "target_id": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          },
+          "target_type": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event",
+          "kind",
+          "actor_id",
+          "target_id",
+          "target_type",
+          "timestamp",
+          "record"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "claims": {
+      "items": {
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "assertion": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          },
+          "assertion_kind": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          },
+          "claim_id": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          },
+          "claim_root": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "proposal_status": {
+            "enum": [
+              "pending_review",
+              "accepted",
+              "rejected",
+              "withdrawn",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "record": true,
+          "source_path": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          },
+          "standing": {
+            "enum": [
+              "accepted",
+              "unassessed",
+              "superseded",
+              "retracted"
+            ],
+            "type": "string"
+          },
+          "transition": {
+            "properties": {
+              "applied_event": {
+                "properties": {
+                  "authority_event_id": {
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                    "type": "string"
+                  },
+                  "authority_event_root": {
+                    "pattern": "^sha256:[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "semantic_event_id": {
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "authority_event_id",
+                  "authority_event_root",
+                  "semantic_event_id"
+                ],
+                "type": "object"
+              },
+              "authority_event_kind": {
+                "enum": [
+                  "claim.asserted",
+                  "claim.retracted",
+                  "claim.superseded"
+                ],
+                "type": "string"
+              },
+              "decision_event": {
+                "properties": {
+                  "authority_event_id": {
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                    "type": "string"
+                  },
+                  "authority_event_root": {
+                    "pattern": "^sha256:[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "semantic_event_id": {
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "authority_event_id",
+                  "authority_event_root",
+                  "semantic_event_id"
+                ],
+                "type": "object"
+              },
+              "predecessor_claim_id": {
+                "type": "string"
+              },
+              "predecessor_claim_root": {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "proposal_id": {
+                "maxLength": 16384,
+                "minLength": 1,
+                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                "type": "string"
+              },
+              "relation_kind": {
+                "enum": [
+                  "corrects",
+                  "supersedes",
+                  null
+                ],
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "successor_claim_id": {
+                "type": "string"
+              },
+              "successor_claim_root": {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "authority_event_kind",
+              "relation_kind",
+              "predecessor_claim_id",
+              "predecessor_claim_root",
+              "successor_claim_id",
+              "successor_claim_root",
+              "proposal_id",
+              "decision_event",
+              "applied_event"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "claim_id",
+          "claim_root",
+          "source_path",
+          "active",
+          "standing",
+          "proposal_status",
+          "assertion",
+          "assertion_kind",
+          "record",
+          "transition"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "command": {
+      "const": "projection",
+      "type": "string"
+    },
+    "correction_impacts": {
+      "items": true,
+      "type": "array"
+    },
+    "counts": {
+      "properties": {
+        "accepted_claims": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "accepted_review": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "artifacts": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "claims": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "pending_claims": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "pending_review": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rejected_review": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "submissions": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "verifications": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "withdrawn_review": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "claims",
+        "accepted_claims",
+        "pending_claims",
+        "pending_review",
+        "accepted_review",
+        "rejected_review",
+        "withdrawn_review",
+        "submissions",
+        "verifications",
+        "artifacts"
+      ],
+      "type": "object"
+    },
+    "decision_inbox": true,
+    "decision_inbox_summary": {
+      "properties": {
+        "first_entry_root": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pending_count": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "projection_root": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "protocol_blocked_count": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "protocol_ready_count": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "pending_count",
+        "protocol_ready_count",
+        "protocol_blocked_count",
+        "projection_root",
+        "first_entry_root"
+      ],
+      "type": "object"
+    },
+    "git": {
+      "properties": {
+        "commit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "role": {
+          "const": "repository_head",
+          "type": "string"
+        },
+        "tree": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "role",
+        "commit",
+        "tree"
+      ],
+      "type": "object"
+    },
+    "handoff": {
+      "properties": {
+        "accepted_claim_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "correction_successor_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "exact_next_actions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "failed_routes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "limitations": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "nonclaims": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "pending_proposal_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "retired_claim_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "unassessed_claim_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "accepted_claim_ids",
+        "unassessed_claim_ids",
+        "retired_claim_ids",
+        "pending_proposal_ids",
+        "correction_successor_ids",
+        "exact_next_actions",
+        "failed_routes",
+        "limitations",
+        "nonclaims"
+      ],
+      "type": "object"
+    },
+    "integrity": {
+      "properties": {
+        "blocker_count": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "blockers_by_code": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "replay": {
+          "enum": [
+            "verified",
+            "not_initialized"
+          ],
+          "type": "string"
+        },
+        "strict": {
+          "enum": [
+            "pass",
+            "blocked"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "replay",
+        "strict",
+        "blocker_count",
+        "blockers_by_code"
+      ],
+      "type": "object"
+    },
+    "ok": {
+      "const": true,
+      "type": "boolean"
+    },
+    "proposals": {
+      "items": {
+        "properties": {
+          "consequence": true,
+          "decision": {
+            "properties": {
+              "actor_class": {
+                "maxLength": 16384,
+                "minLength": 1,
+                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                "type": "string"
+              },
+              "actor_id": {
+                "maxLength": 16384,
+                "minLength": 1,
+                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                "type": "string"
+              },
+              "applied_event": {
+                "properties": {
+                  "authority_event_id": {
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                    "type": "string"
+                  },
+                  "authority_event_root": {
+                    "pattern": "^sha256:[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "semantic_event_id": {
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "authority_event_id",
+                  "authority_event_root",
+                  "semantic_event_id"
+                ],
+                "type": "object"
+              },
+              "authority_principal_id": {
+                "maxLength": 16384,
+                "minLength": 1,
+                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                "type": "string"
+              },
+              "decided_at": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "decision_event": {
+                "properties": {
+                  "authority_event_id": {
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                    "type": "string"
+                  },
+                  "authority_event_root": {
+                    "pattern": "^sha256:[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "semantic_event_id": {
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "authority_event_id",
+                  "authority_event_root",
+                  "semantic_event_id"
+                ],
+                "type": "object"
+              },
+              "reason": {
+                "maxLength": 16384,
+                "minLength": 1,
+                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                "type": "string"
+              },
+              "repository_after": {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "repository_before": {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "session_ref": {
+                "maxLength": 16384,
+                "minLength": 1,
+                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "verdict": {
+                "maxLength": 16384,
+                "minLength": 1,
+                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "verdict",
+              "decided_at",
+              "reason",
+              "actor_id",
+              "actor_class",
+              "session_ref",
+              "authority_principal_id",
+              "repository_before",
+              "repository_after",
+              "decision_event",
+              "applied_event"
+            ],
+            "type": "object"
+          },
+          "decision_inbox_entry": true,
+          "proposal_id": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          },
+          "proposal_root": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "record": true,
+          "source_path": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending_review",
+              "accepted",
+              "rejected",
+              "withdrawn"
+            ],
+            "type": "string"
+          },
+          "subject_standing": {
+            "enum": [
+              "accepted",
+              "unassessed",
+              "superseded",
+              "retracted"
+            ],
+            "type": "string"
+          },
+          "submission_id": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          },
+          "submission_root": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "verification_record_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "withdrawal": true
+        },
+        "required": [
+          "proposal_id",
+          "proposal_root",
+          "source_path",
+          "status",
+          "subject_standing",
+          "submission_id",
+          "submission_root",
+          "verification_record_ids",
+          "record",
+          "decision",
+          "withdrawal",
+          "decision_inbox_entry",
+          "consequence"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "reader_version": {
+      "maxLength": 16384,
+      "minLength": 1,
+      "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+      "type": "string"
+    },
+    "repository": {
+      "properties": {
+        "authority_event_log_root": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "authority_keyset_root": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "authority_policy_root": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "authority_record_root": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "initial_object_set_root": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 16384,
+          "minLength": 1,
+          "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+          "type": "string"
+        },
+        "origin_generation": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "origin_id": {
+          "maxLength": 16384,
+          "minLength": 1,
+          "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+          "type": "string"
+        },
+        "origin_root": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "profile_root": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "repository_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "repository_index_path": {
+          "maxLength": 16384,
+          "minLength": 1,
+          "pattern": "^(?:[^\\s/]|[^\\s./][^/]*[^\\s/]|\\.[^\\s./]|\\.[^/][^/]*[^\\s/]|(?:[^\\s/]|[^\\s./][^/]+|\\.[^./]|\\.[^/][^/]+)(?:/(?:[^/]?|[^./][^/]+|\\.[^./]|\\.[^/][^/]+))*/(?:[^\\s/]|[^./][^/]*[^\\s/]|\\.[^\\s./]|\\.[^/][^/]*[^\\s/])?)$",
+          "type": "string"
+        },
+        "repository_root": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repository_id",
+        "name",
+        "profile_root",
+        "origin_id",
+        "origin_root",
+        "origin_generation",
+        "initial_object_set_root",
+        "repository_index_path",
+        "repository_root",
+        "authority_keyset_root",
+        "authority_policy_root",
+        "authority_record_root",
+        "authority_event_log_root"
+      ],
+      "type": "object"
+    },
+    "roots": {
+      "properties": {
+        "authority_keyset": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "authority_policy": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "origin": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "repository": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "origin",
+        "repository",
+        "authority_keyset",
+        "authority_policy"
+      ],
+      "type": "object"
+    },
+    "schema": {
+      "const": "vela.repository-projection.v1",
+      "type": "string"
+    },
+    "submissions": {
+      "items": {
+        "properties": {
+          "authentication": {
+            "properties": {
+              "actor_id": {
+                "maxLength": 16384,
+                "minLength": 1,
+                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                "type": "string"
+              },
+              "signature_verified": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "signature_verified",
+              "actor_id"
+            ],
+            "type": "object"
+          },
+          "envelope": true,
+          "object_id": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          },
+          "object_root": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "payload": true,
+          "review_method": true,
+          "source_path": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_id",
+          "object_root",
+          "source_path",
+          "envelope",
+          "payload",
+          "authentication",
+          "review_method"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "verifications": {
+      "items": {
+        "properties": {
+          "authentication": {
+            "properties": {
+              "actor_id": {
+                "maxLength": 16384,
+                "minLength": 1,
+                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                "type": "string"
+              },
+              "signature_verified": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "signature_verified",
+              "actor_id"
+            ],
+            "type": "object"
+          },
+          "envelope": true,
+          "object_id": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          },
+          "object_root": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "payload": true,
+          "review_method": true,
+          "source_path": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_id",
+          "object_root",
+          "source_path",
+          "envelope",
+          "payload",
+          "authentication",
+          "review_method"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "ok",
+    "command",
+    "authority_effect",
+    "reader_version",
+    "repository",
+    "git",
+    "integrity",
+    "roots",
+    "counts",
+    "decision_inbox_summary",
+    "actions",
+    "claims",
+    "proposals",
+    "submissions",
+    "verifications",
+    "artifacts",
+    "authority_events",
+    "correction_impacts",
+    "decision_inbox",
+    "handoff"
+  ],
+  "title": "Vela Repository Projection v1",
+  "type": "object"
+}

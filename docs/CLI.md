@@ -56,12 +56,17 @@ init status claims submit show why review replay reproduce log
 ## Advanced commands
 
 ```text
-verification correction integration recover authority
+projection verification correction integration recover authority
 ```
 
 - `why` also resolves a retained superseded Claim through covered authority
   history and returns its exact predecessor, successor, Proposal, applied
   event, and terminal Decision bindings.
+- `projection` emits one deterministic `vela.repository-projection.v1`
+  snapshot for the current checkout. It composes the verified semantics behind
+  `status`, `why`, `review show`, and replay so a read-only consumer does not
+  need its own Protocol interpreter. It signs nothing, changes no Standing,
+  performs no Method, and never selects Git history for the consumer.
 
 Advanced verification and integration:
 

@@ -65,6 +65,7 @@ Daily product:
   log           Recent signed events, or the covered history of one object
 
 Advanced verification and integration:
+  projection    Verified current-checkout snapshot for read-only consumers
   verification  Retain non-authorizing scoped Verification Records
   correction    Project what one correction costs the Claims resting on it
   integration   Check or inspect one non-authoritative native integration

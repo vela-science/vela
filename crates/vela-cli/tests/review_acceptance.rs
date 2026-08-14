@@ -589,6 +589,115 @@ fn review_accept_admits_the_event_that_moves_standing() {
     assert_eq!(replayed["repository_root"], decided["repository_root"]);
     assert_eq!(replayed["counts"]["accepted_claims"], 1);
 
+    // One Core-owned projection now carries the same current scientific state
+    // without asking a consumer to decode the Repository index, DSSE, or
+    // authority Events. It is deterministic and independent of checkout path.
+    let status_before_projection = Command::new("git")
+        .args(["status", "--porcelain=v1", "--untracked-files=all"])
+        .current_dir(&repository_path)
+        .output()
+        .expect("inspect repository before projection");
+    assert!(status_before_projection.status.success());
+    let projection = success_json(&run(
+        &repository_path,
+        None,
+        &producer_home,
+        &["projection", ".", "--json"],
+    ));
+    assert_eq!(projection["schema"], "vela.repository-projection.v1");
+    assert_eq!(projection["authority_effect"], "none");
+    assert_eq!(
+        projection["repository"]["repository_root"],
+        decided["repository_root"]
+    );
+    assert_eq!(projection["counts"]["claims"], 1);
+    assert_eq!(projection["counts"]["accepted_claims"], 1);
+    assert_eq!(projection["claims"][0]["claim_id"], claim_id);
+    assert_eq!(projection["claims"][0]["standing"], "accepted");
+    assert_eq!(projection["claims"][0]["proposal_status"], "accepted");
+    assert_eq!(
+        projection["proposals"][0]["decision"]["decision_event"]["semantic_event_id"],
+        review["semantic_event_id"]
+    );
+    assert_eq!(
+        projection["proposals"][0]["decision"]["applied_event"]["semantic_event_id"],
+        asserted["semantic_event_id"]
+    );
+    assert_ne!(
+        projection["proposals"][0]["decision"]["decision_event"]["authority_event_id"],
+        projection["proposals"][0]["decision"]["applied_event"]["authority_event_id"],
+        "the review Decision Event and applied scientific Event are distinct"
+    );
+    assert_eq!(
+        projection,
+        success_json(&run(
+            &repository_path,
+            None,
+            &producer_home,
+            &["projection", ".", "--json"],
+        )),
+        "repeated projection must be byte-semantically deterministic"
+    );
+    assert_eq!(
+        projection,
+        success_json(&run(
+            &clone,
+            None,
+            &producer_home,
+            &["projection", ".", "--json"],
+        )),
+        "the same commit in another checkout path must project identically"
+    );
+    let checked_out_history = Command::new("git")
+        .args(["checkout", "-q", &head_before])
+        .current_dir(&clone)
+        .output()
+        .expect("checkout the exact pre-Decision commit");
+    assert!(
+        checked_out_history.status.success(),
+        "historical checkout: {}",
+        String::from_utf8_lossy(&checked_out_history.stderr)
+    );
+    let historical_projection = success_json(&run(
+        &clone,
+        None,
+        &producer_home,
+        &["projection", ".", "--json"],
+    ));
+    assert_eq!(
+        historical_projection["repository"]["repository_root"],
+        evidenced["repository_root"]
+    );
+    assert_eq!(historical_projection["counts"]["accepted_claims"], 0);
+    assert_eq!(historical_projection["counts"]["pending_claims"], 1);
+    assert_eq!(historical_projection["counts"]["pending_review"], 1);
+    assert_eq!(historical_projection["claims"][0]["standing"], "unassessed");
+    assert_eq!(
+        historical_projection["claims"][0]["proposal_status"],
+        "pending_review"
+    );
+    assert_eq!(
+        historical_projection["decision_inbox_summary"]["pending_count"],
+        1
+    );
+    let status_after_projection = Command::new("git")
+        .args(["status", "--porcelain=v1", "--untracked-files=all"])
+        .current_dir(&repository_path)
+        .output()
+        .expect("inspect repository after projection");
+    assert!(status_after_projection.status.success());
+    assert_eq!(
+        status_before_projection.stdout, status_after_projection.stdout,
+        "projection is a read-only export"
+    );
+    let projection_bytes = serde_json::to_vec(&projection).expect("serialize projection");
+    assert!(
+        !projection_bytes
+            .windows(repository_path.as_os_str().len())
+            .any(|window| window == repository_path.as_os_str().as_encoded_bytes()),
+        "projection must not embed its checkout path"
+    );
+
     // `vela why` reports the new Standing and the Decision's reason.
     let why_after = success_json(&run(
         &repository_path,

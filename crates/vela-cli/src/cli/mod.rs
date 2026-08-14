@@ -63,6 +63,17 @@ pub fn run_command() {
             crate::ui::set_mode("status", json);
             cmd_status_compact(&repo_arg::bind_repo("status", repository, repo_flag), json);
         }
+        Commands::Projection {
+            repository,
+            repo_flag,
+            json,
+        } => {
+            crate::ui::set_mode("projection", json);
+            crate::read::cmd_projection(
+                &repo_arg::bind_repo("projection", repository, repo_flag),
+                json,
+            );
+        }
         Commands::Claims {
             repository,
             repo_flag,

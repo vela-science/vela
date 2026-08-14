@@ -304,6 +304,67 @@ fn an_accepted_correction_leaves_the_repository_readable_and_projectable() {
     )));
     assert!(human_why.contains(&format!("superseded by {correction_claim}")));
 
+    // The shared Core projection keeps the authoritative Standing effect and
+    // the successor's correction vocabulary on separate fields. A consumer
+    // must never invent a `corrected` Standing from `relations[].kind`.
+    let shared = success_json(&run(
+        &repository_path,
+        None,
+        &home,
+        &["projection", ".", "--json"],
+    ));
+    assert_eq!(shared["authority_effect"], "none");
+    assert_eq!(shared["counts"]["claims"], 1);
+    let projected_claims = shared["claims"].as_array().expect("projection Claims");
+    let projected_predecessor = projected_claims
+        .iter()
+        .find(|claim| claim["claim_id"] == base_claim)
+        .expect("retained projected predecessor");
+    let projected_successor = projected_claims
+        .iter()
+        .find(|claim| claim["claim_id"] == correction_claim)
+        .expect("projected correction successor");
+    assert_eq!(projected_predecessor["standing"], "superseded");
+    assert_eq!(projected_predecessor["proposal_status"], "accepted");
+    assert_eq!(
+        projected_predecessor["transition"]["relation_kind"],
+        "corrects"
+    );
+    assert_eq!(projected_successor["standing"], "accepted");
+    assert_eq!(
+        projected_successor["transition"]["relation_kind"],
+        "corrects"
+    );
+    assert_eq!(
+        projected_successor["transition"]["predecessor_claim_id"],
+        base_claim
+    );
+    assert_eq!(
+        projected_successor["transition"]["successor_claim_id"],
+        correction_claim
+    );
+    assert_ne!(
+        projected_successor["transition"]["decision_event"]["authority_event_id"],
+        projected_successor["transition"]["applied_event"]["authority_event_id"],
+        "review Decision and applied scientific Event identities stay distinct"
+    );
+    assert_eq!(
+        shared["correction_impacts"].as_array().map(Vec::len),
+        Some(1)
+    );
+    assert_eq!(
+        shared["correction_impacts"][0]["projection_root"],
+        projection_root
+    );
+    assert_eq!(shared["correction_impacts"][0]["predecessor_retired"], true);
+    assert_eq!(
+        shared["correction_impacts"][0]["projection"]["affected_claims"]
+            .as_array()
+            .map(Vec::len),
+        Some(0),
+        "a bounded empty cascade must stay explicit rather than disappear"
+    );
+
     // Asked after the ruling. The predecessor now has to come from the
     // content-addressed store, and the answer has to be the same one.
     let after = success_json(&run(

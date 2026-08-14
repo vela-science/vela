@@ -2414,7 +2414,7 @@ fn human_remote(repository: &Path) -> Option<String> {
     Some(trimmed.strip_suffix(".git").unwrap_or(&trimmed).to_string())
 }
 
-fn git_text(repository: &Path, args: &[&str]) -> Result<String, String> {
+pub(crate) fn git_text(repository: &Path, args: &[&str]) -> Result<String, String> {
     crate::config::git_publish::exact_git_text(repository, args)
 }
 

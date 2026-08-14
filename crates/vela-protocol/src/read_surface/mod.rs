@@ -8,4 +8,5 @@
 //! a shape restated in two places is a shape that drifts.
 
 pub mod error;
+pub mod repository_projection;
 pub mod status;
