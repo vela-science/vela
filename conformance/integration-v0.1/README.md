@@ -1,7 +1,9 @@
 # Integration contract v0.1 conformance
 
-This corpus tests the Phase 0 contract and candidate Phase 2 structural waist.
-It is not listed by `conformance/protocol-1.json` and changes no Protocol 1 object.
+This corpus tests the stable v0.1 package-plane structural waist qualified by
+two maintained native consumers. It is not listed by
+`conformance/protocol-1.json` and changes no Protocol 1 object or authority
+state. Source-specific scientific Profiles and semantics remain outside Core.
 
 Each rooted document is canonical JSON with its own root field replaced by the
 empty string, prefixed by its UTF-8 schema tag plus NUL, and hashed with SHA-256.
