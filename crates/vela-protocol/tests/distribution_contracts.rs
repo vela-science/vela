@@ -276,7 +276,7 @@ fn the_release_manifest_is_distribution_evidence_not_repository_authority() {
 #[test]
 fn release_bytes_are_compared_before_the_manifest_is_emitted() {
     assert!(RELEASE_SCRIPT.contains("SOURCE_DATE_EPOCH"));
-    assert!(RELEASE_SCRIPT.contains("--remap-path-prefix=$target_dir=/build/target"));
+    assert!(RELEASE_SCRIPT.contains("--remap-path-prefix=$target_dir=$REMAP_TARGET_PREFIX"));
     assert!(RELEASE_SCRIPT.contains("build_release \"$BUILD_ONE\""));
     assert!(RELEASE_SCRIPT.contains("build_release \"$BUILD_TWO\""));
     assert!(RELEASE_SCRIPT.contains("cmp \"$BUILD_ONE/release/vela\" \"$BUILD_TWO/release/vela\""));
@@ -290,6 +290,35 @@ fn release_bytes_are_compared_before_the_manifest_is_emitted() {
     assert!(RELEASE_SCRIPT.contains("cmp \"$ARCHIVE\" \"$ARCHIVE_CHECK\""));
     assert!(RELEASE_SCRIPT.contains("--binary-build-count 2"));
     assert!(RELEASE_SCRIPT.contains("--archive-build-count 2"));
+}
+
+#[test]
+fn staged_release_binary_remaps_and_refuses_builder_private_paths() {
+    for remap in [
+        "--remap-path-prefix=$target_dir=$REMAP_TARGET_PREFIX",
+        "--remap-path-prefix=$ROOT=$REMAP_SOURCE_PREFIX",
+        "--remap-path-prefix=$CARGO_HOME_RESOLVED=$REMAP_CARGO_HOME_PREFIX",
+        "--remap-path-prefix=$ACCOUNT_HOME_RESOLVED=$REMAP_ACCOUNT_HOME_PREFIX",
+    ] {
+        assert!(
+            RELEASE_SCRIPT.contains(remap),
+            "release build is missing private-path remap {remap}"
+        );
+    }
+
+    assert!(RELEASE_SCRIPT.contains("LC_ALL=C grep -aFq -- \"$path\" \"$binary\""));
+    for refusal in [
+        "refuse_private_path_bytes \"$STAGE/vela\" \"$ROOT\"",
+        "refuse_private_path_bytes \"$STAGE/vela\" \"$BUILD_ONE\"",
+        "refuse_private_path_bytes \"$STAGE/vela\" \"$BUILD_TWO\"",
+        "refuse_private_path_bytes \"$STAGE/vela\" \"$CARGO_HOME_RESOLVED\"",
+        "refuse_private_path_bytes \"$STAGE/vela\" \"$ACCOUNT_HOME_RESOLVED\"",
+    ] {
+        assert!(
+            RELEASE_SCRIPT.contains(refusal),
+            "release staging is missing private-path refusal {refusal}"
+        );
+    }
 }
 
 #[test]

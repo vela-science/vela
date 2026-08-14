@@ -16,11 +16,11 @@
       "sha256": "sha256:1bf59176bf94a482cbf1c6f6c5528a1f3e38fb91b970d7850bf1d7227c3c615e"
     },
     {
-      "bytes": 4651,
+      "bytes": 5084,
       "normative": false,
       "path": ".github/release/smoke-bundle.sh",
       "role": "release-smoke-gate",
-      "sha256": "sha256:4f0312e1bb49eaa5a60924ee84d74d44ed47ddb4a818cb6639497e133411ff62"
+      "sha256": "sha256:cd7b4bda84cde728c7e398ac59771451561fb8032938edd57ab791b574fc85ce"
     },
     {
       "bytes": 8870,
@@ -34,7 +34,7 @@
       "normative": false,
       "path": "CITATION.cff",
       "role": "citation-metadata",
-      "sha256": "sha256:683a9858eb24ca908fb301fc8c618fe8e1ef778c8d528ab703cc56007998e0f7"
+      "sha256": "sha256:921c444297a1a3a6833ff22d893bf975d85395b0c1b9e96da9848d6b8bf92eaa"
     },
     {
       "bytes": 643,
@@ -457,11 +457,11 @@
       "sha256": "sha256:bf527fc7929fd00179bad30a7ff75caa46793bce296a26f345c8ddb512994363"
     },
     {
-      "bytes": 3008,
+      "bytes": 3610,
       "normative": false,
       "path": "docs/RELEASES.md",
       "role": "release-qualification",
-      "sha256": "sha256:dd831c5abb30ae187b748e2f2c458fa5f6b7677a363d3eccc427c9283a733c4a"
+      "sha256": "sha256:c46001f2b5e62675769c6e01b33299ba4f599d0c0440c366744011da7512158a"
     },
     {
       "bytes": 11152,
@@ -639,11 +639,11 @@
       "sha256": "sha256:3ecee2e0c1c10a76c0516b21bf2e2b9ac3667a792036fc5f02056be9b3ead019"
     },
     {
-      "bytes": 15601,
+      "bytes": 17455,
       "normative": false,
       "path": "scripts/release.sh",
       "role": "release-entrypoint",
-      "sha256": "sha256:9ac7a7d5597e0b78d25147ae394e141ae085de2fe99e3108fec7cfe44d516d47"
+      "sha256": "sha256:62a83010518a93638539dff831e56d57623dc0ccb963f26edc7d70ffaf8e8e10"
     },
     {
       "bytes": 7691,
@@ -660,7 +660,7 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:849a88641c0901ed1d2ba89f9e84fe6ab74010ba946f07365c035715f1e9e64d",
+  "manifest_root": "sha256:fb85184b468a0f6773bd2c49b879a761840378be86438abda73ef9abd24bd51b",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",

@@ -44,6 +44,14 @@ test -x "$UNPACK/vela"
 test -z "$(find "$UNPACK" -type l -print -quit)"
 test "$("$UNPACK/vela" --version)" = "vela $EXPECTED_VERSION"
 
+# The 0.975 release exists to make the stable package-plane integration waist
+# available from signed public bytes. Exercise both packaged subcommands so a
+# stale binary with a current version string cannot pass this release boundary.
+for action in check inspect; do
+  "$UNPACK/vela" integration "$action" --help > "$ROOT/integration-$action.help"
+  grep -Fq "Usage: vela integration $action" "$ROOT/integration-$action.help"
+done
+
 # A version-only smoke allowed a stale binary with a current version string to
 # ship. Exercise the current public profile contract from the staged artifact
 # so release bytes must agree with the source tree's actual product boundary.

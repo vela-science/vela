@@ -41,6 +41,10 @@ CARGO_AUDITABLE_VERSION="0.7.5"
 SYFT_VERSION="1.50.0"
 MANIFEST_SCHEMA="vela.release-bundle-manifest.v1"
 SIGNATURE_NAMESPACE="vela-release"
+REMAP_SOURCE_PREFIX="/src/vela"
+REMAP_TARGET_PREFIX="/build/target"
+REMAP_CARGO_HOME_PREFIX="/build/cargo-home"
+REMAP_ACCOUNT_HOME_PREFIX="/build/account-home"
 
 TAG=""
 OUT="$ROOT"
@@ -91,6 +95,31 @@ if [ -z "$PYTHON" ]; then
   command -v "$PYTHON" >/dev/null 2>&1 || PYTHON=python
 fi
 command -v "$PYTHON" >/dev/null 2>&1 || die "no python interpreter found"
+
+# Rust retains source paths for panic locations and debug metadata. Resolve the
+# two ambient homes Cargo can read before building so dependency paths receive
+# the same stable public treatment as the repository and target directories.
+ACCOUNT_HOME_RESOLVED="$("$PYTHON" - <<'PY'
+import os
+
+home = os.environ.get("HOME")
+if not home:
+    raise SystemExit("HOME is required to resolve the release builder account")
+print(os.path.realpath(home))
+PY
+)"
+CARGO_HOME_RESOLVED="$("$PYTHON" - <<'PY'
+import os
+
+home = os.environ.get("HOME")
+if not home:
+    raise SystemExit("HOME is required to resolve Cargo home")
+cargo_home = os.environ.get("CARGO_HOME") or os.path.join(home, ".cargo")
+print(os.path.realpath(cargo_home))
+PY
+)"
+[ "$ACCOUNT_HOME_RESOLVED" != "/" ] || die "refusing release build with account home /"
+[ "$CARGO_HOME_RESOLVED" != "/" ] || die "refusing release build with Cargo home /"
 
 # 1. Release identity: the version is read from the workspace manifest and the
 #    tag has to agree with it. Neither is restated anywhere else.
@@ -197,10 +226,11 @@ rm -rf "$BUILD_ONE" "$BUILD_TWO"
 
 build_release() {
   local target_dir="$1"
-  # Put the more specific target path first: both target directories live under
-  # ROOT, and they must map to the same retained path rather than becoming
-  # /src/vela/target/release-build/{one,two} in debug metadata.
-  local remap_flags="--remap-path-prefix=$target_dir=/build/target --remap-path-prefix=$ROOT=/src/vela"
+  # rustc gives a later matching remap precedence, so put the account home
+  # first and its specific Cargo, source, and target descendants after it. Both
+  # target directories map to one retained path, and dependency panic locations
+  # retain only the stable public Cargo prefix.
+  local remap_flags="--remap-path-prefix=$ACCOUNT_HOME_RESOLVED=$REMAP_ACCOUNT_HOME_PREFIX --remap-path-prefix=$CARGO_HOME_RESOLVED=$REMAP_CARGO_HOME_PREFIX --remap-path-prefix=$ROOT=$REMAP_SOURCE_PREFIX --remap-path-prefix=$target_dir=$REMAP_TARGET_PREFIX"
   CARGO_INCREMENTAL=0 CARGO_TARGET_DIR="$target_dir" \
     RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }$remap_flags" \
     cargo auditable build --locked --release -p vela-cli --bin vela
@@ -223,6 +253,21 @@ rm -rf "$STAGE"
 mkdir -p "$DIST" "$STAGE"
 cp "$BUILD_ONE/release/vela" "$STAGE/"
 test -x "$STAGE/vela"
+
+refuse_private_path_bytes() {
+  local binary="$1"
+  local path="$2"
+  local label="$3"
+  if LC_ALL=C grep -aFq -- "$path" "$binary"; then
+    die "staged binary retains the private $label path"
+  fi
+}
+
+refuse_private_path_bytes "$STAGE/vela" "$ROOT" "source root"
+refuse_private_path_bytes "$STAGE/vela" "$BUILD_ONE" "first target directory"
+refuse_private_path_bytes "$STAGE/vela" "$BUILD_TWO" "second target directory"
+refuse_private_path_bytes "$STAGE/vela" "$CARGO_HOME_RESOLVED" "Cargo home"
+refuse_private_path_bytes "$STAGE/vela" "$ACCOUNT_HOME_RESOLVED" "account home"
 echo "staged: $STAGE/vela"
 
 # 5. SPDX SBOM, from syft invoked directly.

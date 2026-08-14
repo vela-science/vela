@@ -10,6 +10,23 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+## 0.975.0
+
+- **Native repositories have one stable, non-authoritative integration
+  waist.** `vela integration check` validates the shared Manifest, Profile,
+  Binding, Method, and Exact Reference structure, while
+  `vela integration inspect` renders the exact rooted inventory without
+  executing a native Method. Lean proofs and the Formal Conjectures contributor
+  fork retain their source-specific proof, build, audit, review, rights, and
+  availability semantics behind that common boundary.
+
+- **Integration remains outside Protocol and scientific authority.** The
+  package-plane contract has `authority_effect: none`; it creates no Decision,
+  Event, or Standing and treats a successful build, proof check, review, or
+  integration check as neither acceptance nor scientific lift. Protocol 1
+  remains a release candidate, and this release makes no external-adoption or
+  Protocol 1.0 claim.
+
 ## 0.974.2
 
 - **Decision Inbox language matches capability-based authority.** The rooted

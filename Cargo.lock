@@ -1435,7 +1435,7 @@ dependencies = [
 
 [[package]]
 name = "vela-authority"
-version = "0.974.2"
+version = "0.975.0"
 dependencies = [
  "hex",
  "serde",
@@ -1447,7 +1447,7 @@ dependencies = [
 
 [[package]]
 name = "vela-cli"
-version = "0.974.2"
+version = "0.975.0"
 dependencies = [
  "base64",
  "chrono",
@@ -1478,7 +1478,7 @@ dependencies = [
 
 [[package]]
 name = "vela-edge"
-version = "0.974.2"
+version = "0.975.0"
 dependencies = [
  "ed25519-dalek",
  "hex",
@@ -1492,7 +1492,7 @@ dependencies = [
 
 [[package]]
 name = "vela-protocol"
-version = "0.974.2"
+version = "0.975.0"
 dependencies = [
  "base64",
  "chrono",
@@ -1516,7 +1516,7 @@ dependencies = [
 
 [[package]]
 name = "vela-repository"
-version = "0.974.2"
+version = "0.975.0"
 dependencies = [
  "hex",
  "serde",
@@ -1529,7 +1529,7 @@ dependencies = [
 
 [[package]]
 name = "vela-verify"
-version = "0.974.2"
+version = "0.975.0"
 dependencies = [
  "serde",
  "serde_json",
