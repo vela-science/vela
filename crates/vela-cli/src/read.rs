@@ -17,11 +17,12 @@ use vela_protocol::proposal_withdrawal::ProposalWithdrawalEnvelopeV2;
 use vela_protocol::repository::{ClaimStandingRefV1, RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::repository_origin::RepositoryOriginV1;
 use vela_protocol::repository_projection::{
-    ProjectionArtifactV1, ProjectionAuthenticatedObjectV1, ProjectionAuthenticationV1,
-    ProjectionAuthorityEventV1, ProjectionClaimV1, ProjectionDecisionV1, ProjectionEventRefV1,
-    ProjectionHandoffV1, ProjectionProposalV1, ProjectionRepositoryV1, ProjectionTransitionV1,
+    ProjectionActionV1, ProjectionArtifactV1, ProjectionAuthenticatedObjectV1,
+    ProjectionAuthenticationV1, ProjectionAuthorityEventV1, ProjectionClaimV1,
+    ProjectionDecisionV1, ProjectionEventRefV1, ProjectionFailedRouteV1, ProjectionHandoffV1,
+    ProjectionProposalV1, ProjectionRepositoryV1, ProjectionTransitionV1,
     REPOSITORY_PROJECTION_AUTHORITY_EFFECT, REPOSITORY_PROJECTION_COMMAND,
-    REPOSITORY_PROJECTION_V1_SCHEMA, RepositoryProjectionV1,
+    REPOSITORY_PROJECTION_ROOT_DEFINITION, REPOSITORY_PROJECTION_V1_SCHEMA, RepositoryProjectionV1,
 };
 use vela_protocol::review_method::{REVIEW_METHOD_V1_SCHEMA, ReviewMethodV1};
 use vela_protocol::status::{
@@ -977,6 +978,7 @@ pub(crate) fn projection_payload(repository_path: &Path) -> Result<RepositoryPro
         )
         .collect::<std::collections::BTreeSet<_>>();
     let mut claims = Vec::with_capacity(claim_ids.len());
+    let mut transitions_by_event = BTreeMap::new();
     for claim_id in std::mem::take(&mut claim_ids) {
         let (claim, claim_root, standing) = load_claim(&repository_path, &context, &claim_id)?
             .ok_or_else(|| format!("current Proposal resolves no Claim {claim_id}"))?;
@@ -985,7 +987,13 @@ pub(crate) fn projection_payload(repository_path: &Path) -> Result<RepositoryPro
             || crate::submission::rooted_path("records/claims/sha256", &claim_root),
             |reference| Ok(reference.path.clone()),
         )?;
-        let transition = projection_transition(&repository_path, &context, &claim, &claim_root)?;
+        if let Some(transition) =
+            projection_transition(&repository_path, &context, &claim, &claim_root)?
+        {
+            transitions_by_event
+                .entry(transition.decision_event.authority_event_root.clone())
+                .or_insert(transition);
+        }
         claims.push(ProjectionClaimV1 {
             claim_id: claim.claim_id.clone(),
             claim_root,
@@ -996,7 +1004,6 @@ pub(crate) fn projection_payload(repository_path: &Path) -> Result<RepositoryPro
             assertion: claim.assertion.text.clone(),
             assertion_kind: claim.assertion.kind.clone(),
             record: serde_json::to_value(&claim).map_err(|error| error.to_string())?,
-            transition,
         });
     }
 
@@ -1168,45 +1175,57 @@ pub(crate) fn projection_payload(repository_path: &Path) -> Result<RepositoryPro
     };
 
     let mut accepted_claim_ids = Vec::new();
-    let mut unassessed_claim_ids = Vec::new();
+    let mut active_pending_claim_ids = Vec::new();
+    let mut inactive_unassessed_claim_ids = Vec::new();
     let mut retired_claim_ids = Vec::new();
     let mut correction_successor_ids = Vec::new();
     for claim in &claims {
         match claim.standing.as_str() {
             "accepted" => accepted_claim_ids.push(claim.claim_id.clone()),
-            "unassessed" => unassessed_claim_ids.push(claim.claim_id.clone()),
+            "unassessed" if claim.active => active_pending_claim_ids.push(claim.claim_id.clone()),
+            "unassessed" => inactive_unassessed_claim_ids.push(claim.claim_id.clone()),
             "superseded" | "retracted" => retired_claim_ids.push(claim.claim_id.clone()),
             other => return Err(format!("unsupported projected Claim Standing {other}")),
         }
-        if claim.transition.as_ref().is_some_and(|transition| {
-            transition.relation_kind.is_some()
-                && transition.successor_claim_id.as_deref() == Some(&claim.claim_id)
-        }) {
-            correction_successor_ids.push(claim.claim_id.clone());
-        }
     }
-    let mut limitations = parsed_verifications
+    let transitions = transitions_by_event.into_values().collect::<Vec<_>>();
+    correction_successor_ids.extend(transitions.iter().filter_map(|transition| {
+        transition
+            .relation_kind
+            .as_ref()
+            .and(transition.successor_claim_id.as_ref())
+            .cloned()
+    }));
+    correction_successor_ids.sort();
+    correction_successor_ids.dedup();
+    let failed_routes = inbox
+        .entries
         .iter()
-        .flat_map(|record| record.record.scope.does_not_establish.iter().cloned())
-        .collect::<std::collections::BTreeSet<_>>()
-        .into_iter()
-        .collect::<Vec<_>>();
-    limitations.sort();
-    let failed_routes =
-        inbox
-            .entries
-            .iter()
-            .flat_map(|entry| {
-                entry.readiness.blockers.iter().map(|blocker| {
-                    format!("{}:{}:{}", blocker.code, blocker.subject, blocker.detail)
+        .flat_map(|entry| {
+            entry
+                .readiness
+                .blockers
+                .iter()
+                .map(|blocker| ProjectionFailedRouteV1 {
+                    code: blocker.code.clone(),
+                    subject: blocker.subject.clone(),
+                    detail: blocker.detail.clone(),
                 })
-            })
-            .collect::<Vec<_>>();
+        })
+        .collect::<Vec<_>>();
     let exact_next_actions = actions
         .review
         .iter()
-        .map(|action| action.command.clone())
-        .chain(std::iter::once(actions.work.command().to_owned()))
+        .map(|action| ProjectionActionV1 {
+            kind: "review".into(),
+            command: action.command.clone(),
+            note: None,
+        })
+        .chain(std::iter::once(ProjectionActionV1 {
+            kind: "submission".into(),
+            command: actions.work.command().to_owned(),
+            note: Some("Submit bounded evidence directly.".into()),
+        }))
         .collect::<Vec<_>>();
     let correction_impacts = correction_successor_ids
         .iter()
@@ -1217,11 +1236,14 @@ pub(crate) fn projection_payload(repository_path: &Path) -> Result<RepositoryPro
         })
         .collect::<Result<Vec<_>, String>>()?;
 
-    Ok(RepositoryProjectionV1 {
+    let mut projection = RepositoryProjectionV1 {
         schema: REPOSITORY_PROJECTION_V1_SCHEMA.into(),
         ok: true,
         command: REPOSITORY_PROJECTION_COMMAND.into(),
         authority_effect: REPOSITORY_PROJECTION_AUTHORITY_EFFECT.into(),
+        projection_root: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+            .into(),
+        projection_root_definition: REPOSITORY_PROJECTION_ROOT_DEFINITION.into(),
         reader_version: env!("CARGO_PKG_VERSION").into(),
         repository: ProjectionRepositoryV1 {
             repository_id: context.repository.repository_id.clone(),
@@ -1291,11 +1313,13 @@ pub(crate) fn projection_payload(repository_path: &Path) -> Result<RepositoryPro
         verifications,
         artifacts,
         authority_events,
+        transitions,
         correction_impacts,
         decision_inbox: serde_json::to_value(&inbox).map_err(|error| error.to_string())?,
         handoff: ProjectionHandoffV1 {
             accepted_claim_ids,
-            unassessed_claim_ids,
+            active_pending_claim_ids,
+            inactive_unassessed_claim_ids,
             retired_claim_ids,
             pending_proposal_ids: inbox
                 .entries
@@ -1305,7 +1329,6 @@ pub(crate) fn projection_payload(repository_path: &Path) -> Result<RepositoryPro
             correction_successor_ids,
             exact_next_actions,
             failed_routes,
-            limitations,
             nonclaims: vec![
                 "This read projection does not execute a Method or reproduce scientific evidence."
                     .into(),
@@ -1314,7 +1337,14 @@ pub(crate) fn projection_payload(repository_path: &Path) -> Result<RepositoryPro
                 "Only an authorized Repository Decision changes accepted Standing.".into(),
             ],
         },
-    })
+    };
+    let mut commitment = serde_json::to_value(&projection).map_err(|error| error.to_string())?;
+    commitment
+        .as_object_mut()
+        .ok_or_else(|| "repository projection is not an object".to_string())?
+        .remove("projection_root");
+    projection.projection_root = canonical_root(&commitment)?;
+    Ok(projection)
 }
 
 pub(crate) fn cmd_projection(repository_path: &Path, json_out: bool) {

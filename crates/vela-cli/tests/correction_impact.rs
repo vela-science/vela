@@ -326,26 +326,21 @@ fn an_accepted_correction_leaves_the_repository_readable_and_projectable() {
         .expect("projected correction successor");
     assert_eq!(projected_predecessor["standing"], "superseded");
     assert_eq!(projected_predecessor["proposal_status"], "accepted");
-    assert_eq!(
-        projected_predecessor["transition"]["relation_kind"],
-        "corrects"
-    );
     assert_eq!(projected_successor["standing"], "accepted");
+    let transitions = shared["transitions"]
+        .as_array()
+        .expect("projection transitions");
+    assert_eq!(transitions.len(), 1, "one Decision produces one transition");
+    let transition = &transitions[0];
     assert_eq!(
-        projected_successor["transition"]["relation_kind"],
-        "corrects"
+        transition["relation_kind"], "corrects",
+        "relation vocabulary stays separate from Standing"
     );
-    assert_eq!(
-        projected_successor["transition"]["predecessor_claim_id"],
-        base_claim
-    );
-    assert_eq!(
-        projected_successor["transition"]["successor_claim_id"],
-        correction_claim
-    );
+    assert_eq!(transition["predecessor_claim_id"], base_claim);
+    assert_eq!(transition["successor_claim_id"], correction_claim);
     assert_ne!(
-        projected_successor["transition"]["decision_event"]["authority_event_id"],
-        projected_successor["transition"]["applied_event"]["authority_event_id"],
+        transition["decision_event"]["authority_event_id"],
+        transition["applied_event"]["authority_event_id"],
         "review Decision and applied scientific Event identities stay distinct"
     );
     assert_eq!(

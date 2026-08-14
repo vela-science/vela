@@ -4,7 +4,8 @@
 //! consumer the scientific state Core already derives for `status`, `why`,
 //! `review show`, and the Decision Inbox without requiring that consumer to
 //! decode `.vela/repository.json`, DSSE payloads, or authority Events itself.
-//! It is deliberately about one checkout. Git history selection, product
+//! It is deliberately about one checkout. A consumer may invoke the same
+//! command at a detached historical commit; Git history selection, product
 //! presentation, graph/search layout, and source-specific joins stay with the
 //! consumer that owns them.
 //!
@@ -24,6 +25,8 @@ use crate::status::{
 pub const REPOSITORY_PROJECTION_V1_SCHEMA: &str = "vela.repository-projection.v1";
 pub const REPOSITORY_PROJECTION_COMMAND: &str = "projection";
 pub const REPOSITORY_PROJECTION_AUTHORITY_EFFECT: &str = "none";
+pub const REPOSITORY_PROJECTION_ROOT_DEFINITION: &str =
+    "sha256 of RFC 8785 canonical JSON after removing only projection_root";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ProjectionRepositoryV1 {
@@ -73,18 +76,21 @@ pub struct ProjectionTransitionV1 {
         schema_with = "crate::wire_schema::nullable_correction_relation_kind"
     )]
     pub relation_kind: Option<String>,
-    #[schemars(required)]
+    #[schemars(required, schema_with = "crate::wire_schema::nullable_text")]
     pub predecessor_claim_id: Option<String>,
     #[schemars(required, schema_with = "crate::wire_schema::nullable_sha256_root")]
     pub predecessor_claim_root: Option<String>,
-    #[schemars(required)]
+    #[schemars(required, schema_with = "crate::wire_schema::nullable_text")]
     pub successor_claim_id: Option<String>,
     #[schemars(required, schema_with = "crate::wire_schema::nullable_sha256_root")]
     pub successor_claim_root: Option<String>,
     #[schemars(schema_with = "crate::wire_schema::text")]
     pub proposal_id: String,
     pub decision_event: ProjectionEventRefV1,
-    #[schemars(required)]
+    #[schemars(
+        required,
+        schema_with = "crate::wire_schema::nullable_projection_event_ref"
+    )]
     pub applied_event: Option<ProjectionEventRefV1>,
 }
 
@@ -94,7 +100,7 @@ pub struct ProjectionClaimV1 {
     pub claim_id: String,
     #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub claim_root: String,
-    #[schemars(schema_with = "crate::wire_schema::text")]
+    #[schemars(schema_with = "crate::wire_schema::safe_relative_path")]
     pub source_path: String,
     pub active: bool,
     #[schemars(schema_with = "crate::wire_schema::projection_claim_standing")]
@@ -109,8 +115,6 @@ pub struct ProjectionClaimV1 {
     #[schemars(schema_with = "crate::wire_schema::text")]
     pub assertion_kind: String,
     pub record: Value,
-    #[schemars(required)]
-    pub transition: Option<ProjectionTransitionV1>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -134,7 +138,10 @@ pub struct ProjectionDecisionV1 {
     #[schemars(required, schema_with = "crate::wire_schema::nullable_sha256_root")]
     pub repository_after: Option<String>,
     pub decision_event: ProjectionEventRefV1,
-    #[schemars(required)]
+    #[schemars(
+        required,
+        schema_with = "crate::wire_schema::nullable_projection_event_ref"
+    )]
     pub applied_event: Option<ProjectionEventRefV1>,
 }
 
@@ -144,7 +151,7 @@ pub struct ProjectionProposalV1 {
     pub proposal_id: String,
     #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub proposal_root: String,
-    #[schemars(schema_with = "crate::wire_schema::text")]
+    #[schemars(schema_with = "crate::wire_schema::safe_relative_path")]
     pub source_path: String,
     #[schemars(schema_with = "crate::wire_schema::projection_proposal_status")]
     pub status: String,
@@ -156,7 +163,10 @@ pub struct ProjectionProposalV1 {
     pub submission_root: String,
     pub verification_record_ids: Vec<String>,
     pub record: Value,
-    #[schemars(required)]
+    #[schemars(
+        required,
+        schema_with = "crate::wire_schema::nullable_projection_decision"
+    )]
     pub decision: Option<ProjectionDecisionV1>,
     #[schemars(required)]
     pub withdrawal: Option<Value>,
@@ -178,7 +188,7 @@ pub struct ProjectionAuthenticatedObjectV1 {
     pub object_id: String,
     #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub object_root: String,
-    #[schemars(schema_with = "crate::wire_schema::text")]
+    #[schemars(schema_with = "crate::wire_schema::safe_relative_path")]
     pub source_path: String,
     pub envelope: Value,
     pub payload: Value,
@@ -193,7 +203,7 @@ pub struct ProjectionArtifactV1 {
     pub artifact_id: String,
     #[schemars(schema_with = "crate::wire_schema::sha256_root")]
     pub artifact_root: String,
-    #[schemars(schema_with = "crate::wire_schema::text")]
+    #[schemars(schema_with = "crate::wire_schema::safe_relative_path")]
     pub source_path: String,
     pub byte_length: u64,
 }
@@ -215,15 +225,35 @@ pub struct ProjectionAuthorityEventV1 {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ProjectionActionV1 {
+    #[schemars(schema_with = "crate::wire_schema::text")]
+    pub kind: String,
+    #[schemars(schema_with = "crate::wire_schema::text")]
+    pub command: String,
+    #[schemars(required, schema_with = "crate::wire_schema::nullable_text")]
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ProjectionFailedRouteV1 {
+    #[schemars(schema_with = "crate::wire_schema::text")]
+    pub code: String,
+    #[schemars(schema_with = "crate::wire_schema::text")]
+    pub subject: String,
+    #[schemars(schema_with = "crate::wire_schema::text")]
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ProjectionHandoffV1 {
     pub accepted_claim_ids: Vec<String>,
-    pub unassessed_claim_ids: Vec<String>,
+    pub active_pending_claim_ids: Vec<String>,
+    pub inactive_unassessed_claim_ids: Vec<String>,
     pub retired_claim_ids: Vec<String>,
     pub pending_proposal_ids: Vec<String>,
     pub correction_successor_ids: Vec<String>,
-    pub exact_next_actions: Vec<String>,
-    pub failed_routes: Vec<String>,
-    pub limitations: Vec<String>,
+    pub exact_next_actions: Vec<ProjectionActionV1>,
+    pub failed_routes: Vec<ProjectionFailedRouteV1>,
     pub nonclaims: Vec<String>,
 }
 
@@ -237,6 +267,10 @@ pub struct RepositoryProjectionV1 {
     pub command: String,
     #[schemars(schema_with = "crate::wire_schema::authority_effect_none_tag")]
     pub authority_effect: String,
+    #[schemars(schema_with = "crate::wire_schema::sha256_root")]
+    pub projection_root: String,
+    #[schemars(schema_with = "crate::wire_schema::repository_projection_root_definition_tag")]
+    pub projection_root_definition: String,
     #[schemars(schema_with = "crate::wire_schema::text")]
     pub reader_version: String,
     pub repository: ProjectionRepositoryV1,
@@ -252,6 +286,7 @@ pub struct RepositoryProjectionV1 {
     pub verifications: Vec<ProjectionAuthenticatedObjectV1>,
     pub artifacts: Vec<ProjectionArtifactV1>,
     pub authority_events: Vec<ProjectionAuthorityEventV1>,
+    pub transitions: Vec<ProjectionTransitionV1>,
     pub correction_impacts: Vec<Value>,
     pub decision_inbox: Value,
     pub handoff: ProjectionHandoffV1,

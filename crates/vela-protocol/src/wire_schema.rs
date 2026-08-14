@@ -112,6 +112,15 @@ fn tag(value: &str) -> Schema {
     json_schema!({ "type": "string", "const": value })
 }
 
+fn nullable_subschema<T: JsonSchema>(generator: &mut SchemaGenerator) -> Schema {
+    let object =
+        serde_json::to_value(generator.subschema_for::<T>()).expect("generated subschema is JSON");
+    Schema::try_from(serde_json::json!({
+        "anyOf": [object, { "type": "null" }]
+    }))
+    .expect("nullable subschema is an object schema")
+}
+
 fn text_fragment() -> Value {
     serde_json::json!({
         "type": "string",
@@ -137,6 +146,16 @@ pub fn nullable_text(_: &mut SchemaGenerator) -> Schema {
     let mut fragment = text_fragment();
     fragment["type"] = serde_json::json!(["string", "null"]);
     Schema::try_from(fragment).expect("nullable text fragment is an object schema")
+}
+
+/// A nullable exact reference to one projected authority Event.
+pub fn nullable_projection_event_ref(generator: &mut SchemaGenerator) -> Schema {
+    nullable_subschema::<crate::repository_projection::ProjectionEventRefV1>(generator)
+}
+
+/// A nullable projected Decision over one Proposal.
+pub fn nullable_projection_decision(generator: &mut SchemaGenerator) -> Schema {
+    nullable_subschema::<crate::repository_projection::ProjectionDecisionV1>(generator)
 }
 
 /// Current Standing tokens emitted by the repository projection.
@@ -525,6 +544,11 @@ pub fn repository_projection_schema_tag(_: &mut SchemaGenerator) -> Schema {
 /// The verb that emits the repository projection.
 pub fn repository_projection_command_tag(_: &mut SchemaGenerator) -> Schema {
     tag(crate::repository_projection::REPOSITORY_PROJECTION_COMMAND)
+}
+
+/// The exact commitment rule for the derived repository projection.
+pub fn repository_projection_root_definition_tag(_: &mut SchemaGenerator) -> Schema {
+    tag(crate::repository_projection::REPOSITORY_PROJECTION_ROOT_DEFINITION)
 }
 
 /// A read projection has no Repository-authority effect.

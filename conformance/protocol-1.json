@@ -611,11 +611,11 @@
       "sha256": "sha256:9c1be351f45aad9515742334f6b4329519f090dc833fc63261577e606900d800"
     },
     {
-      "bytes": 29465,
+      "bytes": 33435,
       "normative": false,
       "path": "schemas/repository-projection.schema.json",
       "role": "software-read-schema",
-      "sha256": "sha256:862d3aaf6db549b49844be823a6a073c83154d12e3fd11aca2e5485ec021951c"
+      "sha256": "sha256:ae42699ebf1a0e81024ce5a8885b57f2042a8bfca658b79d75da4766f2865c20"
     },
     {
       "bytes": 2940,
@@ -667,7 +667,7 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:0a89c99c6a10c8f3cfc19f2068bf4f5a3f3ca45871fa6eb4b1980ac60c9809a7",
+  "manifest_root": "sha256:8111ba93f13efb29d2f1d26c7f2b026a2ec5d727eed5392069c061f7c395f53f",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",

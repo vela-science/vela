@@ -115,7 +115,7 @@
           "source_path": {
             "maxLength": 16384,
             "minLength": 1,
-            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "pattern": "^(?:[^\\s/]|[^\\s./][^/]*[^\\s/]|\\.[^\\s./]|\\.[^/][^/]*[^\\s/]|(?:[^\\s/]|[^\\s./][^/]+|\\.[^./]|\\.[^/][^/]+)(?:/(?:[^/]?|[^./][^/]+|\\.[^./]|\\.[^/][^/]+))*/(?:[^\\s/]|[^./][^/]*[^\\s/]|\\.[^\\s./]|\\.[^/][^/]*[^\\s/])?)$",
             "type": "string"
           }
         },
@@ -250,7 +250,7 @@
           "source_path": {
             "maxLength": 16384,
             "minLength": 1,
-            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "pattern": "^(?:[^\\s/]|[^\\s./][^/]*[^\\s/]|\\.[^\\s./]|\\.[^/][^/]*[^\\s/]|(?:[^\\s/]|[^\\s./][^/]+|\\.[^./]|\\.[^/][^/]+)(?:/(?:[^/]?|[^./][^/]+|\\.[^./]|\\.[^/][^/]+))*/(?:[^\\s/]|[^./][^/]*[^\\s/]|\\.[^\\s./]|\\.[^/][^/]*[^\\s/])?)$",
             "type": "string"
           },
           "standing": {
@@ -261,119 +261,6 @@
               "retracted"
             ],
             "type": "string"
-          },
-          "transition": {
-            "properties": {
-              "applied_event": {
-                "properties": {
-                  "authority_event_id": {
-                    "maxLength": 16384,
-                    "minLength": 1,
-                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
-                    "type": "string"
-                  },
-                  "authority_event_root": {
-                    "pattern": "^sha256:[0-9a-f]{64}$",
-                    "type": "string"
-                  },
-                  "semantic_event_id": {
-                    "maxLength": 16384,
-                    "minLength": 1,
-                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "authority_event_id",
-                  "authority_event_root",
-                  "semantic_event_id"
-                ],
-                "type": "object"
-              },
-              "authority_event_kind": {
-                "enum": [
-                  "claim.asserted",
-                  "claim.retracted",
-                  "claim.superseded"
-                ],
-                "type": "string"
-              },
-              "decision_event": {
-                "properties": {
-                  "authority_event_id": {
-                    "maxLength": 16384,
-                    "minLength": 1,
-                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
-                    "type": "string"
-                  },
-                  "authority_event_root": {
-                    "pattern": "^sha256:[0-9a-f]{64}$",
-                    "type": "string"
-                  },
-                  "semantic_event_id": {
-                    "maxLength": 16384,
-                    "minLength": 1,
-                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "authority_event_id",
-                  "authority_event_root",
-                  "semantic_event_id"
-                ],
-                "type": "object"
-              },
-              "predecessor_claim_id": {
-                "type": "string"
-              },
-              "predecessor_claim_root": {
-                "pattern": "^sha256:[0-9a-f]{64}$",
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "proposal_id": {
-                "maxLength": 16384,
-                "minLength": 1,
-                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
-                "type": "string"
-              },
-              "relation_kind": {
-                "enum": [
-                  "corrects",
-                  "supersedes",
-                  null
-                ],
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "successor_claim_id": {
-                "type": "string"
-              },
-              "successor_claim_root": {
-                "pattern": "^sha256:[0-9a-f]{64}$",
-                "type": [
-                  "string",
-                  "null"
-                ]
-              }
-            },
-            "required": [
-              "authority_event_kind",
-              "relation_kind",
-              "predecessor_claim_id",
-              "predecessor_claim_root",
-              "successor_claim_id",
-              "successor_claim_root",
-              "proposal_id",
-              "decision_event",
-              "applied_event"
-            ],
-            "type": "object"
           }
         },
         "required": [
@@ -385,8 +272,7 @@
           "proposal_status",
           "assertion",
           "assertion_kind",
-          "record",
-          "transition"
+          "record"
         ],
         "type": "object"
       },
@@ -545,6 +431,12 @@
           },
           "type": "array"
         },
+        "active_pending_claim_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "correction_successor_ids": {
           "items": {
             "type": "string"
@@ -553,17 +445,70 @@
         },
         "exact_next_actions": {
           "items": {
-            "type": "string"
+            "properties": {
+              "command": {
+                "maxLength": 16384,
+                "minLength": 1,
+                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                "type": "string"
+              },
+              "kind": {
+                "maxLength": 16384,
+                "minLength": 1,
+                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                "type": "string"
+              },
+              "note": {
+                "maxLength": 16384,
+                "minLength": 1,
+                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "command",
+              "note"
+            ],
+            "type": "object"
           },
           "type": "array"
         },
         "failed_routes": {
           "items": {
-            "type": "string"
+            "properties": {
+              "code": {
+                "maxLength": 16384,
+                "minLength": 1,
+                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                "type": "string"
+              },
+              "detail": {
+                "maxLength": 16384,
+                "minLength": 1,
+                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                "type": "string"
+              },
+              "subject": {
+                "maxLength": 16384,
+                "minLength": 1,
+                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "subject",
+              "detail"
+            ],
+            "type": "object"
           },
           "type": "array"
         },
-        "limitations": {
+        "inactive_unassessed_claim_ids": {
           "items": {
             "type": "string"
           },
@@ -586,23 +531,17 @@
             "type": "string"
           },
           "type": "array"
-        },
-        "unassessed_claim_ids": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
         }
       },
       "required": [
         "accepted_claim_ids",
-        "unassessed_claim_ids",
+        "active_pending_claim_ids",
+        "inactive_unassessed_claim_ids",
         "retired_claim_ids",
         "pending_proposal_ids",
         "correction_successor_ids",
         "exact_next_actions",
         "failed_routes",
-        "limitations",
         "nonclaims"
       ],
       "type": "object"
@@ -649,37 +588,133 @@
       "const": true,
       "type": "boolean"
     },
+    "projection_root": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "projection_root_definition": {
+      "const": "sha256 of RFC 8785 canonical JSON after removing only projection_root",
+      "type": "string"
+    },
     "proposals": {
       "items": {
         "properties": {
           "consequence": true,
           "decision": {
-            "properties": {
-              "actor_class": {
-                "maxLength": 16384,
-                "minLength": 1,
-                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
-                "type": "string"
-              },
-              "actor_id": {
-                "maxLength": 16384,
-                "minLength": 1,
-                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
-                "type": "string"
-              },
-              "applied_event": {
+            "anyOf": [
+              {
                 "properties": {
-                  "authority_event_id": {
+                  "actor_class": {
                     "maxLength": 16384,
                     "minLength": 1,
                     "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
                     "type": "string"
                   },
-                  "authority_event_root": {
-                    "pattern": "^sha256:[0-9a-f]{64}$",
+                  "actor_id": {
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
                     "type": "string"
                   },
-                  "semantic_event_id": {
+                  "applied_event": {
+                    "anyOf": [
+                      {
+                        "properties": {
+                          "authority_event_id": {
+                            "maxLength": 16384,
+                            "minLength": 1,
+                            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                            "type": "string"
+                          },
+                          "authority_event_root": {
+                            "pattern": "^sha256:[0-9a-f]{64}$",
+                            "type": "string"
+                          },
+                          "semantic_event_id": {
+                            "maxLength": 16384,
+                            "minLength": 1,
+                            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "authority_event_id",
+                          "authority_event_root",
+                          "semantic_event_id"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "authority_principal_id": {
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                    "type": "string"
+                  },
+                  "decided_at": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "decision_event": {
+                    "properties": {
+                      "authority_event_id": {
+                        "maxLength": 16384,
+                        "minLength": 1,
+                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                        "type": "string"
+                      },
+                      "authority_event_root": {
+                        "pattern": "^sha256:[0-9a-f]{64}$",
+                        "type": "string"
+                      },
+                      "semantic_event_id": {
+                        "maxLength": 16384,
+                        "minLength": 1,
+                        "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "authority_event_id",
+                      "authority_event_root",
+                      "semantic_event_id"
+                    ],
+                    "type": "object"
+                  },
+                  "reason": {
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                    "type": "string"
+                  },
+                  "repository_after": {
+                    "pattern": "^sha256:[0-9a-f]{64}$",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "repository_before": {
+                    "pattern": "^sha256:[0-9a-f]{64}$",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "session_ref": {
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "verdict": {
                     "maxLength": 16384,
                     "minLength": 1,
                     "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
@@ -687,98 +722,24 @@
                   }
                 },
                 "required": [
-                  "authority_event_id",
-                  "authority_event_root",
-                  "semantic_event_id"
+                  "verdict",
+                  "decided_at",
+                  "reason",
+                  "actor_id",
+                  "actor_class",
+                  "session_ref",
+                  "authority_principal_id",
+                  "repository_before",
+                  "repository_after",
+                  "decision_event",
+                  "applied_event"
                 ],
                 "type": "object"
               },
-              "authority_principal_id": {
-                "maxLength": 16384,
-                "minLength": 1,
-                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
-                "type": "string"
-              },
-              "decided_at": {
-                "format": "date-time",
-                "type": "string"
-              },
-              "decision_event": {
-                "properties": {
-                  "authority_event_id": {
-                    "maxLength": 16384,
-                    "minLength": 1,
-                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
-                    "type": "string"
-                  },
-                  "authority_event_root": {
-                    "pattern": "^sha256:[0-9a-f]{64}$",
-                    "type": "string"
-                  },
-                  "semantic_event_id": {
-                    "maxLength": 16384,
-                    "minLength": 1,
-                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "authority_event_id",
-                  "authority_event_root",
-                  "semantic_event_id"
-                ],
-                "type": "object"
-              },
-              "reason": {
-                "maxLength": 16384,
-                "minLength": 1,
-                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
-                "type": "string"
-              },
-              "repository_after": {
-                "pattern": "^sha256:[0-9a-f]{64}$",
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "repository_before": {
-                "pattern": "^sha256:[0-9a-f]{64}$",
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "session_ref": {
-                "maxLength": 16384,
-                "minLength": 1,
-                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "verdict": {
-                "maxLength": 16384,
-                "minLength": 1,
-                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
-                "type": "string"
+              {
+                "type": "null"
               }
-            },
-            "required": [
-              "verdict",
-              "decided_at",
-              "reason",
-              "actor_id",
-              "actor_class",
-              "session_ref",
-              "authority_principal_id",
-              "repository_before",
-              "repository_after",
-              "decision_event",
-              "applied_event"
-            ],
-            "type": "object"
+            ]
           },
           "decision_inbox_entry": true,
           "proposal_id": {
@@ -795,7 +756,7 @@
           "source_path": {
             "maxLength": 16384,
             "minLength": 1,
-            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "pattern": "^(?:[^\\s/]|[^\\s./][^/]*[^\\s/]|\\.[^\\s./]|\\.[^/][^/]*[^\\s/]|(?:[^\\s/]|[^\\s./][^/]+|\\.[^./]|\\.[^/][^/]+)(?:/(?:[^/]?|[^./][^/]+|\\.[^./]|\\.[^/][^/]+))*/(?:[^\\s/]|[^./][^/]*[^\\s/]|\\.[^\\s./]|\\.[^/][^/]*[^\\s/])?)$",
             "type": "string"
           },
           "status": {
@@ -1019,7 +980,7 @@
           "source_path": {
             "maxLength": 16384,
             "minLength": 1,
-            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "pattern": "^(?:[^\\s/]|[^\\s./][^/]*[^\\s/]|\\.[^\\s./]|\\.[^/][^/]*[^\\s/]|(?:[^\\s/]|[^\\s./][^/]+|\\.[^./]|\\.[^/][^/]+)(?:/(?:[^/]?|[^./][^/]+|\\.[^./]|\\.[^/][^/]+))*/(?:[^\\s/]|[^./][^/]*[^\\s/]|\\.[^\\s./]|\\.[^/][^/]*[^\\s/])?)$",
             "type": "string"
           }
         },
@@ -1031,6 +992,141 @@
           "payload",
           "authentication",
           "review_method"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "transitions": {
+      "items": {
+        "properties": {
+          "applied_event": {
+            "anyOf": [
+              {
+                "properties": {
+                  "authority_event_id": {
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                    "type": "string"
+                  },
+                  "authority_event_root": {
+                    "pattern": "^sha256:[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "semantic_event_id": {
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "authority_event_id",
+                  "authority_event_root",
+                  "semantic_event_id"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "authority_event_kind": {
+            "enum": [
+              "claim.asserted",
+              "claim.retracted",
+              "claim.superseded"
+            ],
+            "type": "string"
+          },
+          "decision_event": {
+            "properties": {
+              "authority_event_id": {
+                "maxLength": 16384,
+                "minLength": 1,
+                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                "type": "string"
+              },
+              "authority_event_root": {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              "semantic_event_id": {
+                "maxLength": 16384,
+                "minLength": 1,
+                "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "authority_event_id",
+              "authority_event_root",
+              "semantic_event_id"
+            ],
+            "type": "object"
+          },
+          "predecessor_claim_id": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "predecessor_claim_root": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "proposal_id": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": "string"
+          },
+          "relation_kind": {
+            "enum": [
+              "corrects",
+              "supersedes",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "successor_claim_id": {
+            "maxLength": 16384,
+            "minLength": 1,
+            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "successor_claim_root": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "authority_event_kind",
+          "relation_kind",
+          "predecessor_claim_id",
+          "predecessor_claim_root",
+          "successor_claim_id",
+          "successor_claim_root",
+          "proposal_id",
+          "decision_event",
+          "applied_event"
         ],
         "type": "object"
       },
@@ -1073,7 +1169,7 @@
           "source_path": {
             "maxLength": 16384,
             "minLength": 1,
-            "pattern": "^\\S(?:[\\s\\S]*\\S)?$",
+            "pattern": "^(?:[^\\s/]|[^\\s./][^/]*[^\\s/]|\\.[^\\s./]|\\.[^/][^/]*[^\\s/]|(?:[^\\s/]|[^\\s./][^/]+|\\.[^./]|\\.[^/][^/]+)(?:/(?:[^/]?|[^./][^/]+|\\.[^./]|\\.[^/][^/]+))*/(?:[^\\s/]|[^./][^/]*[^\\s/]|\\.[^\\s./]|\\.[^/][^/]*[^\\s/])?)$",
             "type": "string"
           }
         },
@@ -1096,6 +1192,8 @@
     "ok",
     "command",
     "authority_effect",
+    "projection_root",
+    "projection_root_definition",
     "reader_version",
     "repository",
     "git",
@@ -1110,6 +1208,7 @@
     "verifications",
     "artifacts",
     "authority_events",
+    "transitions",
     "correction_impacts",
     "decision_inbox",
     "handoff"

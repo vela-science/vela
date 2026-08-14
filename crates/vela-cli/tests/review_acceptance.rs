@@ -615,6 +615,50 @@ fn review_accept_admits_the_event_that_moves_standing() {
     assert_eq!(projection["claims"][0]["claim_id"], claim_id);
     assert_eq!(projection["claims"][0]["standing"], "accepted");
     assert_eq!(projection["claims"][0]["proposal_status"], "accepted");
+    let mut projection_commitment = projection.clone();
+    projection_commitment
+        .as_object_mut()
+        .expect("projection object")
+        .remove("projection_root");
+    assert_eq!(
+        projection["projection_root"],
+        format!(
+            "sha256:{}",
+            vela_protocol::canonical::sha256_canonical(&projection_commitment)
+                .expect("projection commitment")
+        )
+    );
+    let projection_path = temporary.path().join("repository-projection.json");
+    std::fs::write(
+        &projection_path,
+        serde_json::to_vec(&projection).expect("serialize projection"),
+    )
+    .expect("write projection for schema validation");
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .expect("workspace root");
+    let schema_check = Command::new("uv")
+        .current_dir(workspace)
+        .args([
+            "run",
+            "--project",
+            "conformance",
+            "--locked",
+            "python",
+            "-c",
+            "import json,sys; from jsonschema import Draft202012Validator; schema=json.load(open(sys.argv[1])); value=json.load(open(sys.argv[2])); errors=list(Draft202012Validator(schema).iter_errors(value)); assert not errors, '\\n'.join(str(error) for error in errors)",
+        ])
+        .arg(workspace.join("schemas/repository-projection.schema.json"))
+        .arg(&projection_path)
+        .output()
+        .expect("run projection schema validation");
+    assert!(
+        schema_check.status.success(),
+        "Core projection must satisfy its published schema: {}{}",
+        String::from_utf8_lossy(&schema_check.stdout),
+        String::from_utf8_lossy(&schema_check.stderr)
+    );
     assert_eq!(
         projection["proposals"][0]["decision"]["decision_event"]["semantic_event_id"],
         review["semantic_event_id"]
@@ -672,6 +716,16 @@ fn review_accept_admits_the_event_that_moves_standing() {
     assert_eq!(historical_projection["counts"]["pending_claims"], 1);
     assert_eq!(historical_projection["counts"]["pending_review"], 1);
     assert_eq!(historical_projection["claims"][0]["standing"], "unassessed");
+    assert_eq!(
+        historical_projection["handoff"]["active_pending_claim_ids"][0],
+        claim_id
+    );
+    assert_eq!(
+        historical_projection["handoff"]["inactive_unassessed_claim_ids"]
+            .as_array()
+            .map(Vec::len),
+        Some(0)
+    );
     assert_eq!(
         historical_projection["claims"][0]["proposal_status"],
         "pending_review"
