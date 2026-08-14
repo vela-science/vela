@@ -48,6 +48,7 @@
 - [Native repository integration v0.1](integrations/native-repository-integration-v0.1.md)
 - [Non-normative integration-profile template](integrations/integration-profile-template.md)
 - [Phase 1 native consumer comparison, 2026-08-14](integrations/phase-one-native-consumer-comparison-2026-08-14.md)
+- [Native integration launch qualification, 2026-08-14](integrations/native-integration-launch-qualification-2026-08-14.md)
 - [Roadmap](ROADMAP.md)
 - [Interoperability boundary](INTEROPERABILITY.md)
 - [Protocol adoption and interoperability](PROTOCOL_ADOPTION.md)
