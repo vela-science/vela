@@ -7,9 +7,9 @@ agent performers are recorded distinctly and use the same exact-root gates.
 
 ## Two-minute flagship: read exact scientific state
 
-`v0.976.0` is the qualified release candidate. The command below becomes valid
-only after that tag is signed and published; until then the current signed
-release remains `v0.975.1`.
+`v0.976.0` is the current signed release. The installer verifies its exact
+platform manifest with the out-of-band distribution identity before installing
+the binary.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.976.0/install.sh | \

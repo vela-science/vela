@@ -268,19 +268,20 @@ provider-coupled fallback refused.
 `v0.968.0` is immutable and unsigned and cannot be repaired; it stands as the
 last unsigned release.
 
-The current `v0.975.1` release follows the same signed-before-publication path.
-Its two published manifests and assets agree, both signatures verify under the
-out-of-band distribution identity, and a clean consumer installation with
-`VELA_REQUIRE_SIGNED_MANIFEST=1` reports provider-independent verification.
-Those exact current assets are replicated to Codeberg and anonymously read back
-against the committed digests by `mirror-replicas.yml`.
+The current `v0.976.0` release follows the same signed-before-publication path.
+Its two published manifests agree with their archives and SBOMs, both
+signatures verify under the out-of-band distribution identity, and a clean
+consumer installation with `VELA_REQUIRE_SIGNED_MANIFEST=1` reports
+provider-independent verification. Replica publication remains owned by the
+Problems release transaction and advances when its exact Vela release pin does.
 
 The mirror mechanism carries signatures too. It reads each retained asset back
 over the anonymous public URL and compares it to the SHA-256 committed in
 vela-web's `vela-release.v1.json`, rather than to the copy just uploaded. The
-current fully exercised replica path is `v0.975.1`: its retained assets and
+last fully exercised replica path is `v0.975.1`: its retained assets and
 signatures pass anonymous Codeberg readback with no GitHub dependency in the
-retrieval or verification path.
+retrieval or verification path. `v0.976.0` is not claimed replicated until the
+Problems release advances that pin and completes the same readback.
 
 Mirroring stays scoped to the release the Problems projection pins rather than the
 historical archive. Section 11.1 asks for what it takes to install and reproduce
