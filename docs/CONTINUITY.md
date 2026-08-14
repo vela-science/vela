@@ -70,9 +70,9 @@ state — but a protocol that refuses a divergent write still leaves an operator
 with two half-published histories to reconcile. One writer is how that
 reconciliation never has to happen.
 
-Record the active writer and the replicas where the operator will look for
-them, not where they are convenient to write: the repository's own README or
-`docs/`, and the ecosystem status artifact (`ecosystem-status.json`).
+Record the active writer and replicas in the repository's own operator docs
+and signed release manifest. Core does not maintain an aggregate hosted-service
+status database.
 
 ## 4. Mirrors and backups confer no Standing
 
@@ -178,8 +178,7 @@ Perform these in order. Stop at the first step that fails and do not continue.
    so that the ones who pinned a URL learn that they pinned the wrong thing.
 
 7. **Record the promotion where §3 says the writer is recorded**, with the date,
-   the operator, the replica chosen, and the commit verified. Regenerate
-   `ecosystem-status.json` so the recorded writer and the observed one agree.
+   the operator, the replica chosen, and the commit verified.
 
 Nothing in this runbook reads a private key, and step 3 is the same read-only
 verification a consumer runs. Promotion is a configuration change performed
@@ -232,12 +231,9 @@ clean machine with GitHub unreachable.
 
 ### Where it stands today
 
-The acceptance test does not pass end to end today. Vela core retains its
-declared Codeberg read replica and signed release assets. Math's active writer
-is the public GitHub repository, but `ecosystem-status.json` declares no Math
-read replica, so step 1 still has no independent-provider Math path. Steps 2
-and 3 pass after ordinary acquisition, but public access through the active
-writer does not satisfy the provider-loss condition in step 1.
+Provider-loss qualification is recorded by the repository or product that owns
+the deployment and exact replica it tested. It is operational evidence, not a
+Core protocol object or a generated ecosystem-wide status file.
 
 The independent retrieval was exercised on 2026-08-09 under the topology in
 force that day. After the UUIDv4 re-genesis and human Decisions, `math` was

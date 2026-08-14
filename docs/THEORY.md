@@ -15,9 +15,10 @@ its current Standing.
 The normative wire and storage contract is [PROTOCOL.md](PROTOCOL.md). The Rust
 implementation is the executable reference. Independent Python and JavaScript
 readers, two clean-room emitters, and language-neutral vectors check the
-portable producer boundary. The TypeScript package that used to be named here was published as
-`@vela-science/protocol@0.1.0` and then removed rather than deferred (ADR 0024);
-`packages/` holds `vela-source-manifest` alone.
+portable producer boundary. The TypeScript package that used to be named here
+was published as `@vela-science/protocol@0.1.0` and then removed rather than
+deferred (ADR 0024). Core ships no source-acquisition package; source-owning
+repositories retain their own exact inputs and acquisition boundary.
 
 ## 1. Guarantee ladder
 

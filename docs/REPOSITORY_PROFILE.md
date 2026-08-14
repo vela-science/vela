@@ -186,10 +186,11 @@ repository names either path anywhere, and the two have moved up into the block
 `SCOPE.md` restated scope that `vela.toml` already declares and
 `profile_root` already commits to, so it could only ever drift out of
 agreement with it; `vela init` does not scaffold it. `scripts/write_sources_lock.py`
-was one resolver copied into three repositories, replaced by the shared
-`vela-source-manifest` package. Neither is protocol state and neither should
-be: replay has no opinion about a repository's build scripts, and acquiring one
-would put the profile's housekeeping inside the thing that decides Standing.
+was one resolver copied into three repositories. Current source acquisition is
+source-owned rather than a Core package. Neither is protocol state and neither
+should be: replay has no opinion about a repository's build scripts, and
+acquiring one would put the profile's housekeeping inside the thing that
+decides Standing.
 
 The check is a worktree walk over files, so it sees untracked files but not an
 empty retired directory.
@@ -231,13 +232,10 @@ writing six files, none of them under it; what it does is hold the path to
 stability without having to know it needed it. Three of the four repositories
 now have one, holding between 1 and 62 tracked files.
 
-The remainder emerged in the repositories rather than in this contract, so the
-shapes vary and the coverage is partial: `sources.yaml` and
-`sources.lock.json` are in all four repositories, `STATEMENT.md` in all four,
-`artifacts/` in three, and `witnesses/` in two. The lock is written by the
-shared `vela-source-manifest` package, not by a script any repository owns. A CI
-workflow is in all four and `vela init` scaffolds none of it. Treat these as
-domain conventions worth copying, not as contract.
+The remainder emerged in repositories rather than in this contract, so shapes
+vary. Source declarations and locks, when a current repository uses them, are
+owned and checked by that source integration. `vela init` scaffolds none of
+them. Treat these as source conventions, not a Core contract.
 
 ## Runtime behavior
 
@@ -283,7 +281,7 @@ repository decides.
 | `pyproject.toml`, `uv.lock`, `scripts/`, `tests/`, top-level `*.py` | Repository build and check | The repository's own tooling, gated by its own CI. Replay has no opinion about it, and acquiring one would put the profile's housekeeping inside the thing that decides Standing |
 | `.gitattributes` | Byte stability | Keep canonical paths out of every checkout filter, keyword expansion, encoding, and merge driver |
 | `.gitignore` | Working-tree hygiene | Track canonical identity and authority bytes; ignore journals, workspaces, and `.vela/keys/` |
-| `sources.yaml`, `sources.lock.json` | Domain source declaration and derived lock | Never hand-write a hash nobody computed. Every value in the lock is derived from bytes and none is read from the clock, so a rerun over an unchanged inventory rewrites it byte for byte and `git diff --exit-code` after a re-resolve is the whole check. A repository gets that when it bumps its pinned `vela-source-manifest` rev, which is also what dates the lock: the commit does, and it dates the record rather than the run |
+| `sources.yaml`, `sources.lock.json` | Optional source-owned declaration and derived lock | Never hand-write a hash nobody computed. The owning source integration must derive every value from exact bytes, keep generation deterministic, and version its own resolver. Vela replay does not read either file |
 | `.github/workflows/` | Verification gate | Run the read-only verification verb on push and pull request; CI reports, it never accepts |
 
 ## Verification

@@ -219,14 +219,6 @@ def main() -> int:
     if verify_decision_inbox_read_surface() != 0:
         print("vela conformance: FAIL (decision-inbox-v3)", file=sys.stderr)
         return 1
-    # Not a vector check: it holds `ecosystem-status.json` to the checkout it
-    # claims to describe. Four repositories were documented as archived while
-    # the host still reported `archived=false`, and nothing was in a position
-    # to notice. This is the thing that would have been.
-    print("\n== ecosystem_status ==")
-    if run_script(ROOT / "scripts" / "ecosystem-status.py", "--check") != 0:
-        print("vela conformance: FAIL (ecosystem-status)", file=sys.stderr)
-        return 1
     print("\nvela conformance: ok")
     return 0
 

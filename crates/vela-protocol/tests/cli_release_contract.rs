@@ -109,9 +109,7 @@ fn install_blocks_advertise_this_exact_release() {
 
 /// The live Math source is public. These are the four current acquisition
 /// surfaces a reader meets, and an account-gated recipe would turn a public
-/// source into a false first-run prerequisite. The status artifact is checked
-/// against the generator separately by `scripts/ecosystem-status.py`; asserting
-/// its access declaration here binds the prose to the same fact.
+/// source into a false first-run prerequisite.
 #[test]
 fn current_math_acquisition_is_public_and_credential_free() {
     const ACQUISITION_GUIDES: [(&str, &str); 4] = [
@@ -140,22 +138,6 @@ fn current_math_acquisition_is_public_and_credential_free() {
             "{name} must not require a GitHub credential for the public Math source"
         );
     }
-
-    let status: serde_json::Value =
-        serde_json::from_str(include_str!("../../../ecosystem-status.json"))
-            .expect("ecosystem-status.json must be valid JSON");
-    let math = &status["declaration"]["vela-science/math"];
-    assert_eq!(math["visibility"].as_str(), Some("public"));
-    assert_eq!(
-        math["read_replicas"].as_array().map(Vec::len),
-        Some(0),
-        "public Math still has no independent read replica"
-    );
-
-    let continuity = include_str!("../../../docs/CONTINUITY.md");
-    let integration = include_str!("../../../docs/integrations/genesis-open-models.md");
-    assert!(continuity.contains("declares no Math\nread replica"));
-    assert!(integration.contains("declares no Math read replica"));
 }
 
 /// The documentation index covers the documentation directory.

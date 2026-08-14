@@ -78,11 +78,5 @@ jobs:
       # makes about itself.
       - name: Provider-independent install path
         run: uv run --project conformance --locked python conformance/test_release_install.py
-      # The resolver each Repository locks its sources with. It has its own
-      # project and its own lock, so it runs as its own step rather than being
-      # folded into the conformance environment, which would give one of them
-      # an opinion about the other's dependencies.
-      - name: shared source-manifest package
-        run: uv run --project packages/vela-source-manifest --locked --group dev pytest packages/vela-source-manifest/tests -q
       - name: reproduce (CLI re-derives the synthetic valid corpus)
         run: ./target/release/vela reproduce crates/vela-verify/corpus/valid/smoke

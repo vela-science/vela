@@ -380,11 +380,11 @@
       "sha256": "sha256:c17899a2f631ed23ec6798ee11a23434c4e85fa4a9b5980dd1e12c059b75d397"
     },
     {
-      "bytes": 9014,
+      "bytes": 8515,
       "normative": true,
       "path": "conformance/verify.py",
       "role": "conformance-entrypoint",
-      "sha256": "sha256:2d0f657db923b0822506b1c1aad127e8ada8b5f25a3b5d795b3e34c4b97ac0f4"
+      "sha256": "sha256:a184eeacf645a517f08bf33fa443a28445aaa0805ea5e50ba01bcc54eefeb634"
     },
     {
       "bytes": 31099,
@@ -660,7 +660,7 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:89e11e4f2998532bbc2de4af17fd61d3dcca345eecba5eae969f276554d2a224",
+  "manifest_root": "sha256:b1de7ccaa8302441c1e1585fdcfb963b81bda1ce3b968384a3f8a567588fc68f",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",

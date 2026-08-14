@@ -33,10 +33,9 @@ or Standing. The rename landed in v0.967.0: `vfr_` and `frontier_id` are absent
 from current crate code. The type parses `vela.toml`, mints a standard UUIDv4
 once at genesis, and answers `vela.status.v4`.
 
-**Source.** Declared per repository in `sources.yaml` and locked in
-`sources.lock.json`; the shared lock tooling is
-`packages/vela-source-manifest/` (a Python package with `pyproject.toml` and
-`uv.lock`). Projected by `vela-web` into `observatory.source_declarations`,
+**Source.** Declared by the source-owning integration and bound to exact native
+identities. Core ships no source acquisition or lock package. Source state is
+projected by `vela-web` into its derived source declarations,
 `observatory.source_observations`, `observatory.native_records` and
 `observatory.release_sources` (`packages/observatory-data/schema.sql`). Thirteen
 sources are declared in
@@ -264,7 +263,7 @@ Vela-format distribution channel.
 | --- | --- | --- | --- |
 | Rust libraries | crates.io | `Cargo.lock`, `--locked` on every command | Cargo.lock present; nothing published yet |
 | Rust toolchain | rustup | `rust-toolchain.toml` | yes |
-| Python tools | PyPI | `uv.lock`, `uv run --locked` | `packages/vela-source-manifest/` (pyproject.toml + uv.lock) |
+| Source-owned Python tools | Their source repository | `uv.lock`, `uv run --locked` | A current integration that actually uses them |
 | TypeScript | npm, `@vela-science/*` | `bun.lock` (`vela-web` uses `bun@1.3.12`) | none currently published; `@vela-science/protocol@0.1.0` was published and then removed |
 | Lean | Lake, pinned to an immutable Git revision | `lake-manifest.json` | in authority repositories only |
 | Binaries | GitHub Releases | SHA-256 checksums, SPDX SBOM, release manifest (signed out of band before publication), build provenance attestation | `scripts/release.sh`, called by `.github/workflows/release.yml`; two targets, `vela-linux-x86_64` and `vela-macos-aarch64` |
@@ -443,8 +442,7 @@ different facts.
   This list carried them as "additions the ADR asked for" by reading ADR 0039
   §8 without its amendment: the same-day amendment withdraws §8, §9 and §10 and
   records that `epoch1/` "was built, verified against all four checkouts, and
-  then deleted". Both are correctly absent and must stay absent, which is what
-  `scripts/ecosystem-status.py` declares.
+  then deleted". Both are correctly absent; Git history records the deletion.
 - ~~One relation alias is inert and cannot be removed here.~~ Resolved:
   `opposes` → `contradicts` is withdrawn rather than aliased. It aliased
   nothing — the fixture recorded `"retained_uses": 0` and said it "was declared
@@ -497,8 +495,8 @@ different facts.
   ordering, ECMAScript number serialization, canonical UTF-8 bytes, and exact
   SHA-256 roots.
 - **The portable TypeScript waist was removed, not deferred.**
-  `@vela-science/protocol@0.1.0` was published (ADR 0024) and
-  `packages/` now holds only `vela-source-manifest`. `docs/THEORY.md` claimed
+  `@vela-science/protocol@0.1.0` was published (ADR 0024) and removed.
+  `docs/THEORY.md` claimed
   "The TypeScript package and language-neutral vectors check the portable
   producer boundary" and, in a second place this list never named, "independent
   Python and JavaScript readers". The deletion decision still stands: there is
@@ -601,9 +599,8 @@ first-class object (§6).
 
 **The four axes that never collapse.** Claim standing, Verification outcome,
 Proposal status, repository integrity. `vela-web`'s state glyph separates two of
-them visually today (ring = standing, core = verification). The path this
-sentence used to cite resolved inside *this* repository, where it has never
-existed; `packages/` here holds `vela-source-manifest` alone.
+them visually today (ring = standing, core = verification). Source-specific
+acquisition remains outside Core.
 
 The three mechanisms that are built and are the defensible part:
 

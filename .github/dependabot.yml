@@ -40,13 +40,11 @@ updates:
           - minor
           - patch
 
-  # conformance/ and packages/vela-source-manifest/ each carry their own
-  # uv.lock. CI runs `uv run --locked`, so a manifest bump that misses the lock
-  # fails the run instead of landing quietly.
+  # conformance/ carries its own uv.lock. CI runs `uv run --locked`, so a
+  # manifest bump that misses the lock fails the run instead of landing quietly.
   - package-ecosystem: uv
     directories:
       - /conformance
-      - /packages/vela-source-manifest
     schedule:
       interval: weekly
       day: monday

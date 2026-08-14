@@ -297,11 +297,10 @@ The public product now develops from one repository while retaining separate
 runtime boundaries:
 
 ```text
-crates/             Protocol, repository runtime, authority, adapters, verifier, and CLI
+crates/             Protocol, repository runtime, authority, verifier, and CLI
 conformance/        Independent Python and JavaScript readers, two clean-room emitters,
                     fixtures, and repository-wide checks
-packages/           The shared source-manifest tooling
-scripts/            Release, release manifest, and ecosystem status
+scripts/            Core release and signed release-manifest tooling
 .github/release/    Binary artifact publication and smoke tooling
 ```
 
@@ -312,12 +311,12 @@ source-local packet and register ordinary Submissions or Verification Records.
 Vela Web and the canonical Repositories remain separate because they have
 independent deployment and scientific-history lifecycles.
 
-Package-local tooling stays with its package. The top-level `scripts/` holds
-four files and is not a bucket for a fifth kind of thing: `release.sh` is the
+Source acquisition and domain inventory tooling stay with their source-owning
+repositories. The top-level `scripts/` holds the Core release path:
+`release.sh` is the
 release, `release_manifest.py` is what it emits, `sign-published-release.sh` is
-the operator step that signs what CI published and then publishes it, and
-`ecosystem-status.py` is what checks this documentation against the tree. The root `install.sh` is the
-public product installer.
+the operator step that signs what CI published and then publishes it. The root
+`install.sh` is the public product installer.
 
 The Rust crates are internal implementation boundaries, tested together and
 released as one `vela` binary. `vela-repository` is the policy-neutral durable
