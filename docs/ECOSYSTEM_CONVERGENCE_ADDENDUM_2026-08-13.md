@@ -8,7 +8,7 @@ revisions and now records its bounded internal closeout:
 | Repository | Revision | Relevant state |
 | --- | --- | --- |
 | Vela Core | `1e760fac4f07296b02b9b8122254588bb0e94507` | governed addendum over signed release `v0.974.2` |
-| Vela Math | `c654010cfc7eb09d0f93f68c6792982d38f28b99` | strict replay; correction and Campaign remaps complete |
+| Vela Math | `b1f1a1decd565d9aa38303efaba22d2a54fdf0b8` | strict replay; correction remap, proof-discharge offer, and first bounded attempt retained |
 | Vela Web | `063092cd8feff45be83c75f9403750938134442b` | `v0.436.1`; scoped Workspace and touch release |
 | Formal Conjectures audit fork | `96eeecf40bc06ddc8bae6d106f461d4fd774858a` | bounded audit, source-faithful fixture, missing-tool evidence, and Comparator pilot |
 
@@ -157,9 +157,32 @@ The four internal closeout items have exact dispositions:
    closeout record, not a substitute for external adoption or scientific lift.
 
 The hosted evidence did not require a new scientific candidate or repeat a
-Decision. The source-owned Erdős 887 Work Offer is closed and its remaining
-proof-discharge item is identified but not offered, so the absence of a current
-production Target form is the truthful terminal state rather than missing work.
+Decision. Math later issued the remapped Erdős 887 proof obligation as a
+separate source-owned Work Offer. Web may project that offer after it imports
+the new Math revision; the offer grants no scientific or hosted authority.
+
+## Post-closeout source work
+
+Math commit `b1f1a1decd565d9aa38303efaba22d2a54fdf0b8` issues
+`erdos:887:proof-discharge` against Formal Conjectures commit
+`158727e43d3be335f902ac7ef6b9beb819e38c9d`. The packet root is
+`sha256:aad2dd6288b36b5194f42800ba17eb53b1a3ab9594f711a4478c41dab0417a50`.
+Agent, human, organization, and deterministic-tool performers use the same
+evidence contract; each result records actor class, identity, runtime, method,
+inputs, dependencies, independence, outputs, and limits.
+
+The first attributed agent attempt ended
+`not_proved_within_declared_bounds`. It retains the exact upstream source,
+Lean 4.27 identity, compatible-cache disclosure, `sorryAx` audit, and the goal
+left by exhaustive `aesop`. Result root:
+`sha256:335089529d1afd1a53b4d2d8eee4c7fd387c44f021133af0b2feaa799793c987`.
+The result makes no falsehood, impossibility, Verification, Decision, Standing,
+or upstream-adoption claim. Math keeps the scientific offer open for other
+methods while the convergence engineering program stays closed. Current source
+index root:
+`sha256:e3d8404d881720df02719db3df4ab33d5c6ce19a8a9c1c1151a381ea6ecf62ad`;
+Campaign root:
+`sha256:6e5742d98b061c64e3487899861929f0fe6c6546edf74b2bf21ea62363e9554f`.
 
 ## Campaign and institutional coordination
 
