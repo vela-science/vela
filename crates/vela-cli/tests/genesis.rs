@@ -212,20 +212,15 @@ fn current_replay_refuses_retired_repositories_before_parsing_them() {
     )
     .expect("write retired profile marker");
 
-    for command in [
-        vec!["replay", ".", "--json"],
-        vec!["reproduce", ".", "--json"],
-    ] {
-        let output = run(temporary.path(), None, &command);
-        assert_eq!(output.status.code(), Some(1));
-        let payload: Value = serde_json::from_slice(&output.stdout).expect("decode error JSON");
-        assert_eq!(payload["ok"], false);
-        assert!(
-            payload["error"]["message"]
-                .as_str()
-                .is_some_and(|message| message.contains("current repository origins"))
-        );
-    }
+    let output = run(temporary.path(), None, &["replay", ".", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let payload: Value = serde_json::from_slice(&output.stdout).expect("decode error JSON");
+    assert_eq!(payload["ok"], false);
+    assert!(
+        payload["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("current repository origins"))
+    );
 }
 
 #[test]

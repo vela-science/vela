@@ -221,8 +221,7 @@ renaming them would change durable roots. The runtime orders those labels but
 does not attach Vela authority or scientific meaning to them.
 
 `vela-authority` remains the restricted authorization and service-signing
-implementation, and `vela-verify` remains package-plane compatibility code
-outside the semantic kernel. Derived correction analysis and small
+implementation. Derived correction analysis and small
 non-authoritative process adapters live directly with their sole `vela-cli`
 consumer. All workspace crates are internal implementation boundaries released
 through the single `vela` product identity; the crate split creates neither a

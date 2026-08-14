@@ -372,15 +372,7 @@ fn advanced_help_uses_current_product_commands() {
     let help = run_text(&["help", "advanced"]);
 
     for command in [
-        "init",
-        "status",
-        "submit",
-        "show",
-        "why",
-        "review",
-        "replay",
-        "reproduce",
-        "log",
+        "init", "status", "submit", "show", "why", "review", "replay", "log",
     ] {
         assert!(
             help.contains(&format!("  {command}")),
@@ -388,7 +380,6 @@ fn advanced_help_uses_current_product_commands() {
         );
     }
     assert!(help.contains("replay        Replay, signatures, parity, and repository integrity"));
-    assert!(help.contains("reproduce     Re-run stored witnesses with frozen verifiers"));
     assert!(help.contains("review        Inspect or perform one exact Proposal lifecycle action"));
     assert!(help.contains("verification  Retain non-authorizing scoped Verification Records"));
     assert!(!help.contains("  id "));

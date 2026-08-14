@@ -236,8 +236,8 @@ The recommended next full goal is a **Coherence Release**:
 5. publish and consume one signed Core release manifest, moving Core
    continuity ownership out of Web;
 6. seal Math historical evidence and reduce its default maintenance surface;
-7. audit `vela-verify`, `vela-source-manifest`, and remaining epoch-1
-   translations for net deletion after the `vela-edge` consolidation;
+7. delete the unconsumed `vela-verify`, `vela-source-manifest`, and epoch-1
+   compatibility paths after the `vela-edge` consolidation;
 8. consolidate current terminology and bind each surviving compatibility path
    to a real consumer and removal condition.
 

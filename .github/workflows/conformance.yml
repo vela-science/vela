@@ -1,6 +1,6 @@
 # Public conformance CI for the Vela product monorepo. A green run shows that
-# the current Rust boundary, portable object vectors, and frozen verifiers
-# reproduce from the checked-out source.
+# the current Rust boundary and portable object vectors reproduce from the
+# checked-out source.
 name: conformance
 
 on:
@@ -78,5 +78,3 @@ jobs:
       # makes about itself.
       - name: Provider-independent install path
         run: uv run --project conformance --locked python conformance/test_release_install.py
-      - name: reproduce (CLI re-derives the synthetic valid corpus)
-        run: ./target/release/vela reproduce crates/vela-verify/corpus/valid/smoke

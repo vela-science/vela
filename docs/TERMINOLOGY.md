@@ -193,7 +193,7 @@ completeness claim.
 ## Daily commands
 
 ```text
-init status claims submit show why review replay reproduce log
+init status claims submit show why review replay log
 ```
 
 | Command | Meaning |
@@ -207,7 +207,6 @@ init status claims submit show why review replay reproduce log
 | `review accept` | Accept one exact Proposal through repository authority |
 | `review reject` | Reject one exact Proposal through repository authority |
 | `replay` | Validate schemas, roots, signatures, replay, and policy consistency |
-| `reproduce` | Rerun retained evidence or a verifier from exact or declared inputs |
 | `log` | Read canonical history |
 
 ## Required distinctions
@@ -218,7 +217,7 @@ submit != verify
 verify != accept
 publish != accept
 Git merge != scientific Decision
-reproduce != endorse
+method pass != endorse
 correct != erase
 ```
 

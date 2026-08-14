@@ -2,11 +2,11 @@
   "authority_effect": "none",
   "entries": [
     {
-      "bytes": 3999,
+      "bytes": 3980,
       "normative": false,
       "path": ".github/release/check-sbom.py",
       "role": "release-sbom-gate",
-      "sha256": "sha256:e57fb3877dd22ab26be5852ec20076347a46157662e0069dcc2e90ef78eb0da0"
+      "sha256": "sha256:dc0353b5f7fe70ac21f23653adb302f09a29c34e12c1c580b41146edd561369f"
     },
     {
       "bytes": 3474,
@@ -303,13 +303,6 @@
       "sha256": "sha256:74cb6104048b3c390d429ca82117148da91107f67086af47f73bd1228c3cdacd"
     },
     {
-      "bytes": 1313,
-      "normative": true,
-      "path": "conformance/fixtures/exact-witness-floor.json",
-      "role": "scientific-vector",
-      "sha256": "sha256:b7fedfd07310dff1cc1e99f265f8c299a144cc605d04f4c101a6885f57384bf9"
-    },
-    {
       "bytes": 1020,
       "normative": false,
       "path": "conformance/fixtures/read-surfaces/README.md",
@@ -380,11 +373,11 @@
       "sha256": "sha256:c17899a2f631ed23ec6798ee11a23434c4e85fa4a9b5980dd1e12c059b75d397"
     },
     {
-      "bytes": 8515,
+      "bytes": 5065,
       "normative": true,
       "path": "conformance/verify.py",
       "role": "conformance-entrypoint",
-      "sha256": "sha256:a184eeacf645a517f08bf33fa443a28445aaa0805ea5e50ba01bcc54eefeb634"
+      "sha256": "sha256:96b2c7f46fb6324c539bb5f04edf48e053fad846328b6249a4e0488bffa30c5a"
     },
     {
       "bytes": 31099,
@@ -415,18 +408,18 @@
       "sha256": "sha256:5e0c512f10b2b0a8f6a89bcfc47d47de951589c26f9b85d730b8ac7c74dd88a0"
     },
     {
-      "bytes": 6698,
+      "bytes": 6612,
       "normative": true,
       "path": "conformance/verify_protocol_1.py",
       "role": "manifest-verifier",
-      "sha256": "sha256:73ebd5514fe049d64f3f2520f5bf6fab29c63acda47f17fc637f9ccd0015c8df"
+      "sha256": "sha256:08d4c4bdb3f26c9dbaf91a82aac6320255a644763eaa76550b871dc424ab2666"
     },
     {
-      "bytes": 6136,
+      "bytes": 6309,
       "normative": false,
       "path": "conformance/verify_reference_flows.py",
       "role": "reference-flow-verifier",
-      "sha256": "sha256:b9f7a6ce7521e5799c206c5e233edb0a5770146784fe0244992684bbf6eaac51"
+      "sha256": "sha256:111a472f40d07d245708f42b2044a20ffaeb3be963f8f0b4db5a3c181a70d5f2"
     },
     {
       "bytes": 7826,
@@ -443,11 +436,11 @@
       "sha256": "sha256:e7071be05b1556c4ddabfbbda0789f6b875c0112acfee32c663e982131341cb0"
     },
     {
-      "bytes": 31565,
+      "bytes": 31681,
       "normative": true,
       "path": "docs/PROTOCOL.md",
       "role": "specification",
-      "sha256": "sha256:c1632804c1f61fbbd09d205e9ac0ac6c781c12cf0c671b53b0317afbf4f2c0b0"
+      "sha256": "sha256:02b11c7d6501300e333e58bcf32543ad6a70008a414705934238dc66f69167c2"
     },
     {
       "bytes": 3625,
@@ -520,18 +513,18 @@
       "sha256": "sha256:ce2f0a2fb7db1810fc105c5c014899dab42e0e51b2ae5de951e09fe882fcfb8e"
     },
     {
-      "bytes": 1869,
+      "bytes": 1484,
       "normative": false,
       "path": "examples/formal-math/README.md",
       "role": "reference-flow",
-      "sha256": "sha256:1613ac8153e035ddd964c294fae8126938e5909e53bc10a206eea3f645200686"
+      "sha256": "sha256:29f8b6f28a8843c6251d9c7f3a647d56fb7020e42a0b0e5381e9aefaaced3484"
     },
     {
-      "bytes": 1256,
+      "bytes": 1204,
       "normative": false,
       "path": "examples/formal-math/flow.json",
       "role": "reference-flow",
-      "sha256": "sha256:f1850982aeac36462f269d397adeacecd31e2aa54430360f096a8cd021081f9a"
+      "sha256": "sha256:28b5d75d26d9c86a532d70f28f076a894c68679e514571bdaf61bf331f55bc58"
     },
     {
       "bytes": 11724,
@@ -660,7 +653,7 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:59791432375eb0ffb6afeea9e8dc081b7305b718eeeabb4a78ca7a567e0722d1",
+  "manifest_root": "sha256:4ab12814b0fcfc436289ebfe5e379e74f7b0100b7e18ac30e974666c6ec0537a",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",

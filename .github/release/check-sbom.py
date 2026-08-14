@@ -13,7 +13,6 @@ REQUIRED = {
     "vela-cli",
     "vela-protocol",
     "vela-repository",
-    "vela-verify",
 }
 
 

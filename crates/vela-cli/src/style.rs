@@ -32,12 +32,6 @@ pub fn tick_row(width: usize) -> String {
 }
 
 #[must_use]
-pub fn moss(value: impl AsRef<str>) -> ColoredString {
-    let (r, g, b) = MOSS;
-    value.as_ref().truecolor(r, g, b)
-}
-
-#[must_use]
 pub fn chip(label: &str, rgb: (u8, u8, u8)) -> String {
     let dot = "·".truecolor(rgb.0, rgb.1, rgb.2);
     let text = label.truecolor(rgb.0, rgb.1, rgb.2);

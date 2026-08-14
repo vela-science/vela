@@ -4,14 +4,11 @@
 #   vela-authority      restricted standard authorization evaluation
 #   vela-repository     policy-neutral durable repository transactions
 #   vela-cli            the `vela` product binary
-#   vela-verify         frozen, dependency-light exact verifiers; the
-#                       reference registry `vela reproduce` builds on
 members = [
     "crates/vela-protocol",
     "crates/vela-authority",
     "crates/vela-repository",
     "crates/vela-cli",
-    "crates/vela-verify",
 ]
 resolver = "3"
 
@@ -65,7 +62,6 @@ libc = "0.2"
 vela-protocol = { path = "crates/vela-protocol" }
 vela-authority = { path = "crates/vela-authority" }
 vela-repository = { path = "crates/vela-repository" }
-vela-verify = { path = "crates/vela-verify" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

@@ -134,12 +134,14 @@ def check_correction_flow() -> None:
 
 def check_formal_math_flow() -> None:
     flow = load(EXAMPLES / "formal-math/flow.json")
-    if flow["repository_commit"] != "5be513bd0ce2243b59268d9b185da18497505067":
-        raise AssertionError("formal-math flow no longer pins the merged terminal evidence")
-    if flow["accepted_claim_count"] != 1:
-        raise AssertionError("formal-math flow must not invent accepted state")
-    if flow["evidence_bundle_root"] != "sha256:bd7b7eee6eb5e2e8f654898207bf05168ea6e7dd1d72f3a1a46a685a64f8f322":
-        raise AssertionError("formal-math evidence bundle root drift")
+    if flow["repository_commit"] != "08a0e6d327e1ae9937ab2e0e5002192815eac69a":
+        raise AssertionError("formal-math flow no longer pins the current compact lineage")
+    if flow["repository_root"] != "sha256:3e2236510923277c1e363d2d28c3d84d86a1d698bafd576b79308b18ae0cf0d2":
+        raise AssertionError("formal-math repository root drift")
+    if flow["accepted_claim_count"] != 2:
+        raise AssertionError("formal-math current accepted count drift")
+    if flow["evidence_artifact_root"] != "sha256:789c9dc5e4c1c234450a7ebd03d7b4fb8e0ba6deab12098e2fb17b3e74bada10":
+        raise AssertionError("formal-math correction evidence root drift")
 
 
 def main() -> int:

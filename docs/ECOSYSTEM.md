@@ -27,9 +27,9 @@ authority, never because there is a new topic.**
 
 **Repository.** `crates/vela-protocol/src/objects/repository.rs`
 (`RepositoryV4`), the authority history in `crates/vela-authority/`,
-protocol replay in `crates/vela-protocol/`. Frozen witness reproduction in
-`crates/vela-verify/` is package-plane compatibility, not repository authority
-or Standing. The rename landed in v0.967.0: `vfr_` and `frontier_id` are absent
+protocol replay in `crates/vela-protocol/`. Scientific methods and their native
+runtimes remain source-owned; Core records scoped Verification results and does
+not execute domain evidence. The rename landed in v0.967.0: `vfr_` and `frontier_id` are absent
 from current crate code. The type parses `vela.toml`, mints a standard UUIDv4
 once at genesis, and answers `vela.status.v4`.
 
@@ -92,12 +92,13 @@ stated as one number here, which made the bookkeeping tables look like state.
 library, not a package namespace, not an index of other people's mathematics,
 and not a second Mathlib. Nothing in it is a hub for anything outside it.
 
-It exists as of 2026-08-09: UUID
-`8115c538-7688-40b7-ab75-3c4765bf3c19`, origin
-`vro_229ce0a08217da5e`, genesis generation 1, signed, and it replays from a
-clean clone. It declares thirteen Sources and holds one accepted bounded Claim,
-which entered through a Decision. Two other
-Proposals were explicitly rejected.
+Its current compact genesis has UUID
+`8138c6da-46c4-47ee-b493-5bbfbec09b1e`, origin
+`vro_be55672495053325`, genesis generation 1, and replays from a clean clone at
+commit `08a0e6d327e1ae9937ab2e0e5002192815eac69a`. It holds two current accepted
+Claims, three authenticated Submissions, three scoped Verifications, and three
+accepted Proposal transitions. One retained predecessor Claim projects current
+Standing `superseded`; no rejected or pending Proposal remains.
 
 **New nouns added: zero.** `vela-science/math` is an instance of Repository,
 which already exists.
@@ -129,19 +130,18 @@ destination.
 
 ### The Math Source Registry: exists
 
-It is the projection of Source declarations. Thirteen sources in
-`packages/observatory-data/config/math-sources.v1.ts`, adapters in
-`packages/observatory-data/src/source-adapters/`, tables
-`observatory.source_declarations` / `source_observations` / `native_records` /
-`release_sources` / `frontier_source_bindings`, read surface under
-`apps/observatory/src/app/sources/`.
+It is a source-owned Web projection over explicit adapters, occurrence
+snapshots, and native records. It is not a Repository object and the current
+Math genesis intentionally carries no `sources.yaml` or source-manifest
+runtime. Its schema and read surface live with the replaceable Problems
+projection, not with Vela Core or Repository authority.
 
 **New nouns added: zero.** Source is already one of the four boundaries. The
 registry is a view of it, and a view is not a noun.
 
-It observes. It never governs. Each Repository owns its own `sources.yaml` and,
-when the registry and the Repository disagree, the Repository is right
-(`packages/observatory-data/src/source-declarations.ts`).
+It observes. It never governs. A source binding is exact only to the degree its
+source-owned adapter and retained occurrence evidence establish; it creates no
+Verification, Decision, Event, or Standing.
 
 ### The Vela Package Registry: not a destination
 
@@ -182,17 +182,18 @@ package manager, package repository, or hosted registry.
 | `vela-science/.github` | Organization profile, reusable workflows, security policy | exists |
 | `vela-science/math` | The one live mathematics authority, fresh genesis | exists |
 
-`vela-science/math` exists with a signed Vela 0.972.1 genesis, UUID
-`8115c538-7688-40b7-ab75-3c4765bf3c19`, one accepted bounded Claim, three
-Submissions, seven Verification Records, one accepted Proposal, and two
-rejected Proposals. Strict replay at
-`130fc283b99b8c55dea51b5f8f959a6c33a679f6` yields Repository root
-`sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc`.
+`vela-science/math` exists with a compact Vela 0.975.1 genesis, UUID
+`8138c6da-46c4-47ee-b493-5bbfbec09b1e`, two current accepted Claims, three
+Submissions, three Verification Records, and three accepted Proposal
+transitions. Strict replay at
+`08a0e6d327e1ae9937ab2e0e5002192815eac69a` yields Repository root
+`sha256:3e2236510923277c1e363d2d28c3d84d86a1d698bafd576b79308b18ae0cf0d2`.
 
-The signed Vela 0.972.1 release uses one DSSE transport implementation, the
-closed authorization model, genesis-only origin, and RFC 9562 UUIDv4 Repository
-identity. The 0.971.0 Math predecessor is retained as a signed continuity
-bundle and contributes no Standing to the current genesis.
+The current genesis uses one DSSE transport implementation, the closed
+authorization model, genesis-only origin, and RFC 9562 UUIDv4 Repository
+identity. The pre-Coherence lineage remains reachable only as an ordinary Git
+rollback tag during the release window and contributes no Standing to the
+current genesis.
 
 ### Frozen
 
@@ -674,14 +675,10 @@ Packet, Frontier map, Attempt (ADR 0039 §5), and Registration Record (ADR
   durability    crates/vela-repository
                   ↑ policy-neutral transactions and recovery; no Decision
                     or Standing semantics
-  package       crates/vela-verify
-                  ↑ frozen witness reproduction compatibility; no authority
-                    or Standing
   operator      crates/vela-cli
-                  ↑ 16 verbs: replay status claims log verification reproduce
+                  ↑ 16 verbs: replay status projection claims log verification
                     correction integration recover authority init review show
-                    why submit completions; also owns its sole-consumer derived
-                    correction reducer and process adapters
+                    why submit completions
   readers       conformance/readers/python, conformance/readers/javascript,
                 conformance/emitters/javascript.mjs, conformance/emitters/python.py
                   ↑ independent implementations of the same bytes
@@ -690,9 +687,10 @@ Packet, Frontier map, Attempt (ADR 0039 §5), and Registration Record (ADR
   surfaces      vela-web/apps/observatory, vela-web/apps/www
 ```
 
-The compile-time graph is not one vertical product stack. `vela-authority` and
-`vela-repository` each depend on `vela-protocol`; `vela-verify` is standalone;
-and `vela-cli` composes all four. The clean-room
+The CLI also owns its sole-consumer derived correction reducer and small process
+adapters. The compile-time graph is not one vertical product stack.
+`vela-authority` and `vela-repository` each depend on `vela-protocol`, and
+`vela-cli` composes those current boundaries. The clean-room
 readers implement the public bytes independently, and Web consumes committed
 roots. No reverse dependency is authorized. Concretely:
 

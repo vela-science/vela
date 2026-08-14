@@ -16,10 +16,10 @@ Four bindings, jointly. Any one of them alone identifies nothing.
 
 | Binding | Where it is retained | Example (`vela-science/math`, 2026-08-14) |
 | --- | --- | --- |
-| `repository_id` | `vela.toml`, `vela.repository-profile.v1` | `8115c538-7688-40b7-ab75-3c4765bf3c19` |
-| Origin ID and origin root | `.vela/origin.json`, `.vela/repository.json` | `vro_229ce0a08217da5e`; `sha256:229ce0a08217da5e8bad2059c35070989652ca546ab45b8e699922ba182e8a69` |
-| Current repository root | derived by replay over the canonical object set | `sha256:0e24fa1b13d7eda7b4e809564ec414eb1fda09f5dcf9aa8a6bcd6ae69ac96197` |
-| Sequence-one authority-record root | distributed independently of the checkout | `sha256:4ac100cd870f51c14f72d2d5226a1ca3eca8058aed7d896848214f61f3d5d59b` |
+| `repository_id` | `vela.toml`, `vela.repository-profile.v1` | `8138c6da-46c4-47ee-b493-5bbfbec09b1e` |
+| Origin ID and origin root | `.vela/origin.json`, `.vela/repository.json` | `vro_be55672495053325`; `sha256:be556724950533252af6aea398836ffe35717ffcda1f7d609fa6735413941e14` |
+| Current repository root | derived by replay over the canonical object set | `sha256:3e2236510923277c1e363d2d28c3d84d86a1d698bafd576b79308b18ae0cf0d2` |
+| Sequence-one authority-record root | distributed independently of the checkout | `sha256:978e78326c9cd0c665b958696a0255e76fd50cc2d699651fbd7edd95aed418ef` |
 
 The first three travel inside the checkout. The fourth deliberately does not:
 `docs/SIGNING.md`, "Consumer trust", requires the first authority-record root to
@@ -160,8 +160,10 @@ Perform these in order. Stop at the first step that fails and do not continue.
    git checkout <full-commit>
    vela authority trust pin . --record-root sha256:<sequence-one-root> --json
    vela replay . --json
-   vela reproduce .
    ```
+
+   Run any declared scientific method through the source Repository's pinned
+   native tooling.
 
    The pin must be the root already installed by consumers, obtained
    independently. A replica that requires a new anchor is a fork.
@@ -219,7 +221,8 @@ clean machine with GitHub unreachable.
    fetch, no `gh`, no release API.
 2. Verify the pinned roots: install the independently obtained sequence-one
    authority-record root with `vela authority trust pin`, then run
-   `vela replay . --json` and `vela reproduce .` against both repositories.
+   `vela replay . --json` against both repositories. Run declared scientific
+   methods with each source Repository's pinned native tooling.
 3. Replay the same Standing. The accepted and pending Claim sets, Event-log
    root, and repository root must equal the ones the last publication recorded.
 4. Make one authorized local Decision with `vela review accept` or

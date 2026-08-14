@@ -99,15 +99,6 @@ EXAMPLES
   vela replay             replay-verify the discovered repository
   vela replay . --json    verify every repository invariant";
 
-pub const REPRODUCE: &str = "\
-EXAMPLES
-  vela reproduce .                         re-verify this repository from scratch
-  vela reproduce . --proposal vpr_8b49…    replay a native witness or locate the rooted domain replay
-
-Native witnesses run in process. A rooted source-local replay is returned as
-an exact next command; Vela does not execute repository code. Reproduce is the
-user operation; strict replay is the deterministic validation it performs.";
-
 pub const VERIFY: &str = "\
 EXAMPLES
   vela verification record vpr_8b49… \\
@@ -140,7 +131,6 @@ The repository is optional and discovered upward; name it first
 (`vela verification record . vpr_8b49… …`) to act on another.
 
 SEE ALSO
-  vela reproduce . --proposal vpr_8b49…   replay only pending evidence
   vela review show vpr_8b49…              exact next actions";
 
 pub const INIT: &str = "\

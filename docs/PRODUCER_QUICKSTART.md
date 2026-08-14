@@ -51,13 +51,16 @@ A producer from another workbench may pass a complete signed
 vela submit submission.json --repo . --json
 ```
 
-## Inspect and reproduce
+## Inspect retained state
 
 ```bash
 vela show . <vsb_id> --json
 vela review show . <vpr_id> --json
-vela reproduce .
 ```
+
+Run the declared method with the source Repository's pinned native tooling.
+Import its scoped result as a Verification Record; Vela does not execute the
+method itself.
 
 ## Authority boundary
 

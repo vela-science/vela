@@ -18,13 +18,9 @@
 //!   `every_repository_verb_accepts_both_spellings` holds this paragraph to the
 //!   parsed surface.
 //!
-//!   Two positionals are deliberately NOT repository arguments, take neither
-//!   `--repo` nor discovery, and keep `default_value = "."`:
-//!   `init <path>` names a directory to create, which discovery must not
-//!   redirect to an enclosing repository; and `reproduce <path>` names a
-//!   reproduction scope — a witness file, a directory of witnesses, or a
-//!   repository — so a bare `vela reproduce` means "reproduce what is here",
-//!   not "walk up until something replays".
+//!   One positional is deliberately NOT a repository argument and takes
+//!   neither `--repo` nor discovery: `init <path>` names a directory to create,
+//!   which discovery must not redirect to an enclosing repository.
 //!
 //!   `recover` is the one repository action that deliberately requires only
 //!   `--repo`: its positional names the exact durable operation journal, and
@@ -58,8 +54,7 @@ pub(crate) const HELP_REPO_BEFORE_OBJECT: &str = "Vela repository, when both arg
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
-    /// Is the LOG intact: replay, signatures, and hash parity. Checks the record, not
-    /// the science — `vela reproduce` re-runs the verifiers themselves.
+    /// Replay signatures, roots, authority history, and Standing from exact bytes.
     #[command(after_long_help = crate::cli::help_text::REPLAY)]
     Replay {
         #[arg(value_name = "REPO", help = HELP_REPO)]
@@ -141,23 +136,6 @@ pub(crate) enum Commands {
     Verification {
         #[command(subcommand)]
         action: VerifyAction,
-    },
-    /// Is the SCIENCE intact: re-run every stored witness through the
-    /// frozen exact verifiers, from scratch — same input, same answer,
-    /// any machine. Complements `vela replay`, which verifies the log
-    /// rather than the results.
-    #[command(after_long_help = crate::cli::help_text::REPRODUCE)]
-    Reproduce {
-        /// A witness JSON file, or a directory (reproduces every
-        /// `*.witness.json` under it, or a `witnesses/` subdir).
-        #[arg(default_value = ".")]
-        path: PathBuf,
-        /// Reproduce the proposal's native witness, or locate its rooted
-        /// source-local replay without executing repository code.
-        #[arg(long)]
-        proposal: Option<String>,
-        #[arg(long, help = HELP_JSON)]
-        json: bool,
     },
     /// Read what one correction costs the Claims that rest on it.
     #[command(after_long_help = crate::cli::help_text::CORRECTION)]

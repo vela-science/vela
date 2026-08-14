@@ -29,7 +29,7 @@ Usage: vela <COMMAND>
 
   init       status     claims     submit
   show       why        review     replay
-  reproduce  log
+  log
 
 Run `vela help advanced` for setup, verification, and maintenance commands.
 "#,
@@ -61,7 +61,6 @@ Daily product:
   why           Root-bound explanation of one Claim's Standing
   review        Inspect or perform one exact Proposal lifecycle action
   replay        Replay, signatures, parity, and repository integrity
-  reproduce     Re-run stored witnesses with frozen verifiers
   log           Recent signed events, or the covered history of one object
 
 Advanced verification and integration:

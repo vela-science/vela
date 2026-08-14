@@ -113,9 +113,9 @@ admits an Event; replay deterministically derives Standing.
 
 Canonical user verbs follow the shipped CLI: `init`, `status`, `claims`,
 `submit`, `verification record|import`, `show`, `why`,
-`review inbox|list|show|accept|reject|withdraw`, `replay`, `reproduce`, `log`,
-`correction impact`, and `authority trust pin`. `Reproduce` is the user
-operation; strict replay is the validation it performs. Product navigation may
+`review inbox|list|show|accept|reject|withdraw`, `replay`, `log`, `projection`,
+`correction impact`, and `authority trust pin`. Strict replay validates the
+Repository; source-owned methods validate scientific evidence. Product navigation may
 group these exact objects under Problems, Frontiers, Work, Review, Activity,
 and Sources, but it must not invent substitute protocol nouns or imply
 authority from a grouping.
@@ -663,8 +663,9 @@ cannot:
 - accept or reject a Proposal; or
 - define Standing.
 
-Disagreement is resolved from an exact Git checkout with `vela replay`
-and the declared frozen verifiers.
+Repository-state disagreement is resolved from an exact Git checkout with
+`vela replay`. Scientific-method disagreement is resolved by running the
+declared source-owned Method in its pinned native environment.
 
 Readers may expose exact next obligations or blockers, but they own the
 projection and its freshness contract. No such view can change Standing.

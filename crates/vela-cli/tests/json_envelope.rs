@@ -1,9 +1,7 @@
 //! Every `--json` outcome carries `{ok, command, schema}`.
 //!
-//! ui.rs states this as "the one output contract", and two verbs did not keep
-//! it: `review inbox` named neither `ok` nor `command`, and `reproduce` named
-//! the command and nothing else. An agent could not test one field to learn
-//! whether a call had succeeded, which is the entire point of the envelope.
+//! ui.rs states this as "the one output contract". An agent must be able to
+//! test one field to learn whether a call succeeded.
 //!
 //! The gap survived because nothing asserted it across the surface — each verb
 //! was checked, if at all, against its own expected payload. This test walks the
@@ -80,7 +78,6 @@ fn every_json_read_carries_the_envelope() {
         vec!["projection", repository_path_text.as_str()],
         vec!["log", repository_path_text.as_str(), "--limit", "5"],
         vec!["replay", repository_path_text.as_str()],
-        vec!["reproduce", repository_path_text.as_str()],
         vec!["review", "inbox", repository_path_text.as_str()],
         vec!["review", "list", repository_path_text.as_str()],
         vec!["claims", repository_path_text.as_str()],
@@ -93,11 +90,9 @@ fn every_json_read_carries_the_envelope() {
         let parsed: serde_json::Value = serde_json::from_str(out.trim())
             .unwrap_or_else(|error| panic!("`vela {verb} --json` must emit JSON: {error}\n{out}"));
 
-        /* The contract covers EVERY outcome, not only success — `reproduce` on
-        a repository with no witnesses legitimately fails, and that failure
-        must still be one object an agent can read. `schema` names the
-        payload's shape and so belongs to a payload; a failure carries the
-        error instead. */
+        /* The contract covers EVERY outcome, not only success. `schema`
+        names the payload's shape and so belongs to a payload; a failure
+        carries the error instead. */
         for key in ["ok", "command"] {
             assert!(
                 parsed.get(key).is_some(),
@@ -147,83 +142,4 @@ fn native_integration_resolution_fails_as_json_without_authority_advice() {
         assert!(!advice.contains("vela init"));
         assert!(!advice.contains("vela status"));
     }
-}
-
-#[cfg(unix)]
-#[test]
-fn reproduce_rejects_semantic_extra_fields_before_any_prior_path_read() {
-    use std::os::unix::fs::symlink;
-
-    let temporary = tempfile::tempdir().expect("temporary directory");
-    let current_dir = temporary.path().join("current");
-    let sentinel_dir = temporary.path().join("sentinel");
-    std::fs::create_dir_all(&current_dir).expect("current witness directory");
-    std::fs::create_dir_all(&sentinel_dir).expect("sentinel directory");
-    let sentinel = sentinel_dir.join("prior.witness.json");
-    let sentinel_bytes = br#"{"sentinel":"must remain ambient and unread"}"#;
-    std::fs::write(&sentinel, sentinel_bytes).expect("sentinel witness");
-    let linked_priors = current_dir.join("linked-priors");
-    symlink(&sentinel_dir, &linked_priors).expect("intermediate symlink");
-    let base = serde_json::json!({
-        "kind": "sidon",
-        "n": 3,
-        "points": [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]],
-        "claimed_size": 4,
-    });
-    let semantic_values = [
-        serde_json::Value::String(sentinel.to_string_lossy().into_owned()),
-        serde_json::Value::String("../sentinel/prior.witness.json".into()),
-        serde_json::Value::String("linked-priors/prior.witness.json".into()),
-        serde_json::Value::Null,
-        serde_json::json!(7),
-        serde_json::json!(true),
-        serde_json::json!(["prior.witness.json"]),
-        serde_json::json!({"path": "prior.witness.json"}),
-    ];
-    for (index, semantic_value) in semantic_values.into_iter().enumerate() {
-        let mut current = base.clone();
-        current["improves_on"] = semantic_value;
-        let current_path = current_dir.join(format!("case-{index}.witness.json"));
-        std::fs::write(&current_path, serde_json::to_vec(&current).unwrap()).unwrap();
-        let current_path_text = current_path.to_string_lossy().into_owned();
-        let (success, out) = run(
-            temporary.path(),
-            &temporary.path().join("unused-agent.sock"),
-            &["reproduce", &current_path_text, "--json"],
-        );
-        assert!(!success, "semantic extra case {index} must fail closed");
-        let result: serde_json::Value =
-            serde_json::from_str(out.trim()).expect("reproduce JSON result");
-        assert_eq!(result["schema"], "vela.reproduction-summary.v2");
-        assert_eq!(result["command"], "reproduce");
-        assert_eq!(result["ok"], false);
-        assert_eq!(result["failed"], 1);
-        assert_eq!(
-            result["results"][0]["message"],
-            "parse error: not a recognized current witness"
-        );
-    }
-    assert_eq!(std::fs::read(&sentinel).unwrap(), sentinel_bytes);
-    assert_eq!(std::fs::read_link(&linked_priors).unwrap(), sentinel_dir);
-
-    let mut inert_metadata = base;
-    inert_metadata["claim"] = serde_json::json!("retained archive annotation");
-    inert_metadata["oeis"] = serde_json::json!("A309370");
-    inert_metadata["metadata"] = serde_json::json!({"source": "non-semantic"});
-    let inert_path = current_dir.join("inert-metadata.witness.json");
-    std::fs::write(&inert_path, serde_json::to_vec(&inert_metadata).unwrap()).unwrap();
-    let inert_path_text = inert_path.to_string_lossy().into_owned();
-    let (success, out) = run(
-        temporary.path(),
-        &temporary.path().join("unused-agent.sock"),
-        &["reproduce", &inert_path_text, "--json"],
-    );
-    assert!(
-        success,
-        "inert archive metadata must remain tolerated: {out}"
-    );
-    let result: serde_json::Value = serde_json::from_str(out.trim()).unwrap();
-    assert_eq!(result["ok"], true);
-    assert_eq!(result["passed"], 1);
-    assert_eq!(std::fs::read(&sentinel).unwrap(), sentinel_bytes);
 }

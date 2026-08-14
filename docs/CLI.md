@@ -37,7 +37,7 @@ Decision, Event, or accepted Standing.
 Default help exposes exactly:
 
 ```text
-init status claims submit show why review replay reproduce log
+init status claims submit show why review replay log
 ```
 
 | Command | Contract |
@@ -50,7 +50,6 @@ init status claims submit show why review replay reproduce log
 | `why` | Explain one Claim's Standing from retained roots and history. |
 | `review` | Inspect the Inbox, list or show Proposals, or accept, reject, or withdraw one exact Proposal. |
 | `replay` | Verify repository structure, roots, replay, and authority. |
-| `reproduce` | Run retained evidence through its frozen verifier. |
 | `log` | Read admitted Event history. |
 
 ## Advanced commands
@@ -508,7 +507,7 @@ tail; recovery itself never does. If advisory proof of that continuation is
 unavailable after recovery succeeds, the result reports `blocked`, omits
 `next_command`, and preserves the Completed transaction for repair rather than
 falling back to the routine Git-status hint. Read-only commands such as
-`status`, `show`, `why`, `log`, `replay`, and `reproduce` remain read-only even
+`status`, `show`, `why`, `log`, `replay`, and `projection` remain read-only even
 while recovery is required.
 
 ## Machine contracts

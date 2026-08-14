@@ -18,8 +18,8 @@ deferred rather than defended.
 ## Scope notes
 
 - The trust story never depends on a hosted reader: a consumer's
-  `git clone` + `vela replay` verifies the log and `vela reproduce`
-  verifies the science, both locally. Hub compromise is availability
+  `git clone` + `vela replay` verifies scientific-state history locally;
+  source-owned pinned methods verify their declared properties. Hub compromise is availability
   and discovery, not integrity (THREAT_MODEL.md, "Reader compromise").
 - No AI or agent identity sits in any trust path; the engine refuses
   `agent:`/`ci:` actors on every decision verb. A bypass of that

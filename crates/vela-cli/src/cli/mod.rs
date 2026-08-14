@@ -14,7 +14,7 @@ struct Cli {
     command: Commands,
 }
 
-use crate::command_handlers::{cmd_reproduce, cmd_verify_evidence};
+use crate::command_handlers::cmd_verify_evidence;
 use crate::command_spec::*;
 
 mod authority;
@@ -22,8 +22,6 @@ pub(crate) mod help_text;
 mod lifecycle;
 mod output;
 pub(crate) mod page;
-pub(crate) mod progress;
-pub(crate) mod records;
 mod recovery;
 pub(crate) mod repo_arg;
 pub(crate) mod review_decision;
@@ -32,7 +30,6 @@ mod surface;
 pub(crate) use authority::*;
 pub(crate) use lifecycle::*;
 pub(crate) use output::*;
-pub(crate) use records::*;
 pub(crate) use surface::*;
 pub fn run_command() {
     // Deliberately NO dotenv here. `dotenvy::dotenv()` walks the working
@@ -150,11 +147,6 @@ pub fn run_command() {
             clap_complete::generate(shell_kind, &mut cmd, name, &mut std::io::stdout());
         }
 
-        Commands::Reproduce {
-            path,
-            proposal,
-            json,
-        } => cmd_reproduce(&path, proposal.as_deref(), json),
         Commands::Authority { action } => match action {
             AuthorityAction::Trust { action } => match action {
                 AuthorityTrustAction::Pin {
@@ -700,10 +692,9 @@ mod tests {
     /// be named here as an argument that is deliberately not a repository.
     #[test]
     fn every_repository_verb_accepts_both_spellings() {
-        /// `init <path>` is a destination to create and `reproduce <path>` is a
-        /// reproduction scope; neither takes discovery, so neither takes the
+        /// `init <path>` is a destination to create, so it takes no discovery
         /// flag. `completions` touches no repository at all.
-        const NOT_REPOSITORY_VERBS: [&str; 3] = ["init", "reproduce", "completions"];
+        const NOT_REPOSITORY_VERBS: [&str; 2] = ["init", "completions"];
 
         fn walk(command: &clap::Command, path: &str) {
             let leaf = command.get_subcommands().count() == 0;

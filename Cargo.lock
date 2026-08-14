@@ -1472,7 +1472,6 @@ dependencies = [
  "vela-authority",
  "vela-protocol",
  "vela-repository",
- "vela-verify",
 ]
 
 [[package]]
@@ -1496,7 +1495,6 @@ dependencies = [
  "toml",
  "unicode-normalization",
  "uuid",
- "vela-verify",
 ]
 
 [[package]]
@@ -1510,15 +1508,6 @@ dependencies = [
  "tempfile",
  "unicode-normalization",
  "vela-protocol",
-]
-
-[[package]]
-name = "vela-verify"
-version = "0.975.1"
-dependencies = [
- "serde",
- "serde_json",
- "tempfile",
 ]
 
 [[package]]

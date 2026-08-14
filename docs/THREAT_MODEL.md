@@ -14,7 +14,7 @@ true, novel, important, or ethical.
 - the independently distributed sequence-one authority-record root;
 - producer-declared execution-binding roots, Submission, and Verification
   bindings; and
-- deterministic replay and frozen verifier contracts.
+- deterministic replay and exact source-owned Method bindings.
 
 ## Boundary
 
@@ -188,8 +188,10 @@ Resolve disputes from an exact Git checkout:
 
 ```bash
 vela replay . --json
-vela reproduce .
 ```
+
+Scientific methods run in the source-owning native environment. A reader
+compromise cannot turn their output into a Verification or Decision.
 
 Agreement among readers is corroboration, not authority.
 

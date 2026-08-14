@@ -171,8 +171,6 @@ unaffected suites locally.
 - `vela-authority`: restricted authorization and repository service signing.
 - `vela-repository`: policy-neutral durable repository transactions and recovery.
 - `vela-cli`: the single user-facing product binary.
-- `vela-verify`: frozen package-plane witness compatibility outside the
-  protocol and authority kernel.
 
 Workspace crates are implementation boundaries, not separate products. Keep
 their versions aligned with the single Vela release identity.

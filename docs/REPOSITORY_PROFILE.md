@@ -315,7 +315,7 @@ archived repository takes no push and no pull request, so none of that runs
 again.
 
 The one live authority repository, `vela-science/math`
-(`8115c538-7688-40b7-ab75-3c4765bf3c19`), carries no `.github/` at all. `vela
+(`8138c6da-46c4-47ee-b493-5bbfbec09b1e`), carries no `.github/` at all. `vela
 init` scaffolds no workflow, and each of the four archived repositories wrote
 its own copy, so a repository gets this gate only by writing one. The ecosystem
 instead verifies Math during the root-bound Observatory refresh and in Vela's

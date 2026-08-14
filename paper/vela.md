@@ -434,7 +434,7 @@ vela-cli        porcelain, write policy, publication, and sole-consumer adapters
 ```
 
 Canopus `0.8.0` is retained historical evidence from the earlier producer
-harness. `vela-verify` remains separate package-plane compatibility code. The
+harness. Domain verification implementations remain source-owned. The
 current workspace keeps one internal TypeScript reader for cross-language
 object conformance. None is required for canonical replay.
 

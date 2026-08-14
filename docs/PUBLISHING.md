@@ -9,7 +9,6 @@ not create scientific acceptance.
 ```bash
 vela status . --json
 vela replay . --json
-vela reproduce .
 git status --short
 ```
 
@@ -21,7 +20,7 @@ Require:
 - contiguous repository-authority history;
 - canonical object and repository-root parity;
 - no active or corrupt recovery journal;
-- frozen verifier results for claims being cited; and
+- retained scoped Verification Records for Claims being cited; and
 - no private coordination or credential material in tracked files.
 
 An interrupted repository transaction must be resolved before publication. One
@@ -44,7 +43,7 @@ Use a normal Git commit and protected public ref. Record:
 - authority head and Event-log root;
 - accepted and pending Claim-set roots;
 - Proposal, Verification, and Artifact roots; and
-- reproduction commands.
+- source-owned method commands.
 
 Tags and release archives should be immutable. Checksums and build attestations
 identify distributed artifacts; they do not replace Vela replay.
@@ -58,7 +57,7 @@ A consumer:
 2. obtains the sequence-one authority-record root independently;
 3. installs the local public trust anchor;
 4. runs strict repository verification; and
-5. runs the declared frozen reproduction.
+5. runs any declared source-owned method with its pinned native tooling.
 
 ```bash
 git clone <repository-url>
@@ -66,7 +65,6 @@ cd <repository>
 git checkout <full-commit>
 vela authority trust pin . --record-root sha256:... --json
 vela replay . --json
-vela reproduce .
 ```
 
 The trust pin reads no key, grants no authority, and changes no Repository byte.

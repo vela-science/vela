@@ -22,7 +22,6 @@ def paths() -> list[tuple[str, str, bool]]:
         ("docs/interop/scientific-state-profile.md", "conformance-profile", True),
         ("conformance/canonical-hashing.json", "canonical-vector", True),
         ("conformance/jcs-shadow-audit.json", "canonical-negative-vector", True),
-        ("conformance/fixtures/exact-witness-floor.json", "scientific-vector", True),
         ("conformance/fixtures/claim-relation-vocabulary.json", "vocabulary-vector", True),
         (
             "conformance/fixtures/read-surfaces/decision-inbox-v3.json",

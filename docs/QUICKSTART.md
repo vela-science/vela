@@ -14,7 +14,7 @@ curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.975.1/install.
   VELA_VERSION=v0.975.1 bash
 
 git clone https://github.com/vela-science/math.git math
-git -C math checkout 4f422289e6a8991735fced4905d53d9d54c9900f
+git -C math checkout 08a0e6d327e1ae9937ab2e0e5002192815eac69a
 vela replay math --json
 vela claims math --json
 ```
@@ -23,8 +23,8 @@ That is the whole first experience: install one signed binary, clone one
 complete ordinary public Git repository, replay it, and read its Claims. No
 account, daemon, hosted writer, SDK, or repository-authority key is required.
 At the pinned commit, replay returns Repository root
-`sha256:0e24fa1b13d7eda7b4e809564ec414eb1fda09f5dcf9aa8a6bcd6ae69ac96197`
-and the Claim index reports three accepted Claims. Erdős 321's corrected Claim
+`sha256:3e2236510923277c1e363d2d28c3d84d86a1d698bafd576b79308b18ae0cf0d2`
+and the Claim index reports two current accepted Claims. Erdős 321's corrected Claim
 is accepted, while the retained predecessor projects current Standing
 `superseded` under Vela `0.975.1`.
 
@@ -49,8 +49,10 @@ This pin grants no authority and changes no repository byte.
 git clone <repository-url>
 vela replay <repository> --json
 vela status <repository> --json
-vela reproduce <repository>
 ```
+
+Run any declared scientific method with the source Repository's pinned native
+tooling. Vela does not execute domain evidence.
 
 ## Produce one bounded result
 

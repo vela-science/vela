@@ -31,14 +31,7 @@ retained outputs, scope, outcome, and limitations. Reviewer kind establishes no
 quality rank. Only an authorized Repository Decision may change Standing;
 human and agent performers use the same exact-root, policy, and replay checks.
 
-## Frozen reproduction
-
-`vela reproduce [<path>]` re-runs the stored frozen verifiers against the
-stored witness bytes and environment pins. `<path>` is a reproduction scope — a
-witness file, a directory of witnesses, or a repository — and defaults to the
-current directory; it is never discovered upward. It must not consult an unpinned
-network resource or model judgment. The command reports the property each
-verifier checked and refuses malformed or mismatched inputs.
+## Replay and source-owned methods
 
 `vela replay [<repo>] --json` validates the current repository origin, taking
 the repository as a positional or `--repo` and discovering it upward when
@@ -46,13 +39,12 @@ omitted:
 content addresses, authority-history continuity, admitted-event replay,
 required Artifacts, exact Git ancestry, retained canonical objects, derived
 parity, and the independently installed sequence-one authority trust root. It
-does not replace the domain verifier.
+does not execute or replace a domain method.
 
-Run both from the exact Git tree being cited:
+Run it from the exact Git tree being cited:
 
 ```bash
 vela replay . --json
-vela reproduce .
 ```
 
 `vela replay . --json` reports the typed repository-context
@@ -60,24 +52,12 @@ defects and keeps that context invalid. It is diagnostic, not a bypass:
 invalid authority or repository context grants no identity, signature, or
 historical exemption, and canonical writers fail before journaling.
 
-When a pending proposal retains a repository-local frozen witness, `review show`
-advertises proposal-scoped reproduction:
-
-```bash
-vela reproduce . --proposal <vpr_id> --json
-```
-
-The output names its scope `pending_proposal` rather than
-`accepted_repository`, and reports `authority_effect: none`.
-
-Some domains retain a rooted source-local replay capsule rather than a Vela
-witness. In that case the same command validates the capsule's exact Proposal
-and implementation bindings, refuses to execute repository code, and returns
-the native validation command as its structured error hint. For example, a
-Lean Repository may point to a retained Python replay that prepares the exact
-source revision and invokes Lean. Vela remains the state and handoff layer;
-the domain-native tool remains the verifier. A digest, historical pass record,
-or source-local script is never silently treated as executable verification.
+Scientific methods remain source-owned. A Repository may retain an exact
+method manifest, implementation, inputs, outputs, and native command, but Vela
+does not scan for or execute them. A verifier runs the pinned method in its
+native environment and records the scoped result through `verification
+record|import`. A digest, historical pass record, or source-local script is
+never silently treated as executable verification.
 
 ## Verifier evidence
 
@@ -198,16 +178,9 @@ possible property was verified. The decision record should retain the relevant
 scope and caveats, especially for formal results where kernel checking and
 informal statement faithfulness are separate questions.
 
-## Adding a frozen verifier
+## Source-owned method requirements
 
-The built-in verifier registry is closed to new domain implementations. It is
-retained only so already accepted evidence keeps an exact local replay path.
-New domain checks belong in the repository's native, pinned verifier capsule and
-enter Vela as scoped producer evidence or a Verification Record. Promote new
-code into `vela-verify` only to preserve an existing accepted replay contract;
-convenience, discovery, or one producer's workflow is not sufficient.
-
-A verifier belongs in the trusted gate only when it has:
+A method belongs in a source Repository only when it has:
 
 1. a closed input and output contract;
 2. deterministic behavior under a pinned environment;
@@ -221,8 +194,9 @@ A verifier belongs in the trusted gate only when it has:
 
 The bar is adversarial. A checker that accepts the positive fixture but cannot
 reject realistic mutants is a rubber stamp. A verifier that fetches mutable
-state, calls a model, or requires undisclosed credentials is an adapter, not a
-frozen authority-path verifier.
+state, calls a model, or requires undisclosed credentials must report those
+dependencies and limitations explicitly. None of these methods is a Vela
+authority path.
 
 ## External Lean
 
@@ -254,4 +228,5 @@ not issue signed tree heads, hold a transparency signing key, expose proof
 authority, or turn agreement between readers into scientific authority.
 
 The decisive checks remain the exact Git bytes, event signatures and policy
-certificates, deterministic replay, and frozen verifier results.
+certificates, deterministic replay, and scoped Verification results bound to
+source-owned Methods. Core ships no domain verifier.

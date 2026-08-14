@@ -184,15 +184,9 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
         "vela.status.v4 carries `verified` as a wire token; vela-web pins it as z.literal(\"verified\"), so it moves only with a schema bump"
     );
 
-    /* Two JSON tokens spelled the retired word until they were bumped, and
-    each moved with a version rather than in a sweep for the same reason
-    `integrity.replay` has not moved at all: a caller keys on them. `repository_path`
-    was a key of `vela.repository-verification.v2` and is `repository_path` in
-    `.v3`; `accepted_frontier` was a scope value of
-    `vela.reproduction-summary.v1` and is `accepted_repository` in `.v2`, which
-    `docs/VERIFICATION.md` documents by name. Both halves are asserted — the
-    new token present and the retired one absent — so a revert fails here
-    instead of shipping one document with two names for one thing. */
+    /* `repository_path` was a key of `vela.repository-verification.v2` and is
+    `repository_path` in `.v3`. The current token remains an exact JSON
+    contract rather than a prose preference. */
     let replayed = json(&run(
         temporary.path(),
         &home,
@@ -207,47 +201,6 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
     assert!(
         replayed.get("frontier").is_none(),
         "v3 retired the `repository_path` key; a document carrying both names one path twice:\n{replayed}"
-    );
-
-    /* The reproduction scope, on both surfaces. One witness from the
-    checked-in corpus gives `reproduce` something to re-run; without it the
-    command fails before it reaches the token, which is how the human half of
-    this contract went unasserted while a comment claimed it. */
-    let witnesses = repository_path.join("witnesses");
-    std::fs::create_dir_all(&witnesses).expect("witness directory");
-    std::fs::copy(
-        Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../vela-verify/corpus/valid/smoke/sidon.witness.json"),
-        witnesses.join("sidon.witness.json"),
-    )
-    .expect("copy one corpus witness into the fixture repository");
-    let reproduced = json(&run(
-        temporary.path(),
-        &home,
-        socket,
-        &["reproduce", &repository_path_text, "--json"],
-    ));
-    assert_eq!(reproduced["schema"], "vela.reproduction-summary.v2");
-    assert_eq!(
-        reproduced["scope"], "accepted_repository",
-        "the repository scope is `accepted_repository` in vela.reproduction-summary.v2:\n{reproduced}"
-    );
-    let reproduced_text = stdout(&run(
-        temporary.path(),
-        &home,
-        socket,
-        &["reproduce", &repository_path_text],
-    ));
-    /* Not `assert_vocabulary_retired`: this fixture's directory is literally
-    named `repository_path`, and `reproduce` echoes the path it was given. The token
-    is what is under test, so the token is what is asserted. */
-    assert!(
-        reproduced_text.contains("scope: accepted_repository"),
-        "`vela reproduce` prints its scope token verbatim, so the human surface moves with the schema:\n{reproduced_text}"
-    );
-    assert!(
-        !reproduced_text.contains("accepted_frontier"),
-        "the retired scope token is back on the human surface:\n{reproduced_text}"
     );
 
     std::fs::create_dir_all(repository_path.join("artifacts")).expect("artifacts directory");
@@ -347,7 +300,6 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
     for (surface, document) in [
         ("vela status --json", &status),
         ("vela replay --json", &replayed),
-        ("vela reproduce --json", &reproduced),
         ("vela submit --json", &second),
         ("vela review withdraw --json", &withdrawn),
         ("vela review withdraw --json (refused)", &refused),

@@ -630,7 +630,6 @@ fn prepared_recovery_is_explicit_read_only_safe_and_unblocks_a_real_write() {
             "--json",
         ],
         vec!["log", "--repo", repository_text.as_str(), "--json"],
-        vec!["reproduce", repository_text.as_str(), "--json"],
     ];
     for arguments in read_commands {
         let output = run(temporary.path(), &home, &arguments);

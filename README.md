@@ -144,15 +144,15 @@ nor a repository-authority key:
 
 ```bash
 git clone https://github.com/vela-science/math.git math
-git -C math checkout 4f422289e6a8991735fced4905d53d9d54c9900f
+git -C math checkout 08a0e6d327e1ae9937ab2e0e5002192815eac69a
 vela replay math --json
 vela claims math --json
 ```
 
 Use a complete clone: exact offline reads refuse shallow, partial, alternate,
-or grafted object stores. The pinned Repository replays to three accepted
+or grafted object stores. The pinned Repository replays to two current accepted
 Claims at root
-`sha256:0e24fa1b13d7eda7b4e809564ec414eb1fda09f5dcf9aa8a6bcd6ae69ac96197`.
+`sha256:3e2236510923277c1e363d2d28c3d84d86a1d698bafd576b79308b18ae0cf0d2`.
 Erdős 321's corrected Claim is accepted and its predecessor remains retained
 with current Standing `superseded`; see the
 [formal-math reference flow](examples/formal-math/).
@@ -240,13 +240,13 @@ repository-authority credentials.
 The ordinary CLI is intentionally small:
 
 ```text
-init status claims submit show why review replay reproduce log
+init status claims submit show why review replay log
 ```
 
 Current advanced surfaces:
 
 ```text
-verification correction integration recover authority
+projection verification correction integration recover authority
 ```
 
 Run `vela help advanced` for the grouped contract.
@@ -297,7 +297,7 @@ The public product now develops from one repository while retaining separate
 runtime boundaries:
 
 ```text
-crates/             Protocol, repository runtime, authority, verifier, and CLI
+crates/             Protocol, repository runtime, authority, and CLI
 conformance/        Independent Python and JavaScript readers, two clean-room emitters,
                     fixtures, and repository-wide checks
 scripts/            Core release and signed release-manifest tooling
@@ -403,11 +403,13 @@ their era; every Repository the current binary writes starts at a native
 genesis. Historical Git revisions preserve earlier contracts, and the current
 binary exposes no migration writer.
 
-The Protocol 1 standards cut is active across the ecosystem. The
-`vela-science/math` authority re-genesised once under Vela 0.972.1, uses RFC
-9562 UUIDv4 identity `8115c538-7688-40b7-ab75-3c4765bf3c19`, and strictly
-replays its current accepted state. The signed 0.971.0 predecessor remains
-retained as continuity evidence and carries no Standing into the new genesis. See
+The Protocol 1 standards cut is active across the ecosystem. The current
+`vela-science/math` authority is a compact pre-1.0 genesis created under Vela
+0.975.1, uses RFC 9562 UUIDv4 identity
+`8138c6da-46c4-47ee-b493-5bbfbec09b1e`, and strictly replays its current
+accepted state. The published Git tag
+`math-coh-00-pre-genesis-4f422289` is a development rollback point, not an
+active compatibility promise or a source of current Standing. See
 [the 2026-08-08 architecture memo](docs/history/2026-08-08-ideal-ecosystem-and-architecture-memo.md)
 and [ADR 0035](docs/adr/0035-commodity-encoding-signing-and-wire-contracts.md).
 
