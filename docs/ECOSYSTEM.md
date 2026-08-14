@@ -303,7 +303,7 @@ It was synthesized by joining `graph_nodes` to `claims` — an inner join, so a
 question could not exist until this authority had already answered it — and its
 prize and tags were regex-parsed out of the Claim's assertion string.
 
-It is now anchored on `observatory.native_records` scoped through
+It is now anchored on `projection.native_records` scoped through
 `release_sources`, with the Claim a `LEFT JOIN LATERAL`, and its declared
 status, formalization, prize and subject tags read from the Source record's
 metadata, where upstream publishes them. The live projection carries 1,217
@@ -701,11 +701,11 @@ roots. No reverse dependency is authorized. Concretely:
 - **The projection must never hold a repository-authority credential** and must
   never be the source of a fact the repository does not already contain.
 - **A surface may show the command an authorized operator would run. It may
-  never run it.** The Problems surface's read-only boundary is enforced by
-  `vela-web/scripts/read-only-boundary.mjs`. It permits exactly one
-  mutating Server Action, `signOutAccount`, pinned to a single line of its own
-  body, plus three identity routes. Scientific state has no write path from a
-  browser; identity does.
+  never run it.** The Problems surface's authority boundary is enforced by
+  `vela-web/scripts/scientific-authority-boundary.mjs`. Identity routes and
+  bounded Workspace activity actions may mutate their own hosted stores;
+  scientific-state objects, Repository authority, Decisions, Events, and
+  Standing have no browser write path.
 - **A Source may be referenced or snapshotted freely and admitted only through a
   Decision.** Enforced in SQL, §1.
 - **CLI-owned derived analysis is optional.** Removing the correction reducer

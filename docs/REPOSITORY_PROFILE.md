@@ -318,7 +318,7 @@ The one live authority repository, `vela-science/math`
 (`8138c6da-46c4-47ee-b493-5bbfbec09b1e`), carries no `.github/` at all. `vela
 init` scaffolds no workflow, and each of the four archived repositories wrote
 its own copy, so a repository gets this gate only by writing one. The ecosystem
-instead verifies Math during the root-bound Observatory refresh and in Vela's
+instead verifies Math during the root-bound Problems projection refresh and in Vela's
 independent conformance readers; neither surface can change its Standing.
 
 The action took `frontier` as a deprecated alias for `repository` until this
