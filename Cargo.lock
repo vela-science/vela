@@ -1435,7 +1435,7 @@ dependencies = [
 
 [[package]]
 name = "vela-authority"
-version = "0.975.1"
+version = "0.976.0"
 dependencies = [
  "hex",
  "serde",
@@ -1447,7 +1447,7 @@ dependencies = [
 
 [[package]]
 name = "vela-cli"
-version = "0.975.1"
+version = "0.976.0"
 dependencies = [
  "base64",
  "chrono",
@@ -1476,7 +1476,7 @@ dependencies = [
 
 [[package]]
 name = "vela-protocol"
-version = "0.975.1"
+version = "0.976.0"
 dependencies = [
  "base64",
  "chrono",
@@ -1499,7 +1499,7 @@ dependencies = [
 
 [[package]]
 name = "vela-repository"
-version = "0.975.1"
+version = "0.976.0"
 dependencies = [
  "hex",
  "serde",

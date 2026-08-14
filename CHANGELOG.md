@@ -10,6 +10,21 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+## 0.976.0
+
+- **Read products have one stable Core-owned state boundary.** `vela
+  projection --json` emits a deterministic, schema-versioned, root-bound,
+  authority-neutral Repository projection for status, evidence, correction,
+  Decision, Standing, limitations, and valid next actions. It is derived from
+  strict replay and creates no new Protocol object or authority effect.
+
+- **Pre-release compatibility machinery without a current consumer is gone.**
+  The unused `reproduce` command and generic witness executor, the retired
+  source-manifest and ecosystem-status packages, obsolete canonical vectors,
+  and the separate derived `vela-edge` crate boundary were deleted. Current
+  Math authority-chain interoperability now binds the compact current
+  Repository lineage instead of the retired pre-genesis fixture.
+
 ## 0.975.1
 
 - **Superseded Claims now report their current Standing.** `vela why` and
