@@ -1,57 +1,197 @@
-# Vela external-validation and reversible-publication program, 2026-08-12
+# Vela external-validation program
 
-Status: **active; reversible publication prerequisites are proven, but the
-external-validation program is not complete**.
+Status: **open for external participation**.
 
-This ledger is the current handoff for evidence that necessarily crosses the
-Vela, Vela Web, and Mathematics repository boundaries. It does not change the
-protocol or reopen the completed core architecture. A reconstruction, a green
-check, a signed activity event, or a correct reader response is not a scientific
-Decision or independent adoption.
+Vela has a qualified Public Launch Candidate. The external program asks
+separately operated producers, verifiers, readers, and authorities to test the
+published boundaries. Vela records each returned result with its exact scope.
+Interest, clones, parser passes, and same-operator agents do not count as
+external adoption.
 
-## Reversible-publication prerequisites
+The launch reference state is:
 
-| Requirement | Current evidence | Status |
-| --- | --- | --- |
-| Vela Web reconstruction | `vela-science/vela-web` commit `c3a97ec39ee6d2401eddf8512b90d8b5125accc6` retains `packages/observatory-data/evidence/math-atlas/clean-room/2026-08-12-e77526b5.json`. Two empty PostgreSQL reconstructions were byte-identical, the SELECT-only reader could read every projection table and write none, and production matched the exact table, source-registry, source-Repository, manifest-schema, and Vela-version roots. The artifact root is `sha256:ad81a61cc4a550dd3c47ea10376bb8e18a755565eacc56bf53534b25c37f7e0b`. Cross-platform release-root equality is explicitly not claimed. | Proven for production release `sha256:e77526b5fd57c77bb0e6774392ebabf42c2c797873ef2a587b2eb17aeac3aa3c`. |
-| Isolated rollback before publication | The same Web commit retains `2026-08-12-isolated-rollback.json`, a live-selector exercise on a disposable Neon child: `A e77526b5… -> B a7db268f… -> A e77526b5…`. Reader verification passed at both roots; first-live timestamps and all three retained releases were preserved; production before and after was identical; the child was deleted and confirmed absent. | Proven for the exact roots and selector code named by the artifact. |
-| StandingBench branch custody | GitHub and Codeberg expose only Mathematics `main` at `a8f607af2b0274c87186791900e7aeebd1382e5a`. The three previously public StandingBench histories are absent from hosted branch and tag refs. The private Vela Web release `standingbench-compromised-forensic-archive-e1930f6985034278cb12a2a738a9d43f77c0b3b39bfcf6362d5eb03ea9596235` retains the complete histories as forensic-only custody: bundle SHA-256 `e1930f6985034278cb12a2a738a9d43f77c0b3b39bfcf6362d5eb03ea9596235`, descriptor SHA-256 `a58c75f8dba3cfbb292681ae593ed2aed0c004db3987cbb9df6dfac4e31532c9`, `authority_effect: none`. The exposed benchmark material remains compromised; private custody does not restore benchmark secrecy. | Contained and retained for forensics; never valid as held-out evaluation evidence. |
-| Source-rights binding | Mathematics `evidence/erdos-321/terminal-variants/source-lock.v0.1.json` at `a8f607af…` binds content root `sha256:128edd2b0b58597ca05c7c0049ab20c10c9e6ef4e06c2c3ff8371752123a103b`. It records `rights_class: NOASSERTION`, downstream redistribution rights `not_established`, and `handling: reference_only`. The evidence unit copies no Star Fleet theorem bytes and treats pinned hosting permission as neither a portable license nor a redistribution grant. | Resolved fail closed. A future license grant may widen handling in a new rooted record; the current record must not infer one. |
+- signed Vela CLI `v0.975.1`, commit
+  `9d1a99dbe0a1c8ffc008cc0f5ee4e06831ea6e14`;
+- Mathematics commit `4f422289e6a8991735fced4905d53d9d54c9900f`,
+  Repository root
+  `sha256:0e24fa1b13d7eda7b4e809564ec414eb1fda09f5dcf9aa8a6bcd6ae69ac96197`;
+- Web commit `b454ccc1c66df0a89f7f85e2b01b04ed3db91835`,
+  projection root
+  `sha256:8513fceafba9136f3ffa1ea3f36ee91160b36ca60ada0a7251995844be45c9dc`;
+- public flagship <https://problems.science/problems/erdos-problems/321>.
 
-The live Observatory manifest observed on 2026-08-12 still serves the exact
-`e77526b5…` production root above, Mathematics commit `a8f607af…`, and the
-versioned SELECT-only reader. Continuous hosted reconstruction is temporarily
-unproven after the retained artifact: GitHub Actions runs `31617813389` and
-`31616962487` created no runner steps because account billing or the Actions
-spending limit blocked the jobs before execution. This is an external runner
-availability failure, not a successful reconstruction and not a code failure.
-The hosted freshness gate remains red until a later run actually executes and
-passes.
+## Install and read
 
-## External evidence tracks
+```bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.975.1/install.sh | \
+  VELA_VERSION=v0.975.1 bash
 
-| Track | Evidence in hand | What is still required |
-| --- | --- | --- |
-| Pre-registered cold reader | Mathematics freezes plan root `sha256:4067903b9ea8f1fa9d6d0b536846190653a3e029352c6f24eb5540592f570678`, reader-instrument root `sha256:db06c21a6a0d4f24c91dc59903dad0245326edd2311dbdeb3d88ed39640067e7`, and participant-packet root `sha256:35f6c06a1bf8f7abc46caea502f9ccd45db6a569da6856d04f03a2c386266bbe`. Status is `preregistered_not_run`; every measurement is `not_measured`. | Enroll eligible humans under the frozen custody and timing protocol. The target is 12 eligible two-period completers, subject to the preregistered cutoff and under-recruitment rule. Do not insert model or operator observations into the human estimator. |
-| External workbench | The stock Buzz compatibility run at Mathematics `b1d1ff4d9a786b5ccf8c9447173f41ca9514fd79` has aggregate evidence root `sha256:0271f0d9d385b2c834ccf461a8e004165ad579e6b12f2ab2f2f44e824e68f625`. It proves transport, storage, and byte-identical readback of an operator-authored packet and result through unmodified Buzz. Buzz performed no scientific reasoning and produced no candidate. Mathematics commit `57de8cd3626f7bbefff2f8c4f7465480668de8dd` additionally roots external-return contract `sha256:15a596b0d27e07289ec55be6fa051ee39259eca29bb46ca51bd87fc938e17dfd`: it accepts only strict bounded result and operator-attestation bytes and emits a non-authoritative receipt whose strongest candidate status is `unverified_candidate`. This is execution readiness, not an external observation. | For external-producer evidence, a separately operated workbench must author or emit a bounded conformant candidate and return its rooted result without gaining authority. The same-operator transport run and a passing return parser are compatibility evidence, not independent production or adoption. |
-| Correction cascade | Current Mathematics has one accepted Claim, root `sha256:d5d77e7d96e390e0bf692d0abd44367eb06a0c6a61534e1c6654962d6c644776`, and its retained Claim record has `relations: []`. Synthetic conformance vectors and historical same-operator usability exercises do not create a live accepted dependency. | A producer must declare a real Claim dependency before acceptance. A later correction or withdrawal must then produce exact affected and unaffected state, followed by attributed Decisions and a preregistered comparison with the correct repair. Do not retrofit a dependency solely to satisfy the experiment. |
-| Independent adoption | No separately maintained scientific consumer, independent authority, or externally governed Repository currently adopts the Dossier, translation profile, or Vela Standing. A private mirror, a second repository under the same operator, and an automated reader are not independence. | A maintained external consumer must reproduce the applicable roots and use the output. Independent authority additionally requires separate governance, key custody, trust root, mandate, and capacity to disagree. |
+git clone https://github.com/vela-science/math.git math
+git -C math checkout 4f422289e6a8991735fced4905d53d9d54c9900f
+vela replay math --json
+vela status math --json
+vela why math \
+  vcl_a618b77ab0f6a4b5b186133e37af555a22c6acb71a4746bab0b144b8973668a6 \
+  --json
+vela why math \
+  vcl_3d4fd59554ccaa2b792b08abae16a8d0fe329d4901ad798fe05c6c7769c9966b \
+  --json
+```
 
-## Next admissible operations
+Expected current facts:
 
-1. Restore GitHub Actions runner availability, then require one actually executed
-   refresh and reconstruction success before treating hosted freshness as green.
-2. Recruit and enroll readers without changing the frozen cold-reader
-   instrument, scoring key, assignment schedule, target, or cutoff.
-3. Offer the rooted workbench packet to a separately operated workbench. Keep
-   its activity outside Vela authority until an ordinary Submission and scoped
-   Verification are produced.
-4. Select a scientific case only after a genuine producer-declared dependency
-   exists. Preserve an empty result rather than manufacturing a cascade.
-5. Record independent use only when the external maintainer, roots, purpose,
-   and observed use are attributable. Do not translate interest, a clone, or a
-   passing parser into adoption.
+- replay root
+  `sha256:0e24fa1b13d7eda7b4e809564ec414eb1fda09f5dcf9aa8a6bcd6ae69ac96197`;
+- three accepted Claims and zero pending Claims;
+- successor Standing `accepted`;
+- predecessor Standing `superseded` while its historical Proposal remains
+  `accepted`;
+- direct Submission as the current action.
 
-Completion requires observed evidence in all four tracks. The program remains
-open while any track is `not_measured`, same-operator only, synthetic, or
-unattributed.
+A default local executable older than `0.975.1` cannot report the corrected
+supersession read contract. Record `vela --version` and the installed binary
+digest with every return.
+
+## Producer packet
+
+A separately operated native workbench should author or emit one bounded
+candidate, retain exact artifacts and environment pins in its source-owning
+Repository, then submit it through the ordinary CLI:
+
+```bash
+vela submit --repo . \
+  --claim "<bounded result>" \
+  --type <theoretical-or-computational> \
+  --replayability exact \
+  --artifact <path>:<kind> \
+  --caveat "<what this does not establish>" \
+  --requires-verification <registered-property> \
+  --as agent:<name> \
+  --json
+```
+
+Return the workbench owner, exact source commit, command, environment, artifact
+roots, Submission and Proposal roots, failures, and nonclaims. Do not grant the
+workbench Vela authority. A same-operator transport check remains compatibility
+evidence.
+
+## Verifier packet
+
+An independently controlled verifier should choose one registered property,
+retain its Method and output, disclose provider/model/tool entities, and record
+shared dependencies:
+
+```bash
+vela verification record . <proposal-id> \
+  --profile <profile> \
+  --method <tracked-method.json> \
+  --property <registered-property> \
+  --outcome <pass-fail-or-inconclusive> \
+  --does-not-establish "Scientific acceptance or Standing." \
+  --independent-of agent:<producer> \
+  --output <retained-review-output.json> \
+  --as verifier:<name> \
+  --json
+```
+
+Return the signed Verification Record, Method, output root, exact inputs,
+procedure, limitations, and operational or evidentiary links to the producer.
+Human and agent performers use the same evidence boundary. Performer kind does
+not establish independence or quality.
+
+## Clean-room reader packet
+
+A reader should use a clean account or machine, the signed release, a full
+Math clone, and no maintainer explanation. Report:
+
+1. install source, signature result, binary version and digest;
+2. replay root, accepted/pending counts, and trust-root source;
+3. the successor and predecessor Standing values;
+4. the two Verification properties and what each omits;
+5. Decision performer and Repository authority principal;
+6. the correction consequence and unchanged Claims;
+7. the next valid action;
+8. elapsed time, questions, interventions, and failure logs.
+
+The public Problem page supplies the human-readable path. The Repository and
+CLI supply the exact path. A reader operated by the Vela maintainer or the same
+agent provider counts as internal evidence.
+
+## Authority-candidate packet
+
+An authority candidate must operate its own Repository, policy, trust root,
+key custody, and mandate. It should retain a bounded Submission and Verification
+set, read a fresh inbox entry, make one authorized Decision, replay, and report
+whether it agrees or disagrees with another Repository.
+
+Return the Repository ID, origin and sequence-one roots, policy and keyset
+roots, performer, authority principal, entry root, Decision and Event roots,
+before/after Repository roots, replay result, and governance owner. Do not copy
+the Math authority key or import Math Standing. Separate control and a real
+capacity to disagree define plural authority.
+
+## Correction-cascade packet
+
+The accepted Erdős 321 correction retires one predecessor and preserves two
+unrelated accepted Claims. It has no affected dependent Claim and therefore
+does not satisfy the Protocol 1.0 non-empty cascade gate.
+
+A valid cascade starts with a producer-declared scientific dependency. A later
+correction or withdrawal must yield exact affected and unaffected sets,
+repair obligations, and cross-implementation agreement. Do not retrofit a
+dependency to create a benchmark result.
+
+## Provider-loss packet
+
+The direct Web qualification acquired exact public source commits, rebuilt the
+projection twice, loaded two empty local PostgreSQL instances, and obtained
+byte-identical table and release roots. The SELECT-only reader could read the
+result and write none. The retained reconstruction root is
+`sha256:7aebb930d7ec4d59706326e63bf83a2d318a8dd3a02d71d17346196bec059863`.
+
+Vela Web source and its retained source-adapter asset require authenticated
+access. Anonymous readers cannot repeat the Web reconstruction from public
+inputs, and this program does not claim otherwise. A separately operated
+provider-loss review must first obtain read access to the exact Web commit and
+adapter asset from the maintainer, then run the repository-owned clean-room
+`projection:reconstruct` command with disposable local PostgreSQL instances.
+The canonical direct-release command requires Vela's GitHub, Neon, Vercel, and
+domain authority; read access does not grant it. Request source access through
+the public Vela issue below. Return the access grant's scope, exact inputs,
+source-adapter set, table roots, release root, reader permissions, elapsed
+time, interventions, and disagreements. GitHub Actions remains an optional
+redundant path.
+
+## Return channel and acceptance rule
+
+Open a public issue in the owning repository and attach or link immutable
+evidence:
+
+- Protocol, CLI, Web, reader, and authority results:
+  <https://github.com/vela-science/vela/issues/new>;
+- Mathematics source and authority results:
+  <https://github.com/vela-science/math/issues/new>.
+
+Name the operator and organization, exact commits and roots, execution date,
+hardware and software, credentials or services used, interventions, failures,
+shared dependencies, and license or availability limits. Vela maintainers will
+classify the return as internal, separately operated, independently controlled,
+or plural authority. The evidence keeps its observed outcome even when it
+fails.
+
+## Open evidence gates
+
+Protocol 1.0 still requires:
+
+- one external producer emitting a conformant Submission;
+- one independent scientific reader reconstructing accepted state;
+- one real non-empty correction cascade;
+- cross-implementation agreement on inheritance consequences;
+- no known imminent wire break and no falsification by the disciplined Git
+  plus RO-Crate baseline.
+
+The breakthrough claim adds an independent verifier, two independently
+governed authorities, exact repair obligations, measured cold-successor
+improvement, recurrence, and operation without a central Vela service.
+
+The Public Launch Candidate claims none of those results.

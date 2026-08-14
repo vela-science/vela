@@ -144,14 +144,17 @@ nor a repository-authority key:
 
 ```bash
 git clone https://github.com/vela-science/math.git math
-git -C math checkout 5be513bd0ce2243b59268d9b185da18497505067
+git -C math checkout 4f422289e6a8991735fced4905d53d9d54c9900f
 vela replay math --json
 vela claims math --json
 ```
 
 Use a complete clone: exact offline reads refuse shallow, partial, alternate,
-or grafted object stores. The pinned Repository replays to one accepted Claim.
-The terminal-variant evidence at this commit changed no Vela Standing; see the
+or grafted object stores. The pinned Repository replays to three accepted
+Claims at root
+`sha256:0e24fa1b13d7eda7b4e809564ec414eb1fda09f5dcf9aa8a6bcd6ae69ac96197`.
+Erdős 321's corrected Claim is accepted and its predecessor remains retained
+with current Standing `superseded`; see the
 [formal-math reference flow](examples/formal-math/).
 
 Or build the exact repository revision:

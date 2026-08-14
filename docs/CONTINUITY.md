@@ -14,11 +14,11 @@ specified elsewhere; where that is true it cites rather than restates.
 
 Four bindings, jointly. Any one of them alone identifies nothing.
 
-| Binding | Where it is retained | Example (`vela-science/math`, 2026-08-09) |
+| Binding | Where it is retained | Example (`vela-science/math`, 2026-08-14) |
 | --- | --- | --- |
 | `repository_id` | `vela.toml`, `vela.repository-profile.v1` | `8115c538-7688-40b7-ab75-3c4765bf3c19` |
 | Origin ID and origin root | `.vela/origin.json`, `.vela/repository.json` | `vro_229ce0a08217da5e`; `sha256:229ce0a08217da5e8bad2059c35070989652ca546ab45b8e699922ba182e8a69` |
-| Current repository root | derived by replay over the canonical object set | `sha256:db4d435c2989d43c7ab88fe135865e89a6ba095429315baedb78bcbd9e90ebdc` |
+| Current repository root | derived by replay over the canonical object set | `sha256:0e24fa1b13d7eda7b4e809564ec414eb1fda09f5dcf9aa8a6bcd6ae69ac96197` |
 | Sequence-one authority-record root | distributed independently of the checkout | `sha256:4ac100cd870f51c14f72d2d5226a1ca3eca8058aed7d896848214f61f3d5d59b` |
 
 The first three travel inside the checkout. The fourth deliberately does not:
