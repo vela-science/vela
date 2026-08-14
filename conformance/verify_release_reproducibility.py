@@ -14,6 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 ARCHIVER = ROOT / ".github/release/create-deterministic-archive.py"
+SBOM_CANONICALIZER = ROOT / ".github/release/check-sbom.py"
 MANIFEST = ROOT / "scripts/release_manifest.py"
 EPOCH = 1_786_406_400
 
@@ -65,15 +66,90 @@ def check_archives(root: Path) -> None:
         if suffix == "tar.gz":
             with tarfile.open(first, "r:gz") as archive:
                 members = archive.getmembers()
-                if [(item.name, item.mtime, item.uid, item.gid) for item in members] != [
-                    ("vela", EPOCH, 0, 0)
-                ]:
+                if [
+                    (item.name, item.mtime, item.uid, item.gid) for item in members
+                ] != [("vela", EPOCH, 0, 0)]:
                     raise AssertionError("tar metadata is not deterministic")
         else:
             with zipfile.ZipFile(first) as archive:
                 entries = archive.infolist()
                 if len(entries) != 1 or entries[0].filename != "vela":
                     raise AssertionError("zip inventory is not deterministic")
+
+
+def sbom_fixture(path: Path, stage: Path, created: str, nonce: str) -> None:
+    root_id = "SPDXRef-DocumentRoot-Directory-" + str(stage).replace("/", "-")
+    document = {
+        "SPDXID": "SPDXRef-DOCUMENT",
+        "creationInfo": {"created": created, "creators": ["Tool: syft-1.50.0"]},
+        "dataLicense": "CC0-1.0",
+        "documentNamespace": f"https://anchore.example/{stage}-{nonce}",
+        "name": str(stage),
+        "packages": [
+            {"SPDXID": root_id, "name": str(stage)},
+            {"SPDXID": "SPDXRef-Package-vela-cli", "name": "vela-cli"},
+        ],
+        "relationships": [
+            {
+                "relatedSpdxElement": "SPDXRef-Package-vela-cli",
+                "relationshipType": "CONTAINS",
+                "spdxElementId": root_id,
+            },
+            {
+                "relatedSpdxElement": root_id,
+                "relationshipType": "DESCRIBES",
+                "spdxElementId": "SPDXRef-DOCUMENT",
+            },
+        ],
+        "spdxVersion": "SPDX-2.3",
+    }
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+
+def check_sbom_normalization(root: Path) -> None:
+    raw = [root / "left.raw.spdx.json", root / "right.raw.spdx.json"]
+    outputs = [root / "left.spdx.json", root / "right.spdx.json"]
+    stages = [root / "private-left/stage", root / "private-right/stage"]
+    sbom_fixture(raw[0], stages[0], "2026-08-14T12:00:01Z", "random-one")
+    sbom_fixture(raw[1], stages[1], "2026-08-14T12:00:02Z", "random-two")
+    common = [
+        "--name",
+        "Vela 0.0.0 x86_64-unknown-linux-gnu release bundle",
+        "--namespace",
+        "https://vela.science/spdx/vela/0.0.0/x86_64-unknown-linux-gnu",
+        "--created",
+        "2026-08-11T00:00:00Z",
+        "--root-name",
+        "vela-0.0.0-x86_64-unknown-linux-gnu",
+        "--root-id",
+        "SPDXRef-DocumentRoot-Vela-0-0-0-x86_64-unknown-linux-gnu",
+    ]
+    for source, output in zip(raw, outputs, strict=True):
+        run(
+            [
+                sys.executable,
+                str(SBOM_CANONICALIZER),
+                "--canonicalize",
+                "--input",
+                str(source),
+                "--output",
+                str(output),
+                *common,
+            ]
+        )
+    if outputs[0].read_bytes() != outputs[1].read_bytes():
+        raise AssertionError(
+            "canonical SBOM depends on source path, wall clock, or UUID"
+        )
+    payload = outputs[0].read_text(encoding="utf-8")
+    for private in (*map(str, stages), "random-one", "random-two"):
+        if private in payload:
+            raise AssertionError(f"canonical SBOM retains ambient input {private}")
+    document = json.loads(payload)
+    if document["creationInfo"]["created"] != "2026-08-11T00:00:00Z":
+        raise AssertionError(
+            "canonical SBOM timestamp does not come from SOURCE_DATE_EPOCH"
+        )
 
 
 def manifest_arguments(directory: Path, binary: Path) -> list[str]:
@@ -139,11 +215,14 @@ def check_manifests(root: Path) -> None:
 
 
 def main() -> int:
-    with tempfile.TemporaryDirectory(prefix="vela-release-reproducibility-") as temporary:
+    with tempfile.TemporaryDirectory(
+        prefix="vela-release-reproducibility-"
+    ) as temporary:
         root = Path(temporary)
         check_archives(root)
+        check_sbom_normalization(root)
         check_manifests(root)
-    print("release-reproducibility: deterministic tar.gz, zip, and manifest")
+    print("release-reproducibility: deterministic tar.gz, zip, SBOM, and manifest")
     return 0
 
 

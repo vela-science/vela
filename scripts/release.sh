@@ -15,8 +15,9 @@
 #
 # Everything else — version/tag agreement, toolchain channel, the auditable
 # build, staging, the SPDX SBOM, the SBOM content check, archiving, checksums,
-# two-build binary comparison, deterministic archiving, the bundle smoke test,
-# and the signed manifest — runs here and runs the same way outside CI.
+# two-build binary comparison, deterministic SBOM normalization, deterministic
+# archiving, the bundle smoke test, and the signed manifest — runs here and
+# runs the same way outside CI.
 #
 # usage:
 #   scripts/release.sh [--tag vX.Y.Z] [--out DIR] [--manifest-name NAME]
@@ -255,11 +256,11 @@ cp "$BUILD_ONE/release/vela" "$STAGE/"
 test -x "$STAGE/vela"
 
 refuse_private_path_bytes() {
-  local binary="$1"
+  local artifact="$1"
   local path="$2"
   local label="$3"
-  if LC_ALL=C grep -aFq -- "$path" "$binary"; then
-    die "staged binary retains the private $label path"
+  if LC_ALL=C grep -aFq -- "$path" "$artifact"; then
+    die "release artifact retains the private $label path"
   fi
 }
 
@@ -311,8 +312,44 @@ observed_syft="$("$SYFT" --version 2>/dev/null | awk '{print $NF}' | sed 's/^v//
 [ "$observed_syft" = "$SYFT_VERSION" ] ||
   die "syft $observed_syft is not the pinned $SYFT_VERSION"
 SBOM="$DIST/$ASSET.spdx.json"
-"$SYFT" scan "dir:$STAGE" -o "spdx-json=$SBOM" --quiet
+SBOM_SCRATCH="$ROOT/target/release-sbom-check"
+SBOM_RAW_ONE="$SBOM_SCRATCH/one.raw.spdx.json"
+SBOM_RAW_TWO="$SBOM_SCRATCH/two.raw.spdx.json"
+SBOM_CHECK="$SBOM_SCRATCH/canonical.spdx.json"
+rm -rf "$SBOM_SCRATCH"
+mkdir -p "$SBOM_SCRATCH"
+"$SYFT" scan "dir:$STAGE" -o "spdx-json=$SBOM_RAW_ONE" --quiet
+"$SYFT" scan "dir:$STAGE" -o "spdx-json=$SBOM_RAW_TWO" --quiet
+SBOM_CREATED="$("$PYTHON" - "$SOURCE_DATE_EPOCH" <<'PY'
+import datetime as dt
+import sys
+
+print(dt.datetime.fromtimestamp(int(sys.argv[1]), dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"))
+PY
+)"
+SBOM_NAME="Vela $VERSION $TARGET_TRIPLE release bundle"
+SBOM_NAMESPACE="https://vela.science/spdx/vela/$VERSION/$TARGET_TRIPLE"
+SBOM_ROOT_NAME="vela-$VERSION-$TARGET_TRIPLE"
+SBOM_ROOT_ID="SPDXRef-DocumentRoot-Vela-${VERSION//./-}-$TARGET_TRIPLE"
+canonicalize_sbom() {
+  "$PYTHON" .github/release/check-sbom.py --canonicalize \
+    --input "$1" --output "$2" \
+    --name "$SBOM_NAME" --namespace "$SBOM_NAMESPACE" \
+    --created "$SBOM_CREATED" --root-name "$SBOM_ROOT_NAME" \
+    --root-id "$SBOM_ROOT_ID"
+}
+canonicalize_sbom "$SBOM_RAW_ONE" "$SBOM"
+canonicalize_sbom "$SBOM_RAW_TWO" "$SBOM_CHECK"
+cmp "$SBOM" "$SBOM_CHECK" \
+  || die "two independently generated SBOMs produced different canonical bytes"
 "$PYTHON" .github/release/check-sbom.py "$SBOM"
+refuse_private_path_bytes "$SBOM" "$STAGE" "SBOM stage directory"
+refuse_private_path_bytes "$SBOM" "$ROOT" "SBOM source root"
+refuse_private_path_bytes "$SBOM" "$BUILD_ONE" "SBOM first target directory"
+refuse_private_path_bytes "$SBOM" "$BUILD_TWO" "SBOM second target directory"
+refuse_private_path_bytes "$SBOM" "$CARGO_HOME_RESOLVED" "SBOM Cargo home"
+refuse_private_path_bytes "$SBOM" "$ACCOUNT_HOME_RESOLVED" "SBOM account home"
+echo "SBOM reproducibility: two independent Syft scans agree after deterministic normalization"
 
 # 6. Deterministic archive, built twice from the same staged bytes. The helper
 #    fixes path order, ownership, modes, and timestamps for both published

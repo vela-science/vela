@@ -2,11 +2,11 @@
   "authority_effect": "none",
   "entries": [
     {
-      "bytes": 1240,
+      "bytes": 3993,
       "normative": false,
       "path": ".github/release/check-sbom.py",
       "role": "release-sbom-gate",
-      "sha256": "sha256:61bc6469e097ae34ca5a5037ed6c1aee4ef8c7534765cdb0b9be9597d82abfcc"
+      "sha256": "sha256:673749b07ef4b9f464322d0fa415e06bcfa99cce756d0bc99794e5cce4b28ae9"
     },
     {
       "bytes": 3474,
@@ -436,11 +436,11 @@
       "sha256": "sha256:b9f7a6ce7521e5799c206c5e233edb0a5770146784fe0244992684bbf6eaac51"
     },
     {
-      "bytes": 4817,
+      "bytes": 7826,
       "normative": false,
       "path": "conformance/verify_release_reproducibility.py",
       "role": "release-reproducibility-verifier",
-      "sha256": "sha256:8a4f7200d405c43e919210a7e28d403a026dfe3083d8d252593a2fe3da91f600"
+      "sha256": "sha256:87d04b2a8c6abf6b1d0a631fdf9f42bf50772c619686d8a22579e10f9a5223cf"
     },
     {
       "bytes": 21616,
@@ -639,11 +639,11 @@
       "sha256": "sha256:3ecee2e0c1c10a76c0516b21bf2e2b9ac3667a792036fc5f02056be9b3ead019"
     },
     {
-      "bytes": 17455,
+      "bytes": 19231,
       "normative": false,
       "path": "scripts/release.sh",
       "role": "release-entrypoint",
-      "sha256": "sha256:62a83010518a93638539dff831e56d57623dc0ccb963f26edc7d70ffaf8e8e10"
+      "sha256": "sha256:24795d08f498b89081d9dd641884e8556acf3fc7ab8b436ab9f74be31f62b4fa"
     },
     {
       "bytes": 7691,
@@ -660,7 +660,7 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:b35a170d16f899c56017c3e349228b8bd109f2e1b573d2f49f711932b3150d17",
+  "manifest_root": "sha256:d2e45864c18749954fdaa95055d0c38d08868a0fdbe4de8d7dff87e91eb78e4d",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",

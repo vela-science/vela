@@ -16,6 +16,7 @@ const CONFORMANCE_WORKFLOW: &str = include_str!("../../../.github/workflows/conf
 clean checkout can run with no CI provider. This test moved with them: what it
 protects is the order and the pins, not which file happens to hold them. */
 const RELEASE_SCRIPT: &str = include_str!("../../../scripts/release.sh");
+const SBOM_CANONICALIZER: &str = include_str!("../../../.github/release/check-sbom.py");
 const SIGN_PUBLISHED_RELEASE: &str = include_str!("../../../scripts/sign-published-release.sh");
 
 fn parse_yaml(source: &str) -> Value {
@@ -306,7 +307,7 @@ fn staged_release_binary_remaps_and_refuses_builder_private_paths() {
         );
     }
 
-    assert!(RELEASE_SCRIPT.contains("LC_ALL=C grep -aFq -- \"$path\" \"$binary\""));
+    assert!(RELEASE_SCRIPT.contains("LC_ALL=C grep -aFq -- \"$path\" \"$artifact\""));
     for refusal in [
         "refuse_private_path_bytes \"$STAGE/vela\" \"$ROOT\"",
         "refuse_private_path_bytes \"$STAGE/vela\" \"$BUILD_ONE\"",
@@ -317,6 +318,42 @@ fn staged_release_binary_remaps_and_refuses_builder_private_paths() {
         assert!(
             RELEASE_SCRIPT.contains(refusal),
             "release staging is missing private-path refusal {refusal}"
+        );
+    }
+}
+
+#[test]
+fn public_sbom_is_deterministic_and_refuses_private_paths() {
+    assert_eq!(RELEASE_SCRIPT.matches("\"$SYFT\" scan").count(), 2);
+    assert_eq!(
+        RELEASE_SCRIPT
+            .matches("canonicalize_sbom \"$SBOM_RAW_")
+            .count(),
+        2
+    );
+    assert!(RELEASE_SCRIPT.contains("cmp \"$SBOM\" \"$SBOM_CHECK\""));
+    assert!(RELEASE_SCRIPT.contains("SBOM_CREATED=\"$(\"$PYTHON\" - \"$SOURCE_DATE_EPOCH\""));
+    for field in [
+        "name",
+        "documentNamespace",
+        "created",
+        "root-name",
+        "root-id",
+    ] {
+        assert!(
+            SBOM_CANONICALIZER.contains(field),
+            "SBOM canonicalizer does not close {field}"
+        );
+    }
+    for refusal in [
+        "refuse_private_path_bytes \"$SBOM\" \"$STAGE\"",
+        "refuse_private_path_bytes \"$SBOM\" \"$ROOT\"",
+        "refuse_private_path_bytes \"$SBOM\" \"$CARGO_HOME_RESOLVED\"",
+        "refuse_private_path_bytes \"$SBOM\" \"$ACCOUNT_HOME_RESOLVED\"",
+    ] {
+        assert!(
+            RELEASE_SCRIPT.contains(refusal),
+            "release staging is missing SBOM private-path refusal {refusal}"
         );
     }
 }
