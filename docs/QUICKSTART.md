@@ -7,9 +7,8 @@ agent performers are recorded distinctly and use the same exact-root gates.
 
 ## Two-minute flagship: read exact scientific state
 
-`v0.976.0` remains the current signed release while the `v0.976.1` static-Linux
-portability patch is qualified. The following command becomes valid only after
-that tag is signed and published; the installer then verifies its exact platform
+`v0.976.1` is the current signed release. Its static Linux bundle no longer
+inherits the builder's glibc floor. The installer verifies the exact platform
 manifest with the out-of-band distribution identity.
 
 ```bash

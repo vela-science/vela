@@ -10,6 +10,8 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+## 0.976.1
+
 - **The Linux release is now independent of the builder's glibc floor.** The
   supported x86-64 bundle is built for the static musl target and smoke-tested
   on a clean runner. This keeps the same release asset and CLI contract while

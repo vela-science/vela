@@ -4,13 +4,12 @@ Vela has two related but distinct release surfaces:
 
 - **Protocol 1** is the current release-candidate specification, schemas,
   conformance vectors, and independent readers.
-- **Vela 0.976.0** is the current signed pre-1.0 implementation release. It adds
-  the stable,
-  deterministic, authority-neutral Repository projection used by read products
-  and removes unconsumed verifier, reproduction, source-manifest, and derived-
-  crate machinery.
+- **Vela 0.976.1** is the current signed pre-1.0 implementation release. It
+  retains the stable, deterministic, authority-neutral Repository projection
+  from 0.976.0 and ships the Linux bundle as a static musl executable so read
+  products do not inherit a hosted runtime's glibc floor.
 
-The latest signed published release is `v0.976.0`. User-facing installer
+The latest signed published release is `v0.976.1`. User-facing installer
 examples pin that exact tag rather than following a moving branch.
 
 `vela integration check` validates the shared Manifest, Profile, Binding,
