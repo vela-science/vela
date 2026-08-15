@@ -172,8 +172,13 @@ fn reviewed_tags_publish_provenance_labeled_supported_bundles() {
             "cargo install cargo-auditable --version \"$CARGO_AUDITABLE_VERSION\" --locked"
         )
     );
-    assert!(
-        RELEASE_SCRIPT.contains("cargo auditable build --locked --release -p vela-cli --bin vela")
+    assert!(RELEASE_SCRIPT.contains(
+        "cargo auditable build --locked --release -p vela-cli --bin vela --target \"$TARGET_TRIPLE\""
+    ));
+    assert_eq!(
+        build["strategy"]["matrix"]["include"][0]["target"].as_str(),
+        Some("x86_64-unknown-linux-musl"),
+        "the Linux bundle must not inherit a runner glibc floor"
     );
     assert!(RELEASE_SCRIPT.contains(".github/release/check-sbom.py"));
     assert!(RELEASE_SCRIPT.contains("shasum -a 256"));
@@ -280,7 +285,10 @@ fn release_bytes_are_compared_before_the_manifest_is_emitted() {
     assert!(RELEASE_SCRIPT.contains("--remap-path-prefix=$target_dir=$REMAP_TARGET_PREFIX"));
     assert!(RELEASE_SCRIPT.contains("build_release \"$BUILD_ONE\""));
     assert!(RELEASE_SCRIPT.contains("build_release \"$BUILD_TWO\""));
-    assert!(RELEASE_SCRIPT.contains("cmp \"$BUILD_ONE/release/vela\" \"$BUILD_TWO/release/vela\""));
+    assert!(
+        RELEASE_SCRIPT
+            .contains("cmp \"$BUILD_ONE/$BINARY_RELATIVE\" \"$BUILD_TWO/$BINARY_RELATIVE\"")
+    );
 
     let archiver = ".github/release/create-deterministic-archive.py";
     assert_eq!(

@@ -23,18 +23,18 @@
       "sha256": "sha256:cd7b4bda84cde728c7e398ac59771451561fb8032938edd57ab791b574fc85ce"
     },
     {
-      "bytes": 8870,
+      "bytes": 9049,
       "normative": false,
       "path": ".github/workflows/release.yml",
       "role": "hosted-release-gate",
-      "sha256": "sha256:ff65e0db2909fe3bc677d8dadd6815e73237ff9da52af95ae96e96f2504e8cbb"
+      "sha256": "sha256:c0beecf7ef313fe446bbc25644e06a4b7ed2ca80e49cd61be019b98006bdb3d6"
     },
     {
       "bytes": 414,
       "normative": false,
       "path": "CITATION.cff",
       "role": "citation-metadata",
-      "sha256": "sha256:596d814153b1fada781a089c9feadb24b2c633d103cfee4902498e5da9c0ab74"
+      "sha256": "sha256:ce16f6cbaf3821d65f1c80d2789a1778cf545e30efa550ef263c8e7da5be522b"
     },
     {
       "bytes": 643,
@@ -387,11 +387,11 @@
       "sha256": "sha256:aa6ed6116ca29e63216b05763ec112cade385fb1a1c3f722fc0f1ee24734abb7"
     },
     {
-      "bytes": 10374,
+      "bytes": 10375,
       "normative": false,
       "path": "conformance/test_release_install.py",
       "role": "release-installation-verifier",
-      "sha256": "sha256:c17899a2f631ed23ec6798ee11a23434c4e85fa4a9b5980dd1e12c059b75d397"
+      "sha256": "sha256:8a3a743ef9e3104897d0b4f18f1f8bf521a35b0dc907a4403d5455cc4b8df588"
     },
     {
       "bytes": 5065,
@@ -443,11 +443,11 @@
       "sha256": "sha256:a72efb58d83fb9eeace8316499833d3863b2e8c833d3063d33420c7167475508"
     },
     {
-      "bytes": 7826,
+      "bytes": 7866,
       "normative": false,
       "path": "conformance/verify_release_reproducibility.py",
       "role": "release-reproducibility-verifier",
-      "sha256": "sha256:87d04b2a8c6abf6b1d0a631fdf9f42bf50772c619686d8a22579e10f9a5223cf"
+      "sha256": "sha256:91fd21fc2ebd7e2b909cac06d4359d5c3ddb446f445b2c26d1acc93a09f6ca84"
     },
     {
       "bytes": 21616,
@@ -464,11 +464,11 @@
       "sha256": "sha256:bce9e4708ff69462fdb2ceb14d7db482544272cc0414fbc1a8108fa0d4d92745"
     },
     {
-      "bytes": 3697,
+      "bytes": 3594,
       "normative": false,
       "path": "docs/RELEASES.md",
       "role": "release-qualification",
-      "sha256": "sha256:423eb59d5ba50319f64a9b052959b13a90f1e3a9e95688684b519f1d97b1425b"
+      "sha256": "sha256:416c2ee347fc597cc39d6fd2ee9207f1f7948a4cc9354a27259314b4eb00cefe"
     },
     {
       "bytes": 10788,
@@ -653,11 +653,11 @@
       "sha256": "sha256:3ecee2e0c1c10a76c0516b21bf2e2b9ac3667a792036fc5f02056be9b3ead019"
     },
     {
-      "bytes": 19231,
+      "bytes": 19509,
       "normative": false,
       "path": "scripts/release.sh",
       "role": "release-entrypoint",
-      "sha256": "sha256:24795d08f498b89081d9dd641884e8556acf3fc7ab8b436ab9f74be31f62b4fa"
+      "sha256": "sha256:5a3bfdffe2ce76eb9e14f92c5b71c820154be1d5c4b5d6f1ba5f05733d101a16"
     },
     {
       "bytes": 7691,
@@ -674,7 +674,7 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:e04c6367c87ee080624cbb33d4aab9ff49e54e708a877158b222859f59a313e7",
+  "manifest_root": "sha256:898e86f9428b5665029ccf2f57891d22f799ad1b9ef19032d35b0d252200940b",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",

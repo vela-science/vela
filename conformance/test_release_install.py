@@ -101,7 +101,7 @@ class ProviderIndependentInstall(unittest.TestCase):
                 "--tag", "v0.0.0",
                 "--toolchain-channel", "stable",
                 "--rustc", "rustc 0.0.0",
-                "--target-triple", "x86_64-unknown-linux-gnu",
+                "--target-triple", "x86_64-unknown-linux-musl",
                 "--build-command", "cargo auditable build --locked --release",
                 "--source-date-epoch", "1786406400",
                 "--binary-build-count", "2",

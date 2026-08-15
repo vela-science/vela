@@ -188,14 +188,17 @@ case "$CHANNEL" in
 esac
 echo "toolchain: $CHANNEL ($RUSTC_VERSION)"
 
-TARGET_TRIPLE="$(rustc -vV | sed -n 's/^host: //p')"
-[ -n "$TARGET_TRIPLE" ] || die "rustc reported no host triple"
+HOST_TRIPLE="$(rustc -vV | sed -n 's/^host: //p')"
+[ -n "$HOST_TRIPLE" ] || die "rustc reported no host triple"
+TARGET_TRIPLE="${VELA_RELEASE_TARGET:-$HOST_TRIPLE}"
 
 case "$TARGET_TRIPLE" in
-  x86_64-unknown-linux-gnu) ASSET="vela-linux-x86_64.tar.gz" ;;
+  x86_64-unknown-linux-musl) ASSET="vela-linux-x86_64.tar.gz" ;;
   aarch64-apple-darwin)     ASSET="vela-macos-aarch64.zip" ;;
   *) die "no release bundle is defined for $TARGET_TRIPLE" ;;
 esac
+rustup target list --installed | grep -Fxq "$TARGET_TRIPLE" \
+  || die "release target $TARGET_TRIPLE is not installed"
 echo "target: $TARGET_TRIPLE -> $ASSET"
 
 # A release timestamp is source state, not wall-clock state. It controls archive
@@ -220,7 +223,7 @@ if [ "$installed_auditable" != "$CARGO_AUDITABLE_VERSION" ]; then
   echo "installing cargo-auditable $CARGO_AUDITABLE_VERSION (found: ${installed_auditable:-none})"
   cargo install cargo-auditable --version "$CARGO_AUDITABLE_VERSION" --locked
 fi
-BUILD_COMMAND="cargo auditable build --locked --release -p vela-cli --bin vela"
+BUILD_COMMAND="cargo auditable build --locked --release -p vela-cli --bin vela --target $TARGET_TRIPLE"
 BUILD_ONE="$ROOT/target/release-build/one"
 BUILD_TWO="$ROOT/target/release-build/two"
 rm -rf "$BUILD_ONE" "$BUILD_TWO"
@@ -234,12 +237,13 @@ build_release() {
   local remap_flags="--remap-path-prefix=$ACCOUNT_HOME_RESOLVED=$REMAP_ACCOUNT_HOME_PREFIX --remap-path-prefix=$CARGO_HOME_RESOLVED=$REMAP_CARGO_HOME_PREFIX --remap-path-prefix=$ROOT=$REMAP_SOURCE_PREFIX --remap-path-prefix=$target_dir=$REMAP_TARGET_PREFIX"
   CARGO_INCREMENTAL=0 CARGO_TARGET_DIR="$target_dir" \
     RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }$remap_flags" \
-    cargo auditable build --locked --release -p vela-cli --bin vela
+    cargo auditable build --locked --release -p vela-cli --bin vela --target "$TARGET_TRIPLE"
 }
 
 build_release "$BUILD_ONE"
 build_release "$BUILD_TWO"
-cmp "$BUILD_ONE/release/vela" "$BUILD_TWO/release/vela" \
+BINARY_RELATIVE="$TARGET_TRIPLE/release/vela"
+cmp "$BUILD_ONE/$BINARY_RELATIVE" "$BUILD_TWO/$BINARY_RELATIVE" \
   || die "two clean release builds produced different vela binaries"
 echo "binary reproducibility: two independent target directories agree"
 
@@ -252,7 +256,7 @@ DIST="$OUT/dist"
 STAGE="$ROOT/target/release-stage"
 rm -rf "$STAGE"
 mkdir -p "$DIST" "$STAGE"
-cp "$BUILD_ONE/release/vela" "$STAGE/"
+cp "$BUILD_ONE/$BINARY_RELATIVE" "$STAGE/"
 test -x "$STAGE/vela"
 
 refuse_private_path_bytes() {

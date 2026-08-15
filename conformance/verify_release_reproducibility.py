@@ -114,15 +114,15 @@ def check_sbom_normalization(root: Path) -> None:
     sbom_fixture(raw[1], stages[1], "2026-08-14T12:00:02Z", "random-two")
     common = [
         "--name",
-        "Vela 0.0.0 x86_64-unknown-linux-gnu release bundle",
+        "Vela 0.0.0 x86_64-unknown-linux-musl release bundle",
         "--namespace",
-        "https://vela.science/spdx/vela/0.0.0/x86_64-unknown-linux-gnu",
+        "https://vela.science/spdx/vela/0.0.0/x86_64-unknown-linux-musl",
         "--created",
         "2026-08-11T00:00:00Z",
         "--root-name",
-        "vela-0.0.0-x86_64-unknown-linux-gnu",
+        "vela-0.0.0-x86_64-unknown-linux-musl",
         "--root-id",
-        "SPDXRef-DocumentRoot-Vela-0-0-0-x86_64-unknown-linux-gnu",
+        "SPDXRef-DocumentRoot-Vela-0-0-0-x86_64-unknown-linux-musl",
     ]
     for source, output in zip(raw, outputs, strict=True):
         run(
@@ -173,9 +173,9 @@ def manifest_arguments(directory: Path, binary: Path) -> list[str]:
         "--rustc",
         "rustc 1.97.1",
         "--target-triple",
-        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl",
         "--build-command",
-        "cargo auditable build --locked --release -p vela-cli --bin vela",
+        "cargo auditable build --locked --release -p vela-cli --bin vela --target x86_64-unknown-linux-musl",
         "--source-date-epoch",
         str(EPOCH),
         "--binary-build-count",

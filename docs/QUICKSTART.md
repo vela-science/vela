@@ -7,13 +7,14 @@ agent performers are recorded distinctly and use the same exact-root gates.
 
 ## Two-minute flagship: read exact scientific state
 
-`v0.976.0` is the current signed release. The installer verifies its exact
-platform manifest with the out-of-band distribution identity before installing
-the binary.
+`v0.976.0` remains the current signed release while the `v0.976.1` static-Linux
+portability patch is qualified. The following command becomes valid only after
+that tag is signed and published; the installer then verifies its exact platform
+manifest with the out-of-band distribution identity.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.976.0/install.sh | \
-  VELA_VERSION=v0.976.0 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.976.1/install.sh | \
+  VELA_VERSION=v0.976.1 bash
 
 git clone https://github.com/vela-science/math.git math
 git -C math checkout 08a0e6d327e1ae9937ab2e0e5002192815eac69a

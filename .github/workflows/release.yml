@@ -57,8 +57,10 @@ jobs:
         include:
           - runner: ubuntu-24.04
             asset: vela-linux-x86_64.tar.gz
+            target: x86_64-unknown-linux-musl
           - runner: macos-15
             asset: vela-macos-aarch64.zip
+            target: aarch64-apple-darwin
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -83,6 +85,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable 2026-07-19
         with:
           toolchain: ${{ steps.toolchain.outputs.channel }}
+          targets: ${{ matrix.target }}
       # Downloads the pinned syft and nothing else. The full `anchore/sbom-action`
       # decided the scan path, the format and the output file, and those are
       # release semantics: they now live in the entry point, which invokes syft
@@ -110,6 +113,7 @@ jobs:
         shell: bash
         env:
           ASSET: ${{ matrix.asset }}
+          VELA_RELEASE_TARGET: ${{ matrix.target }}
         run: |
           arguments=(--manifest-name "$ASSET.release-manifest.json")
           if [ "$GITHUB_EVENT_NAME" = push ]; then

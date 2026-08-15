@@ -10,6 +10,12 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+- **The Linux release is now independent of the builder's glibc floor.** The
+  supported x86-64 bundle is built for the static musl target and smoke-tested
+  on a clean runner. This keeps the same release asset and CLI contract while
+  allowing the Core-owned inspector to run in hosted read products such as
+  Vercel Functions without a second protocol interpreter.
+
 ## 0.976.0
 
 - **Read products have one stable Core-owned state boundary.** `vela
