@@ -152,9 +152,10 @@ Driving the first correction end to end supplied evidence in that lane: the
 projection wants an edge the waist does not carry. Whether that falsifies ADR
 0004's position or confirms it — a repository that needs no cascade is a
 repository the waist serves — is not settled here, and v1 does not pre-empt it.
-ADR 0043's `claim-dependency-profile.v0` is a noncanonical, `requires`-only
-experiment over frozen fixtures. It is not one of this profile's seven
-contracts, a Claim relation, or evidence of a real accepted-state cascade.
+ADR 0043's noncanonical `requires` experiment produced no accepted-state
+cascade or protocol contract. Its frozen fixture and duplicate interpreters
+remain in Git history rather than the current conformance package. The current
+writer still authors no dependency relation.
 
 ### 6. Projection
 

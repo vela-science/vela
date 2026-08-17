@@ -30,7 +30,7 @@ reviews is another attributed review, not anonymous consensus.
 Repository authority, current roots, policy, signature, and replay govern a
 Decision. Producer or verifier status does not grant that capability. A
 Decision records the performer's own identity and session reference. Governance
-actions remain human-only under [ADR 0046](adr/0046-attributed-actor-decisions.md).
+actions remain human-only under [ADR 0046](../adr/0046-attributed-actor-decisions.md).
 
 The following statements in the source memo are superseded:
 

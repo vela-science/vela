@@ -102,8 +102,6 @@ use sha2::{Digest, Sha256};
 use vela_protocol::claim_record::{CORRECTION_RELATION_KINDS, ClaimRecordV1};
 use vela_protocol::repository::ClaimStandingRefV1;
 
-#[cfg(test)]
-mod claim_dependency_profile_v0_tests;
 mod reducer;
 #[cfg(test)]
 mod reducer_tests;

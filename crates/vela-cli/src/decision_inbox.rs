@@ -934,7 +934,6 @@ mod tests {
                     source_run: Some("run_fixture".into()),
                     emitted_at: "2026-07-30T00:00:00Z".into(),
                 },
-                execution_binding: None,
             },
             identity,
             &key,

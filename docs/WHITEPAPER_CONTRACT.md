@@ -93,7 +93,7 @@ level it supports.
 The retained evidence is sufficient for a bounded engineering report, not the
 registered protocol-breakthrough paper:
 
-- attributed human Decisions, exact replay, and root-bound remapping pass on
+- attributed Decisions, exact replay, and root-bound remapping pass on
   real Erdős and Quantum results;
 - one first-party cross-Repository package passes exact retention, two
   first-party scoped receiver Verifications, clean-clone replay, and zero

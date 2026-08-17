@@ -22,7 +22,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::dsse::EnvelopeV1;
-use crate::execution_binding::ExecutionBindingV1;
 use crate::signer_identity::{ActorClass, SignerIdentityV1};
 
 pub const SUBMISSION_V2_SCHEMA: &str = "vela.submission.v2";
@@ -221,9 +220,6 @@ pub struct SubmissionV2 {
     pub verification_requirements: Vec<String>,
     pub requested_change: RequestedChange,
     pub provenance: SubmissionProvenance,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(with = "ExecutionBindingV1")]
-    pub execution_binding: Option<ExecutionBindingV1>,
 }
 
 /// One retained Submission: the envelope as stored, and what it decodes to.
@@ -273,7 +269,6 @@ impl SubmissionRecordV2 {
             verification_requirements: draft.verification_requirements,
             requested_change: draft.requested_change,
             provenance: draft.provenance,
-            execution_binding: draft.execution_binding,
         };
         submission.validate_semantics()?;
         let payload = crate::canonical::to_canonical_bytes(&submission)?;
@@ -331,7 +326,6 @@ pub struct SubmissionDraft {
     pub verification_requirements: Vec<String>,
     pub requested_change: RequestedChange,
     pub provenance: SubmissionProvenance,
-    pub execution_binding: Option<ExecutionBindingV1>,
 }
 
 impl SubmissionV2 {
@@ -381,9 +375,6 @@ impl SubmissionV2 {
         }
         chrono::DateTime::parse_from_rfc3339(&self.provenance.emitted_at)
             .map_err(|_| "Submission provenance.emitted_at must be RFC 3339".to_string())?;
-        if let Some(binding) = &self.execution_binding {
-            binding.validate()?;
-        }
         Ok(())
     }
 }
@@ -498,7 +489,6 @@ mod tests {
                 source_run: Some("run_fixture".into()),
                 emitted_at: "2026-07-26T00:00:00Z".into(),
             },
-            execution_binding: None,
         };
         (draft, identity, key)
     }

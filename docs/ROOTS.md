@@ -64,9 +64,9 @@ inputs. These profiles are not interchangeable.
 | Release checksum | Exact binary/archive bytes | Source commit or build attestation |
 
 Source-local next-obligation and work-packet roots belong to their owning
-schema, not this Vela root catalogue. A Submission execution binding can retain
-packet, profile, verifier-capsule, and result-contract roots as exact producer
-provenance; none grants authority or Standing.
+schema, not this Vela root catalogue. A producer may retain selected packet,
+manifest, method, or output bytes as Submission Artifacts and one opaque native
+run reference as provenance; none grants authority or Standing.
 
 ## Current object identities
 

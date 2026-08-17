@@ -52,7 +52,8 @@ repository. Delete sections that do not apply; do not invent facts to fill them.
 - Submission assertion and conditions:
 - Requested transition:
 - Caveats and replayability:
-- Optional exact execution binding:
+- Optional source-owned run or session reference:
+- Exact native manifests, methods, and outputs retained as Artifacts:
 - Producer checks, explicitly labeled `producer_reported`:
 
 ## Reviewer or verifier scope

@@ -12,7 +12,7 @@ authority.
 | Encoding and identity | JCS, SHA-256, Ed25519, DSSE 1.0.2 | One DSSE implementation, pinned implementations, and conformance vectors | None |
 | Portable structure | JSON Schema 2020-12 | Checked descriptions of current producer/verifier objects | None |
 | Scientific state | Vela protocol | Claim lineage, scoped Verification, Decision, correction, Standing | Only an authorized Repository Decision changes Standing |
-| Admission policy | Each Repository | Closed local authority profile and exact human checkpoint | Repository-local |
+| Admission policy | Each Repository | Closed local authority profile and exact attributed Decision | Repository-local |
 | Orientation | Problems and other read projections | Root-bound, reconstructable, SELECT-only views | None |
 
 ## Current, experimental, and absent surfaces

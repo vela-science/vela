@@ -54,7 +54,7 @@ authority_effect: "None. This memo proposes architecture and migration decisions
 > open: no external workbench producer, separately governed authority,
 > cross-Repository transfer, consequential correction cascade, or measured cold
 > successor exists yet. See
-> `../ECOSYSTEM_COMPLETION_2026-08-09.md` for the evidence ledger and the exact
+> `ECOSYSTEM_COMPLETION_2026-08-09.md` for the evidence ledger and the exact
 > promotion gates. Read the ADRs under `../adr/` for what is decided.
 >
 > One formatting change was made and no other. The prior Vela memos §A lists

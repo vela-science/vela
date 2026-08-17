@@ -91,7 +91,6 @@ pub(crate) fn author_submission(
     producer_checks: Vec<String>,
     verification_requirements: Vec<String>,
     requested_change: RequestedChange,
-    execution_binding: Option<vela_protocol::execution_binding::ExecutionBindingV1>,
     source_run: Option<String>,
 ) -> Result<SubmissionRecordV2, String> {
     use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
@@ -169,7 +168,6 @@ pub(crate) fn author_submission(
                 source_run,
                 emitted_at,
             },
-            execution_binding,
         },
         identity,
         &key,

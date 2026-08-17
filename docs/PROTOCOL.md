@@ -248,7 +248,6 @@ verification_requirements[]
 requested_change           kind, optional target { claim_id, claim_root }
 provenance                 producer, source_system, optional source_run,
                            emitted_at
-execution_binding          optional `vela.execution-binding.v1`
 ```
 
 The signature is the envelope's, over exactly these payload bytes, and it must
@@ -266,9 +265,7 @@ So it binds:
 - content-addressed Artifacts;
 - replayability, producer-reported checks, and method facts;
 - declared verification requirements;
-- source workbench metadata; and
-- an optional rooted `execution_binding` naming the packet, profile, verifier
-  capsule, and result contract the work ran against.
+- source workbench metadata.
 
 A Submission binds no Repository and no Target. It has carried neither since the
 object was introduced, and both are absent from current Submission bytes. This
@@ -277,9 +274,12 @@ by anyone holding them, and the
 association is made by the receiving repository at `vela submit`
 time, not asserted by the producer. An adapter must not add `frontier` or
 `target` keys; the schema is closed and rejects them.
-`execution_binding.packet_root` may name a source-local work packet, but it is
-a producer declaration checked only for root shape, not a repository-verified
-link to a Vela catalogue.
+
+Vela defines no packet, execution-binding, or result-contract object. A
+producer that needs selected source-local manifests or method bytes to travel
+retains them as exact Artifacts and may keep the source system's opaque run
+identity in `provenance.source_run`. The source system remains responsible for
+interpreting its own session, checkpoint, packet, or workflow state.
 
 A workbench can produce Submission bytes without importing Vela internals.
 Submission identity is over the exact closed canonical bytes.
@@ -565,10 +565,10 @@ source-owning Repository or read product may derive exact next obligations,
 ranked work, or rooted packets from a verified repository root under its own
 schema and freshness rules. Those projections are not Vela replay state.
 
-A Submission may retain producer-declared execution-binding roots for a packet,
-profile, verifier capsule, and result contract. Vela validates their shape and
-binds them into the Submission; it does not infer work authority or Standing
-from them. Ranking and graph position never imply authority.
+A Submission may retain selected source-local packet or method bytes as exact
+Artifacts and an opaque source-owned run reference as provenance. Vela does
+not interpret that activity state or infer work authority or Standing from it.
+Ranking and graph position never imply authority.
 
 ## 7. Replay and Standing
 

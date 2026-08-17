@@ -173,11 +173,10 @@ external work catalogue.
 
 Vela does not select, launch, wrap, meter, or schedule a runner. The producer
 uses its native agent, workbench, notebook, proof assistant, or laboratory
-system. Harbor owns benchmark execution. Those systems may retain their own
-run or attempt identities as ordinary provenance, but Vela does not create or
-authorize them. When all four execution-binding roots are available, `submit`
-can retain the source-local packet, profile, verifier-capsule, and result-contract
-roots as producer-declared provenance; those roots grant no authority.
+system. Those systems retain their own sessions, checkpoints, packets, and run
+identities; Vela does not create or authorize them. `submit` can retain an
+opaque source-owned run reference and selected exact manifests, methods, or
+outputs as Artifacts. Those references grant no authority.
 
 When a producer supersedes or abandons its own still-pending Proposal, it can
 remove that item from the Decision Inbox without invoking repository authority:
@@ -387,10 +386,9 @@ per obligation which of the two it used.
 `depends` and `supports` claim-to-claim edges exist in retained epoch-1 records
 but no current verb writes one, so a repository built with today's CLI has no
 edge for this projection to traverse and correctly reports an empty cascade.
-ADR 0043 now tests one exact, source-owned `requires` profile outside the
-protocol before considering any signed Submission change. That experiment does
-not make the CLI author an edge or turn this projection into a demonstrated
-current-Repository cascade.
+ADR 0043 records one exact, source-owned `requires` experiment outside the
+protocol. It produced no accepted-state cascade or current contract and now
+remains in Git history. The CLI still authors no dependency edge.
 
 ## Repository setup
 

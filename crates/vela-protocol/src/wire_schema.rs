@@ -33,7 +33,6 @@ use crate::authorization::{
     AUTHORIZATION_EVALUATION_SCHEMA_V1, AUTHORIZATION_PROFILE_V1, AUTHORIZATION_REQUEST_SCHEMA_V1,
 };
 use crate::error::{ERROR_CODES, ERROR_KINDS, ERROR_V1_SCHEMA};
-use crate::execution_binding::EXECUTION_BINDING_SCHEMA;
 use crate::proposal_withdrawal::PROPOSAL_WITHDRAWAL_V2_SCHEMA;
 use crate::repository::REPOSITORY_PROFILE_SCHEMA_V1;
 use crate::repository_origin::REPOSITORY_ORIGIN_V1_SCHEMA;
@@ -484,11 +483,6 @@ pub fn reviewer_kind(_: &mut SchemaGenerator) -> Schema {
 /// `vela.proposal-withdrawal.v2`.
 pub fn proposal_withdrawal_schema_tag(_: &mut SchemaGenerator) -> Schema {
     tag(PROPOSAL_WITHDRAWAL_V2_SCHEMA)
-}
-
-/// `vela.execution-binding.v1`.
-pub fn execution_binding_schema_tag(_: &mut SchemaGenerator) -> Schema {
-    tag(EXECUTION_BINDING_SCHEMA)
 }
 
 /// `vela.signer-identity.v1`.

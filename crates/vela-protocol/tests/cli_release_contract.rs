@@ -268,7 +268,7 @@ fn the_documentation_index_lists_every_current_document() {
     );
 }
 
-/// §8's readers row names every independent implementation there is.
+/// The ecosystem boundary's readers row names every independent implementation.
 ///
 /// The row named `conformance/emitters/javascript.mjs` alone for as long as
 /// there had been two emitters, and three other documents copied it. The count
@@ -283,7 +283,7 @@ fn the_layering_diagram_names_every_independent_implementation() {
         std::fs::read_to_string(root.join("docs/ECOSYSTEM.md")).expect("read docs/ECOSYSTEM.md");
     let row = ecosystem
         .split_once("\n  readers ")
-        .expect("docs/ECOSYSTEM.md §8 no longer has a readers row")
+        .expect("docs/ECOSYSTEM.md no longer has a readers row")
         .1
         .split_once("↑")
         .expect("the readers row no longer closes with its gloss")
@@ -308,7 +308,7 @@ fn the_layering_diagram_names_every_independent_implementation() {
     let unnamed: Vec<&String> = present.iter().filter(|path| !row.contains(*path)).collect();
     assert!(
         unnamed.is_empty(),
-        "docs/ECOSYSTEM.md §8 does not name {unnamed:?}"
+        "docs/ECOSYSTEM.md does not name {unnamed:?}"
     );
 }
 

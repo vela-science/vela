@@ -387,7 +387,6 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
                 source_run: Some("current-submission-regression".into()),
                 emitted_at,
             },
-            execution_binding: None,
         },
         identity,
         &producer_key,
@@ -1021,7 +1020,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     );
 
     // Routine evidence does not depend on caller-local authority custody, but
-    // a later human Decision still requires the independent sequence-one pin.
+    // a later attributed Decision still requires the independent sequence-one pin.
     let unpinned_decision = run(
         &repository_path,
         Some(agent.socket()),
@@ -1062,7 +1061,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     ));
     assert_eq!(repinned["operation"], "installed");
 
-    // A later human Decision must checkpoint the exact self-authenticated
+    // A later attributed Decision must checkpoint the exact self-authenticated
     // evidence overlay instead of requiring each routine write to have carried
     // an Authority Record of its own.
     let rejected = success_json(&run(

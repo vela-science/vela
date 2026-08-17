@@ -259,10 +259,6 @@ pub fn run_command() {
             corrects,
             supersedes,
             target_root,
-            packet_root,
-            profile_root,
-            verifier_capsule_root,
-            result_contract_root,
             source_run,
             r#as,
             json,
@@ -289,10 +285,6 @@ pub fn run_command() {
                     "corrects": corrects,
                     "supersedes": supersedes,
                     "target_root": target_root,
-                    "packet_root": packet_root,
-                    "profile_root": profile_root,
-                    "verifier_capsule_root": verifier_capsule_root,
-                    "result_contract_root": result_contract_root,
                 }))
                 .unwrap_or_default();
             let preflight_id =
@@ -365,40 +357,6 @@ pub fn run_command() {
                         "flag authoring needs --replayability (exact, bounded, approximate, unavailable, or unknown)".to_string(),
                     )
                 });
-                let execution_binding = match (
-                    packet_root,
-                    profile_root,
-                    verifier_capsule_root,
-                    result_contract_root,
-                ) {
-                    (
-                        Some(packet_root),
-                        Some(profile_root),
-                        Some(verifier_capsule_root),
-                        Some(result_contract_root),
-                    ) => {
-                        let binding = vela_protocol::execution_binding::ExecutionBindingV1 {
-                            schema: vela_protocol::execution_binding::EXECUTION_BINDING_SCHEMA
-                                .to_string(),
-                            packet_root,
-                            profile_root,
-                            verifier_capsule_root,
-                            result_contract_root,
-                        };
-                        binding.validate().unwrap_or_else(|error| {
-                            fail_preflight(
-                                crate::ui::ErrorKind::Usage,
-                                format!("invalid exact execution binding: {error}"),
-                            )
-                        });
-                        Some(binding)
-                    }
-                    (None, None, None, None) => None,
-                    _ => fail_preflight(
-                        crate::ui::ErrorKind::Usage,
-                        "exact execution binding requires all four full roots".to_string(),
-                    ),
-                };
                 let requested_change = crate::repository_ops::submission_requested_change(
                     corrects,
                     supersedes,
@@ -417,7 +375,6 @@ pub fn run_command() {
                     producer_check,
                     verification_requirement,
                     requested_change,
-                    execution_binding,
                     source_run,
                 )
                 .unwrap_or_else(|error| {

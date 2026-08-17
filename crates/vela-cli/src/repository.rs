@@ -2614,7 +2614,6 @@ mod tests {
                     source_run: None,
                     emitted_at: emitted_at.into(),
                 },
-                execution_binding: None,
             },
             identity,
             &key,

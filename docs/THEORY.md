@@ -223,7 +223,7 @@ repository recovery.
 The current finite corpus checks:
 
 - canonical JSON and content roots;
-- optional source-workbench run or attempt provenance;
+- optional source-workbench run provenance;
 - principals and delegated capabilities;
 - independent JavaScript emission of Submission and Verification bytes; and
 - bounded-Claim and authority-chain agreement.

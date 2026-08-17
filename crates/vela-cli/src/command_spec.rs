@@ -4,7 +4,7 @@
 //! ## Flag-naming conventions (one name per concept, no aliases)
 //! - **Acting identity** → `--as` for producer, verifier, or Decision performer.
 //!   It may default from `$VELA_ACTOR_ID`; omission on a Decision preserves the
-//!   local operator identity for compatibility.
+//!   established local-operator attribution used by existing Decisions.
 //! - **Repository** → `--repo <path>`, accepted by every verb that acts on an
 //!   existing repository. Except for the two explicit-reservation cases below,
 //!   those verbs also take it as the leading positional. `submit` does not
@@ -275,18 +275,6 @@ pub(crate) enum Commands {
         /// --supersedes.
         #[arg(long, conflicts_with = "submission", requires = "submission_change")]
         target_root: Option<String>,
-        /// Full root of the exact bounded-work packet used by this producer.
-        #[arg(long, conflicts_with = "submission", requires_all = ["profile_root", "verifier_capsule_root", "result_contract_root"])]
-        packet_root: Option<String>,
-        /// Full root of the exact producer profile used for this result.
-        #[arg(long, conflicts_with = "submission", requires_all = ["packet_root", "verifier_capsule_root", "result_contract_root"])]
-        profile_root: Option<String>,
-        /// Full root of the exact frozen verifier capsule.
-        #[arg(long, conflicts_with = "submission", requires_all = ["packet_root", "profile_root", "result_contract_root"])]
-        verifier_capsule_root: Option<String>,
-        /// Full root of the exact positive result contract checked by the capsule.
-        #[arg(long, conflicts_with = "submission", requires_all = ["packet_root", "profile_root", "verifier_capsule_root"])]
-        result_contract_root: Option<String>,
         // The duplicate-execution guard compares two Submissions by the run
         // that produced them and gives up when it is absent. A flag rather
         // than something inferred here: the producer is the only party that

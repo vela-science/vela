@@ -294,7 +294,7 @@ from one retained source-adapter artifact, verified identical manifest and
 table roots, enforced a SELECT-only reader, and exported the root-bound
 Erdős 321 read projection. Exact inputs, roots, limitations, and the historical
 mirror run are retained in
-`docs/PROVIDER_LOSS_QUALIFICATION_2026-08-09.md`. That result does not close the
+`docs/history/PROVIDER_LOSS_QUALIFICATION_2026-08-09.md`. That result does not close the
 present step-1 gap after the Math replica was removed from the declared
 topology.
 

@@ -58,11 +58,11 @@
       "sha256": "sha256:96081301408feb3f11461bf425dd5339b954a7a27882fa8de4baa09d176259b8"
     },
     {
-      "bytes": 717,
+      "bytes": 956,
       "normative": false,
       "path": "conformance/check-core.sh",
       "role": "core-certification-entrypoint",
-      "sha256": "sha256:67f6725a5671f8e7163bc64a9c1350f3e4d05608de69b2b42d44501009632eb5"
+      "sha256": "sha256:8ce0e59abd0be0819511bd3a7adc2dc0f2a9f62acdfa81d22f98d03b9eeab9c9"
     },
     {
       "bytes": 1140,
@@ -352,13 +352,6 @@
       "sha256": "sha256:f03d3d37aa299752f520a96689084a71eca5db56bc10562bf6272e1ab2c10d68"
     },
     {
-      "bytes": 11314,
-      "normative": true,
-      "path": "conformance/readers/javascript/claim_dependency_profile.mjs",
-      "role": "independent-reader",
-      "sha256": "sha256:b7d3ed64afc1645da01609e500cdffb43cf66fa44222489b19c9113723dfa034"
-    },
-    {
       "bytes": 3603,
       "normative": true,
       "path": "conformance/readers/javascript/object.mjs",
@@ -394,11 +387,11 @@
       "sha256": "sha256:8a3a743ef9e3104897d0b4f18f1f8bf521a35b0dc907a4403d5455cc4b8df588"
     },
     {
-      "bytes": 5065,
+      "bytes": 5019,
       "normative": true,
       "path": "conformance/verify.py",
       "role": "conformance-entrypoint",
-      "sha256": "sha256:96b2c7f46fb6324c539bb5f04edf48e053fad846328b6249a4e0488bffa30c5a"
+      "sha256": "sha256:627181168c9108d3988d73684a5ea1699162ea930a8bbc54eca38c16aa4074bc"
     },
     {
       "bytes": 32717,
@@ -457,11 +450,11 @@
       "sha256": "sha256:e7071be05b1556c4ddabfbbda0789f6b875c0112acfee32c663e982131341cb0"
     },
     {
-      "bytes": 31676,
+      "bytes": 31655,
       "normative": true,
       "path": "docs/PROTOCOL.md",
       "role": "specification",
-      "sha256": "sha256:bce9e4708ff69462fdb2ceb14d7db482544272cc0414fbc1a8108fa0d4d92745"
+      "sha256": "sha256:96ed5c64b515e0b158b91ac8c47fa0031037371193582371bf1fe3d62c72e8b3"
     },
     {
       "bytes": 3611,
@@ -471,11 +464,11 @@
       "sha256": "sha256:1bb42597923c169bc3a2c4c37faf410f5ef92b6c5dd4911993163765c23461a6"
     },
     {
-      "bytes": 10788,
+      "bytes": 10839,
       "normative": true,
       "path": "docs/interop/scientific-state-profile.md",
       "role": "conformance-profile",
-      "sha256": "sha256:b0b857e3379032ad4074728075ec12b24db45cd61548379758c082666b06f1ff"
+      "sha256": "sha256:9521e09fdb1c55fc2ac0e86391619869d7db2866bab951b16374a4928f7f7827"
     },
     {
       "bytes": 977,
@@ -639,11 +632,11 @@
       "sha256": "sha256:27a6b29e2e8fbe6118093a2befad50b6ffa990528037e2154b8dae16b5bacb28"
     },
     {
-      "bytes": 7618,
+      "bytes": 6774,
       "normative": true,
       "path": "schemas/submission.schema.json",
       "role": "json-schema-2020-12",
-      "sha256": "sha256:d58dda0ddca3ee01c99b0584c604779d1b10250a5472003e7ea2a7aade872134"
+      "sha256": "sha256:18a5933b7a5c08b64fc76d01307d4fc1ed115a4ad08e55b9f8431e4f2ea124aa"
     },
     {
       "bytes": 4838,
@@ -674,7 +667,7 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:9e9b9e8b3decb4df0f051848fb5f57ed74e122bfba834cb628d769142064adda",
+  "manifest_root": "sha256:64d9ab5ec91d71c56e93a560d100c5f1c512be5b68cb2a84a24f6c25e0b38ae8",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",

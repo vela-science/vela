@@ -21,8 +21,7 @@ canonical root is its only root. The payload carries exact:
 - Artifact identities;
 - replayability, producer-reported checks, and method facts;
 - verification requirements;
-- source workbench/version metadata; and
-- an optional rooted execution binding.
+- source workbench/version metadata.
 
 It carries no Repository and no Target field. The receiving repository makes
 that association at submit time; a Submission is portable bytes, and the
@@ -31,6 +30,11 @@ rejected outright. PROTOCOL.md section 3.3 lists the complete field set.
 
 A workbench can emit a Submission without importing Vela's Event, authority,
 or repository implementation.
+
+Source-owned sessions, checkpoints, packets, and workflow state remain native.
+Selected exact manifests, methods, and outputs may cross the boundary as
+Artifacts, while `provenance.source_run` may retain one opaque native run
+identity. Vela defines no parallel execution object.
 
 ### Verification Record
 

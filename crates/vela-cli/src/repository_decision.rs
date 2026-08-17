@@ -349,7 +349,6 @@ pub(crate) fn same_exact_producer_execution(
         && left.submission.claim.conditions == right.submission.claim.conditions
         && left_artifacts == right_artifacts
         && left.submission.verification_requirements == right.submission.verification_requirements
-        && left.submission.execution_binding == right.submission.execution_binding
 }
 
 /// Find unresolved sibling Proposals that bind the same exact producer
@@ -1112,7 +1111,6 @@ mod tests {
                 source_run: Some("run_fixture".into()),
                 emitted_at: "2026-07-27T00:00:00Z".into(),
             },
-            execution_binding: None,
         };
         edit(&mut draft);
         SubmissionRecordV2::seal(draft, identity, &key).unwrap()

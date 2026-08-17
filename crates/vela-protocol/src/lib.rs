@@ -9,11 +9,8 @@ mod shape;
 /// The lowercase-hexadecimal rules every crate above this one restates.
 ///
 /// `shape` itself stays private: its timestamp and bounded-text helpers carry
-/// this crate's error prose and are not a contract. These three are, and they
-/// were reachable from outside only through a one-line `pub fn` in
-/// `execution_binding` that existed for no other purpose — so the rule
-/// `shape.rs` was written to write down once was written down eleven more
-/// times, in two different spellings, above the protocol kernel.
+/// this crate's error prose and are not a contract. These predicates are shared
+/// because every exact-root and identifier reader must apply the same shape.
 pub use shape::{
     HANDLE_HEX_LEN, REPOSITORY_ID_CONTRACT, derive_handle, is_full_sha256_root, is_lower_hex,
     is_lower_hex_64, is_prefixed_lower_hex, is_repository_id,
@@ -26,8 +23,8 @@ pub use kernel::{
 };
 mod objects;
 pub use objects::{
-    claim_record, execution_binding, proposal, proposal_withdrawal, repository, repository_origin,
-    review_method, signer_identity, submission, verification_record,
+    claim_record, proposal, proposal_withdrawal, repository, repository_origin, review_method,
+    signer_identity, submission, verification_record,
 };
 mod read_surface;
 pub use read_surface::{error, repository_projection, status};
