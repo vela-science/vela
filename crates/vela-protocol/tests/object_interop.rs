@@ -7,13 +7,13 @@
 
 use std::path::PathBuf;
 
-use vela_protocol::submission::{RequestedChange, SubmissionRecordV2};
+use vela_protocol::submission::{RequestedChange, SubmissionRecordV3};
 use vela_protocol::verification_record::VerificationRecordEnvelopeV2;
 
 const SUBMISSION_ROOT: &str =
-    "sha256:8779dcb8999d6030c234a14fe3af0e3745b84e513c9791913c128d0750c86830";
+    "sha256:f1669cdfa498ff85c162bce6173f04b39cdf7620fb198a19b45f6d932302204a";
 const VERIFICATION_ROOT: &str =
-    "sha256:e03b1f71c12d79489025dd846aa92a60673a8f7fcf6703935c838d1681b14ba8";
+    "sha256:41cebab0fc7408b59d1ab95b6037da76cdba555632e665b68688668f1da80d8d";
 
 fn fixture(name: &str) -> Vec<u8> {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -24,7 +24,7 @@ fn fixture(name: &str) -> Vec<u8> {
 
 #[test]
 fn independent_javascript_submission_matches_rust_contract() {
-    let record = SubmissionRecordV2::parse(&fixture("submission.json"))
+    let record = SubmissionRecordV3::parse(&fixture("submission.json"))
         .expect("JavaScript Submission must satisfy the Rust parser");
     assert_eq!(record.root, SUBMISSION_ROOT);
     assert_eq!(
@@ -83,7 +83,7 @@ fn signed_current_objects_fail_closed_after_subject_drift() {
 
         let bytes = serde_json::to_vec(&envelope).unwrap();
         let parsed = if name == "submission.json" {
-            SubmissionRecordV2::parse(&bytes).err()
+            SubmissionRecordV3::parse(&bytes).err()
         } else {
             VerificationRecordEnvelopeV2::parse(&bytes).err()
         };

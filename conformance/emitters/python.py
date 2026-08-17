@@ -44,8 +44,8 @@ MAX_DRAFT_BYTES = 8 * 1024 * 1024
 # schema tag, DSSE payload type, and handle prefix, per object kind.
 KINDS = {
     "submission": (
-        "vela.submission.v2",
-        "application/vnd.vela.submission.v2+json",
+        "vela.submission.v3",
+        "application/vnd.vela.submission.v3+json",
         "vsb",
     ),
     "verification": (

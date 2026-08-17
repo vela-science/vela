@@ -11,7 +11,7 @@ use vela_protocol::canonical::sha256_root;
 use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
 use vela_protocol::submission::{
     RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
-    SubmissionRecordV2,
+    SubmissionRecordV3,
 };
 use vela_protocol::verification_record::{
     IndependenceDisclosure, VerificationMethod, VerificationRecordDraft,
@@ -361,7 +361,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let identity =
         SignerIdentityV1::new(actor, ActorClass::Agent, &producer_key, emitted_at.clone())
             .expect("identity binding");
-    let submission = SubmissionRecordV2::seal(
+    let submission = SubmissionRecordV3::seal(
         SubmissionDraft {
             claim: SubmissionClaim {
                 assertion: "The disposable fixture artifact contains bounded JSON evidence.".into(),

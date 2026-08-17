@@ -10,6 +10,21 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+## 0.977.0
+
+- **The final pre-1.0 Submission cut has one closed current shape.**
+  `vela.submission.v3` keeps the DSSE, exact-root, producer, Artifact,
+  provenance, and requested-change semantics while deleting the unconsumed
+  execution-binding field. The CLI, Rust reader, generated schema, independent
+  emitters and readers, and Protocol 1 selection recognize v3 only; retired v2
+  bytes remain readable with their tagged development release.
+
+- **Core sheds another unproved coordination layer.** The noncanonical Claim
+  dependency-profile experiment and its three interpreters are gone, dated
+  ecosystem qualification records are historical, and the current architecture
+  keeps work packets, sessions, orientation, queries, and similarity outside
+  repository-local scientific authority.
+
 ## 0.976.1
 
 - **The Linux release is now independent of the builder's glibc floor.** The

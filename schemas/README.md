@@ -12,7 +12,7 @@ and repository-authority records alike. In accordance with DSSE, the envelope
 and its signature entries permit unknown fields; each closed payload beneath
 them is a document of its own:
 
-- `vela.submission.v2`;
+- `vela.submission.v3`;
 - `vela.verification-record.v2`; and
 - `vela.proposal-withdrawal.v2`.
 

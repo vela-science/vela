@@ -15,7 +15,7 @@ use vela_protocol::claim_record::ClaimRecordV1;
 use vela_protocol::proposal::ProposalV1;
 use vela_protocol::repository::{RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::repository_origin::RepositoryOriginV1;
-use vela_protocol::submission::SubmissionRecordV2;
+use vela_protocol::submission::SubmissionRecordV3;
 use vela_protocol::verification_record::VerificationRecordEnvelopeV2;
 
 use crate::repository_decision::{
@@ -204,14 +204,14 @@ struct EntryInputs<'a> {
     proposal_reference: &'a RepositoryObjectRefV1,
     proposal: &'a ProposalV1,
     claim: &'a ClaimRecordV1,
-    submission: &'a SubmissionRecordV2,
+    submission: &'a SubmissionRecordV3,
     verifications: &'a [(String, VerificationRecordEnvelopeV2)],
     pending_conflicts: &'a [String],
     authority_heads: &'a DecisionInboxAuthorityHeads,
 }
 
 fn acceptance_blockers(
-    submission: &SubmissionRecordV2,
+    submission: &SubmissionRecordV3,
     records: &[(String, VerificationRecordEnvelopeV2)],
     pending_conflicts: &[String],
 ) -> Vec<DecisionInboxBlocker> {
@@ -257,7 +257,7 @@ fn acceptance_blockers(
 }
 
 fn classify_verification(
-    submission: &SubmissionRecordV2,
+    submission: &SubmissionRecordV3,
     root: &str,
     record: &VerificationRecordEnvelopeV2,
 ) -> DecisionInboxVerification {
@@ -370,7 +370,7 @@ fn semantic_transition(
     }
 }
 
-fn decision_limits(proposal: &ProposalV1, submission: &SubmissionRecordV2) -> Vec<String> {
+fn decision_limits(proposal: &ProposalV1, submission: &SubmissionRecordV3) -> Vec<String> {
     proposal
         .caveats
         .iter()
@@ -899,7 +899,7 @@ mod tests {
         .unwrap()
     }
 
-    fn submission(requirement: &str) -> SubmissionRecordV2 {
+    fn submission(requirement: &str) -> SubmissionRecordV3 {
         let key = SigningKey::from_bytes(&[71_u8; 32]);
         let identity = SignerIdentityV1::new(
             "agent:fixture-producer",
@@ -908,7 +908,7 @@ mod tests {
             "2026-07-30T00:00:00Z",
         )
         .unwrap();
-        SubmissionRecordV2::seal(
+        SubmissionRecordV3::seal(
             SubmissionDraft {
                 claim: SubmissionClaim {
                     assertion: "A bounded fixture result.".into(),
@@ -944,7 +944,7 @@ mod tests {
     fn proposal(
         action: &str,
         claim: &ClaimRecordV1,
-        submission: &SubmissionRecordV2,
+        submission: &SubmissionRecordV3,
     ) -> ProposalV1 {
         ProposalV1::build(
             action.into(),
@@ -972,7 +972,7 @@ mod tests {
 
     fn verification(
         proposal: &ProposalV1,
-        submission: &SubmissionRecordV2,
+        submission: &SubmissionRecordV3,
         property: &str,
         outcome: &str,
     ) -> VerificationRecordEnvelopeV2 {
@@ -1054,7 +1054,7 @@ mod tests {
         accepted: Vec<ClaimStandingRefV1>,
         pending: Vec<ClaimStandingRefV1>,
         proposal: &ProposalV1,
-        submission: &SubmissionRecordV2,
+        submission: &SubmissionRecordV3,
         verification: &VerificationRecordEnvelopeV2,
     ) -> RepositoryV4 {
         let proposal_root = proposal.canonical_root().unwrap();
@@ -1076,7 +1076,7 @@ mod tests {
             )],
             proposal_withdrawals: Vec::new(),
             submissions: vec![RepositoryObjectRefV1 {
-                schema: vela_protocol::submission::SUBMISSION_V2_SCHEMA.into(),
+                schema: vela_protocol::submission::SUBMISSION_V3_SCHEMA.into(),
                 id: submission.id.clone(),
                 root: submission_root.clone(),
                 path: format!(
@@ -1109,7 +1109,7 @@ mod tests {
         repository: &RepositoryV4,
         proposal: &ProposalV1,
         claim: &ClaimRecordV1,
-        submission: &SubmissionRecordV2,
+        submission: &SubmissionRecordV3,
         verification: &VerificationRecordEnvelopeV2,
         authority_heads: &DecisionInboxAuthorityHeads,
     ) -> DecisionInboxEntry {
@@ -1131,7 +1131,7 @@ mod tests {
     struct ReadyAddFixture {
         requirement: &'static str,
         subject: ClaimRecordV1,
-        submission: SubmissionRecordV2,
+        submission: SubmissionRecordV3,
         proposal: ProposalV1,
         verification: VerificationRecordEnvelopeV2,
         repository: RepositoryV4,

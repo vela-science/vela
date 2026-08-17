@@ -27,8 +27,8 @@ const SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
 
 const KINDS = {
   submission: {
-    schema: "vela.submission.v2",
-    payloadType: "application/vnd.vela.submission.v2+json",
+    schema: "vela.submission.v3",
+    payloadType: "application/vnd.vela.submission.v3+json",
     prefix: "vsb",
   },
   verification: {

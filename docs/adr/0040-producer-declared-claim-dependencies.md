@@ -2,7 +2,7 @@
 
 - Status: Superseded by ADR 0043, 2026-08-10
 - Supersession: this record is preserved as the wire-first question asked before
-  the current `vela.submission.v2` migration closed. ADR 0043 takes none of the
+  the then-current `vela.submission.v2` migration closed. ADR 0043 took none of the
   options below. It freezes a noncanonical, artifact-backed, `requires`-only
   experiment first and makes any later canonical field conditional on a
   demonstrated failure of that representation. The historical body below is

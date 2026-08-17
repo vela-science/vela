@@ -41,7 +41,7 @@ use crate::signer_identity::SIGNER_IDENTITY_V1_SCHEMA;
 use crate::status::{REPOSITORY_HEAD_ROLE, STATUS_V4_COMMAND, STATUS_V4_SCHEMA};
 use crate::submission::{
     CLAIM_TYPES, PRODUCER_CHECK_OUTCOMES, PRODUCER_REPORTED_AUTHORITY, REPLAYABILITY_LEVELS,
-    REQUESTED_CHANGE_KINDS, SUBMISSION_V2_SCHEMA,
+    REQUESTED_CHANGE_KINDS, SUBMISSION_V3_SCHEMA,
 };
 use crate::verification_record::{VERIFICATION_OUTCOMES, VERIFICATION_RECORD_V2_SCHEMA};
 
@@ -460,9 +460,9 @@ pub fn vela_payload_type(_: &mut SchemaGenerator) -> Schema {
 // reads, so the vocabulary is stated once in the object module and rendered
 // here.
 
-/// `vela.submission.v2`.
+/// `vela.submission.v3`.
 pub fn submission_schema_tag(_: &mut SchemaGenerator) -> Schema {
-    tag(SUBMISSION_V2_SCHEMA)
+    tag(SUBMISSION_V3_SCHEMA)
 }
 
 /// `vela.verification-record.v2`.
@@ -694,9 +694,9 @@ pub fn published() -> Vec<(&'static str, Value)> {
         ),
         (
             "submission.schema.json",
-            document::<crate::submission::SubmissionV2>(
+            document::<crate::submission::SubmissionV3>(
                 "submission.schema.json",
-                "Vela Submission v2",
+                "Vela Submission v3",
             ),
         ),
         (

@@ -1,21 +1,22 @@
-//! Producer package: `vela.submission.v2`, carried in a DSSE envelope.
+//! Producer package: `vela.submission.v3`, carried in a DSSE envelope.
 //!
 //! A Submission is authenticated producer input. It may request a scientific
 //! change, but it cannot assert Standing, mint a Verification Record, or create
 //! an Event.
 //!
-//! ## What v2 changed
+//! ## What v3 changed
 //!
 //! v1 was one JSON object that carried its own signature over a preimage built
 //! by cloning itself and clearing `submission_id` and
-//! `authentication.signature`. v2 is a payload inside a [`EnvelopeV1`]: the
+//! `authentication.signature`. v2 moved the payload into an [`EnvelopeV1`]: the
 //! signature is the envelope's, over exactly the payload bytes, and the reader
 //! parses those same bytes rather than a preimage it reconstructs.
 //!
-//! Two fields left with the convention that required them. The signature is
-//! now the envelope's, and `submission_id` is derived from the retained
-//! envelope's root by [`crate::shape::derive_handle`] — an object cannot carry
-//! its own content address, and the id never was anything but a prefix of one.
+//! v3 keeps that exact DSSE and derived-handle model and removes the unconsumed
+//! execution-binding field. Source-owned packets, sessions, and methods cross
+//! the boundary only as exact Artifacts or opaque provenance references. The
+//! current reader recognizes v3 only; tagged pre-release binaries remain the
+//! readers for earlier development formats.
 
 use ed25519_dalek::SigningKey;
 use schemars::JsonSchema;
@@ -24,8 +25,8 @@ use serde::{Deserialize, Serialize};
 use crate::dsse::EnvelopeV1;
 use crate::signer_identity::{ActorClass, SignerIdentityV1};
 
-pub const SUBMISSION_V2_SCHEMA: &str = "vela.submission.v2";
-pub const SUBMISSION_V2_PAYLOAD_TYPE: &str = "application/vnd.vela.submission.v2+json";
+pub const SUBMISSION_V3_SCHEMA: &str = "vela.submission.v3";
+pub const SUBMISSION_V3_PAYLOAD_TYPE: &str = "application/vnd.vela.submission.v3+json";
 pub const SUBMISSION_MAX_BYTES: usize = 8 * 1024 * 1024;
 pub const SUBMISSION_HANDLE_PREFIX: &str = "vsb_";
 pub(crate) const PRODUCER_REPORTED_AUTHORITY: &str = "producer_reported";
@@ -204,7 +205,7 @@ pub struct SubmissionProvenance {
 /// `identity` names.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct SubmissionV2 {
+pub struct SubmissionV3 {
     #[schemars(schema_with = "crate::wire_schema::submission_schema_tag")]
     pub schema: String,
     pub identity: SignerIdentityV1,
@@ -230,9 +231,9 @@ pub struct SubmissionV2 {
 /// callers that used to read `submission.submission_id` read one field rather
 /// than re-deriving at every use.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SubmissionRecordV2 {
+pub struct SubmissionRecordV3 {
     pub envelope: EnvelopeV1,
-    pub submission: SubmissionV2,
+    pub submission: SubmissionV3,
     /// Canonical bytes of the envelope: exactly what is written to disk.
     pub bytes: Vec<u8>,
     /// `sha256:` over [`Self::bytes`].
@@ -241,7 +242,7 @@ pub struct SubmissionRecordV2 {
     pub id: String,
 }
 
-impl SubmissionRecordV2 {
+impl SubmissionRecordV3 {
     /// Sign a draft and seal it into its envelope.
     pub fn seal(
         draft: SubmissionDraft,
@@ -258,8 +259,8 @@ impl SubmissionRecordV2 {
         if identity.public_key_hex != hex::encode(key.verifying_key().to_bytes()) {
             return Err("Submission signing key does not match its declared identity".into());
         }
-        let submission = SubmissionV2 {
-            schema: SUBMISSION_V2_SCHEMA.to_string(),
+        let submission = SubmissionV3 {
+            schema: SUBMISSION_V3_SCHEMA.to_string(),
             identity,
             claim: draft.claim,
             artifacts: draft.artifacts,
@@ -272,7 +273,7 @@ impl SubmissionRecordV2 {
         };
         submission.validate_semantics()?;
         let payload = crate::canonical::to_canonical_bytes(&submission)?;
-        let envelope = EnvelopeV1::seal_single(key, SUBMISSION_V2_PAYLOAD_TYPE, &payload);
+        let envelope = EnvelopeV1::seal_single(key, SUBMISSION_V3_PAYLOAD_TYPE, &payload);
         Self::from_envelope(envelope)
     }
 
@@ -295,9 +296,9 @@ impl SubmissionRecordV2 {
             "Submission",
             &crate::dsse::decode_base64("Submission payload", &envelope.payload)?,
         )?;
-        let payload = envelope.open_single("Submission", SUBMISSION_V2_PAYLOAD_TYPE, &declared)?;
-        let submission: SubmissionV2 = crate::canonical::from_json_slice_strict(&payload)
-            .map_err(|error| format!("parse Submission v2: {error}"))?;
+        let payload = envelope.open_single("Submission", SUBMISSION_V3_PAYLOAD_TYPE, &declared)?;
+        let submission: SubmissionV3 = crate::canonical::from_json_slice_strict(&payload)
+            .map_err(|error| format!("parse Submission v3: {error}"))?;
         if crate::canonical::to_canonical_bytes(&submission)? != payload {
             return Err("Submission payload is not canonical JSON".into());
         }
@@ -328,11 +329,11 @@ pub struct SubmissionDraft {
     pub provenance: SubmissionProvenance,
 }
 
-impl SubmissionV2 {
+impl SubmissionV3 {
     fn validate_semantics(&self) -> Result<(), String> {
-        if self.schema != SUBMISSION_V2_SCHEMA {
+        if self.schema != SUBMISSION_V3_SCHEMA {
             return Err(format!(
-                "Submission schema must be `{SUBMISSION_V2_SCHEMA}`"
+                "Submission schema must be `{SUBMISSION_V3_SCHEMA}`"
             ));
         }
         self.identity.validate()?;
@@ -497,15 +498,15 @@ mod tests {
     /// through `seal`. This is the shape of a producer who edits their own
     /// Submission: the signature is honest, so only the semantic checks stand
     /// between the edit and the repository.
-    fn reseal(submission: &SubmissionV2, key: &SigningKey) -> EnvelopeV1 {
+    fn reseal(submission: &SubmissionV3, key: &SigningKey) -> EnvelopeV1 {
         let payload = crate::canonical::to_canonical_bytes(submission).unwrap();
-        EnvelopeV1::seal_single(key, SUBMISSION_V2_PAYLOAD_TYPE, &payload)
+        EnvelopeV1::seal_single(key, SUBMISSION_V3_PAYLOAD_TYPE, &payload)
     }
 
     #[test]
     fn a_sealed_submission_round_trips_and_derives_its_handle_from_its_root() {
         let (draft, identity, key) = fixture();
-        let record = SubmissionRecordV2::seal(draft, identity, &key).unwrap();
+        let record = SubmissionRecordV3::seal(draft, identity, &key).unwrap();
 
         assert!(record.root.starts_with("sha256:"));
         assert_eq!(
@@ -513,14 +514,14 @@ mod tests {
             format!("vsb_{}", &record.root["sha256:".len()..][..16]),
             "the handle is a prefix of the root and nothing else"
         );
-        let reread = SubmissionRecordV2::parse(&record.bytes).unwrap();
+        let reread = SubmissionRecordV3::parse(&record.bytes).unwrap();
         assert_eq!(reread, record);
     }
 
     #[test]
     fn a_payload_edited_after_signing_does_not_verify() {
         let (draft, identity, key) = fixture();
-        let record = SubmissionRecordV2::seal(draft, identity, &key).unwrap();
+        let record = SubmissionRecordV3::seal(draft, identity, &key).unwrap();
 
         let mut tampered = record.envelope.clone();
         let mut payload: serde_json::Value =
@@ -528,42 +529,84 @@ mod tests {
                 .unwrap();
         payload["claim"]["assertion"] = serde_json::json!("Something the producer did not sign.");
         tampered.payload = crate::dsse::encode_base64(&serde_json::to_vec(&payload).unwrap());
-        assert!(SubmissionRecordV2::from_envelope(tampered).is_err());
+        assert!(SubmissionRecordV3::from_envelope(tampered).is_err());
     }
 
     #[test]
     fn a_signature_by_a_key_the_payload_does_not_declare_is_refused() {
         let (draft, identity, key) = fixture();
-        let record = SubmissionRecordV2::seal(draft, identity, &key).unwrap();
+        let record = SubmissionRecordV3::seal(draft, identity, &key).unwrap();
 
         let impostor = SigningKey::generate(&mut OsRng);
         let payload = crate::dsse::decode_base64("p", &record.envelope.payload).unwrap();
-        let forged = EnvelopeV1::seal_single(&impostor, SUBMISSION_V2_PAYLOAD_TYPE, &payload);
-        assert!(SubmissionRecordV2::from_envelope(forged).is_err());
+        let forged = EnvelopeV1::seal_single(&impostor, SUBMISSION_V3_PAYLOAD_TYPE, &payload);
+        assert!(SubmissionRecordV3::from_envelope(forged).is_err());
     }
 
     #[test]
     fn a_submission_payload_is_not_readable_under_another_payload_type() {
         let (draft, identity, key) = fixture();
-        let record = SubmissionRecordV2::seal(draft, identity, &key).unwrap();
+        let record = SubmissionRecordV3::seal(draft, identity, &key).unwrap();
 
         let mut relabelled = record.envelope.clone();
         relabelled.payload_type = "application/vnd.vela.verification-record.v2+json".into();
-        assert!(SubmissionRecordV2::from_envelope(relabelled).is_err());
+        assert!(SubmissionRecordV3::from_envelope(relabelled).is_err());
+    }
+
+    #[test]
+    fn the_retired_v2_payload_type_is_not_a_v3_submission() {
+        let (draft, identity, key) = fixture();
+        let record = SubmissionRecordV3::seal(draft, identity, &key).unwrap();
+        let payload = crate::dsse::decode_base64("p", &record.envelope.payload).unwrap();
+        let retired =
+            EnvelopeV1::seal_single(&key, "application/vnd.vela.submission.v2+json", &payload);
+
+        let error = SubmissionRecordV3::from_envelope(retired).unwrap_err();
+        assert!(error.contains(SUBMISSION_V3_PAYLOAD_TYPE), "{error}");
+    }
+
+    #[test]
+    fn the_retired_v2_schema_is_not_interpreted_as_v3() {
+        let (draft, identity, key) = fixture();
+        let record = SubmissionRecordV3::seal(draft, identity, &key).unwrap();
+        let mut retired = record.submission;
+        retired.schema = "vela.submission.v2".into();
+
+        let error = SubmissionRecordV3::from_envelope(reseal(&retired, &key)).unwrap_err();
+        assert!(error.contains(SUBMISSION_V3_SCHEMA), "{error}");
+    }
+
+    #[test]
+    fn an_execution_binding_is_refused_as_an_unknown_v3_field() {
+        let (draft, identity, key) = fixture();
+        let record = SubmissionRecordV3::seal(draft, identity, &key).unwrap();
+        let mut payload = serde_json::to_value(record.submission).unwrap();
+        payload["execution_binding"] = serde_json::json!({
+            "schema": "vela.execution-binding.v1",
+            "packet_root": format!("sha256:{}", "a".repeat(64)),
+            "profile_root": format!("sha256:{}", "b".repeat(64)),
+            "verifier_capsule_root": format!("sha256:{}", "c".repeat(64)),
+            "result_contract_root": format!("sha256:{}", "d".repeat(64)),
+        });
+        let bytes = crate::canonical::to_canonical_bytes(&payload).unwrap();
+        let envelope = EnvelopeV1::seal_single(&key, SUBMISSION_V3_PAYLOAD_TYPE, &bytes);
+
+        let error = SubmissionRecordV3::from_envelope(envelope).unwrap_err();
+        assert!(error.contains("unknown field"), "{error}");
     }
 
     #[test]
     fn producer_check_cannot_claim_independent_authority() {
         let (mut draft, identity, key) = fixture();
         draft.producer_checks[0].authority = "independent_verification".into();
-        let error = SubmissionRecordV2::seal(draft, identity, &key).unwrap_err();
+        let error = SubmissionRecordV3::seal(draft, identity, &key).unwrap_err();
         assert!(error.contains("not Verification Records"), "{error}");
     }
 
     #[test]
     fn standing_and_event_fields_are_rejected_as_unknown() {
         let (draft, identity, key) = fixture();
-        let record = SubmissionRecordV2::seal(draft, identity, &key).unwrap();
+        let record = SubmissionRecordV3::seal(draft, identity, &key).unwrap();
 
         for forged in ["accepted", "event"] {
             let mut payload = serde_json::to_value(&record.submission).unwrap();
@@ -572,27 +615,27 @@ mod tests {
             // Sign the forged bytes honestly: the point is that the closed
             // payload parse rejects them, not that the signature does.
             let bytes = serde_json::to_vec(&payload).unwrap();
-            let envelope = EnvelopeV1::seal_single(&key, SUBMISSION_V2_PAYLOAD_TYPE, &bytes);
+            let envelope = EnvelopeV1::seal_single(&key, SUBMISSION_V3_PAYLOAD_TYPE, &bytes);
             assert!(
-                SubmissionRecordV2::from_envelope(envelope).is_err(),
+                SubmissionRecordV3::from_envelope(envelope).is_err(),
                 "`{forged}` reached a Submission"
             );
-            submission.schema = SUBMISSION_V2_SCHEMA.into();
+            submission.schema = SUBMISSION_V3_SCHEMA.into();
         }
     }
 
     #[test]
     fn the_producer_must_be_the_declared_signer() {
         let (draft, identity, key) = fixture();
-        let record = SubmissionRecordV2::seal(draft, identity, &key).unwrap();
+        let record = SubmissionRecordV3::seal(draft, identity, &key).unwrap();
 
         let mut submission = record.submission.clone();
         submission.identity.actor_id = "agent:someone-else".into();
-        assert!(SubmissionRecordV2::from_envelope(reseal(&submission, &key)).is_err());
+        assert!(SubmissionRecordV3::from_envelope(reseal(&submission, &key)).is_err());
 
         let mut submission = record.submission.clone();
         submission.identity.actor_class = ActorClass::Human;
-        assert!(SubmissionRecordV2::from_envelope(reseal(&submission, &key)).is_err());
+        assert!(SubmissionRecordV3::from_envelope(reseal(&submission, &key)).is_err());
     }
 
     #[test]
@@ -600,12 +643,12 @@ mod tests {
         for replayability in ["exact", "bounded", "approximate", "unavailable", "unknown"] {
             let (mut draft, identity, key) = fixture();
             draft.replayability = replayability.into();
-            SubmissionRecordV2::seal(draft, identity, &key).unwrap();
+            SubmissionRecordV3::seal(draft, identity, &key).unwrap();
         }
 
         let (mut draft, identity, key) = fixture();
         draft.replayability = "totally-reproducible-trust-me".into();
-        let error = SubmissionRecordV2::seal(draft, identity, &key).unwrap_err();
+        let error = SubmissionRecordV3::seal(draft, identity, &key).unwrap_err();
         assert!(error.contains("replayability"), "{error}");
     }
 
@@ -616,28 +659,28 @@ mod tests {
             kind: "correct_claim".into(),
             target: None,
         };
-        let error = SubmissionRecordV2::seal(draft.clone(), identity.clone(), &key).unwrap_err();
+        let error = SubmissionRecordV3::seal(draft.clone(), identity.clone(), &key).unwrap_err();
         assert!(error.contains("target is required for correct_claim"));
 
         draft.requested_change.target = Some(RequestedChangeTarget {
             claim_id: "vf_0123456789abcdef".into(),
             claim_root: format!("sha256:{}", "a".repeat(64)),
         });
-        let error = SubmissionRecordV2::seal(draft.clone(), identity.clone(), &key).unwrap_err();
+        let error = SubmissionRecordV3::seal(draft.clone(), identity.clone(), &key).unwrap_err();
         assert!(error.contains("requested_change.target.claim_id"));
 
         draft.requested_change.target = Some(RequestedChangeTarget {
             claim_id: format!("vcl_{}", "b".repeat(64)),
             claim_root: "sha256:not-a-root".into(),
         });
-        let error = SubmissionRecordV2::seal(draft.clone(), identity.clone(), &key).unwrap_err();
+        let error = SubmissionRecordV3::seal(draft.clone(), identity.clone(), &key).unwrap_err();
         assert!(error.contains("requested_change.target.claim_root"));
 
         draft.requested_change.target = Some(RequestedChangeTarget {
             claim_id: format!("vcl_{}", "b".repeat(64)),
             claim_root: format!("sha256:{}", "c".repeat(64)),
         });
-        SubmissionRecordV2::seal(draft, identity, &key).unwrap();
+        SubmissionRecordV3::seal(draft, identity, &key).unwrap();
     }
 
     #[test]
@@ -647,7 +690,7 @@ mod tests {
             claim_id: format!("vcl_{}", "b".repeat(64)),
             claim_root: format!("sha256:{}", "c".repeat(64)),
         });
-        let error = SubmissionRecordV2::seal(draft, identity, &key).unwrap_err();
+        let error = SubmissionRecordV3::seal(draft, identity, &key).unwrap_err();
         assert!(error.contains("target must be absent for add_claim"));
     }
 

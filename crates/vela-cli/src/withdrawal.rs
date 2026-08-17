@@ -15,7 +15,7 @@ use vela_protocol::canonical::sha256_root;
 use vela_protocol::proposal::ProposalV1;
 use vela_protocol::proposal_withdrawal::ProposalWithdrawalEnvelopeV2;
 use vela_protocol::repository::{RepositoryObjectRefV1, RepositoryV4};
-use vela_protocol::submission::SubmissionRecordV2;
+use vela_protocol::submission::SubmissionRecordV3;
 
 use crate::authority_transaction::AuthorityObjectDraft;
 use crate::config::git_publish::{
@@ -67,7 +67,7 @@ fn proposal_package(
     repository_path: &Path,
     repository: &RepositoryV4,
     proposal_id: &str,
-) -> Result<(ProposalV1, String, SubmissionRecordV2), String> {
+) -> Result<(ProposalV1, String, SubmissionRecordV3), String> {
     let proposal_reference = repository
         .proposals
         .iter()
@@ -89,7 +89,7 @@ fn proposal_package(
         })
         .ok_or_else(|| "Proposal does not bind one exact retained Submission".to_string())?;
     let submission =
-        SubmissionRecordV2::parse(&read_exact(repository_path, submission_reference)?)?;
+        SubmissionRecordV3::parse(&read_exact(repository_path, submission_reference)?)?;
     if submission.id != submission_reference.id
         || submission.root.clone() != submission_reference.root
     {

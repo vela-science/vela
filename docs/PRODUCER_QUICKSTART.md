@@ -45,7 +45,7 @@ accepted-event delta is zero. Producer-reported
 `--check` values remain producer claims and never become Verification Records.
 
 A producer from another workbench may pass a complete signed
-`vela.submission.v2` file to the same command:
+`vela.submission.v3` file to the same command:
 
 ```bash
 vela submit submission.json --repo . --json

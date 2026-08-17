@@ -16,7 +16,7 @@ use vela_protocol::proposal::ProposalV1;
 use vela_protocol::repository::{RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::review_method::{REVIEW_METHOD_V1_SCHEMA, ReviewMethodV1};
 use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
-use vela_protocol::submission::SubmissionRecordV2;
+use vela_protocol::submission::SubmissionRecordV3;
 use vela_protocol::verification_record::{
     IndependenceDisclosure, VerificationMethod, VerificationRecordDraft,
     VerificationRecordEnvelopeV2, VerificationScope, VerificationSubject,
@@ -183,7 +183,7 @@ fn ensure_pending_standing(proposal_id: &str, standing: Option<&str>) -> Result<
 struct ProposalPackage {
     proposal: ProposalV1,
     proposal_root: String,
-    submission: SubmissionRecordV2,
+    submission: SubmissionRecordV3,
 }
 
 fn load_proposal_package(
@@ -228,8 +228,8 @@ fn load_proposal_package(
     let submission = read_exact_object(
         repository_path,
         submission_reference,
-        SubmissionRecordV2::parse,
-        |value: &SubmissionRecordV2| Ok(value.bytes.clone()),
+        SubmissionRecordV3::parse,
+        |value: &SubmissionRecordV3| Ok(value.bytes.clone()),
     )?;
     if submission.id != submission_reference.id
         || submission.root.clone() != submission_reference.root
@@ -604,7 +604,7 @@ fn load_subject_with_pending_outputs(
     repository: &RepositoryV4,
     record: &VerificationRecordEnvelopeV2,
     pending_output_ids: &std::collections::BTreeSet<String>,
-) -> Result<(ProposalV1, String, SubmissionRecordV2), String> {
+) -> Result<(ProposalV1, String, SubmissionRecordV3), String> {
     let package = load_proposal_package(
         repository_path,
         repository,
@@ -645,7 +645,7 @@ fn load_subject(
     repository_path: &Path,
     repository: &RepositoryV4,
     record: &VerificationRecordEnvelopeV2,
-) -> Result<(ProposalV1, String, SubmissionRecordV2), String> {
+) -> Result<(ProposalV1, String, SubmissionRecordV3), String> {
     load_subject_with_pending_outputs(
         repository_path,
         repository,
@@ -991,7 +991,7 @@ mod tests {
             "2026-07-27T00:00:00Z",
         )
         .unwrap();
-        let submission = SubmissionRecordV2::seal(
+        let submission = SubmissionRecordV3::seal(
             SubmissionDraft {
                 claim: SubmissionClaim {
                     assertion: "A bounded witness satisfies the fixture.".into(),

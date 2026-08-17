@@ -22,9 +22,9 @@ sys.path.insert(0, str(ROOT / "conformance/readers/python"))
 from canonical import canonical_bytes
 
 FIXTURE_ID = "math-coh-00"
-COMMIT = "08a0e6d327e1ae9937ab2e0e5002192815eac69a"
-TREE = "f58de302dcaf96e41e4836732dc5446f4eeb8c61"
-REPOSITORY = "8138c6da-46c4-47ee-b493-5bbfbec09b1e"
+COMMIT = "f9b28280881472ccb9c4b1b35d8e741745f0bd99"
+TREE = "875539d8790c0557ebee91ad2e40b22f5fa0c147"
+REPOSITORY = "3d012325-3768-4b95-a385-c94e9f2a57a6"
 PAYLOAD_TYPE = "application/vnd.vela.authority-record.v1+json"
 ZERO_ROOT = "sha256:" + "0" * 64
 ACTION = {
@@ -41,10 +41,10 @@ METADATA = {
 }
 MAX_BYTES = 8 * 1024 * 1024
 PINS = {
-    "source.json": "sha256:5473beb1ad84bcab46c6c4a7ac63bc0d5504c7fdc5b5e90bdcd00eaaf9538dda",
-    "expected.json": "sha256:e9bc5e6e2e3eb62286d34224e5af7248ac78773215d68e5a093cb4754cc9cff7",
-    "negative-vectors.json": "sha256:6353658a6ebb8118c7cdfb62eec1bb6c09fec1b2ae17b40b739ca25424a9e752",
-    "trust-anchor.json": "sha256:76b12bd6d4f697a84e58f8858165ca733e5ef710dd0c080dc92d5ef30c4801b6",
+    "source.json": "sha256:e3a4c5ed5ca7931d36b9e6551a0093cb8602d5800ec669bd6ae52c9f8e777936",
+    "expected.json": "sha256:44dfb58a7365205a25b1f6ec1d0bf2a73c8e33d8b5c1592461cc99dcf702a3a4",
+    "negative-vectors.json": "sha256:a6c56b3f78f7adbb0c1f29a7bfddbf80c6f2d7642da8e6112463611f449dd254",
+    "trust-anchor.json": "sha256:7e9aae8b819fed6bb293d29201dd78ef30bc9254111692ba64630f820550d4b4",
 }
 
 
@@ -156,20 +156,21 @@ def load_fixture():
     source = pinned("source.json", 256 * 1024)
     entries = source.get("files")
     require(
-        isinstance(entries, list) and len(entries) == 20,
+        isinstance(entries, list) and entries,
         "source_manifest_files_invalid",
     )
     paths = [
         relative(entry.get("path")) for entry in entries if isinstance(entry, dict)
     ]
     require(
-        len(paths) == 20 and paths == sorted(set(paths)),
+        paths == sorted(set(paths)),
         "source_manifest_files_invalid",
     )
     require(
         source.get("fixture_id") == FIXTURE_ID
         and source.get("terminal") == {"commit": COMMIT, "tree": TREE}
-        and source.get("copied_bytes") == 54772,
+        and isinstance(source.get("copied_bytes"), int)
+        and source["copied_bytes"] > 0,
         "source_manifest_identity_invalid",
     )
     require(fixture_files() == set(paths) | METADATA, "source_allowlist_mismatch")
@@ -190,7 +191,7 @@ def load_fixture():
         require(blob_id(data) == entry["git_blob_sha1"], "source_entry_blob_mismatch")
         documents[path] = parse_json(data, canonical=True)
         copied += len(data)
-    require(copied == 54772, "source_copied_bytes_mismatch")
+    require(copied == source["copied_bytes"], "source_copied_bytes_mismatch")
 
     anchor = pinned("trust-anchor.json", 4096, canonical=True)
     expected = pinned("expected.json")
@@ -667,7 +668,8 @@ def verify_terminal(manifest, events, expected):
     equal(manifest["accepted_claims"], accepted, "authority_terminal_state_mismatch")
     transitions = terminal["applied_transitions"]
     require(
-        [item["sequence"] for item in transitions] == [2, 3, 4],
+        [item["sequence"] for item in transitions]
+        == list(range(2, len(expected["records"]) + 1)),
         "authority_terminal_state_mismatch",
     )
     previous_claim_id = None
@@ -792,9 +794,9 @@ def run_negatives(bundle, positive):
     bad_anchor = copy.deepcopy(bundle["anchor"])
     bad_anchor["first_authority_record_root"] = ZERO_ROOT
     bad_signature = copy.deepcopy(envelopes)
-    signature = bytearray(base64.b64decode(bad_signature[3]["signatures"][0]["sig"]))
+    signature = bytearray(base64.b64decode(bad_signature[-1]["signatures"][0]["sig"]))
     signature[0] ^= 1
-    bad_signature[3]["signatures"][0]["sig"] = base64.b64encode(signature).decode()
+    bad_signature[-1]["signatures"][0]["sig"] = base64.b64encode(signature).decode()
     bad_head = copy.deepcopy(expected)
     bad_head["final_authority_record_root"] = ZERO_ROOT
     bad_keyset = copy.deepcopy(keyset)
@@ -802,29 +804,38 @@ def run_negatives(bundle, positive):
     bad_keyset["keys"][0]["public_key"] = "13" + public_key[2:]
     bad_model = copy.deepcopy(model)
     del bad_model["members"][1]
-    bad_request = copy.deepcopy(records[3]["content"]["authorization"]["request"])
+    bad_request = copy.deepcopy(records[-1]["content"]["authorization"]["request"])
     bad_request["principal_id"] = "local:unbound|uid:0"
     key_path = f"authority/keysets/{expected['authority_keyset_root'][7:]}.json"
     noncanonical_keyset = read_regular(FIXTURE / key_path) + b"\n"
-    bad_event = copy.deepcopy(events["vev_cd938718b5750d22"])
+    final_review_event_id = next(
+        event_id
+        for event_id in expected["records"][-1]["event_ids"]
+        if events[event_id]["content"]["kind"] == "review.accepted"
+    )
+    bad_event = copy.deepcopy(events[final_review_event_id])
     bad_event["content"]["payload"]["verdict"] = "rejected"
     missing_event = {
-        key: value for key, value in events.items() if key != "vev_cd938718b5750d22"
+        key: value for key, value in events.items() if key != final_review_event_id
     }
     bad_documents = copy.deepcopy(bundle["documents"])
-    sequence_four_preimage = (
-        "repository-manifests/"
-        "1ebbdae0827abb20f01ec8716e595072eafb24346ad8c6fe297e0c80480bddf7.json"
+    final_repository_delta = one(
+        records[-1]["content"]["object_delta"], "path", ".vela/repository.json"
     )
-    claim = bad_documents[sequence_four_preimage]["pending_claims"][0]
+    final_preimage = (
+        f"repository-manifests/{final_repository_delta['before_root'][7:]}.json"
+    )
+    claim = bad_documents[final_preimage]["pending_claims"][0]
     claim["claim_root"] = claim["claim_root"][:-1] + "5"
-    bad_record = copy.deepcopy(records[3])
+    bad_record = copy.deepcopy(records[-1])
     bad_record["content"]["object_delta"].pop()
     terminal = expected["terminal"]["repository_manifest_root"]
     manifest = bundle["documents"][f"repository-manifests/{terminal[7:]}.json"]
     bad_terminal = copy.deepcopy(expected)
-    accepted = bad_terminal["terminal"]["accepted_claims"][1]
-    accepted["claim_root"] = accepted["claim_root"][:-1] + "5"
+    accepted = bad_terminal["terminal"]["accepted_claims"][-1]
+    accepted["claim_root"] = accepted["claim_root"][:-1] + (
+        "0" if accepted["claim_root"][-1] != "0" else "1"
+    )
     history = (keyset, model, bundle["anchor"], expected)
     cases = [
         (
@@ -862,11 +873,11 @@ def run_negatives(bundle, positive):
             (records, missing_event, expected),
         ),
         (
-            "mutated-sequence-four-preimage",
+            "mutated-final-preimage",
             verify_deltas,
             (records, bad_documents, events, keyset, model),
         ),
-        ("mutated-sequence-four-object-delta", verify_write_set, (bad_record,)),
+        ("mutated-final-object-delta", verify_write_set, (bad_record,)),
         (
             "wrong-terminal-claim-root",
             verify_terminal,

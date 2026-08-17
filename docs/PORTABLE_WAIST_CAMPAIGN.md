@@ -1,11 +1,12 @@
 # Portable-waist and interoperability campaign
 
-Status: **Complete, updated 2026-08-14.** All three cuts landed. The current
-`math-coh-00` Repository was created under Vela 0.975.1 and deliberately
-re-admits only two bounded current Claims: the corrected Erdős 321 successor
-and the scoped Erdős 887 cache-replay result. Its four-record authority chain
-strictly replays. Pre-genesis Git history is a development rollback point, not
-a shipped protocol reader or Standing input.
+Status: **Complete, updated 2026-08-17.** All three cuts landed. The current
+`math-coh-00` Repository is the compact Submission v3 genesis made with Vela
+0.977.0. It deliberately admits three bounded current Claims: the corrected
+Erdős 321 and Erdős 94 successors, and the scoped Erdős 887 cache-replay
+result. Its six-record authority chain strictly replays. Pre-genesis Git
+history is a development rollback point, not a shipped protocol reader or
+Standing input.
 
 ## Objective
 
@@ -48,10 +49,10 @@ and JavaScript. Contract 4, authority, has two deliberately distinct evidence
 paths: the retained epoch-1 corpus is Rust-read evaluator compatibility across
 the vocabulary migration, while
 `conformance/fixtures/authority/math-coh-00/` and
-`verify_authority_chain.py` are the current retained four-record
-seven-Event language-independent signed-chain vector from an explicit external
-anchor. It also binds the signed Erdős 321 predecessor-to-correction transition
-and the two-Claim terminal state.
+`verify_authority_chain.py` are the current retained six-record,
+eleven-Event language-independent signed-chain vector from an explicit external
+anchor. It binds the signed Erdős 321 and 94 predecessor-to-correction
+transitions and the three-Claim terminal state.
 
 The JavaScript reader is deliberately narrower than Python: it independently
 checks RFC 8785 bytes and SHA-256 roots, while repository reconstruction stays
@@ -77,7 +78,7 @@ every payload type and schema tag moved with the signature, so an old object
 fails to parse rather than parsing differently.
 
 All of it landed, including the explicit current-epoch cut exercised by the
-current Math 0.975.1 genesis. Independent verification is Rust, Python, and JavaScript:
+current Math 0.977.0 genesis. Independent verification is Rust, Python, and JavaScript:
 `conformance/emitters/python.py` and
 `conformance/emitters/javascript.mjs` construct DSSE envelopes from first
 principles and reproduce the frozen fixture bytes exactly.
@@ -99,15 +100,15 @@ recomputed every historical Allow and seven negative boundary cases. That
 one-time migration evidence was removed after the current authority contract
 replaced it. Current conformance now:
 
-- verifies the current four-record, seven-Event Math chain independently from
+- verifies the current six-record, eleven-Event Math chain independently from
   an explicit sequence-one anchor; `verify_authority_chain.py` checks DSSE
   signatures, continuity, authorization, signed deltas, the correction
-  transition, and bounded terminal state with thirteen stable negative cases
+  transitions, and bounded terminal state with thirteen stable negative cases
   and no Vela, Rust, Git, or network; and
 - replay the current authority from a clean clone, exercised by
-  `vela-science/math@08a0e6d327e1ae9937ab2e0e5002192815eac69a`, yielding
+  `vela-science/math@f9b28280881472ccb9c4b1b35d8e741745f0bd99`, yielding
   Repository root
-  `sha256:3e2236510923277c1e363d2d28c3d84d86a1d698bafd576b79308b18ae0cf0d2`.
+  `sha256:45640c5eea54693df444eada6dd1a7c1f5a4b4ef266fddf79cf51d083233ebba`.
 
 The deletion followed: `cedar-policy` is out of both manifests, `engine_pin.rs`
 is gone, `PolicyBundleV1` is `AuthorizationModelV1` naming no engine, and

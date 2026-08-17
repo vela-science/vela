@@ -9,7 +9,7 @@ Clone the complete Repository at the pinned merge and replay its actual state:
 
 ```bash
 git clone https://github.com/vela-science/math.git math
-git -C math checkout 08a0e6d327e1ae9937ab2e0e5002192815eac69a
+git -C math checkout f9b28280881472ccb9c4b1b35d8e741745f0bd99
 vela replay math --json
 vela claims math --json
 ```
@@ -18,9 +18,9 @@ The canonical Math source is public. Acquisition requires no account, and
 replay remains local and requires no repository-authority key.
 
 Expected replay facts are frozen in [`flow.json`](flow.json): Repository root
-`sha256:3e223651…e0cf0d2`, two current accepted Claims, and one retained
-superseded predecessor. The correction entered Standing only through the
-recorded authorized Decision.
+`sha256:45640c5e…233ebba`, three current accepted Claims, and two retained
+superseded predecessors. Both corrections entered Standing only through their
+recorded authorized Decisions.
 
 Inspect the bounded comparison and its nonclaims:
 

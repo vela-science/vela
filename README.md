@@ -131,14 +131,14 @@ it does not prove that a Claim is true.
 Install the exact signed release:
 
 Vela supports Linux x86-64 and macOS Apple-silicon release bundles.
-`v0.976.1` is the current signed release. Its static Linux bundle no longer
+`v0.977.0` is the current signed release. Its static Linux bundle no longer
 inherits the builder's glibc floor; both platform manifests bind the published
 archives and SBOMs and verify with the out-of-band distribution identity before
 installation.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.976.1/install.sh | \
-  VELA_VERSION=v0.976.1 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.0/install.sh | \
+  VELA_VERSION=v0.977.0 bash
 vela --version
 ```
 
@@ -147,17 +147,17 @@ nor a repository-authority key:
 
 ```bash
 git clone https://github.com/vela-science/math.git math
-git -C math checkout 08a0e6d327e1ae9937ab2e0e5002192815eac69a
+git -C math checkout f9b28280881472ccb9c4b1b35d8e741745f0bd99
 vela replay math --json
 vela claims math --json
 ```
 
 Use a complete clone: exact offline reads refuse shallow, partial, alternate,
-or grafted object stores. The pinned Repository replays to two current accepted
+or grafted object stores. The pinned Repository replays to three current accepted
 Claims at root
-`sha256:3e2236510923277c1e363d2d28c3d84d86a1d698bafd576b79308b18ae0cf0d2`.
-Erdős 321's corrected Claim is accepted and its predecessor remains retained
-with current Standing `superseded`; see the
+`sha256:45640c5eea54693df444eada6dd1a7c1f5a4b4ef266fddf79cf51d083233ebba`.
+The corrected Erdős 321 and 94 Claims are accepted and both predecessors remain
+retained with current Standing `superseded`; see the
 [formal-math reference flow](examples/formal-math/).
 
 Or build the exact repository revision:
@@ -407,11 +407,11 @@ genesis. Historical Git revisions preserve earlier contracts, and the current
 binary exposes no migration writer.
 
 The Protocol 1 standards cut is active across the ecosystem. The current
-`vela-science/math` authority is a compact pre-1.0 genesis created under Vela
-0.975.1, uses RFC 9562 UUIDv4 identity
-`8138c6da-46c4-47ee-b493-5bbfbec09b1e`, and strictly replays its current
-accepted state. The published Git tag
-`math-coh-00-pre-genesis-4f422289` is a development rollback point, not an
+`vela-science/math` authority is the compact Submission v3 genesis created
+under Vela 0.977.0, uses RFC 9562 UUIDv4 identity
+`3d012325-3768-4b95-a385-c94e9f2a57a6`, and strictly replays its current
+accepted state. The Git ref `rollback/submission-v2-coh-00` at `508b39a` is a
+development rollback point readable with signed Vela 0.976.1, not an
 active compatibility promise or a source of current Standing. See
 [the 2026-08-08 architecture memo](docs/history/2026-08-08-ideal-ecosystem-and-architecture-memo.md)
 and [ADR 0035](docs/adr/0035-commodity-encoding-signing-and-wire-contracts.md).

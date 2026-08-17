@@ -16,19 +16,19 @@
     {
       "path": "submission.json",
       "bytes": 1823,
-      "sha256": "sha256:8779dcb8999d6030c234a14fe3af0e3745b84e513c9791913c128d0750c86830"
+      "sha256": "sha256:f1669cdfa498ff85c162bce6173f04b39cdf7620fb198a19b45f6d932302204a"
     },
     {
       "path": "verification-draft.json",
       "bytes": 1161,
-      "sha256": "sha256:c7d9bac52b48f67f294f770f8c24317e28bef22634f195e8c1222f8fce611c5c"
+      "sha256": "sha256:cdae2a4581d8092f21863eeb28c5ae7ec42bd4a0c43c5ab34fe4832080cfc781"
     },
     {
       "path": "verification.json",
       "bytes": 1940,
-      "sha256": "sha256:e03b1f71c12d79489025dd846aa92a60673a8f7fcf6703935c838d1681b14ba8"
+      "sha256": "sha256:41cebab0fc7408b59d1ab95b6037da76cdba555632e665b68688668f1da80d8d"
     }
   ],
   "root_rule": "sha256 of RFC 8785 canonical JSON for this manifest with manifest_root omitted",
-  "manifest_root": "sha256:9317ed45093a857f6d56943c5d1aa8a5ae8db9b3cdc108de63d381be320c1018"
+  "manifest_root": "sha256:b7b71fbba2140a2407cffd2c74728f9de4984764515b436c894c14110e7f448c"
 }

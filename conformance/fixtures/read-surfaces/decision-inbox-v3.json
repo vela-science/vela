@@ -14,13 +14,13 @@
         "Exact fixture scope."
       ],
       "created_at": "2026-07-30T00:00:01Z",
-      "entry_root": "sha256:a0a1e98d7b3ca6983147f095afc94219e357c3bc8d54acf1072f897835f601bd",
+      "entry_root": "sha256:03c66e6a32f3a206a37cd8cedcd6fa3d3c7ea42024d960cab07fe21cefcfe28d",
       "inputs": {
         "claim_root": "sha256:28326be07fa7df3d8db5785f16082a3f33c135885e879d66302beb062be6111a",
-        "proposal_root": "sha256:a11114e4dca589ddddaa32ad1985bb2569748466182b45af68d2a47020994a67",
-        "repository_root": "sha256:f8d58081f6ec88ac00f7b52be94fb03c1e9fec4df44a4027c73fe533b138c1bc",
-        "submission_root": "sha256:91ec2e118de6ec5662fb7a5d4fff40e2ffdb3b1d21465143fd4ed92fb8de84d7",
-        "verification_set_root": "sha256:dbf693ddd4628d7f977ab7834b9c961b7710e1c6e6b486fd60053913aa8016fd"
+        "proposal_root": "sha256:877eb2233d3d6c35bb09582411a383174ac2f313b5f012e6bfee012da7d24de5",
+        "repository_root": "sha256:e66f865c6c7db18f57fe8d09d158248d0498de9dedcee57b3eb71c6d189a7325",
+        "submission_root": "sha256:36b64661e5139657236e03396df6090093156c00cface466bbce2f96d8bb885c",
+        "verification_set_root": "sha256:8a3ed7cbfca72db7a40596ae5465282fa18942fd7cf3ccd53ad40d2d81a64198"
       },
       "limits": [
         "Does not establish an unrestricted result.",
@@ -33,7 +33,7 @@
       },
       "proposal_action": "claim.add",
       "proposal_actor": "agent:fixture-producer",
-      "proposal_id": "vpr_a11114e4dca589dd",
+      "proposal_id": "vpr_877eb2233d3d6c35",
       "proposal_reason": "Review the exact bounded fixture evidence.",
       "readiness": {
         "attributed_decision_required": true,
@@ -61,7 +61,7 @@
       "standing_delta": {
         "before": {
           "accepted": [],
-          "repository_root": "sha256:f8d58081f6ec88ac00f7b52be94fb03c1e9fec4df44a4027c73fe533b138c1bc"
+          "repository_root": "sha256:e66f865c6c7db18f57fe8d09d158248d0498de9dedcee57b3eb71c6d189a7325"
         },
         "counts": {
           "global_accepted_claims": {
@@ -78,11 +78,11 @@
               "claim_root": "sha256:28326be07fa7df3d8db5785f16082a3f33c135885e879d66302beb062be6111a"
             }
           ],
-          "repository_root": "sha256:024b2c2d1f495026c4b353a6b7defa30b9169b4bf7b1b7cd42e63373da0c7a5a"
+          "repository_root": "sha256:b600d2738e8f1febf32c7af16b7b01240b56fc709daed2d4095f4dd8a227eda5"
         },
         "if_reject": {
           "accepted": [],
-          "repository_root": "sha256:e7957a60c534dea448dbc141844e9335e2f3eb98d0b61689a1282c25be7b04ea"
+          "repository_root": "sha256:40bc02e144c3ef4b1f62d04179e84ce9470393965c5b2487ea594b79c827532e"
         },
         "scope": {
           "affected_claim_ids": [
@@ -105,8 +105,8 @@
           "satisfies_requirements": [
             "Replay the exact fixture."
           ],
-          "verification_record_id": "vvr_b5c3120ee9755ac4",
-          "verification_record_root": "sha256:b5c3120ee9755ac4d9c01e85112a86b7ad64922caaea3318884e7d68f1edf5ac",
+          "verification_record_id": "vvr_be37f4eba86f76c2",
+          "verification_record_root": "sha256:be37f4eba86f76c2cf1426d60831cd5aa6fc6d1ffb1c4290f4401a51ccdd3b3b",
           "verifier": "service:fixture-verifier"
         }
       ],
@@ -117,8 +117,8 @@
   ],
   "ok": true,
   "order": "protocol_ready_first_then_created_at_asc_then_proposal_id",
-  "projection_root": "sha256:3f0f8f57510f3c3c5278bc80caceebc68ec1286ec9fe411eaeec6876b466a5bf",
+  "projection_root": "sha256:b67dce38ea6f7b5e0950f07e1642dd872d8747ddec465d566b62ae9792d46dda",
   "repository_id": "01234567-89ab-4def-8123-456789abcdef",
-  "repository_root": "sha256:f8d58081f6ec88ac00f7b52be94fb03c1e9fec4df44a4027c73fe533b138c1bc",
+  "repository_root": "sha256:e66f865c6c7db18f57fe8d09d158248d0498de9dedcee57b3eb71c6d189a7325",
   "schema": "vela.decision-inbox.v3"
 }

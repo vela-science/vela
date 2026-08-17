@@ -21,6 +21,7 @@
 - [Protocol 1 conformance profile](interop/scientific-state-profile.md)
 - [Threat model](THREAT_MODEL.md)
 - [Release qualification](RELEASES.md)
+- [Submission v3 migration](SUBMISSION_V3_MIGRATION.md)
 - [Continuity](CONTINUITY.md)
 - [External-validation program](EXTERNAL_VALIDATION_PROGRAM_2026-08-12.md)
 - [Gittuf authority deletion spike](GITTUF_AUTHORITY_DELETION_SPIKE.md)

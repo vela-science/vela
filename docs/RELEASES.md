@@ -4,12 +4,13 @@ Vela has two related but distinct release surfaces:
 
 - **Protocol 1** is the current release-candidate specification, schemas,
   conformance vectors, and independent readers.
-- **Vela 0.976.1** is the current signed pre-1.0 implementation release. It
-  retains the stable, deterministic, authority-neutral Repository projection
-  from 0.976.0 and ships the Linux bundle as a static musl executable so read
-  products do not inherit a hosted runtime's glibc floor.
+- **Vela 0.977.0** is the current signed pre-1.0 implementation release. It is
+  the final planned pre-1.0 wire cut: Submission v3 is the only current
+  Submission shape, and the v2/execution-binding runtime is absent. It retains
+  the stable, deterministic, authority-neutral Repository projection and the
+  static musl Linux bundle.
 
-The latest signed published release is `v0.976.1`. User-facing installer
+The latest signed published release is `v0.977.0`. User-facing installer
 examples pin that exact tag rather than following a moving branch.
 
 `vela integration check` validates the shared Manifest, Profile, Binding,
@@ -17,8 +18,8 @@ Method, and Exact Reference contract. `vela integration inspect` renders its
 rooted inventory. Neither command executes a native Method, initializes
 Repository authority, makes a Decision, creates an Event, or changes Standing.
 Source-specific scientific, build, proof, and review semantics remain owned by
-the source repository. This package-plane release changes no Protocol 1 object
-or normative schema and does not claim external adoption or scientific lift.
+the source repository. This release changes the Protocol 1 Submission selection
+to v3 and does not claim external adoption or scientific lift.
 
 Neither a protocol conformance result nor a signed software bundle is a
 scientific Decision. Neither changes Standing or demonstrates external

@@ -7,7 +7,7 @@ use serde::Serialize;
 use vela_protocol::canonical::sha256_root;
 use vela_protocol::submission::{
     ProducerCheck, RequestedChange, RequestedChangeTarget, SubmissionArtifact, SubmissionClaim,
-    SubmissionDraft, SubmissionProvenance, SubmissionRecordV2,
+    SubmissionDraft, SubmissionProvenance, SubmissionRecordV3,
 };
 
 pub(crate) fn submission_requested_change(
@@ -92,7 +92,7 @@ pub(crate) fn author_submission(
     verification_requirements: Vec<String>,
     requested_change: RequestedChange,
     source_run: Option<String>,
-) -> Result<SubmissionRecordV2, String> {
+) -> Result<SubmissionRecordV3, String> {
     use vela_protocol::signer_identity::{ActorClass, SignerIdentityV1};
 
     if !(actor.starts_with("agent:") || actor.starts_with("ci:")) {
@@ -149,7 +149,7 @@ pub(crate) fn author_submission(
         &key,
         emitted_at.clone(),
     )?;
-    SubmissionRecordV2::seal(
+    SubmissionRecordV3::seal(
         SubmissionDraft {
             claim: SubmissionClaim {
                 assertion,
@@ -218,7 +218,7 @@ pub(crate) struct PreparedSubmissionArtifacts {
 
 pub(crate) fn prepare_submission_artifacts(
     repository_path: &Path,
-    submission: &SubmissionRecordV2,
+    submission: &SubmissionRecordV3,
     bundle_root: Option<&Path>,
 ) -> Result<PreparedSubmissionArtifacts, String> {
     use vela_repository::{ContentDigest, InputBinding, PlannedWrite, RepoPath, WriteClass};
@@ -339,7 +339,7 @@ pub(crate) fn prepare_submission_artifacts(
 
 pub(crate) fn submission_publication_inputs(
     repository_path: &Path,
-    submission: &SubmissionRecordV2,
+    submission: &SubmissionRecordV3,
 ) -> Result<Vec<PathBuf>, String> {
     let canonical_repository = repository_path
         .canonicalize()

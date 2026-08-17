@@ -4,6 +4,10 @@ Status: release candidate. This document is the normative Protocol 1
 specification; it does not publish a `v1.0.0` software release or claim external
 adoption.
 
+Submission v3 is the final planned pre-1.0 wire cut. Vela 0.977.0 has no v2
+reader, writer, alias, or execution-binding runtime; exact development-era
+bytes remain available only through their signed release and Git rollback ref.
+
 Vela is version control for scientific state. The protocol defines how exact
 Claims, evidence, Verification Records, Proposals, Decisions, and Standing are
 preserved in one Git repository without confusing production, verification,
@@ -17,7 +21,7 @@ only when, they appear in capitals.
 
 Protocol 1 is a fixed interoperability selection over versioned objects. The
 protocol number does not replace their schema tags: a Protocol 1 producer emits
-`vela.submission.v2`, and a future object-shape change still requires a new
+`vela.submission.v3`, and a future object-shape change still requires a new
 object schema even if the protocol selection remains Protocol 1.
 
 | Surface | Protocol 1 selection | Executable publication |
@@ -231,8 +235,8 @@ fail. Section 8 declares the two vocabularies `relations[].kind` draws from.
 
 ### 3.3 Submission
 
-`vela.submission.v2` is the portable producer boundary. It is the payload of a
-DSSE envelope under `application/vnd.vela.submission.v2+json`, and its complete
+`vela.submission.v3` is the portable producer boundary. It is the payload of a
+DSSE envelope under `application/vnd.vela.submission.v3+json`, and its complete
 closed field set is:
 
 ```text
@@ -335,7 +339,7 @@ subject                kind (always `claim`), id, root
 actor
 created_at
 reason
-producer_package       kind (always `submission_v2`), id, root, path
+producer_package       kind (always `submission`), id, root, path
 caveats[]
 ```
 
@@ -674,7 +678,7 @@ projection and its freshness contract. No such view can change Standing.
 
 The public write boundaries are:
 
-- `vela.submission.v2` for producer input;
+- `vela.submission.v3` for producer input;
 - `vela.verification-record.v2` for verifier observations; and
 - `vela.proposal-withdrawal.v2` for producer-owned closure of one pending
   Proposal.

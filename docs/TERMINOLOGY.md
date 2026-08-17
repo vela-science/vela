@@ -251,7 +251,7 @@ Submission, as this vocabulary declares it:
 draft retained refused
 ```
 
-**No Submission has a status.** `vela.submission.v2` has no lifecycle field,
+**No Submission has a status.** `vela.submission.v3` has no lifecycle field,
 and none of those three words is a status value anywhere in the crates —
 `retained` appears only as a display label on the unchanged-error footer. A
 Submission is either installed in a repository or it is not. Treat the three

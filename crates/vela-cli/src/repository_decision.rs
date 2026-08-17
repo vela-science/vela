@@ -26,7 +26,7 @@ use vela_protocol::principal::PrincipalClass;
 use vela_protocol::proposal::ProposalV1;
 use vela_protocol::repository::{ClaimStandingRefV1, RepositoryObjectRefV1, RepositoryV4};
 use vela_protocol::repository_origin::RepositoryOriginV1;
-use vela_protocol::submission::SubmissionRecordV2;
+use vela_protocol::submission::SubmissionRecordV3;
 use vela_protocol::verification_record::VerificationRecordEnvelopeV2;
 
 use crate::authority_transaction::{
@@ -143,7 +143,7 @@ pub(crate) struct PreparedReviewDecision {
     pub(crate) proposal_reference: RepositoryObjectRefV1,
     pub(crate) proposal: ProposalV1,
     pub(crate) claim: ClaimRecordV1,
-    pub(crate) submission: SubmissionRecordV2,
+    pub(crate) submission: SubmissionRecordV3,
     pub(crate) verifications: Vec<(String, VerificationRecordEnvelopeV2)>,
     pub(crate) pending_conflicts: Vec<String>,
 }
@@ -202,7 +202,7 @@ pub(crate) fn submission_for_proposal(
     repository_path: &Path,
     repository: &RepositoryV4,
     proposal: &ProposalV1,
-) -> Result<SubmissionRecordV2, String> {
+) -> Result<SubmissionRecordV3, String> {
     let reference = repository
         .submissions
         .iter()
@@ -216,8 +216,8 @@ pub(crate) fn submission_for_proposal(
         repository_path,
         &reference.path,
         &reference.root,
-        SubmissionRecordV2::parse,
-        |value: &SubmissionRecordV2| Ok(value.bytes.clone()),
+        SubmissionRecordV3::parse,
+        |value: &SubmissionRecordV3| Ok(value.bytes.clone()),
     )?;
     if submission.id != reference.id {
         return Err("Proposal Submission identity differs from the current repository".into());
@@ -230,7 +230,7 @@ pub(crate) fn exact_verifications(
     repository: &RepositoryV4,
     proposal: &ProposalV1,
     claim: &ClaimRecordV1,
-    submission: &SubmissionRecordV2,
+    submission: &SubmissionRecordV3,
 ) -> Result<Vec<(String, VerificationRecordEnvelopeV2)>, String> {
     let mut records = Vec::new();
     for reference in &repository.verifications {
@@ -267,7 +267,7 @@ pub(crate) fn verification_set_root(
 }
 
 pub(crate) fn verification_satisfies_requirement(
-    submission: &SubmissionRecordV2,
+    submission: &SubmissionRecordV3,
     requirement: &str,
     record: &VerificationRecordEnvelopeV2,
 ) -> bool {
@@ -282,7 +282,7 @@ pub(crate) fn verification_satisfies_requirement(
 }
 
 pub(crate) fn require_acceptance_evidence(
-    submission: &SubmissionRecordV2,
+    submission: &SubmissionRecordV3,
     records: &[(String, VerificationRecordEnvelopeV2)],
 ) -> Result<(), String> {
     if records
@@ -313,8 +313,8 @@ pub(crate) fn require_acceptance_evidence(
 /// contract. The assertion may differ because corrected wording is the common
 /// reason the same execution is submitted twice.
 pub(crate) fn same_exact_producer_execution(
-    left: &SubmissionRecordV2,
-    right: &SubmissionRecordV2,
+    left: &SubmissionRecordV3,
+    right: &SubmissionRecordV3,
 ) -> bool {
     let Some(left_run) = left.submission.provenance.source_run.as_deref() else {
         return false;
@@ -358,7 +358,7 @@ pub(crate) fn pending_submission_conflicts(
     repository_path: &Path,
     repository: &RepositoryV4,
     proposal: &ProposalV1,
-    submission: &SubmissionRecordV2,
+    submission: &SubmissionRecordV3,
 ) -> Result<Vec<String>, String> {
     let standings =
         crate::repository::load_current_proposal_standings(repository_path, repository)?;
@@ -1068,16 +1068,16 @@ mod tests {
         .unwrap()
     }
 
-    fn submission() -> SubmissionRecordV2 {
+    fn submission() -> SubmissionRecordV3 {
         sealed_submission(|_| {})
     }
 
     /// Seal a fixture Submission after letting the caller edit its draft.
     ///
-    /// A v2 Submission cannot be mutated after sealing — the signature covers
+    /// A v3 Submission cannot be mutated after sealing — the signature covers
     /// the payload — so a test that wants a different producer execution asks
     /// for a different draft rather than reaching into a signed object.
-    fn sealed_submission(edit: impl FnOnce(&mut SubmissionDraft)) -> SubmissionRecordV2 {
+    fn sealed_submission(edit: impl FnOnce(&mut SubmissionDraft)) -> SubmissionRecordV3 {
         let key = SigningKey::from_bytes(&[61_u8; 32]);
         let identity = SignerIdentityV1::new(
             "agent:producer-fixture",
@@ -1113,11 +1113,11 @@ mod tests {
             },
         };
         edit(&mut draft);
-        SubmissionRecordV2::seal(draft, identity, &key).unwrap()
+        SubmissionRecordV3::seal(draft, identity, &key).unwrap()
     }
 
     fn verification(
-        submission: &SubmissionRecordV2,
+        submission: &SubmissionRecordV3,
         property: &str,
         outcome: &str,
         verifier: &str,

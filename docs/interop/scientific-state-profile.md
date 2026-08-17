@@ -27,7 +27,7 @@ complete. Answering it as a table of contract → schema → check does not.
 
 | # | Contract | Wire schema | Defined in | Held by |
 |---|---|---|---|---|
-| 1 | Producer | `vela.submission.v2` in a DSSE envelope | PROTOCOL.md §3.3 | `conformance/current-objects/submission-draft.json`, `verify_current_objects.py` |
+| 1 | Producer | `vela.submission.v3` in a DSSE envelope | PROTOCOL.md §3.3 | `conformance/current-objects/submission-draft.json`, `verify_current_objects.py` |
 | 2 | Artifact | Content address only — `sha256:<64 hex>` under `records/artifacts/sha256/` | PROTOCOL.md §3.6, ROOTS.md | `verify_canonical_hashing.py` |
 | 3 | Verification | `vela.verification-record.v2` in a DSSE envelope | PROTOCOL.md §3.4 | `conformance/current-objects/verification-draft.json`, `verify_current_objects.py` |
 | 4 | Authority | `vela.authority-record.v1`, `vela.authorization-model.v1` | THREAT_MODEL.md, SIGNING.md | `conformance/fixtures/authority/math-coh-00/`, `verify_authority_chain.py` |
@@ -44,7 +44,7 @@ wrong fails all six without any of them looking wrong.
 ### 1. Producer
 
 Emit a DSSE envelope of payload type
-`application/vnd.vela.submission.v2+json` whose canonical root matches the one
+`application/vnd.vela.submission.v3+json` whose canonical root matches the one
 this repository computes over the same bytes. The root is over the envelope, so
 it covers the payload, the payload type and the signatures together; there is
 no separate object root and no zeroed preimage to reconstruct. `conformance/current-objects/submission-draft.json`
@@ -108,9 +108,9 @@ acceptance would be describing a different system.
 `conformance/fixtures/authority/math-coh-00/` is the language-independent
 verification vector. Its clean-room Python reader takes the sequence-one root
 as a separate explicit input and, without Vela, Rust, Git, or network access,
-verifies the retained four-record chain, seven Events, keyset, authorization
-model, signed deltas, signed correction transition, and bounded two-Claim
-terminal state. Thirteen stable negative vectors exercise the proved layers
+verifies the retained six-record chain, eleven Events, keyset, authorization
+model, signed deltas, both signed correction transitions, and bounded
+three-Claim terminal state. Thirteen stable negative vectors exercise the proved layers
 without retaining corrupted history. The companion Rust test checks the same
 fixture through the public history verifier.
 
@@ -136,7 +136,7 @@ vectors.
 
 **A limit an implementer must know about, and it is a decision rather than an
 oversight.** The projection traverses `depends` and `supports` claim-to-claim
-edges. `vela.submission.v2` gives a producer no way to declare either, so the
+edges. `vela.submission.v3` gives a producer no way to declare either, so the
 current write path authors correction relations and nothing else; every
 `depends` edge in the retained corpus came from the epoch-1 ingest.
 

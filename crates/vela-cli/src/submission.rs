@@ -15,7 +15,7 @@ use vela_protocol::claim_record::{
 };
 use vela_protocol::proposal::{ProposalProducerPackage, ProposalSubject, ProposalV1};
 use vela_protocol::repository::{ClaimStandingRefV1, RepositoryObjectRefV1, RepositoryV4};
-use vela_protocol::submission::SubmissionRecordV2;
+use vela_protocol::submission::SubmissionRecordV3;
 
 use crate::authority_transaction::AuthorityObjectDraft;
 use crate::config::git_publish::{
@@ -121,7 +121,7 @@ fn add_pending_claim(
 fn load_target_claim(
     repository_path: &Path,
     repository: &RepositoryV4,
-    submission: &SubmissionRecordV2,
+    submission: &SubmissionRecordV3,
 ) -> Result<Option<ClaimRecordV1>, String> {
     let Some(target) = submission.submission.requested_change.target.as_ref() else {
         return Ok(None);
@@ -161,7 +161,7 @@ struct ProposedChange {
 fn proposed_change(
     repository_path: &Path,
     repository: &RepositoryV4,
-    submission: &SubmissionRecordV2,
+    submission: &SubmissionRecordV3,
 ) -> Result<ProposedChange, String> {
     let target = load_target_claim(repository_path, repository, submission)?;
     if submission.submission.requested_change.kind == "retract_claim" {
@@ -268,7 +268,7 @@ fn proposed_change(
 fn existing_outcome(
     repository_path: &Path,
     repository: &RepositoryV4,
-    submission: &SubmissionRecordV2,
+    submission: &SubmissionRecordV3,
     submission_root: &str,
 ) -> Result<Option<SubmitOutcome>, String> {
     let Some(existing) = repository
@@ -340,7 +340,7 @@ fn submit_request_root(repository: &RepositoryV4, submission_root: &str) -> Resu
 fn require_unique_source_run(
     repository_path: &Path,
     repository: &RepositoryV4,
-    submission: &SubmissionRecordV2,
+    submission: &SubmissionRecordV3,
 ) -> Result<(), String> {
     let Some(source_run) = submission.submission.provenance.source_run.as_deref() else {
         return Ok(());
@@ -351,7 +351,7 @@ fn require_unique_source_run(
         }
         let bytes = fs::read(repository_path.join(&reference.path))
             .map_err(|error| format!("read retained Submission for Run uniqueness: {error}"))?;
-        let existing = SubmissionRecordV2::parse(&bytes)?;
+        let existing = SubmissionRecordV3::parse(&bytes)?;
         if existing.submission.provenance.producer == submission.submission.provenance.producer
             && existing.submission.provenance.source_system
                 == submission.submission.provenance.source_system
@@ -370,7 +370,7 @@ fn require_unique_source_run(
 
 pub(crate) fn submit(
     repository_path: &Path,
-    submission: &SubmissionRecordV2,
+    submission: &SubmissionRecordV3,
     executor: &str,
     bundle_root: Option<&Path>,
 ) -> Result<SubmitOutcome, String> {
@@ -626,7 +626,7 @@ mod tests {
         kind: &str,
         target: Option<RequestedChangeTarget>,
         assertion: &str,
-    ) -> SubmissionRecordV2 {
+    ) -> SubmissionRecordV3 {
         submission_from(kind, target, assertion, |_| {})
     }
 
@@ -640,7 +640,7 @@ mod tests {
         target: Option<RequestedChangeTarget>,
         assertion: &str,
         edit: impl FnOnce(&mut SubmissionDraft),
-    ) -> SubmissionRecordV2 {
+    ) -> SubmissionRecordV3 {
         let key = SigningKey::from_bytes(&[41_u8; 32]);
         let mut draft = SubmissionDraft {
             claim: SubmissionClaim {
@@ -676,7 +676,7 @@ mod tests {
             "2026-07-27T00:00:00Z",
         )
         .unwrap();
-        SubmissionRecordV2::seal(draft, identity, &key).unwrap()
+        SubmissionRecordV3::seal(draft, identity, &key).unwrap()
     }
 
     fn install_accepted_claim(

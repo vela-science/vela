@@ -1,12 +1,12 @@
 # ADR 0043: Experiment first with exact, artifact-backed Claim dependencies
 
-- Status: Accepted for a noncanonical experiment, 2026-08-10
+- Status: Retired after the noncanonical experiment, 2026-08-17
 - Supersedes: ADR 0040, whose historical wire-first options remain preserved
-- Protocol effect: none. `claim-dependency-profile.v0` is an experiment
-  artifact outside `schemas/`; it is not a Submission or Claim field and moves
-  no canonical bytes
-- Product effect: none. The current CLI and ten-command surface do not read,
-  author or admit the profile
+- Current disposition: the experiment and its duplicate interpreters are
+  deleted. Exact relations already retained in Claims and evidence remain the
+  only current representation; no canonical dependency field was added.
+- Protocol effect: none. The experiment moved no canonical bytes.
+- Product effect: none. The current CLI does not read, author, or admit it.
 - Authority effect: none. A profile, reducer result or passing check cannot
   make a Decision or change Standing
 - Relates to: ADR 0004, ADR 0009, ADR 0035, and the synthetic correction-impact
@@ -15,8 +15,8 @@
 ## Context
 
 ADR 0040 correctly found a representation gap and asked the wrong next
-question. The gap still exists after the current wire migration:
-`vela.submission.v2` cannot author a consequential Claim dependency. The
+question. At the time, the gap still existed after that wire migration:
+`vela.submission.v2` could not author a consequential Claim dependency. The
 production writer creates an empty `relations` array for a new Claim and one
 `corrects` or `supersedes` relation for a revision. It does not copy `depends`
 or `supports` from producer input.

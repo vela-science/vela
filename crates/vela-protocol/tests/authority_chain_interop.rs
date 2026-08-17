@@ -21,11 +21,6 @@ use vela_protocol::repository_origin::RepositoryOriginV1;
 const FIXTURE_ID: &str = "math-coh-00";
 const EMPTY_READ_ROOT: &str =
     "sha256:0000000000000000000000000000000000000000000000000000000000000000";
-const KEYSET_PATH: &str =
-    "authority/keysets/43762983e444ec2a8b7fc906b05e45d66e9af469024db0691324707d5306deb1.json";
-const MODEL_PATH: &str =
-    "authority/models/4d6d5e283577dde287b743871a67cb84bf1346d61ad8786c320d70f1af7e8965.json";
-
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct TrustAnchor {
@@ -53,8 +48,18 @@ impl Fixture {
     fn load() -> Self {
         let expected: Value = read_strict("expected.json");
         let anchor = read_strict("trust-anchor.json");
-        let keysets: Vec<AuthorityKeysetV1> = vec![read_strict(KEYSET_PATH)];
-        let models: Vec<AuthorizationModelV1> = vec![read_strict(MODEL_PATH)];
+        let keyset_digest = text(&expected, "/authority_keyset_root")
+            .strip_prefix("sha256:")
+            .unwrap();
+        let model_digest = text(&expected, "/authorization_model_root")
+            .strip_prefix("sha256:")
+            .unwrap();
+        let keysets: Vec<AuthorityKeysetV1> = vec![read_strict(&format!(
+            "authority/keysets/{keyset_digest}.json"
+        ))];
+        let models: Vec<AuthorizationModelV1> = vec![read_strict(&format!(
+            "authority/models/{model_digest}.json"
+        ))];
         keysets[0].validate().unwrap();
         models[0].validate().unwrap();
 
@@ -201,7 +206,7 @@ fn retained_math_authority_chain_verifies_from_an_external_anchor() {
             verified.authority_record_count,
             verified.authority_event_count
         ),
-        (4, 7)
+        (array(expected, "/records").len(), history.events.len())
     );
     assert_eq!(
         verified.final_event_log_root,
@@ -268,7 +273,29 @@ fn retained_math_authority_chain_verifies_from_an_external_anchor() {
             terminal.verifications.len(),
             terminal.artifacts.len()
         ),
-        (2, 0, 3, 0, 3, 3, 2)
+        (
+            expected["terminal"]["counts"]["accepted_claims"]
+                .as_u64()
+                .unwrap() as usize,
+            expected["terminal"]["counts"]["pending_claims"]
+                .as_u64()
+                .unwrap() as usize,
+            expected["terminal"]["counts"]["proposals"]
+                .as_u64()
+                .unwrap() as usize,
+            expected["terminal"]["counts"]["withdrawals"]
+                .as_u64()
+                .unwrap() as usize,
+            expected["terminal"]["counts"]["submissions"]
+                .as_u64()
+                .unwrap() as usize,
+            expected["terminal"]["counts"]["verifications"]
+                .as_u64()
+                .unwrap() as usize,
+            expected["terminal"]["counts"]["artifacts"]
+                .as_u64()
+                .unwrap() as usize,
+        )
     );
     for (accepted, item) in terminal
         .accepted_claims
@@ -337,7 +364,7 @@ fn retained_math_authority_falsifiers_fail_closed_without_resigning() {
     assert!(!anchor_selects(&anchor, &fixture.verify()));
 
     let mut history = fixture.history.clone();
-    let signature = &mut history.envelopes[3].signatures[0].sig;
+    let signature = &mut history.envelopes.last_mut().unwrap().signatures[0].sig;
     signature.replace_range(..1, if signature.starts_with('A') { "B" } else { "A" });
     assert!(fixture.verify_with(&history).is_err());
     history = fixture.history.clone();
@@ -358,7 +385,8 @@ fn retained_math_authority_falsifiers_fail_closed_without_resigning() {
     history
         .events
         .iter_mut()
-        .find(|event| event.id == "vev_cd938718b5750d22")
+        .rev()
+        .find(|event| serde_json::to_value(&event.content.kind).unwrap() == "review.accepted")
         .unwrap()
         .content
         .payload["verdict"] = Value::String("rejected".into());

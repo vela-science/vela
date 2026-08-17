@@ -15,9 +15,9 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from jsonschema import Draft202012Validator, FormatChecker
 
 KINDS = {
-    "application/vnd.vela.submission.v2+json": (
+    "application/vnd.vela.submission.v3+json": (
         "submission",
-        "vela.submission.v2",
+        "vela.submission.v3",
         "submission.schema.json",
         "vsb",
     ),

@@ -298,7 +298,7 @@ pub fn run_command() {
                 let raw = crate::bounded_file::read_bounded_file(
                     &path,
                     vela_protocol::submission::SUBMISSION_MAX_BYTES as u64,
-                    "Submission v2 envelope",
+                    "Submission v3 envelope",
                 )
                 .unwrap_or_else(|error| {
                     /* `bounded_file` distinguishes twelve reasons a named file
@@ -320,7 +320,7 @@ pub fn run_command() {
                         "vela submit --help",
                     )
                 });
-                let parsed = vela_protocol::submission::SubmissionRecordV2::parse(&raw)
+                let parsed = vela_protocol::submission::SubmissionRecordV3::parse(&raw)
                     .unwrap_or_else(|error| {
                         fail_preflight(crate::ui::ErrorKind::Domain, error.to_string())
                     });

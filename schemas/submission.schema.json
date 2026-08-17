@@ -264,7 +264,7 @@
       "type": "object"
     },
     "schema": {
-      "const": "vela.submission.v2",
+      "const": "vela.submission.v3",
       "type": "string"
     },
     "verification_requirements": {
@@ -289,6 +289,6 @@
     "requested_change",
     "provenance"
   ],
-  "title": "Vela Submission v2",
+  "title": "Vela Submission v3",
   "type": "object"
 }

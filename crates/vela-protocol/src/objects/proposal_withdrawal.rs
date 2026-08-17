@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::dsse::EnvelopeV1;
 use crate::proposal::ProposalV1;
-use crate::submission::SubmissionRecordV2;
+use crate::submission::SubmissionRecordV3;
 
 pub const PROPOSAL_WITHDRAWAL_V2_SCHEMA: &str = "vela.proposal-withdrawal.v2";
 pub const PROPOSAL_WITHDRAWAL_V2_PAYLOAD_TYPE: &str =
@@ -62,7 +62,7 @@ pub struct ProposalWithdrawalEnvelopeV2 {
 impl ProposalWithdrawalEnvelopeV2 {
     pub fn seal(
         proposal: &ProposalV1,
-        submission: &SubmissionRecordV2,
+        submission: &SubmissionRecordV3,
         actor: String,
         reason: String,
         created_at: String,
@@ -126,7 +126,7 @@ impl ProposalWithdrawalEnvelopeV2 {
     }
 
     /// Read a retained withdrawal, verifying it under the Submission's key.
-    pub fn parse(bytes: &[u8], submission: &SubmissionRecordV2) -> Result<Self, String> {
+    pub fn parse(bytes: &[u8], submission: &SubmissionRecordV3) -> Result<Self, String> {
         let envelope =
             EnvelopeV1::parse("Proposal Withdrawal", bytes, PROPOSAL_WITHDRAWAL_MAX_BYTES)?;
         Self::from_envelope(envelope, submission)
@@ -134,7 +134,7 @@ impl ProposalWithdrawalEnvelopeV2 {
 
     pub fn from_envelope(
         envelope: EnvelopeV1,
-        submission: &SubmissionRecordV2,
+        submission: &SubmissionRecordV3,
     ) -> Result<Self, String> {
         let payload = envelope.open_single(
             "Proposal Withdrawal",
@@ -168,7 +168,7 @@ impl ProposalWithdrawalEnvelopeV2 {
     pub fn verify_with(
         &self,
         proposal: &ProposalV1,
-        submission: &SubmissionRecordV2,
+        submission: &SubmissionRecordV3,
     ) -> Result<(), String> {
         proposal.verify()?;
         if self.withdrawal.proposal_id != proposal.id()
@@ -248,7 +248,7 @@ mod tests {
         RequestedChange, SubmissionArtifact, SubmissionClaim, SubmissionDraft, SubmissionProvenance,
     };
 
-    fn fixture() -> (ProposalV1, SubmissionRecordV2, SigningKey) {
+    fn fixture() -> (ProposalV1, SubmissionRecordV3, SigningKey) {
         let key = SigningKey::from_bytes(&[7; 32]);
         let actor = "agent:producer".to_string();
         let identity = SignerIdentityV1::new(
@@ -258,7 +258,7 @@ mod tests {
             "2026-08-01T00:00:00Z",
         )
         .unwrap();
-        let submission = SubmissionRecordV2::seal(
+        let submission = SubmissionRecordV3::seal(
             SubmissionDraft {
                 claim: SubmissionClaim {
                     assertion: "A bounded result.".into(),
@@ -316,7 +316,7 @@ mod tests {
 
     fn withdraw(
         proposal: &ProposalV1,
-        submission: &SubmissionRecordV2,
+        submission: &SubmissionRecordV3,
         key: &SigningKey,
     ) -> Result<ProposalWithdrawalEnvelopeV2, String> {
         ProposalWithdrawalEnvelopeV2::seal(

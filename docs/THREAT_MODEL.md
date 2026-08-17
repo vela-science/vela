@@ -12,7 +12,7 @@ true, novel, important, or ethical.
 - the authenticated principal and semantic action behind each canonical write;
 - exact Git commit/tree, repository origin, object sets, and roots;
 - the independently distributed sequence-one authority-record root;
-- producer-declared execution-binding roots, Submission, and Verification
+- authenticated Submission provenance and exact Submission and Verification
   bindings; and
 - deterministic replay and exact source-owned Method bindings.
 
@@ -70,8 +70,8 @@ shortened digest fails strict validation.
 
 `submit` treats the Submission and every Artifact as untrusted. It validates
 closed schemas, sizes, paths, digests, producer identity, exact Claim targets
-for corrections, current receiving-repository context, execution-binding root
-shapes, and declared verification requirements before intake.
+for corrections, current receiving-repository context, retained Artifact
+bindings, and declared verification requirements before intake.
 
 A producer signature proves origin only. Intake creates a pending Proposal and
 no accepted Standing.

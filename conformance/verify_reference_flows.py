@@ -57,7 +57,9 @@ def check_computational_flow() -> None:
     result = directory / "result.json"
     if digest(result) != flow["result_sha256"]:
         raise AssertionError("computational result digest drift")
-    recomputed = run([sys.executable, str(directory / "experiment.py"), "--check", str(result)])
+    recomputed = run(
+        [sys.executable, str(directory / "experiment.py"), "--check", str(result)]
+    )
     if recomputed.returncode != 0:
         raise AssertionError(recomputed.stderr)
 
@@ -119,9 +121,15 @@ def check_computational_flow() -> None:
 def check_correction_flow() -> None:
     flow = load(EXAMPLES / "correction-inheritance/flow.json")
     authority = load(ROOT / flow["real_authority_fixture"] / "expected.json")
-    if authority["terminal"]["repository_manifest_root"] != flow["real_terminal_repository_root"]:
+    if (
+        authority["terminal"]["repository_manifest_root"]
+        != flow["real_terminal_repository_root"]
+    ):
         raise AssertionError("real correction terminal root drift")
-    if len(authority["terminal"]["accepted_claims"]) != flow["real_accepted_claim_count"]:
+    if (
+        len(authority["terminal"]["accepted_claims"])
+        != flow["real_accepted_claim_count"]
+    ):
         raise AssertionError("real correction accepted Claim count drift")
     input_value = load(ROOT / flow["cascade_fixture"])
     input_root = "sha256:" + hashlib.sha256(canonical_bytes(input_value)).hexdigest()
@@ -134,13 +142,21 @@ def check_correction_flow() -> None:
 
 def check_formal_math_flow() -> None:
     flow = load(EXAMPLES / "formal-math/flow.json")
-    if flow["repository_commit"] != "08a0e6d327e1ae9937ab2e0e5002192815eac69a":
-        raise AssertionError("formal-math flow no longer pins the current compact lineage")
-    if flow["repository_root"] != "sha256:3e2236510923277c1e363d2d28c3d84d86a1d698bafd576b79308b18ae0cf0d2":
+    if flow["repository_commit"] != "f9b28280881472ccb9c4b1b35d8e741745f0bd99":
+        raise AssertionError(
+            "formal-math flow no longer pins the current compact lineage"
+        )
+    if (
+        flow["repository_root"]
+        != "sha256:45640c5eea54693df444eada6dd1a7c1f5a4b4ef266fddf79cf51d083233ebba"
+    ):
         raise AssertionError("formal-math repository root drift")
-    if flow["accepted_claim_count"] != 2:
+    if flow["accepted_claim_count"] != 3:
         raise AssertionError("formal-math current accepted count drift")
-    if flow["evidence_artifact_root"] != "sha256:789c9dc5e4c1c234450a7ebd03d7b4fb8e0ba6deab12098e2fb17b3e74bada10":
+    if (
+        flow["evidence_artifact_root"]
+        != "sha256:789c9dc5e4c1c234450a7ebd03d7b4fb8e0ba6deab12098e2fb17b3e74bada10"
+    ):
         raise AssertionError("formal-math correction evidence root drift")
 
 

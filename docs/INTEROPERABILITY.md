@@ -8,8 +8,8 @@ domain tools, Git, package formats, workflow engines, or scientific ontologies.
 
 ### Submission
 
-`vela.submission.v2`, inside a DSSE envelope of payload type
-`application/vnd.vela.submission.v2+json`, is the producer boundary. The
+`vela.submission.v3`, inside a DSSE envelope of payload type
+`application/vnd.vela.submission.v3+json`, is the producer boundary. The
 envelope's signature is the Submission's only signature and the envelope's
 canonical root is its only root. The payload carries exact:
 

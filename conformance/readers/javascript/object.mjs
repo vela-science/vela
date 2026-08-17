@@ -10,10 +10,22 @@ import { canonical } from "./canonical.mjs";
 
 const SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
 const KINDS = {
-  "application/vnd.vela.submission.v2+json": {
+  "application/vnd.vela.submission.v3+json": {
     kind: "submission",
-    schema: "vela.submission.v2",
+    schema: "vela.submission.v3",
     prefix: "vsb",
+    fields: [
+      "artifacts",
+      "caveats",
+      "claim",
+      "identity",
+      "producer_checks",
+      "provenance",
+      "replayability",
+      "requested_change",
+      "schema",
+      "verification_requirements",
+    ],
   },
   "application/vnd.vela.verification-record.v2+json": {
     kind: "verification",
@@ -60,6 +72,13 @@ function verify(path) {
     throw new Error("payload is not canonical RFC 8785 JSON");
   }
   if (record.schema !== contract.schema) throw new Error(`payload schema is not ${contract.schema}`);
+  if (contract.fields) {
+    const actual = Object.keys(record).sort();
+    const expected = [...contract.fields].sort();
+    if (actual.length !== expected.length || actual.some((field, index) => field !== expected[index])) {
+      throw new Error(`${contract.schema} payload fields are not the exact closed set`);
+    }
+  }
   const identity = record.identity;
   if (!identity || !/^[0-9a-f]{64}$/.test(identity.public_key_hex)) {
     throw new Error("identity public key is not 32-byte lowercase hex");

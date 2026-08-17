@@ -29,7 +29,7 @@ use vela_protocol::status::{
     REPOSITORY_HEAD_ROLE, ReplayState, StatusActions, StatusCounts, StatusDecisionInbox, StatusGit,
     StatusIntegrity, StatusReviewAction, StatusRoots, StatusWorkAction, StrictState,
 };
-use vela_protocol::submission::SubmissionRecordV2;
+use vela_protocol::submission::SubmissionRecordV3;
 use vela_protocol::verification_record::VerificationRecordEnvelopeV2;
 
 use crate::claim_standing::{self, ClaimStanding};
@@ -1009,7 +1009,7 @@ pub(crate) fn projection_payload(repository_path: &Path) -> Result<RepositoryPro
 
     let mut submissions = Vec::new();
     for reference in &context.repository.submissions {
-        let parsed = SubmissionRecordV2::parse(&read_exact(
+        let parsed = SubmissionRecordV3::parse(&read_exact(
             &repository_path,
             &reference.path,
             &reference.root,

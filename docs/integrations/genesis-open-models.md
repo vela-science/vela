@@ -3,13 +3,13 @@
 This note is the current, checkable public case for Vela's scientific-state
 boundary. It is not a model benchmark or an archive of pre-release migrations.
 
-- **Reader:** signed Vela `v0.975.1`
+- **Reader:** signed Vela `v0.977.0`
 - **Repository:** `vela-science/math`
-- **Repository UUID:** `8138c6da-46c4-47ee-b493-5bbfbec09b1e`
-- **Git commit:** `08a0e6d327e1ae9937ab2e0e5002192815eac69a`
-- **Git tree:** `f58de302dcaf96e41e4836732dc5446f4eeb8c61`
-- **Repository root:** `sha256:3e2236510923277c1e363d2d28c3d84d86a1d698bafd576b79308b18ae0cf0d2`
-- **Current Standing:** two accepted Claims, no pending Proposal
+- **Repository UUID:** `3d012325-3768-4b95-a385-c94e9f2a57a6`
+- **Git commit:** `f9b28280881472ccb9c4b1b35d8e741745f0bd99`
+- **Git tree:** `875539d8790c0557ebee91ad2e40b22f5fa0c147`
+- **Repository root:** `sha256:45640c5eea54693df444eada6dd1a7c1f5a4b4ef266fddf79cf51d083233ebba`
+- **Current Standing:** three accepted Claims, no pending Proposal
 
 ## Why the boundary matters
 
@@ -19,7 +19,7 @@ authenticated Submission, a scoped Verification record, and the separately
 authorized Decision that changes Standing. Git carries the exact bytes and
 history; neither a build badge nor a Git host makes the Decision.
 
-The current Math genesis contains two deliberately bounded cases:
+The current Math genesis contains three deliberately bounded cases:
 
 1. **Erdős 321.** The accepted successor Claim records exact source occurrence
    identities and a candidate-answer relationship. It corrects a retained
@@ -32,6 +32,10 @@ The current Math genesis contains two deliberately bounded cases:
    repaired source against retained public compiled-cache inputs. It does not
    establish mathematical correctness, general source reproducibility, or a
    source-owned mapping for the public Problem catalogue.
+3. **Erdős 94.** The accepted corrected Claim binds the exact
+   `sum_multiplicity` occurrence and preserves its predecessor as superseded.
+   The association is navigation-only and does not establish the cubic
+   distance-multiplicity conjecture or semantic equivalence.
 
 These are different scientific claims with different evidence. They share one
 Repository authority and one replay contract; Vela does not force them into a
@@ -44,7 +48,7 @@ Vela service, or Repository-authority key:
 
 ```bash
 git clone https://github.com/vela-science/math.git math
-git -C math checkout 08a0e6d327e1ae9937ab2e0e5002192815eac69a
+git -C math checkout f9b28280881472ccb9c4b1b35d8e741745f0bd99
 vela replay math --json
 vela status math --json
 vela claims math --json
@@ -53,17 +57,17 @@ vela review list math --status all --json
 
 Expected replay facts:
 
-- origin `vro_be55672495053325` /
-  `sha256:be556724950533252af6aea398836ffe35717ffcda1f7d609fa6735413941e14`;
+- origin `vro_a6a12da8762f1252` /
+  `sha256:a6a12da8762f1252afe1ac1c75361ef54c583924a2b88474232ead6227873dca`;
 - Repository root
-  `sha256:3e2236510923277c1e363d2d28c3d84d86a1d698bafd576b79308b18ae0cf0d2`;
-- two current accepted Claims;
-- three authenticated Submissions, three scoped Verifications, and three
+  `sha256:45640c5eea54693df444eada6dd1a7c1f5a4b4ef266fddf79cf51d083233ebba`;
+- three current accepted Claims;
+- five authenticated Submissions, four scoped Verifications, and five
   accepted Proposal transitions;
 - zero pending, rejected, or withdrawn Proposals.
 
 For strict consumer trust, obtain the sequence-one authority-record root
-`sha256:978e78326c9cd0c665b958696a0255e76fd50cc2d699651fbd7edd95aed418ef`
+`sha256:efae3e02b5be6dfccf6701ebe26f87f00bb64f5b4372674e572a633844d95469`
 through an independent channel and pin it locally before replay. The pin grants
 no authority and changes no Repository byte.
 
@@ -84,7 +88,7 @@ axis.
 
 ## What this does not claim
 
-- Erdős 321 or 887 is resolved.
+- Erdős 321, 94, or 887 is resolved.
 - Occurrence grouping proves statement equivalence.
 - A passing Verification accepts a Claim.
 - The current bounded correction has a non-empty downstream dependency cascade.

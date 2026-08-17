@@ -33,9 +33,9 @@ The corpus protects seven contract families:
    roots;
 4. a non-authoritative correction-impact projection, including independent
    support-route survival and bounded fail-closed diagnostics; and
-5. verification of the current four-record, seven-Event Math authority chain
+5. verification of the current six-record, eleven-Event Math authority chain
    from an explicit external sequence-one anchor, including thirteen
-   fail-closed mutations and the signed correction transition;
+   fail-closed mutations and both signed correction transitions;
 6. byte-identical independent Python and JavaScript object reading, including
    canonical bytes, DSSE type, Ed25519 signature, full root, handle, and signer;
    and
@@ -55,8 +55,8 @@ exists. They earn no scientific or protocol-breakthrough credit.
 
 `fixtures/authority/math-coh-00/` retains public signed history and no private
 key. Its Python reader independently verifies the exact chain, the Erdős 321
-predecessor-to-correction transition, and the two-Claim terminal state without
-Vela, Rust, Git, or network access. The explicit trust anchor is a separate
+and 94 predecessor-to-correction transitions, and the three-Claim terminal
+state without Vela, Rust, Git, or network access. The explicit trust anchor is a separate
 verifier input; this vector does not claim that current CLI read paths load the
 local trust pin or that the production history verifier checks every
 fixture-level cross-link.

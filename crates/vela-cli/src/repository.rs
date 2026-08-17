@@ -22,7 +22,7 @@ use vela_protocol::status::{
     StatusIntegrity, StatusRepository, StatusReviewAction, StatusRoots, StatusV4, StatusWorkAction,
     StrictState,
 };
-use vela_protocol::submission::SubmissionRecordV2;
+use vela_protocol::submission::SubmissionRecordV3;
 use vela_protocol::verification_record::VerificationRecordEnvelopeV2;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -657,7 +657,7 @@ pub(crate) fn load_current_proposal_withdrawals(
                     reference.id
                 )
             })?;
-        let submission = SubmissionRecordV2::parse(&read_rooted_object(
+        let submission = SubmissionRecordV3::parse(&read_rooted_object(
             repository_path,
             &submission_reference.path,
             &submission_reference.root,
@@ -1058,7 +1058,7 @@ pub(crate) fn cmd_review_show(repository_path: &Path, proposal_id: &str, json_ou
         &submission_reference.root,
     )
     .unwrap_or_else(|error| crate::cli::fail_return(&error));
-    let submission = vela_protocol::submission::SubmissionRecordV2::parse(&submission_bytes)
+    let submission = vela_protocol::submission::SubmissionRecordV3::parse(&submission_bytes)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let verifications = repository
         .verifications
@@ -1194,7 +1194,7 @@ fn verification_targets_rooted_proposal(
 fn proposal_matches_signed_submission(
     proposal: &ProposalV1,
     claim: &ClaimRecordV1,
-    submission: &SubmissionRecordV2,
+    submission: &SubmissionRecordV3,
 ) -> Result<(), String> {
     if proposal.actor != submission.submission.provenance.producer
         || proposal.caveats != submission.submission.caveats
@@ -1425,7 +1425,7 @@ pub(crate) fn verify_repository_at(
             ));
         }
         let submission =
-            SubmissionRecordV2::parse(object_bytes.get(&submission_reference.path).ok_or_else(
+            SubmissionRecordV3::parse(object_bytes.get(&submission_reference.path).ok_or_else(
                 || {
                     format!(
                         "current object {} was not loaded",
@@ -1453,7 +1453,7 @@ pub(crate) fn verify_repository_at(
         let bytes = object_bytes
             .get(&reference.path)
             .ok_or_else(|| format!("current object {} was not loaded", reference.path))?;
-        let submission = SubmissionRecordV2::parse(bytes)?;
+        let submission = SubmissionRecordV3::parse(bytes)?;
         if submission.bytes.clone().as_slice() != bytes.as_slice() || submission.id != reference.id
         {
             return Err(format!(
@@ -2586,13 +2586,13 @@ mod tests {
         }
     }
 
-    fn signed_submission_and_claim() -> (SubmissionRecordV2, ClaimRecordV1) {
+    fn signed_submission_and_claim() -> (SubmissionRecordV3, ClaimRecordV1) {
         let key = SigningKey::from_bytes(&[71_u8; 32]);
         let producer = "agent:proposal-binding-fixture";
         let emitted_at = "2026-07-27T00:00:00Z";
         let identity =
             SignerIdentityV1::new(producer, ActorClass::Agent, &key, emitted_at).unwrap();
-        let submission = SubmissionRecordV2::seal(
+        let submission = SubmissionRecordV3::seal(
             SubmissionDraft {
                 claim: SubmissionClaim {
                     assertion: "An exact bounded search completed.".into(),

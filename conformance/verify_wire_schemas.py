@@ -269,7 +269,7 @@ def verify_status_read_surface() -> tuple[int, int]:
 
 def derived(prefix: str, root: str) -> str:
     """The handle a full root derives: prefix plus its first sixteen digits."""
-    return f"{prefix}_{root[len('sha256:'):][:16]}"
+    return f"{prefix}_{root[len('sha256:') :][:16]}"
 
 
 def envelope_payload(name: str) -> object:
@@ -353,7 +353,9 @@ def verify_repository_and_authorization_schemas() -> tuple[int, int]:
         (
             profile_check,
             profile,
-            lambda item: item.update(repository_id="0a25edab-c16d-7b14-b0a2-5edabc16db14"),
+            lambda item: item.update(
+                repository_id="0a25edab-c16d-7b14-b0a2-5edabc16db14"
+            ),
             "repository profile UUID outside version 4",
         ),
         (
@@ -474,8 +476,12 @@ def main() -> int:
     verification = envelope_payload("verification.json")
     submission_check.validate(submission)
     verification_check.validate(verification)
-    envelope_check.validate(load_json(CONFORMANCE / "current-objects" / "submission.json"))
-    envelope_check.validate(load_json(CONFORMANCE / "current-objects" / "verification.json"))
+    envelope_check.validate(
+        load_json(CONFORMANCE / "current-objects" / "submission.json")
+    )
+    envelope_check.validate(
+        load_json(CONFORMANCE / "current-objects" / "verification.json")
+    )
 
     proposal_root = "sha256:" + "1" * 64
     submission_root = "sha256:" + "2" * 64
@@ -501,6 +507,18 @@ def main() -> int:
     mutated = copy.deepcopy(submission)
     mutated["unexpected"] = True
     expect_rejected(submission_check, mutated, "submission unknown field")
+    mutated = copy.deepcopy(submission)
+    mutated["schema"] = "vela.submission.v2"
+    expect_rejected(submission_check, mutated, "retired submission v2 schema")
+    mutated = copy.deepcopy(submission)
+    mutated["execution_binding"] = {
+        "schema": "vela.execution-binding.v1",
+        "packet_root": "sha256:" + "a" * 64,
+        "profile_root": "sha256:" + "b" * 64,
+        "verifier_capsule_root": "sha256:" + "c" * 64,
+        "result_contract_root": "sha256:" + "d" * 64,
+    }
+    expect_rejected(submission_check, mutated, "retired execution_binding field")
     mutated = copy.deepcopy(submission)
     mutated["requested_change"]["target"] = {
         "claim_id": "vcl_" + "a" * 64,
@@ -533,7 +551,9 @@ def main() -> int:
     expect_rejected(verification_check, mutated, "submission reference with no body")
     mutated = copy.deepcopy(verification)
     del mutated["subject"]["proposal_root"]
-    expect_rejected(verification_check, mutated, "proposal handle with no root to derive from")
+    expect_rejected(
+        verification_check, mutated, "proposal handle with no root to derive from"
+    )
     mutated = copy.deepcopy(verification)
     mutated["outcome"] = "accepted"
     expect_rejected(verification_check, mutated, "verification implies acceptance")
@@ -548,7 +568,9 @@ def main() -> int:
     expect_rejected(envelope_check, mutated, "envelope without signatures")
     mutated = copy.deepcopy(authority_envelope)
     mutated["payloadType"] = "application/json"
-    expect_rejected(envelope_check, mutated, "envelope outside the Vela payload namespace")
+    expect_rejected(
+        envelope_check, mutated, "envelope outside the Vela payload namespace"
+    )
 
     # A handle is a prefix of a root and exactly sixteen digits. The `.+` forms
     # these replaced accepted any body at all, so a reference could name one
@@ -558,7 +580,9 @@ def main() -> int:
     expect_rejected(withdrawal_check, mutated, "withdrawal reference with no body")
     mutated = copy.deepcopy(withdrawal)
     mutated["submission_id"] = "vsb_" + "2" * 64
-    expect_rejected(withdrawal_check, mutated, "withdrawal reference carrying a whole root")
+    expect_rejected(
+        withdrawal_check, mutated, "withdrawal reference carrying a whole root"
+    )
 
     positive, negative = verify_status_read_surface()
     core_positive, core_negative = verify_repository_and_authorization_schemas()
