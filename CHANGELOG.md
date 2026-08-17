@@ -10,6 +10,25 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+- **Human and agent operators get one explicit Decision contract.** Stable JSON
+  keeps its existing fields and now groups the attributed performer separately
+  from the Repository authority principal, authentication, and transaction
+  signer. Actor kind remains provenance; both performer classes use the same
+  policy, exact-root, signing, and replay gates.
+
+- **Failure output names the exact recovery path without weakening fail-closed
+  behavior.** Submission v2/media/schema/signature refusal, missing independent
+  Verification, stale Inbox roots, authority refusal, and native-integration
+  misuse have stable codes and bounded next actions. Malformed inputs,
+  preflight failures, and post-commit `do not retry` failures stay distinct.
+
+- **Mechanical Git publication no longer depends on ambient user identity.**
+  Vela binds a neutral transport commit identity while scientific attribution
+  remains in the signed Submission, Verification, Decision, and authority
+  records. Current help, quickstarts, and four optional existing-Method review
+  checklists expose the complete Repository loop without a new Protocol object
+  or agent runtime.
+
 ## 0.977.0
 
 - **The final pre-1.0 Submission cut has one closed current shape.**

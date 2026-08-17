@@ -13,13 +13,20 @@ Vela has two related but distinct release surfaces:
 The latest signed published release is `v0.977.0`. User-facing installer
 examples pin that exact tag rather than following a moving branch.
 
+`v0.977.1` is the compatible agent-operator coherence candidate. It preserves
+the v3 Protocol selection, exact roots, replay, and authority semantics while
+making performer-versus-authority output explicit, adding stable bounded
+failure codes, and removing ambient Git identity from mechanical publication.
+It becomes current only after both platform bundles and manifests pass the
+gates below, the exact draft manifests are signed, and the draft is published.
+
 `vela integration check` validates the shared Manifest, Profile, Binding,
 Method, and Exact Reference contract. `vela integration inspect` renders its
 rooted inventory. Neither command executes a native Method, initializes
 Repository authority, makes a Decision, creates an Event, or changes Standing.
 Source-specific scientific, build, proof, and review semantics remain owned by
-the source repository. This release changes the Protocol 1 Submission selection
-to v3 and does not claim external adoption or scientific lift.
+the source repository. This patch changes no Protocol 1 object or selection and
+does not claim external adoption or scientific lift.
 
 Neither a protocol conformance result nor a signed software bundle is a
 scientific Decision. Neither changes Standing or demonstrates external

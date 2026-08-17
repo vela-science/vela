@@ -131,14 +131,14 @@ it does not prove that a Claim is true.
 Install the exact signed release:
 
 Vela supports Linux x86-64 and macOS Apple-silicon release bundles.
-`v0.977.0` is the current signed release. Its static Linux bundle no longer
-inherits the builder's glibc floor; both platform manifests bind the published
-archives and SBOMs and verify with the out-of-band distribution identity before
-installation.
+`v0.977.0` remains the current signed release while the `v0.977.1`
+agent-operator coherence patch is qualified. After that tag is signed and
+published, both platform manifests bind the archives and SBOMs and verify with
+the out-of-band distribution identity before installation.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.0/install.sh | \
-  VELA_VERSION=v0.977.0 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.1/install.sh | \
+  VELA_VERSION=v0.977.1 bash
 vela --version
 ```
 
