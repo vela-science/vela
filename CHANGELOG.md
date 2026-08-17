@@ -10,6 +10,8 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+## 0.977.1
+
 - **Human and agent operators get one explicit Decision contract.** Stable JSON
   keeps its existing fields and now groups the attributed performer separately
   from the Repository authority principal, authentication, and transaction

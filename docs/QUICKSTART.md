@@ -7,10 +7,8 @@ agent performers are recorded distinctly and use the same exact-root gates.
 
 ## Two-minute flagship: read exact scientific state
 
-`v0.977.0` remains the current signed release while the `v0.977.1`
-agent-operator coherence patch is qualified. The following command becomes
-valid only after that tag is signed and published; the installer then verifies
-the exact platform manifest with the out-of-band distribution identity.
+`v0.977.1` is the current signed release. The installer verifies the exact
+platform manifest with the out-of-band distribution identity.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.1/install.sh | \
@@ -29,7 +27,7 @@ At the pinned commit, replay returns Repository root
 `sha256:45640c5eea54693df444eada6dd1a7c1f5a4b4ef266fddf79cf51d083233ebba`
 and the Claim index reports three current accepted Claims. The corrected
 Erdős 321 and Erdős 94 Claims are accepted, while both retained predecessors
-project current Standing `superseded` under Vela `0.977.0`.
+project current Standing `superseded` under Vela `0.977.1`.
 
 Do not use a shallow or partial clone for exact offline reads: missing Git
 history is indistinguishable from missing scientific history. The Erdős 321

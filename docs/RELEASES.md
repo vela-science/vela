@@ -4,21 +4,21 @@ Vela has two related but distinct release surfaces:
 
 - **Protocol 1** is the current release-candidate specification, schemas,
   conformance vectors, and independent readers.
-- **Vela 0.977.0** is the current signed pre-1.0 implementation release. It is
-  the final planned pre-1.0 wire cut: Submission v3 is the only current
-  Submission shape, and the v2/execution-binding runtime is absent. It retains
-  the stable, deterministic, authority-neutral Repository projection and the
-  static musl Linux bundle.
+- **Vela 0.977.1** is the current signed pre-1.0 implementation release. It
+  retains the final planned pre-1.0 wire cut from 0.977.0: Submission v3 is the
+  only current Submission shape, and the v2/execution-binding runtime is absent.
+  It also retains the stable, deterministic, authority-neutral Repository
+  projection and the static musl Linux bundle.
 
-The latest signed published release is `v0.977.0`. User-facing installer
+The latest signed published release is `v0.977.1`. User-facing installer
 examples pin that exact tag rather than following a moving branch.
 
-`v0.977.1` is the compatible agent-operator coherence candidate. It preserves
+`v0.977.1` is the compatible agent-operator coherence patch. It preserves
 the v3 Protocol selection, exact roots, replay, and authority semantics while
 making performer-versus-authority output explicit, adding stable bounded
 failure codes, and removing ambient Git identity from mechanical publication.
-It becomes current only after both platform bundles and manifests pass the
-gates below, the exact draft manifests are signed, and the draft is published.
+Both platform bundles and manifests passed the gates below; the exact manifests
+were signed before the draft became public and immutable.
 
 `vela integration check` validates the shared Manifest, Profile, Binding,
 Method, and Exact Reference contract. `vela integration inspect` renders its

@@ -534,11 +534,11 @@
       "sha256": "sha256:7d37eab51662772e5eedeab81d330b0f6897727229dd731ea9ef6e9a7de57918"
     },
     {
-      "bytes": 4096,
+      "bytes": 4099,
       "normative": false,
       "path": "docs/RELEASES.md",
       "role": "release-qualification",
-      "sha256": "sha256:dd0ab624c86d16a6d65f247a3604b0c887d713f0f41d1be170b0263d81d5be80"
+      "sha256": "sha256:2f55dcb21857c7f49f05fc896d639c724f0e3faa04dc379f17bd3f5ec9cd4fd7"
     },
     {
       "bytes": 10847,
@@ -779,7 +779,7 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:448e7e80ac1ead40045d87df51f4352e80091c09ceae6e5acea250795b5ff9ed",
+  "manifest_root": "sha256:dadaf6480d854d410e179b63a535948df733b5748d685786c5077275c3ce8484",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",
