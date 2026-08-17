@@ -121,13 +121,19 @@ git diff --check
 Run a named integration test while iterating when it covers the change:
 
 ```bash
-cargo test --locked -p vela-cli --test bootstrap_cli_ux
+cargo test --locked -p vela-cli --features test-support --test bootstrap_cli_ux
 cargo test --locked -p vela-cli --test genesis
 cargo test --locked -p vela-protocol --test canonical_hashing_conformance
-cargo test --locked -p vela-protocol --test engine_pin
+cargo test --locked -p vela-protocol --test wire_schemas
 ```
 
 If a shared type or behavior changed, test its direct consumer crates as well.
+
+`bootstrap_cli_ux` needs `--features test-support`. Without it the target
+compiles nine of its fifteen tests and exits zero with no `ignored` or
+`filtered out` count, so the shortfall is silent — the six it drops are the
+crash-recovery suite. The feature stays non-default on purpose: production
+authorization must never inspect failpoint environment variables.
 If canonical bytes, roots, schemas, or the current interoperability waist
 changed, run the relevant conformance check in addition to crate tests:
 
@@ -176,6 +182,17 @@ Workspace crates are implementation boundaries, not separate products. Keep
 their versions aligned with the single Vela release identity.
 
 ## Release discipline
+
+**An installed binary is identified by its digest, not by its version.** A
+locally rebuilt `vela` reports the same version as the released one and is a
+different build: Rust release builds are not byte-reproducible across rustc
+versions and build paths. Downstream, `vela-web` declares which digests it
+accepts as projection generators, so a rebuild of the right version is not
+automatically an accepted generator and a projection made with it fails that
+assertion. Two 0.976.1 binaries once sat on one machine with only one of them
+accepted. Check `shasum -a 256` against the declared digest before signing or
+generating anything, and invoke by absolute path rather than through a shell
+alias.
 
 Do not bump versions, edit release notes, tag, or publish for an ordinary
 change. A release is a separate task after the intended product change passes

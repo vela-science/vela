@@ -11,5 +11,8 @@ uv run --project conformance --locked ruff check \
   conformance scripts .github/release/*.py examples/computational-science/experiment.py
 PYTHONDONTWRITEBYTECODE=1 uv run --project conformance --locked python conformance/verify.py
 cargo test --quiet --locked --workspace --all-targets
+# The crash-recovery suite is gated behind a non-default feature, so the line
+# above never compiled it and this run was not the union it claims to be.
+cargo test --quiet --locked --workspace --all-targets --features vela-cli/test-support
 cargo test --quiet --locked --workspace --doc
 printf 'core surface: ok (external Lean not selected)\n'
