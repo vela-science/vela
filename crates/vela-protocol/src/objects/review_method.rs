@@ -180,4 +180,20 @@ mod tests {
             method("ai_model")
         );
     }
+
+    #[test]
+    fn optional_review_checklists_are_canonical_current_methods() {
+        for bytes in [
+            include_bytes!("../../../../examples/review-methods/semantic-source-adequacy.json")
+                .as_slice(),
+            include_bytes!("../../../../examples/review-methods/mathematical-reasoning.json")
+                .as_slice(),
+            include_bytes!("../../../../examples/review-methods/computational-formal.json")
+                .as_slice(),
+            include_bytes!("../../../../examples/review-methods/meta-authority-independence.json")
+                .as_slice(),
+        ] {
+            ReviewMethodV1::parse_canonical(bytes).unwrap();
+        }
+    }
 }

@@ -61,11 +61,31 @@ fn run_review_decision(
     )
     .unwrap_or_else(|error| {
         ui::fail_if_recovery_required(&repository_path);
+        if error.starts_with(
+            "current acceptance lacks an independent passing Verification Record",
+        ) {
+            ui::fail_coded(
+                ErrorKind::Domain,
+                Some("missing_independent_verification"),
+                &error,
+                Some("run `vela review show <proposal> --json`, retain the exact review method, then record an independent passing check with `vela verification record`"),
+            )
+        }
         ui::fail_with(ErrorKind::Domain, &error, None)
     });
     if let Some(entry_root) = expected_entry_root {
         crate::decision_inbox::require_prepared_entry_root(&prepared, entry_root)
-            .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error, None));
+            .unwrap_or_else(|error| {
+                if is_stale_entry_error(&error) {
+                    ui::fail_coded(
+                        ErrorKind::Domain,
+                        Some("decision_entry_stale"),
+                        &error,
+                        Some("rerun `vela review inbox --json`, inspect the Proposal again, and use the new exact entry_root"),
+                    )
+                }
+                ui::fail_with(ErrorKind::Domain, &error, None)
+            });
     }
     let plan = prepared.plan.clone();
     if !json {
@@ -104,6 +124,17 @@ fn run_review_decision(
     )
     .unwrap_or_else(|error| {
         ui::fail_if_recovery_required(&repository_path);
+        if is_authority_refusal(&error) {
+            ui::fail_coded(
+                ErrorKind::Custody,
+                Some("authority_refused"),
+                &error,
+                Some("run `ssh-add -l`, confirm the Repository policy principal and full authority-key fingerprint, then retry; --as identifies the performer and never selects or grants authority"),
+            )
+        }
+        // This includes post-commit and post-publication failures whose own
+        // message says not to retry. Never replace that exact recovery advice
+        // with a generic authority hint.
         ui::fail_with(ErrorKind::Custody, &error, None)
     });
     let payload = serde_json::json!({
@@ -118,11 +149,11 @@ fn run_review_decision(
         "claim_id": plan.claim_id,
         "claim_root": plan.claim_root,
         "verification_set_root": plan.verification_set_root,
-        "actor_id": plan.actor_id,
-        "actor_class": plan.actor_class,
-        "session_ref": plan.session_ref,
+        "actor_id": plan.actor_id.clone(),
+        "actor_class": plan.actor_class.clone(),
+        "session_ref": plan.session_ref.clone(),
         "principal_id": plan.principal_id.clone(),
-        "authority_principal_id": plan.principal_id,
+        "authority_principal_id": plan.principal_id.clone(),
         "action": action.as_str(),
         "reason": plan.reason,
         "decision_plan_root": plan.plan_root,
@@ -135,6 +166,17 @@ fn run_review_decision(
         "authentication": "local_os_session",
         "transaction_signer": "repository_authority",
         "performer_key_read": false,
+        "performer": {
+            "actor_id": plan.actor_id,
+            "actor_class": plan.actor_class,
+            "session_ref": plan.session_ref,
+            "key_read": false,
+        },
+        "authority": {
+            "principal_id": plan.principal_id,
+            "authentication": "local_os_session",
+            "transaction_signer": "repository_authority",
+        },
     });
     if json {
         println!(
@@ -157,5 +199,46 @@ fn run_review_decision(
             )
         );
         println!("  · exact Decision committed locally; inspect and push when ready");
+    }
+}
+
+fn is_stale_entry_error(error: &str) -> bool {
+    error.starts_with("Decision Inbox entry changed:")
+}
+
+fn is_authority_refusal(error: &str) -> bool {
+    error == "authorization denied"
+        || error.starts_with("authorization principal differs")
+        || error.starts_with("authorization input or evaluation is invalid:")
+        || error.starts_with("authentication was cancelled")
+        || error.starts_with("authentication provider failed:")
+        || error.starts_with("authentication observation is invalid:")
+        || error.starts_with("authentication principal differs")
+        || error.starts_with("local operating-system principal changed")
+        || error.starts_with("repository authority signing failed:")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{is_authority_refusal, is_stale_entry_error};
+
+    #[test]
+    fn stable_decision_codes_cover_only_their_exact_failure_class() {
+        assert!(is_stale_entry_error(
+            "Decision Inbox entry changed: requested sha256:old, current sha256:new"
+        ));
+        assert!(!is_stale_entry_error(
+            "--if-entry-root must be a full sha256 root"
+        ));
+        assert!(is_authority_refusal("authorization denied"));
+        assert!(is_authority_refusal(
+            "repository authority signing failed: no matching key"
+        ));
+        assert!(!is_authority_refusal(
+            "review Decision committed as record record_1 but exact Git publication failed; do not retry the Decision"
+        ));
+        assert!(!is_authority_refusal(
+            "review Decision Git preflight failed before installation"
+        ));
     }
 }

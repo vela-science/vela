@@ -100,6 +100,8 @@ vela verification record . <vpr_id> \
 The method path must be repository-relative, tracked, clean, and present in the
 current Git commit. This makes the observed method bytes reproducible; a
 passing Verification still does not accept the Claim.
+Canonical optional starting points for four common review scopes live in
+[`examples/review-methods`](../examples/review-methods/).
 
 Inspect the consequence-complete packet and use its exact entry root:
 
@@ -107,19 +109,23 @@ Inspect the consequence-complete packet and use its exact entry root:
 vela review inbox . --json
 vela review show . <vpr_id> --json
 
-# Authorized operator only; reject is the symmetric alternative.
+# Eligible human or agent performer; reject is the symmetric alternative.
 vela review accept . <vpr_id> \
   --reason "<bounded scientific reason>" \
   --if-entry-root sha256:... \
+  --as agent:<reviewer> \
+  --session-ref <source-owned-session-or-checkpoint> \
   --json
 
 vela replay . --json
 vela why . <claim_id> --json
 ```
 
-Only `review accept` or `review reject` changes Standing. A producer or
-verifier hands the rooted inbox entry to the authorized operator rather than
-making that Decision.
+Only `review accept` or `review reject` changes Standing. A human or agent may
+perform that exact Decision when Repository policy authorizes the current
+authority principal. `--as` records the performer; it neither selects the
+authority key nor grants authority. The JSON result reports `performer` and
+`authority` separately.
 
 Inspect the resulting objects without writing:
 

@@ -76,8 +76,7 @@ struct Document {
 }
 
 pub(crate) fn cmd_integration_check(path: &Path, json_out: bool) {
-    let inspection = inspect(path)
-        .unwrap_or_else(|error| crate::cli::fail_kind_return(crate::ui::ErrorKind::Domain, &error));
+    let inspection = inspect(path).unwrap_or_else(|error| fail_inspection(error));
     if json_out {
         crate::cli::print_json(&json!({
             "schema": "vela.cli.integration-check.v1",
@@ -102,8 +101,7 @@ pub(crate) fn cmd_integration_check(path: &Path, json_out: bool) {
 }
 
 pub(crate) fn cmd_integration_inspect(path: &Path, json_out: bool) {
-    let inspection = inspect(path)
-        .unwrap_or_else(|error| crate::cli::fail_kind_return(crate::ui::ErrorKind::Domain, &error));
+    let inspection = inspect(path).unwrap_or_else(|error| fail_inspection(error));
     if json_out {
         crate::cli::print_json(&inspection);
     } else {
@@ -119,6 +117,17 @@ pub(crate) fn cmd_integration_inspect(path: &Path, json_out: bool) {
         }
         println!("authority effect: none");
     }
+}
+
+fn fail_inspection(error: String) -> ! {
+    let authoritative = error.starts_with("this is an authoritative Vela Repository");
+    let hint = authoritative.then_some("use `vela status <repository> --json` or `vela replay <repository> --json`; integration check is only for non-authoritative native integration manifests");
+    crate::ui::fail_coded(
+        crate::ui::ErrorKind::Usage,
+        authoritative.then_some("native_integration_manifest_required"),
+        &error,
+        hint,
+    )
 }
 
 fn inspect(raw_root: &Path) -> Result<Inspection, String> {
@@ -537,11 +546,17 @@ fn load(root: &Path, path: &str, schema: &str, root_field: &str) -> Result<Docum
     )
     .map_err(|error| format!("parse integration document {path}: {error}"))?;
     let value = serde_json::to_value(parsed).map_err(|error| error.to_string())?;
-    guards(&value, path)?;
     let body = object(&value, path)?;
-    if text(body.get("schema"), "schema")? != schema {
+    let observed_schema = text(body.get("schema"), "schema")?;
+    if observed_schema == "vela.repository-profile.v1" {
+        return Err(
+            "this is an authoritative Vela Repository, not a native integration manifest".into(),
+        );
+    }
+    if observed_schema != schema {
         return Err(format!("unsupported schema at {path}"));
     }
+    guards(&value, path)?;
     let claimed = text(body.get(root_field), root_field)?.to_string();
     if !digest(&claimed) || claimed != document_root(schema, root_field, &value)? {
         return Err(format!("{root_field} or root domain mismatch at {path}"));

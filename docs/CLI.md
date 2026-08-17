@@ -44,7 +44,7 @@ init status claims submit show why review replay log
 | --- | --- |
 | `init` | Create a signed, replayable repository ready for scientific work. |
 | `status` | Report identity, replay, Decision Inbox readiness, and one safe next action. |
-| `claims` | Page the repository claim index: Claim ID, one-line assertion, Standing, origin era. |
+| `claims` | Page the repository claim index: Claim ID, one-line assertion, and current Standing. |
 | `submit` | Build or import one authenticated Submission and pending Proposal. |
 | `show` | Inspect one exact typed object and its authority effect. |
 | `why` | Explain one Claim's Standing from retained roots and history. |
@@ -80,6 +80,7 @@ Advanced verification and integration:
 - `integration check` validates the shared rooted Manifest/Profile/Binding/Method
   waist; `integration inspect` renders it. Neither executes Methods, initializes
   authority, creates Protocol objects, or establishes acceptance or Standing.
+  On an authoritative Vela Repository, use `status` or `replay` instead.
 
 Advanced maintenance:
 
@@ -447,9 +448,9 @@ against the current sequence-one authority record.
 vela replay <repo> --json
 ```
 
-The command verifies the current manifest, native-genesis or signed-predecessor
-origin, retained authority chain, exact object roots, and rejection of retired
-active paths. The one-time migration writer is not part of the current binary.
+The command verifies the current manifest and repository origin, retained
+authority chain, exact object roots, and rejection of retired active paths.
+The one-time migration writer is not part of the current binary.
 
 ## Repository recovery
 
@@ -557,6 +558,18 @@ without parsing prose:
 
 A failure whose cause is genuinely ambiguous reports `domain`, because a
 confident wrong code is worse than an honest general one.
+
+Common self-correcting codes are:
+
+| Stable code | Next action |
+| --- | --- |
+| submission_media_type_unsupported | Supply an `application/vnd.vela.submission.v3+json` envelope. Read v2 only with its signed historical release and rollback ref. |
+| submission_schema_unsupported | Author or export a new `vela.submission.v3`; current Vela does not migrate predecessor objects. |
+| submission_signature_invalid | Check the declared producer and key, then regenerate the signed envelope. `--as` cannot replace its signature. |
+| missing_independent_verification | Inspect `review show`, retain the exact Method, and record an independent passing Verification for the named property. |
+| decision_entry_stale | Rerun `review inbox`, inspect again, and use the new exact `entry_root`. No authority signature was requested. |
+| authority_refused | Check Repository policy, the authority principal, and `ssh-add -l`. `--as` identifies the performer and grants no authority. |
+| native_integration_manifest_required | Use `status` or `replay` for a Vela Repository; `integration` reads only a non-authoritative native integration manifest. |
 
 ## Fail-closed behavior
 

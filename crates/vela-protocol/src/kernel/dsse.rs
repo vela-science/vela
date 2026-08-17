@@ -177,7 +177,8 @@ impl EnvelopeV1 {
     ) -> Result<VerifiedPayload, String> {
         if self.payload_type != expected_payload_type {
             return Err(format!(
-                "{name} payload type must be `{expected_payload_type}`"
+                "{name} payload type is `{}`, expected `{expected_payload_type}`",
+                self.payload_type
             ));
         }
         verify(

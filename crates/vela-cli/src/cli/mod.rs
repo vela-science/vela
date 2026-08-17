@@ -321,9 +321,7 @@ pub fn run_command() {
                     )
                 });
                 let parsed = vela_protocol::submission::SubmissionRecordV3::parse(&raw)
-                    .unwrap_or_else(|error| {
-                        fail_preflight(crate::ui::ErrorKind::Domain, error.to_string())
-                    });
+                    .unwrap_or_else(|error| fail_submission_parse(&error, &preflight_id));
                 let actor = parsed.submission.identity.actor_id.clone();
                 if let Some(explicit) = r#as.as_deref().map(str::trim)
                     && explicit != actor
@@ -512,6 +510,37 @@ fn cmd_log(
             println!("      {reason}");
         }
     }
+}
+
+fn fail_submission_parse(error: &str, preflight_id: &str) -> ! {
+    let (code, hint) = if error.contains("Submission payload type is") {
+        (
+            Some("submission_media_type_unsupported"),
+            "current intake accepts only application/vnd.vela.submission.v3+json; Submission v2 is retired and must be read only with its signed historical release and rollback ref",
+        )
+    } else if error.contains("Submission schema must be `vela.submission.v3`") {
+        (
+            Some("submission_schema_unsupported"),
+            "author or export a new vela.submission.v3 envelope; current Vela does not interpret or migrate predecessor Submission objects",
+        )
+    } else if error.contains("signature threshold was not met")
+        || error.contains("signer identity does not bind")
+        || error.contains("declared identity")
+    {
+        (
+            Some("submission_signature_invalid"),
+            "verify the envelope producer identity and signing key, then regenerate the signed Submission; --as records an actor and cannot repair or replace its signature",
+        )
+    } else {
+        (None, "vela submit --help")
+    };
+    crate::ui::fail_unchanged_coded(
+        crate::ui::ErrorKind::Domain,
+        code,
+        error,
+        preflight_id,
+        hint,
+    )
 }
 
 /// The one Proposal-shaped object every `review` subcommand but `inbox`

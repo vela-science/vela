@@ -850,10 +850,23 @@ fn publish(
     }
     message.push_str("\n\nDelta-root: ");
     message.push_str(&delta.root);
+    // Git publication is transport, not scientific attribution. Ambient Git
+    // identity is deliberately isolated above, so bind a neutral identity for
+    // the mechanical Vela commit instead of requiring user.name/user.email or
+    // misreporting a completed scientific transaction as uncommitted.
     let commit = git_with_index(
         &repository,
         &index,
-        &["commit-tree", &tree, "-p", &preflight.expected_head],
+        &[
+            "-c",
+            "user.name=Vela Repository",
+            "-c",
+            "user.email=vela@invalid",
+            "commit-tree",
+            &tree,
+            "-p",
+            &preflight.expected_head,
+        ],
         Some(message.as_bytes()),
     )?;
     git_text_in(
@@ -2449,5 +2462,32 @@ mod tests {
             advanced_head
         );
         assert_eq!(fixture_git_text(root, &["show", "HEAD:a.txt"]), "before");
+    }
+
+    #[test]
+    fn exact_publication_needs_no_ambient_or_repository_git_identity() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        setup_repository(root);
+        std::fs::write(root.join("a.txt"), b"before").unwrap();
+        git(root, &["add", "."]);
+        git(root, &["commit", "-m", "initial"]);
+        git(root, &["config", "--unset", "user.name"]);
+        git(root, &["config", "--unset", "user.email"]);
+
+        let delta = one_file_delta("a.txt");
+        let preflight =
+            exact_publication_preflight(root, &delta, &PublishOptions::local()).unwrap();
+        std::fs::write(root.join("a.txt"), b"after").unwrap();
+        let outcome =
+            publish_exact_delta(root, "identity-free publication", &[], &delta, preflight).unwrap();
+        assert!(matches!(
+            outcome.state,
+            PublicationState::CommittedLocal { .. }
+        ));
+        assert_eq!(
+            fixture_git_text(root, &["show", "-s", "--format=%an <%ae>", "HEAD"]),
+            "Vela Repository <vela@invalid>"
+        );
     }
 }

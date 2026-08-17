@@ -118,6 +118,33 @@ fn every_json_read_carries_the_envelope() {
             assert_eq!(parsed["schema"], "vela.error.v1");
         }
     }
+
+    let (success, out) = run(
+        temporary.path(),
+        agent.socket(),
+        &[
+            "integration",
+            "check",
+            repository_path_text.as_str(),
+            "--json",
+        ],
+    );
+    assert!(!success);
+    let parsed: serde_json::Value = serde_json::from_str(out.trim()).unwrap();
+    assert_eq!(parsed["error"]["kind"], "usage");
+    assert_eq!(
+        parsed["error"]["code"],
+        "native_integration_manifest_required"
+    );
+    assert_eq!(
+        parsed["error"]["message"],
+        "this is an authoritative Vela Repository, not a native integration manifest"
+    );
+    assert!(
+        parsed["error"]["hint"]
+            .as_str()
+            .is_some_and(|hint| hint.contains("vela status"))
+    );
 }
 
 #[test]

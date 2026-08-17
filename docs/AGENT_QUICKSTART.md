@@ -73,6 +73,58 @@ exact bytes. A Verification Record reports one scoped check. A Proposal requests
 change. A Decision authorizes or refuses that change. An Event enters canonical
 history. Standing is derived from replay.
 
+## Agent interoperability
+
+The thin local agent entrypoint is the ordinary `vela` process with `--json`.
+It already supplies versioned success schemas, stable error kinds and codes,
+exact object and Inbox roots, deterministic replay/projection output, and
+ordinary exit status. Invoke it directly and retain source-owned session or
+checkpoint references with `--session-ref`; no Vela server, MCP layer, session
+store, or transcript adapter is required.
+
+Agents should branch on `schema`, `ok`, `error.kind`, and `error.code`, never on
+message wording. A state-changing Decision must re-read `review inbox`, pass
+the current `entry_root`, and preserve Repository authorization exactly.
+
+Retain the exact source-owned review method in Git, record its scoped result,
+then inspect the current Decision Inbox entry:
+
+```bash
+git add -- verification/method.json
+git commit -m "Retain verification method"
+
+vela verification record . <vpr_id> \
+  --profile <profile> \
+  --method verification/method.json \
+  --outcome pass \
+  --does-not-establish "Scientific acceptance." \
+  --independent-of agent:<producer> \
+  --as verifier:<name> \
+  --json
+
+vela review inbox . --json
+vela review show . <vpr_id> --json
+```
+
+If Repository policy authorizes the current authority principal, an eligible
+agent can perform the exact reviewed Decision with the current entry root:
+
+```bash
+vela review accept . <vpr_id> \
+  --reason "<bounded scientific reason>" \
+  --if-entry-root sha256:... \
+  --as agent:<reviewer> \
+  --session-ref <source-owned-session-or-checkpoint> \
+  --json
+
+vela replay . --json
+vela why . <claim_id> --json
+```
+
+The result reports the attributed `performer` separately from `authority`.
+`--as` never selects a key or grants authority. A human performer uses the same
+command and gates with `--as human:<reviewer>`.
+
 Agents may reproduce evidence and explain these links. A trusted native agent
 may invoke an exact repository-authority Decision only when the operator has
 explicitly authorized that named Decision or campaign. It must use the current

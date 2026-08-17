@@ -386,6 +386,46 @@ fn review_accept_admits_the_event_that_moves_standing() {
     let reason = "Accept the exact bounded fixture Claim on its independent passing Verification.";
     let decision_actor = "agent:review-acceptance-fixture";
     let session_ref = "entire:checkpoint:review-acceptance-fixture";
+    let refused = run(
+        &repository_path,
+        None,
+        &producer_home,
+        &[
+            "review",
+            "accept",
+            ".",
+            &proposal_id,
+            "--if-entry-root",
+            &entry_root,
+            "--reason",
+            reason,
+            "--as",
+            decision_actor,
+            "--session-ref",
+            session_ref,
+            "--json",
+        ],
+    );
+    assert!(!refused.status.success());
+    let refused: Value =
+        serde_json::from_slice(&refused.stdout).expect("authority-refusal error JSON");
+    assert_eq!(refused["error"]["code"], "authority_refused");
+    assert!(
+        refused["error"]["hint"]
+            .as_str()
+            .is_some_and(|hint| hint.contains("ssh-add -l") && hint.contains("--as"))
+    );
+    assert_eq!(
+        git(&repository_path, &["rev-parse", "HEAD^{commit}"]),
+        head_before,
+        "authority refusal must not publish a Decision"
+    );
+    assert_eq!(
+        contiguous_authority_chain(&repository_path),
+        chain_before_decision,
+        "authority refusal must not extend the chain"
+    );
+
     let accepted = success_json(&run(
         &repository_path,
         Some(agent.socket()),
@@ -430,6 +470,22 @@ fn review_accept_admits_the_event_that_moves_standing() {
     assert_eq!(accepted["session_ref"], session_ref);
     assert_eq!(accepted["transaction_signer"], "repository_authority");
     assert_eq!(accepted["performer_key_read"], false);
+    assert_eq!(accepted["performer"]["actor_id"], decision_actor);
+    assert_eq!(accepted["performer"]["actor_class"], "agent");
+    assert_eq!(accepted["performer"]["session_ref"], session_ref);
+    assert_eq!(accepted["performer"]["key_read"], false);
+    assert_eq!(
+        accepted["authority"]["principal_id"],
+        accepted["authority_principal_id"]
+    );
+    assert_eq!(
+        accepted["authority"]["authentication"],
+        accepted["authentication"]
+    );
+    assert_eq!(
+        accepted["authority"]["transaction_signer"],
+        "repository_authority"
+    );
     assert_eq!(
         accepted["repository_before"], evidenced["repository_root"],
         "the Decision must be planned against the exact reviewed repository"

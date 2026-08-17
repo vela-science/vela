@@ -37,4 +37,5 @@ content root, derived handle, and signer identity without importing Vela or
 Rust. Both reproduce the root and handle frozen in [`flow.json`](flow.json).
 Importing the envelope with `vela submit submission.json --repo <repo>`
 would create a pending Proposal only; an independent Verification and an
-authorized human Decision would still be required to change Standing.
+authorized, attributed human or agent Decision would still be required to
+change Standing.

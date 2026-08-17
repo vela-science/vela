@@ -29,6 +29,13 @@ pub const ERROR_CODES: &[&str] = &[
     "repository_authority_uninitialized",
     "repository_incomplete",
     "repository_predecessor_layout",
+    "native_integration_manifest_required",
+    "missing_independent_verification",
+    "decision_entry_stale",
+    "authority_refused",
+    "submission_media_type_unsupported",
+    "submission_schema_unsupported",
+    "submission_signature_invalid",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

@@ -418,6 +418,31 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         submitted["publication"]["state"], "committed_local",
         "unexpected publication outcome: {submitted}"
     );
+    let missing_independent = run(
+        &repository_path,
+        Some(agent.socket()),
+        &[
+            "review",
+            "accept",
+            ".",
+            submitted["proposal_id"].as_str().expect("proposal id"),
+            "--reason",
+            "Exercise the pre-Decision independent-check refusal.",
+            "--json",
+        ],
+    );
+    assert_eq!(missing_independent.status.code(), Some(1));
+    let missing_independent: Value = serde_json::from_slice(&missing_independent.stdout)
+        .expect("missing-independent error JSON");
+    assert_eq!(
+        missing_independent["error"]["code"],
+        "missing_independent_verification"
+    );
+    assert!(
+        missing_independent["error"]["hint"]
+            .as_str()
+            .is_some_and(|hint| hint.contains("vela verification record"))
+    );
     std::fs::remove_file(&transport_artifact)
         .expect("remove producer-side transport path after canonical retention");
 
@@ -950,6 +975,31 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         inbox_state_before,
         "Decision Inbox inspection must not write canonical or authority state"
     );
+    let uppercase_entry_root = format!("sha256:{}", "A".repeat(64));
+    let malformed_decision = run(
+        &repository_path,
+        Some(agent.socket()),
+        &[
+            "review",
+            "reject",
+            ".",
+            proposal_id,
+            "--if-entry-root",
+            &uppercase_entry_root,
+            "--reason",
+            "Exercise malformed root classification.",
+            "--json",
+        ],
+    );
+    assert!(!malformed_decision.status.success());
+    let malformed_error: Value = serde_json::from_slice(&malformed_decision.stdout)
+        .expect("malformed entry-root error JSON");
+    assert_eq!(malformed_error["error"]["code"], Value::Null);
+    assert_eq!(
+        malformed_error["error"]["message"],
+        "--if-entry-root must use lowercase hexadecimal"
+    );
+
     let stale_entry_root = format!("sha256:{}", "0".repeat(64));
     let stale_decision = run(
         &repository_path,
@@ -967,13 +1017,20 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         ],
     );
     assert!(!stale_decision.status.success());
-    let stale_error = format!(
-        "{}{}",
-        String::from_utf8_lossy(&stale_decision.stdout),
-        String::from_utf8_lossy(&stale_decision.stderr)
+    let stale_error: Value =
+        serde_json::from_slice(&stale_decision.stdout).expect("stale entry-root error JSON");
+    assert_eq!(stale_error["error"]["code"], "decision_entry_stale");
+    assert!(
+        stale_error["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("Decision Inbox entry changed")
+                && message.contains("no authority signature was requested"))
     );
-    assert!(stale_error.contains("Decision Inbox entry changed"));
-    assert!(stale_error.contains("no authority signature was requested"));
+    assert!(
+        stale_error["error"]["hint"]
+            .as_str()
+            .is_some_and(|hint| hint.contains("new exact entry_root"))
+    );
     let after_stale_refusal =
         success_json(&run(&repository_path, None, &["replay", ".", "--json"]));
     assert_eq!(

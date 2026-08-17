@@ -243,7 +243,8 @@ pub(crate) enum Commands {
         submission: Option<PathBuf>,
         #[arg(long = "repo", value_name = "PATH", help = HELP_REPO)]
         repository: Option<PathBuf>,
-        #[arg(long)]
+        /// Exact scoped assertion to authenticate and route for review.
+        #[arg(long, value_name = "TEXT")]
         claim: Option<String>,
         /// Scientific claim type.
         #[arg(long = "type")]
@@ -254,9 +255,11 @@ pub(crate) enum Commands {
         /// Re-execution class: exact, bounded, approximate, unavailable, or unknown.
         #[arg(long)]
         replayability: Option<String>,
-        #[arg(long)]
+        /// Repository-relative evidence file and kind, formatted PATH:KIND.
+        #[arg(long, value_name = "PATH:KIND")]
         artifact: Vec<String>,
-        #[arg(long)]
+        /// Scope limit or statement this Submission does not establish.
+        #[arg(long, value_name = "TEXT")]
         caveat: Vec<String>,
         /// Producer-reported check, formatted METHOD:OUTCOME. This is not a
         /// Verification Record.
@@ -456,7 +459,8 @@ pub(crate) struct ReviewDecisionArgs {
     /// Require the exact Decision Inbox entry that was reviewed.
     #[arg(long)]
     pub(crate) if_entry_root: Option<String>,
-    /// Attributed Decision performer. Defaults to VELA_ACTOR_ID, then the local operator.
+    /// Attributed human: or agent: Decision performer. This never grants authority.
+    /// Defaults to VELA_ACTOR_ID, then the local operator.
     #[arg(long = "as", value_name = "ACTOR")]
     pub(crate) actor: Option<String>,
     /// Optional source-owned agent session or checkpoint reference.

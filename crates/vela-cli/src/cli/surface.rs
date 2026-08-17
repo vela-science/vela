@@ -55,7 +55,7 @@ Usage:
 Daily product:
   init          Create a signed, replayable Git-native repository
   status        Compact repository identity, roots, counts, and next action
-  claims        What this repository holds: id, assertion, Standing, origin era
+  claims        What this repository holds: id, assertion, and current Standing
   submit        Retain authenticated producer input for review
   show          One exact object, its root, era, and authority effect
   why           Root-bound explanation of one Claim's Standing

@@ -555,11 +555,11 @@
       "sha256": "sha256:116e9aa2a66172d1086bb182dfbb7973584b080e567f264fcb8916b087628129"
     },
     {
-      "bytes": 1783,
+      "bytes": 1804,
       "normative": false,
       "path": "examples/computational-science/README.md",
       "role": "reference-flow",
-      "sha256": "sha256:0975d5ce3fed8f6f5ee4f6d90a3421098a8fa25ebb56d0c8a9fbb08f1dc9cecb"
+      "sha256": "sha256:4eb83d4e3678fac2503757530252aa93d4e2a6c7581de5075593819ae865eb93"
     },
     {
       "bytes": 2067,
@@ -618,6 +618,41 @@
       "sha256": "sha256:1569b81ff40b355952b15a839eb2223911f0f48c8f654d9fe5591b6e9cb62aea"
     },
     {
+      "bytes": 1824,
+      "normative": false,
+      "path": "examples/review-methods/README.md",
+      "role": "reference-flow",
+      "sha256": "sha256:4574789e139c7916b69809c4e060ccb3123d2bb15db59973e5ab9b7d89b3059d"
+    },
+    {
+      "bytes": 1033,
+      "normative": false,
+      "path": "examples/review-methods/computational-formal.json",
+      "role": "reference-flow",
+      "sha256": "sha256:736ca630b8e3cb3154ffbeca833b64b543c2aa2b51355403e0c2534fc7708fae"
+    },
+    {
+      "bytes": 1033,
+      "normative": false,
+      "path": "examples/review-methods/mathematical-reasoning.json",
+      "role": "reference-flow",
+      "sha256": "sha256:d869e936382a1a95f2b6e3daf4ea6f256da17aa6857bc535c424c2d6eb097bf6"
+    },
+    {
+      "bytes": 1140,
+      "normative": false,
+      "path": "examples/review-methods/meta-authority-independence.json",
+      "role": "reference-flow",
+      "sha256": "sha256:ca880a80eeecaaf873f4ed723e1c97bc24cc4a4234e64ebf0ba625e8d9492958"
+    },
+    {
+      "bytes": 959,
+      "normative": false,
+      "path": "examples/review-methods/semantic-source-adequacy.json",
+      "role": "reference-flow",
+      "sha256": "sha256:1182d2816a3a8984c687bb72fd96188966a1c8451b27103f67856062da436b07"
+    },
+    {
       "bytes": 11724,
       "normative": false,
       "path": "install.sh",
@@ -653,11 +688,11 @@
       "sha256": "sha256:5711c60867479fe4c71c036b910820dee5c29aa81a1954c9705edd091d7d6b2e"
     },
     {
-      "bytes": 3420,
+      "bytes": 3727,
       "normative": true,
       "path": "schemas/error.schema.json",
       "role": "json-schema-2020-12",
-      "sha256": "sha256:b9b0b5af12484d8cd79bc8f1c8b59795313bb36cb5f75e0a5a60204adb45a5fb"
+      "sha256": "sha256:6e15705984e6109061d6153031340b50acde184155d1f9e26313b403800213e2"
     },
     {
       "bytes": 1183,
@@ -744,7 +779,7 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:3afbfefc9296b023f6beb7c444eabe28d8ffee6cddd88e1776c3e3b792c4cf32",
+  "manifest_root": "sha256:0b5361d1e581d950b462669eb8974b11b84baa9fb1f3d30764dc449b0dfb1884",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",

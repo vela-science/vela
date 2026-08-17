@@ -43,6 +43,9 @@ EXAMPLES
   vela review inbox --json            exact consequence-only Decision Inbox
   vela review list --json             compact pending queue
   vela review show vpr_8b49… --json   one pending Proposal or terminal Decision
+  vela review accept vpr_8b49… --reason \"bounded evidence is sufficient\" \
+    --if-entry-root sha256:… --as agent:reviewer --session-ref native:session:… --json
+                                        execute one exact attributed acceptance
   vela review reject vpr_8b49… --reason \"insufficient evidence\" --json
                                         execute one exact attributed rejection
   vela review withdraw vpr_8b49… --as agent:producer \

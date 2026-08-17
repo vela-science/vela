@@ -13,7 +13,7 @@ which later conclusions need attention when an accepted assertion changes.
 
 Vela is a Git-custodied protocol and command-line system for retaining
 authenticated scientific Submissions, scoped Verification Records, local
-human Decisions, replayable Standing, and explicit correction lineage. Its
+attributed Decisions, replayable Standing, and explicit correction lineage. Its
 core design separates producer evidence, mechanical verification, and local
 scientific authority. Optional workers and read models remain removable.
 
@@ -103,7 +103,9 @@ three constraints.
 1. **Exact history is not authority.** Content addressing proves byte identity.
    It does not decide scientific Standing.
 2. **Verification is not acceptance.** A verifier reports one scoped property
-   over exact inputs. A local human Decision changes local Standing.
+   over exact inputs. A local attributed human or agent performs the Decision;
+   Standing changes only when Repository policy authorizes the distinct
+   authority principal.
 3. **Derived convenience is removable.** Workers, search indices, graph
    layouts, databases, and websites cannot become necessary for replay.
 
@@ -508,7 +510,8 @@ Erdős 424 supplies an exact source-statement transition from
 plan binds both source commits, trees, file roots, predecessor Claim, bounded
 replacement assertion, and nonclaims.
 
-This fixture tests exact correction authoring and the human Decision boundary.
+This fixture tests exact correction authoring and the attributed Decision
+boundary.
 It lacks the consequential diamond and cannot satisfy the primary protocol
 benchmark.
 
@@ -1264,7 +1267,7 @@ The final artifact package will include:
 ## 11. Conclusion
 
 Vela currently demonstrates a compact, replayable separation among
-authenticated producer input, scoped Verification, local human Decision, and
+authenticated producer input, scoped Verification, local attributed Decision, and
 scientific Standing, including one accepted supersession whose predecessor
 remains recoverable through its retained compaction origin, predecessor tag,
 and archive. The ordinary `why` path now recovers that exact local Proposal,
