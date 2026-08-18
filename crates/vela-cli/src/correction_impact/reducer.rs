@@ -25,7 +25,7 @@ pub(crate) const CORRECTION_IMPACT_PROJECTION_SCHEMA_V1: &str =
 /// `vela-protocol` and asserted to hold exactly what `wire_schema::published()`
 /// produces, so publishing this would mean moving the type into the kernel —
 /// promoting a non-authoritative analysis to a canonical object by way of a
-/// directory. `docs/ECOSYSTEM.md` §6 states the argument in full.
+/// directory. `docs/ARCHITECTURE.md` defines that boundary.
 pub(crate) const CORRECTION_REPAIR_OBLIGATION_SCHEMA_V1: &str =
     "vela.correction-repair-obligation.v1";
 

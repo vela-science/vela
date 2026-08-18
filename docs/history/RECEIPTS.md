@@ -41,8 +41,9 @@ verifier attachments (`vva_`) and the human key.
 
 The retired schema remains available from the Git revision that published this
 document; it is intentionally absent from the current writer surface. The
-historical dependency-free core and command harness remain in
-[`crates/vela-cli/resources`](../../crates/vela-cli/resources) for exact replay.
+historical dependency-free core and command harness remain at
+[`crates/vela-cli/resources` in commit `5e5afcd1`](https://github.com/vela-science/vela/tree/5e5afcd1c12ae51618b5d3109ef0101a79ce63a6/crates/vela-cli/resources)
+for exact replay.
 Copy `receipt_v1.py`,
 `vela_receipt_v1.py`, and `receipt_json.py` together for a cold-start emitter;
 there is no checkout-only second implementation.

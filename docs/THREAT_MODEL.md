@@ -117,14 +117,16 @@ the full first authority-record root from an independent channel.
 
 ### Fork and rollback
 
-Strict checking verifies the repository origin, predecessor commitment, Git
-commit/tree, authority-chain continuity, repository manifest, and current
-objects. A valid Git commit or authority signature alone does not prove that a
-consumer has the intended fork.
+Strict checking verifies the genesis origin, Git commit and tree,
+authority-chain continuity, repository manifest, and current objects. A valid
+Git commit or authority signature alone does not prove that a consumer has the
+intended fork. Consumers identify that fork with an independently pinned
+sequence-one authority root and an expected Git commit or protected ref.
 
-Independent clones, protected refs, predecessor archives, and pinned trust
-roots make replacement detectable. Vela cannot recover bytes that no honest
-copy retains.
+Independent clones, protected refs, and pinned trust roots make replacement
+detectable. A separate migration attestation may relate two lineages; strict
+replay does not infer or verify a predecessor commitment. Vela cannot recover
+bytes that no honest copy retains.
 
 ### Stale or malicious work projection
 

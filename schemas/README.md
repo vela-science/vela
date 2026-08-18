@@ -50,7 +50,7 @@ evidence and is not a scientific Decision.
 It distinguishes a human, AI model, organization, or deterministic tool from
 the Vela actor that attested the observation. The profile carries no outcome;
 the signed Verification Record does. Neither carries Decision authority. See
-`docs/REVIEW_PROVENANCE.md` for the cross-ecosystem policy.
+`docs/VERIFICATION.md` for the current verification and Decision boundary.
 
 ## Three are read surfaces
 

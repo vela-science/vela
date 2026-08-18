@@ -89,9 +89,9 @@ pub const REPOSITORY_HEAD_ROLE: &str = "repository_head";
 
 /// Whether replay reproduced the retained history.
 ///
-/// `verified` is a wire token, not prose. TERMINOLOGY.md forbids the
-/// unqualified word in text; this is the value a consumer compares against, so
-/// retiring it is a coordinated schema change rather than a wording change.
+/// `verified` is a wire token, not prose. The CLI contract forbids the
+/// unqualified word in text; consumers compare this value, so retiring it
+/// requires a coordinated schema change rather than a wording change.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ReplayState {

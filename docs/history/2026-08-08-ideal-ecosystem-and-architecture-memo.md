@@ -2975,7 +2975,7 @@ Its recommendation to preserve the narrow Vela object model while experimenting 
 - [ADR 0039: Repository authority and derived Frontiers](https://github.com/vela-science/vela/blob/main/docs/adr/0039-repository-authority-and-derived-frontiers.md)
 - [ADR 0035: Commodity encoding, signing, and wire contracts](https://github.com/vela-science/vela/blob/main/docs/adr/0035-commodity-encoding-signing-and-wire-contracts.md)
 - [Vela protocol](https://github.com/vela-science/vela/blob/main/docs/PROTOCOL.md)
-- [Vela ecosystem](https://github.com/vela-science/vela/blob/main/docs/ECOSYSTEM.md)
+- [Historical Vela ecosystem document](https://github.com/vela-science/vela/blob/da3bf30bb22b5ebea90e0181ec9a9fdebf933a00/docs/ECOSYSTEM.md)
 - [Repository profile](https://github.com/vela-science/vela/blob/main/docs/REPOSITORY_PROFILE.md)
 - [Root taxonomy](https://github.com/vela-science/vela/blob/main/docs/ROOTS.md)
 - [Interoperability](https://github.com/vela-science/vela/blob/main/docs/INTEROPERABILITY.md)

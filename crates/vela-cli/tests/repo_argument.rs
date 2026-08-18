@@ -167,8 +167,8 @@ fn one_repository_convention_across_the_surface() {
 
     /* Every documented spelling, and the short spelling that replaces it.
     Both must return byte-identical payloads: if the two disagree the
-    convention is decorative. The `.` form is what docs/CLI.md,
-    docs/QUICKSTART.md and docs/AGENT_QUICKSTART.md publish today. */
+    convention is decorative. The `.` form is what docs/CLI.md and
+    docs/QUICKSTART.md publish today. */
     for (documented, short) in [
         (vec!["status", ".", "--json"], vec!["status", "--json"]),
         (

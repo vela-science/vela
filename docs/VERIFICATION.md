@@ -22,9 +22,9 @@ Human, AI-model, organization, and deterministic-tool reviews use the same
 Verification boundary. When the retained method is a canonical
 `vela.review-method.v1`, it names the performer, provider, stable identifier,
 known version, attesting actor, procedure, output contract, and nonclaims. The
-Verification Record still carries the outcome and signature. See
-[`REVIEW_PROVENANCE.md`](REVIEW_PROVENANCE.md). The
-[optional review-method checklists](../examples/review-methods/) cover
+Verification Record still carries the outcome and signature. The
+[canonical review-method schema](../schemas/review-method.schema.json) defines
+that envelope. The [optional review-method checklists](../examples/review-methods/) cover
 semantic/source adequacy, mathematical reasoning, computational/formal checks,
 and meta-authority/independence without making any of them a universal gate.
 

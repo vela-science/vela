@@ -582,8 +582,8 @@ pub(crate) fn why_payload(repository_path: &Path, claim_id: &str) -> Result<Valu
         "claim_id": claim_id,
         "claim_root": claim_root,
         /* Two axes, two fields, each named for the one it describes. `standing`
-        answers "does this Claim stand?" in the vocabulary TERMINOLOGY.md
-        declares; `proposal_status` answers "what happened to the Proposal about
+        answers "does this Claim stand?" in the Protocol vocabulary;
+        `proposal_status` answers "what happened to the Proposal about
         it?" and is where `pending_review`, `rejected`, and `withdrawn` belong. */
         "standing": standing.standing,
         "proposal_status": standing.proposal_status,

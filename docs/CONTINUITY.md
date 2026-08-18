@@ -112,7 +112,8 @@ repositories. Their signed history is intact and mirrored, and the current
 `vela` binary cannot read any of it: they carry `frontier.toml` and a
 `vela.frontier-profile.v1` profile, so every read path refuses them as
 `repository_predecessor_layout` and directs the reader to `v0.966.4`, the last
-release that reads them. `docs/ECOSYSTEM.md` §4 gives the mechanism.
+release that reads them. [Publishing](PUBLISHING.md) defines predecessor
+retention without adding a current compatibility path.
 
 Continuity for those four is therefore continuity of bytes plus continuity of a
 pinned historical binary, and the second half is a real obligation: an install
@@ -209,8 +210,9 @@ The test is not "the projection can be regenerated." It is:
   holds.
 
 A projection input that satisfies none of these is a fact the repository does
-not contain, which `docs/ECOSYSTEM.md`, §8, already forbids. Continuity is how
-that prohibition gets tested rather than asserted.
+not contain. [Repository boundaries](REPOSITORY_BOUNDARIES.md) forbid a read
+product from turning such a fact into authority. Continuity tests that rule
+rather than asserting it.
 
 ## 7. Acceptance test
 
