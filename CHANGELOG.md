@@ -10,6 +10,14 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+- **Repository projection stays complete across multi-generation correction
+  chains.** The reader carries the exact predecessor and successor Claim roots
+  already bound by admitted authority Events into correction-impact derivation,
+  so a correction successor remains projectable after a later correction
+  retires it. Missing endpoints and same-id/different-root collisions refuse
+  rather than silently producing an incomplete graph. This changes no Protocol
+  object, Decision, Standing, or repository root.
+
 ## 0.977.1
 
 - **Human and agent operators get one explicit Decision contract.** Stable JSON

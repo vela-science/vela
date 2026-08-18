@@ -5,8 +5,8 @@ type: software
 authors:
   - family-names: Blair
     given-names: William
-version: 0.977.1
-date-released: "2026-08-17"
+version: 0.977.2
+date-released: "2026-08-18"
 repository-code: "https://github.com/vela-science/vela"
 url: "https://github.com/vela-science/vela"
 license: "Apache-2.0 OR MIT"

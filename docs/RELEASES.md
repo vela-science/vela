@@ -13,6 +13,13 @@ Vela has two related but distinct release surfaces:
 The latest signed published release is `v0.977.1`. User-facing installer
 examples pin that exact tag rather than following a moving branch.
 
+`v0.977.2` is the compatible historical-correction projection candidate. It
+preserves the Protocol 1 object selection, exact roots, replay, and authority
+semantics while carrying each admitted correction transition's exact Claim
+roots into the derived correction-impact view. It becomes current only after
+both platform bundles and manifests pass the gates below, the exact draft
+manifests are signed, and the draft is published.
+
 `v0.977.1` is the compatible agent-operator coherence patch. It preserves
 the v3 Protocol selection, exact roots, replay, and authority semantics while
 making performer-versus-authority output explicit, adding stable bounded
