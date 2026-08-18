@@ -136,8 +136,10 @@ conformance virtual environment, Ruff caches, and Python bytecode created by
 the verification runs. `git clean -ndX` named those paths and no ignored
 secret, release asset, or source file; the cleanup removed that exact set after
 the final test run. `git worktree prune --dry-run --verbose` reported no stale
-worktree. The object store had one 62.71 MiB pack, no loose objects, no garbage,
-and no unreachable object from `git fsck --full --no-reflogs --unreachable`.
+worktree. Review corrections left five unreachable staging blobs; `git gc
+--prune=now` removed them. The final object store has one 62.75 MiB pack, no
+loose objects or garbage, and no object reported by `git fsck --full
+--no-reflogs --unreachable`.
 
 The audit removed empty local remnants for retired `vela-edge`,
 `vela-verify`, `vela-source-manifest`, epoch-1 fixtures, deleted paper
@@ -175,9 +177,9 @@ This Core cleanup performs no Math scientific or authority write.
 
 ## Change size and verification
 
-Against the baseline, the cleanup changes 183 files with 419 inserted lines
-and 19,167 deleted lines, a net deletion of 18,748 lines. The tracked tree
-shrinks from 7,766,193 to 6,869,353 bytes, a net deletion of 896,840 bytes, and
+Against the baseline, the cleanup changes 183 files with 421 inserted lines
+and 19,167 deleted lines, a net deletion of 18,746 lines. The tracked tree
+shrinks from 7,766,193 to 6,869,444 bytes, a net deletion of 896,749 bytes, and
 from 550 to 407 files.
 
 The following local gates passed:
