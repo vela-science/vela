@@ -10,6 +10,8 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+## 0.977.2
+
 - **Repository projection stays complete across multi-generation correction
   chains.** The reader carries the exact predecessor and successor Claim roots
   already bound by admitted authority Events into correction-impact derivation,

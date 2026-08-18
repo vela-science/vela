@@ -1,7 +1,7 @@
 # Vela documentation
 
 Start with the [quickstart](QUICKSTART.md). The current signed release is
-`v0.977.1`; Vela Core reads and writes Protocol 1 with Submission v3.
+`v0.977.2`; Vela Core reads and writes Protocol 1 with Submission v3.
 
 ## Current product and protocol
 

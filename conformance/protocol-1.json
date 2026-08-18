@@ -531,14 +531,14 @@
       "normative": true,
       "path": "docs/PROTOCOL.md",
       "role": "specification",
-      "sha256": "sha256:621cdeb8065578517be0821e22c4b843ae0527c06ebc838ad6de8d96d39a17e6"
+      "sha256": "sha256:5e43f43fecdc79d5d23c2044d419f539941af0d581e52331b9ba2a73b9ba7135"
     },
     {
-      "bytes": 4530,
+      "bytes": 4510,
       "normative": false,
       "path": "docs/RELEASES.md",
       "role": "release-qualification",
-      "sha256": "sha256:2886993e0560c63179648b41315b0dcd48c39bf60c8c3c44b05e84affecc3f21"
+      "sha256": "sha256:b24fc48c75617226efc4434b9b208c04968ef3b7c5c495c3a68b410a3c4aad28"
     },
     {
       "bytes": 10847,
@@ -779,7 +779,7 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:631f11584930c74e9fa2e868bec7015c70c7fa6cfe20e28112b5e4c4501e1d4c",
+  "manifest_root": "sha256:10c6c04c22c3403216adcc648934b98adcfc74f9f88dfa1007d06e55773695b3",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",

@@ -14,11 +14,11 @@ specified elsewhere; where that is true it cites rather than restates.
 
 Four bindings, jointly. Any one of them alone identifies nothing.
 
-| Binding | Where it is retained | Example (`vela-science/math`, 2026-08-17) |
+| Binding | Where it is retained | Example (`vela-science/math`, 2026-08-18) |
 | --- | --- | --- |
 | `repository_id` | `vela.toml`, `vela.repository-profile.v1` | `3d012325-3768-4b95-a385-c94e9f2a57a6` |
 | Origin ID and origin root | `.vela/origin.json`, `.vela/repository.json` | `vro_a6a12da8762f1252`; `sha256:a6a12da8762f1252afe1ac1c75361ef54c583924a2b88474232ead6227873dca` |
-| Current repository root | derived by replay over the canonical object set | `sha256:45640c5eea54693df444eada6dd1a7c1f5a4b4ef266fddf79cf51d083233ebba` |
+| Current repository root | derived by replay over the canonical object set | `sha256:a956b84c437202e5a02cc9e036a621bd14a302b34a75758115730bdbb77c52a4` |
 | Sequence-one authority-record root | distributed independently of the checkout | `sha256:efae3e02b5be6dfccf6701ebe26f87f00bb64f5b4372674e572a633844d95469` |
 
 The first three travel inside the checkout. The fourth deliberately does not:
@@ -270,7 +270,7 @@ provider-coupled fallback refused.
 `v0.968.0` is immutable and unsigned and cannot be repaired; it stands as the
 last unsigned release.
 
-The current `v0.977.1` release follows the same signed-before-publication path.
+The current `v0.977.2` release follows the same signed-before-publication path.
 Its two published manifests agree with their archives and SBOMs, both
 signatures verify under the out-of-band distribution identity, and a clean
 consumer installation with `VELA_REQUIRE_SIGNED_MANIFEST=1` reports
@@ -282,7 +282,7 @@ over the anonymous public URL and compares it to the SHA-256 committed in
 vela-web's `vela-release.v1.json`, rather than to the copy just uploaded. The
 last fully exercised replica path is `v0.975.1`: its retained assets and
 signatures pass anonymous Codeberg readback with no GitHub dependency in the
-retrieval or verification path. `v0.977.1` is not claimed replicated until the
+retrieval or verification path. `v0.977.2` is not claimed replicated until the
 Problems release advances that pin and completes the same readback.
 
 Mirroring stays scoped to the release the Problems projection pins rather than the

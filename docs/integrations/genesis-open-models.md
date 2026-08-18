@@ -3,12 +3,12 @@
 This note is the current, checkable public case for Vela's scientific-state
 boundary. It is not a model benchmark or an archive of pre-release migrations.
 
-- **Reader:** signed Vela `v0.977.1`
+- **Reader:** signed Vela `v0.977.2`
 - **Repository:** `vela-science/math`
 - **Repository UUID:** `3d012325-3768-4b95-a385-c94e9f2a57a6`
-- **Git commit:** `f9b28280881472ccb9c4b1b35d8e741745f0bd99`
-- **Git tree:** `875539d8790c0557ebee91ad2e40b22f5fa0c147`
-- **Repository root:** `sha256:45640c5eea54693df444eada6dd1a7c1f5a4b4ef266fddf79cf51d083233ebba`
+- **Git commit:** `84b118ed1622d34e5a1431821cf35dca91fb8720`
+- **Git tree:** `87e5915227e618d30cfc6530ff218ec0b09ba7cb`
+- **Repository root:** `sha256:a956b84c437202e5a02cc9e036a621bd14a302b34a75758115730bdbb77c52a4`
 - **Current Standing:** three accepted Claims, no pending Proposal
 
 ## Why the boundary matters
@@ -48,7 +48,7 @@ Vela service, or Repository-authority key:
 
 ```bash
 git clone https://github.com/vela-science/math.git math
-git -C math checkout f9b28280881472ccb9c4b1b35d8e741745f0bd99
+git -C math checkout 84b118ed1622d34e5a1431821cf35dca91fb8720
 vela replay math --json
 vela status math --json
 vela claims math --json
@@ -60,9 +60,9 @@ Expected replay facts:
 - origin `vro_a6a12da8762f1252` /
   `sha256:a6a12da8762f1252afe1ac1c75361ef54c583924a2b88474232ead6227873dca`;
 - Repository root
-  `sha256:45640c5eea54693df444eada6dd1a7c1f5a4b4ef266fddf79cf51d083233ebba`;
+  `sha256:a956b84c437202e5a02cc9e036a621bd14a302b34a75758115730bdbb77c52a4`;
 - three current accepted Claims;
-- five authenticated Submissions, four scoped Verifications, and five
+- six authenticated Submissions, six scoped Verifications, and six
   accepted Proposal transitions;
 - zero pending, rejected, or withdrawn Proposals.
 
@@ -96,8 +96,7 @@ axis.
   external adoption or plural governance.
 - A Web projection or hosted account is a Repository authority.
 
-The pre-Coherence Math lineage remains reachable through ordinary Git history
-and the temporary `rollback/submission-v2-coh-00` branch. It is not a live
-compatibility surface and contributes no current Standing. The Math owner must
-retire that branch through its current-state migration, not through a Core
-compatibility reader.
+The compact current Math lineage is fully carried by Submission v3 and its
+root-bound correction Events. No auxiliary recovery branch or legacy
+Submission envelope is a live compatibility surface or contributes current
+Standing.

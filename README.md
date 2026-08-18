@@ -131,10 +131,9 @@ it does not prove that a Claim is true.
 Install the exact signed release:
 
 Vela supports Linux x86-64 and macOS Apple-silicon release bundles.
-`v0.977.1` remains the current signed release while the `v0.977.2`
-historical-correction projection patch is qualified. After that tag is signed
-and published, both platform manifests bind the archives and SBOMs and verify
-with the out-of-band distribution identity before installation.
+`v0.977.2` is the current signed release. Both platform manifests bind the
+archives and SBOMs and verify with the out-of-band distribution identity before
+installation.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.2/install.sh | \
@@ -147,7 +146,7 @@ nor a repository-authority key:
 
 ```bash
 git clone https://github.com/vela-science/math.git math
-git -C math checkout f9b28280881472ccb9c4b1b35d8e741745f0bd99
+git -C math checkout 84b118ed1622d34e5a1431821cf35dca91fb8720
 vela replay math --json
 vela claims math --json
 ```
@@ -155,7 +154,7 @@ vela claims math --json
 Use a complete clone: exact offline reads refuse shallow, partial, alternate,
 or grafted object stores. The pinned Repository replays to three current accepted
 Claims at root
-`sha256:45640c5eea54693df444eada6dd1a7c1f5a4b4ef266fddf79cf51d083233ebba`.
+`sha256:a956b84c437202e5a02cc9e036a621bd14a302b34a75758115730bdbb77c52a4`.
 The corrected Erdős 321 and 94 Claims are accepted and both predecessors remain
 retained with current Standing `superseded`; see the
 [formal-math reference flow](examples/formal-math/).
@@ -401,7 +400,7 @@ their era; every Repository the current binary writes starts at a native
 genesis. Historical Git revisions preserve earlier contracts, and the current
 binary exposes no migration writer.
 
-The signed `v0.977.1` release carries the current Protocol 1 and Submission v3
+The signed `v0.977.2` release carries the current Protocol 1 and Submission v3
 runtime. Published signed tags retain the binaries and source needed to
 reproduce earlier repositories. They do not add predecessor readers or writers
 to the current runtime.
