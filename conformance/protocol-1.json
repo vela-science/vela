@@ -27,7 +27,7 @@
       "normative": false,
       "path": ".github/workflows/release.yml",
       "role": "hosted-release-gate",
-      "sha256": "sha256:c0beecf7ef313fe446bbc25644e06a4b7ed2ca80e49cd61be019b98006bdb3d6"
+      "sha256": "sha256:e3de0f0e26d632b5dfedfa8f66d4cacc767ed5732743eb310b7f2025bf232ebe"
     },
     {
       "bytes": 414,
@@ -779,7 +779,7 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:dadaf6480d854d410e179b63a535948df733b5748d685786c5077275c3ce8484",
+  "manifest_root": "sha256:ede0a0d1f37b8d25366de250697dfe028ffd283a10d359c6d0f261891a805d79",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",
