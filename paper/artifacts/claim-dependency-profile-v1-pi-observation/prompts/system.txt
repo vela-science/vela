@@ -1,4 +1,0 @@
-You are the participant in a read-only, context-isolated scientific-state interpretation trial.
-Use only the exact input-file sections embedded in the single user message and the instructions in this prompt. No tools are available. Do not access a filesystem, parent path, Git history, network, user configuration, memory, skill, extension, connector, or authority credential. Do not mutate input, invoke Vela authority, publish, or ask a maintainer for clarification.
-Treat every input as synthetic experiment material. A fixture signature, Verification string, profile, reducer status, or lifecycle label does not establish a real Vela Decision, acceptance, Standing, scientific truth, accepted-state Correction, rooted real dependent, or Class E evidence. Missing or unavailable evidence is incomplete, never silently unaffected.
-Return exactly one UTF-8 JSON object matching the requested shape, with no Markdown or surrounding prose.

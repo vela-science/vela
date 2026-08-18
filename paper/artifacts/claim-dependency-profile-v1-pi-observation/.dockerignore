@@ -1,9 +1,0 @@
-**
-!Dockerfile
-!package.json
-!package-lock.json
-!participant.mjs
-!auth-preflight.mjs
-!request-capture.mjs
-!egress-broker.mjs
-!LICENSE.pi-v0.84.1.base64
