@@ -98,7 +98,7 @@ use serde::Serialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use vela_protocol::claim_record::{CORRECTION_RELATION_KINDS, ClaimRecordV1};
-use vela_protocol::repository::ClaimStandingRefV1;
+use vela_protocol::repository::{ClaimStandingRefV1, RepositoryV4};
 
 mod reducer;
 #[cfg(test)]
@@ -200,9 +200,58 @@ pub(crate) fn correction_impact_payload(
         claim_arg,
     )?;
 
+    correction_impact_payload_for_transition(
+        &repository_path,
+        repository,
+        repository_root,
+        successor_reference,
+        None,
+    )
+}
+
+/// Build one impact from the exact transition retained by the Repository
+/// projection.
+///
+/// A later correction can retire this transition's successor, at which point
+/// it is no longer in either current Claim index. The transition still binds
+/// both Claim roots through its admitted authority Event, so the shared reader
+/// carries those roots through rather than falling back to an ambiguous id-only
+/// search of retained records.
+pub(crate) fn correction_impact_payload_at_transition(
+    repository_path: &Path,
+    successor_claim_id: &str,
+    successor_claim_root: &str,
+    successor_standing: &str,
+    predecessor_claim_id: &str,
+    predecessor_claim_root: &str,
+) -> Result<(Value, reducer::CorrectionImpactProjectionV1), CorrectionImpactError> {
+    let repository_path = crate::ui::canonicalize_repo(repository_path);
+    let repository = crate::repository::load_repository_at(&repository_path, true)?;
+    let repository_root = repository.canonical_root()?;
+    let successor_reference =
+        exact_retained_reference(successor_claim_id, successor_claim_root, successor_standing)?;
+    let predecessor_reference =
+        exact_retained_reference(predecessor_claim_id, predecessor_claim_root, "superseded")?;
+
+    correction_impact_payload_for_transition(
+        &repository_path,
+        repository,
+        repository_root,
+        successor_reference,
+        Some(predecessor_reference),
+    )
+}
+
+fn correction_impact_payload_for_transition(
+    repository_path: &Path,
+    repository: RepositoryV4,
+    repository_root: String,
+    successor_reference: ClaimStandingRefV1,
+    exact_predecessor: Option<ClaimStandingRefV1>,
+) -> Result<(Value, reducer::CorrectionImpactProjectionV1), CorrectionImpactError> {
     let mut held: BTreeMap<String, HeldClaim> = BTreeMap::new();
     for reference in &repository.accepted_claims {
-        let record = crate::repository::read_claim(&repository_path, reference)?;
+        let record = crate::repository::read_claim(repository_path, reference)?;
         held.insert(
             reference.claim_id.clone(),
             HeldClaim {
@@ -211,8 +260,17 @@ pub(crate) fn correction_impact_payload(
             },
         );
     }
-    if !held.contains_key(&successor_reference.claim_id) {
-        let record = crate::repository::read_claim(&repository_path, &successor_reference)?;
+    if let Some(current) = held.get(&successor_reference.claim_id) {
+        if current.reference.claim_root != successor_reference.claim_root {
+            return Err(CorrectionImpactError::usage(format!(
+                "exact correction successor {} at {} collides with a current Claim carrying the same id at {}; the correction-impact graph cannot represent two roots for one Claim id",
+                successor_reference.claim_id,
+                successor_reference.claim_root,
+                current.reference.claim_root
+            )));
+        }
+    } else {
+        let record = crate::repository::read_claim(repository_path, &successor_reference)?;
         held.insert(
             successor_reference.claim_id.clone(),
             HeldClaim {
@@ -247,10 +305,31 @@ pub(crate) fn correction_impact_payload(
     the index, so a manifest lookup alone would make the verb answerable only
     before the Decision. The bytes are still retained and still addressed by
     their own root, which is what the content-addressed store is for. */
+    if let (Some(reference), Some(current)) =
+        (exact_predecessor.as_ref(), held.get(&predecessor_id))
+        && current.reference.claim_root != reference.claim_root
+    {
+        return Err(CorrectionImpactError::usage(format!(
+            "exact correction predecessor {predecessor_id} at {} collides with a current Claim carrying the same id at {}; the correction-impact graph cannot represent two roots for one Claim id",
+            reference.claim_root, current.reference.claim_root
+        )));
+    }
     let predecessor_retired = !held.contains_key(&predecessor_id);
     if predecessor_retired {
-        let retained = read_retained_claim(&repository_path, &predecessor_id)
-            .map_err(CorrectionImpactError::usage)?;
+        let retained = match exact_predecessor {
+            Some(reference) => {
+                if reference.claim_id != predecessor_id {
+                    return Err(CorrectionImpactError::usage(format!(
+                        "exact correction transition names predecessor {}, but successor {} corrects {predecessor_id}",
+                        reference.claim_id, successor_reference.claim_id
+                    )));
+                }
+                let record = crate::repository::read_claim(repository_path, &reference)?;
+                HeldClaim { reference, record }
+            }
+            None => read_retained_claim(repository_path, &predecessor_id)
+                .map_err(CorrectionImpactError::usage)?,
+        };
         held.insert(predecessor_id.clone(), retained);
     }
     let predecessor_reference = held
@@ -401,9 +480,11 @@ pub(crate) fn correction_impact_payload(
         "command": "correction impact",
         "repository_id": repository.repository_id,
         "repository_root": repository_root,
-        "successor_standing": crate::claim_standing::from_proposal_status(
-            &successor_reference.standing,
-        ),
+        "successor_standing": match successor_reference.standing.as_str() {
+            "superseded" => crate::claim_standing::SUPERSEDED,
+            "retracted" => crate::claim_standing::RETRACTED,
+            status => crate::claim_standing::from_proposal_status(status),
+        },
         /* Whether the correction has already been ruled on. Before the
         Decision the predecessor still stands and this reads false; after it,
         the predecessor is retired and its bytes were resolved from the
@@ -426,6 +507,27 @@ pub(crate) fn correction_impact_payload(
     });
 
     Ok((payload, projection))
+}
+
+fn exact_retained_reference(
+    claim_id: &str,
+    claim_root: &str,
+    standing: &str,
+) -> Result<ClaimStandingRefV1, CorrectionImpactError> {
+    let digest = claim_root
+        .strip_prefix("sha256:")
+        .filter(|digest| digest.len() == 64 && digest.bytes().all(|byte| byte.is_ascii_hexdigit()))
+        .ok_or_else(|| {
+            CorrectionImpactError::usage(format!(
+                "exact correction transition carries invalid Claim root {claim_root}"
+            ))
+        })?;
+    Ok(ClaimStandingRefV1 {
+        claim_id: claim_id.to_string(),
+        claim_root: claim_root.to_string(),
+        standing: standing.to_string(),
+        path: format!("records/claims/sha256/{digest}.json"),
+    })
 }
 
 fn declared_repair_condition(record: &ClaimRecordV1) -> Option<String> {
@@ -474,7 +576,7 @@ fn resolve_claim<'a>(
     match references.find(|reference| reference.claim_id == argument) {
         Some(reference) => Ok(reference.clone()),
         None => Err(CorrectionImpactError::usage(format!(
-            "this repository holds no Claim {argument}. `vela claims --status all` lists the full ids."
+            "this repository holds no current Claim {argument}. The shared Repository projection resolves historical correction successors from their exact admitted transition roots."
         ))),
     }
 }

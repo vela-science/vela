@@ -1178,7 +1178,6 @@ pub(crate) fn projection_payload(repository_path: &Path) -> Result<RepositoryPro
     let mut active_pending_claim_ids = Vec::new();
     let mut inactive_unassessed_claim_ids = Vec::new();
     let mut retired_claim_ids = Vec::new();
-    let mut correction_successor_ids = Vec::new();
     for claim in &claims {
         match claim.standing.as_str() {
             "accepted" => accepted_claim_ids.push(claim.claim_id.clone()),
@@ -1189,13 +1188,46 @@ pub(crate) fn projection_payload(repository_path: &Path) -> Result<RepositoryPro
         }
     }
     let transitions = transitions_by_event.into_values().collect::<Vec<_>>();
-    correction_successor_ids.extend(transitions.iter().filter_map(|transition| {
-        transition
-            .relation_kind
-            .as_ref()
-            .and(transition.successor_claim_id.as_ref())
-            .cloned()
-    }));
+    let mut correction_successor_transitions = transitions
+        .iter()
+        .filter(|transition| transition.relation_kind.is_some())
+        .map(|transition| {
+        let successor_id = transition.successor_claim_id.clone().ok_or_else(|| {
+            format!("correction transition {} has no successor Claim id", transition.proposal_id)
+        })?;
+        let successor_root = transition.successor_claim_root.clone().ok_or_else(|| {
+            format!("correction transition {} has no successor Claim root", transition.proposal_id)
+        })?;
+        let successor_standing = claims
+            .iter()
+            .find(|claim| claim.claim_id == successor_id && claim.claim_root == successor_root)
+            .ok_or_else(|| {
+                format!(
+                    "correction transition {} successor {successor_id} at {successor_root} is absent from projected Claims",
+                    transition.proposal_id
+                )
+            })?
+            .standing
+            .clone();
+        Ok((
+            successor_id,
+            successor_root,
+            successor_standing,
+            transition.predecessor_claim_id.clone().ok_or_else(|| {
+                format!("correction transition {} has no predecessor Claim id", transition.proposal_id)
+            })?,
+            transition.predecessor_claim_root.clone().ok_or_else(|| {
+                format!("correction transition {} has no predecessor Claim root", transition.proposal_id)
+            })?,
+        ))
+    })
+        .collect::<Result<Vec<_>, String>>()?;
+    correction_successor_transitions.sort();
+    correction_successor_transitions.dedup();
+    let mut correction_successor_ids = correction_successor_transitions
+        .iter()
+        .map(|(successor_id, _, _, _, _)| successor_id.clone())
+        .collect::<Vec<_>>();
     correction_successor_ids.sort();
     correction_successor_ids.dedup();
     let failed_routes = inbox
@@ -1227,13 +1259,28 @@ pub(crate) fn projection_payload(repository_path: &Path) -> Result<RepositoryPro
             note: Some("Submit bounded evidence directly.".into()),
         }))
         .collect::<Vec<_>>();
-    let correction_impacts = correction_successor_ids
+    let correction_impacts = correction_successor_transitions
         .iter()
-        .map(|claim_id| {
-            crate::correction_impact::correction_impact_payload(&repository_path, claim_id)
+        .map(
+            |(
+                successor_id,
+                successor_root,
+                successor_standing,
+                predecessor_id,
+                predecessor_root,
+            )| {
+                crate::correction_impact::correction_impact_payload_at_transition(
+                    &repository_path,
+                    successor_id,
+                    successor_root,
+                    successor_standing,
+                    predecessor_id,
+                    predecessor_root,
+                )
                 .map(|(payload, _)| payload)
                 .map_err(|error| error.to_string())
-        })
+            },
+        )
         .collect::<Result<Vec<_>, String>>()?;
 
     let mut projection = RepositoryProjectionV1 {

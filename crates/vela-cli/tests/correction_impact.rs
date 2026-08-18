@@ -390,4 +390,130 @@ fn an_accepted_correction_leaves_the_repository_readable_and_projectable() {
         after["relations_excluded"]["unmapped_kind"][0]["kind"],
         "corrects"
     );
+
+    // Retire the first correction with a second correction. The Repository
+    // projection still includes both admitted transitions, and must resolve
+    // the now-historical middle Claim by the exact successor root carried by
+    // its authority Event rather than by the current Claim indexes.
+    std::fs::write(
+        repository_path.join("corrected-again.json"),
+        b"{\"revision\":3}\n",
+    )
+    .expect("write second corrected artifact");
+    let corrected_again = success_json(&run(
+        &repository_path,
+        None,
+        &home,
+        &[
+            "submit",
+            "--repo",
+            ".",
+            "--claim",
+            "The fixture artifact records revision three.",
+            "--type",
+            "computational",
+            "--replayability",
+            "exact",
+            "--artifact",
+            "corrected-again.json:witness",
+            "--caveat",
+            "This fixture makes no unrestricted scientific claim.",
+            "--corrects",
+            &correction_claim,
+            "--target-root",
+            correction_root,
+            "--as",
+            "agent:correction-impact-regression",
+            "--json",
+        ],
+    ));
+    let corrected_again_proposal = corrected_again["proposal_id"]
+        .as_str()
+        .expect("second correction Proposal");
+    let corrected_again_claim = corrected_again["claim_id"]
+        .as_str()
+        .expect("second correction Claim");
+    let corrected_again_root = corrected_again["claim_root"]
+        .as_str()
+        .expect("second correction Claim root");
+    success_json(&run(
+        &repository_path,
+        Some(agent.socket()),
+        &home,
+        &[
+            "review",
+            "accept",
+            corrected_again_proposal,
+            "--reason",
+            "Admit the second correction and retire the first successor.",
+            "--json",
+        ],
+    ));
+
+    let multi_generation = success_json(&run(
+        &repository_path,
+        None,
+        &home,
+        &["projection", ".", "--json"],
+    ));
+    assert_eq!(multi_generation["counts"]["accepted_claims"], 1);
+    assert_eq!(
+        multi_generation["transitions"].as_array().map(Vec::len),
+        Some(2)
+    );
+    assert_eq!(
+        multi_generation["handoff"]["accepted_claim_ids"][0],
+        corrected_again_claim
+    );
+    assert_eq!(
+        multi_generation["correction_impacts"]
+            .as_array()
+            .map(Vec::len),
+        Some(2),
+        "both historical correction transitions remain projectable"
+    );
+    let first_impact = multi_generation["correction_impacts"]
+        .as_array()
+        .expect("correction impacts")
+        .iter()
+        .find(|impact| {
+            impact["projection"]["transition"]["successor"]["claim_id"] == correction_claim
+        })
+        .expect("historical first correction impact");
+    assert_eq!(first_impact["successor_standing"], "superseded");
+    assert_eq!(
+        first_impact["projection"]["transition"]["predecessor"]["claim_root"],
+        base_root
+    );
+    assert_eq!(
+        first_impact["projection"]["transition"]["successor"]["claim_root"],
+        correction_root
+    );
+    let current_impact = multi_generation["correction_impacts"]
+        .as_array()
+        .expect("correction impacts")
+        .iter()
+        .find(|impact| {
+            impact["projection"]["transition"]["successor"]["claim_id"] == corrected_again_claim
+        })
+        .expect("current second correction impact");
+    assert_eq!(current_impact["successor_standing"], "accepted");
+    assert_eq!(
+        current_impact["projection"]["transition"]["predecessor"]["claim_root"],
+        correction_root
+    );
+    assert_eq!(
+        current_impact["projection"]["transition"]["successor"]["claim_root"],
+        corrected_again_root
+    );
+    assert_eq!(
+        multi_generation,
+        success_json(&run(
+            &repository_path,
+            None,
+            &home,
+            &["projection", ".", "--json"],
+        )),
+        "multi-generation projection must remain deterministic"
+    );
 }
