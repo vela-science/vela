@@ -4,19 +4,13 @@ Vela name and marks
 The Vela name, sail, wordmark, and lockups are trademark rights reserved. They
 are not licensed under the repository's Apache-2.0 OR MIT code license.
 
-`vela-logo-wordmark.svg` is a public delivery copy of the locked Vela sail and
-outlined wordmark maintained by the governed brand package in
-`vela-science/vela-web`. Its geometry comes from the canonical SVG source; the
-paper field is a GitHub-readable presentation layer for light and dark themes.
+`vela-readme-hero.jpg` presents the Vela sail and wordmark over an editorial,
+non-authoritative cartography backdrop. It contains no Repository data,
+scientific record, or protocol diagram. The Vela identity in the foreground is
+a trademark asset; the generated background plate serves this README
+presentation only.
 
-`vela-readme-hero.jpg` uses that exact sail and wordmark over a non-authoritative
-editorial cartography backdrop. It contains no repository data or scientific
-claim. The foreground copy and identity were composed deterministically; the
-background plate was generated for this presentation asset.
-
-`vela-state-flow.svg` is a deterministic explanatory diagram. It describes the
-released product boundary but is not a protocol schema or scientific record.
-
-Do not redesign or reinterpret the sail in this repository. Brand changes are
-made at the canonical source, verified against its export manifest, and then
-synced here as a release asset.
+Do not redesign, extract, or reinterpret the sail or wordmark from this image.
+The repository publishes no canonical vector brand source. Brand changes belong
+in the governed brand package in `vela-science/vela-web`; an exported copy
+returns here only when a tracked Vela surface consumes it.

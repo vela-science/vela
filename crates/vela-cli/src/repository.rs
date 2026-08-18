@@ -103,8 +103,8 @@ pub(crate) fn cmd_replay_repository(repository_path: &Path, json_out: bool) {
     if json_out {
         crate::cli::print_json(&payload);
     } else {
-        /* TERMINOLOGY.md forbids an unqualified "verified", so this line names
-        what the replay actually matched instead of asserting a standing. */
+        /* The CLI contract forbids an unqualified "verified", so this line
+        names what replay matched instead of asserting a Standing. */
         println!("current repository replay matched: signatures, roots, and canonical bytes");
         println!("  repository: {}", payload["repository_id"]);
         println!("  origin: {}", payload["origin_id"]);
@@ -334,8 +334,8 @@ pub(crate) fn cmd_status(repository_path: &Path, json_out: bool) {
             tree: Some(tree),
         },
         StatusIntegrity {
-            /* The prose below no longer says "verified", which TERMINOLOGY.md
-            forbids unqualified. This value keeps the word because it is a wire
+            /* The prose below no longer says "verified", which the CLI
+            contract forbids unqualified. This value keeps the word because it is a wire
             token of vela.status.v4: vela-web pins it as z.literal("verified")
             and its projection builder asserts on it, so retiring it is a
             coordinated schema change, not a wording change. */
@@ -1018,7 +1018,7 @@ pub(crate) fn cmd_review_show(repository_path: &Path, proposal_id: &str, json_ou
     let proposal =
         ProposalV1::parse(&proposal_bytes).unwrap_or_else(|error| crate::cli::fail_return(&error));
     /* `pending_review`, `accepted`, `rejected` and `withdrawn` are the Proposal
-    axis, which TERMINOLOGY.md keeps apart from Claim standing. `review list`
+    axis, which the Protocol keeps apart from Claim Standing. `review list`
     already carries this value on each row as `status`, and `--status` filters
     it by that name; this view called the same value `standing` and was the last
     place in the CLI where a Proposal word travelled under the Claim word. */

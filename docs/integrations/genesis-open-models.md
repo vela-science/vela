@@ -97,5 +97,7 @@ axis.
 - A Web projection or hosted account is a Repository authority.
 
 The pre-Coherence Math lineage remains reachable through ordinary Git history
-and a temporary release rollback tag. It is not a live compatibility surface
-and contributes no current Standing.
+and the temporary `rollback/submission-v2-coh-00` branch. It is not a live
+compatibility surface and contributes no current Standing. The Math owner must
+retire that branch through its current-state migration, not through a Core
+compatibility reader.

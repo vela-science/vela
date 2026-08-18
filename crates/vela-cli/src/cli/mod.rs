@@ -415,14 +415,11 @@ pub fn run_command() {
                             style::dim("claim"),
                             safe_text::inline(&outcome.claim_id)
                         );
-                        /* TERMINOLOGY.md fixes the wording of a successful
-                        Submission, so both sentences are quoted from it rather
-                        than paraphrased, and they carry no gutter label: the
-                        same document says a Submission has no status, so a word
-                        like "retained" in the label column would read as one.
-                        The second sentence is read off the outcome because
-                        TERMINOLOGY.md states the normal case, and a Submission
-                        that did move accepted state must not print it. */
+                        /* The CLI contract fixes these two statements and gives
+                        them no gutter label: a Submission has no Standing, so
+                        "retained" in the label column would read as one. Read
+                        the second statement from the outcome because a
+                        Submission that moved accepted state must not deny it. */
                         println!("  Submission retained; review required.");
                         println!(
                             "  Accepted scientific state changed: {}.",

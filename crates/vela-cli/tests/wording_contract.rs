@@ -114,7 +114,7 @@ fn assert_no_banned_word(verb: &str, rendered: &str) {
         let word = word.to_ascii_lowercase();
         assert!(
             !BANNED_UNQUALIFIED.contains(&word.as_str()),
-            "`vela {verb}` prints the unqualified word {word:?}, which TERMINOLOGY.md bans:\n{rendered}"
+            "`vela {verb}` prints banned unqualified word {word:?}:\n{rendered}"
         );
     }
 }
@@ -153,7 +153,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
             "--name",
             &name,
             "--scope",
-            "Exercise the wording TERMINOLOGY.md fixes.",
+            "Exercise the current CLI wording contract.",
             "--json",
         ],
     );
@@ -227,11 +227,11 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
     let submitted = stdout(&run(temporary.path(), &home, socket, &submit));
     assert!(
         submitted.contains("Submission retained; review required."),
-        "submit must report what a Submission is, in TERMINOLOGY.md's words:\n{submitted}"
+        "submit must report what a Submission is in the current CLI contract:\n{submitted}"
     );
     assert!(
         submitted.contains("Accepted scientific state changed: no."),
-        "submit must report what it did not change, in TERMINOLOGY.md's words:\n{submitted}"
+        "submit must report what it did not change in the current CLI contract:\n{submitted}"
     );
 
     let mut submit_json = submit.to_vec();

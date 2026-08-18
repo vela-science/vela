@@ -15,6 +15,7 @@ fetch.
 | `.github/workflows/conformance.yml` | GitHub Actions | source | full Core and object-waist gate | KEEP |
 | `.github/workflows/release.yml`, `.github/release/*` | release workflow and `scripts/release.sh` | source | archives, SBOM checks, bundle smoke tests, provenance transport | KEEP |
 | `.github/workflows/scorecard.yml` | GitHub Actions | source | repository security reporting | KEEP |
+| `.github/CODEOWNERS`, `.github/dependabot.yml` | GitHub review routing and dependency updater | source config | repository maintenance, no runtime role | KEEP |
 | `crates/vela-protocol` | workspace and the other three crates | source | Protocol 1 objects, schemas, roots, replay types | KEEP |
 | `crates/vela-authority` | CLI Decision path | source | restricted authorization evaluation | KEEP |
 | `crates/vela-repository` | CLI transactions and recovery | source | policy-neutral durable writes | KEEP |
@@ -26,7 +27,8 @@ fetch.
 | `conformance/fixtures/correction/*` | correction-impact verifier | source vectors | derived projection behavior | KEEP |
 | `conformance/emitters/*`, `conformance/readers/*` | conformance driver and architecture test | independent source | cross-language canonical-byte checks | KEEP |
 | other `conformance/*.py`, `*.mjs`, `*.sh`, locks | `verify.py`, `check-core.sh`, workflows | source and locks | protocol, schema, reference-flow, release, and install gates | KEEP |
-| `examples/formal-math`, `examples/negative`, `examples/review-methods` | Protocol manifest and reference-flow verifier | source fixtures | three reference flows and review method examples | KEEP |
+| `conformance/pyproject.toml`, `uv.lock`, `.python-version`, `README.md` | uv, Ruff, CI, and operators | source config, lock, and guidance | reproducible independent verifier environment | KEEP |
+| `examples/README.md`, `computational-science`, `correction-inheritance`, `formal-math`, `review-methods` | Protocol manifest and reference-flow verifier | source fixtures | three reference flows and review method examples | KEEP |
 | `scripts/release.sh`, `release_manifest.py`, `sign-published-release.sh` | release workflow, release tests, operator docs | source | one release entrypoint, manifest generation, signing/publication | KEEP |
 | `install.sh` | release bundles, release tests, README | source | signed manifest installation | KEEP; repair quickstart link |
 | `allowed_signers` | installer and release-signature tests | source trust root | out-of-band release identity | KEEP |
@@ -129,11 +131,13 @@ changed.
 
 ## Local Git and cache audit
 
-The working repository had no ignored build output, cache, untracked release
-asset, or stale worktree entry. `git worktree prune --dry-run --verbose`
-reported nothing. The object store had one 62.71 MiB pack, no loose objects, no
-garbage, and no unreachable object from `git fsck --full --no-reflogs
---unreachable`.
+The audit found only generated ignored outputs: Rust `target/`, the locked
+conformance virtual environment, Ruff caches, and Python bytecode created by
+the verification runs. `git clean -ndX` named those paths and no ignored
+secret, release asset, or source file; the cleanup removed that exact set after
+the final test run. `git worktree prune --dry-run --verbose` reported no stale
+worktree. The object store had one 62.71 MiB pack, no loose objects, no garbage,
+and no unreachable object from `git fsck --full --no-reflogs --unreachable`.
 
 The audit removed empty local remnants for retired `vela-edge`,
 `vela-verify`, `vela-source-manifest`, epoch-1 fixtures, deleted paper
@@ -171,9 +175,9 @@ This Core cleanup performs no Math scientific or authority write.
 
 ## Change size and verification
 
-Against the baseline, the cleanup changes 177 files with 373 inserted lines
-and 19,120 deleted lines, a net deletion of 18,747 lines. The tracked tree
-shrinks from 7,766,193 to 6,869,006 bytes, a net deletion of 897,187 bytes, and
+Against the baseline, the cleanup changes 183 files with 419 inserted lines
+and 19,167 deleted lines, a net deletion of 18,748 lines. The tracked tree
+shrinks from 7,766,193 to 6,869,353 bytes, a net deletion of 896,840 bytes, and
 from 550 to 407 files.
 
 The following local gates passed:
