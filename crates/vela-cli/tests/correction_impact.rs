@@ -433,9 +433,6 @@ fn an_accepted_correction_leaves_the_repository_readable_and_projectable() {
     let corrected_again_claim = corrected_again["claim_id"]
         .as_str()
         .expect("second correction Claim");
-    let corrected_again_root = corrected_again["claim_root"]
-        .as_str()
-        .expect("second correction Claim root");
     success_json(&run(
         &repository_path,
         Some(agent.socket()),
@@ -449,6 +446,19 @@ fn an_accepted_correction_leaves_the_repository_readable_and_projectable() {
             "--json",
         ],
     ));
+    let current_claims = success_json(&run(
+        &repository_path,
+        None,
+        &home,
+        &["claims", ".", "--json"],
+    ));
+    let corrected_again_root = current_claims["items"]
+        .as_array()
+        .expect("current Claims")
+        .iter()
+        .find(|claim| claim["claim_id"] == corrected_again_claim)
+        .and_then(|claim| claim["claim_root"].as_str())
+        .expect("second correction Claim root");
 
     let multi_generation = success_json(&run(
         &repository_path,
