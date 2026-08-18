@@ -345,10 +345,8 @@ fn review_accept_admits_the_event_that_moves_standing() {
         &producer_home,
         &["why", ".", &claim_id, "--json"],
     ));
-    /* Asserting `pending_review` here asserted the collapse: that is the
-    Proposal's status, and reading it back as the Claim's standing is what
-    `docs/TERMINOLOGY.md` now forbids. Both axes are checked, because the pass
-    moved neither. */
+    /* `pending_review` is the Proposal's status, not the Claim's standing.
+    Check both axes because the Verification pass moved neither. */
     assert_eq!(
         why_before["standing"], "unassessed",
         "a passing Verification Record is not an acceptance"

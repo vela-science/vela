@@ -1,5 +1,9 @@
 # Gittuf authority deletion spike
 
+> **Historical deletion study.** This completed 2026-08-09 spike explains why
+> gittuf was not adopted. It is evidence for the current no-second-authority
+> decision, not current product or integration guidance.
+
 - Status: completed; do not adopt in the current Vela runtime
 - Exercised: 2026-08-09
 - Gittuf: v0.15.0

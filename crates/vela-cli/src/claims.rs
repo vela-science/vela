@@ -46,13 +46,13 @@
 //! were still live: every accepted Claim came out individually readable at its
 //! declared root, none was unreachable, and the last compaction retained every
 //! one. It is a historical observation now and cannot be repeated with this
-//! binary — all four are archived and this release refuses their layout
-//! outright (`docs/ECOSYSTEM.md` §4). The paragraph above also carried a total,
+//! binary. All four are archived and this release refuses their layout
+//! outright, as `docs/CONTINUITY.md` records. The paragraph above also carried a total,
 //! 2,844, which no artifact in this repository reproduces and which disagrees
 //! with both figures that are sourced: ADR 0039 records 2,782 accepted as the
 //! Observatory reported them, and the four `counts.accepted_claims` in
-//! `paper/artifacts/action-complete-repository-2026-08-03/baseline.json`
-//! sum to 2,834. The count is dropped rather than picked between.
+//! historical evidence disagrees about the total. The count is dropped rather
+//! than picked between.
 //!
 //! What still checks this verb is `crates/vela-cli/tests/claims_enumeration.rs`,
 //! against a repository the test builds.

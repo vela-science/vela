@@ -193,10 +193,9 @@ commands.
 
 ## What to read next
 
-- Producers and agents: [AGENT_QUICKSTART.md](AGENT_QUICKSTART.md) and
-  [PRODUCER_QUICKSTART.md](PRODUCER_QUICKSTART.md)
-- Commands: [CLI.md](CLI.md)
+- Commands and producer workflow: [CLI.md](CLI.md)
 - Repository layout: [REPOSITORY_PROFILE.md](REPOSITORY_PROFILE.md)
 - Authority and attribution: [SIGNING.md](SIGNING.md)
+- Verification and Decision boundary: [VERIFICATION.md](VERIFICATION.md)
 - Byte and root meanings: [ROOTS.md](ROOTS.md)
 - Protocol semantics: [PROTOCOL.md](PROTOCOL.md)

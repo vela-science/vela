@@ -376,19 +376,14 @@ only on a machine you are willing to treat the same way.
 - [Quickstart](docs/QUICKSTART.md)
 - [CLI contract](docs/CLI.md)
 - [Protocol](docs/PROTOCOL.md)
-- [Release qualification](docs/RELEASES.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Repository boundaries](docs/REPOSITORY_BOUNDARIES.md)
 - [Authority and attribution](docs/SIGNING.md)
 - [Verification Records](docs/VERIFICATION.md)
-- [Terminology](docs/TERMINOLOGY.md)
 - [Threat model](docs/THREAT_MODEL.md)
-- [Current repository origin ADR](docs/adr/0027-pre-release-current-state-compaction.md)
-- [Native current repository genesis ADR](docs/adr/0023-native-current-repository-genesis.md)
-- [Product monorepo and transition-repository retirement ADR](docs/adr/0024-repository-ownership-and-integration-repository-retirement.md)
-- [Math-first compounding product architecture ADR](docs/adr/0025-math-first-compounding-product-architecture.md)
-- [Living Frontier map and native-system boundary ADR](docs/adr/0028-living-frontier-map-and-native-system-boundary.md)
+- [Release, installation, and recovery guidance](docs/RELEASES.md)
+- [Complete documentation index](docs/README.md)
 - [Historical transfer evidence](paper/artifacts/transfer/README.md)
-- [Protocol breakthrough benchmark](docs/BREAKTHROUGH_BENCHMARK.md)
-- [Whitepaper evidence contract](docs/WHITEPAPER_CONTRACT.md)
 
 ## Project status
 
@@ -405,15 +400,10 @@ their era; every Repository the current binary writes starts at a native
 genesis. Historical Git revisions preserve earlier contracts, and the current
 binary exposes no migration writer.
 
-The Protocol 1 standards cut is active across the ecosystem. The current
-`vela-science/math` authority is the compact Submission v3 genesis created
-under Vela 0.977.0, uses RFC 9562 UUIDv4 identity
-`3d012325-3768-4b95-a385-c94e9f2a57a6`, and strictly replays its current
-accepted state. The Git ref `rollback/submission-v2-coh-00` at `508b39a` is a
-development rollback point readable with signed Vela 0.976.1, not an
-active compatibility promise or a source of current Standing. See
-[the 2026-08-08 architecture memo](docs/history/2026-08-08-ideal-ecosystem-and-architecture-memo.md)
-and [ADR 0035](docs/adr/0035-commodity-encoding-signing-and-wire-contracts.md).
+The signed `v0.977.1` release carries the current Protocol 1 and Submission v3
+runtime. Published signed tags retain the binaries and source needed to
+reproduce earlier repositories. They do not add predecessor readers or writers
+to the current runtime.
 
 ## License
 

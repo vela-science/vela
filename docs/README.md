@@ -1,78 +1,47 @@
 # Vela documentation
 
-## Start here
+Start with the [quickstart](QUICKSTART.md). The current signed release is
+`v0.977.1`; Vela Core reads and writes Protocol 1 with Submission v3.
 
-- [Quickstart](QUICKSTART.md)
-- [Producer quickstart](PRODUCER_QUICKSTART.md)
-- [Agent quickstart](AGENT_QUICKSTART.md)
-- [CLI contract](CLI.md)
-- [Terminology](TERMINOLOGY.md)
+## Current product and protocol
 
-## Current contracts
-
-- [Protocol 1 specification](PROTOCOL.md)
-- [Ecosystem](ECOSYSTEM.md)
-- [Architecture](ARCHITECTURE.md)
-- [Authority and attribution](SIGNING.md)
-- [Verification](VERIFICATION.md)
-- [Attributed review provenance](REVIEW_PROVENANCE.md)
-- [Roots](ROOTS.md)
-- [Repository profile](REPOSITORY_PROFILE.md)
+- [Protocol 1](PROTOCOL.md) defines current objects and semantics.
+- [Architecture](ARCHITECTURE.md) maps Core components and their consumers.
+- [CLI reference](CLI.md) lists the shipped command and JSON contracts.
+- [Repository profile](REPOSITORY_PROFILE.md) defines source-owned layout.
+- [Roots](ROOTS.md) defines content and repository identity.
+- [Continuity](CONTINUITY.md) explains replay across exact Git history.
+- [Interoperability](INTEROPERABILITY.md) defines the portable boundary.
 - [Protocol 1 conformance profile](interop/scientific-state-profile.md)
-- [Threat model](THREAT_MODEL.md)
-- [Release qualification](RELEASES.md)
-- [Submission v3 migration](SUBMISSION_V3_MIGRATION.md)
-- [Continuity](CONTINUITY.md)
-- [External-validation program](EXTERNAL_VALIDATION_PROGRAM_2026-08-12.md)
-- [Gittuf authority deletion spike](GITTUF_AUTHORITY_DELETION_SPIKE.md)
-- [Current repository origin ADR](adr/0027-pre-release-current-state-compaction.md)
-- [Math-first compounding product architecture ADR](adr/0025-math-first-compounding-product-architecture.md)
-- [Proposed correction benchmark and whitepaper evidence contract ADR](adr/0026-correction-benchmark-and-whitepaper-evidence-contract.md)
-- [Living Frontier map and native-system boundary ADR](adr/0028-living-frontier-map-and-native-system-boundary.md)
-- [Closed foreign-reference experiment ADR](adr/0029-derived-foreign-reference-and-local-authority-containment.md)
-- [Math Atlas, Math Source Registry, and Target-closure ADR](adr/0030-root-bound-math-source-registry-atlas-and-target-closure.md)
-- [One product and removable Agent executor ADR](adr/0031-one-product-and-removable-agent-executor.md)
-- [Self-authenticated evidence and historical human Decision authority ADR](adr/0032-self-authenticated-evidence-and-human-decision-authority.md)
-- [Current attributed human and agent Decision ADR](adr/0046-attributed-actor-decisions.md)
-- [Direct Submission lineage and Registration retirement ADR](adr/0033-direct-submission-lineage-and-registration-retirement.md)
+  identifies the normative schemas and vectors.
 
-## Project documents
+## Authority, verification, and security
 
-- [Current core work](CAMPAIGN.md)
-- [Portable-waist campaign](PORTABLE_WAIST_CAMPAIGN.md)
-- [Protocol breakthrough benchmark](BREAKTHROUGH_BENCHMARK.md)
-- [Whitepaper evidence contract](WHITEPAPER_CONTRACT.md)
-- [Genesis: open models and the scientific-state control point](integrations/genesis-open-models.md)
-- [Native repository integration v0.1](integrations/native-repository-integration-v0.1.md)
-- [Non-normative integration-profile template](integrations/integration-profile-template.md)
-- [Roadmap](ROADMAP.md)
-- [Interoperability boundary](INTEROPERABILITY.md)
-- [Protocol adoption and interoperability](PROTOCOL_ADOPTION.md)
-- [Repository ownership boundaries](REPOSITORY_BOUNDARIES.md)
-- [Theory](THEORY.md)
-- [Publishing](PUBLISHING.md)
+- [Authority and performer attribution](SIGNING.md) separates the authority
+  principal, signer, and human or agent performer.
+- [Verification](VERIFICATION.md) separates scoped checks from Decisions.
+- [Repository boundaries](REPOSITORY_BOUNDARIES.md) assigns work to Core,
+  source-owning repositories, and read products.
+- [Threat model](THREAT_MODEL.md) names the defended trust boundaries.
 
-This index covers `docs/` completely: a test in `vela-protocol` walks the tree
-and holds every current document to a link here, because an index nobody checks
-is how three documents came to be published on the web while this page had
-never heard of them. The groups are editorial; the coverage is not.
+## Installation and operations
 
-It walks rather than lists a directory because the first version read the top
-level only, and the interoperability profile and the Genesis dossier were then
-published one directory down, where nothing could see them and no page in the
-repository linked either.
+- [Release qualification](RELEASES.md) covers signed manifests and assets.
+- [Publishing](PUBLISHING.md) covers Repository publication.
+- [Quickstart](QUICKSTART.md) covers install, read, submit, verify, decide,
+  replay, and explicit recovery.
 
-[Decision records](adr/README.md) index every ADR in number order. They are
-linked as a directory rather than listed here because an ADR is a decision at a
-moment and this page is what holds now.
+## Integrations
 
-[Historical documents](history/README.md) retain predecessor language,
-rejected designs, and dated assessments outside the current documentation
-surface.
+- [Native Repository integration](integrations/native-repository-integration-v0.1.md)
+- [Integration-profile template](integrations/integration-profile-template.md)
+- [Genesis open-model integration record](integrations/genesis-open-models.md)
 
-Accepted ADRs preserve decisions. Proposed ADRs describe candidates and their
-evidence gates. Git history preserves superseded text; active documents do not
-repeat it as compatibility behavior.
+[Decision records](adr/README.md) preserve the decision sequence. They are
+historical records, including ADRs that described later-retired designs; the
+current documents above define the product now.
 
-Case-specific execution plans live with their canonical owners. Vela core
-retains no reviewer-recruitment or source-specific campaign surface.
+[Historical documents](history/README.md) retain selected migrations,
+qualifications, and rejected designs with explicit historical labels. Git
+history retains obsolete planning and campaign scaffolding that no current or
+reproducibility consumer needs.

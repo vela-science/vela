@@ -21,14 +21,14 @@ deferred rather than defended.
   `git clone` + `vela replay` verifies scientific-state history locally;
   source-owned pinned methods verify their declared properties. Hub compromise is availability
   and discovery, not integrity (THREAT_MODEL.md, "Reader compromise").
-- No AI or agent identity sits in any trust path; the engine refuses
-  `agent:`/`ci:` actors on every decision verb. A bypass of that
-  refusal is a vulnerability — report it.
-- Private keys never belong in a repo. `vela init` scaffolds a
-  `.gitignore` that covers `/.vela/keys/` and nothing else
-  (`crates/vela-cli/src/init.rs`), so a key kept anywhere but
-  that directory is yours to ignore. This line used to promise `keys/`
-  and `*.key` as well; neither rule has ever been written by the
-  scaffold, and a reader who trusted it would have committed the key
-  (THREAT_MODEL.md, "Key compromise"). A reference repository carrying
-  a private key is a vulnerability even if the key looks disposable.
+- A human or agent may perform a Decision. The actor identity records
+  attribution and grants no authority. Repository policy, the current roots
+  and read set, strict replay, and the repository-authority signature govern
+  admission. A route that lets actor kind bypass those checks is a
+  vulnerability.
+- Private keys never belong in a repository. Vela uses the standard OpenSSH
+  agent for the repository service identity and does not read private-key
+  files. `vela init` scaffolds `/.vela/keys/` in `.gitignore` as defense in
+  depth; operators must also keep keys out of every other repository path. A
+  reference repository carrying a private key is a vulnerability even if the
+  key looks disposable.

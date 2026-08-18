@@ -1,5 +1,11 @@
 # Submission v3 retain/delete matrix
 
+> **Historical one-way migration record.** This document records the
+> 2026-08-17 cut to Submission v3 and the exact downstream rollback fact that
+> existed at the time. Current Core has no v2 reader, writer, execution-binding
+> object, or compatibility path. Consult the owning Math repository before
+> relying on its branch or current-state references.
+
 Vela 0.977.0 is the final planned pre-1.0 wire cut. The current runtime reads
 and writes one closed Submission shape: `vela.submission.v3` in
 `application/vnd.vela.submission.v3+json`.

@@ -1,5 +1,10 @@
 # Vela external-validation program
 
+> **Historical launch packet.** The versions, roots, routes, and open gates
+> below describe the 2026-08-12 launch-candidate state. They are retained as
+> scoped evidence and must not be used as current installation or validation
+> instructions.
+
 Status: **open for external participation**.
 
 Vela has a qualified Public Launch Candidate. The external program asks

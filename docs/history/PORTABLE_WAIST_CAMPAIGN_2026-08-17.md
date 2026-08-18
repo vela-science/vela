@@ -1,5 +1,9 @@
 # Portable-waist and interoperability campaign
 
+> **Historical completion record.** This campaign closed on 2026-08-17. It
+> records the evidence and deletion decisions behind the current Protocol 1
+> surface; it is not current work, a compatibility contract, or a roadmap.
+
 Status: **Complete, updated 2026-08-17.** All three cuts landed. The current
 `math-coh-00` Repository is the compact Submission v3 genesis made with Vela
 0.977.0. It deliberately admits three bounded current Claims: the corrected

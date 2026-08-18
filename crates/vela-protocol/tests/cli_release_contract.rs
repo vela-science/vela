@@ -268,26 +268,12 @@ fn the_documentation_index_lists_every_current_document() {
     );
 }
 
-/// The ecosystem boundary's readers row names every independent implementation.
-///
-/// The row named `conformance/emitters/javascript.mjs` alone for as long as
-/// there had been two emitters, and three other documents copied it. The count
-/// is the whole point of that layer — one clean-room implementation shows the
-/// specification is followable, two show it is followable the same way — so a
-/// second emitter that the layering diagram never mentions understates the
-/// evidence the repository actually has.
+/// The architecture names every independent implementation.
 #[test]
-fn the_layering_diagram_names_every_independent_implementation() {
+fn the_architecture_names_every_independent_implementation() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let ecosystem =
-        std::fs::read_to_string(root.join("docs/ECOSYSTEM.md")).expect("read docs/ECOSYSTEM.md");
-    let row = ecosystem
-        .split_once("\n  readers ")
-        .expect("docs/ECOSYSTEM.md no longer has a readers row")
-        .1
-        .split_once("↑")
-        .expect("the readers row no longer closes with its gloss")
-        .0;
+    let architecture = std::fs::read_to_string(root.join("docs/ARCHITECTURE.md"))
+        .expect("read docs/ARCHITECTURE.md");
 
     let mut present: Vec<String> = Vec::new();
     for directory in ["conformance/emitters", "conformance/readers"] {
@@ -305,10 +291,13 @@ fn the_layering_diagram_names_every_independent_implementation() {
         present.len()
     );
 
-    let unnamed: Vec<&String> = present.iter().filter(|path| !row.contains(*path)).collect();
+    let unnamed: Vec<&String> = present
+        .iter()
+        .filter(|path| !architecture.contains(*path))
+        .collect();
     assert!(
         unnamed.is_empty(),
-        "docs/ECOSYSTEM.md does not name {unnamed:?}"
+        "docs/ARCHITECTURE.md does not name {unnamed:?}"
     );
 }
 
@@ -490,8 +479,6 @@ fn the_documented_tagline_is_the_one_the_binary_prints() {
     for name in [
         "README.md",
         "docs/ARCHITECTURE.md",
-        "docs/TERMINOLOGY.md",
-        "docs/ROADMAP.md",
         "docs/PROTOCOL.md",
         "docs/QUICKSTART.md",
     ] {

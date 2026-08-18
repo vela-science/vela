@@ -5,7 +5,7 @@
 //! first in the second's words. A Claim whose Proposal was undecided reported
 //! `pending_review`, one whose producer withdrew it reported `withdrawn`, one
 //! a Decision rejected reported `rejected`. None of the three is declared for
-//! the standing axis in `docs/TERMINOLOGY.md`, and the first consumer to
+//! the standing axis in `docs/PROTOCOL.md`, and the first consumer to
 //! implement the declared vocabulary mapped all three onto `unassessed`, which
 //! is where the difference between a rejected Claim and one nobody has looked
 //! at was actually lost.
@@ -35,7 +35,7 @@ pub(crate) const RETRACTED: &str = "retracted";
 /// The standing axis reads a ruling, not a queue. Only an accepted Decision
 /// puts a Claim in `accepted`; undecided, withdrawn by its producer, and
 /// rejected all leave the same fact behind — no ruling stands over this Claim
-/// — and `unassessed` is the word `docs/TERMINOLOGY.md` declares for exactly
+/// — and `unassessed` is the word `docs/PROTOCOL.md` declares for exactly
 /// that. Which of the three happened is a fact about the Proposal, carried
 /// beside the standing rather than folded into it.
 ///
@@ -66,7 +66,7 @@ pub(crate) fn from_proposal_status(status: &str) -> &'static str {
 /// An accepted `claim.withdraw` is an accepted Decision that takes the Claim
 /// out of repository state, and reading the verdict alone reported the
 /// retracted Claim as `accepted` — the strongest word on the axis, for the one
-/// act that removes standing. `retracted` is what `docs/TERMINOLOGY.md`
+/// act that removes standing. `retracted` is what `docs/PROTOCOL.md`
 /// declares for it, and the `claim.retracted` Event the same transaction
 /// commits is the authority behind the word.
 pub(crate) fn from_proposal_outcome(action: &str, status: &str) -> &'static str {

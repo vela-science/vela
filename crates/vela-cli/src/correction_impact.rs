@@ -3,11 +3,9 @@
 //! The CLI-owned correction-impact reducer implements
 //! `vela.correction-impact-projection.v1` — dependency traversal, lost and
 //! surviving support routes, repair obligations — since it was written, and
-//! until now nothing reached it. Its only caller was a test holding synthetic
-//! input. `docs/ECOSYSTEM.md` said so plainly: it *"has never run against a real
-//! repository, and no CLI verb reaches it."* This module is that verb, and it
-//! adds no object: it reads the repository a reader already has and hands the
-//! existing derivation the existing input schema.
+//! this module exposes it through the read-only CLI verb. It adds no object: it
+//! reads the repository a reader already has and hands the existing derivation
+//! the existing input schema.
 //!
 //! ## What the argument names
 //!

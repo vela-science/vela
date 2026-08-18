@@ -1,8 +1,7 @@
 //! The words the protocol fixes, and the one word it fixes on the wire.
 //!
-//! TERMINOLOGY.md bans "any unqualified use of `verified`, `valid`, `approved`,
-//! or `complete`" in product wording, and prescribes the exact two sentences a
-//! successful Submission reports. `status` and `replay` broke the first rule
+//! The current CLI contract bans unqualified uses of `verified`, `valid`,
+//! `approved`, or `complete` in product wording. `status` and `replay` broke the first rule
 //! and `submit` never printed the second, so this asserts both properties
 //! rather than the particular replacement prose: the replacement is a matter of
 //! taste and will change; that these words stay out of it is the contract.
@@ -35,7 +34,7 @@ use support::{
     successful_stdout as stdout,
 };
 
-/// TERMINOLOGY.md, "Product wording": these are banned unqualified, so the test
+/// These terms are banned unqualified, so the test
 /// looks for them as whole words and lets a qualified compound through.
 const BANNED_UNQUALIFIED: [&str; 4] = ["verified", "valid", "approved", "complete"];
 
@@ -48,17 +47,16 @@ const BANNED_UNQUALIFIED: [&str; 4] = ["verified", "valid", "approved", "complet
 /// not as the bare noun — so this is a substring test, not a word test.
 const RETIRED_ON_THE_PRODUCT_SURFACE: &str = "frontier";
 
-/// The other retired names, from `docs/TERMINOLOGY.md`'s "Retired names" table.
+/// Other retired object names.
 ///
-/// Only the multi-word ones are here, and the omissions are the point. `Finding`
+/// Only the multi-word names are here. `Finding`
 /// and `attempt` are ordinary English words that this surface uses in their
 /// ordinary sense — `--source-run` carries `provenance.source_run`,
 /// which is exactly the "workbench's own run identity, as provenance" the table
 /// says to use instead — so a substring test on them would be a test against
 /// English. `Frontier Commit` and `Frontier map` are already caught above.
 /// `Review Packet` is the one the Frontier check cannot see, and the binary was
-/// printing it in three places while `docs/ECOSYSTEM.md` listed it as retired
-/// and not to be reintroduced.
+/// printing it in three places after the object had been retired.
 const RETIRED_OBJECT_NAMES: [&str; 1] = ["review packet"];
 
 fn assert_vocabulary_retired(surface: &str, rendered: &str) {
@@ -70,7 +68,7 @@ fn assert_vocabulary_retired(surface: &str, rendered: &str) {
     for retired in RETIRED_OBJECT_NAMES {
         assert!(
             !lowered.contains(retired),
-            "{surface} names {retired:?}, which docs/TERMINOLOGY.md retired:\n{rendered}"
+            "{surface} names retired object {retired:?}:\n{rendered}"
         );
     }
 }
@@ -374,54 +372,6 @@ fn published_verbs(cwd: &Path) -> BTreeSet<String> {
          silently cover nothing:\n{advanced}"
     );
     verbs
-}
-
-/// The verbs the ecosystem implementation boundary names, and its stated count.
-///
-/// The layering diagram is the fourth place the verb list is written down and
-/// the only one nothing read. `cli/surface.rs` holds both printed grids to
-/// `Cli::command()` and `docs/CLI.md` to the grids; this document sat outside
-/// that chain and said "15 verbs" for as long as there had been sixteen, having
-/// missed `correction` entirely.
-fn layering_block_verbs() -> (usize, BTreeSet<String>) {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/ECOSYSTEM.md");
-    let document =
-        std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("read ECOSYSTEM.md: {error}"));
-    let (before, after) = document
-        .split_once(" verbs: ")
-        .expect("docs/ECOSYSTEM.md no longer states a verb count");
-    let stated: usize = before
-        .split_whitespace()
-        .next_back()
-        .expect("the verb count has no number before it")
-        .parse()
-        .expect("the verb count is not a number");
-    let listed = after
-        .split_once("\n  readers")
-        .expect("docs/ECOSYSTEM.md no longer closes the operator row with the readers row")
-        .0;
-    (
-        stated,
-        listed.split_whitespace().map(str::to_string).collect(),
-    )
-}
-
-/// The operator row is the surface the binary actually has.
-#[test]
-fn the_layering_diagram_names_the_verbs_the_binary_publishes() {
-    let temporary = tempfile::tempdir().expect("temporary directory");
-    let (stated, listed) = layering_block_verbs();
-    assert_eq!(
-        listed,
-        published_verbs(temporary.path()),
-        "docs/ECOSYSTEM.md §8 and `vela help advanced` disagree about which verbs exist"
-    );
-    assert_eq!(
-        stated,
-        listed.len(),
-        "docs/ECOSYSTEM.md §8 states {stated} verbs and lists {}",
-        listed.len()
-    );
 }
 
 /// Every help body the binary prints, from both hand-set grids down through

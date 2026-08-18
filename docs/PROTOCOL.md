@@ -4,9 +4,10 @@ Status: release candidate. This document is the normative Protocol 1
 specification; it does not publish a `v1.0.0` software release or claim external
 adoption.
 
-Submission v3 is the final planned pre-1.0 wire cut. Vela 0.977.0 has no v2
-reader, writer, alias, or execution-binding runtime; exact development-era
-bytes remain available only through their signed release and Git rollback ref.
+Submission v3 is the final planned pre-1.0 wire cut. The signed Vela 0.977.1
+release has no v2 reader, writer, alias, or execution-binding runtime. Published
+signed releases and tags retain development-era reproducibility history; the
+current runtime does not read those formats.
 
 Vela is version control for scientific state. The protocol defines how exact
 Claims, evidence, Verification Records, Proposals, Decisions, and Standing are

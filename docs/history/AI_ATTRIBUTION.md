@@ -3,8 +3,8 @@
 > **Historical product-language record.** This document explains retained
 > Finding-era event kinds and early actor terminology. Current producers emit
 > authenticated Submissions; current verifiers emit scoped Verification
-> Records; repository authority records one authorized human Decision. See
-> [TERMINOLOGY.md](../TERMINOLOGY.md).
+> Records; repository authority records one authorized human Decision. See the
+> [historical terminology document](https://github.com/vela-science/vela/blob/da3bf30bb22b5ebea90e0181ec9a9fdebf933a00/docs/TERMINOLOGY.md).
 
 This doc names the doctrine Vela's substrate already enforces:
 **proposals can be drafted by anyone, including AI agents;

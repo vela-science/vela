@@ -1,9 +1,9 @@
 # Decision records
 
-Every ADR in this directory, in number order. `docs/README.md` indexes the
-current contracts and links here rather than listing these, because an ADR is a
-decision at a moment and a contract is what holds now; the two age differently
-and mixing them makes both harder to read.
+Every ADR in this directory is a historical decision record. ADRs preserve the
+reasoning and evidence available at the time; they do not override the current
+contracts in `docs/README.md`. Later ADRs and current source may retire their
+commands, objects, or repository boundaries.
 
 An ADR is never edited to reflect a later decision. A superseded one stays as it
 was and the ADR that replaced it says so, which is why this list only grows.
