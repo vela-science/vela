@@ -22,9 +22,18 @@
 
 Research already has tools for code, papers, data, proofs, and computation.
 Vela turns the state between them into a living map: what is known, contested,
-missing, and ready to attempt next; what exact evidence bears on each Claim;
+missing, and still unresolved; what exact evidence bears on each Claim;
 what was independently checked; what a named Repository decided; and what a
 later researcher can safely inherit.
+
+Vela does not search the literature, rank Problems, or allocate effort. It
+neither generates proofs nor certifies novelty. Separating an attempt from a
+check is not a Vela invention; public research registries do it too. What Vela
+demonstrates is narrower: exact content-addressed source custody and Result
+scope, a scoped Check that constrains only its declared method, an attributed
+Repository Decision with its Event and derived Standing, a linked correction
+that replays with its predecessor retained, and reconstruction of all of it
+from Git and a signed reader alone.
 
 Vela is a Git-native protocol and CLI for governed, replayable
 scientific-state transitions. Its complete operator loop is:
@@ -393,6 +402,10 @@ generated schemas, a digest-bound conformance manifest, independent Python and
 JavaScript emitters/readers, and three executable examples. This status does not
 publish `v1.0.0`, promise compatibility before the final release authorization,
 or claim external adoption.
+
+Nothing here has been measured against another system for throughput, research
+productivity, adoption, or novelty certification. No such comparison has been
+run, and no claim of that kind is made.
 
 All controlled public Repositories use the current repository object model.
 Archived predecessors remain readable through their tags and the binaries of
