@@ -3,7 +3,7 @@
 This note is the current, checkable public case for Vela's scientific-state
 boundary. It is not a model benchmark or an archive of pre-release migrations.
 
-- **Reader:** signed Vela `v0.977.2`
+- **Reader:** signed Vela `v0.977.3`
 - **Repository:** `vela-science/math`
 - **Repository UUID:** `3d012325-3768-4b95-a385-c94e9f2a57a6`
 - **Git commit:** `84b118ed1622d34e5a1431821cf35dca91fb8720`

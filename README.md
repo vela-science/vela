@@ -131,10 +131,9 @@ it does not prove that a Claim is true.
 Install the exact signed release:
 
 Vela supports Linux x86-64 and macOS Apple-silicon release bundles.
-`v0.977.2` remains the current signed release while the `v0.977.3` exact
-restart-recovery inspection patch is qualified. After that tag is signed and
-published, both platform manifests bind the archives and SBOMs and verify with
-the out-of-band distribution identity before installation.
+`v0.977.3` is the current signed release. Both platform manifests bind the
+archives and SBOMs and verify with the out-of-band distribution identity before
+installation.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.3/install.sh | \
@@ -401,7 +400,7 @@ their era; every Repository the current binary writes starts at a native
 genesis. Historical Git revisions preserve earlier contracts, and the current
 binary exposes no migration writer.
 
-The signed `v0.977.2` release carries the current Protocol 1 and Submission v3
+The signed `v0.977.3` release carries the current Protocol 1 and Submission v3
 runtime. Published signed tags retain the binaries and source needed to
 reproduce earlier repositories. They do not add predecessor readers or writers
 to the current runtime.

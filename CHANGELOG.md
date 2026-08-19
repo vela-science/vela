@@ -10,6 +10,8 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+## 0.977.3
+
 - **A restarted operator can discover one exact interrupted transaction without
   attempting another write.** `vela recover --inspect` validates the retained
   Repository Profile and complete private journal inventory, then reports
