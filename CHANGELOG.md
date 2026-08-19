@@ -10,6 +10,15 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+- **A restarted operator can discover one exact interrupted transaction without
+  attempting another write.** `vela recover --inspect` validates the retained
+  Repository Profile and complete private journal inventory, then reports
+  either no pending operation or one exact operation, recovery state, and next
+  command. The read creates no lock, performs no recovery, signing, Git, or
+  authority action, and fails closed on live, corrupt, substituted, mixed, or
+  ambiguous inventory. This adds no Protocol object and changes no Decision,
+  Event, or Standing semantics.
+
 ## 0.977.2
 
 - **Repository projection stays complete across multi-generation correction

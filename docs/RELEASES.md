@@ -13,6 +13,13 @@ Vela has two related but distinct release surfaces:
 The latest signed published release is `v0.977.2`. User-facing installer
 examples pin that exact tag rather than following a moving branch.
 
+`v0.977.3` is the compatible exact restart-recovery inspection candidate. It
+preserves the Protocol 1 object selection, exact roots, replay, and authority
+semantics while adding one command-specific, read-only CLI projection of the
+private recovery barrier. It becomes current only after both platform bundles
+and manifests pass the gates below, the exact draft manifests are signed, and
+the draft is published.
+
 `v0.977.2` is the compatible historical-correction projection patch. It
 preserves the Protocol 1 object selection, exact roots, replay, and authority
 semantics while carrying each admitted correction transition's exact Claim
