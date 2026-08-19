@@ -38,15 +38,24 @@ struct RecoverResultV1<'a> {
     next_command: Option<String>,
 }
 
-pub(super) fn cmd_recover(repository: &Path, operation_id: &str, json: bool) {
-    ui::set_mode("recover", json);
-    let operation_id = OperationId::parse(operation_id.to_string()).unwrap_or_else(|error| {
-        ui::fail_with(
-            ErrorKind::Usage,
-            &error.to_string(),
-            Some("pass the exact vop_ operation id printed by the blocked write"),
-        )
-    });
+#[derive(Serialize)]
+struct RecoveryInspectionV1<'a> {
+    schema: &'static str,
+    ok: bool,
+    command: &'static str,
+    repository_path: &'a str,
+    repository_id: &'a str,
+    recovery_required: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    operation_id: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    recovery_state: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    next_command: Option<String>,
+    authority_effect: &'static str,
+}
+
+fn recovery_repository(repository: &Path) -> std::path::PathBuf {
     let repository = ui::canonicalize_repo(repository);
     let private = repository.join(".vela");
     match std::fs::symlink_metadata(&private) {
@@ -78,16 +87,11 @@ pub(super) fn cmd_recover(repository: &Path, operation_id: &str, json: bool) {
         ),
         Ok(_) => {}
     }
-    let journal_dir = crate::repository_ops::repository_transaction_journal_dir(&repository)
-        .unwrap_or_else(|error| {
-            ui::fail_coded(
-                ErrorKind::Domain,
-                Some("repository_incomplete"),
-                &error,
-                None,
-            )
-        });
-    let profile = crate::repository::verify_profile_at(&repository).unwrap_or_else(|error| {
+    repository
+}
+
+fn recovery_profile(repository: &Path) -> vela_protocol::repository::RepositoryProfileV1 {
+    crate::repository::verify_profile_at(repository).unwrap_or_else(|error| {
         ui::fail_coded(
             ErrorKind::Domain,
             Some("repository_incomplete"),
@@ -96,7 +100,101 @@ pub(super) fn cmd_recover(repository: &Path, operation_id: &str, json: bool) {
                 "restore the exact current vela.toml from trusted repository history; never derive repository identity from a recovery journal",
             ),
         )
+    })
+}
+
+fn recovery_journal_dir(repository: &Path) -> std::path::PathBuf {
+    crate::repository_ops::repository_transaction_journal_dir(repository).unwrap_or_else(|error| {
+        ui::fail_coded(
+            ErrorKind::Domain,
+            Some("repository_incomplete"),
+            &error,
+            None,
+        )
+    })
+}
+
+pub(super) fn cmd_inspect(repository: &Path, json: bool) {
+    ui::set_mode("recover.inspect", json);
+    let repository = recovery_repository(repository);
+    // A real private directory may exist in an incomplete bootstrap, but no
+    // journal byte is trusted until the retained Profile parses independently.
+    let profile = recovery_profile(&repository);
+    let journal_dir = recovery_journal_dir(&repository);
+    let requirement =
+        RepositoryTxn::inspect_recovery_barrier(&repository, &journal_dir, &profile.repository_id)
+            .unwrap_or_else(|error| fail_recovery_inspection(&repository, error));
+    let repository_text = repository.display().to_string();
+    let next_command = requirement.as_ref().map(|value| {
+        format!(
+            "vela recover --repo {} {} --json",
+            super::shell_arg(&repository_text),
+            value.operation_id.as_str()
+        )
     });
+    let payload = RecoveryInspectionV1 {
+        schema: "vela.recovery-inspection.v1",
+        ok: true,
+        command: "recover.inspect",
+        repository_path: &repository_text,
+        repository_id: &profile.repository_id,
+        recovery_required: requirement.is_some(),
+        operation_id: requirement
+            .as_ref()
+            .map(|value| value.operation_id.as_str()),
+        recovery_state: requirement.as_ref().map(|value| value.state.as_str()),
+        next_command,
+        authority_effect: "none",
+    };
+    if json {
+        crate::cli::print_json(&payload);
+    } else if let Some(requirement) = requirement.as_ref() {
+        println!("Recovery required");
+        println!("  operation {}", requirement.operation_id.as_str());
+        println!("  state     {}", requirement.state.as_str());
+        println!(
+            "  next      {}",
+            payload.next_command.as_deref().unwrap_or("unavailable")
+        );
+    } else {
+        println!("No recovery required");
+        println!("  repository {}", profile.repository_id);
+    }
+}
+
+fn fail_recovery_inspection(repository: &Path, error: RepositoryTxnError) -> ! {
+    let hint = if matches!(error, RepositoryTxnError::Busy) {
+        Some("wait for the active repository writer to exit, then inspect recovery again")
+    } else {
+        Some(
+            "preserve the private journals and repository bytes; repair the exact reported corruption before recovery",
+        )
+    };
+    ui::fail_coded(
+        ErrorKind::Domain,
+        Some("repository_incomplete"),
+        &format!(
+            "inspect recovery barrier for {}: {error}",
+            repository.display()
+        ),
+        hint,
+    )
+}
+
+pub(super) fn cmd_recover(repository: &Path, operation_id: &str, json: bool) {
+    ui::set_mode("recover", json);
+    let operation_id = OperationId::parse(operation_id.to_string()).unwrap_or_else(|error| {
+        ui::fail_with(
+            ErrorKind::Usage,
+            &error.to_string(),
+            Some("pass the exact vop_ operation id printed by the blocked write"),
+        )
+    });
+    let repository = recovery_repository(repository);
+    // Preserve the released mutation command's error precedence: private
+    // directory and journal-path checks predate retained Profile parsing.
+    let journal_dir = recovery_journal_dir(&repository);
+    let profile = recovery_profile(&repository);
     #[cfg(feature = "test-support")]
     let recovery = if std::env::var_os("VELA_TEST_INTERRUPT_RECOVERY_AFTER_INSTALLED").is_some() {
         RepositoryTxn::recover_at_failpoint(

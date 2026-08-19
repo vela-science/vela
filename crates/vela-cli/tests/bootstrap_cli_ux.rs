@@ -1090,6 +1090,31 @@ fn installed_native_genesis_requires_explicit_recovery_then_policy_free_init_tai
     let operation = operation_id(&repository);
     assert!(git_text(&repository, &["for-each-ref", "--format=%(refname)"]).is_empty());
 
+    let before_inspection = directory_snapshot(&repository);
+    let inspection = run(
+        temporary.path(),
+        None,
+        &["recover", "--repo", &repository_text, "--inspect", "--json"],
+    );
+    assert!(inspection.status.success());
+    let inspection = json(&inspection);
+    assert_eq!(inspection["schema"], "vela.recovery-inspection.v1");
+    assert_eq!(inspection["command"], "recover.inspect");
+    assert_eq!(inspection["recovery_required"], true);
+    assert_eq!(inspection["operation_id"], operation);
+    assert_eq!(inspection["recovery_state"], "installed");
+    assert_eq!(inspection["authority_effect"], "none");
+    assert!(
+        inspection["next_command"]
+            .as_str()
+            .is_some_and(|value| value.ends_with(&format!(" {operation} --json")))
+    );
+    assert_eq!(
+        directory_snapshot(&repository),
+        before_inspection,
+        "recovery inspection changed repository or journal bytes"
+    );
+
     let blocked = run(temporary.path(), None, &args);
     assert_eq!(blocked.status.code(), Some(1));
     let blocked = json(&blocked);
@@ -1235,6 +1260,103 @@ fn installed_native_genesis_requires_explicit_recovery_then_policy_free_init_tai
     let idempotent = run(temporary.path(), None, &args);
     assert!(idempotent.status.success());
     assert_eq!(idempotent.stdout, resumed.stdout);
+
+    let clean_before = directory_snapshot(&repository);
+    let clean = run(
+        temporary.path(),
+        None,
+        &["recover", "--repo", &repository_text, "--inspect", "--json"],
+    );
+    assert!(clean.status.success());
+    let clean = json(&clean);
+    assert_eq!(clean["schema"], "vela.recovery-inspection.v1");
+    assert_eq!(clean["recovery_required"], false);
+    assert!(clean.get("operation_id").is_none());
+    assert!(clean.get("recovery_state").is_none());
+    assert!(clean.get("next_command").is_none());
+    assert_eq!(clean["authority_effect"], "none");
+    assert_eq!(directory_snapshot(&repository), clean_before);
+
+    let journal_dir = repository.join(".vela/operation-journals");
+    let preserved = repository.join(".vela/operation-journals-preserved");
+    std::fs::rename(&journal_dir, &preserved).unwrap();
+    std::fs::write(&journal_dir, b"not a directory\n").unwrap();
+    let corrupt_before = directory_snapshot(&repository);
+    let corrupt = run(
+        temporary.path(),
+        None,
+        &["recover", "--repo", &repository_text, "--inspect", "--json"],
+    );
+    assert_eq!(corrupt.status.code(), Some(1));
+    let corrupt = json(&corrupt);
+    assert_eq!(corrupt["schema"], "vela.error.v1");
+    assert_eq!(corrupt["command"], "recover.inspect");
+    assert_eq!(corrupt["error"]["code"], "repository_incomplete");
+    assert_eq!(directory_snapshot(&repository), corrupt_before);
+}
+
+#[test]
+fn exact_recover_keeps_missing_private_directory_compatibility() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let repository = temporary.path().join("missing-private-directory");
+    std::fs::create_dir(&repository).unwrap();
+    let repository_text = repository.to_string_lossy().into_owned();
+    let operation = "vop_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    let before = directory_snapshot(&repository);
+
+    let recovered = run(
+        temporary.path(),
+        None,
+        &["recover", "--repo", &repository_text, operation, "--json"],
+    );
+    assert_eq!(recovered.status.code(), Some(3));
+    let recovered = json(&recovered);
+    assert_eq!(recovered["schema"], "vela.error.v1");
+    assert_eq!(recovered["command"], "recover");
+    assert_eq!(recovered["error"]["kind"], "not_found");
+    assert!(recovered["error"]["code"].is_null());
+    assert!(
+        recovered["error"]["message"].as_str().is_some_and(
+            |message| message.starts_with("repository private directory does not exist:")
+        )
+    );
+    assert_eq!(directory_snapshot(&repository), before);
+}
+
+#[test]
+fn recovery_inspection_validates_profile_before_private_inventory() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let repository = temporary.path().join("not-a-repository");
+    let journals = repository.join(".vela/operation-journals/repository");
+    std::fs::create_dir_all(&journals).unwrap();
+    std::fs::write(
+        journals.join("vop_claimed.plan.json"),
+        br#"{"operation_id":"vop_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","recovery":{"state":"prepared"}}"#,
+    )
+    .unwrap();
+    let repository_text = repository.to_string_lossy().into_owned();
+    let before = directory_snapshot(&repository);
+
+    let inspection = run(
+        temporary.path(),
+        None,
+        &["recover", "--repo", &repository_text, "--inspect", "--json"],
+    );
+    assert_eq!(inspection.status.code(), Some(1));
+    let inspection = json(&inspection);
+    assert_eq!(inspection["command"], "recover.inspect");
+    assert_eq!(inspection["error"]["code"], "repository_incomplete");
+    assert!(
+        inspection["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.starts_with("read vela.toml:"))
+    );
+    assert!(
+        inspection["error"]["hint"]
+            .as_str()
+            .is_some_and(|hint| hint.contains("never derive repository identity"))
+    );
+    assert_eq!(directory_snapshot(&repository), before);
 }
 
 #[cfg(all(feature = "test-support", unix))]
