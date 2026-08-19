@@ -153,7 +153,10 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         action: IntegrationAction,
     },
-    /// Recover one exact durable repository transaction and stop.
+    /// Inspect or recover one exact durable repository transaction and stop.
+    #[command(
+        override_usage = "vela recover --repo <PATH> <OPERATION_ID> [--json]\n       vela recover --repo <PATH> --inspect [--json]"
+    )]
     Recover {
         #[arg(
             long = "repo",
@@ -163,8 +166,11 @@ pub(crate) enum Commands {
         )]
         repository: PathBuf,
         /// Exact durable repository operation id (`vop_...`).
-        #[arg(value_name = "OPERATION_ID")]
-        operation_id: String,
+        #[arg(value_name = "OPERATION_ID", required_unless_present = "inspect")]
+        operation_id: Option<String>,
+        /// Inspect the exact private recovery barrier without changing it.
+        #[arg(long, conflicts_with = "operation_id")]
+        inspect: bool,
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },

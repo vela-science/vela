@@ -193,8 +193,19 @@ pub fn run_command() {
         Commands::Recover {
             repository,
             operation_id,
+            inspect,
             json,
-        } => recovery::cmd_recover(&repository, &operation_id, json),
+        } => {
+            if inspect {
+                recovery::cmd_inspect(&repository, json)
+            } else {
+                recovery::cmd_recover(
+                    &repository,
+                    operation_id.as_deref().expect("clap requires operation id"),
+                    json,
+                )
+            }
+        }
         Commands::Init {
             path,
             name,
@@ -664,8 +675,68 @@ fn cmd_replay(
 
 #[cfg(test)]
 mod tests {
-    use super::Cli;
-    use clap::CommandFactory;
+    use super::{Cli, Commands};
+    use clap::{CommandFactory, Parser, error::ErrorKind};
+
+    #[test]
+    fn recovery_parser_keeps_exact_mutation_and_inspection_forms_separate() {
+        const OPERATION: &str =
+            "vop_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let recover = Cli::try_parse_from([
+            "vela",
+            "recover",
+            "--repo",
+            "/tmp/repository",
+            OPERATION,
+            "--json",
+        ])
+        .unwrap();
+        assert!(matches!(
+            recover.command,
+            Commands::Recover {
+                operation_id: Some(operation_id),
+                inspect: false,
+                json: true,
+                ..
+            } if operation_id == OPERATION
+        ));
+
+        let inspect = Cli::try_parse_from([
+            "vela",
+            "recover",
+            "--repo",
+            "/tmp/repository",
+            "--inspect",
+            "--json",
+        ])
+        .unwrap();
+        assert!(matches!(
+            inspect.command,
+            Commands::Recover {
+                operation_id: None,
+                inspect: true,
+                json: true,
+                ..
+            }
+        ));
+
+        let missing = Cli::try_parse_from(["vela", "recover", "--repo", "/tmp/repository"])
+            .err()
+            .expect("missing operation and --inspect must fail");
+        assert_eq!(missing.kind(), ErrorKind::MissingRequiredArgument);
+
+        let conflicting = Cli::try_parse_from([
+            "vela",
+            "recover",
+            "--repo",
+            "/tmp/repository",
+            OPERATION,
+            "--inspect",
+        ])
+        .err()
+        .expect("operation and --inspect must conflict");
+        assert_eq!(conflicting.kind(), ErrorKind::ArgumentConflict);
+    }
 
     /// The repository convention `command_spec.rs` states, asserted against the
     /// parsed surface rather than against prose, so the module doc cannot go

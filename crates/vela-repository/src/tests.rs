@@ -2654,6 +2654,108 @@ fn barrier_diagnostic_holds_an_existing_lock_and_ignores_atomic_temp_residue() {
 }
 
 #[test]
+fn recovery_inspection_is_exact_identity_bound_and_read_only() {
+    let (_temp, root, journals) = empty_test_repository();
+
+    assert_eq!(
+        RepositoryTxn::inspect_recovery_barrier(&root, &journals, TEST_REPOSITORY_ID).unwrap(),
+        None
+    );
+    assert!(
+        !journals.exists(),
+        "clean inspection must not create the private journal directory"
+    );
+
+    let (operation_id, _) = persist_marker_free_prepared_fixture(
+        &root,
+        &journals,
+        "records/inspection.json",
+        b"recovery inspection",
+    );
+    let before = snapshot_files(&journals);
+    let requirement = RepositoryTxn::inspect_recovery_barrier(&root, &journals, TEST_REPOSITORY_ID)
+        .unwrap()
+        .expect("prepared transaction requires recovery");
+    assert_eq!(requirement.operation_id, operation_id);
+    assert_eq!(requirement.state, RecoveryState::Prepared);
+    assert_eq!(snapshot_files(&journals), before);
+
+    assert!(matches!(
+        RepositoryTxn::inspect_recovery_barrier(&root, &journals, "different-repository"),
+        Err(RepositoryTxnError::RepositoryIdentityMismatch {
+            expected,
+            actual,
+        }) if expected == "different-repository" && actual == TEST_REPOSITORY_ID
+    ));
+    assert_eq!(snapshot_files(&journals), before);
+}
+
+#[test]
+fn recovery_inspection_fails_closed_for_live_corrupt_or_ambiguous_inventory() {
+    {
+        let (_temp, root, journals) = empty_test_repository();
+        let (draft, plan) = one_write_fixture(&root, "records/live-inspection.json", b"live");
+        let transaction = RepositoryTxn::prepare(&root, &journals, plan, draft).unwrap();
+        assert!(matches!(
+            RepositoryTxn::inspect_recovery_barrier(&root, &journals, TEST_REPOSITORY_ID),
+            Err(RepositoryTxnError::Busy)
+        ));
+        drop(transaction);
+    }
+
+    {
+        let (_temp, root, journals) = empty_test_repository();
+        let (_, paths) = persist_marker_free_prepared_fixture(
+            &root,
+            &journals,
+            "records/corrupt-inspection.json",
+            b"corrupt",
+        );
+        fs::create_dir_all(paths.marker.parent().unwrap()).unwrap();
+        fs::write(&paths.marker, b"{").unwrap();
+        let before = snapshot_files(&journals);
+        assert!(matches!(
+            RepositoryTxn::inspect_recovery_barrier(&root, &journals, TEST_REPOSITORY_ID),
+            Err(RepositoryTxnError::Journal(_))
+        ));
+        assert_eq!(snapshot_files(&journals), before);
+    }
+
+    {
+        let (_temp, root, journals) = empty_test_repository();
+        let (first, first_paths) = persist_marker_free_prepared_fixture(
+            &root,
+            &journals,
+            "records/first-inspection.json",
+            b"first",
+        );
+        let hidden = _temp.path().join("first-inspection-hidden.json");
+        fs::rename(&first_paths.plan, &hidden).unwrap();
+        let (second, _) = persist_marker_free_prepared_fixture(
+            &root,
+            &journals,
+            "records/second-inspection.json",
+            b"second",
+        );
+        fs::rename(&hidden, &first_paths.plan).unwrap();
+        let before = snapshot_files(&journals);
+        assert!(matches!(
+            RepositoryTxn::inspect_recovery_barrier(&root, &journals, TEST_REPOSITORY_ID),
+            Err(RepositoryTxnError::MultiplePendingTransactions { operation_ids })
+                if operation_ids == {
+                    let mut expected = vec![
+                        first.as_str().to_string(),
+                        second.as_str().to_string(),
+                    ];
+                    expected.sort();
+                    expected
+                }
+        ));
+        assert_eq!(snapshot_files(&journals), before);
+    }
+}
+
+#[test]
 fn completed_history_is_checked_before_terminal_or_incomplete_recovery_mutates() {
     let (_temp, root, journals) = empty_test_repository();
     let (completed_draft, completed_plan) = one_write_fixture(

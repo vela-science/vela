@@ -462,6 +462,25 @@ and an exact next action:
 vela recover --repo <PATH> <OPERATION_ID> [--json]
 ```
 
+After a restart, inspect the private transaction barrier without mutating it:
+
+```bash
+vela recover --repo <PATH> --inspect --json
+```
+
+The inspection validates the retained Profile identity and every private
+journal before returning either no pending operation or one exact operation ID
+and recovery state. It never creates a lock, chooses by directory order,
+recovers, signs, or changes Repository or Git state.
+
+JSON inspection returns `schema: "vela.recovery-inspection.v1"`, `command:
+"recover.inspect"`, the canonical `repository_path`, retained `repository_id`,
+closed `recovery_required`, and `authority_effect: "none"`. When recovery is
+required, `operation_id`, `recovery_state`, and the exact `next_command` are all
+present. When it is not required, all three are absent. Machine callers branch
+only on these fields; error messages and hints remain operator prose and may be
+reworded.
+
 The explicit operation ID binds operator intent to one journal. Under the
 repository-wide lock, recovery has four successful outcomes:
 

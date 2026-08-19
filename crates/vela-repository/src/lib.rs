@@ -1077,6 +1077,12 @@ impl<'de> Deserialize<'de> for RecoveryState {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecoveryRequirement {
+    pub operation_id: OperationId,
+    pub state: RecoveryState,
+}
+
 impl RecoveryState {
     /// Stable lowercase token for operator and JSON diagnostics. Progress
     /// fields remain available on the typed variants without leaking Debug
@@ -2717,6 +2723,37 @@ impl RepositoryTxn {
         let root = canonical_repository_root(repository_root)?;
         let _lock = RepositoryWriteLock::try_acquire_existing(journal_dir, &root)?;
         ensure_recovery_barrier_locked(&root, journal_dir, None)
+    }
+
+    /// Inspect one repository's complete private recovery inventory without
+    /// creating a lock or changing a journal byte.
+    ///
+    /// The retained Profile identity is supplied by the caller and checked
+    /// independently of journal contents. Corrupt, mixed, ambiguous, or
+    /// substituted inventory returns an error rather than a candidate.
+    pub fn inspect_recovery_barrier(
+        repository_root: &Path,
+        journal_dir: &Path,
+        expected_repository_id: &str,
+    ) -> Result<Option<RecoveryRequirement>, RepositoryTxnError> {
+        let root = canonical_repository_root(repository_root)?;
+        let _lock = RepositoryWriteLock::try_acquire_existing(journal_dir, &root)?;
+        let journals = repository_journals(&root, journal_dir)?;
+        let pending = validate_recovery_journals(&root, &journals)?;
+        if let Some(actual) = journals
+            .first()
+            .map(|(_, journal)| journal.plan.repository.repository_id.as_str())
+            && actual != expected_repository_id
+        {
+            return Err(RepositoryTxnError::RepositoryIdentityMismatch {
+                expected: expected_repository_id.into(),
+                actual: actual.into(),
+            });
+        }
+        Ok(pending.map(|pending| RecoveryRequirement {
+            operation_id: pending.operation_id,
+            state: pending.state,
+        }))
     }
 
     /// Verify one exact Completed operation without writing, recovering, or
