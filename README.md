@@ -25,6 +25,22 @@ Each result stays connected to its exact source, evidence, scoped checks, the
 authority that accepted or rejected it, and any correction. The record lives
 in Git. You can replay it without trusting a Vela server.
 
+## Where Vela fits
+
+Native tools produce the work. Source repositories and registries retain their
+own identities and status. Vela preserves the reviewed handoff into scientific
+state that the next researcher—or agent—can inspect and build on.
+
+<p align="center">
+  <a href="assets/docs/vela-system-map.svg">
+    <img src="assets/docs/vela-system-map.svg" width="960" alt="Native proofs, analyses, and source records feed a Vela Repository, where a bounded Result receives scoped checks and an attributed Decision before becoming replayable scientific state for researchers, agents, and public readers.">
+  </a>
+</p>
+
+Vela does not replace Lean, notebooks, GitHub, source registries, or scientific
+judgment. It connects their outputs without turning a successful build, review,
+or merge into an acceptance claim.
+
 ## See it work
 
 Install the current signed release and inspect the public Math Repository:
@@ -40,6 +56,20 @@ vela status math
 vela claims math
 vela why math \
   vcl_b9c6915de55e15c69d06b9aeed786b0e632986374a347d77ff447ad244f67a2e
+```
+
+The status command replays the public record rather than querying a Vela
+service. At the pinned commit it reports:
+
+```text
+Vela Mathematics Program
+github.com/vela-science/math
+
+  state    sha256:a956b84c437202e5a02cc9e036a621bd14a302b34a75758115730bdbb77c52a4
+  replay   matched · signatures, roots, canonical bytes
+  strict   pass
+  claims   3
+  inbox    0 pending · 0 protocol-ready · 0 protocol-blocked
 ```
 
 You will read three accepted, bounded Claims and the evidence and Decision

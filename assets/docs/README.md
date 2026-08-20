@@ -27,3 +27,21 @@ Final prompt:
 
 The image is atmospheric editorial art. It is not evidence, a scientific map,
 a protocol record, or a representation of current Standing.
+
+## `vela-system-map.html` and `vela-system-map.svg`
+
+The README system map uses the sources-to-core-to-consumers integration grammar
+from [diagram-design](https://github.com/cathrynlavery/diagram-design). Its
+seven-node ceiling keeps the explanatory architecture separate from the full
+Protocol 1 object model.
+
+The HTML file is the editable source of truth. The SVG is the first inline SVG
+extracted byte-for-byte from that source for GitHub README rendering. Colors
+and typography use the current Vela Web product tokens: paper, ink, water,
+cinnabar, Geist, and Geist Mono.
+
+- HTML SHA-256: `4fb190358a58f7796546cb5b8869b9e390f6e4068afc7cb2fcba568eb6b5e28b`
+- SVG SHA-256: `bc098ec7710e77d8ac4a72eaf3688a09cafd12a7ae8a056e75d4fa365bf23076`
+
+The map is explanatory rather than normative. [Protocol 1](../../docs/PROTOCOL.md)
+defines the actual record and authority semantics.

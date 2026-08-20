@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Where Vela fits</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; padding: 32px; background: #f7f6f2; color: #081224; }
+    main { max-width: 960px; margin: 0 auto; }
+    svg { display: block; width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+<main>
+<svg viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="vela-system-map-title vela-system-map-desc">
+  <title id="vela-system-map-title">Where Vela fits in scientific work</title>
+  <desc id="vela-system-map-desc">Native research and source repositories feed a Vela Repository. Vela retains a bounded Result, scoped checks, an attributed Decision, corrections, and replayable current state for researchers, agents, and public readers.</desc>
+  <defs>
+    <style>
+      .sans { font-family: Geist, system-ui, sans-serif; }
+      .mono { font-family: "Geist Mono", ui-monospace, monospace; }
+      .connector { fill: none; stroke: #4e7499; stroke-width: 2; }
+      .connector-core { fill: none; stroke: #4b5565; stroke-width: 1.5; }
+      .node-external { fill: #eeede7; stroke: #b8bdc5; stroke-width: 1.25; }
+      .node-core { fill: #f7f6f2; stroke: #4b5565; stroke-width: 1.25; }
+      .node-focal { fill: rgba(162,71,57,0.08); stroke: #a24739; stroke-width: 1.5; }
+      .zone { fill: #eeede7; stroke: #4b5565; stroke-width: 1.25; }
+      .label-mask { fill: #f7f6f2; }
+      .name { fill: #081224; font-size: 16px; font-weight: 600; }
+      .sub { fill: #4b5565; font-size: 12px; }
+      .role { fill: #626a76; font-size: 8px; font-weight: 600; letter-spacing: 1.2px; }
+      .role-focal { fill: #a24739; }
+      .edge { fill: #4e7499; font-size: 8px; font-weight: 600; letter-spacing: 1px; }
+      .edge-core { fill: #4b5565; }
+      .zone-label { fill: #4b5565; font-size: 10px; font-weight: 600; letter-spacing: 1.6px; }
+      .note { fill: #4b5565; font-size: 11px; }
+      .legend { fill: #626a76; font-size: 10px; }
+    </style>
+    <marker id="vela-map-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <path d="M0 0 8 3 0 6Z" fill="#4e7499"/>
+    </marker>
+    <marker id="vela-map-arrow-core" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <path d="M0 0 8 3 0 6Z" fill="#4b5565"/>
+    </marker>
+  </defs>
+
+  <rect width="960" height="600" fill="#f7f6f2"/>
+  <rect class="zone" x="264" y="40" width="432" height="472" rx="8"/>
+
+  <!-- Connectors are drawn before nodes. -->
+  <path class="connector" d="M216 156H324" marker-end="url(#vela-map-arrow)"/>
+  <path class="connector" d="M216 352H232Q240 352 240 344V188Q240 180 248 180H324" marker-end="url(#vela-map-arrow)"/>
+  <path class="connector-core" d="M480 192V240" marker-end="url(#vela-map-arrow-core)"/>
+  <path class="connector-core" d="M480 336V384" marker-end="url(#vela-map-arrow-core)"/>
+  <path class="connector" d="M636 416H696Q704 416 704 408V164Q704 156 712 156H744" marker-end="url(#vela-map-arrow)"/>
+  <path class="connector" d="M636 448H712Q720 448 720 440V360Q720 352 728 352H744" marker-end="url(#vela-map-arrow)"/>
+
+  <!-- Edge labels stay clear of their connectors. -->
+  <g class="mono" text-anchor="middle">
+    <rect class="label-mask" x="232" y="132" width="56" height="12" rx="2"/>
+    <text class="edge" x="260" y="141">SUBMIT</text>
+    <rect class="label-mask" x="244" y="256" width="36" height="12" rx="2"/>
+    <text class="edge" x="262" y="265">BIND</text>
+    <rect class="label-mask" x="496" y="212" width="44" height="12" rx="2"/>
+    <text class="edge edge-core" x="518" y="221">CHECK</text>
+    <rect class="label-mask" x="496" y="356" width="52" height="12" rx="2"/>
+    <text class="edge edge-core" x="522" y="365">DECIDE</text>
+    <rect class="label-mask" x="654" y="392" width="40" height="12" rx="2"/>
+    <text class="edge" x="674" y="401">READ</text>
+    <rect class="label-mask" x="658" y="288" width="52" height="12" rx="2"/>
+    <text class="edge" x="684" y="297">REPLAY</text>
+  </g>
+
+  <!-- Vela Repository zone. -->
+  <rect x="388" y="32" width="184" height="20" rx="2" fill="#f7f6f2"/>
+  <text class="mono zone-label" x="480" y="46" text-anchor="middle">VELA REPOSITORY</text>
+
+  <g text-anchor="middle">
+    <rect class="node-focal" x="324" y="96" width="312" height="96" rx="6"/>
+    <text class="mono role role-focal" x="480" y="116">RESULT</text>
+    <text class="sans name" x="480" y="148">Bounded Result</text>
+    <text class="mono sub" x="480" y="172">claim · exact source · artifacts · limits</text>
+
+    <rect class="node-core" x="324" y="240" width="312" height="96" rx="6"/>
+    <text class="mono role" x="480" y="260">REVIEW</text>
+    <text class="sans name" x="480" y="292">Checks + attributed Decision</text>
+    <text class="mono sub" x="480" y="316">scoped evidence · Repository authority</text>
+
+    <rect class="node-focal" x="324" y="384" width="312" height="96" rx="6"/>
+    <text class="mono role role-focal" x="480" y="404">INHERIT</text>
+    <text class="sans name" x="480" y="436">Replayable scientific state</text>
+    <text class="mono sub" x="480" y="460">Standing · corrections · retained history</text>
+  </g>
+
+  <!-- Native and source-owned inputs. -->
+  <g text-anchor="middle">
+    <rect class="node-external" x="40" y="104" width="176" height="104" rx="6"/>
+    <text class="mono role" x="128" y="128">NATIVE WORK</text>
+    <text class="sans name" x="128" y="160">Proofs and analyses</text>
+    <text class="mono sub" x="128" y="184">Lean · notebooks · agents</text>
+
+    <rect class="node-external" x="40" y="300" width="176" height="104" rx="6"/>
+    <text class="mono role" x="128" y="324">SOURCES</text>
+    <text class="sans name" x="128" y="356">Source records</text>
+    <text class="mono sub" x="128" y="380">identity · status · rights</text>
+  </g>
+
+  <!-- Readers and continuations. -->
+  <g text-anchor="middle">
+    <rect class="node-external" x="744" y="104" width="176" height="104" rx="6"/>
+    <text class="mono role" x="832" y="128">CONTINUE</text>
+    <text class="sans name" x="832" y="160">Researchers + agents</text>
+    <text class="mono sub" x="832" y="184">inspect · replay · build on</text>
+
+    <rect class="node-external" x="744" y="300" width="176" height="104" rx="6"/>
+    <text class="mono role" x="832" y="324">READ</text>
+    <text class="sans name" x="832" y="356">Public readers</text>
+    <text class="mono sub" x="832" y="380">problems.science · APIs</text>
+  </g>
+
+  <text class="sans note" x="480" y="496" text-anchor="middle">Git stores the record. Replay derives the current view.</text>
+
+  <!-- Legend strip. -->
+  <line x1="40" y1="536" x2="920" y2="536" stroke="#b8bdc5" stroke-width="1"/>
+  <g class="sans">
+    <rect x="40" y="556" width="16" height="12" rx="2" fill="#eeede7" stroke="#b8bdc5"/>
+    <text class="legend" x="64" y="566">Native or external system</text>
+    <rect x="252" y="556" width="16" height="12" rx="2" fill="rgba(162,71,57,0.08)" stroke="#a24739"/>
+    <text class="legend" x="276" y="566">Vela record</text>
+    <line x1="416" y1="562" x2="448" y2="562" stroke="#4e7499" stroke-width="2" marker-end="url(#vela-map-arrow)"/>
+    <text class="legend" x="460" y="566">Exact handoff</text>
+    <text class="mono legend" x="920" y="566" text-anchor="end">authority_effect only through Decision</text>
+  </g>
+</svg>
+</main>
+</body>
+</html>
