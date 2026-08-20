@@ -12,163 +12,272 @@
   <a href="https://www.vela.space">Website</a> ·
   <a href="https://problems.science">Problems</a> ·
   <a href="docs/QUICKSTART.md">Quickstart</a> ·
-  <a href="docs/ARCHITECTURE.md">Architecture</a> ·
-  <a href="docs/REPOSITORY_BOUNDARIES.md">Repository boundaries</a> ·
-    <a href="docs/PROTOCOL.md">Protocol 1</a> ·
+  <a href="docs/README.md">Docs</a> ·
+  <a href="docs/PROTOCOL.md">Protocol 1</a> ·
   <a href="docs/THREAT_MODEL.md">Security</a>
 </p>
 
 ---
 
-Research already has tools for code, papers, data, proofs, and computation.
-Vela turns the state between them into a living map: what is known, contested,
-missing, and still unresolved; what exact evidence bears on each Claim;
-what was independently checked; what a named Repository decided; and what a
-later researcher can safely inherit.
+Git remembers how code changed. Vela records how scientific state changed.
 
-Vela does not search the literature, rank Problems, or allocate effort. It
-neither generates proofs nor certifies novelty. Separating an attempt from a
-check is not a Vela invention; public research registries do it too. What Vela
-demonstrates is narrower: exact content-addressed source custody and Result
-scope, a scoped Check that constrains only its declared method, an attributed
-Repository Decision with its Event and derived Standing, a linked correction
-that replays with its predecessor retained, and reconstruction of all of it
-from Git and a signed reader alone.
+Vela lets a repository show what was claimed, what evidence supported it, what
+was checked, who accepted or rejected it, what was later corrected, and what a
+new researcher can safely inherit.
 
-Vela is a Git-native protocol and CLI for governed, replayable
-scientific-state transitions. Its complete operator loop is:
+It is a Git-native protocol and CLI for governed, replayable scientific-state
+transitions. Work stays in the tools researchers already use. Vela begins when
+someone has a bounded Result to submit.
 
-```text
-init -> submit -> verify -> decide -> replay
-```
+<p align="center">
+  <img src="assets/docs/scientific-inheritance-v1.jpg" width="960" alt="A research vessel follows a retained luminous route through a scientific constellation, representing inherited evidence and correction-aware progress.">
+</p>
 
-Work can happen in any native tool. A Submission retains bounded producer
-evidence. Checks remain scoped. Only an authorized Decision changes Standing,
-and a source-owning Repository or read product may use the resulting state to
-expose an exact next obligation or an explicit blocker. Compounding is a
-measured outcome, not an automatic property of acceptance.
+## Try a real Repository
 
-The public navigation loop wraps that exact operator loop without adding
-authority:
-
-```text
-MAP -> ADVANCE -> REMAP
-```
-
-**Map** reads Problems, Claims, Standing, dependencies, Corrections, and open
-Obligations from exact roots. **Advance** means doing native human or machine
-work that may produce a bounded proposed change. **Remap** replays the new
-Standing and derives what remains current, affected, blocked, or open. Vela
-core owns no work catalogue or planner.
-
-The product hierarchy is deliberate:
-
-```text
-protocol                     integrity layer
-map                          user-facing product
-verified frontier movement   measurable outcome
-```
-
-The protocol is useful when it makes a Frontier legible — the derived boundary
-of what is still unresolved — and helps the next valid scientific action
-improve after a result, correction, or useful failure. Record count, graph size, workflow completion, and model activity are
-not product success.
-
-The Vela Protocol is the narrow integrity layer: Claim records, authenticated
-Submissions, scoped Verification Records, Proposals, authorized Decisions,
-Events, exact roots, replay, and Standing. The wider Vela ecosystem includes
-native workbenches, source-owning Repositories, verifiers, and rebuildable read
-products. The Problems projection assembles exact scientific state, evidence,
-limitations, and next actions without becoming a protocol object or making a
-Decision.
-
-Its long-range direction is a federated inheritance layer for science:
-different workbenches can produce evidence, different verifiers can report
-scoped checks, and each Repository can decide and replay its own state without
-a hosted authority or universal ontology.
-
-Native systems remain sovereign. Lean checks Lean proofs, Lake resolves Lean
-packages, Git preserves bytes and ancestry, and external activity recorders
-may preserve sessions. Vela binds exact native objects and governs only the
-bounded transition into locally accepted, correction-aware state.
-
-With Vela you can:
-
-- inspect one scientific state from exact Git bytes and full roots;
-- map an unresolved gap into bounded work without receiving authority;
-- submit portable, authenticated evidence;
-- retain verifier observations without treating them as acceptance;
-- make one exact authorized Decision; and
-- replay how every Claim reached its current Standing and what can safely
-  happen next.
-
-## How it works
-
-```text
-workbench
-   │
-   ├── native run ── Submission ──────────┐
-   │                                      │
-verifier ── Verification Record ──────────┤
-                                          ▼
-                                 pending Proposal
-                                          │
-                                authorized Decision
-                                          │
-                                          ▼
-                                    Event + Standing
-                                          │
-                                          ▼
-                                  read-only Problems
-```
-
-Vela keeps four boundaries explicit:
-
-1. **Git preserves bytes and ancestry.**
-2. **A Submission preserves producer intent and evidence.**
-3. **A Verification Record reports one scoped check.**
-4. **Only an authorized, attributed Decision changes Standing.** The
-   performer may be human or agent; Repository authority and exact replay, not
-   actor kind, govern admission.
-
-A verifier pass is not scientific acceptance. Git publication is not
-scientific acceptance. A signature proves control of a key over exact bytes;
-it does not prove that a Claim is true.
-
-## Quick start
-
-Install the exact signed release:
-
-Vela supports Linux x86-64 and macOS Apple-silicon release bundles.
-`v0.977.3` is the current signed release. Both platform manifests bind the
-archives and SBOMs and verify with the out-of-band distribution identity before
-installation.
+Install the current signed release, clone the public Math Repository, and
+replay its scientific state:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.3/install.sh | \
   VELA_VERSION=v0.977.3 bash
-vela --version
+
+git clone https://github.com/vela-science/math.git math
+git -C math checkout 5de716c896065c03c0a470d015ba2a328a527f73
+
+vela status math
+vela claims math
+vela replay math
 ```
 
-Read a real public Repository. Reading and replay require neither an account
-nor a repository-authority key:
+This read path needs no Vela account, daemon, hosted service, or authority key.
+Use a complete clone. Exact offline reads refuse shallow, partial, alternate,
+or grafted Git object stores.
+
+At the pinned commit, strict replay reports:
+
+- 3 current accepted Claims;
+- 6 authenticated Submissions;
+- 6 scoped Verification Records;
+- 0 pending reviews; and
+- Repository root
+  `sha256:a956b84c437202e5a02cc9e036a621bd14a302b34a75758115730bdbb77c52a4`.
+
+Read why the current Erdős 321 Claim is accepted:
 
 ```bash
-git clone https://github.com/vela-science/math.git math
-git -C math checkout 84b118ed1622d34e5a1431821cf35dca91fb8720
-vela replay math --json
-vela claims math --json
+vela why math \
+  vcl_b9c6915de55e15c69d06b9aeed786b0e632986374a347d77ff447ad244f67a2e
 ```
 
-Use a complete clone: exact offline reads refuse shallow, partial, alternate,
-or grafted object stores. The pinned Repository replays to three current accepted
-Claims at root
-`sha256:a956b84c437202e5a02cc9e036a621bd14a302b34a75758115730bdbb77c52a4`.
-The corrected Erdős 321 and 94 Claims are accepted and both predecessors remain
-retained with current Standing `superseded`; see the
-[formal-math reference flow](examples/formal-math/).
+The output binds the Claim to its Submission, scoped check, attributed
+Decision, authority history, correction predecessor, and current Standing. It
+also preserves the limits: this is a bounded candidate answer for one exact
+Formal Conjectures occurrence, not a proof that resolves Erdős 321.
 
-Or build the exact repository revision:
+The other current examples are equally scoped. Erdős 94 records one exact
+`sum_multiplicity` theorem, not the cubic distance-multiplicity conjecture.
+Erdős 887 records a compiled-cache replay with four expected `sorry` warnings,
+not a complete proof.
+
+For a guided write journey, continue with the
+[quickstart](docs/QUICKSTART.md).
+
+## The problem Vela solves
+
+Scientific work is spread across papers, repositories, proof assistants,
+datasets, notebooks, agents, and review systems. Those systems preserve useful
+native facts, but they do not provide one exact, portable answer to these
+questions:
+
+- What Result was actually submitted?
+- Which source revision and artifacts does it depend on?
+- What did each checker test, and what did the check not establish?
+- Who made the scientific Decision, under which Repository authority?
+- Which Claim is current after a correction?
+- Can another researcher reconstruct the answer from public Git bytes?
+
+Vela records that inheritance boundary without replacing the native systems
+that produced the work.
+
+## How scientific state changes
+
+<p align="center">
+  <img src="assets/docs/scientific-state-flow.svg" width="960" alt="Native work becomes a Submission and pending Proposal. A scoped check informs an authorized Decision. Replay derives Standing, while corrections retain the predecessor.">
+</p>
+
+```text
+native work
+    │
+    ▼
+Submission ──► pending Proposal
+                    │
+Verification ───────┤
+                    ▼
+          authorized Decision
+                    │
+                    ▼
+             Event + Standing
+                    │
+                    ▼
+             deterministic replay
+```
+
+The boundaries are strict:
+
+1. Git preserves bytes and ancestry.
+2. A Submission authenticates bounded producer evidence.
+3. A Verification Record reports one declared check.
+4. Only an authorized, attributed Decision changes Standing.
+5. Replay derives current state from exact records and authority history.
+
+A passing check is not acceptance. A Git merge is not acceptance. A signature
+proves control of a key over exact bytes; it does not prove a scientific Claim
+true.
+
+## Keep your tools
+
+Vela does not run the scientific work.
+
+| Existing system | Keeps its job |
+| --- | --- |
+| Git | Bytes, commits, branches, and ancestry |
+| Lean, Lake, laboratory software | Native execution and domain checks |
+| Codex, Claude, and other agents | Producing and checking bounded work |
+| Source repositories and registries | Source identity, scope, and status |
+| Vela | Submission, Verification, Decision, correction, Standing, and replay |
+
+Vela does not search the literature, rank Problems, allocate effort, generate
+proofs, certify novelty, or host a universal scientific authority. Source
+repositories remain sovereign.
+
+## What works today
+
+| Capability | Current state |
+| --- | --- |
+| Signed CLI | `v0.977.3` for Linux x86-64 and macOS Apple silicon |
+| Repository format | Protocol 1 release candidate with Submission v3 |
+| Read path | Status, Claims, object inspection, explanation, log, and strict replay |
+| Write path | Authenticated Submission, scoped Verification, accept or reject Decision |
+| Corrections | Root-bound predecessor relations with superseded history retained |
+| Authority | Repository-local Ed25519 authority through the OpenSSH agent |
+| Interoperability | Stable JSON output, generated schemas, and independent readers |
+| Reference Repository | Public formal-math lineage with 3 accepted bounded Claims |
+
+The release is pre-1.0. External recurrence, plural independently operated
+authorities, and broad scientific adoption remain unproven. A small internal,
+information-matched three-case evaluation produced a positive descriptive
+signal for Vela-packaged inheritance, but it has not been externally
+replicated and does not establish a general productivity advantage. Read the
+[exact scores, evidence roots, and limitations](docs/EVIDENCE.md).
+
+## Operate a Repository
+
+The ordinary CLI is small:
+
+```text
+init status claims submit show why review replay log
+```
+
+Advanced operator surfaces are grouped separately:
+
+```text
+projection verification correction integration recover authority
+```
+
+The write loop is:
+
+```bash
+# Create a bounded Repository using one Ed25519 key already loaded in ssh-agent.
+vela init ./my-repository \
+  --name "Bounded question" \
+  --scope "Does X hold under Y?"
+
+# Retain one producer Result as a pending Proposal.
+vela submit --repo ./my-repository \
+  --claim "<bounded result>" \
+  --type computational \
+  --replayability exact \
+  --artifact <path>:<kind> \
+  --caveat "<what this does not establish>" \
+  --as agent:<producer> \
+  --json
+
+# Retain a scoped check whose method is already tracked and clean.
+vela verification record ./my-repository <vpr_id> \
+  --profile exact-replay-v1 \
+  --method verification/method.json \
+  --outcome pass \
+  --does-not-establish "Scientific acceptance." \
+  --independent-of agent:<producer> \
+  --as verifier:<reviewer> \
+  --json
+
+# Inspect the exact Decision packet, then accept or reject it.
+vela review inbox ./my-repository --json
+vela review show ./my-repository <vpr_id> --json
+vela review accept ./my-repository <vpr_id> \
+  --reason "<bounded scientific reason>" \
+  --if-entry-root sha256:... \
+  --as human:<reviewer> \
+  --json
+
+vela replay ./my-repository --json
+vela why ./my-repository <claim_id> --json
+```
+
+`--as` attributes the performer. It does not select a key or grant authority.
+The Repository authority principal and signer remain separate in the Decision
+record.
+
+See the [quickstart](docs/QUICKSTART.md) for key setup, tracked Verification
+Methods, rejection, trust pins, and recovery.
+
+## Repository and product boundaries
+
+A Vela Repository is an ordinary Git repository and one scientific authority
+boundary. Canonical state consists of typed, content-addressed records plus an
+append-only authority history. Web pages, databases, graphs, search indexes,
+and other projections are disposable readers.
+
+The Vela source repository is not itself a scientific Vela Repository. Do not
+run `vela init` here or add a root `.vela/` directory.
+
+The wider ecosystem keeps separate deployment and authority boundaries:
+
+- [Vela Core](https://github.com/vela-science/vela) defines the protocol, CLI,
+  schemas, replay, and authority runtime.
+- [Vela Math](https://github.com/vela-science/math) is the current public
+  scientific reference Repository.
+- [Vela Workbench](https://github.com/vela-science/vela-workbench) is a local
+  desktop surface for repository work and explicit handoff.
+- [problems.science](https://problems.science) is a read and contribution
+  product. It does not become scientific authority by displaying records.
+- [vela.space](https://vela.space) is the editorial home for the project and
+  its long-range scientific inheritance vision.
+
+See [Repository boundaries](docs/REPOSITORY_BOUNDARIES.md) for the exact split.
+
+## Security
+
+Repository authority is a service identity. Vela records the authenticated
+principal, authorization decision, exact read set, semantic action, performer,
+and signer. It never reads or stores private-key files.
+
+- Producers authenticate bounded work only.
+- Verifiers record scoped observations only.
+- `review accept` and `review reject` are the only ordinary Decision actions.
+- Vela signs through the standard OpenSSH agent.
+- Preflight or signing failure creates no committed transaction.
+- Consumers can pin the sequence-one authority root through an independent
+  channel.
+
+Read [Authority and attribution](docs/SIGNING.md) and the
+[threat model](docs/THREAT_MODEL.md) before operating authority.
+
+## Build and contribute
+
+Build the current source:
 
 ```bash
 git clone https://github.com/vela-science/vela.git
@@ -177,250 +286,26 @@ cargo build --release
 ./target/release/vela --help
 ```
 
-Create and inspect a bounded Repository:
-
-```bash
-./target/release/vela init ../my-repository \
-  --name "Bounded question" \
-  --scope "Does X hold under Y?"
-
-./target/release/vela status ../my-repository --json
-./target/release/vela replay ../my-repository --json
-```
-
-`init` creates the Profile, signs the repository origin with one Ed25519
-identity from the normal OpenSSH agent, installs local trust, and commits the
-replayable Repository. It creates no scientific Claim or Standing. When the
-agent exposes multiple Ed25519 identities, pass `--key SHA256:<fingerprint>`.
-If signing is unavailable, the Profile is retained safely; load the key and
-rerun the same `vela init` command.
-
-The resulting sequence-one authority-record root must be distributed through
-an independent trusted channel. Load the dedicated repository key once for the
-current operating-system session. A trusted native agent may execute an exact
-Decision the operator authorized; never forward the authority-agent socket to
-remote, untrusted, or proposal-supplied code.
-
-## Typical workflow
-
-```bash
-vela status . --json
-
-# Produce the bounded artifact and run the declared verifier.
-
-vela submit --repo . \
-  --claim "<bounded result>" \
-  --type computational \
-  --replayability exact \
-  --artifact <path>:<kind> \
-  --caveat "<scope limit>" \
-  --as agent:<name> \
-  --json
-
-# Verification binds method bytes retained at the current Git commit.
-git add -- verification/method.json
-git commit -m "Retain verification method"
-vela verification record . <vpr_id> \
-  --profile exact-replay-v1 \
-  --method verification/method.json \
-  --outcome pass \
-  --does-not-establish "Scientific acceptance." \
-  --as verifier:<name> \
-  --json
-
-vela review show . <vpr_id> --json
-vela replay . --json
-vela why . <claim_id> --json
-```
-
-`submit` registers authenticated producer input and a pending Proposal. It
-does not create a Verification Record, Decision, Event, or accepted Standing.
-When the Submission declares one verification requirement, `verification
-record` uses it directly. Additional observations require an explicit
-`--property ... --complementary` so they cannot be mistaken for evidence that
-satisfies the registered gate.
-Work selection and execution stay with the source-owning Repository, a read
-product, or a native tool such as Codex, Claude, OpenCode, Harbor, or laboratory
-software. Those surfaces may expose exact next obligations and rooted work
-packets. Vela core provides no `next`/`start` command pair; Submission and
-Verification authenticate their own exact records, and neither reads
-repository-authority credentials.
-
-## Command surface
-
-The ordinary CLI is intentionally small:
-
-```text
-init status claims submit show why review replay log
-```
-
-Current advanced surfaces:
-
-```text
-projection verification correction integration recover authority
-```
-
-Run `vela help advanced` for the grouped contract.
-
-`vela recover --repo <PATH> <OPERATION_ID> [--json]` is the explicit operator
-route out of an interrupted repository transaction. It opens only the named
-journal: an exactly Prepared transaction with a definitely absent commit marker
-is aborted, while a valid marker authorizes policy-free exact completion.
-Completed and Aborted journals are idempotent. Recovery stops after the
-repository filesystem transaction; it neither continues the semantic command
-nor publishes Git state. A routine completion names Git status as the next
-inspection. If the exact operation is a verified native genesis, it instead
-names the retained `vela init --key ... --reason ...` continuation; that later
-command verifies and creates or idempotently confirms only the deterministic
-Git/trust tail without a signer or another authority transaction. If that
-advisory proof is unavailable after recovery succeeds, the result stays
-successful, reports a closed `blocked` continuation status, and offers no
-executable continuation until the retained proof is repaired.
-
-Source-owning repositories and read products may expose exact next obligations
-under their own rooted contracts. They are replaceable orientation surfaces,
-not Vela replay state, and cannot change Standing.
-
-## Repository model
-
-A Repository is an ordinary Git repository, and it is the only authority
-boundary. Its canonical state is composed from typed, content-addressed objects
-and an append-only repository-authority history. Generated indexes, Web pages,
-databases, graphs, and materialized views are disposable readers. A Frontier is
-none of those things: it is a derived query over unresolved state, it has no
-identifier, and it owns nothing (ADR 0039).
-
-The Vela source repository is not itself a Vela Repository: do not run
-`vela init` here and do not add a root `.vela/` directory. A project-local
-`.vela/` belongs only to a real Repository and contains that Repository's
-repository-control state.
-User-local `~/.vela/` contains private configuration and runtime data; it is
-never scientific Standing and must not be copied into Git.
-
-The portable interoperability boundary is the Submission, not a Vela-internal
-Event. Workbenches can emit Submission bytes without importing the Vela
-runtime. Verifiers can emit scoped Verification Records without receiving
-review or repository authority.
-
-## Product packages
-
-The public product now develops from one repository while retaining separate
-runtime boundaries:
-
-```text
-crates/             Protocol, repository runtime, authority, and CLI
-conformance/        Independent Python and JavaScript readers, two clean-room emitters,
-                    fixtures, and repository-wide checks
-scripts/            Core release and signed release-manifest tooling
-.github/release/    Binary artifact publication and smoke tooling
-```
-
-The immutable public `@vela-science/canopus@0.8.0` and its Git tag remain
-historical replay evidence. Current Vela ships no agent runner. Codex, Claude,
-OpenCode, laboratory software, and other native tools work directly or from a
-source-local packet and register ordinary Submissions or Verification Records.
-Vela Web and the canonical Repositories remain separate because they have
-independent deployment and scientific-history lifecycles.
-
-Source acquisition and domain inventory tooling stay with their source-owning
-repositories. The top-level `scripts/` holds the Core release path:
-`release.sh` is the
-release, `release_manifest.py` is what it emits, `sign-published-release.sh` is
-the operator step that signs what CI published and then publishes it. The root
-`install.sh` is the public product installer.
-
-The Rust crates are internal implementation boundaries, tested together and
-released as one `vela` binary. `vela-repository` is the policy-neutral durable
-transaction runtime below the CLI; it is not a separate product or semantic
-kernel. Cross-language conformance uses small standalone readers instead of a
-second package. A registry package will exist only after a real external
-consumer needs it. The immutable Canopus `0.8.0` package remains historical
-evidence from `product-v0.8.0`.
-
-## Security model
-
-Repository authority is a service identity. It records the authenticated
-principal, authorization decision, semantic action, exact read set, and
-canonical write. It does not replace scientific judgment.
-
-- Producer identities can authenticate bounded work only.
-- Authorized Decision actions are direct `review accept` or `review reject`
-  commands. `--as` records a human or agent performer separately from the
-  Repository authority principal and signer.
-- Vela reads no human seed file and ships no custom signer daemon.
-- The OpenSSH agent signs the exact repository-authority record.
-- Preflight or signing failure creates no committed transaction.
-- Consumers pin the sequence-one authority-record root independently.
-
-See [Authority and attribution](docs/SIGNING.md) and the
-[threat model](docs/THREAT_MODEL.md).
-
-## Development
-
-Requires a current stable Rust toolchain, [uv](https://docs.astral.sh/uv/), and
-Node for the portable conformance readers. Sync the locked Python environment
-before running the independent reader:
-
-```bash
-uv sync --project conformance --locked
-cargo check -p vela-cli
-cargo clippy -p vela-cli --all-targets -- -D warnings
-uv run --project conformance --locked python conformance/verify.py
-```
-
-Use focused tests for ordinary changes. The deterministic release union runs
-once per actual release boundary.
-
-`conformance/check-current-object-waist.sh` is a CI-only gate and is not in
-that workstation set. The CLI resolves the account home through `getpwuid_r`
-and ignores `HOME` by design, so the check writes a synthetic authority trust
-pin into the real operating-system account home. Its cleanup trap removes the
-pin on a normal exit only; an interrupted run leaves it behind. It refuses to
-start unless `VELA_EPHEMERAL_ACCOUNT_HOME=1` asserts a disposable account.
-`.github/workflows/conformance.yml` runs it on such a runner; run it locally
-only on a machine you are willing to treat the same way.
+Ordinary changes should run focused checks. Release qualification runs the
+larger deterministic union. See [CONTRIBUTING.md](CONTRIBUTING.md) for useful
+contribution paths and validation commands.
 
 ## Documentation
 
 - [Quickstart](docs/QUICKSTART.md)
+- [Documentation by task](docs/README.md)
+- [Current evidence and validation gates](docs/EVIDENCE.md)
 - [CLI contract](docs/CLI.md)
-- [Protocol](docs/PROTOCOL.md)
+- [Protocol 1](docs/PROTOCOL.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Repository boundaries](docs/REPOSITORY_BOUNDARIES.md)
 - [Authority and attribution](docs/SIGNING.md)
 - [Verification Records](docs/VERIFICATION.md)
 - [Threat model](docs/THREAT_MODEL.md)
-- [Release, installation, and recovery guidance](docs/RELEASES.md)
-- [Complete documentation index](docs/README.md)
-- [Historical transfer evidence](paper/artifacts/transfer/README.md)
-
-## Project status
-
-The published Vela binary remains pre-1.0. The current object/kernel contract is
-presented as the Protocol 1 release candidate, with one normative specification,
-generated schemas, a digest-bound conformance manifest, independent Python and
-JavaScript emitters/readers, and three executable examples. This status does not
-publish `v1.0.0`, promise compatibility before the final release authorization,
-or claim external adoption.
-
-Nothing here has been measured against another system for throughput, research
-productivity, adoption, or novelty certification. No such comparison has been
-run, and no claim of that kind is made.
-
-All controlled public Repositories use the current repository object model.
-Archived predecessors remain readable through their tags and the binaries of
-their era; every Repository the current binary writes starts at a native
-genesis. Historical Git revisions preserve earlier contracts, and the current
-binary exposes no migration writer.
-
-The signed `v0.977.3` release carries the current Protocol 1 and Submission v3
-runtime. Published signed tags retain the binaries and source needed to
-reproduce earlier repositories. They do not add predecessor readers or writers
-to the current runtime.
+- [Release and recovery guidance](docs/RELEASES.md)
 
 ## License
 
-Code is dual-licensed under Apache-2.0 OR MIT; see [LICENSE](LICENSE) for the
-license boundary and the full [Apache](LICENSE-APACHE) and [MIT](LICENSE-MIT)
-texts. The Vela name and marks are trademark rights reserved; see
-[`assets/brand/LICENSE`](assets/brand/LICENSE).
+Code is dual-licensed under Apache-2.0 OR MIT. See [LICENSE](LICENSE),
+[LICENSE-APACHE](LICENSE-APACHE), and [LICENSE-MIT](LICENSE-MIT). The Vela name
+and marks are reserved; see [`assets/brand/LICENSE`](assets/brand/LICENSE).

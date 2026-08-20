@@ -1,201 +1,257 @@
 # Vela quickstart
 
-Vela is version control for scientific state. Git publishes exact bytes;
-agents submit authenticated evidence; Verification Records report scoped
-checks; only an authorized, attributed Decision changes Standing. Human and
-agent performers are recorded distinctly and use the same exact-root gates.
+Vela is version control for scientific state. This guide starts with a real
+public scientific history, then walks through one Submission, one scoped
+Verification, and one attributed Decision.
 
-## Two-minute flagship: read exact scientific state
+## 1. Install the signed CLI
 
-`v0.977.3` is the current signed release. The installer verifies the exact
-platform manifest with the out-of-band distribution identity.
+`v0.977.3` is the current signed pre-1.0 release for Linux x86-64 and macOS
+Apple silicon. The installer verifies the platform release manifest before it
+installs the binary.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.3/install.sh | \
   VELA_VERSION=v0.977.3 bash
 
+vela --version
+```
+
+Expected version:
+
+```text
+vela 0.977.3
+```
+
+## 2. Replay a public Repository
+
+```bash
 git clone https://github.com/vela-science/math.git math
-git -C math checkout 84b118ed1622d34e5a1431821cf35dca91fb8720
-vela replay math --json
+git -C math checkout 5de716c896065c03c0a470d015ba2a328a527f73
+
+vela status math
+vela claims math
+vela replay math
+```
+
+This requires no account, daemon, hosted service, or Repository authority key.
+Use a complete clone. Strict reads refuse shallow, partial, alternate, or
+grafted Git object stores because missing Git history can mean missing
+scientific history.
+
+At the pinned commit, strict replay reports Repository root
+`sha256:a956b84c437202e5a02cc9e036a621bd14a302b34a75758115730bdbb77c52a4`,
+3 accepted Claims, 6 Submissions, 6 Verification Records, and 0 pending
+reviews.
+
+Add `--json` to any read command when another program will consume the result:
+
+```bash
+vela status math --json
 vela claims math --json
+vela replay math --json
 ```
 
-That is the whole first experience: install one signed binary, clone one
-complete ordinary public Git repository, replay it, and read its Claims. No
-account, daemon, hosted writer, SDK, or repository-authority key is required.
-At the pinned commit, replay returns Repository root
-`sha256:a956b84c437202e5a02cc9e036a621bd14a302b34a75758115730bdbb77c52a4`
-and the Claim index reports three current accepted Claims. The corrected
-Erdős 321 and Erdős 94 Claims are accepted, while both retained predecessors
-project current Standing `superseded` under Vela `0.977.3`.
+## 3. Trace one Decision
 
-Do not use a shallow or partial clone for exact offline reads: missing Git
-history is indistinguishable from missing scientific history. The Erdős 321
-correction at this commit preserves the predecessor Claim and earlier Events;
-the [formal-math reference flow](../examples/formal-math/) shows the source,
-Verification, Decision, and replay boundary.
-
-For strict consumer trust, obtain the full sequence-one authority-record root
-through an independent channel and pin it locally:
+Use `why` to reconstruct the current Erdős 321 Standing:
 
 ```bash
-vela authority trust pin . --record-root sha256:... --json
+vela why math \
+  vcl_b9c6915de55e15c69d06b9aeed786b0e632986374a347d77ff447ad244f67a2e
 ```
 
-This pin grants no authority and changes no repository byte.
+The explanation binds:
 
-## Read another repository
+- the exact current Claim and its correction predecessor;
+- the authenticated Submission;
+- the scoped Verification Record;
+- the attributed Decision performer;
+- the Repository authority event; and
+- the derived accepted Standing.
 
-```bash
-git clone <repository-url>
-vela replay <repository> --json
-vela status <repository> --json
-```
+It also retains what the record does not establish. The current Claim is a
+bounded candidate answer for one exact Formal Conjectures occurrence, not a
+proof resolving Erdős 321.
 
-Run any declared scientific method with the source Repository's pinned native
-tooling. Vela does not execute domain evidence.
+## 4. Create a bounded Repository
 
-## Produce one bounded result
-
-If the source-owning Repository or a read product publishes an exact next
-obligation and rooted work packet, follow and validate that source-local
-contract. Otherwise select bounded work directly in the native workbench. The
-Vela writer begins when the producer submits the result:
-
-```bash
-vela submit \
-  --claim "<bounded result>" \
-  --type computational \
-  --replayability exact \
-  --artifact <path>:<kind> \
-  --caveat "<what this does not establish>" \
-  --as agent:<name> \
-  --json
-```
-
-Vela core owns no work catalogue or planner and no `next`/`start` command pair.
-Source-local orientation remains non-authoritative. `submit` authenticates and retains the
-resulting Submission and creates a pending Proposal. It does not create
-Verification, a Decision, an Event, or accepted scientific state.
-
-## Verify and decide
-
-Retain the exact source-local verification method before recording its result:
-
-```bash
-git add -- verification/method.json
-git commit -m "Retain verification method"
-
-vela verification record . <vpr_id> \
-  --profile exact-replay-v1 \
-  --method verification/method.json \
-  --outcome pass \
-  --does-not-establish "Scientific acceptance." \
-  --independent-of agent:<producer> \
-  --as verifier:<name> \
-  --json
-```
-
-The method path must be repository-relative, tracked, clean, and present in the
-current Git commit. This makes the observed method bytes reproducible; a
-passing Verification still does not accept the Claim.
-Canonical optional starting points for four common review scopes live in
-[`examples/review-methods`](../examples/review-methods/).
-
-Inspect the consequence-complete packet and use its exact entry root:
-
-```bash
-vela review inbox . --json
-vela review show . <vpr_id> --json
-
-# Eligible human or agent performer; reject is the symmetric alternative.
-vela review accept . <vpr_id> \
-  --reason "<bounded scientific reason>" \
-  --if-entry-root sha256:... \
-  --as agent:<reviewer> \
-  --session-ref <source-owned-session-or-checkpoint> \
-  --json
-
-vela replay . --json
-vela why . <claim_id> --json
-```
-
-Only `review accept` or `review reject` changes Standing. A human or agent may
-perform that exact Decision when Repository policy authorizes the current
-authority principal. `--as` records the performer; it neither selects the
-authority key nor grants authority. The JSON result reports `performer` and
-`authority` separately.
-
-Inspect the resulting objects without writing:
-
-```bash
-vela show . <vsb_or_vpr_id> --json
-vela why . <claim_id> --json
-```
-
-## Create a new repository
+Skip this section if you only need to read existing Repositories.
 
 ### First-time authority key setup
 
-Vela uses one dedicated Ed25519 key from the standard OpenSSH agent. Vela
-does not create, read, or store the private key. If you do not already have a
-dedicated key, create one once with a passphrase:
+Vela uses one dedicated Ed25519 key from the standard OpenSSH agent. It does
+not create, read, or store the private key.
+
+Create a key once if needed:
 
 ```bash
 ssh-keygen -t ed25519 -a 64 -f ~/.ssh/vela-authority \
   -C "Vela repository authority"
 ```
 
-Load it once for the current login session on macOS:
+Load it for the current login session on macOS:
 
 ```bash
 ssh-add --apple-use-keychain ~/.ssh/vela-authority
 ```
 
-Or start an agent and load the key for an eight-hour session on Linux:
+Or load it for an eight-hour Linux agent session:
 
 ```bash
 eval "$(ssh-agent -s)"
 ssh-add -t 8h ~/.ssh/vela-authority
 ```
 
-`ssh-add -l` should now list the key's full SHA256 fingerprint. If the agent
-contains multiple Ed25519 keys, pass the intended full fingerprint to
-`vela init --key SHA256:...`. Do not use OpenSSH's per-signature `-c` option;
-Vela performs its own exact policy, current-root, read-set, and local signature
-checks for every Decision.
-
-### Initialize the repository
+Inspect the full fingerprint, then initialize one bounded Repository:
 
 ```bash
+ssh-add -l
+
 vela init ./my-repository \
   --name "Bounded question" \
-  --scope "Does the selected finite claim hold?" \
+  --scope "Does the selected finite claim hold?"
+```
+
+If the agent exposes more than one Ed25519 key, add
+`--key SHA256:<full-fingerprint>`. `init` creates the Profile, sequence-one
+authority record, local trust anchor, and initial Git commit. It creates no
+Claim, Verification, Decision, or scientific Standing.
+
+Distribute the sequence-one authority-record root through an independent
+trusted channel. Do not forward the authority-agent socket to remote,
+untrusted, or proposal-supplied code.
+
+## 5. Submit one bounded Result
+
+Do the scientific work in its native tool. Track the exact evidence file in
+the Repository, then submit the bounded Result:
+
+```bash
+vela submit --repo ./my-repository \
+  --claim "<bounded result>" \
+  --type computational \
+  --replayability exact \
+  --artifact <path>:<kind> \
+  --caveat "<what this does not establish>" \
+  --as agent:<producer> \
   --json
 ```
 
-Before running `init`, load one dedicated Ed25519 repository-authority key once
-for the current operating-system session. `init`
-creates the Profile, root-bound sequence-1 authority record, local trust anchor,
-and initial Git commit in one command. It creates no Claim, Decision, or
-scientific Standing. When the agent exposes more than one Ed25519 identity,
-add `--key SHA256:<full-fingerprint>`. If signing is unavailable, load the key
-and rerun the same `vela init ./my-repository --json`; the retained Profile
-makes that retry safe. Vela reads no private-key file. Do not forward the
-authority agent socket to remote or untrusted code.
+Record the returned `vpr_...` Proposal ID. `submit` authenticates producer
+input and creates a pending Proposal. It cannot create a Verification Record,
+Decision, Event, or accepted Standing.
 
-## Predecessor repositories
+Vela owns no work catalogue, planner, or scientific runner. Source
+repositories, researchers, agents, and native tools decide what work to do.
 
-Predecessor tags and archives retain the old source and executable needed to
-verify their bytes. Never hand-edit or relabel an old checkout. The current CLI
-does not expose predecessor parsers, migration writers, or predecessor writer
-commands.
+## 6. Record a scoped Verification
 
-## What to read next
+Retain the Verification Method as tracked, clean Repository bytes before
+recording the observation:
 
-- Commands and producer workflow: [CLI.md](CLI.md)
-- Repository layout: [REPOSITORY_PROFILE.md](REPOSITORY_PROFILE.md)
-- Authority and attribution: [SIGNING.md](SIGNING.md)
-- Verification and Decision boundary: [VERIFICATION.md](VERIFICATION.md)
-- Byte and root meanings: [ROOTS.md](ROOTS.md)
-- Protocol semantics: [PROTOCOL.md](PROTOCOL.md)
+```bash
+git -C my-repository add -- verification/method.json
+git -C my-repository commit -m "Retain verification method"
+
+vela verification record ./my-repository <vpr_id> \
+  --profile exact-replay-v1 \
+  --method verification/method.json \
+  --outcome pass \
+  --does-not-establish "Scientific acceptance." \
+  --independent-of agent:<producer> \
+  --as verifier:<reviewer> \
+  --json
+```
+
+The Method path must be Repository-relative, tracked, clean, and present in
+the current Git commit. A passing Verification reports that its declared
+property passed. It does not accept the Claim.
+
+Only use `--independent-of` when the verifier is genuinely independent of the
+named producer for the declared scope. Record shared dependencies with
+`--shared-dependency` instead of manufacturing independence.
+
+Optional starting Methods for common review scopes live in
+[`examples/review-methods`](../examples/review-methods/).
+
+## 7. Accept or reject the Proposal
+
+Inspect the current Decision Inbox and its exact entry root:
+
+```bash
+vela review inbox ./my-repository --json
+vela review show ./my-repository <vpr_id> --json
+```
+
+After the authorized reviewer has made the scientific judgment, record either
+acceptance or rejection. Acceptance uses the exact current Inbox entry root:
+
+```bash
+vela review accept ./my-repository <vpr_id> \
+  --reason "<bounded scientific reason>" \
+  --if-entry-root sha256:... \
+  --as human:<reviewer> \
+  --json
+```
+
+Use `vela review reject` for the symmetric rejection path. `--as` records the
+human or agent performer. It never grants authority or chooses the signing
+key. The JSON response keeps performer, authority principal, authentication,
+and signer separate.
+
+Read back the result:
+
+```bash
+vela replay ./my-repository --json
+vela claims ./my-repository --json
+vela why ./my-repository <claim_id> --json
+```
+
+## 8. Publish with ordinary Git
+
+Vela commits its canonical records locally. Publish them using the Repository's
+normal Git policy:
+
+```bash
+git -C my-repository status
+git -C my-repository log --oneline -5
+git -C my-repository push
+```
+
+A Git push publishes bytes. It does not itself create scientific acceptance.
+
+## Trust pins and recovery
+
+Strict consumers can pin the sequence-one authority root obtained through an
+independent channel:
+
+```bash
+vela authority trust pin ./my-repository \
+  --record-root sha256:... \
+  --json
+```
+
+The pin grants no authority and changes no Repository byte.
+
+If a repository transaction is interrupted, inspect the exact retained
+operation before recovering it:
+
+```bash
+vela recover --repo ./my-repository --inspect --json
+vela recover --repo ./my-repository <operation_id> --json
+vela replay ./my-repository --json
+```
+
+Recovery completes or aborts only the named durable transaction. It does not
+continue the scientific command or publish Git state.
+
+## Read next
+
+- [CLI contract](CLI.md) for every shipped command and JSON schema.
+- [Repository profile](REPOSITORY_PROFILE.md) for the source-owned layout.
+- [Verification](VERIFICATION.md) for check and Decision boundaries.
+- [Authority and attribution](SIGNING.md) before operating a signer.
+- [Roots](ROOTS.md) for object, authority, and Repository identity.
+- [Release guidance](RELEASES.md) for installer and recovery details.
+- [Protocol 1](PROTOCOL.md) for normative semantics.
