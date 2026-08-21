@@ -1,0 +1,18 @@
+{
+  "authority_effect": "none",
+  "blocked_parent": "e4782b4c3aa87d06aecb499b54680ff5bdf019b5",
+  "blocking_findings": [],
+  "held_out_status": "not_run",
+  "pandoc_version": "pandoc 3.9",
+  "pdf_bytes": 246912,
+  "pdf_root": "sha256:a8ccfb67fc5deab594b6fb4a7b2906c9e38920c8b7d115445252dd4ca95f000e",
+  "pdflatex_version": "pdfTeX 3.141592653-2.6-1.40.26 (TeX Live 2024)",
+  "positive_gate": "not_supported",
+  "producer_commit": "62ecb8ea7771793e9e1232fc99795e65d417dcb7",
+  "producer_tree": "e7672745f016f57b9111209c5bb55bb310cce50a",
+  "renders_reproduced_byte_identically": 3,
+  "schema": "vela.flagship-paper-review-verdict.v1",
+  "source_date_epoch": 1787345750,
+  "standing_effect": "none",
+  "verdict": "PASS"
+}
