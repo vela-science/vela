@@ -1,0 +1,13 @@
+{
+  "assignments": [
+    {
+      "condition": "neutral-calibration",
+      "packet_root": "sha256:4c94831df6a848e1685b47d8d59714064a377d7feb4fdb366450feb5a4491f1c",
+      "participant_instance_id": "neutral-schemafix-sol-01",
+      "run_id": "neutral-schemafix-calibration-01"
+    }
+  ],
+  "image_digest": "sha256:bc37c2759cb75acc54d998c22c17b542097019e892262be9b30a8d6c68396efe",
+  "registration_root": "sha256:7b6a8675c81431d19c690d8a16efacb0502116d3dc912514027d3d7096933d09",
+  "schema": "vela.inherited-correction-neutral-schema-calibration-assignment.v1"
+}

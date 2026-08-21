@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authority_action_code": {
+      "enum": [
+        "record_no_status_change",
+        "accept_authorized_status_change",
+        "withhold_status_change"
+      ],
+      "type": "string"
+    },
+    "authority_effect_code": {
+      "enum": [
+        "no_authoritative_status_change",
+        "authorized_status_change",
+        "status_change_unprovable"
+      ],
+      "type": "string"
+    },
+    "consequences": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "action_code": {
+            "enum": [
+              "retrieve_missing_premise",
+              "no_correction_reassessment",
+              "rerun_dependent_method",
+              "recompute_with_successor"
+            ],
+            "type": "string"
+          },
+          "claim_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "classification": {
+            "enum": [
+              "affected",
+              "unaffected",
+              "must_reassess",
+              "presently_unprovable"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "claim_id",
+          "classification",
+          "action_code"
+        ],
+        "type": "object"
+      },
+      "maxItems": 4,
+      "minItems": 4,
+      "type": "array"
+    },
+    "evidence_bindings": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "pattern": "^(source|evidence)/[a-z0-9][a-z0-9._-]*$",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "maxItems": 4,
+      "minItems": 4,
+      "uniqueItems": true,
+      "type": "array"
+    },
+    "family_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "predecessor_claim_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "schema": {
+      "const": "inherited-correction-held-out-response.v1",
+      "type": "string"
+    },
+    "successor_claim_id": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "family_id",
+    "predecessor_claim_id",
+    "successor_claim_id",
+    "consequences",
+    "authority_effect_code",
+    "authority_action_code",
+    "evidence_bindings"
+  ],
+  "type": "object"
+}

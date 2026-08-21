@@ -1,0 +1,16 @@
+{
+  "assignment_root": "sha256:f436ab1b9f621fe83a7c0f10f0bee9b3cd9910c1ca563ad99f97064ab7be37a8",
+  "attempt": 1,
+  "condition": "state-wrapper",
+  "expires_at": "not_authorized",
+  "image_digest": "sha256:bc37c2759cb75acc54d998c22c17b542097019e892262be9b30a8d6c68396efe",
+  "packet_root": "sha256:bbe1233c52197b76199ad355f5281093f8b3ec16a14807c645241f814445bfbc",
+  "participant_configuration_root": "sha256:0997f9231b6b82dc8a0335301e2a377337ebba7ff684c89c5e17276a9d54da05",
+  "participant_instance_id": "schemafix-sol-35",
+  "prompt_root": "sha256:7fb4318687b6bafae10b94905a3cd727fcc640300d9577fafd30de485ec6c91b",
+  "registration_root": "sha256:7b6a8675c81431d19c690d8a16efacb0502116d3dc912514027d3d7096933d09",
+  "run_id": "schemafix-run-35",
+  "schema": "vela.inherited-correction-launch-permit.v1",
+  "status": "held",
+  "trust_bundle_bytes": "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5"
+}

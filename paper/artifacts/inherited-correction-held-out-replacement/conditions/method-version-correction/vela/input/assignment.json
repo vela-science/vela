@@ -1,0 +1,296 @@
+{
+  "assignments": [
+    {
+      "condition": "git-documents",
+      "family_id": "provenance-revocation",
+      "packet_root": "sha256:5e3983b3a5e8fefdff5bf0abc1a9db1216ec97dd2a0401a13f49ff4f1fea9c64",
+      "participant_instance_id": "schemafix-sol-01",
+      "replicate": 3,
+      "run_id": "schemafix-run-01"
+    },
+    {
+      "condition": "state-wrapper",
+      "family_id": "provenance-revocation",
+      "packet_root": "sha256:544936885c62f00b297aa712f2a278f326b74d88d453d7965d0376c0c88374ae",
+      "participant_instance_id": "schemafix-sol-02",
+      "replicate": 1,
+      "run_id": "schemafix-run-02"
+    },
+    {
+      "condition": "vela",
+      "family_id": "method-version-correction",
+      "packet_root": "sha256:076e4acac58d1dddba30e3e35d9536a644642ab2b10f45d43358e641f1fe0381",
+      "participant_instance_id": "schemafix-sol-03",
+      "replicate": 3,
+      "run_id": "schemafix-run-03"
+    },
+    {
+      "condition": "vela",
+      "family_id": "provenance-revocation",
+      "packet_root": "sha256:f12d8d0898f7c9e81ec2855c724a1d37c807afefccd9da20886e17c2eb34ef75",
+      "participant_instance_id": "schemafix-sol-04",
+      "replicate": 1,
+      "run_id": "schemafix-run-04"
+    },
+    {
+      "condition": "state-wrapper",
+      "family_id": "provenance-revocation",
+      "packet_root": "sha256:544936885c62f00b297aa712f2a278f326b74d88d453d7965d0376c0c88374ae",
+      "participant_instance_id": "schemafix-sol-05",
+      "replicate": 3,
+      "run_id": "schemafix-run-05"
+    },
+    {
+      "condition": "git-documents",
+      "family_id": "taxonomy-remap",
+      "packet_root": "sha256:ac0d9bf28ad6eb291cdf98c969ab9a3c425f49dcd9648ab1703fe745dc100a74",
+      "participant_instance_id": "schemafix-sol-06",
+      "replicate": 2,
+      "run_id": "schemafix-run-06"
+    },
+    {
+      "condition": "vela",
+      "family_id": "method-version-correction",
+      "packet_root": "sha256:076e4acac58d1dddba30e3e35d9536a644642ab2b10f45d43358e641f1fe0381",
+      "participant_instance_id": "schemafix-sol-07",
+      "replicate": 4,
+      "run_id": "schemafix-run-07"
+    },
+    {
+      "condition": "state-wrapper",
+      "family_id": "method-version-correction",
+      "packet_root": "sha256:12900bf1ddcd06ce2c5dddbcb1bcabe8a02548a43b95097cbe916a541b2c9b12",
+      "participant_instance_id": "schemafix-sol-08",
+      "replicate": 1,
+      "run_id": "schemafix-run-08"
+    },
+    {
+      "condition": "git-documents",
+      "family_id": "taxonomy-remap",
+      "packet_root": "sha256:ac0d9bf28ad6eb291cdf98c969ab9a3c425f49dcd9648ab1703fe745dc100a74",
+      "participant_instance_id": "schemafix-sol-09",
+      "replicate": 1,
+      "run_id": "schemafix-run-09"
+    },
+    {
+      "condition": "git-documents",
+      "family_id": "provenance-revocation",
+      "packet_root": "sha256:5e3983b3a5e8fefdff5bf0abc1a9db1216ec97dd2a0401a13f49ff4f1fea9c64",
+      "participant_instance_id": "schemafix-sol-10",
+      "replicate": 1,
+      "run_id": "schemafix-run-10"
+    },
+    {
+      "condition": "git-documents",
+      "family_id": "method-version-correction",
+      "packet_root": "sha256:3dbabf9a56f3f30a7cb368aa059766fbed16ec5647903493d5135dd14c147c10",
+      "participant_instance_id": "schemafix-sol-11",
+      "replicate": 1,
+      "run_id": "schemafix-run-11"
+    },
+    {
+      "condition": "git-documents",
+      "family_id": "taxonomy-remap",
+      "packet_root": "sha256:ac0d9bf28ad6eb291cdf98c969ab9a3c425f49dcd9648ab1703fe745dc100a74",
+      "participant_instance_id": "schemafix-sol-12",
+      "replicate": 4,
+      "run_id": "schemafix-run-12"
+    },
+    {
+      "condition": "state-wrapper",
+      "family_id": "taxonomy-remap",
+      "packet_root": "sha256:bbe1233c52197b76199ad355f5281093f8b3ec16a14807c645241f814445bfbc",
+      "participant_instance_id": "schemafix-sol-13",
+      "replicate": 1,
+      "run_id": "schemafix-run-13"
+    },
+    {
+      "condition": "git-documents",
+      "family_id": "method-version-correction",
+      "packet_root": "sha256:3dbabf9a56f3f30a7cb368aa059766fbed16ec5647903493d5135dd14c147c10",
+      "participant_instance_id": "schemafix-sol-14",
+      "replicate": 3,
+      "run_id": "schemafix-run-14"
+    },
+    {
+      "condition": "git-documents",
+      "family_id": "method-version-correction",
+      "packet_root": "sha256:3dbabf9a56f3f30a7cb368aa059766fbed16ec5647903493d5135dd14c147c10",
+      "participant_instance_id": "schemafix-sol-15",
+      "replicate": 2,
+      "run_id": "schemafix-run-15"
+    },
+    {
+      "condition": "git-documents",
+      "family_id": "method-version-correction",
+      "packet_root": "sha256:3dbabf9a56f3f30a7cb368aa059766fbed16ec5647903493d5135dd14c147c10",
+      "participant_instance_id": "schemafix-sol-16",
+      "replicate": 4,
+      "run_id": "schemafix-run-16"
+    },
+    {
+      "condition": "state-wrapper",
+      "family_id": "method-version-correction",
+      "packet_root": "sha256:12900bf1ddcd06ce2c5dddbcb1bcabe8a02548a43b95097cbe916a541b2c9b12",
+      "participant_instance_id": "schemafix-sol-17",
+      "replicate": 4,
+      "run_id": "schemafix-run-17"
+    },
+    {
+      "condition": "vela",
+      "family_id": "taxonomy-remap",
+      "packet_root": "sha256:7bef1b55dc0c32934dfa1f08ab5765d56de8f96ca7088b20df32956f8f1f18ba",
+      "participant_instance_id": "schemafix-sol-18",
+      "replicate": 3,
+      "run_id": "schemafix-run-18"
+    },
+    {
+      "condition": "state-wrapper",
+      "family_id": "taxonomy-remap",
+      "packet_root": "sha256:bbe1233c52197b76199ad355f5281093f8b3ec16a14807c645241f814445bfbc",
+      "participant_instance_id": "schemafix-sol-19",
+      "replicate": 4,
+      "run_id": "schemafix-run-19"
+    },
+    {
+      "condition": "state-wrapper",
+      "family_id": "provenance-revocation",
+      "packet_root": "sha256:544936885c62f00b297aa712f2a278f326b74d88d453d7965d0376c0c88374ae",
+      "participant_instance_id": "schemafix-sol-20",
+      "replicate": 2,
+      "run_id": "schemafix-run-20"
+    },
+    {
+      "condition": "vela",
+      "family_id": "provenance-revocation",
+      "packet_root": "sha256:f12d8d0898f7c9e81ec2855c724a1d37c807afefccd9da20886e17c2eb34ef75",
+      "participant_instance_id": "schemafix-sol-21",
+      "replicate": 3,
+      "run_id": "schemafix-run-21"
+    },
+    {
+      "condition": "vela",
+      "family_id": "taxonomy-remap",
+      "packet_root": "sha256:7bef1b55dc0c32934dfa1f08ab5765d56de8f96ca7088b20df32956f8f1f18ba",
+      "participant_instance_id": "schemafix-sol-22",
+      "replicate": 1,
+      "run_id": "schemafix-run-22"
+    },
+    {
+      "condition": "git-documents",
+      "family_id": "provenance-revocation",
+      "packet_root": "sha256:5e3983b3a5e8fefdff5bf0abc1a9db1216ec97dd2a0401a13f49ff4f1fea9c64",
+      "participant_instance_id": "schemafix-sol-23",
+      "replicate": 2,
+      "run_id": "schemafix-run-23"
+    },
+    {
+      "condition": "state-wrapper",
+      "family_id": "taxonomy-remap",
+      "packet_root": "sha256:bbe1233c52197b76199ad355f5281093f8b3ec16a14807c645241f814445bfbc",
+      "participant_instance_id": "schemafix-sol-24",
+      "replicate": 2,
+      "run_id": "schemafix-run-24"
+    },
+    {
+      "condition": "vela",
+      "family_id": "taxonomy-remap",
+      "packet_root": "sha256:7bef1b55dc0c32934dfa1f08ab5765d56de8f96ca7088b20df32956f8f1f18ba",
+      "participant_instance_id": "schemafix-sol-25",
+      "replicate": 2,
+      "run_id": "schemafix-run-25"
+    },
+    {
+      "condition": "state-wrapper",
+      "family_id": "provenance-revocation",
+      "packet_root": "sha256:544936885c62f00b297aa712f2a278f326b74d88d453d7965d0376c0c88374ae",
+      "participant_instance_id": "schemafix-sol-26",
+      "replicate": 4,
+      "run_id": "schemafix-run-26"
+    },
+    {
+      "condition": "vela",
+      "family_id": "taxonomy-remap",
+      "packet_root": "sha256:7bef1b55dc0c32934dfa1f08ab5765d56de8f96ca7088b20df32956f8f1f18ba",
+      "participant_instance_id": "schemafix-sol-27",
+      "replicate": 4,
+      "run_id": "schemafix-run-27"
+    },
+    {
+      "condition": "state-wrapper",
+      "family_id": "method-version-correction",
+      "packet_root": "sha256:12900bf1ddcd06ce2c5dddbcb1bcabe8a02548a43b95097cbe916a541b2c9b12",
+      "participant_instance_id": "schemafix-sol-28",
+      "replicate": 2,
+      "run_id": "schemafix-run-28"
+    },
+    {
+      "condition": "vela",
+      "family_id": "provenance-revocation",
+      "packet_root": "sha256:f12d8d0898f7c9e81ec2855c724a1d37c807afefccd9da20886e17c2eb34ef75",
+      "participant_instance_id": "schemafix-sol-29",
+      "replicate": 2,
+      "run_id": "schemafix-run-29"
+    },
+    {
+      "condition": "git-documents",
+      "family_id": "provenance-revocation",
+      "packet_root": "sha256:5e3983b3a5e8fefdff5bf0abc1a9db1216ec97dd2a0401a13f49ff4f1fea9c64",
+      "participant_instance_id": "schemafix-sol-30",
+      "replicate": 4,
+      "run_id": "schemafix-run-30"
+    },
+    {
+      "condition": "git-documents",
+      "family_id": "taxonomy-remap",
+      "packet_root": "sha256:ac0d9bf28ad6eb291cdf98c969ab9a3c425f49dcd9648ab1703fe745dc100a74",
+      "participant_instance_id": "schemafix-sol-31",
+      "replicate": 3,
+      "run_id": "schemafix-run-31"
+    },
+    {
+      "condition": "vela",
+      "family_id": "method-version-correction",
+      "packet_root": "sha256:076e4acac58d1dddba30e3e35d9536a644642ab2b10f45d43358e641f1fe0381",
+      "participant_instance_id": "schemafix-sol-32",
+      "replicate": 1,
+      "run_id": "schemafix-run-32"
+    },
+    {
+      "condition": "vela",
+      "family_id": "provenance-revocation",
+      "packet_root": "sha256:f12d8d0898f7c9e81ec2855c724a1d37c807afefccd9da20886e17c2eb34ef75",
+      "participant_instance_id": "schemafix-sol-33",
+      "replicate": 4,
+      "run_id": "schemafix-run-33"
+    },
+    {
+      "condition": "state-wrapper",
+      "family_id": "method-version-correction",
+      "packet_root": "sha256:12900bf1ddcd06ce2c5dddbcb1bcabe8a02548a43b95097cbe916a541b2c9b12",
+      "participant_instance_id": "schemafix-sol-34",
+      "replicate": 3,
+      "run_id": "schemafix-run-34"
+    },
+    {
+      "condition": "state-wrapper",
+      "family_id": "taxonomy-remap",
+      "packet_root": "sha256:bbe1233c52197b76199ad355f5281093f8b3ec16a14807c645241f814445bfbc",
+      "participant_instance_id": "schemafix-sol-35",
+      "replicate": 3,
+      "run_id": "schemafix-run-35"
+    },
+    {
+      "condition": "vela",
+      "family_id": "method-version-correction",
+      "packet_root": "sha256:076e4acac58d1dddba30e3e35d9536a644642ab2b10f45d43358e641f1fe0381",
+      "participant_instance_id": "schemafix-sol-36",
+      "replicate": 2,
+      "run_id": "schemafix-run-36"
+    }
+  ],
+  "image_digest": "sha256:bc37c2759cb75acc54d998c22c17b542097019e892262be9b30a8d6c68396efe",
+  "registration_root": "sha256:7b6a8675c81431d19c690d8a16efacb0502116d3dc912514027d3d7096933d09",
+  "schema": "vela.inherited-correction-held-out-assignment.v1",
+  "seed_commitment": "sha256:113604a79da502879a3fbd8ab9131dc81eabb9af0c705e9f2cbd27f4445ecacb"
+}

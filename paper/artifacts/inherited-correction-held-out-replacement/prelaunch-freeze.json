@@ -1,0 +1,78 @@
+{
+  "adjudication_status": "frozen",
+  "assignment_root": "sha256:f436ab1b9f621fe83a7c0f10f0bee9b3cd9910c1ca563ad99f97064ab7be37a8",
+  "configuration_mapping_root": "sha256:2eb5197c9056f4cb5d8e9ade1c31140fd9dea26722aca61f00261c6d320ca5bc",
+  "equivalence_root": "sha256:12904756aa4683934eb925ae856d6afd50897dc1d855f3b55ce4e51ce6391bc1",
+  "image_digest": "sha256:bc37c2759cb75acc54d998c22c17b542097019e892262be9b30a8d6c68396efe",
+  "neutral_calibration": {
+    "assignment_root": "sha256:e31324b23a4f3c917f11b71da5eb563c4fcd03b15fc59e0adb722a454f1d795d",
+    "configuration_root": "sha256:759f657f483f1ead08d8da3c80d331c9af94d82edeaa7186a823add49b3171e2",
+    "denominator_credit": false,
+    "permit_root": "sha256:322931e3a60a7e78dcd2c3490dc0e2b1777c921a1cb14c73a5a50f4bf244a07a",
+    "plan_root": "sha256:594bd607150056552539def9c7c93cd923a32f6fb999e5dfae5bb87b69fca902",
+    "provider_calls": 0,
+    "status": "held"
+  },
+  "packet_roots": {
+    "method-version-correction": {
+      "git-documents": "sha256:3dbabf9a56f3f30a7cb368aa059766fbed16ec5647903493d5135dd14c147c10",
+      "state-wrapper": "sha256:12900bf1ddcd06ce2c5dddbcb1bcabe8a02548a43b95097cbe916a541b2c9b12",
+      "vela": "sha256:076e4acac58d1dddba30e3e35d9536a644642ab2b10f45d43358e641f1fe0381"
+    },
+    "provenance-revocation": {
+      "git-documents": "sha256:5e3983b3a5e8fefdff5bf0abc1a9db1216ec97dd2a0401a13f49ff4f1fea9c64",
+      "state-wrapper": "sha256:544936885c62f00b297aa712f2a278f326b74d88d453d7965d0376c0c88374ae",
+      "vela": "sha256:f12d8d0898f7c9e81ec2855c724a1d37c807afefccd9da20886e17c2eb34ef75"
+    },
+    "taxonomy-remap": {
+      "git-documents": "sha256:ac0d9bf28ad6eb291cdf98c969ab9a3c425f49dcd9648ab1703fe745dc100a74",
+      "state-wrapper": "sha256:bbe1233c52197b76199ad355f5281093f8b3ec16a14807c645241f814445bfbc",
+      "vela": "sha256:7bef1b55dc0c32934dfa1f08ab5765d56de8f96ca7088b20df32956f8f1f18ba"
+    }
+  },
+  "participant_configuration_root": "sha256:37f7a1c0a374ed1fa076d1e9d16819494e72ff7975d47da8791ef7c9a75e2ffb",
+  "permit_set_root": "sha256:df4763f7ad7a944ad5a4bbaa35e055596fe583cb6a26d578a146a85a3ba44f19",
+  "prelaunch_root": "sha256:1c069f0ef56308dd9a540451a4194410c4f15cc16704de520f0147a4118da513",
+  "prompt_roots": {
+    "method-version-correction": {
+      "git-documents": "sha256:0cdb1987b360859a756ae60dfeec363b5e13cd1f5bf217e903d07c4f692e8033",
+      "state-wrapper": "sha256:7b9787742269c571bad07e3cff7043cf1fe378cd13bbee28fb77624bcd5fc71c",
+      "vela": "sha256:a6893d7fcfeb4fb477824598cf93c285f5c472eb03f9137aa6c8fa9c8d0bb984"
+    },
+    "provenance-revocation": {
+      "git-documents": "sha256:7ea3e9f06623b70d4ad0eb29e0140b8fa7d499d1fbddb69787149f6399b8685e",
+      "state-wrapper": "sha256:cc8ed4a4f06fc0a79a84cc731afc5d758716cd78c87f98f9b5453d201d87cd9b",
+      "vela": "sha256:28ac36a3af7a55016c82f964fc2189d73520a5f2ba99887c9fcae3602166136f"
+    },
+    "taxonomy-remap": {
+      "git-documents": "sha256:d986b56f435b2d588820a47b1496f8198adcb34ddf0a102f50db3f2c8aab9f2e",
+      "state-wrapper": "sha256:7fb4318687b6bafae10b94905a3cd727fcc640300d9577fafd30de485ec6c91b",
+      "vela": "sha256:de4aaa6b139d4401bab048fa4f551b910eea7143356fd97919893539820cdd7f"
+    }
+  },
+  "provider_calls": 0,
+  "provider_response_schema_bytes": "sha256:896f242086805d3b51e81ed04e6d50f33eb2b7deb71b7a1689e9abeba3b67eaf",
+  "registered_response_schema_bytes": "sha256:ac96be686e749792956dfa1dfe9560f85c53d55c27fe2e8fd32bcc2a96a634ba",
+  "registration_root": "sha256:7b6a8675c81431d19c690d8a16efacb0502116d3dc912514027d3d7096933d09",
+  "runtime_configuration_roots": {
+    "method-version-correction": {
+      "git-documents": "sha256:6f5f07d3ed583d0b8c02bcf735f1a01de69562e7c7de982d1869114091ab8484",
+      "state-wrapper": "sha256:01ee9d3a49ebd81fa698720072b71fcbccfa5dbff689c352f42e7d0d8f2f1299",
+      "vela": "sha256:6b0e2bb566dace184a83d30d895586732a533f0bdb17992dc5fb72aec3492250"
+    },
+    "provenance-revocation": {
+      "git-documents": "sha256:41c66a26d5cb9a00c203c5f392e5421826ea9f17393d00c3348fa836d5b0069e",
+      "state-wrapper": "sha256:5c706d615b992b64f865c01823cee93eb3ca2bf3fde88099c6ef5d868ff92e35",
+      "vela": "sha256:6e2e308605f8e91a666e4fad425db09ddfa62920856f43f191f957328704125f"
+    },
+    "taxonomy-remap": {
+      "git-documents": "sha256:35473cd618caa95d14faa64e5bbf44df4bd188b7c8c6edcf49c1a3e9244dd719",
+      "state-wrapper": "sha256:0997f9231b6b82dc8a0335301e2a377337ebba7ff684c89c5e17276a9d54da05",
+      "vela": "sha256:206ed9bff01c6adc6a7d15f21bbb1224dd06b22e118f212f4b261aeb0d5ae357"
+    }
+  },
+  "runtime_root": "sha256:fa0e74191ce9ef7d4b82cadc77f57437c3b1ab62be4acd29e93d967aee12c2e0",
+  "schema": "vela.inherited-correction-held-out-prelaunch-freeze.v1",
+  "status": "held",
+  "trust_bundle_bytes": "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5"
+}

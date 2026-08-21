@@ -1,0 +1,54 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"atomic_facts_root\": \"sha256:4899dc378920816e01b2ca1efaf89b91565097d14f50565c335f90be2e7f4e21\",\n  \"condition\": \"vela\",\n  \"family_id\": \"provenance-revocation\",\n  \"schema\": \"inherited-correction-held-out-packet-manifest.v1\",\n  \"source_and_evidence\": [\n    {\n      \"bytes\": 84,\n      \"path\": \"evidence/archive-accession.json\",\n      \"sha256\": \"sha256:b9d3244bce77d58d00f5b3b808a5523a847a7138237ebd754532a5a6f4a2c4df\"\n    },\n    {\n      \"bytes\": 170,\n      \"path\": \"evidence/combined-estimate.md\",\n      \"sha256\": \"sha256:ea69539d6413d38850db8025a47f45d8ffb8f052ea7f22d5f27ebd1c98ab11c2\"\n    },\n    {\n      \"bytes\": 87,\n      \"path\": \"evidence/north-estimate.json\",\n      \"sha256\": \"sha256:a614c946424861baf64a24dcf2b5ec05fee08fb86985cb122ffa53a1decb8be7\"\n    },\n    {\n      \"bytes\": 146,\n      \"path\": \"evidence/regional-sensitivity.md\",\n      \"sha256\": \"sha256:860aec94f08cc691bde1cc2d816dd7396dafc56c80d1c82281eda9b21a2a01fe\"\n    },\n    {\n      \"bytes\": 104,\n      \"path\": \"evidence/scope-pr-17.json\",\n      \"sha256\": \"sha256:25009ffb0a6462208a4c9af5fed2ae373b1bb6551962f5cdf324ad68ba630ce6\"\n    },\n    {\n      \"bytes\": 94,\n      \"path\": \"source/lineage-r1.md\",\n      \"sha256\": \"sha256:fe4373ed9ea0dce174c8ed33f45e7428eedf1118295874474ced76d65442079f\"\n    },\n    {\n      \"bytes\": 178,\n      \"path\": \"source/lineage-r2.md\",\n      \"sha256\": \"sha256:9f72690ba776e7976a7a70ef47aa2bd011834ebb5d1a5a78fa1e723d267cf9a9\"\n    }\n  ]\n}\n",
+      "path": "PACKET-MANIFEST.json"
+    },
+    {
+      "content": "# Held-out cold-successor task\n\nYou are the first successor to receive this packet. Use only the assigned\nfamily packet.\n\n1. Identify the exact predecessor and successor.\n2. Classify every listed consequence as `affected`, `unaffected`,\n   `must_reassess`, or `presently_unprovable`.\n3. Select one closed first-safe-action code for each consequence.\n4. Select the correction's closed authority-effect and authority-action codes.\n5. Return one exact evidence binding for each listed consequence, containing\n   both its packet path and SHA-256 digest.\n\nReturn only JSON matching `response-schema.json`. Do not contact anyone, use a\nnetwork or tool, issue an acceptance action, or alter authoritative status.\n",
+      "path": "TASK.md"
+    },
+    {
+      "content": "{\"accessioned_on\":\"2024-03-08\",\"claim_id\":\"archive-accession\",\"record_id\":\"AR-208\"}\n",
+      "path": "evidence/archive-accession.json"
+    },
+    {
+      "content": "# Combined estimate\n\nThe combined estimate requires the corrected north estimate and an exact south-region input. The south-region source and content binding are absent.\n",
+      "path": "evidence/combined-estimate.md"
+    },
+    {
+      "content": "{\"claim_id\":\"north-estimate\",\"lineage_id\":\"lineage-r1\",\"raw_total\":42,\"multiplier\":10}\n",
+      "path": "evidence/north-estimate.json"
+    },
+    {
+      "content": "# Regional sensitivity method\n\nThe retained method consumes north-estimate. It does not determine the post-correction conclusion without a rerun.\n",
+      "path": "evidence/regional-sensitivity.md"
+    },
+    {
+      "content": "{\"acceptance_action_present\":false,\"authority_regime\":\"no_acceptance_action\",\"record_id\":\"scope-pr-17\"}\n",
+      "path": "evidence/scope-pr-17.json"
+    },
+    {
+      "content": "{\"events\":[{\"claim_id\":\"lineage-r1\",\"kind\":\"predecessor_observed\",\"sequence\":1},{\"claim_id\":\"lineage-r2\",\"kind\":\"successor_supersedes\",\"sequence\":2,\"supersedes\":\"lineage-r1\"}],\"family_id\":\"provenance-revocation\",\"schema\":\"vela.inherited-correction-held-out-replay.v1\"}",
+      "path": "replay.json"
+    },
+    {
+      "content": "{\"authority\":{\"decision_authorization_verified\":false,\"decision_present\":false,\"evidence_path\":\"evidence/scope-pr-17.json\",\"regime\":\"no_acceptance_action\",\"standing_effect\":\"none\"},\"claims\":[{\"assertion\":\"The north-region estimate is 420 units.\",\"claim_id\":\"north-estimate\",\"evidence_binding\":{\"bytes\":87,\"path\":\"evidence/north-estimate.json\",\"sha256\":\"sha256:a614c946424861baf64a24dcf2b5ec05fee08fb86985cb122ffa53a1decb8be7\"},\"evidence_path\":\"evidence/north-estimate.json\",\"inherited_state\":{\"claim_id\":\"north-estimate\",\"missing_inputs\":[],\"state\":\"needs_recheck\",\"triggers\":[\"lineage-r1\"]},\"relations\":[{\"kind\":\"requires_exact\",\"meaning\":\"The estimate used the exact predecessor multiplier and must be recomputed if that input is superseded.\",\"target_claim_id\":\"lineage-r1\"}]},{\"assertion\":\"The regional sensitivity conclusion remains stable.\",\"claim_id\":\"regional-sensitivity\",\"evidence_binding\":{\"bytes\":146,\"path\":\"evidence/regional-sensitivity.md\",\"sha256\":\"sha256:860aec94f08cc691bde1cc2d816dd7396dafc56c80d1c82281eda9b21a2a01fe\"},\"evidence_path\":\"evidence/regional-sensitivity.md\",\"inherited_state\":{\"claim_id\":\"regional-sensitivity\",\"missing_inputs\":[],\"state\":\"needs_recheck\",\"triggers\":[\"north-estimate\"]},\"relations\":[{\"kind\":\"requires_result\",\"meaning\":\"The sensitivity method consumes north-estimate and must be rerun after that estimate changes.\",\"target_claim_id\":\"north-estimate\"}]},{\"assertion\":\"The archive was accessioned on 2024-03-08.\",\"claim_id\":\"archive-accession\",\"evidence_binding\":{\"bytes\":84,\"path\":\"evidence/archive-accession.json\",\"sha256\":\"sha256:b9d3244bce77d58d00f5b3b808a5523a847a7138237ebd754532a5a6f4a2c4df\"},\"evidence_path\":\"evidence/archive-accession.json\",\"inherited_state\":{\"claim_id\":\"archive-accession\",\"missing_inputs\":[],\"state\":\"active\",\"triggers\":[]},\"relations\":[{\"kind\":\"discovery_only\",\"meaning\":\"The predecessor lineage helped locate the archive record but supplies no premise for its date.\",\"target_claim_id\":\"lineage-r1\"}]},{\"assertion\":\"The two-region combined estimate is below 900 units.\",\"claim_id\":\"combined-estimate\",\"evidence_binding\":{\"bytes\":170,\"path\":\"evidence/combined-estimate.md\",\"sha256\":\"sha256:ea69539d6413d38850db8025a47f45d8ffb8f052ea7f22d5f27ebd1c98ab11c2\"},\"evidence_path\":\"evidence/combined-estimate.md\",\"inherited_state\":{\"claim_id\":\"combined-estimate\",\"missing_inputs\":[\"south-estimate\"],\"state\":\"needs_recheck\",\"triggers\":[\"north-estimate\",\"south-estimate\"]},\"relations\":[{\"kind\":\"requires_result\",\"meaning\":\"The combined estimate consumes north-estimate.\",\"target_claim_id\":\"north-estimate\"},{\"kind\":\"requires_unavailable\",\"meaning\":\"The exact south-region premise and source binding are absent from the bounded packet.\",\"target_claim_id\":\"south-estimate\"}]}],\"correction\":{\"predecessor_assertion\":\"North-region records use multiplier 10.\",\"predecessor_claim_id\":\"lineage-r1\",\"reason\":\"A provenance audit found that the predecessor attributed a correction row to the wrong regional source.\",\"successor_assertion\":\"North-region records use multiplier 12.\",\"successor_claim_id\":\"lineage-r2\"},\"family_id\":\"provenance-revocation\",\"schema\":\"vela.inherited-correction-held-out-projection.v1\"}",
+      "path": "repository-projection.json"
+    },
+    {
+      "content": "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"additionalProperties\": false,\n  \"properties\": {\n    \"authority_action_code\": {\n      \"enum\": [\n        \"record_no_status_change\",\n        \"accept_authorized_status_change\",\n        \"withhold_status_change\"\n      ],\n      \"type\": \"string\"\n    },\n    \"authority_effect_code\": {\n      \"enum\": [\n        \"no_authoritative_status_change\",\n        \"authorized_status_change\",\n        \"status_change_unprovable\"\n      ],\n      \"type\": \"string\"\n    },\n    \"consequences\": {\n      \"items\": {\n        \"additionalProperties\": false,\n        \"properties\": {\n          \"action_code\": {\n            \"enum\": [\n              \"retrieve_missing_premise\",\n              \"no_correction_reassessment\",\n              \"rerun_dependent_method\",\n              \"recompute_with_successor\"\n            ],\n            \"type\": \"string\"\n          },\n          \"claim_id\": {\n            \"minLength\": 1,\n            \"type\": \"string\"\n          },\n          \"classification\": {\n            \"enum\": [\n              \"affected\",\n              \"unaffected\",\n              \"must_reassess\",\n              \"presently_unprovable\"\n            ],\n            \"type\": \"string\"\n          }\n        },\n        \"required\": [\n          \"claim_id\",\n          \"classification\",\n          \"action_code\"\n        ],\n        \"type\": \"object\"\n      },\n      \"maxItems\": 4,\n      \"minItems\": 4,\n      \"type\": \"array\"\n    },\n    \"evidence_bindings\": {\n      \"items\": {\n        \"additionalProperties\": false,\n        \"properties\": {\n          \"path\": {\n            \"pattern\": \"^(source|evidence)/[a-z0-9][a-z0-9._-]*$\",\n            \"type\": \"string\"\n          },\n          \"sha256\": {\n            \"pattern\": \"^sha256:[0-9a-f]{64}$\",\n            \"type\": \"string\"\n          }\n        },\n        \"required\": [\n          \"path\",\n          \"sha256\"\n        ],\n        \"type\": \"object\"\n      },\n      \"maxItems\": 4,\n      \"minItems\": 4,\n      \"uniqueItems\": true,\n      \"type\": \"array\"\n    },\n    \"family_id\": {\n      \"minLength\": 1,\n      \"type\": \"string\"\n    },\n    \"predecessor_claim_id\": {\n      \"minLength\": 1,\n      \"type\": \"string\"\n    },\n    \"schema\": {\n      \"const\": \"inherited-correction-held-out-response.v1\",\n      \"type\": \"string\"\n    },\n    \"successor_claim_id\": {\n      \"minLength\": 1,\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"schema\",\n    \"family_id\",\n    \"predecessor_claim_id\",\n    \"successor_claim_id\",\n    \"consequences\",\n    \"authority_effect_code\",\n    \"authority_action_code\",\n    \"evidence_bindings\"\n  ],\n  \"type\": \"object\"\n}\n",
+      "path": "response-schema.json"
+    },
+    {
+      "content": "# Regional lineage r1\n\nNorth-region records use multiplier 10.\n\nSource revision: `lineage-r1`\n",
+      "path": "source/lineage-r1.md"
+    },
+    {
+      "content": "# Regional lineage r2\n\nNorth-region records use multiplier 12. This revision supersedes `lineage-r1`; it does not itself decide downstream Claims.\n\nSource revision: `lineage-r2`\n",
+      "path": "source/lineage-r2.md"
+    }
+  ],
+  "instruction": "Use only this immutable virtual filesystem and return one schema-valid JSON response without tools.",
+  "schema": "inherited-correction-held-out-virtual-filesystem.v1"
+}

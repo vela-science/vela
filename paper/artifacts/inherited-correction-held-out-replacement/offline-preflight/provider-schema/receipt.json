@@ -1,0 +1,14 @@
+{
+  "schema": "vela.inherited-correction-provider-schema-preflight.v1",
+  "provider_contact_possible": false,
+  "container_network": "none",
+  "exact_deleted_json_pointers": [
+    "/properties/evidence_bindings/uniqueItems"
+  ],
+  "checks": {
+    "provider_accepts_valid": true,
+    "registered_accepts_valid": true,
+    "provider_accepts_duplicate": true,
+    "registered_rejects_duplicate": true
+  }
+}
