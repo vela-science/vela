@@ -17,8 +17,8 @@ authenticated Submissions, scoped Verification Records, attributed Decisions
 admitted through Repository authority, replayable Standing, and explicit
 correction lineage in Git. Core separates producer evidence, mechanical
 verification, and local scientific authority; controllers, agents, attempts,
-runs, campaigns, schedulers, workflows, and read models remain external and
-removable.
+runs, campaigns, schedulers, and workflows remain external; read models remain
+derived and removable.
 
 This paper asks whether that separation produces measurable inheritance and
 correction value instead of metadata growth. We register a benchmark in

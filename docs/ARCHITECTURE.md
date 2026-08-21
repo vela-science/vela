@@ -58,8 +58,9 @@ Obligations from exact roots. **Advance** is native human or machine work that
 may produce a bounded proposed change. **Remap** replays the resulting Standing
 and derives the current territory, correction consequences, blockers, and next
 valid work from the new exact root. Work remains native; Submission is the
-portable evidence boundary; Verification reports a scoped check; and Decision
-is the only authority boundary.
+portable evidence boundary; Verification reports a scoped check; and an
+authorized Decision is the only operation in this loop that can change
+Standing.
 
 A Repository is **action-complete only within declared bounds** when its
 source-owning adapter or read product turns every represented unresolved item
