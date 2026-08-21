@@ -1,0 +1,18 @@
+{
+  "authority_effect": "none",
+  "base_commit": "4685462c44b1f073870f31025ae73d1d8770ce73",
+  "blocking_findings": [
+    {
+      "gate": "render",
+      "id": "F01",
+      "summary": "paper/flagship/manuscript.md does not render to PDF because formal-model expressions emit LaTeX math commands outside math mode"
+    }
+  ],
+  "held_out_status": "not_run",
+  "positive_gate": "not_supported",
+  "producer_commit": "3fdee23b4ab43c4e86b11e5ef32d08fcbc03e702",
+  "producer_tree": "4a8d99d845513cf7e34d14d954a42a8a7f57524a",
+  "schema": "vela.flagship-paper-review-verdict.v1",
+  "standing_effect": "none",
+  "verdict": "BLOCKED"
+}
