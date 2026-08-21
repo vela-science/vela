@@ -15,11 +15,12 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent
 BENCHMARK = ROOT.parent / "inherited-correction-benchmark"
 RUNTIME = ROOT / "container-runtime"
-OUTPUT = ROOT / "confirmatory-study"
-SEED = "6bc4a05a925a1c9f432ae6618c74190cf6377820e0f48f1e1658d101dfd768d9"
-FROZEN_AT = "2026-08-21T17:55:04Z"
-PERMIT_EXPIRY = "2026-09-21T23:59:59Z"
-IMAGE = "sha256:6274d83356076640d6e4bc810b97d37ac2d1b5ab02546dd7c2ebed16f915b547"
+OUTPUT = ROOT / "confirmatory-replacement-study"
+STOP_RECORD = ROOT / "confirmatory-execution/stopped-registration.json"
+SEED = "f36aef6ede45ec476d8a1b1a0613efaa42d3e202fa51335a3ae9845bf20d61f5"
+FROZEN_AT = "2026-08-21T19:21:13Z"
+PERMIT_EXPIRY = "2026-09-22T23:59:59Z"
+IMAGE = "sha256:1dee2374077c83e3dbdb2e09d32ef4fa3a414d200b800839857353e13d3c4e09"
 BASE_IMAGE = "sha256:cadbfafeb6baf87eaaffa40b3640209c4b7fd38cebde65059d15bc39cd636b85"
 TRUST_BUNDLE_PATH = "/etc/ssl/certs/ca-certificates.crt"
 TRUST_BUNDLE_BYTES = (
@@ -30,6 +31,8 @@ BENCHMARK_REGISTRATION = json.loads((BENCHMARK / "preregistration.json").read_te
 ]
 RUNTIME_PASS_PRODUCER = "4c7bd6a811bbd0cf1ebd357d3ad72abb9127442a"
 RUNTIME_PASS_REVIEW = "2ebf1ad8cb0f5d16b7bcee8e5510f3aed5dc1395"
+SCORING_PASS_PRODUCER = "7596c12291c22a5b4b81a1ab1eb49189318f57de"
+SCORING_PASS_REVIEW = "59c104efefd163d2e4c86e1bd535ac5f7c03f17d"
 RUNTIME_PASS_CANARY_RESULT = (
     "sha256:53d7b376ca90b0dc33db2c53703a63e0700068159b991c8250ce8f1f47fba018"
 )
@@ -114,8 +117,8 @@ def schedule() -> list[dict[str, str]]:
         condition = label.rsplit("-", 1)[0]
         assignments.append(
             {
-                "run_id": f"confirm-run-{index:02d}",
-                "participant_instance_id": f"confirm-sol-{index:02d}",
+                "run_id": f"replacement-run-{index:02d}",
+                "participant_instance_id": f"replacement-sol-{index:02d}",
                 "condition": condition,
                 "packet_root": PACKET_ROOTS[condition],
             }
@@ -164,6 +167,22 @@ def main() -> int:
     OUTPUT = args.output.resolve()
     if OUTPUT.exists():
         raise SystemExit(f"refusing to overwrite existing {OUTPUT}")
+    stopped = json.loads(STOP_RECORD.read_text())
+    stop_root = stopped.get("stop_root")
+    stopped_without_root = dict(stopped)
+    stopped_without_root.pop("stop_root", None)
+    if stop_root != canonical_root(stopped_without_root):
+        raise SystemExit("stopped registration root drifted")
+    if (
+        stopped.get("status") != "stopped_after_one_terminal_harness_non_result"
+        or stopped.get("protected_adjudication_access_count") != 0
+        or stopped.get("score_status") != "not_run_and_forbidden"
+        or len(stopped.get("terminal_runs", [])) != 1
+        or stopped["terminal_runs"][0].get("replacement_denominator_credit")
+        is not False
+        or len(stopped.get("unissued_runs", [])) != 15
+    ):
+        raise SystemExit("stopped registration disposition invalid")
     equivalence = json.loads((BENCHMARK / "input-equivalence.json").read_text())
     if equivalence["condition_packet_roots"] != PACKET_ROOTS:
         raise SystemExit("registered packet roots drifted")
@@ -174,15 +193,53 @@ def main() -> int:
     assignments = schedule()
     seed_commitment = digest(bytes.fromhex(SEED))
     seed_record = {
-        "schema": "vela.inherited-correction-assignment-seed.v2",
+        "schema": "vela.inherited-correction-assignment-seed.v3",
         "generated_by": "openssl rand -hex 32",
         "generated_at": FROZEN_AT,
         "seed_hex": SEED,
         "seed_commitment": seed_commitment,
-        "allocation": "sort eight git-documents-NN and eight vela-NN labels by SHA-256(seed_hex + ':' + label); assign in order to confirm-run-01 through confirm-run-16",
-        "experimental_outputs_observed_before_freeze": 0,
+        "allocation": "sort eight git-documents-NN and eight vela-NN labels by SHA-256(seed_hex + ':' + label); assign in order to replacement-run-01 through replacement-run-16",
+        "replacement_outputs_observed_before_freeze": 0,
+        "stopped_registration_terminal_outputs_observed_before_freeze": 1,
     }
     write(OUTPUT / "assignment-seed.json", seed_record)
+
+    amendment = {
+        "schema": "vela.inherited-correction-validator-amendment.v1",
+        "status": "prospective_replacement_before_any_replacement_call",
+        "frozen_at": FROZEN_AT,
+        "stopped_registration_root": stop_root,
+        "stopped_registration_bytes": digest(STOP_RECORD.read_bytes()),
+        "stopped_terminal_execution_commit": stopped["terminal_execution_commit"],
+        "stopped_terminal_runs_observed": 1,
+        "stopped_terminal_run_id": stopped["terminal_runs"][0]["run_id"],
+        "stopped_terminal_run_status": stopped["terminal_runs"][0]["harness_status"],
+        "stopped_terminal_run_disposition": "sole stopped-registration denominator entry; retained exact; never retried, substituted, scored, or reinterpreted",
+        "stopped_unissued_runs_forbidden": stopped["unissued_runs"],
+        "protected_adjudication_access_count_before_amendment": 0,
+        "replacement_provider_calls_before_amendment": 0,
+        "defect": "default Ajv mode could not compile the exact Draft 2020-12 response schema",
+        "repair": "select ajv/dist/2020.js from the existing locked Ajv 8.17.1 dependency in the actual one-shot entrypoint",
+        "old_image_digest": stopped["image_digest"],
+        "replacement_image_digest": IMAGE,
+        "unchanged": [
+            "response schema",
+            "participant task",
+            "Git/documents packet",
+            "Vela packet",
+            "prompt serialization",
+            "scoring algorithm and positive gate",
+            "gpt-5.6-sol high/default participant",
+            "one prompt and one model turn",
+            "no tools, MCP, web, memory, or plugins",
+            "600-second timeout",
+            "attempt=1 and zero retries or substitutions",
+            "eight sessions per arm",
+        ],
+        "scientific_or_authority_effect": "none",
+    }
+    amendment_root = canonical_root(amendment)
+    write(OUTPUT / "amendment.json", amendment)
 
     response_schema_bytes = digest((ROOT / "response-schema.json").read_bytes())
     strict = strict_overrides()
@@ -202,8 +259,36 @@ def main() -> int:
             if "/node_modules/" not in f"/{item['path']}/"
         ]
     )
+    schema_preflight_dir = OUTPUT / "offline-preflight/schema"
+    schema_preflight_dir.mkdir(parents=True)
+    subprocess.run(
+        [str(RUNTIME / "preflight-schema.sh"), IMAGE, str(schema_preflight_dir)],
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    schema_preflight_receipt = json.loads(
+        (schema_preflight_dir / "receipt.json").read_text()
+    )
+    if schema_preflight_receipt != {
+        "schema": "vela.inherited-correction-schema-preflight.v1",
+        "validator": "ajv/dist/2020.js@8.17.1",
+        "provider_contact_possible": False,
+        "container_network": "none",
+        "cases": {
+            "valid": True,
+            "unknown-field": False,
+            "missing-required": False,
+            "invalid-enum": False,
+            "invalid-shape": False,
+        },
+    }:
+        raise SystemExit("schema preflight receipt invalid")
+    if (schema_preflight_dir / "provider-events.jsonl").read_bytes() != b"":
+        raise SystemExit("schema preflight contacted provider")
+    schema_preflight_root = canonical_root(tree_manifest(schema_preflight_dir))
     scoring_bindings = {
         "benchmark_registration_root": BENCHMARK_REGISTRATION,
+        "validator_amendment_root": amendment_root,
         "benchmark_implementation_bytes": digest(
             (BENCHMARK / "benchmark.py").read_bytes()
         ),
@@ -219,13 +304,16 @@ def main() -> int:
         ),
     }
     registration = {
-        "schema": "vela.inherited-correction-confirmatory-registration.v2",
+        "schema": "vela.inherited-correction-confirmatory-registration.v3",
         "status": "frozen_prelaunch_independent_review_required",
         "frozen_at": FROZEN_AT,
         "benchmark_registration_root": BENCHMARK_REGISTRATION,
+        "validator_amendment_root": amendment_root,
         "runtime_pass_producer_commit": RUNTIME_PASS_PRODUCER,
         "runtime_pass_review_commit": RUNTIME_PASS_REVIEW,
         "runtime_pass_canary_result_root": RUNTIME_PASS_CANARY_RESULT,
+        "scoring_pass_producer_commit": SCORING_PASS_PRODUCER,
+        "scoring_pass_review_commit": SCORING_PASS_REVIEW,
         "f04_blocked_producer_commit": F04_BLOCKED_PRODUCER,
         "f04_blocked_review_commit": F04_BLOCKED_REVIEW,
         "f04_blocked_registration_root": F04_BLOCKED_REGISTRATION,
@@ -238,7 +326,13 @@ def main() -> int:
         "f05_blocked_freeze_root": F05_BLOCKED_FREEZE,
         "f05_blocked_disposition": "terminal held prelaunch evidence; zero calls; prospectively superseded only by capture-bound immutable scoring bytes",
         "prospective_score_snapshot_repair": "buffer and digest-check all 16 capture-bound run and response bytes before protected adjudication access; derive the scored capture root from and score only that immutable snapshot",
+        "stopped_registration_root": stop_root,
+        "stopped_registration_bytes": digest(STOP_RECORD.read_bytes()),
+        "stopped_registration_disposition": "terminal stopped after one harness non-result; run 01 retained as its sole denominator entry; runs 02-16 forbidden; outside replacement denominator",
+        "prospective_validator_repair": "use the locked Ajv 8.17.1 Draft 2020 implementation in the actual one-shot entrypoint; response schema and scientific content unchanged",
+        "schema_preflight_root": schema_preflight_root,
         "image_digest": IMAGE,
+        "image_build_command": "docker build --pull=false --provenance=false",
         "base_image_digest": BASE_IMAGE,
         "runtime_source_root": runtime_source_root,
         "trust_bundle_path": TRUST_BUNDLE_PATH,
@@ -284,7 +378,8 @@ def main() -> int:
         "protected_scoring": "outside participant container; inaccessible until all 16 terminal captures and capture root freeze",
         "scoring_bindings": scoring_bindings,
         "calibration_only_bytes": CALIBRATION_BYTES,
-        "confirmatory_calls_before_freeze": 0,
+        "replacement_confirmatory_calls_before_freeze": 0,
+        "stopped_registration_terminal_calls_disclosed": 1,
         "scientific_or_authority_effect": "none",
     }
     registration_root = canonical_root(registration)
@@ -313,6 +408,7 @@ def main() -> int:
             "image_digest": IMAGE,
             "base_image_digest": BASE_IMAGE,
             "codex_cli_version": "0.149.0",
+            "schema_validator": "ajv/dist/2020.js@8.17.1",
             "authentication": "read-only ChatGPT OAuth auth.json mount into disposable CODEX_HOME",
             "model": "gpt-5.6-sol",
             "reasoning_effort": "high",
@@ -342,7 +438,7 @@ def main() -> int:
         condition_configuration_roots[condition] = canonical_root(configuration)
 
     study_configuration = {
-        "schema": "vela.inherited-correction-fixed-participant-configuration.v2",
+        "schema": "vela.inherited-correction-fixed-participant-configuration.v3",
         "registration_root": registration_root,
         "fixed_across_all_sessions": True,
         "condition_specific_fields": [
@@ -354,6 +450,7 @@ def main() -> int:
         "shared_runtime": {
             "image_digest": IMAGE,
             "codex_cli_version": "0.149.0",
+            "schema_validator": "ajv/dist/2020.js@8.17.1",
             "provider": "openai-chatgpt-oauth-codex",
             "model": "gpt-5.6-sol",
             "reasoning_effort": "high",
@@ -432,10 +529,11 @@ def main() -> int:
     write(OUTPUT / "permit-template/hold-state.json", hold)
 
     freeze = {
-        "schema": "vela.inherited-correction-confirmatory-prelaunch-freeze.v2",
+        "schema": "vela.inherited-correction-confirmatory-prelaunch-freeze.v3",
         "status": "frozen_prelaunch_0_of_16_independent_review_required",
         "frozen_at": FROZEN_AT,
         "benchmark_registration_root": BENCHMARK_REGISTRATION,
+        "validator_amendment_root": amendment_root,
         "registration_root": registration_root,
         "participant_configuration_root": study_configuration_root,
         "condition_runtime_configuration_roots": condition_configuration_roots,
@@ -451,7 +549,11 @@ def main() -> int:
         "trust_bundle_bytes": TRUST_BUNDLE_BYTES,
         "strict_overrides_root": strict_root,
         "scoring_bindings_root": canonical_root(scoring_bindings),
+        "schema_preflight_root": schema_preflight_root,
+        "stopped_registration_root": stop_root,
+        "stopped_registration_bytes": digest(STOP_RECORD.read_bytes()),
         "runtime_pass_review_commit": RUNTIME_PASS_REVIEW,
+        "scoring_pass_review_commit": SCORING_PASS_REVIEW,
         "f04_blocked_review_commit": F04_BLOCKED_REVIEW,
         "f05_blocked_review_commit": F05_BLOCKED_REVIEW,
         "confirmatory_provider_calls": 0,

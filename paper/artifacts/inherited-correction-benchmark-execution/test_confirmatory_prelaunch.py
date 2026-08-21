@@ -13,9 +13,11 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent
-STUDY = ROOT / "confirmatory-study"
+STUDY = ROOT / "confirmatory-replacement-study"
+STOP_RECORD = ROOT / "confirmatory-execution/stopped-registration.json"
 BENCHMARK = ROOT.parent / "inherited-correction-benchmark"
 FREEZER = ROOT / "freeze-confirmatory-prelaunch.py"
+STOP_FREEZER = ROOT / "freeze-stopped-confirmatory.py"
 
 
 def digest(value: bytes) -> str:
@@ -63,14 +65,82 @@ class ConfirmatoryPrelaunchTests(unittest.TestCase):
                 digest(path.read_bytes()),
             )
         canary_freeze = load(ROOT / "neutral-canary-03/prelaunch-freeze.json")
+        canary_registration = load(ROOT / "neutral-canary-03/registration.json")
         registration = load(STUDY / "registration.json")
-        self.assertEqual(registration["image_digest"], canary_freeze["image_digest"])
+        self.assertNotEqual(registration["image_digest"], canary_freeze["image_digest"])
+        self.assertEqual(
+            registration["base_image_digest"],
+            canary_registration["base_image_digest"],
+        )
         self.assertEqual(
             registration["trust_bundle_bytes"], canary_freeze["trust_bundle_bytes"]
         )
         self.assertEqual(
             registration["trust_provenance_root"],
             canary_freeze["trust_provenance_root"],
+        )
+
+    def test_stopped_registration_is_bound_and_outside_replacement(self) -> None:
+        freeze = load(STUDY / "prelaunch-freeze.json")
+        registration = load(STUDY / "registration.json")
+        amendment = load(STUDY / "amendment.json")
+        stopped = load(STOP_RECORD)
+        stop_root = stopped.pop("stop_root")
+        self.assertEqual(stop_root, canonical_root(stopped))
+        amendment_root = canonical_root(amendment)
+        self.assertEqual(freeze["validator_amendment_root"], amendment_root)
+        self.assertEqual(registration["validator_amendment_root"], amendment_root)
+        self.assertEqual(freeze["stopped_registration_root"], stop_root)
+        self.assertEqual(registration["stopped_registration_root"], stop_root)
+        self.assertEqual(stopped["protected_adjudication_access_count"], 0)
+        self.assertEqual(stopped["score_status"], "not_run_and_forbidden")
+        self.assertEqual(len(stopped["terminal_runs"]), 1)
+        self.assertFalse(stopped["terminal_runs"][0]["replacement_denominator_credit"])
+        self.assertEqual(len(stopped["unissued_runs"]), 15)
+        self.assertTrue(stopped["unissued_runs_must_never_launch"])
+        self.assertEqual(
+            {path.name for path in (ROOT / "confirmatory-execution/runs").iterdir()},
+            {"confirm-run-01"},
+        )
+        self.assertEqual(
+            {
+                path.name
+                for path in (ROOT / "confirmatory-execution/captures").iterdir()
+            },
+            {"confirm-run-01"},
+        )
+
+    def test_schema_preflight_is_exact_offline_entrypoint_receipt(self) -> None:
+        freeze = load(STUDY / "prelaunch-freeze.json")
+        directory = STUDY / "offline-preflight/schema"
+        receipt = load(directory / "receipt.json")
+        self.assertEqual(receipt["validator"], "ajv/dist/2020.js@8.17.1")
+        self.assertEqual(
+            receipt["cases"],
+            {
+                "valid": True,
+                "unknown-field": False,
+                "missing-required": False,
+                "invalid-enum": False,
+                "invalid-shape": False,
+            },
+        )
+        self.assertFalse(receipt["provider_contact_possible"])
+        self.assertEqual(receipt["container_network"], "none")
+        self.assertEqual((directory / "provider-events.jsonl").read_bytes(), b"")
+        self.assertEqual(
+            freeze["schema_preflight_root"],
+            canonical_root(
+                [
+                    {
+                        "path": path.relative_to(directory).as_posix(),
+                        "bytes": len(path.read_bytes()),
+                        "sha256": digest(path.read_bytes()),
+                    }
+                    for path in sorted(directory.rglob("*"))
+                    if path.is_file()
+                ]
+            ),
         )
 
     def test_all_frozen_roots_and_files_recompute(self) -> None:
@@ -128,6 +198,18 @@ class ConfirmatoryPrelaunchTests(unittest.TestCase):
         self.assertEqual(len(rows), 16)
         self.assertEqual(len({row["run_id"] for row in rows}), 16)
         self.assertEqual(len({row["participant_instance_id"] for row in rows}), 16)
+        self.assertTrue(
+            all(row["run_id"].startswith("replacement-run-") for row in rows)
+        )
+        self.assertTrue(
+            all(
+                row["participant_instance_id"].startswith("replacement-sol-")
+                for row in rows
+            )
+        )
+        self.assertNotIn(
+            "confirm-sol-01", {row["participant_instance_id"] for row in rows}
+        )
         self.assertEqual(sum(row["condition"] == "git-documents" for row in rows), 8)
         self.assertEqual(sum(row["condition"] == "vela" for row in rows), 8)
         self.assertEqual(
@@ -216,7 +298,7 @@ class ConfirmatoryPrelaunchTests(unittest.TestCase):
 
     def test_isolated_regeneration_is_byte_exact(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            output = Path(temporary) / "confirmatory-study"
+            output = Path(temporary) / "confirmatory-replacement-study"
             subprocess.run(
                 ["python3", str(FREEZER), "--output", str(output)],
                 check=True,
@@ -233,6 +315,16 @@ class ConfirmatoryPrelaunchTests(unittest.TestCase):
                 if path.is_file()
             }
             self.assertEqual(regenerated, committed)
+
+    def test_stopped_record_regeneration_is_byte_exact(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "stopped-registration.json"
+            subprocess.run(
+                ["python3", str(STOP_FREEZER), "--output", str(output)],
+                check=True,
+                capture_output=True,
+            )
+            self.assertEqual(output.read_bytes(), STOP_RECORD.read_bytes())
 
 
 if __name__ == "__main__":

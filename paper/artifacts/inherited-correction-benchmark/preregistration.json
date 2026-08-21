@@ -25,8 +25,8 @@
     "public_facts_bytes": "sha256:8ce51888eef75883ba238cb06faf21f7d324ed3b1a73bc244ba9e22b2e589e42",
     "public_facts_root": "sha256:fe8b3363ec9a8305743ca55144a59885a73623b712a32fe0c9050227350bac2a",
     "response_template_root": "sha256:78d4d59eedf87b612be8c7845546baebd2a9c85d56aa92f7084c255550c4972b",
-    "runtime_custody_bridge_bytes": "sha256:06b1501911fbb351ea6285f3bcd3a354b06b7e2dce1f4ea23536883aeff7be8b",
-    "runtime_custody_tests_bytes": "sha256:239009922dd7580ee3b117de8ee335429af5b4b02a054ac481ff75765ca56c77"
+    "runtime_custody_bridge_bytes": "sha256:a4e0ecc3c5d9497ef2046168637802dd1ec90a01cc6f8db69fd7ec4dee20232d",
+    "runtime_custody_tests_bytes": "sha256:1e92e7b610901730c8c562b37e5d61e03ca33ba71d3d658c956e7c468d4c73ea"
   },
   "conditions": [
     {
@@ -107,7 +107,7 @@
     "result_access_before_amendment": "none"
   },
   "registered_at": "2026-08-21T00:00:00Z",
-  "registration_root": "sha256:a18f067652883680b39aea269e66fb4a833b8466790d7031abf2e4ab3748a3d2",
+  "registration_root": "sha256:a8b4b729e7b2be4f371d4831caa9214959514cb51222da9e422b0634c408a575",
   "schema": "vela.inherited-correction-preregistration.v1",
   "scoring_freeze": {
     "adjudication_access": "Only after all 16 responses, run records, packet roots, durations, and tool counts are frozen into capture-manifest.json.",

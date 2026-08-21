@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent
-STUDY = ROOT / "confirmatory-study"
+STUDY = ROOT / "confirmatory-replacement-study"
 BENCHMARK = ROOT.parent / "inherited-correction-benchmark"
 RUNTIME = ROOT / "container-runtime"
 CONDITIONS = ("git-documents", "vela")
@@ -113,6 +113,25 @@ def static_state() -> dict[str, Any]:
     registration = load(STUDY / "registration.json")
     if freeze.get("registration_root") != canonical_root(registration):
         raise CustodyError("prelaunch_registration_root_mismatch")
+    amendment = load(STUDY / "amendment.json")
+    amendment_root = canonical_root(amendment)
+    if (
+        freeze.get("validator_amendment_root") != amendment_root
+        or registration.get("validator_amendment_root") != amendment_root
+    ):
+        raise CustodyError("prelaunch_validator_amendment_root_mismatch")
+    stopped = load(ROOT / "confirmatory-execution/stopped-registration.json")
+    stopped_root = stopped.pop("stop_root", None)
+    if (
+        stopped_root != canonical_root(stopped)
+        or freeze.get("stopped_registration_root") != stopped_root
+        or registration.get("stopped_registration_root") != stopped_root
+        or stopped.get("protected_adjudication_access_count") != 0
+        or stopped.get("score_status") != "not_run_and_forbidden"
+        or len(stopped.get("terminal_runs", [])) != 1
+        or len(stopped.get("unissued_runs", [])) != 15
+    ):
+        raise CustodyError("prelaunch_stopped_registration_invalid")
     scoring_bindings = registration.get("scoring_bindings")
     if not isinstance(scoring_bindings, dict):
         raise CustodyError("prelaunch_scoring_bindings_missing")
@@ -215,6 +234,7 @@ def static_state() -> dict[str, Any]:
             "model": "gpt-5.6-sol",
             "reasoning_effort": "high",
             "service_tier": "default",
+            "schema_validator": "ajv/dist/2020.js@8.17.1",
             "tools": "none",
             "one_prompt": True,
             "one_model_turn": True,

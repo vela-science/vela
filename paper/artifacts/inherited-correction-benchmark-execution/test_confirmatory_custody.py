@@ -182,8 +182,8 @@ class ConfirmatoryCustodyTests(unittest.TestCase):
     def test_valid_capture_ingests_only_through_bridge(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             base = Path(temporary)
-            capture = make_capture(base / "capture", "confirm-run-01")
-            run_dir = custody.ingest(capture, base / "runs", "confirm-run-01")
+            capture = make_capture(base / "capture", "replacement-run-01")
+            run_dir = custody.ingest(capture, base / "runs", "replacement-run-01")
             validated = custody.validate_ingested_run(run_dir)
             self.assertEqual(
                 validated["record"]["schema"], "vela.inherited-correction-run.v2"
@@ -199,24 +199,29 @@ class ConfirmatoryCustodyTests(unittest.TestCase):
         cases = ("missing_receipt", "unconsumed", "wrong_permit")
         for case in cases:
             with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
-                capture = make_capture(Path(temporary) / "capture", "confirm-run-01")
+                capture = make_capture(
+                    Path(temporary) / "capture", "replacement-run-01"
+                )
                 if case == "missing_receipt":
                     (capture / "evidence/terminal-receipt.json").unlink()
                     error = "runtime_evidence_missing"
                 elif case == "unconsumed":
-                    consumed = capture / "permit/confirm-run-01.permit.consumed.json"
-                    consumed.rename(capture / "permit/confirm-run-01.permit.json")
+                    consumed = (
+                        capture / "permit/replacement-run-01.permit.consumed.json"
+                    )
+                    consumed.rename(capture / "permit/replacement-run-01.permit.json")
                     error = "runtime_permit_not_atomically_consumed"
                 else:
                     source = (
-                        custody.STUDY / "permit-template/confirm-run-02.permit.json"
+                        custody.STUDY / "permit-template/replacement-run-02.permit.json"
                     )
                     shutil.copyfile(
-                        source, capture / "permit/confirm-run-01.permit.consumed.json"
+                        source,
+                        capture / "permit/replacement-run-01.permit.consumed.json",
                     )
                     error = "runtime_consumed_permit_drift"
                 with self.assertRaisesRegex(custody.CustodyError, error):
-                    custody.validate_capture(capture, "confirm-run-01")
+                    custody.validate_capture(capture, "replacement-run-01")
 
     def test_wrong_roots_fail_closed(self) -> None:
         mutations = {
@@ -231,12 +236,14 @@ class ConfirmatoryCustodyTests(unittest.TestCase):
         }
         for field, value in mutations.items():
             with self.subTest(field=field), tempfile.TemporaryDirectory() as temporary:
-                capture = make_capture(Path(temporary) / "capture", "confirm-run-01")
+                capture = make_capture(
+                    Path(temporary) / "capture", "replacement-run-01"
+                )
                 mutate_json(capture / "evidence/terminal-receipt.json", field, value)
                 with self.assertRaisesRegex(
                     custody.CustodyError, "runtime_receipt_binding"
                 ):
-                    custody.validate_capture(capture, "confirm-run-01")
+                    custody.validate_capture(capture, "replacement-run-01")
 
     def test_mapping_missing_unknown_or_drifted_fails_closed(self) -> None:
         for case in ("missing", "unknown", "drifted"):
@@ -273,7 +280,9 @@ class ConfirmatoryCustodyTests(unittest.TestCase):
         cases = ("events", "response", "time", "status", "usage", "attempt", "timeout")
         for case in cases:
             with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
-                capture = make_capture(Path(temporary) / "capture", "confirm-run-01")
+                capture = make_capture(
+                    Path(temporary) / "capture", "replacement-run-01"
+                )
                 receipt_path = capture / "evidence/terminal-receipt.json"
                 if case == "events":
                     path = capture / "evidence/provider-events.jsonl"
@@ -314,13 +323,13 @@ class ConfirmatoryCustodyTests(unittest.TestCase):
                     receipt_path.write_bytes(custody.encoded(receipt))
                     error = "provider_usage_invalid"
                 with self.assertRaisesRegex(custody.CustodyError, error):
-                    custody.validate_capture(capture, "confirm-run-01")
+                    custody.validate_capture(capture, "replacement-run-01")
 
     def test_provider_failure_and_timeout_are_retained_without_retry(self) -> None:
         for case in ("failure", "timeout"):
             with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
                 base = Path(temporary)
-                capture = make_capture(base / "capture", "confirm-run-01")
+                capture = make_capture(base / "capture", "replacement-run-01")
                 receipt_path = capture / "evidence/terminal-receipt.json"
                 receipt = custody.load(receipt_path)
                 receipt["status"] = "non_result"
@@ -340,7 +349,7 @@ class ConfirmatoryCustodyTests(unittest.TestCase):
                     receipt["response_bytes"] = None
                     expected = "timed_out"
                 receipt_path.write_bytes(custody.encoded(receipt))
-                run_dir = custody.ingest(capture, base / "runs", "confirm-run-01")
+                run_dir = custody.ingest(capture, base / "runs", "replacement-run-01")
                 validated = custody.validate_ingested_run(run_dir)
                 self.assertEqual(validated["record"]["status"], expected)
                 self.assertFalse((run_dir / "response.json").exists())
@@ -377,11 +386,11 @@ class ConfirmatoryCustodyTests(unittest.TestCase):
                 def verify_then_mutate(runs_dir: Path):
                     capture = original_verify(runs_dir)
                     if case == "run":
-                        path = runs_dir / "confirm-run-01/run.json"
+                        path = runs_dir / "replacement-run-01/run.json"
                         value = benchmark.load_json(path)
                         value["tool_calls"] = 1
                     else:
-                        path = runs_dir / "confirm-run-01/response.json"
+                        path = runs_dir / "replacement-run-01/response.json"
                         value = benchmark.load_json(path)
                         value["consequences"][0]["action_code"] = (
                             "no_correction_reassessment"
@@ -415,16 +424,18 @@ class ConfirmatoryCustodyTests(unittest.TestCase):
             base = Path(temporary)
             runs = base / "runs"
             custody.ingest(
-                make_capture(base / "capture", "confirm-run-01"),
+                make_capture(base / "capture", "replacement-run-01"),
                 runs,
-                "confirm-run-01",
+                "replacement-run-01",
             )
             with self.assertRaisesRegex(custody.CustodyError, "fixed_denominator"):
                 custody.complete_custody(runs)
             duplicate = base / "duplicate"
-            shutil.copytree(runs / "confirm-run-01", duplicate / "confirm-run-02")
+            shutil.copytree(
+                runs / "replacement-run-01", duplicate / "replacement-run-02"
+            )
             with self.assertRaises(custody.CustodyError):
-                custody.validate_ingested_run(duplicate / "confirm-run-02")
+                custody.validate_ingested_run(duplicate / "replacement-run-02")
         with tempfile.TemporaryDirectory() as temporary:
             runs = Path(temporary)
             prereg = benchmark.load_json(benchmark.PREREG_PATH)

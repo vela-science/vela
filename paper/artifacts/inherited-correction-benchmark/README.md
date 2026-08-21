@@ -52,9 +52,17 @@ which regenerates those bytes in memory and rejects drift.
 
 ## Confirmatory capture protocol
 
-The separate confirmatory registration records the user's bounded execution
-authorization, but every permit remains held pending exact independent
-prelaunch PASS. The retired `start`/`finish` path cannot create a scorable run.
+The first confirmatory registration stopped after one terminal harness
+non-result: its pinned default Ajv mode could not compile the registered Draft
+2020-12 response schema. That response, receipt, and bridge record remain exact
+under `confirmatory-execution/`; `stopped-registration.json` forbids its other
+fifteen runs and records zero adjudication access and no score.
+
+The prospective replacement registration uses the same locked Ajv dependency's
+2020 implementation in the actual one-shot entrypoint. It has a fresh seed,
+participants, assignments, image, and permits. Every replacement permit remains
+held pending exact independent prelaunch PASS. The retired `start`/`finish` path
+cannot create a scorable run.
 After one authorized one-shot container attempt is terminal, the only ingest
 path is:
 

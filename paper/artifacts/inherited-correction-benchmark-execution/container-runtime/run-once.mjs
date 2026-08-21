@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import Ajv from "ajv";
+import Ajv2020 from "ajv/dist/2020.js";
 import { createHash } from "node:crypto";
 import { readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
@@ -25,6 +25,15 @@ const root = (value) => sha(Buffer.from(canonical(value), "utf8"));
 const writeExclusive = (name, data) => writeFileSync(join("/evidence", name), data, { flag: "wx", mode: 0o600 });
 const now = () => new Date().toISOString();
 const TRUST_BUNDLE_PATH = "/etc/ssl/certs/ca-certificates.crt";
+
+function compileResponseSchema(schema) {
+  return new Ajv2020({ allErrors: true, strict: true }).compile(schema);
+}
+
+function validateResponseAgainstSchema(schema, response) {
+  const validate = compileResponseSchema(schema);
+  return { valid: validate(response), errors: validate.errors };
+}
 
 function fail(message) {
   process.stderr.write(`${message}\n`);
@@ -156,7 +165,7 @@ async function main() {
     eventReceipt = inspectEvents(eventBytes);
     const response = JSON.parse(bytes(outputPath).toString("utf8"));
     const schema = JSON.parse(schemaBytes.toString("utf8"));
-    const validate = new Ajv({ allErrors: true, strict: true }).compile(schema);
+    const validate = compileResponseSchema(schema);
     if (!validate(response)) throw new Error(`response_schema:${JSON.stringify(validate.errors)}`);
     if (config.expected_response_root && config.expected_response_root !== root(response)) throw new Error("expected_response_root");
     const retained = Buffer.concat([eventBytes, stderrBytes, bytes(outputPath)]).toString("utf8");
@@ -189,4 +198,4 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   main().catch(error => fail(String(error.message || error)));
 }
 
-export { forbiddenEvent, inspectEvents, root, sha, verifyBindings };
+export { compileResponseSchema, forbiddenEvent, inspectEvents, root, sha, validateResponseAgainstSchema, verifyBindings };

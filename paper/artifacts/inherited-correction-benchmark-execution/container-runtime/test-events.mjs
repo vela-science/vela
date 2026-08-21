@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { forbiddenEvent, inspectEvents } from "./run-once.mjs";
+import { readFileSync } from "node:fs";
+import { forbiddenEvent, inspectEvents, validateResponseAgainstSchema } from "./run-once.mjs";
 
 const stream = (item, usage = { input_tokens: 90000, cached_input_tokens: 80000, output_tokens: 100, reasoning_output_tokens: 20 }) => Buffer.from([
   JSON.stringify({ type: "thread.started", thread_id: "test" }),
@@ -19,5 +20,12 @@ assert.throws(() => inspectEvents(Buffer.from(stream({ id: "one", type: "agent_m
 assert.equal(forbiddenEvent({ type: "item.started", item: { type: "apply_patch" } }), true);
 assert.equal(forbiddenEvent({ type: "turn.compacted" }), true);
 assert.equal(forbiddenEvent({ type: "item.completed", item: { type: "agent_message" } }), false);
+
+const fixture = name => JSON.parse(readFileSync(new URL(`./schema-fixtures/${name}.json`, import.meta.url), "utf8"));
+const schema = JSON.parse(readFileSync(new URL("../response-schema.json", import.meta.url), "utf8"));
+assert.equal(validateResponseAgainstSchema(schema, fixture("valid")).valid, true);
+for (const name of ["unknown-field", "missing-required", "invalid-enum", "invalid-shape"]) {
+  assert.equal(validateResponseAgainstSchema(schema, fixture(name)).valid, false, name);
+}
 
 process.stdout.write("event contract tests passed\n");

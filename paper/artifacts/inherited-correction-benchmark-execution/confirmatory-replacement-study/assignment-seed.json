@@ -1,0 +1,10 @@
+{
+  "allocation": "sort eight git-documents-NN and eight vela-NN labels by SHA-256(seed_hex + ':' + label); assign in order to replacement-run-01 through replacement-run-16",
+  "generated_at": "2026-08-21T19:21:13Z",
+  "generated_by": "openssl rand -hex 32",
+  "replacement_outputs_observed_before_freeze": 0,
+  "schema": "vela.inherited-correction-assignment-seed.v3",
+  "seed_commitment": "sha256:46aed8a87244d03f7edb8347cc0c7edf114c9c626d0595d80fbc46b92b0059c3",
+  "seed_hex": "f36aef6ede45ec476d8a1b1a0613efaa42d3e202fa51335a3ae9845bf20d61f5",
+  "stopped_registration_terminal_outputs_observed_before_freeze": 1
+}

@@ -21,7 +21,8 @@ RUN npm install --global --omit=dev --ignore-scripts @openai/codex@0.149.0
 WORKDIR /opt/vela-runner
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
-COPY run-once.mjs strict-config.mjs strict-preflight.mjs trust-preflight.mjs ./
+COPY run-once.mjs schema-preflight.mjs strict-config.mjs strict-preflight.mjs trust-preflight.mjs ./
+COPY schema-fixtures ./schema-fixtures
 
 RUN useradd --create-home --uid 10001 participant \
     && mkdir -p /work /input /permit /evidence /codex-home \

@@ -19,6 +19,7 @@ RUNTIME = ROOT / "container-runtime"
 IMAGE_01 = "sha256:0ce56e0a4d72dc6ab26cdfcfc1d0280ac0c419dd687e26dda9312d4a09257285"
 IMAGE_02 = "sha256:13b753749787d68d628cea899f6b9875c0fc51c43877599b9aabf2009fe83388"
 IMAGE_03 = "sha256:6274d83356076640d6e4bc810b97d37ac2d1b5ab02546dd7c2ebed16f915b547"
+IMAGE_04 = "sha256:1dee2374077c83e3dbdb2e09d32ef4fa3a414d200b800839857353e13d3c4e09"
 TRUST_BUNDLE = "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5"
 
 
@@ -327,6 +328,35 @@ class RuntimeTests(unittest.TestCase):
         self.assertIn('if [ "$#" -ne 6 ] || [ "$1" != "--run-id" ]', launcher)
         self.assertIn("SSL_CERT_FILE: TRUST_BUNDLE_PATH", runner)
         self.assertIn("config.trust_bundle_bytes !== sha(trustBundleBytes)", runner)
+
+    def test_exact_confirmatory_schema_uses_draft_2020_validator(self) -> None:
+        runner = (RUNTIME / "run-once.mjs").read_text()
+        self.assertIn('import Ajv2020 from "ajv/dist/2020.js"', runner)
+        self.assertIn("new Ajv2020({ allErrors: true, strict: true })", runner)
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            subprocess.run(
+                [str(RUNTIME / "preflight-schema.sh"), IMAGE_04, str(output)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            receipt = load(output / "receipt.json")
+            self.assertEqual(receipt["validator"], "ajv/dist/2020.js@8.17.1")
+            self.assertEqual(
+                receipt["cases"],
+                {
+                    "valid": True,
+                    "unknown-field": False,
+                    "missing-required": False,
+                    "invalid-enum": False,
+                    "invalid-shape": False,
+                },
+            )
+            self.assertFalse(receipt["provider_contact_possible"])
+            self.assertEqual(receipt["container_network"], "none")
+            self.assertEqual((output / "provider-events.jsonl").read_bytes(), b"")
+            self.assertEqual((output / "stderr.txt").read_bytes(), b"")
 
     def test_default_hold_and_binding_failure_do_not_consume(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

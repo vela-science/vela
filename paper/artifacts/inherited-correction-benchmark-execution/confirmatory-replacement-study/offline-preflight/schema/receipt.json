@@ -1,0 +1,13 @@
+{
+  "schema": "vela.inherited-correction-schema-preflight.v1",
+  "validator": "ajv/dist/2020.js@8.17.1",
+  "provider_contact_possible": false,
+  "container_network": "none",
+  "cases": {
+    "valid": true,
+    "unknown-field": false,
+    "missing-required": false,
+    "invalid-enum": false,
+    "invalid-shape": false
+  }
+}
