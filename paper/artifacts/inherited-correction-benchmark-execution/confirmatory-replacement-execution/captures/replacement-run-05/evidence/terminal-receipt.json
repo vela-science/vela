@@ -1,0 +1,41 @@
+{
+  "schema": "vela.inherited-correction-terminal-receipt.v1",
+  "run_id": "replacement-run-05",
+  "condition": "git-documents",
+  "participant_instance_id": "replacement-sol-05",
+  "attempt": 1,
+  "status": "completed",
+  "validation_error": null,
+  "provider_started_at": "2026-08-21T19:44:37.943Z",
+  "provider_completed_at": "2026-08-21T19:44:49.450Z",
+  "duration_seconds": 11.479974214,
+  "timeout_seconds": 600,
+  "process_exit_code": 0,
+  "process_timed_out": false,
+  "registration_root": "sha256:988326b2f9ef7232795a73070823993251fa0481450a792b51905ce85d7e31b4",
+  "image_digest": "sha256:1dee2374077c83e3dbdb2e09d32ef4fa3a414d200b800839857353e13d3c4e09",
+  "participant_configuration_root": "sha256:06bd82bdf59e48df0103400e0b04e51e04a943b9887d188130c80fb914217f1a",
+  "assignment_root": "sha256:c17d9b6860f6fb9f4aba352864ac66db0ad8f87f19d01ac14103f8fdf7a16c64",
+  "trust_bundle_bytes": "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5",
+  "prompt_root": "sha256:430b48e3e11a202ab4f8d9c41f6bc89dd682b2e18ef180cfc69545bbfd74cbbe",
+  "packet_root": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+  "provider_events_bytes": "sha256:7d2dd2f8bad3c73d15bf91ded1a4baba8d6db445e234fe51825e999de9e24c97",
+  "provider_stderr_bytes": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "response_bytes": "sha256:6fe0a1e42c86e2dddd86145d6f042cb6850e50021c30df3ee15b7ac64bc2c9bb",
+  "event_receipt": {
+    "usage": {
+      "input_tokens": 19335,
+      "cached_input_tokens": 0,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 471,
+      "reasoning_output_tokens": 232
+    },
+    "event_count": 4,
+    "response_count": 1,
+    "tool_calls": 0,
+    "turn_count": 1,
+    "compactions": 0
+  },
+  "cumulative_provider_usage_is_telemetry_only": true,
+  "credential_retained": false
+}

@@ -1,0 +1,6 @@
+{
+  "reason": "coordinator release for exact replacement-run-05 only after replacement-run-04 terminal custody freeze fa56a6056d50eab7ae984c3406db6c1b2e480c39",
+  "schema": "vela.inherited-correction-hold.v1",
+  "status": "release",
+  "updated_at": "2026-08-21T19:44:23Z"
+}

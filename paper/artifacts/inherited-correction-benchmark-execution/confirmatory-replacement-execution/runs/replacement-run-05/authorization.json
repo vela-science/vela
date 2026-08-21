@@ -1,0 +1,93 @@
+{
+  "assignment_seed_commitment": "sha256:46aed8a87244d03f7edb8347cc0c7edf114c9c626d0595d80fbc46b92b0059c3",
+  "assignments": [
+    {
+      "condition": "vela",
+      "participant_instance_id": "replacement-sol-01",
+      "run_id": "replacement-run-01"
+    },
+    {
+      "condition": "git-documents",
+      "participant_instance_id": "replacement-sol-02",
+      "run_id": "replacement-run-02"
+    },
+    {
+      "condition": "vela",
+      "participant_instance_id": "replacement-sol-03",
+      "run_id": "replacement-run-03"
+    },
+    {
+      "condition": "git-documents",
+      "participant_instance_id": "replacement-sol-04",
+      "run_id": "replacement-run-04"
+    },
+    {
+      "condition": "git-documents",
+      "participant_instance_id": "replacement-sol-05",
+      "run_id": "replacement-run-05"
+    },
+    {
+      "condition": "vela",
+      "participant_instance_id": "replacement-sol-06",
+      "run_id": "replacement-run-06"
+    },
+    {
+      "condition": "git-documents",
+      "participant_instance_id": "replacement-sol-07",
+      "run_id": "replacement-run-07"
+    },
+    {
+      "condition": "git-documents",
+      "participant_instance_id": "replacement-sol-08",
+      "run_id": "replacement-run-08"
+    },
+    {
+      "condition": "vela",
+      "participant_instance_id": "replacement-sol-09",
+      "run_id": "replacement-run-09"
+    },
+    {
+      "condition": "vela",
+      "participant_instance_id": "replacement-sol-10",
+      "run_id": "replacement-run-10"
+    },
+    {
+      "condition": "git-documents",
+      "participant_instance_id": "replacement-sol-11",
+      "run_id": "replacement-run-11"
+    },
+    {
+      "condition": "git-documents",
+      "participant_instance_id": "replacement-sol-12",
+      "run_id": "replacement-run-12"
+    },
+    {
+      "condition": "git-documents",
+      "participant_instance_id": "replacement-sol-13",
+      "run_id": "replacement-run-13"
+    },
+    {
+      "condition": "vela",
+      "participant_instance_id": "replacement-sol-14",
+      "run_id": "replacement-run-14"
+    },
+    {
+      "condition": "vela",
+      "participant_instance_id": "replacement-sol-15",
+      "run_id": "replacement-run-15"
+    },
+    {
+      "condition": "vela",
+      "participant_instance_id": "replacement-sol-16",
+      "run_id": "replacement-run-16"
+    }
+  ],
+  "authorized_at": "2026-08-21T19:21:13Z",
+  "authorized_by": "user via coordinator task 01a024dc-f015-7950-be0f-181931282ebc",
+  "max_sessions": 16,
+  "participant_class": "gpt-5.6-sol high/default through pinned Codex 0.149.0 OAuth container runtime",
+  "participant_configuration_root": "sha256:f808a660fc663245cf67c298cf1ff53a4b35402fd704e1281d03a83d567319ff",
+  "registration_root": "sha256:a8b4b729e7b2be4f371d4831caa9214959514cb51222da9e422b0634c408a575",
+  "schema": "vela.inherited-correction-run-authorization.v1",
+  "status": "authorized"
+}
