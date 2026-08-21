@@ -1,0 +1,72 @@
+{
+  "schema": "vela.independent-inherited-correction-held-out-schema-replacement-verdict.v1",
+  "review_id": "inherited-correction-held-out-schema-replacement-2026-08-21",
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/inherited-correction-study",
+    "producer_commit": "3f4d61c248a43a94d09e0d848693101dd1841aa0",
+    "producer_tree": "3553ff7270b479e93a99515aec7cfc54cf30f15f",
+    "parent_commit": "d3bff9206609c53a0dc9b2ef7f85bbdc894a9904"
+  },
+  "verdict": "BLOCKED",
+  "failed_gates": [
+    {
+      "id": "G08_deterministic_runtime_custody",
+      "finding": "F08",
+      "summary": "A clean build of the exact frozen runtime source does not reproduce the OCI image digest bound by the registration and launch permits."
+    }
+  ],
+  "finding": {
+    "id": "F08",
+    "title": "Frozen OCI image digest is not clean-build reproducible",
+    "build_command": "docker build --no-cache --provenance=false --pull=false -t vela-schemafix-review-nocache paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2",
+    "registered_image_digest": "sha256:bc37c2759cb75acc54d998c22c17b542097019e892262be9b30a8d6c68396efe",
+    "clean_rebuild_image_digest": "sha256:c50b70faf41008ed3519a5d87baded3bbbd806462ef5514a47b2c7ad171317a1",
+    "base_layers_equal": true,
+    "custom_layers_equal": false,
+    "experimental_output_observed": false
+  },
+  "bindings": {
+    "registration_root": "sha256:7b6a8675c81431d19c690d8a16efacb0502116d3dc912514027d3d7096933d09",
+    "assignment_root": "sha256:f436ab1b9f621fe83a7c0f10f0bee9b3cd9910c1ca563ad99f97064ab7be37a8",
+    "runtime_root": "sha256:fa0e74191ce9ef7d4b82cadc77f57437c3b1ab62be4acd29e93d967aee12c2e0",
+    "registered_response_schema_bytes": "sha256:ac96be686e749792956dfa1dfe9560f85c53d55c27fe2e8fd32bcc2a96a634ba",
+    "provider_response_schema_bytes": "sha256:896f242086805d3b51e81ed04e6d50f33eb2b7deb71b7a1689e9abeba3b67eaf",
+    "participant_configuration_root": "sha256:37f7a1c0a374ed1fa076d1e9d16819494e72ff7975d47da8791ef7c9a75e2ffb",
+    "permit_set_root": "sha256:df4763f7ad7a944ad5a4bbaa35e055596fe583cb6a26d578a146a85a3ba44f19",
+    "prelaunch_root": "sha256:1c069f0ef56308dd9a540451a4194410c4f15cc16704de520f0147a4118da513",
+    "artifact_root": "sha256:b992c8b7f47bf0debbb3a3f5a9cffdd4f89023713145d5a135a16cceaaeef586"
+  },
+  "otherwise_passed_evidence": [
+    "remote commit, tree, parent, and additive-only scope",
+    "stopped original remains byte-exact at 1/36 with runs 02-36 forbidden",
+    "provider schema deletes exactly evidence_bindings.uniqueItems",
+    "registered schema remains byte-exact and locked local Ajv plus benchmark uniqueness fail closed",
+    "custody binds and rejects drift in both schema byte digests",
+    "fresh seed, non-reused IDs, balanced assignment, 36 held participant permits, and one separately held neutral calibration permit",
+    "participant packets, prompts, facts, model, timeout, and gates unchanged",
+    "isolated byte-exact regeneration and CPython 3.10-3.14 verification",
+    "zero replacement provider calls, protected-key access, scoring, and permit consumption"
+  ],
+  "prelaunch_qualified": false,
+  "neutral_calibration_permit_release_authorized_by_review": false,
+  "participant_permit_release_authorized_by_review": false,
+  "participant_launch_authorized_by_review": false,
+  "authority_effect": "none",
+  "experimental_status": {
+    "required_sessions": 36,
+    "executed_sessions": 0,
+    "result": "not_run",
+    "participant_permits_consumed": 0,
+    "participant_hold_status": "hold",
+    "neutral_calibration_permit_consumed": 0,
+    "neutral_calibration_hold_status": "hold",
+    "protected_key_accesses": 0,
+    "scoring_runs": 0
+  },
+  "minimal_repair": "Make the runtime image digest reproducible from a clean build, bind the corrected image/runtime identity, regenerate all dependent held roots and permits at 0/36, and submit the immutable repair for independent re-review.",
+  "nonclaims": [
+    "This verdict does not authorize a calibration or participant permit release, provider call, inference, scoring, or protected-key access.",
+    "This verdict does not authorize a merge or establish lift, scientific acceptance, Protocol/Core validity, authority, Standing, or a Decision effect."
+  ]
+}
