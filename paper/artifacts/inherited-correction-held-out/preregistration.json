@@ -1,0 +1,99 @@
+{
+  "bindings": {
+    "adjudication_commitment": {
+      "adjudication_root": null,
+      "answer_bytes_present_in_producer_artifact": false,
+      "required_before_permit_release": true,
+      "schema": "vela.inherited-correction-held-out-adjudication-commitment.v1",
+      "status": "pending_independent_evaluator_freeze"
+    },
+    "assignment_plan_root": "sha256:c4766ba7692a839f26d643ae2c9afdf31f1af8021fc7805ab0c89ca125006df7",
+    "assignment_seed_commitment": "sha256:0e84fc038d88c80ffb422bd50c27162cd3be67426d48f868d19ddbcc3ad48bb9",
+    "benchmark_bytes": "sha256:73cd849738ad52b6452d0142d2038483cb78196c3863b802d6d37dd0f1f89db7",
+    "custody_bytes": "sha256:ea0026c7b5064cf3acb5afc00abdc7ed72d481b21a4501cd0a0b30f84c6f1b9a",
+    "equivalence_root": "sha256:12904756aa4683934eb925ae856d6afd50897dc1d855f3b55ce4e51ce6391bc1",
+    "packet_roots": {
+      "method-version-correction": {
+        "git-documents": "sha256:3dbabf9a56f3f30a7cb368aa059766fbed16ec5647903493d5135dd14c147c10",
+        "state-wrapper": "sha256:12900bf1ddcd06ce2c5dddbcb1bcabe8a02548a43b95097cbe916a541b2c9b12",
+        "vela": "sha256:076e4acac58d1dddba30e3e35d9536a644642ab2b10f45d43358e641f1fe0381"
+      },
+      "provenance-revocation": {
+        "git-documents": "sha256:5e3983b3a5e8fefdff5bf0abc1a9db1216ec97dd2a0401a13f49ff4f1fea9c64",
+        "state-wrapper": "sha256:544936885c62f00b297aa712f2a278f326b74d88d453d7965d0376c0c88374ae",
+        "vela": "sha256:f12d8d0898f7c9e81ec2855c724a1d37c807afefccd9da20886e17c2eb34ef75"
+      },
+      "taxonomy-remap": {
+        "git-documents": "sha256:ac0d9bf28ad6eb291cdf98c969ab9a3c425f49dcd9648ab1703fe745dc100a74",
+        "state-wrapper": "sha256:bbe1233c52197b76199ad355f5281093f8b3ec16a14807c645241f814445bfbc",
+        "vela": "sha256:7bef1b55dc0c32934dfa1f08ab5765d56de8f96ca7088b20df32956f8f1f18ba"
+      }
+    },
+    "participant_configuration_root": "sha256:3d2e281d23aa5160ac2f83bf4dc9e69698211d26bd0843ccfaf26e5c5055fc84",
+    "prompt_roots": {
+      "method-version-correction": {
+        "git-documents": "sha256:0cdb1987b360859a756ae60dfeec363b5e13cd1f5bf217e903d07c4f692e8033",
+        "state-wrapper": "sha256:7b9787742269c571bad07e3cff7043cf1fe378cd13bbee28fb77624bcd5fc71c",
+        "vela": "sha256:a6893d7fcfeb4fb477824598cf93c285f5c472eb03f9137aa6c8fa9c8d0bb984"
+      },
+      "provenance-revocation": {
+        "git-documents": "sha256:7ea3e9f06623b70d4ad0eb29e0140b8fa7d499d1fbddb69787149f6399b8685e",
+        "state-wrapper": "sha256:cc8ed4a4f06fc0a79a84cc731afc5d758716cd78c87f98f9b5453d201d87cd9b",
+        "vela": "sha256:28ac36a3af7a55016c82f964fc2189d73520a5f2ba99887c9fcae3602166136f"
+      },
+      "taxonomy-remap": {
+        "git-documents": "sha256:d986b56f435b2d588820a47b1496f8198adcb34ddf0a102f50db3f2c8aab9f2e",
+        "state-wrapper": "sha256:7fb4318687b6bafae10b94905a3cd727fcc640300d9577fafd30de485ec6c91b",
+        "vela": "sha256:de4aaa6b139d4401bab048fa4f551b910eea7143356fd97919893539820cdd7f"
+      }
+    },
+    "response_schema_bytes": "sha256:ac96be686e749792956dfa1dfe9560f85c53d55c27fe2e8fd32bcc2a96a634ba",
+    "runtime_root": "sha256:34188b459164493ad587adb7cbde4f35db5bfe2ba8c165b6d4413111f4a1ae27",
+    "task_bytes": "sha256:df1d1aab35634b5cc732cfe098530336cbb234a85388817d0d323dc5fe7eef1b",
+    "test_bytes": "sha256:a692c24e97fc20772d1db70485060fdf81cab277ec9e58c6f27dba31905f8222"
+  },
+  "claim_ceiling": "A passing result would be bounded descriptive evidence for these synthetic families only, not scientific acceptance, general productivity, or authority.",
+  "design": {
+    "attempt": 1,
+    "conditions": [
+      "git-documents",
+      "state-wrapper",
+      "vela"
+    ],
+    "sessions": 36,
+    "sessions_per_family_condition": 4,
+    "timeout_seconds": 600,
+    "zero_retries_substitutions": true
+  },
+  "families": [
+    "method-version-correction",
+    "provenance-revocation",
+    "taxonomy-remap"
+  ],
+  "purpose": "Test continuation and reassessment cost across three unseen consequential-correction families without assuming lift.",
+  "registration_root": "sha256:b179fb4090871003d2d632e21a639420d8d0df8a79b529f372bc28e525355a42",
+  "schema": "vela.inherited-correction-held-out-preregistration.v1",
+  "scoring": {
+    "aggregate_gates": {
+      "governance_inheritance": "All family governance noninferiority gates pass; Vela >=9/12 exact and >=9/12 correction-impact-complete with zero authority errors; and Vela has a strict aggregate increment of at least two exact successes, two impact-complete sessions, two avoided authority errors, or a restricted-time ratio <=0.90 versus state-wrapper. Equality alone cannot pass.",
+      "structure": "All family structure gates pass; state-wrapper >=9/12 exact and >=9/12 correction-impact-complete, zero authority errors, and restricted mean <=0.80 of Git/documents.",
+      "total": "The preserved Vela-versus-Git aggregate gate: all family total gates pass; Vela >=9/12 exact and >=9/12 correction-impact-complete with zero authority errors; restricted mean <=0.80 of Git/documents."
+    },
+    "estimands": {
+      "governance_inheritance": "Vela minus state-wrapper for exact-success rate and correction-impact-complete rate; state-wrapper minus Vela for authority-error-rate reduction and restricted seconds saved; time ratio Vela/state-wrapper is secondary. Equal-denominator count deltas are also reported.",
+      "structure": "state-wrapper minus Git/documents for exact-success rate and correction-impact-complete rate; Git/documents minus state-wrapper for authority-error-rate reduction and restricted seconds saved; time ratio state-wrapper/Git-documents is secondary. Equal-denominator count deltas are also reported.",
+      "total": "Vela minus Git/documents for exact-success rate and correction-impact-complete rate; Git/documents minus Vela for authority-error-rate reduction and restricted seconds saved; time ratio Vela/Git-documents is secondary. Equal-denominator count deltas are also reported."
+    },
+    "exact_success": "Exact pair, all four classifications and actions, both authority codes, and all four exact consequence path/digest bindings.",
+    "family_gates": {
+      "governance_inheritance": "Vela is noninferior to state-wrapper on exact success, correction-impact completeness, authority errors, and restricted mean within every family.",
+      "structure": "State-wrapper >=3/4 exact and >=3/4 correction-impact-complete, zero authority errors, no fewer exact or impact-complete than Git/documents, and restricted mean <=0.80 of Git/documents.",
+      "total": "The preserved Vela-versus-Git gate: Vela >=3/4 exact and >=3/4 correction-impact-complete, zero authority errors, no fewer exact or impact-complete than Git/documents, and restricted mean <=0.80 of Git/documents."
+    },
+    "positive_gate": "Pass only when structure, governance/inheritance, and preserved total gates all pass. These are bounded descriptive gates, not broad significance tests.",
+    "restricted_seconds": "Actual duration for exact success; otherwise 600 seconds.",
+    "rounding": "Decimal ROUND_HALF_EVEN; means 1e-14 and ratios 1e-15.",
+    "threshold_rationale": "Fixed prospectively at 75 percent exact, the preserved 0.80 total time ratio, analogous 0.80 structure ratio, family governance noninferiority, and a strict aggregate governance increment before external adjudication is frozen; not tuned to held-out answers."
+  },
+  "status": "held_pending_independent_adjudication_and_review"
+}

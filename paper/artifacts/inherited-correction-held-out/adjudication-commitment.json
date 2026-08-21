@@ -1,0 +1,7 @@
+{
+  "adjudication_root": null,
+  "answer_bytes_present_in_producer_artifact": false,
+  "required_before_permit_release": true,
+  "schema": "vela.inherited-correction-held-out-adjudication-commitment.v1",
+  "status": "pending_independent_evaluator_freeze"
+}

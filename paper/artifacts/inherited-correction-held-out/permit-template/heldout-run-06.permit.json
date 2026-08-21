@@ -1,0 +1,16 @@
+{
+  "assignment_root": "sha256:65709707cd75e2de43e3c421a8c0ef1d6439bca8f8f5af32d125cbfd512f0cc1",
+  "attempt": 1,
+  "condition": "vela",
+  "expires_at": "not_authorized",
+  "image_digest": "sha256:1dee2374077c83e3dbdb2e09d32ef4fa3a414d200b800839857353e13d3c4e09",
+  "packet_root": "sha256:076e4acac58d1dddba30e3e35d9536a644642ab2b10f45d43358e641f1fe0381",
+  "participant_configuration_root": "sha256:2409a08028f0181f98d1af40711a3d72f165a96ca607729f6e9d63b995fe98f0",
+  "participant_instance_id": "heldout-sol-06",
+  "prompt_root": "sha256:a6893d7fcfeb4fb477824598cf93c285f5c472eb03f9137aa6c8fa9c8d0bb984",
+  "registration_root": "sha256:b179fb4090871003d2d632e21a639420d8d0df8a79b529f372bc28e525355a42",
+  "run_id": "heldout-run-06",
+  "schema": "vela.inherited-correction-launch-permit.v1",
+  "status": "held",
+  "trust_bundle_bytes": "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5"
+}

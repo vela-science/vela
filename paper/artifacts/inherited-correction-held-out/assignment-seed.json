@@ -1,0 +1,6 @@
+{
+  "generated_at": "2026-08-21T21:03:34Z",
+  "generation_command": "openssl rand -hex 32",
+  "schema": "inherited-correction-held-out-assignment-seed.v1",
+  "seed_hex": "bc2169b4e5e896f531d4f87e6657cbb49cf1392fb20fa1327e9bd9ae2d21f99c"
+}

@@ -1,0 +1,23 @@
+{
+  "family_condition_runtime_configuration_roots": {
+    "method-version-correction": {
+      "git-documents": "sha256:c6f4253ee44b0f82f04a84658bda22fb878246569671878f7b5902046e0c34f4",
+      "state-wrapper": "sha256:3d0ea0649f92cfa882119d1f5facbc56f096e4a2557284bfc1c3ab4b08bb5e4c",
+      "vela": "sha256:2409a08028f0181f98d1af40711a3d72f165a96ca607729f6e9d63b995fe98f0"
+    },
+    "provenance-revocation": {
+      "git-documents": "sha256:4f930cf1efbc8450a17d7cb32102eef6de161b97901ddfc84f1865f3ac58ec68",
+      "state-wrapper": "sha256:bbb4b382dcef64ce324464ed8507ebdc5bac328c652d236b10ea02131ce6ccc6",
+      "vela": "sha256:95e4ff52e67a7f7dbb66c0c7a75ee35f1bd6639e5c3f98f8ccb0d7af79cfc518"
+    },
+    "taxonomy-remap": {
+      "git-documents": "sha256:49017631793a3dc724a4f88bf55bd63749758e4e1ae587f37f7c828140fdaeed",
+      "state-wrapper": "sha256:4243d6cb0e35df3f6fc2ec2ab19be46e9178c8b38af68b02f33163c4af2641bd",
+      "vela": "sha256:ab36ff0cfe6083d5798f5384df1b2bb295b3b96c62027092e49cfb08ce263d5d"
+    }
+  },
+  "registration_root": "sha256:b179fb4090871003d2d632e21a639420d8d0df8a79b529f372bc28e525355a42",
+  "schema": "vela.inherited-correction-held-out-configuration-mapping.v1",
+  "shared_study_configuration_root": "sha256:3d2e281d23aa5160ac2f83bf4dc9e69698211d26bd0843ccfaf26e5c5055fc84",
+  "status": "held_pending_independent_adjudication_and_review"
+}
