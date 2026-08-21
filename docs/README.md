@@ -13,6 +13,7 @@ Protocol 1 release candidate with Submission v3.
   comparison, and open external-validation gates.
 - [Repository boundaries](REPOSITORY_BOUNDARIES.md): what Core owns and what
   remains with source repositories, workbenches, and read products.
+- [Glossary](GLOSSARY.md): canonical current terms and their authority effects.
 
 ## Choose your job
 
