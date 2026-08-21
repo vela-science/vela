@@ -17,7 +17,7 @@
     },
     "assignment_plan_root": "sha256:db9433720707d47c19585c3fcf00272d84ac2b13a40010766d99f8c5efd844b5",
     "assignment_seed_commitment": "sha256:113604a79da502879a3fbd8ab9131dc81eabb9af0c705e9f2cbd27f4445ecacb",
-    "benchmark_bytes": "sha256:a38d7155747fd5a20fbca4598496a7a796ea9253aabbebca05f4b8843e82120c",
+    "benchmark_bytes": "sha256:4196826f215af77c228e39671a1f9f732aed1c3cee7dccd524bbf914d4b7470b",
     "custody_bytes": "sha256:4becee2e79d923533ac2b18282d090ac21ce2222e636ea07a11fdd114d5e4ba3",
     "equivalence_root": "sha256:12904756aa4683934eb925ae856d6afd50897dc1d855f3b55ce4e51ce6391bc1",
     "launch_authorization_amendment": {
@@ -91,7 +91,7 @@
         "vela": "sha256:7bef1b55dc0c32934dfa1f08ab5765d56de8f96ca7088b20df32956f8f1f18ba"
       }
     },
-    "participant_configuration_root": "sha256:37f7a1c0a374ed1fa076d1e9d16819494e72ff7975d47da8791ef7c9a75e2ffb",
+    "participant_configuration_root": "sha256:1ea86cdbf2c9c02154c0ba7dde449b0050fefb51492898b09c1c9b2a28b1f777",
     "prompt_roots": {
       "method-version-correction": {
         "git-documents": "sha256:0cdb1987b360859a756ae60dfeec363b5e13cd1f5bf217e903d07c4f692e8033",
@@ -112,10 +112,93 @@
     "provider_response_schema_bytes": "sha256:896f242086805d3b51e81ed04e6d50f33eb2b7deb71b7a1689e9abeba3b67eaf",
     "provider_schema_derivation": "delete exactly /properties/evidence_bindings/uniqueItems for provider output only; validate the final response against the unchanged registered schema",
     "response_schema_bytes": "sha256:ac96be686e749792956dfa1dfe9560f85c53d55c27fe2e8fd32bcc2a96a634ba",
-    "runtime_root": "sha256:fa0e74191ce9ef7d4b82cadc77f57437c3b1ab62be4acd29e93d967aee12c2e0",
-    "runtime_test_bytes": "sha256:de2acf774d6f64af8aeb4053d0d0f1cf559ac9f1b0880b85540be9f34d87dbf2",
+    "runtime_reproducibility_amendment": {
+      "blocked_prelaunch": {
+        "finding": "F08",
+        "independent_clean_build_image": "sha256:c50b70faf41008ed3519a5d87baded3bbbd806462ef5514a47b2c7ad171317a1",
+        "producer_commit": "3f4d61c248a43a94d09e0d848693101dd1841aa0",
+        "producer_tree": "3553ff7270b479e93a99515aec7cfc54cf30f15f",
+        "registered_cache_derived_image": "sha256:bc37c2759cb75acc54d998c22c17b542097019e892262be9b30a8d6c68396efe",
+        "review_commit": "b81ffbfff0ed0d08f39c0fa9c2ee300eaf693b68"
+      },
+      "clean_build_evidence": {
+        "builder_driver": "docker-container",
+        "builder_receipts": [
+          {
+            "builder": "independent-a",
+            "image_config_digest": "sha256:c0868b563acbd5dd6c80d9512cc1bf019598d3579026fc7fed465cef2d60e56c",
+            "image_digest": "sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb",
+            "oci_tar_bytes": "sha256:b48f80b60ad1407824e8cd9e1fd3c60abcfd486ed672f8d31ddc9918a28b0b74"
+          },
+          {
+            "builder": "independent-b",
+            "image_config_digest": "sha256:c0868b563acbd5dd6c80d9512cc1bf019598d3579026fc7fed465cef2d60e56c",
+            "image_digest": "sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb",
+            "oci_tar_bytes": "sha256:b48f80b60ad1407824e8cd9e1fd3c60abcfd486ed672f8d31ddc9918a28b0b74"
+          }
+        ],
+        "buildkit_version": "v0.32.2",
+        "byte_identical_oci_layouts": true,
+        "image_config_digest": "sha256:c0868b563acbd5dd6c80d9512cc1bf019598d3579026fc7fed465cef2d60e56c",
+        "image_digest": "sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb",
+        "independent_builder_count": 2,
+        "oci_tar_bytes": "sha256:b48f80b60ad1407824e8cd9e1fd3c60abcfd486ed672f8d31ddc9918a28b0b74"
+      },
+      "diagnosis": {
+        "base_layers_matched": true,
+        "causes": [
+          "Build-time timestamps were retained in image config and custom layer tar headers.",
+          "npm and Node compile caches retained time-dependent build-only bytes."
+        ],
+        "custom_layers_initially_matched": false
+      },
+      "execution_state": {
+        "calibration_permits_consumed": 0,
+        "calibration_permits_held": 1,
+        "fixed_denominator": 36,
+        "participant_permits_consumed": 0,
+        "participant_permits_held": 36,
+        "protected_key_accesses": 0,
+        "provider_calls": 0,
+        "scoring_runs": 0,
+        "sessions_completed": 0
+      },
+      "frozen_at": "2026-08-21T23:16:21Z",
+      "invariants": {
+        "dual_schemas_unchanged": true,
+        "gates_unchanged": true,
+        "model_and_runtime_semantics_unchanged": true,
+        "participant_ids_and_seed_unchanged": true,
+        "participant_packets_unchanged": true,
+        "participant_prompts_unchanged": true,
+        "scientific_facts_unchanged": true,
+        "stopped_original_evidence_unchanged": true,
+        "study_design_unchanged": true
+      },
+      "repair": {
+        "build_cache": "disabled",
+        "build_contract": "paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/build-reproducible-oci.sh",
+        "build_contract_bytes": "sha256:3fb073e2eab020edc2de54bbb2f519de14d08d9c468d0ad61e7ad26d43f80886",
+        "build_only_cache_cleanup": [
+          "/root/.npm",
+          "/tmp/node-compile-cache"
+        ],
+        "dockerfile_bytes": "sha256:caf07b85591a3c436e69088697348e74b7a65a6ceef535f021367f408881a142",
+        "oci_export_rewrite_timestamp": true,
+        "platform": "linux/arm64",
+        "provenance": false,
+        "pull": false,
+        "source_date_epoch": 1757289600,
+        "verification_contract": "paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/verify-reproducible-oci.sh",
+        "verification_contract_bytes": "sha256:ba5a4f35a97de112f3eb5c1948534c62a2235d12f5278df41685d07357bf5d62"
+      },
+      "schema": "vela.inherited-correction-held-out-runtime-reproducibility-amendment.v1",
+      "status": "held_pending_independent_f08_review"
+    },
+    "runtime_root": "sha256:4ec67f446c98848eed59f3a3597a395962c14f3fe2fadcda70a367e9738772ab",
+    "runtime_test_bytes": "sha256:7c265f9a8153ed9a5777720679557108d20789018e2da94395b7ec18a19954d7",
     "task_bytes": "sha256:df1d1aab35634b5cc732cfe098530336cbb234a85388817d0d323dc5fe7eef1b",
-    "test_bytes": "sha256:56c48aa86822225c58cdef2c0c6b357a1de4ddd3c322e7a6a6889f08aaa5ae16"
+    "test_bytes": "sha256:2afa1538300118ed869b5e99fc648fbdb3fe97f2a0d6d044a8fae580c8295d10"
   },
   "claim_ceiling": "A passing result would be bounded descriptive evidence for these synthetic families only, not scientific acceptance, general productivity, or authority.",
   "design": {
@@ -136,7 +219,7 @@
     "taxonomy-remap"
   ],
   "purpose": "Test continuation and reassessment cost across three unseen consequential-correction families without assuming lift.",
-  "registration_root": "sha256:7b6a8675c81431d19c690d8a16efacb0502116d3dc912514027d3d7096933d09",
+  "registration_root": "sha256:4d078776f41ffd1df18768791de58014117319f19727c3b9671b606e527c1276",
   "schema": "vela.inherited-correction-held-out-preregistration.v1",
   "scoring": {
     "aggregate_gates": {

@@ -70,6 +70,84 @@ class ProviderSchemaRuntimeTests(unittest.TestCase):
         )
         self.assertIn("const validate = compileResponseSchema(schema);", source)
 
+    def test_reproducible_oci_build_contract_is_exact_and_held(self) -> None:
+        dockerfile = (RUNTIME / "Dockerfile").read_text()
+        self.assertIn("ARG SOURCE_DATE_EPOCH=1757289600", dockerfile)
+        self.assertEqual(
+            dockerfile.count("rm -rf /root/.npm /tmp/node-compile-cache"), 2
+        )
+        build = (RUNTIME / "build-reproducible-oci.sh").read_text()
+        for control in (
+            "--platform linux/arm64",
+            "--no-cache",
+            "--provenance=false",
+            "--pull=false",
+            "SOURCE_DATE_EPOCH=1757289600",
+            "rewrite-timestamp=true",
+        ):
+            self.assertIn(control, build)
+        runtime = json.loads((ROOT / "runtime-binding.json").read_text())
+        amendment = json.loads(
+            (ROOT / "runtime-reproducibility-amendment.json").read_text()
+        )
+        evidence = amendment["clean_build_evidence"]
+        self.assertEqual(
+            amendment["repair"]["dockerfile_bytes"],
+            digest((RUNTIME / "Dockerfile").read_bytes()),
+        )
+        self.assertEqual(
+            amendment["repair"]["build_contract_bytes"],
+            digest((RUNTIME / "build-reproducible-oci.sh").read_bytes()),
+        )
+        self.assertEqual(
+            amendment["repair"]["verification_contract_bytes"],
+            digest((RUNTIME / "verify-reproducible-oci.sh").read_bytes()),
+        )
+        self.assertEqual(evidence["independent_builder_count"], 2)
+        self.assertTrue(evidence["byte_identical_oci_layouts"])
+        self.assertEqual(
+            [receipt["builder"] for receipt in evidence["builder_receipts"]],
+            ["independent-a", "independent-b"],
+        )
+        self.assertEqual(evidence["image_digest"], runtime["container_image_digest"])
+        self.assertEqual(
+            evidence["image_config_digest"], runtime["container_image_config_digest"]
+        )
+        self.assertEqual(
+            evidence["oci_tar_bytes"], runtime["container_image_oci_tar_bytes"]
+        )
+        self.assertEqual(
+            {
+                (
+                    receipt["image_digest"],
+                    receipt["image_config_digest"],
+                    receipt["oci_tar_bytes"],
+                )
+                for receipt in evidence["builder_receipts"]
+            },
+            {
+                (
+                    runtime["container_image_digest"],
+                    runtime["container_image_config_digest"],
+                    runtime["container_image_oci_tar_bytes"],
+                )
+            },
+        )
+        self.assertEqual(
+            amendment["execution_state"],
+            {
+                "sessions_completed": 0,
+                "fixed_denominator": 36,
+                "participant_permits_held": 36,
+                "participant_permits_consumed": 0,
+                "calibration_permits_held": 1,
+                "calibration_permits_consumed": 0,
+                "provider_calls": 0,
+                "protected_key_accesses": 0,
+                "scoring_runs": 0,
+            },
+        )
+
     def test_frozen_offline_provider_surface_receipt_is_closed(self) -> None:
         base = ROOT / "offline-preflight/provider-schema"
         self.assertEqual((base / "provider-events.jsonl").read_bytes(), b"")

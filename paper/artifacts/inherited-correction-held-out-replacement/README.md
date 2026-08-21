@@ -62,16 +62,33 @@ permit, one provider request, one turn, zero tools and compactions, terminal
 receipt, event stream, stderr, and response bytes. `freeze` requires all 36
 ingested records before scoring can reach the protected key.
 
+The first replacement prelaunch was independently blocked because its image
+identity was recoverable from a shared BuildKit cache but did not reproduce in
+a clean build. The transparent runtime-reproducibility amendment records that
+F08 finding. The repaired build fixes `SOURCE_DATE_EPOCH`, removes npm and Node
+compile caches from their creating layers, disables build cache and provenance,
+and uses the OCI exporter's timestamp rewrite. Two independent `docker-container`
+builders with empty caches produced byte-identical OCI layouts. This repair
+changes only the runtime image and identities derived from it; participant
+packets, prompts, schemas, facts, assignments, gates, and the stopped evidence
+are unchanged.
+
 ## Deterministic checks
 
 From the repository root:
 
 ```bash
-docker build --provenance=false --pull=false \
-  -t vela-inherited-correction:schemafix-pinned \
-  paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2
+runtime=paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2
+first_oci=/ABSOLUTE/TEMP/PATH/schemafix-a.oci.tar
+second_oci=/ABSOLUTE/TEMP/PATH/schemafix-b.oci.tar
+"$runtime/build-reproducible-oci.sh" INDEPENDENT_EMPTY_BUILDER_A "$first_oci"
+"$runtime/build-reproducible-oci.sh" INDEPENDENT_EMPTY_BUILDER_B "$second_oci"
+"$runtime/verify-reproducible-oci.sh" \
+  "$first_oci" "$second_oci" \
+  sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb
+docker load --input "$first_oci"
 paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/preflight-provider-schema.sh \
-  sha256:bc37c2759cb75acc54d998c22c17b542097019e892262be9b30a8d6c68396efe \
+  sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb \
   "$PWD/paper/artifacts/inherited-correction-held-out-replacement/calibration/input" \
   EMPTY_OUTPUT_DIRECTORY
 python3 paper/artifacts/inherited-correction-held-out-replacement/benchmark.py verify
@@ -81,10 +98,14 @@ python3 paper/artifacts/inherited-correction-held-out-replacement/test_provider_
 git diff --check
 ```
 
-The Docker build must use `--provenance=false`; two such builds must reproduce
-the pinned image digest. The provider-schema preflight runs with container
-network disabled and must leave `provider-events.jsonl` empty. Its output
-directory must exist and be empty before invocation.
+Each named builder must be an independent `docker-container` builder with an
+empty BuildKit cache. The wrapper fixes Linux arm64, disables cache, provenance,
+and pull, supplies the frozen source epoch, and exports an OCI layout with
+timestamp rewriting. The verifier requires the two complete OCI tar files to
+be byte-identical and to bind the pinned manifest digest. The provider-schema
+preflight runs with container network disabled and must leave
+`provider-events.jsonl` empty. Its output directory must exist and be empty
+before invocation.
 
 The tests cover generic closed authority codes, exact path/digest bindings,
 atomic-information and prompt-length equivalence, neutral-wrapper forbidden

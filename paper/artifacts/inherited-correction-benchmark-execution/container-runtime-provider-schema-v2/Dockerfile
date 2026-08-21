@@ -1,3 +1,5 @@
+ARG SOURCE_DATE_EPOCH=1757289600
+
 FROM node:24.8.0-bookworm-slim@sha256:cadbfafeb6baf87eaaffa40b3640209c4b7fd38cebde65059d15bc39cd636b85 AS trust-source
 
 ARG CA_CERTIFICATES_VERSION=20250419~deb12u1
@@ -17,10 +19,14 @@ FROM node:24.8.0-bookworm-slim@sha256:cadbfafeb6baf87eaaffa40b3640209c4b7fd38ceb
 
 COPY --from=trust-source /trust-bundle/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
-RUN npm install --global --omit=dev --ignore-scripts @openai/codex@0.149.0
+RUN npm install --global --omit=dev --ignore-scripts @openai/codex@0.149.0 \
+    && npm cache clean --force \
+    && rm -rf /root/.npm /tmp/node-compile-cache
 WORKDIR /opt/vela-runner
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+RUN npm ci --omit=dev --ignore-scripts \
+    && npm cache clean --force \
+    && rm -rf /root/.npm /tmp/node-compile-cache
 COPY run-once.mjs provider-schema-preflight.mjs schema-preflight.mjs strict-config.mjs strict-preflight.mjs trust-preflight.mjs ./
 COPY schema-fixtures ./schema-fixtures
 

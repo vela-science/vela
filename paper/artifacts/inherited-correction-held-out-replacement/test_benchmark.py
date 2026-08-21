@@ -561,6 +561,22 @@ class HeldOutBenchmarkTests(unittest.TestCase):
         )
         self.assertEqual(amendment["execution_state"]["sessions_completed"], 0)
         self.assertEqual(amendment["execution_state"]["permits_consumed"], 0)
+        runtime_amendment = preregistration["bindings"][
+            "runtime_reproducibility_amendment"
+        ]
+        self.assertEqual(
+            runtime_amendment["status"], "held_pending_independent_f08_review"
+        )
+        self.assertEqual(
+            runtime_amendment["blocked_prelaunch"]["review_commit"],
+            "b81ffbfff0ed0d08f39c0fa9c2ee300eaf693b68",
+        )
+        self.assertEqual(
+            runtime_amendment["execution_state"]["participant_permits_held"], 36
+        )
+        self.assertEqual(
+            runtime_amendment["execution_state"]["calibration_permits_held"], 1
+        )
 
     def test_neutral_calibration_is_held_and_has_no_denominator_credit(self) -> None:
         freeze = benchmark.load_json(ROOT / "prelaunch-freeze.json")

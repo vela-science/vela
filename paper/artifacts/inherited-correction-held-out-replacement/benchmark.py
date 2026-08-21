@@ -26,6 +26,7 @@ SEED_PATH = ROOT / "assignment-seed.json"
 RUNTIME_PATH = ROOT / "runtime-binding.json"
 ADJUDICATION_COMMITMENT_PATH = ROOT / "adjudication-commitment.json"
 LAUNCH_AMENDMENT_PATH = ROOT / "launch-authorization-amendment.json"
+RUNTIME_REPRODUCIBILITY_AMENDMENT_PATH = ROOT / "runtime-reproducibility-amendment.json"
 SOURCE_PATHS = (
     "DESIGN.md",
     "README.md",
@@ -41,6 +42,7 @@ SOURCE_PATHS = (
     "offline-preflight/provider-schema/stderr.txt",
     "response-schema.json",
     "runtime-binding.json",
+    "runtime-reproducibility-amendment.json",
     "test_benchmark.py",
     "test_provider_schema_runtime.py",
 )
@@ -636,6 +638,9 @@ def generated_outputs() -> dict[str, bytes]:
     outputs["participant-configuration.json"] = json_bytes(participant_configuration)
     commitment = load_json(ADJUDICATION_COMMITMENT_PATH)
     launch_amendment = load_json(LAUNCH_AMENDMENT_PATH)
+    runtime_reproducibility_amendment = load_json(
+        RUNTIME_REPRODUCIBILITY_AMENDMENT_PATH
+    )
     registration = {
         "schema": "vela.inherited-correction-held-out-preregistration.v1",
         "status": "held_pending_schema_compatibility_review",
@@ -671,6 +676,7 @@ def generated_outputs() -> dict[str, bytes]:
             "runtime_root": canonical_root(runtime),
             "adjudication_commitment": commitment,
             "launch_authorization_amendment": launch_amendment,
+            "runtime_reproducibility_amendment": runtime_reproducibility_amendment,
             "neutral_calibration_plan_root": canonical_root(calibration_plan),
         },
         "scoring": {
@@ -931,6 +937,26 @@ def verify() -> None:
         or amendment["execution_state"]["permits_held"] != 36
     ):
         raise BenchmarkError("launch_amendment_invalid")
+    runtime_amendment = load_json(RUNTIME_REPRODUCIBILITY_AMENDMENT_PATH)
+    runtime = load_json(RUNTIME_PATH)
+    if (
+        runtime_amendment["status"] != "held_pending_independent_f08_review"
+        or runtime_amendment["clean_build_evidence"]["image_digest"]
+        != runtime["container_image_digest"]
+        or runtime_amendment["clean_build_evidence"]["image_config_digest"]
+        != runtime["container_image_config_digest"]
+        or runtime_amendment["clean_build_evidence"]["oci_tar_bytes"]
+        != runtime["container_image_oci_tar_bytes"]
+        or runtime_amendment["execution_state"]["sessions_completed"] != 0
+        or runtime_amendment["execution_state"]["participant_permits_held"] != 36
+        or runtime_amendment["execution_state"]["participant_permits_consumed"] != 0
+        or runtime_amendment["execution_state"]["calibration_permits_held"] != 1
+        or runtime_amendment["execution_state"]["calibration_permits_consumed"] != 0
+        or runtime_amendment["execution_state"]["provider_calls"] != 0
+        or runtime_amendment["execution_state"]["protected_key_accesses"] != 0
+        or runtime_amendment["execution_state"]["scoring_runs"] != 0
+    ):
+        raise BenchmarkError("runtime_reproducibility_amendment_invalid")
     packet_paths = [
         path
         for path in outputs

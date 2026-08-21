@@ -1,0 +1,83 @@
+{
+  "schema": "vela.inherited-correction-held-out-runtime-reproducibility-amendment.v1",
+  "status": "held_pending_independent_f08_review",
+  "frozen_at": "2026-08-21T23:16:21Z",
+  "blocked_prelaunch": {
+    "producer_commit": "3f4d61c248a43a94d09e0d848693101dd1841aa0",
+    "producer_tree": "3553ff7270b479e93a99515aec7cfc54cf30f15f",
+    "review_commit": "b81ffbfff0ed0d08f39c0fa9c2ee300eaf693b68",
+    "finding": "F08",
+    "registered_cache_derived_image": "sha256:bc37c2759cb75acc54d998c22c17b542097019e892262be9b30a8d6c68396efe",
+    "independent_clean_build_image": "sha256:c50b70faf41008ed3519a5d87baded3bbbd806462ef5514a47b2c7ad171317a1"
+  },
+  "diagnosis": {
+    "base_layers_matched": true,
+    "custom_layers_initially_matched": false,
+    "causes": [
+      "Build-time timestamps were retained in image config and custom layer tar headers.",
+      "npm and Node compile caches retained time-dependent build-only bytes."
+    ]
+  },
+  "repair": {
+    "source_date_epoch": 1757289600,
+    "platform": "linux/arm64",
+    "build_cache": "disabled",
+    "provenance": false,
+    "pull": false,
+    "oci_export_rewrite_timestamp": true,
+    "build_only_cache_cleanup": [
+      "/root/.npm",
+      "/tmp/node-compile-cache"
+    ],
+    "build_contract": "paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/build-reproducible-oci.sh",
+    "build_contract_bytes": "sha256:3fb073e2eab020edc2de54bbb2f519de14d08d9c468d0ad61e7ad26d43f80886",
+    "verification_contract": "paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/verify-reproducible-oci.sh",
+    "verification_contract_bytes": "sha256:ba5a4f35a97de112f3eb5c1948534c62a2235d12f5278df41685d07357bf5d62",
+    "dockerfile_bytes": "sha256:caf07b85591a3c436e69088697348e74b7a65a6ceef535f021367f408881a142"
+  },
+  "clean_build_evidence": {
+    "independent_builder_count": 2,
+    "builder_driver": "docker-container",
+    "buildkit_version": "v0.32.2",
+    "builder_receipts": [
+      {
+        "builder": "independent-a",
+        "image_digest": "sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb",
+        "image_config_digest": "sha256:c0868b563acbd5dd6c80d9512cc1bf019598d3579026fc7fed465cef2d60e56c",
+        "oci_tar_bytes": "sha256:b48f80b60ad1407824e8cd9e1fd3c60abcfd486ed672f8d31ddc9918a28b0b74"
+      },
+      {
+        "builder": "independent-b",
+        "image_digest": "sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb",
+        "image_config_digest": "sha256:c0868b563acbd5dd6c80d9512cc1bf019598d3579026fc7fed465cef2d60e56c",
+        "oci_tar_bytes": "sha256:b48f80b60ad1407824e8cd9e1fd3c60abcfd486ed672f8d31ddc9918a28b0b74"
+      }
+    ],
+    "byte_identical_oci_layouts": true,
+    "image_digest": "sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb",
+    "image_config_digest": "sha256:c0868b563acbd5dd6c80d9512cc1bf019598d3579026fc7fed465cef2d60e56c",
+    "oci_tar_bytes": "sha256:b48f80b60ad1407824e8cd9e1fd3c60abcfd486ed672f8d31ddc9918a28b0b74"
+  },
+  "execution_state": {
+    "sessions_completed": 0,
+    "fixed_denominator": 36,
+    "participant_permits_held": 36,
+    "participant_permits_consumed": 0,
+    "calibration_permits_held": 1,
+    "calibration_permits_consumed": 0,
+    "provider_calls": 0,
+    "protected_key_accesses": 0,
+    "scoring_runs": 0
+  },
+  "invariants": {
+    "dual_schemas_unchanged": true,
+    "study_design_unchanged": true,
+    "participant_packets_unchanged": true,
+    "participant_prompts_unchanged": true,
+    "scientific_facts_unchanged": true,
+    "model_and_runtime_semantics_unchanged": true,
+    "gates_unchanged": true,
+    "participant_ids_and_seed_unchanged": true,
+    "stopped_original_evidence_unchanged": true
+  }
+}
