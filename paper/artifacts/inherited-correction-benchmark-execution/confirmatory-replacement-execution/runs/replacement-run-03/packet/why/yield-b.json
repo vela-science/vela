@@ -1,0 +1,24 @@
+{
+  "claim": {
+    "assertion": "Sample S has adjusted yield 50 units.",
+    "claim_id": "yield-b",
+    "evidence_path": "evidence/yield-b.json",
+    "next_action": "Recalculate the adjusted yield from the retained raw count using calibration-a-v2."
+  },
+  "evidence_binding": {
+    "bytes": 191,
+    "path": "evidence/yield-b.json",
+    "sha256": "sha256:8603f377d7b7db77934f546c6c5e139e758f7b3597d48637f285020f46e8ed7d"
+  },
+  "incoming_relations": [
+    {
+      "kind": "requires_exact",
+      "meaning": "yield-b used the exact predecessor scale factor and must be recalculated when that input is superseded.",
+      "relation_id": "yield-b-requires-calibration-a-v1",
+      "source_claim_id": "yield-b",
+      "target_claim_id": "calibration-a-v1"
+    }
+  ],
+  "schema": "vela.inherited-correction-why.v1",
+  "standing_effect": "none"
+}
