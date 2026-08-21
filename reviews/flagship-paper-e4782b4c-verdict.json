@@ -1,0 +1,21 @@
+{
+  "authority_effect": "none",
+  "blocked_parent": "3fdee23b4ab43c4e86b11e5ef32d08fcbc03e702",
+  "blocking_findings": [
+    {
+      "gate": "deterministic_render",
+      "id": "F02",
+      "summary": "the documented render command succeeds but emits time-dependent PDF bytes and does not reproduce the handed-off PDF SHA-256"
+    }
+  ],
+  "expected_pdf_sha256": "ed69832eae3a396b381a8e8782ba247f5e00b5db58d5e95ba3a62252031c3fa4",
+  "held_out_status": "not_run",
+  "positive_gate": "not_supported",
+  "producer_commit": "e4782b4c3aa87d06aecb499b54680ff5bdf019b5",
+  "producer_tree": "de87a29d4d536fc45300c24628421b8fed3d7777",
+  "reproduced_pdf_sha256_first": "6d873e30d55d8c16bf46c08081ce47387655ce75203784ad572b18c8ea5591d1",
+  "reproduced_pdf_sha256_second": "000726321a1c5d8f64c1f00a2c4ac85fd90cb9eabc02058f4f2d9e1ce01b699a",
+  "schema": "vela.flagship-paper-review-verdict.v1",
+  "standing_effect": "none",
+  "verdict": "BLOCKED"
+}
