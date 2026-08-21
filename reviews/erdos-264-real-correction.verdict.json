@@ -1,0 +1,58 @@
+{
+  "schema": "vela.independent-review-verdict.v1",
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "base_commit": "4685462c44b1f073870f31025ae73d1d8770ce73",
+    "producer_ref": "origin/codex/paper-erdos-264-real-correction",
+    "producer_commit": "c2f8f0eb47d62d232d437825f360c5d94f092c40",
+    "producer_tree": "d8fdb38ad192752a691310ffd13bdaccf2dbfd36"
+  },
+  "verdict": "PASS",
+  "artifact": {
+    "root": "sha256:3701349159f61b7bad887e6b066195d5f0a5ad20634a43c9445cf9a7a218a4bf",
+    "case_root": "sha256:06236c11c3d26cdd548a67ae58968b97066e554940837fd512f9b1348899a4f3",
+    "verification_output_sha256": "sha256:196eae9adc20e5a705ca6e55beeb9b1559492947f471a9a932a5c94b8dcc390a"
+  },
+  "checks": {
+    "exact_range": "pass",
+    "manifest_and_artifact_root": "pass",
+    "source_objects_and_ancestry": "pass",
+    "semantic_delta": "pass",
+    "five_direct_same_file_consumers": "pass",
+    "retained_object_roots": "pass",
+    "correction_verification_decision_replay": "pass",
+    "accepted_repair_binding_and_standing": "pass",
+    "repair_claim_has_no_vela_dependency_edge": "pass",
+    "claim_ceiling": "pass",
+    "unit_tests": "pass",
+    "ruff": "pass",
+    "diff_check": "pass"
+  },
+  "replay": {
+    "evidence_commit": "12fdb0ad09c710469e50a60e8a6e2c81c9d18c3f",
+    "evidence_tree": "8b57c21c6c2a1ae279a3171cbad47291ab7af44c",
+    "reader_version": "0.966.4",
+    "reader_binary_sha256": "sha256:b2bcea661adba5b800006a31c2e554b5efc15cffbd96b5dddf6320bd72c58327",
+    "repository_root": "sha256:f03be3a76ce43be0c2f9ca63ff731b9a5ff5c010b768e95b46a35f3a067eed96",
+    "outcome": "pass"
+  },
+  "claim_ceiling": {
+    "source_dependency_evidence": true,
+    "five_vela_depends_edges": false,
+    "support_diamond": false,
+    "complete_propagation": false,
+    "general_scientific_lift": false,
+    "lower_continuation_cost": false,
+    "external_independence": false,
+    "adoption": false,
+    "new_scientific_truth_claim": false
+  },
+  "review_actions": {
+    "lean_proof_rerun": false,
+    "producer_bytes_modified": false,
+    "merge": false,
+    "inference": false,
+    "authority_effect": "none",
+    "standing_effect": "none"
+  }
+}
