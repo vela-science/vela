@@ -1426,18 +1426,23 @@ mod tests {
         String::from_utf8(output.stdout).unwrap().trim().to_string()
     }
 
-    fn setup_repository(root: &Path) {
-        git(root, &["init", "-b", "main"]);
+    fn disable_fixture_maintenance(root: &Path) {
         // Keep fixture snapshots deterministic: recent Git versions may start
         // detached maintenance after a mutating command and race the assertion.
         git(root, &["config", "maintenance.auto", "false"]);
         git(root, &["config", "gc.auto", "0"]);
+    }
+
+    fn setup_repository(root: &Path) {
+        git(root, &["init", "-b", "main"]);
+        disable_fixture_maintenance(root);
         git(root, &["config", "user.name", "Vela Test"]);
         git(root, &["config", "user.email", "vela@example.invalid"]);
     }
 
     fn setup_native_genesis(root: &Path) -> Vec<String> {
         initialize_native_git_repository(root).unwrap();
+        disable_fixture_maintenance(root);
         std::fs::write(root.join(".gitignore"), b"ignored\n").unwrap();
         std::fs::write(root.join("a.txt"), b"exact native genesis\n").unwrap();
         vec![".gitignore".into(), "a.txt".into()]
