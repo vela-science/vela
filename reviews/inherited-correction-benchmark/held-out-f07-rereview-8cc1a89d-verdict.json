@@ -1,0 +1,82 @@
+{
+  "schema": "vela.independent-inherited-correction-held-out-f07-rereview-verdict.v1",
+  "review_id": "inherited-correction-held-out-f07-rereview-2026-08-21",
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/inherited-correction-study",
+    "producer_commit": "8cc1a89d7b1ae47cb6cabb36bfd79b46c3f4db81",
+    "producer_tree": "98b661c44225425ababecdbb7aead0090d09a4f7",
+    "parent_commit": "b1528898e5877a5dd0c863a28db71c9fd5623f60",
+    "blocked_review": "891a866da0f0744e33aebb3edf4de6aa98d36cd1"
+  },
+  "verdict": "PASS",
+  "review_scope": [
+    "F07 runtime-review lineage correction",
+    "G06 exact cold-successor runtime binding",
+    "G08 deterministic runtime and prelaunch custody"
+  ],
+  "closed_findings": [
+    {
+      "id": "F07",
+      "title": "Frozen runtime qualification points to the wrong independent review",
+      "corrected_runtime_review": "3c0c8cfa050b30a5d19c9e7e623fc549ac18264b",
+      "qualified_producer": "2fc59d5f57e45298f833e65f123ac9eafea2810b",
+      "qualified_image_digest": "sha256:1dee2374077c83e3dbdb2e09d32ef4fa3a414d200b800839857353e13d3c4e09",
+      "qualified_runtime_source_root": "sha256:398f798daf4b2ebd86a878021025adbc073155e13d9123b140da2bc8fcb32b8a"
+    }
+  ],
+  "failed_gates": [],
+  "passed_gates": [
+    "G06_cold_successor_protocol",
+    "G08_deterministic_custody"
+  ],
+  "bindings": {
+    "runtime_root": "sha256:33f0d3b40e674a4c0934f27080e28325be9a30edfbd11682801066c22911ee6a",
+    "registration_root": "sha256:185e781cd0b1a06d89488266e9e7147f42834d960063818f0cdf56209c6d3306",
+    "assignment_root": "sha256:77c81b88813716466f5c935eb79b986874ed132a5986be34152bd8ac70da0205",
+    "participant_configuration_root": "sha256:adb7aef1966a25631077dd3466a04a785e369698fdbae0e8f09ace5ca995380e",
+    "configuration_mapping_root": "sha256:709713f1d27852cbf3b5169091c476b55b490529eeed84f8aac2decf01fecb6d",
+    "equivalence_root": "sha256:12904756aa4683934eb925ae856d6afd50897dc1d855f3b55ce4e51ce6391bc1",
+    "permit_set_root": "sha256:e7f9ce0725c82250927355541ca1651fc44b4d925255e57481d0e2b4f85bb438",
+    "prelaunch_root": "sha256:f1dc641ad0dac285dd94f84d37746a34fac6f30d05e8ee3d773599b01fb32ea8",
+    "artifact_root": "sha256:17f113d16aa7b474d91b9f09e4314dce133367b7274187ce7bef87a1bbf7c735"
+  },
+  "unchanged_from_blocked_parent": [
+    "all participant packet bytes",
+    "all serialized prompts",
+    "all response-schema inputs",
+    "families and atomic facts",
+    "assignment seed and cells",
+    "authority regimes",
+    "scoring and gates",
+    "custody implementation and tests",
+    "held result and pending adjudication state"
+  ],
+  "focused_checks": {
+    "remote_identity_and_61_path_scope": "pass",
+    "all_disclosed_hashes_and_roots": "pass",
+    "runtime_qualification_review_binding": "pass",
+    "participant_visible_no_diff": "pass",
+    "ruff_0_12_11": "pass",
+    "cpython_3_10_3_11_3_13_3_14": "18 tests each; verify and prelaunch pass",
+    "isolated_cpython_3_14_regeneration": "215 files byte-identical",
+    "prior_benchmark_tests": "16 passed",
+    "git_diff_check": "pass"
+  },
+  "prelaunch_qualified_for_f07_g06_g08": true,
+  "participant_launch_authorized_by_review": false,
+  "permit_release_authorized_by_review": false,
+  "authority_effect": "none",
+  "experimental_status": {
+    "required_sessions": 36,
+    "executed_sessions": 0,
+    "result": "not_run",
+    "permits_consumed": 0,
+    "hold_status": "hold",
+    "adjudication_status": "pending_independent_evaluator_freeze"
+  },
+  "nonclaims": [
+    "This PASS does not freeze or expose the protected adjudication or authorize a permit release, participant/provider call, inference, or scoring.",
+    "This PASS does not authorize a merge or establish lift, scientific acceptance, Protocol/Core validity, authority, Standing, or a Decision effect."
+  ]
+}
