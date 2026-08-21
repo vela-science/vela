@@ -1,0 +1,41 @@
+{
+  "schema": "vela.inherited-correction-terminal-receipt.v1",
+  "run_id": "neutral-canary-03",
+  "condition": "neutral-runtime-calibration",
+  "participant_instance_id": "neutral-oci-03",
+  "attempt": 1,
+  "status": "completed",
+  "validation_error": null,
+  "provider_started_at": "2026-08-21T17:32:36.576Z",
+  "provider_completed_at": "2026-08-21T17:32:41.177Z",
+  "duration_seconds": 4.58358096,
+  "timeout_seconds": 600,
+  "process_exit_code": 0,
+  "process_timed_out": false,
+  "registration_root": "sha256:87c4a6e3e230fa719417a349a3ed0f1c1843ec87daa80f9e32927bd3ed03aed0",
+  "image_digest": "sha256:6274d83356076640d6e4bc810b97d37ac2d1b5ab02546dd7c2ebed16f915b547",
+  "participant_configuration_root": "sha256:54251d2cc114b13db1c981ab08e8718023335f694c0fc02ca6eb92a9cf8291da",
+  "assignment_root": "sha256:dfd634e93fc75d3a4cc1f1173a040961f36f0861c4c144fc50371cad2a306bb4",
+  "trust_bundle_bytes": "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5",
+  "prompt_root": "sha256:9bd723ffc2c6889b4d11179e81e911b741dff9b73d3de8823ec27a982fbaf534",
+  "packet_root": "sha256:eb3c28fc40910a36569aca7572c68b8ac4d5e733288e3866c16d2731176f343e",
+  "provider_events_bytes": "sha256:d505272aa4b10e768e762c9439921bab88ad8f1beecc2cfaf53769822a3d1ef1",
+  "provider_stderr_bytes": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "response_bytes": "sha256:b1b4a168daaf505456e9e099e8499aa9e7ee16f3e2e9a9550a34213e6ac16ecd",
+  "event_receipt": {
+    "usage": {
+      "input_tokens": 7816,
+      "cached_input_tokens": 0,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 78,
+      "reasoning_output_tokens": 0
+    },
+    "event_count": 4,
+    "response_count": 1,
+    "tool_calls": 0,
+    "turn_count": 1,
+    "compactions": 0
+  },
+  "cumulative_provider_usage_is_telemetry_only": true,
+  "credential_retained": false
+}
