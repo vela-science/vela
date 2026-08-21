@@ -68,48 +68,48 @@ does not claim inherited-correction lift.
 This section introduces analysis notation for Protocol 1. It adds no protocol
 object or Core semantic.
 
-Let (B(o)) denote the RFC 8785 canonical bytes of object (o), and let
-(H(o)=\mathrm{SHA256}(B(o))). A Repository (R) retains a bounded object set,
+Let $B(o)$ denote the RFC 8785 canonical bytes of object $o$, and let
+$H(o)=\mathrm{SHA256}(B(o))$. A Repository $R$ retains a bounded object set,
 an append-only authority history, and ordinary Git identity. A valid Decision
-(D) must pass schema, root, authentication, authorization, read-set, and
-current-head checks under the local authority state (A_R).
+$D$ must pass schema, root, authentication, authorization, read-set, and
+current-head checks under the local authority state $A_R$.
 
 Define the admitted transition relation
 
-\[
-(S_i,A_i) \xrightarrow{D_i} (S_{i+1},A_{i+1})
-\]
+$$
+T_R(S_i,A_i,D_i)=(S_{i+1},A_{i+1})
+$$
 
-only when (D_i) passes those local checks. A Submission, Verification Record,
+only when $D_i$ passes those local checks. A Submission, Verification Record,
 Git commit, or controller output cannot instantiate this relation. Strict
 replay folds the admitted Events in canonical history order:
 
-\[
+$$
 \operatorname{Replay}(E_0,\ldots,E_n)=S_n.
-\]
+$$
 
 Protocol 1's determinism claim concerns conforming readers over identical
 valid inputs. It does not say that local authorities will make the same
 Decision or that accepted Claims represent global truth.
 
-A portable Submission (P) binds producer identity, exact Artifacts, and a
+A portable Submission $P$ binds producer identity, exact Artifacts, and a
 proposed bounded transition. It binds no Repository. Two Repositories may
-therefore import the same (P) and derive the same Claim identity while their
-local functions (A_{R_1}) and (A_{R_2}) admit different Decisions. The
-result (S_1 \ne S_2) demonstrates interoperability without consensus.
+therefore import the same $P$ and derive the same Claim identity while their
+local functions $A_{R_1}$ and $A_{R_2}$ admit different Decisions. The
+result $S_1 \ne S_2$ demonstrates interoperability without consensus.
 
-A projection (\pi(S,H(R))) reads root-bound state and carries no authority. An
-external controller (C) may compute an obligation from (\pi), run a native
+A projection $\pi(S,H(R))$ reads root-bound state and carries no authority. An
+external controller $C$ may compute an obligation from $\pi$, run a native
 tool, and produce a Submission. The protocol boundary remains:
 
-\[
+$$
 C(\pi(S,H(R))) \rightarrow P \rightarrow V \rightarrow D \rightarrow E
 \rightarrow \operatorname{Replay}(E).
-\]
+$$
 
 The Decision term is the only Standing-changing term in this expression.
 
-For a correction from predecessor Claim (c_0) to successor (c_1), a bounded
+For a correction from predecessor Claim $c_0$ to successor $c_1$, a bounded
 dependency profile classifies represented consequences as affected,
 unaffected, must-reassess, or presently unprovable. The classification states
 what follows within declared source and relation bounds. It does not claim
