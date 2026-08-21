@@ -1428,6 +1428,10 @@ mod tests {
 
     fn setup_repository(root: &Path) {
         git(root, &["init", "-b", "main"]);
+        // Keep fixture snapshots deterministic: recent Git versions may start
+        // detached maintenance after a mutating command and race the assertion.
+        git(root, &["config", "maintenance.auto", "false"]);
+        git(root, &["config", "gc.auto", "0"]);
         git(root, &["config", "user.name", "Vela Test"]);
         git(root, &["config", "user.email", "vela@example.invalid"]);
     }
