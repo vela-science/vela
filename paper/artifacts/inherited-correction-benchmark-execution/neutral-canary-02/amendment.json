@@ -1,0 +1,15 @@
+{
+  "confirmatory_effect": "none; replacement registration remains unfrozen and 0/16",
+  "defect": "Codex CLI 0.149.0 strict parser rejects tools.view_image",
+  "local_cli_evidence_root": "sha256:f0b8b9ae7278ba0f420d50f170a8a3fa00d82ebfe7b986b375bd48631bdcdb37",
+  "official_config_reference": "https://developers.openai.com/codex/config-reference",
+  "offline_preflight_root": "sha256:0f808e3ccf0eb6611b05f70912852d371272202c352fecdd84ecaed662c2b1f1",
+  "parent_canary_commit": "2c7aed112f9701b58b8373c156c244b68e616886",
+  "parent_canary_disposition": "terminal calibration evidence; unchanged; no retry",
+  "parent_canary_result_root": "sha256:d1a792b3085c232affb0038924a54fc109a34154cbf0f2363258d0f3b86635ee",
+  "repair": "replace only with supported features.view_image=false and bind all supported disables to one tested override list",
+  "residual_tool_boundary": "0.149.0 exposes no supported configuration key that guarantees removal of every residual class such as apply_patch; the empty read-only workdir and streaming harness terminate on the first tool, continuation, or compaction event",
+  "runtime_source_root": "sha256:d28f984e7f9e66e46703d2a9969c9024f0dff7be6cb52bcbbe49c076d2a3a466",
+  "schema": "vela.inherited-correction-neutral-canary-amendment.v1",
+  "status": "prospective_before_canary_02"
+}

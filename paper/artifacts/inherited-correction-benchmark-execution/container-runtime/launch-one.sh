@@ -31,7 +31,7 @@ fi
 set +e
 docker run --rm --name "$container_name" --init --network=bridge --read-only --workdir /work \
   --tmpfs /tmp:rw,noexec,nosuid,size=32m \
-  --tmpfs /work:rw,noexec,nosuid,size=16m,uid=10001,gid=10001 \
+  --tmpfs /work:ro,noexec,nosuid,size=16m,uid=10001,gid=10001 \
   --tmpfs /codex-home:rw,noexec,nosuid,size=16m,uid=10001,gid=10001 \
   --mount "type=bind,src=$auth_file,dst=/codex-home/auth.json,readonly" \
   --mount "type=bind,src=$input_dir,dst=/input,readonly" \

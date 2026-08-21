@@ -5,6 +5,7 @@ import { readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { configArgs, STRICT_OVERRIDES } from "./strict-config.mjs";
 
 const expectedKeys = (value, keys, label) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label}_not_object`);
@@ -39,6 +40,7 @@ function verifyBindings(runId, permit, config, assignment, promptBytes, schemaBy
   if (permit.assignment_root !== root(assignment)) throw new Error("permit_assignment_root");
   if (permit.prompt_root !== sha(promptBytes) || config.prompt_root !== sha(promptBytes)) throw new Error("permit_prompt_root");
   if (config.response_schema_bytes !== sha(schemaBytes)) throw new Error("schema_bytes");
+  if (config.strict_overrides_root !== root(STRICT_OVERRIDES)) throw new Error("strict_overrides_root");
   const exact = assignment.assignments.find(item => item.run_id === runId);
   if (!exact || exact.condition !== permit.condition || exact.participant_instance_id !== permit.participant_instance_id || exact.packet_root !== permit.packet_root) throw new Error("permit_assignment_binding");
   if (config.registration_root !== permit.registration_root || assignment.registration_root !== permit.registration_root) throw new Error("registration_binding");
@@ -55,7 +57,7 @@ function inspectEvents(raw) {
   const types = events.map(e => String(e.type || ""));
   const items = events.map(e => e.item).filter(x => x && typeof x === "object");
   const itemTypes = items.map(x => String(x.type || ""));
-  const forbidden = [...types, ...itemTypes].filter(t => /tool|command|file_change|web_search|computer|compact|resume|continu/i.test(t));
+  const forbidden = [...types, ...itemTypes].filter(t => /tool|command|patch|file_change|web_search|computer|compact|resume|continu/i.test(t));
   if (forbidden.length) throw new Error(`forbidden_provider_event:${forbidden.join(",")}`);
   if (types.filter(x => x === "thread.started").length !== 1) throw new Error("thread_count");
   if (types.filter(x => x === "turn.started").length !== 1 || types.filter(x => x === "turn.completed").length !== 1) throw new Error("turn_count");
@@ -69,6 +71,12 @@ function inspectEvents(raw) {
   }
   if (usage.output_tokens > 8192) throw new Error("output_token_ceiling");
   return { usage, event_count: events.length, response_count: agentMessages.length, tool_calls: 0, turn_count: 1, compactions: 0 };
+}
+
+function forbiddenEvent(event) {
+  const type = String(event?.type || "");
+  const itemType = String(event?.item?.type || "");
+  return /tool|command|patch|file_change|web_search|computer|compact|resume|continu/i.test(`${type}:${itemType}`);
 }
 
 async function main() {
@@ -96,9 +104,7 @@ async function main() {
   const cliArgs = [
     "exec", "--strict-config", "--ignore-user-config", "--ignore-rules", "--ephemeral", "--skip-git-repo-check",
     "--model", "gpt-5.6-sol", "-c", 'model_reasoning_effort="high"', "-c", 'service_tier="default"',
-    "-c", 'approval_policy="never"', "-c", 'web_search="disabled"', "-c", "agents.enabled=false",
-    "-c", "memories.use_memories=false", "-c", 'history.persistence="none"', "-c", "tools.view_image=false",
-    "-c", "features.shell_tool=false", "-c", "features.unified_exec=false", "-c", 'shell_environment_policy.inherit="none"',
+    ...configArgs(),
     "--sandbox", "read-only", "--cd", "/work", "--output-schema", "/input/response-schema.json",
     "--output-last-message", outputPath, "--json", "-"
   ];
@@ -107,7 +113,24 @@ async function main() {
   const child = spawn("codex", cliArgs, { cwd: "/work", env: { CODEX_HOME: "/codex-home", PATH: process.env.PATH, HOME: "/tmp" }, stdio: ["pipe", "pipe", "pipe"], detached: true });
   const stdout = [];
   const stderr = [];
-  child.stdout.on("data", chunk => stdout.push(chunk));
+  let streamBuffer = "";
+  let forbiddenObserved = null;
+  child.stdout.on("data", chunk => {
+    stdout.push(chunk);
+    streamBuffer += chunk.toString("utf8");
+    const lines = streamBuffer.split("\n");
+    streamBuffer = lines.pop();
+    for (const line of lines) {
+      if (!line) continue;
+      try {
+        const event = JSON.parse(line);
+        if (forbiddenEvent(event) && !forbiddenObserved) {
+          forbiddenObserved = `${String(event.type || "")}:${String(event.item?.type || "")}`;
+          try { process.kill(-child.pid, "SIGKILL"); } catch {}
+        }
+      } catch {}
+    }
+  });
   child.stderr.on("data", chunk => stderr.push(chunk));
   child.stdin.end(promptBytes);
   let timedOut = false;
@@ -123,6 +146,7 @@ async function main() {
   let validationError = null;
   let eventReceipt = null;
   try {
+    if (forbiddenObserved) throw new Error(`forbidden_provider_event:${forbiddenObserved}`);
     if (timedOut) throw new Error("timeout");
     if (exitCode !== 0) throw new Error(`provider_exit_${exitCode}`);
     eventReceipt = inspectEvents(eventBytes);
@@ -130,6 +154,7 @@ async function main() {
     const schema = JSON.parse(schemaBytes.toString("utf8"));
     const validate = new Ajv({ allErrors: true, strict: true }).compile(schema);
     if (!validate(response)) throw new Error(`response_schema:${JSON.stringify(validate.errors)}`);
+    if (config.expected_response_root && config.expected_response_root !== root(response)) throw new Error("expected_response_root");
     const retained = Buffer.concat([eventBytes, stderrBytes, bytes(outputPath)]).toString("utf8");
     if (/access_token|refresh_token|id_token|OPENAI_API_KEY|Bearer\s|sk-[A-Za-z0-9]/.test(retained)) throw new Error("credential_shaped_capture");
   } catch (error) {
@@ -159,4 +184,4 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   main().catch(error => fail(String(error.message || error)));
 }
 
-export { inspectEvents, root, sha, verifyBindings };
+export { forbiddenEvent, inspectEvents, root, sha, verifyBindings };

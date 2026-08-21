@@ -1,0 +1,6 @@
+{
+  "reason": "default; no launch without exact frozen release",
+  "schema": "vela.inherited-correction-hold.v1",
+  "status": "hold",
+  "updated_at": "2026-08-21T16:46:26Z"
+}
