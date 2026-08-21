@@ -37,7 +37,7 @@ object schema even if the protocol selection remains Protocol 1.
 
 The machine-readable selection is `conformance/protocol-1.json`. It binds this
 specification, the conformance profile, published schemas, positive fixtures,
-negative vectors, independent implementations, and the three non-normative
+negative vectors, independent implementations, and the four non-normative
 reference flows by path and SHA-256. `conformance/verify_protocol_1.py` fails if
 that surface drifts.
 

@@ -14,5 +14,9 @@ authority path.
   real Math authority chain, then reproduces the separate synthetic diamond
   cascade with Rust and Python. The distinction is explicit because no real
   accepted dependency cascade exists yet.
+- [`portable-divergence/`](portable-divergence/) imports one exact authenticated
+  Submission into two disposable independently governed Repositories, then
+  proves that local accept and reject Decisions replay to different Standing
+  without a global consensus layer.
 
 For the shortest first experience, start with the [flagship quickstart](../docs/QUICKSTART.md).

@@ -1,0 +1,72 @@
+{
+  "schema": "vela.reference-flow.v1",
+  "name": "portable-submission-local-decision-divergence",
+  "authority_effect": "none",
+  "fixture": {
+    "submission_path": "conformance/current-objects/submission.json",
+    "artifact_path": "conformance/current-objects/artifacts/sha256/084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0",
+    "artifact_root": "sha256:084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0",
+    "submission_id": "vsb_f1669cdfa498ff85",
+    "submission_root": "sha256:f1669cdfa498ff85c162bce6173f04b39cdf7620fb198a19b45f6d932302204a",
+    "producer": "agent:independent-js",
+    "producer_public_key": "03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8",
+    "verification_requirement": "Recompute the result from the exact fixture bytes."
+  },
+  "derived_claim": {
+    "claim_id": "vcl_cea6cdb3e9fd02fae86886a0edbe51e5c2fe2d5e00dc7f264d4c3de0f9f2c422",
+    "claim_root": "sha256:e865c5a2aafd459d52d9b1c8a7734104b1e2d8d1c047c5400684f01505f83632",
+    "assertion": "The fixture computation returns 42 for the pinned input.",
+    "standing_before_decision": "unassessed"
+  },
+  "local_histories": {
+    "accept": {
+      "repository_name": "Portable divergence accept fixture",
+      "decision": "accept",
+      "performer": "agent:portable-divergence-acceptor",
+      "session_ref": "fixture:portable-divergence:accept",
+      "reason": "The exact synthetic fixture check passed within this Repository's bounded scope.",
+      "verifier": "verifier:portable-divergence",
+      "accepted_claim_count": 1,
+      "pending_claim_count": 0,
+      "authority_record_count": 2
+    },
+    "reject": {
+      "repository_name": "Portable divergence reject fixture",
+      "decision": "reject",
+      "performer": "agent:portable-divergence-rejector",
+      "session_ref": "fixture:portable-divergence:reject",
+      "reason": "This Repository declines to admit the synthetic Claim without its own local check.",
+      "accepted_claim_count": 0,
+      "pending_claim_count": 0,
+      "authority_record_count": 2
+    }
+  },
+  "expected": {
+    "same_submission_bytes": true,
+    "same_submission_root": true,
+    "same_claim_id_and_root": true,
+    "distinct_repository_ids": true,
+    "distinct_repository_authority_keys": true,
+    "distinct_authority_models": true,
+    "distinct_decision_record_roots": true,
+    "distinct_terminal_repository_roots": true,
+    "clean_clone_replay_matches_each_source_commit_tree_and_repository_root": true,
+    "global_consensus_required": false,
+    "standing_transports_between_repositories": false
+  },
+  "commands": [
+    "vela submit conformance/current-objects/submission.json --repo <accept-repository> --json",
+    "vela submit conformance/current-objects/submission.json --repo <reject-repository> --json",
+    "vela verification record <accept-repository> <accept-proposal> --profile portable-divergence-recompute-v1 --method verification/portable-divergence.json --property \"Recompute the result from the exact fixture bytes.\" --outcome pass --does-not-establish \"Scientific truth, acceptance outside this Repository, or global consensus.\" --independent-of agent:independent-js --as verifier:portable-divergence --json",
+    "vela review accept <accept-repository> <accept-proposal> --if-entry-root <accept-entry-root> --reason \"The exact synthetic fixture check passed within this Repository's bounded scope.\" --as agent:portable-divergence-acceptor --session-ref fixture:portable-divergence:accept --json",
+    "vela review reject <reject-repository> <reject-proposal> --if-entry-root <reject-entry-root> --reason \"This Repository declines to admit the synthetic Claim without its own local check.\" --as agent:portable-divergence-rejector --session-ref fixture:portable-divergence:reject --json",
+    "vela replay <accept-repository> --json",
+    "vela replay <reject-repository> --json"
+  ],
+  "does_not_establish": [
+    "that the synthetic Claim is scientifically true outside the disposable fixture",
+    "that one Repository's Decision or Standing governs the other Repository",
+    "global consensus, cross-Repository agreement, or transport of Standing",
+    "external adoption, scientific utility, or a Protocol 1.0 software release"
+  ]
+}

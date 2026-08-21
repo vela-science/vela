@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Check the three Protocol 1 reference flows without network or authority."""
+"""Check the four Protocol 1 reference flows without network or authority."""
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import shutil
@@ -40,7 +41,12 @@ def run(command: list[str]) -> subprocess.CompletedProcess[str]:
 
 
 def check_flow_documents() -> None:
-    for name in ("formal-math", "computational-science", "correction-inheritance"):
+    for name in (
+        "formal-math",
+        "computational-science",
+        "correction-inheritance",
+        "portable-divergence",
+    ):
         flow = load(EXAMPLES / name / "flow.json")
         if flow.get("schema") != "vela.reference-flow.v1":
             raise AssertionError(f"{name}: wrong reference-flow schema")
@@ -160,12 +166,47 @@ def check_formal_math_flow() -> None:
         raise AssertionError("formal-math correction evidence root drift")
 
 
+def check_portable_divergence_flow() -> None:
+    flow = load(EXAMPLES / "portable-divergence/flow.json")
+    fixture = flow["fixture"]
+    submission_path = ROOT / fixture["submission_path"]
+    artifact_path = ROOT / fixture["artifact_path"]
+    if digest(submission_path) != fixture["submission_root"]:
+        raise AssertionError("portable divergence Submission root drift")
+    if digest(artifact_path) != fixture["artifact_root"]:
+        raise AssertionError("portable divergence Artifact root drift")
+    envelope = load(submission_path)
+    payload_bytes = base64.b64decode(envelope["payload"], validate=True)
+    payload = json.loads(payload_bytes)
+    if canonical_bytes(payload) != payload_bytes:
+        raise AssertionError("portable divergence payload is not canonical JSON")
+    if payload["identity"]["actor_id"] != fixture["producer"]:
+        raise AssertionError("portable divergence producer drift")
+    if payload["identity"]["public_key_hex"] != fixture["producer_public_key"]:
+        raise AssertionError("portable divergence producer key drift")
+    if payload["claim"]["assertion"] != flow["derived_claim"]["assertion"]:
+        raise AssertionError("portable divergence Claim assertion drift")
+    if payload["verification_requirements"] != [fixture["verification_requirement"]]:
+        raise AssertionError("portable divergence verification requirement drift")
+    if envelope["signatures"][0]["keyid"] != fixture["producer_public_key"]:
+        raise AssertionError("portable divergence envelope key drift")
+    if fixture["submission_id"] != "vsb_" + fixture["submission_root"][7:23]:
+        raise AssertionError("portable divergence Submission handle drift")
+    expected = flow["expected"]
+    if (
+        expected["global_consensus_required"]
+        or expected["standing_transports_between_repositories"]
+    ):
+        raise AssertionError("portable divergence must keep consensus and Standing local")
+
+
 def main() -> int:
     check_flow_documents()
     check_computational_flow()
     check_correction_flow()
     check_formal_math_flow()
-    print("reference-flows: 3 checked; authority effect none")
+    check_portable_divergence_flow()
+    print("reference-flows: 4 checked; authority effect none")
     return 0
 
 
