@@ -1,0 +1,234 @@
+{
+  "artifact_root": "sha256:39cd088440a6a4175f7a7299419adc13a705c9ca54db8c1692594dbfdae488a9",
+  "bundles": {
+    "erdos": {
+      "commits": [
+        {
+          "commit": "43c7a1418ccd16c304a3c9c0e62ba0ead26d06ab",
+          "object_parents": [
+            "194d20879bd60750349203c9f1421bac97ec089e"
+          ],
+          "tree": "bf2efb827bcaafe45feef1b26d95896467833972"
+        },
+        {
+          "commit": "85b7a35e4c83fc552da5598f5f7998bda2026c8a",
+          "object_parents": [
+            "43c7a1418ccd16c304a3c9c0e62ba0ead26d06ab"
+          ],
+          "tree": "d501de4fa3c284ce2eebc156d816007f3400d45a"
+        },
+        {
+          "commit": "606f2f4b50193b1feccf1df4e1f31d50d3a8dd99",
+          "object_parents": [
+            "85b7a35e4c83fc552da5598f5f7998bda2026c8a"
+          ],
+          "tree": "79c190d8f6fe899185494b52541b5df6d7677d41"
+        },
+        {
+          "commit": "80606bdccb51fa86524111a1a61876bb08e45d79",
+          "object_parents": [
+            "606f2f4b50193b1feccf1df4e1f31d50d3a8dd99"
+          ],
+          "tree": "fd233bf5ef27196dab3eaef5d4c664ed56f8ed92"
+        }
+      ],
+      "ref": "refs/heads/retained-trace",
+      "shallow_boundary": "43c7a1418ccd16c304a3c9c0e62ba0ead26d06ab",
+      "tip": "80606bdccb51fa86524111a1a61876bb08e45d79"
+    },
+    "vela_web": {
+      "commits": [
+        {
+          "commit": "834598bf3c38117e97789805417ace797eb3e62c",
+          "object_parents": [
+            "34b790b4b58597dbf5c95ed4bdc60b20169ce797"
+          ],
+          "tree": "539097ebf757ffdbd593792f586addbb49c5952b"
+        },
+        {
+          "commit": "6a4ae82442d396b053a1fbb8d804d1349e0e5747",
+          "object_parents": [
+            "834598bf3c38117e97789805417ace797eb3e62c"
+          ],
+          "tree": "fc9c1a791ba889939f67c47cd3d863c38f0a552f"
+        }
+      ],
+      "ref": "refs/heads/map-implementation",
+      "shallow_boundary": "834598bf3c38117e97789805417ace797eb3e62c",
+      "tip": "6a4ae82442d396b053a1fbb8d804d1349e0e5747"
+    }
+  },
+  "claim_ceiling": [
+    "This exact retained trace demonstrates that controller activity, a scoped Verification, and a read-only map did not change accepted Standing; a later separate human Decision caused the one accepted delta.",
+    "The trace demonstrates deterministic offline reconstruction of the cited Git histories and cross-consistency of the frozen map, Decision, replay, remap, and stale-Target evidence.",
+    "The evidence is one bounded internal first-party systems trace, not proof of scientific truth, general controller quality, productivity, adoption, or external reproduction.",
+    "This reproduction performs no authority, Decision, Standing, source, deployment, inference, or publication action."
+  ],
+  "files": [
+    {
+      "path": "paper/artifacts/controller-substrate-reproduction/README.md",
+      "sha256": "sha256:c878304ac74669bb295a5514b1e7f3fb6ab75d0e9b49a14130f542d7e7aa3ee8",
+      "size": 2650
+    },
+    {
+      "path": "paper/artifacts/controller-substrate-reproduction/bundles/erdos-map-target-loop.bundle",
+      "sha256": "sha256:8bfbfd434643dd0135460aa47846cbbfb2a73ed23a330753ace4ed3d2744274d",
+      "size": 10734377
+    },
+    {
+      "path": "paper/artifacts/controller-substrate-reproduction/bundles/vela-web-map-implementation.bundle",
+      "sha256": "sha256:9c7d6ec608235ac5510ef921313cbb28065479aef8c7e1b3dcd50c303493d518",
+      "size": 22296074
+    },
+    {
+      "path": "paper/artifacts/controller-substrate-reproduction/test_verify.py",
+      "sha256": "sha256:e60018daf244462f9261be3802b5104821fd36a8d3e05fa2dcec133bff9c3824",
+      "size": 3313
+    },
+    {
+      "path": "paper/artifacts/controller-substrate-reproduction/verify.py",
+      "sha256": "sha256:55e72f699626828e917844fdfe8d7f2ff0b9e433fca5dda89fb62123315be367",
+      "size": 16497
+    },
+    {
+      "path": "paper/artifacts/map-target-loop/README.md",
+      "sha256": "sha256:489b37f2fcc1f3559decb943df2d9cf9e849eb9a36ca954cbc177baaf583bcf8",
+      "size": 3347
+    },
+    {
+      "path": "paper/artifacts/map-target-loop/decision-packet.json",
+      "sha256": "sha256:a4934c6ccec68a4f07e9cf5f03e3f6d437459688825402e51041e4831fc7d993",
+      "size": 1997
+    },
+    {
+      "path": "paper/artifacts/map-target-loop/materialize_post_decision.py",
+      "sha256": "sha256:be63383b80c171614c030cf7572c40c850eb1edc70275af39caa7303d81e3342",
+      "size": 31895
+    },
+    {
+      "path": "paper/artifacts/map-target-loop/post-decision.json",
+      "sha256": "sha256:b29e8cbb50aff3cc81a4ac6f4cf261b9a3ca9d80dbe69614d9a771116d80151c",
+      "size": 10071
+    },
+    {
+      "path": "paper/artifacts/map-target-loop/post-verification-map.json",
+      "sha256": "sha256:439a804908890e4029922cc91cdd0a79122187d573530fc760a419d90786be21",
+      "size": 2229
+    },
+    {
+      "path": "paper/artifacts/map-target-loop/post-verification.json",
+      "sha256": "sha256:de8d19a3b9996770df9b88bcd92b0a7a60012de6fcac812fa79f4d2db1a05fe3",
+      "size": 2408
+    },
+    {
+      "path": "paper/artifacts/map-target-loop/pre-run.json",
+      "sha256": "sha256:e0a517d543ce448917f6baa1a620727431caa53b0590f247bbf3fe9f5c3ed6d6",
+      "size": 4195
+    },
+    {
+      "path": "paper/artifacts/map-target-loop/test_materialize_post_decision.py",
+      "sha256": "sha256:4a0f3bcacc74fdfbaa48e270baefaef736232333e436f9a605f60e318ef42059",
+      "size": 9563
+    }
+  ],
+  "schema": "vela.controller-substrate-reproduction.v1",
+  "trace": {
+    "authority_records": {
+      "decision": {
+        "commit": "80606bdccb51fa86524111a1a61876bb08e45d79",
+        "event_ids": [
+          "vev_51abc098046d3423",
+          "vev_9441e9680fc2beee"
+        ],
+        "path": ".vela/authority/records/var_ac64e1806e2a18b0.dsse.json",
+        "root": "sha256:47a9bc4342624a0605063b12814322b5d4421c221ac3d7ae8e9095a73ada2e50"
+      },
+      "submission": {
+        "commit": "85b7a35e4c83fc552da5598f5f7998bda2026c8a",
+        "path": ".vela/authority/records/var_213d581904ee785e.dsse.json",
+        "root": "sha256:1ad63ab73427529461f4d07a3aaa1dd59c54512a330a90f7355d4d6efdadd994"
+      },
+      "verification": {
+        "commit": "606f2f4b50193b1feccf1df4e1f31d50d3a8dd99",
+        "path": ".vela/authority/records/var_fc3b04e7ae0e7d3f.dsse.json",
+        "root": "sha256:8af8d3a2d6f61337278020379d557293841ce0458ef218adc3a89292213bd4a1"
+      }
+    },
+    "changed_paths": [
+      [
+        {"change": "A", "path": ".vela/authority/records/var_213d581904ee785e.dsse.json"},
+        {"change": "M", "path": ".vela/repository.json"},
+        {"change": "A", "path": "records/artifacts/sha256/68f2929c72ecfd47e5ef53211ab0fe8b670592f4d2e259e3d6a309717b266693"},
+        {"change": "A", "path": "records/artifacts/sha256/93ee409dbd628416228f1b3cdc3830c745c9d8cf0be288a751562496a2f584bb"},
+        {"change": "A", "path": "records/artifacts/sha256/baec250e336105634fec8a7ce529c38e85a0bc7085004fecf70023ac5fd0113e"},
+        {"change": "A", "path": "records/claims/sha256/e5dda77fea872d0de9da96934d8c483d851fcfb8615e10fec9386e88d486452c.json"},
+        {"change": "A", "path": "records/proposals/sha256/34d366ca2efb69643b2d9ea6185c2cf678e7d304e4b4c247e675bff7454e5181.json"},
+        {"change": "A", "path": "records/registrations/sha256/14d8cc0c938a1e8ce25dc3487bf300ff76669cf0ba391daf46a74ee059818c5e.json"},
+        {"change": "A", "path": "records/submissions/sha256/0ef6bcf68411df02e4deb11b89df1cfa8ab197c133c38ae327dc19f89abfb822.json"},
+        {"change": "M", "path": "targets.json"}
+      ],
+      [
+        {"change": "A", "path": ".vela/authority/records/var_fc3b04e7ae0e7d3f.dsse.json"},
+        {"change": "M", "path": ".vela/repository.json"},
+        {"change": "A", "path": "records/verifications/sha256/47b5e299e93d298e31da2b4c3c9352855b37e07500f03208eb7851efb4c24ea9.json"},
+        {"change": "M", "path": "targets.json"}
+      ],
+      [
+        {"change": "A", "path": ".vela/authority/events/vev_51abc098046d3423.json"},
+        {"change": "A", "path": ".vela/authority/events/vev_9441e9680fc2beee.json"},
+        {"change": "A", "path": ".vela/authority/records/var_ac64e1806e2a18b0.dsse.json"},
+        {"change": "M", "path": ".vela/repository.json"},
+        {"change": "M", "path": "targets.json"}
+      ]
+    ],
+    "claim_id": "vcl_5c740ebb758107f25179b096d9e1b680d0bc62186eb276c8b907a2c1226fd979",
+    "decision_events": [
+      {
+        "path": ".vela/authority/events/vev_51abc098046d3423.json",
+        "root": "sha256:fb48df2660288285a8dd838e94e1969cef6da95a13a9f7b483641c7f54d1006e"
+      },
+      {
+        "path": ".vela/authority/events/vev_9441e9680fc2beee.json",
+        "root": "sha256:d0d8c70b2a35a87591fe3f29712ab878698d24266df895f7294f7d723c09c6d9"
+      }
+    ],
+    "repository_stages": [
+      {
+        "accepted_claims": 2771,
+        "claim_standings": [],
+        "commit": "43c7a1418ccd16c304a3c9c0e62ba0ead26d06ab",
+        "name": "pre_run_map",
+        "pending_claims": 0,
+        "repository_root": "sha256:8a98ff1c632232c7b227d87a0f1015aaa3429d38c83592ca66f8e465b06b0ee5"
+      },
+      {
+        "accepted_claims": 2771,
+        "claim_standings": ["pending_review"],
+        "commit": "85b7a35e4c83fc552da5598f5f7998bda2026c8a",
+        "name": "submission",
+        "pending_claims": 1,
+        "repository_root": "sha256:da38399a15d9deae5a012d9df9f8eae745bf8f3c44e22da973720a8e256cb1c0"
+      },
+      {
+        "accepted_claims": 2771,
+        "claim_standings": ["pending_review"],
+        "commit": "606f2f4b50193b1feccf1df4e1f31d50d3a8dd99",
+        "name": "verification_zero_delta",
+        "pending_claims": 1,
+        "repository_root": "sha256:8b1c2bbc99b9e9aade2bfb56d3493be02cdad954eefa3cd98a14ac41128ae0d4"
+      },
+      {
+        "accepted_claims": 2772,
+        "claim_standings": ["accepted"],
+        "commit": "80606bdccb51fa86524111a1a61876bb08e45d79",
+        "name": "human_decision",
+        "pending_claims": 0,
+        "repository_root": "sha256:9679827bc76de9f6433bfafa8e2e966b9780ca1273c7948d97c2ae042f5cab1a"
+      }
+    ],
+    "stale_target": {
+      "packet_root": "sha256:6d1a2ca87851deb1fa2133f4f6cf7edb28ee843cb0eef57ea09e826b3fdca63b",
+      "retained_defect": "The first Target packet did not advance after the Decision; the map correctly records a product defect rather than fresh work."
+    }
+  }
+}
