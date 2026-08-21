@@ -1,0 +1,21 @@
+{
+  "attempt": 1,
+  "authorization_root": "sha256:9dee4bdaa818313a20f09209c2647d022ce08b456681dbe6607ccd0a22e02041",
+  "authorized_configuration_mapping_root": "sha256:fc83efbb02022a156f71e771db17d002ba93e8ac876b42f9dc62c66d505732f8",
+  "completed_at": "2026-08-21T19:47:15.673Z",
+  "condition": "git-documents",
+  "condition_runtime_configuration_root": "sha256:06bd82bdf59e48df0103400e0b04e51e04a943b9887d188130c80fb914217f1a",
+  "duration_seconds": 12.791058465,
+  "packet_root": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+  "participant_configuration_root": "sha256:f808a660fc663245cf67c298cf1ff53a4b35402fd704e1281d03a83d567319ff",
+  "participant_instance_id": "replacement-sol-08",
+  "registration_root": "sha256:a8b4b729e7b2be4f371d4831caa9214959514cb51222da9e422b0634c408a575",
+  "run_id": "replacement-run-08",
+  "runtime_custody_root": "sha256:2e8646db778e91d50d1d25b14554ae5bf002d925dd6487ebb29b4c1f6661d8d1",
+  "runtime_registration_root": "sha256:988326b2f9ef7232795a73070823993251fa0481450a792b51905ce85d7e31b4",
+  "schema": "vela.inherited-correction-run.v2",
+  "started_at": "2026-08-21T19:47:02.846Z",
+  "status": "completed",
+  "timeout_seconds": 600,
+  "tool_calls": 0
+}
