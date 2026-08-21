@@ -180,10 +180,12 @@ pub(crate) enum Commands {
         /// Directory to create as a native repository.
         #[arg(default_value = ".")]
         path: PathBuf,
-        /// Human-readable repository name. Required in --json mode.
+        /// Human-readable repository name. Required for a fresh --check target
+        /// and in --json initialization mode.
         #[arg(long)]
         name: Option<String>,
-        /// The bounded research question. Required in --json mode.
+        /// The bounded research question. Required for a fresh --check target
+        /// and in --json initialization mode.
         #[arg(long)]
         scope: Option<String>,
         /// Full OpenSSH SHA256 fingerprint, key ID, or raw public-key hex for
@@ -194,6 +196,10 @@ pub(crate) enum Commands {
         /// Why repository authority is being established.
         #[arg(long, default_value = "Establish repository authority.")]
         reason: String,
+        /// Check target, local runtime identity, and authority-key readiness
+        /// without creating or changing a repository.
+        #[arg(long)]
+        check: bool,
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },
@@ -308,6 +314,29 @@ pub(crate) enum Commands {
 /// `vela verification` — durable, non-authorizing verifier evidence.
 #[derive(Subcommand)]
 pub(crate) enum VerifyAction {
+    /// Validate one canonical Review Method and its intended lifecycle
+    /// bindings without reading or changing a Repository.
+    #[command(override_usage = "vela verification check [OPTIONS] <METHOD>")]
+    Check {
+        /// Canonical vela.review-method.v1 JSON file.
+        #[arg(value_name = "METHOD")]
+        method: PathBuf,
+        /// Intended Verification profile; must equal the method profile.
+        #[arg(long)]
+        profile: String,
+        /// Intended observed property; must equal the method property.
+        #[arg(long)]
+        property: String,
+        /// Intended attesting actor; must equal the method actor.
+        #[arg(long = "as", help = HELP_REQUIRED_AS)]
+        actor: String,
+        /// Intended Verification nonclaim. Repeat until every method nonclaim
+        /// is present.
+        #[arg(long = "does-not-establish", required = true)]
+        does_not_establish: Vec<String>,
+        #[arg(long, help = HELP_JSON)]
+        json: bool,
+    },
     /// Author, sign, and retain one scoped Verification Record over a current
     /// pending Proposal.
     #[command(override_usage = "vela verification record [OPTIONS] [REPO] <PROPOSAL>")]

@@ -400,6 +400,7 @@ pub(crate) fn prepare(
     observed_at: &str,
     explicit_actor: Option<&str>,
     explicit_session_ref: Option<&str>,
+    device_identifier: &str,
 ) -> Result<PreparedReviewDecision, String> {
     if reason.trim().is_empty() || reason != reason.trim() {
         return Err("current review reason must be non-empty trimmed text".into());
@@ -456,7 +457,7 @@ pub(crate) fn prepare(
         &fs::read_to_string(repository_path.join("vela.toml"))
             .map_err(|error| format!("read repository profile: {error}"))?,
     )?;
-    let local = crate::cli::local_session(observed_at)?;
+    let local = crate::cli::local_session_with_device(observed_at, device_identifier)?;
     let (actor_id, actor_class) = resolve_decision_actor(explicit_actor, &local.principal_id)?;
     let session_ref = resolve_session_ref(explicit_session_ref)?;
     let mut plan = ReviewDecisionPlan {
@@ -509,6 +510,7 @@ pub(crate) fn prepare_locked(
     observed_at: &str,
     explicit_actor: Option<&str>,
     explicit_session_ref: Option<&str>,
+    device_identifier: &str,
 ) -> Result<(PreparedReviewDecision, RepositoryRecoveryBarrier), String> {
     let journal_dir = crate::repository_ops::repository_transaction_journal_dir(repository_path)?;
     let barrier = RepositoryTxn::acquire_recovery_barrier(repository_path, &journal_dir)
@@ -521,6 +523,7 @@ pub(crate) fn prepare_locked(
         observed_at,
         explicit_actor,
         explicit_session_ref,
+        device_identifier,
     )?;
     Ok((prepared, barrier))
 }
@@ -750,6 +753,7 @@ pub(crate) fn execute_prepared(
     prepared: PreparedReviewDecision,
     recovery_barrier: RepositoryRecoveryBarrier,
     action: DecisionAction,
+    device_identifier: &str,
 ) -> Result<AuthorityTransactionResult, String> {
     let expected = &prepared.plan;
     let expected_action = match action {
@@ -767,7 +771,7 @@ pub(crate) fn execute_prepared(
     .map_err(|error| error.to_string())?;
     let recorded_at =
         crate::cli::canonical_whole_second_time("current review decision", &expected.observed_at)?;
-    let local = crate::cli::local_session(&recorded_at)?;
+    let local = crate::cli::local_session_with_device(&recorded_at, device_identifier)?;
     if local.principal_id != expected.principal_id {
         return Err("local operating-system principal changed before review execution".into());
     }

@@ -27,6 +27,28 @@ pub(crate) fn cmd_review_decide(
     if reason.trim().is_empty() {
         ui::fail_with(ErrorKind::Usage, "--reason must not be empty", None);
     }
+    let identity_request = format!(
+        "{}|{}|{}|{}",
+        repository_path.display(),
+        proposal_id,
+        action.as_str(),
+        reason
+    );
+    let operation_id = vela_repository::OperationId::derive(
+        "review-runtime-identity",
+        identity_request.as_bytes(),
+    );
+    let device_identifier = super::runtime_device_identifier().unwrap_or_else(|error| {
+        let recovery =
+            super::runtime_identity_recovery(&error, &format!("vela review {}", action.as_str()));
+        ui::fail_unchanged_coded(
+            ErrorKind::Domain,
+            Some(error.code),
+            &error.message,
+            operation_id.as_str(),
+            &recovery,
+        )
+    });
     run_review_decision(
         repository_path,
         proposal_id,
@@ -36,6 +58,7 @@ pub(crate) fn cmd_review_decide(
         session_ref,
         reason,
         json,
+        device_identifier,
     );
 }
 
@@ -48,6 +71,7 @@ fn run_review_decision(
     session_ref: Option<String>,
     reason: String,
     json: bool,
+    device_identifier: String,
 ) {
     let observed_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
     let (prepared, recovery_barrier) = crate::repository_decision::prepare_locked(
@@ -58,6 +82,7 @@ fn run_review_decision(
         &observed_at,
         actor.as_deref(),
         session_ref.as_deref(),
+        &device_identifier,
     )
     .unwrap_or_else(|error| {
         ui::fail_if_recovery_required(&repository_path);
@@ -121,6 +146,7 @@ fn run_review_decision(
         prepared,
         recovery_barrier,
         action,
+        &device_identifier,
     )
     .unwrap_or_else(|error| {
         ui::fail_if_recovery_required(&repository_path);

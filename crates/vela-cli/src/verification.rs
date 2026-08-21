@@ -38,6 +38,70 @@ const DIRTY_ERROR: &str =
 const REPOSITORY_OPERATION_KIND: &str = "verification";
 
 #[derive(Debug, Clone)]
+pub(crate) enum ReviewMethodCheckError {
+    Invalid(String),
+    Binding(String),
+}
+
+impl ReviewMethodCheckError {
+    pub(crate) fn code(&self) -> &'static str {
+        match self {
+            Self::Invalid(_) => "review_method_invalid",
+            Self::Binding(_) => "review_method_binding_mismatch",
+        }
+    }
+
+    pub(crate) fn message(&self) -> &str {
+        match self {
+            Self::Invalid(message) | Self::Binding(message) => message,
+        }
+    }
+}
+
+pub(crate) struct CheckedReviewMethod {
+    pub(crate) method: ReviewMethodV1,
+    pub(crate) root: String,
+    pub(crate) bytes: usize,
+}
+
+/// Validate exactly the same canonical Review Method and lifecycle bindings
+/// used by `verification record`, without requiring or changing a Repository.
+pub(crate) fn check_review_method(
+    path: &Path,
+    profile: &str,
+    property: &str,
+    actor: &str,
+    does_not_establish: Vec<String>,
+) -> Result<CheckedReviewMethod, ReviewMethodCheckError> {
+    let bytes =
+        crate::bounded_file::read_bounded_file(path, METHOD_MANIFEST_MAX_BYTES, "Review Method v1")
+            .map_err(|error| ReviewMethodCheckError::Invalid(error.to_string()))?;
+    let review_method = ReviewMethodV1::parse_canonical(&bytes).map_err(|error| {
+        ReviewMethodCheckError::Invalid(format!(
+            "parse {} as canonical vela.review-method.v1: {error}",
+            path.display()
+        ))
+    })?;
+    verification_actor_class(actor).map_err(ReviewMethodCheckError::Binding)?;
+    let method = VerificationMethod {
+        profile: profile.into(),
+        implementation: path.display().to_string(),
+        environment_root: sha256_root(&bytes),
+    };
+    let scope = VerificationScope {
+        property: property.into(),
+        does_not_establish,
+    };
+    ensure_review_method_binding(&review_method, &method, &scope, actor)
+        .map_err(ReviewMethodCheckError::Binding)?;
+    Ok(CheckedReviewMethod {
+        method: review_method,
+        root: sha256_root(&bytes),
+        bytes: bytes.len(),
+    })
+}
+
+#[derive(Debug, Clone)]
 pub(crate) struct VerificationRecordRequest {
     pub(crate) proposal_id: String,
     pub(crate) profile: String,

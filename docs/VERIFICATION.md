@@ -34,6 +34,23 @@ retained outputs, scope, outcome, and limitations. Reviewer kind establishes no
 quality rank. Only an authorized Repository Decision may change Standing;
 human and agent performers use the same exact-root, policy, and replay checks.
 
+Validate a checked-in or generated Review Method before lifecycle execution:
+
+```bash
+vela verification check review-method.json \
+  --profile <profile> \
+  --property "<exact property>" \
+  --as verifier:<name> \
+  --does-not-establish "<required nonclaim>" \
+  --json
+```
+
+The command reuses the authoritative `ReviewMethodV1::parse_canonical` path and
+the binding rules used by `verification record`. Valid output reports
+`changed: false`; invalid canonical bytes and binding mismatches return stable
+`vela.error.v1` codes. It creates no Repository object, signature, Event, or
+Standing.
+
 ## Replay and source-owned methods
 
 `vela replay [<repo>] --json` validates the current repository origin, taking
@@ -123,6 +140,21 @@ rejects stale or substituted inputs and cannot accept, reject, or finalize the
 Proposal. `vela review show` reports the bound method and scoped Verification
 separately from the attributed Decision. Re-executing a source-owned method is
 not a Core runtime or a Decision.
+
+## Container and automation boundary
+
+Vela owns diagnostics for prerequisites it consumes: `init --check` validates
+the initialization target, local runtime identity, and authority signer, while
+`verification check` validates canonical Review Method bytes and intended
+bindings. Those checks are non-mutating and machine-readable.
+
+The scientific runner owns Docker stdin attachment, selection and trust of the
+Git working directory, conversion of relative bind sources to absolute host
+paths, container mount policy, and generation of experiment-specific manifests
+or receipts. Vela does not add shell, Docker, model, provider, or campaign
+orchestration to compensate for those failures. It also continues to refuse
+initialization of a non-empty directory: initialize the empty disposable
+Repository first, then copy and commit the source-owned packet.
 
 ## Submission and admission
 

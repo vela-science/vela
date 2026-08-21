@@ -6,13 +6,13 @@ Verification, and one attributed Decision.
 
 ## 1. Install the signed CLI
 
-`v0.977.3` is the current signed pre-1.0 release for Linux x86-64 and macOS
+`v0.977.4` is the current signed pre-1.0 release for Linux x86-64 and macOS
 Apple silicon. The installer verifies the platform release manifest before it
 installs the binary.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.3/install.sh | \
-  VELA_VERSION=v0.977.3 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.4/install.sh | \
+  VELA_VERSION=v0.977.4 bash
 
 vela --version
 ```
@@ -20,7 +20,7 @@ vela --version
 Expected version:
 
 ```text
-vela 0.977.3
+vela 0.977.4
 ```
 
 ## 2. Replay a public Repository
@@ -110,6 +110,11 @@ ssh-add -l
 
 vela init ./my-repository \
   --name "Bounded question" \
+  --scope "Does the selected finite claim hold?" \
+  --check --json
+
+vela init ./my-repository \
+  --name "Bounded question" \
   --scope "Does the selected finite claim hold?"
 ```
 
@@ -121,6 +126,14 @@ Claim, Verification, Decision, or scientific Standing.
 Distribute the sequence-one authority-record root through an independent
 trusted channel. Do not forward the authority-agent socket to remote,
 untrusted, or proposal-supplied code.
+
+`init --check` is read-only. Supply the same name and scope intended for
+initialization; it checks the target, local runtime identity, and selected
+OpenSSH-agent identity before any Profile, Git repository, journal, or trust
+pin exists. Linux containers must provide a stable container-local
+32-hex machine ID plus newline at `/etc/machine-id`; do not mount the host
+machine ID. Missing or malformed identity fails as `vela.error.v1` with
+`changed: false` and an actionable `error.code`.
 
 ## 5. Submit one bounded Result
 
@@ -174,6 +187,20 @@ named producer for the declared scope. Record shared dependencies with
 
 Optional starting Methods for common review scopes live in
 [`examples/review-methods`](../examples/review-methods/).
+Validate canonical bytes and their intended lifecycle bindings before running
+the Method or creating a Verification Record:
+
+```bash
+vela verification check my-repository/verification/method.json \
+  --profile exact-replay-v1 \
+  --property "<exact registered property>" \
+  --as verifier:<reviewer> \
+  --does-not-establish "Scientific acceptance." \
+  --json
+```
+
+This uses the same parser and profile, property, actor, and nonclaim checks as
+`verification record`; it reads no Repository and changes no state.
 
 ## 7. Accept or reject the Proposal
 

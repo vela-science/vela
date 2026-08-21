@@ -104,6 +104,12 @@ EXAMPLES
 
 pub const VERIFY: &str = "\
 EXAMPLES
+  vela verification check verification/method.json \\
+    --profile exact-replay-v1 --property \"Exact replay\" \\
+    --as verifier:independent-check \\
+    --does-not-establish \"Scientific acceptance.\" --json
+        validate canonical Review Method bytes and intended bindings; change nothing
+
   vela verification record vpr_8b49… \\
     --profile exact-replay-v1 \\
     --method verification/method.json \\
@@ -130,6 +136,10 @@ tool, plus the exact display identity, provider, identifier, known version,
 and attesting actor. Use separate Verification Records for separate reviewers;
 an AI synthesis is another scoped review, not a Decision.
 
+`verification check` uses the same authoritative parser and profile, property,
+actor, and nonclaim binding rules as `verification record`. It needs no
+Repository, signer, or lifecycle state and changes nothing.
+
 The repository is optional and discovered upward; name it first
 (`vela verification record . vpr_8b49… …`) to act on another.
 
@@ -138,6 +148,8 @@ SEE ALSO
 
 pub const INIT: &str = "\
 EXAMPLES
+  vela init ./my-repository --name \"Bounded question\" --scope \"Does X hold?\" --check --json
+                                   check target, runtime identity, and signer without writing
   vela init ./my-repository --name \"Bounded question\" --scope \"Does X hold?\"
                                    create a signed, replayable repository
 
@@ -151,7 +163,9 @@ FIRST USE
   ssh-add /path/to/private-key   load one dedicated Ed25519 key
   ssh-add -l              inspect full SHA256 fingerprints
 
-On Linux, start ssh-agent before ssh-add. Vela never creates, reads, or stores
+On Linux, start ssh-agent before ssh-add. Linux containers also need a stable,
+container-local 32-hex machine ID at /etc/machine-id. Do not mount the host
+machine ID. Vela never invents an identity and never creates, reads, or stores
 the private key.";
 
 pub const SHOW: &str = "\
