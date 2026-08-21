@@ -39,7 +39,7 @@ The corpus protects seven contract families:
 6. byte-identical independent Python and JavaScript object reading, including
    canonical bytes, DSSE type, Ed25519 signature, full root, handle, and signer;
    and
-7. three executable reference flows whose authority effect remains explicitly
+7. four executable reference flows whose authority effect remains explicitly
    none.
 
 `current-objects/` contains deterministic signed Submission and Verification

@@ -66,7 +66,7 @@ A candidate is locally qualified only when all of these gates pass:
 1. The version, release tag, source commit, and source tree agree. Signing
    refuses a modified or untracked tree and requires the tag to name `HEAD`.
 2. The Protocol 1 digest manifest, schemas, conformance vectors, independent
-   Python and JavaScript implementations, and three reference flows pass the
+   Python and JavaScript implementations, and four reference flows pass the
    full core conformance union.
 3. `scripts/release.sh` builds the binary twice in separate target directories
    with fixed path remapping and `SOURCE_DATE_EPOCH`; the two binaries must be

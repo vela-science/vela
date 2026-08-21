@@ -506,11 +506,11 @@
       "sha256": "sha256:2d2bb0d1d50b5b8cfbde448b8fafa9f7d541b54c8d0949c9ab492d04264fb37a"
     },
     {
-      "bytes": 6470,
+      "bytes": 12190,
       "normative": false,
       "path": "conformance/verify_reference_flows.py",
       "role": "reference-flow-verifier",
-      "sha256": "sha256:21b4b1095ec111fe15fa6d450b0197e702e16197e02d392ece4f5bedf2d451d5"
+      "sha256": "sha256:43f398ae9958adf90e34ff40c0e1b7dee00db69a4b4f4bc5d650f7bfd890b3d1"
     },
     {
       "bytes": 7866,
@@ -527,18 +527,18 @@
       "sha256": "sha256:7e90da685af71eb91953ff3de89855c6166ceaa642b4e10c905f93d8c8e5b518"
     },
     {
-      "bytes": 31933,
+      "bytes": 31932,
       "normative": true,
       "path": "docs/PROTOCOL.md",
       "role": "specification",
-      "sha256": "sha256:17b5af6a8a499b2c26744f68df7695aaf24990a60ef5387627acdabdbf5dc2a0"
+      "sha256": "sha256:a73bf6b595c83b3b15326bd591fa59ad843a860bc9408708aa091fdec9871c23"
     },
     {
-      "bytes": 5739,
+      "bytes": 5738,
       "normative": false,
       "path": "docs/RELEASES.md",
       "role": "release-qualification",
-      "sha256": "sha256:3f67c9eb76f3bdae2643b9c62ab2779091811a7fa0eb07d624127833557205a1"
+      "sha256": "sha256:60ec2b6b8e6bcf22df6aae0a6165db6112387a1c1a0315c853004dbc645d6406"
     },
     {
       "bytes": 10847,
@@ -548,11 +548,11 @@
       "sha256": "sha256:19680681064bf3da5fe7009dfa02716e60cdd99eafa9bd505ed28f46bad36e2d"
     },
     {
-      "bytes": 977,
+      "bytes": 1246,
       "normative": false,
       "path": "examples/README.md",
       "role": "reference-flow",
-      "sha256": "sha256:116e9aa2a66172d1086bb182dfbb7973584b080e567f264fcb8916b087628129"
+      "sha256": "sha256:b01d238ab31e074d7a46987309fb87927e30fb62dabec3d1e1a0d57cccd82692"
     },
     {
       "bytes": 1804,
@@ -616,6 +616,41 @@
       "path": "examples/formal-math/flow.json",
       "role": "reference-flow",
       "sha256": "sha256:1569b81ff40b355952b15a839eb2223911f0f48c8f654d9fe5591b6e9cb62aea"
+    },
+    {
+      "bytes": 2920,
+      "normative": false,
+      "path": "examples/portable-divergence/README.md",
+      "role": "reference-flow",
+      "sha256": "sha256:0821f85581e050d2f6ffeb51862d8f6654ca2be2aa8a22f35d766ee04ee79c6d"
+    },
+    {
+      "bytes": 19404,
+      "normative": false,
+      "path": "examples/portable-divergence/accept.git.bundle",
+      "role": "reference-flow",
+      "sha256": "sha256:2a92803cdb30e2f16d0f3a9b41fcbc24be39fc9693f7abc6f04f2f261a0dd0ba"
+    },
+    {
+      "bytes": 4890,
+      "normative": false,
+      "path": "examples/portable-divergence/expected.json",
+      "role": "reference-flow",
+      "sha256": "sha256:858019d298f55295fe92989bb23a343ce73b6976338f36c7c637c82272274041"
+    },
+    {
+      "bytes": 4987,
+      "normative": false,
+      "path": "examples/portable-divergence/flow.json",
+      "role": "reference-flow",
+      "sha256": "sha256:8a4a2a09d6a84f565fc6d93e834f192367638a9c20681cd857a1ef6cc848009f"
+    },
+    {
+      "bytes": 15959,
+      "normative": false,
+      "path": "examples/portable-divergence/reject.git.bundle",
+      "role": "reference-flow",
+      "sha256": "sha256:144de0583805ef53ea8116c3a6ba65eb7870be48563b85d8b8a0819ecea25c9a"
     },
     {
       "bytes": 1824,
@@ -779,7 +814,7 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:e014259269ea34452bb5a583a29ee478bec53e67128ec9eafa6d099a883fc24c",
+  "manifest_root": "sha256:6ca327d6ec6f56c051e236be9eee42629e1f67dce393c1518e051ff8c14b279e",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",

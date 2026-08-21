@@ -1452,6 +1452,27 @@ impl std::fmt::Display for RuntimeIdentityError {
 }
 
 pub(crate) fn runtime_device_identifier() -> Result<String, RuntimeIdentityError> {
+    #[cfg(feature = "test-support")]
+    if let Some(identifier) = std::env::var_os("VELA_TEST_DEVICE_IDENTIFIER") {
+        let identifier = identifier.into_string().map_err(|_| RuntimeIdentityError {
+            code: "runtime_identity_malformed",
+            message: "test device identity is not UTF-8".into(),
+            remediation: "remove the test-only device identity override, then rerun the same command",
+        })?;
+        if identifier.len() != 32
+            || identifier
+                .bytes()
+                .any(|byte| !byte.is_ascii_digit() && !(b'a'..=b'f').contains(&byte))
+            || identifier.bytes().all(|byte| byte == b'0')
+        {
+            return Err(RuntimeIdentityError {
+                code: "runtime_identity_malformed",
+                message: "test device identity must be exactly 32 lowercase hexadecimal characters and not all zero".into(),
+                remediation: "remove the test-only device identity override, then rerun the same command",
+            });
+        }
+        return Ok(identifier);
+    }
     local_device_identifier_diagnostic()
 }
 

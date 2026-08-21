@@ -1,0 +1,91 @@
+{
+  "accept": {
+    "accepted_claim_count": 1,
+    "bundle": "accept.git.bundle",
+    "bundle_root": "sha256:2a92803cdb30e2f16d0f3a9b41fcbc24be39fc9693f7abc6f04f2f261a0dd0ba",
+    "decision_record_id": "var_ef2b809ab56e25a3",
+    "decision_record_root": "sha256:20c8b859ffcaeecbdd492fb7ea959c48fe4919f0402822f6aafd92b99ec0742e",
+    "event_log_root": "sha256:bfd694710872ee93bc7b633242382e7e40854b968ab92c0b331b6275b437a83a",
+    "events": [
+      {
+        "id": "vev_69b1bb94bbf36c0e",
+        "kind": "authority.initialized",
+        "root": "sha256:fa88f744951d15099b9c49b6e534c34440ebb6b2ba98dacd7852847e11e69313"
+      },
+      {
+        "id": "vev_730fbb79f9d1346c",
+        "kind": "claim.asserted",
+        "root": "sha256:f9aaac31708bef216ac659cbf30c438400cc9ff88290456f714c19b1087f2573"
+      },
+      {
+        "id": "vev_c70cf2a9f246669c",
+        "kind": "review.accepted",
+        "root": "sha256:ebbeb3987d2afa070b30b33d70fd97a37af7e7ff5d05dbd1abb061786f5bf306"
+      }
+    ],
+    "git_commit": "887c4daf94605bc5468c91df350d53af1c01b47b",
+    "git_tree": "f16c91239380f2eb9b01133eea0ce98d9f52043d",
+    "keyset_root": "sha256:181c3a97138ad589fed69440505a47564345fe476ca7487de4280657391b3c7f",
+    "model_root": "sha256:6f89ccebc73faa4d46aebb0d1785b8b92d98d0e99974e2e0f429c8eb13c00fad",
+    "origin_id": "vro_08598b9065fca1a5",
+    "origin_root": "sha256:08598b9065fca1a534624029c760edd18beb9d1f09abe38130fef3188208e643",
+    "pending_claim_count": 0,
+    "principal_id": "local:device-sha256:8a83665f3798727f14f92ad0e6c99fdab08ee731d6cd644c131223fd2f4fed2a|uid:501",
+    "projection_root": "sha256:ba89cf9164ab7283d09bbe4551525b728a419c9e267766ac3a40223afff9b8e8",
+    "proposal_status": "accepted",
+    "repository_id": "ec5f077d-0c80-4634-9bce-5487301be70b",
+    "repository_key_id": "ssh-ed25519:SHA256:w6RelBaiESgHQQpTgQPwG9gCgUXs6YcCU2WUESL8HMg",
+    "repository_root": "sha256:cd9d73e81841bb74802e07de80c07425ecbfbe81156cbfbca11848a885753b31",
+    "sequence_one_record_id": "var_7ec0bef8a51a524b",
+    "sequence_one_record_root": "sha256:88a5425a967cb1cec430164d44cb61067dfecd90fb21ae4b97bc6f28717c6859",
+    "standing": "accepted"
+  },
+  "authority_effect": "none",
+  "claim_id": "vcl_cea6cdb3e9fd02fae86886a0edbe51e5c2fe2d5e00dc7f264d4c3de0f9f2c422",
+  "claim_root": "sha256:e865c5a2aafd459d52d9b1c8a7734104b1e2d8d1c047c5400684f01505f83632",
+  "does_not_establish": [
+    "that the synthetic Claim is scientifically true outside the disposable fixture",
+    "that one Repository's Decision or Standing governs the other Repository",
+    "global consensus, cross-Repository agreement, or transport of Standing",
+    "external adoption, scientific utility, or a Protocol 1.0 software release"
+  ],
+  "reject": {
+    "accepted_claim_count": 0,
+    "bundle": "reject.git.bundle",
+    "bundle_root": "sha256:144de0583805ef53ea8116c3a6ba65eb7870be48563b85d8b8a0819ecea25c9a",
+    "decision_record_id": "var_ee314853fccbd030",
+    "decision_record_root": "sha256:e9076c05d044be4eddc48471523d3a1dde7516b26429a6e0854ff991ad38e3b9",
+    "event_log_root": "sha256:6ad5cb819d098bf20c8068504e03ff035de4f9f0da69403461651e5f8758c033",
+    "events": [
+      {
+        "id": "vev_a0791968265fda30",
+        "kind": "review.rejected",
+        "root": "sha256:8b8cb83daa6b930b7d059bcac18e330462eb70474d8c0becba6f2a90c9a528fc"
+      },
+      {
+        "id": "vev_ae2fbb01d02d924a",
+        "kind": "authority.initialized",
+        "root": "sha256:022ca3c8b901b370e3e20bf77470bad8e536a0599d5f22ad0bf1d3d96a68e6ae"
+      }
+    ],
+    "git_commit": "26b194afba5cea01ed4d632d1d43af019870285f",
+    "git_tree": "b079b1814acfe4e0e4a6c8d3c92122a2a21e73dd",
+    "keyset_root": "sha256:e2f74a7a590939bf22f64cd5124117af3c84d7c5246935b1506395d5e9c5a4b3",
+    "model_root": "sha256:431131bb3eae63593b8fcbaf821911932bfc09da1e80cf3502a9d5d42ff6aafc",
+    "origin_id": "vro_2a4f97bbb67357e8",
+    "origin_root": "sha256:2a4f97bbb67357e89186c5047da39d1e4420d6575893cf0e8e1c643e0931021b",
+    "pending_claim_count": 0,
+    "principal_id": "local:device-sha256:0d6ba19b62531ccb0deb8804313eca283c69560f66f1b7b8a2c1592ae8c35c6b|uid:501",
+    "projection_root": "sha256:83e9488e54cfac87f5fea686f9eefbdf3c3668c73c23ab2252597666f3f5c346",
+    "proposal_status": "rejected",
+    "repository_id": "586046dc-ca38-4875-be25-c6e548437ba5",
+    "repository_key_id": "ssh-ed25519:SHA256:ZbA7WtXp0t7lZLuKnx+QErdKI6I/m3AqT32GsfzmjSI",
+    "repository_root": "sha256:a2ff58f7425ea65bf87c0eb96462fc9d2124fd7923bdbd784bfc00e841617e4b",
+    "sequence_one_record_id": "var_11df275184f95df5",
+    "sequence_one_record_root": "sha256:a679b6aadf98b70c2bd5db95a798b31e03c6b13bf30b8d2373eec13756799f56",
+    "standing": "unassessed"
+  },
+  "schema": "vela.portable-divergence-fixture.v1",
+  "submission_id": "vsb_f1669cdfa498ff85",
+  "submission_root": "sha256:f1669cdfa498ff85c162bce6173f04b39cdf7620fb198a19b45f6d932302204a"
+}
