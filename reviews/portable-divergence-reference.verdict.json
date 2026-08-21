@@ -1,0 +1,56 @@
+{
+  "schema": "vela.independent-code-review-verdict.v1",
+  "review_title": "Review Vela portable divergence reference",
+  "verdict": "BLOCKED",
+  "authority_effect": "none",
+  "standing_effect": "none",
+  "reviewed": {
+    "producer_ref": "origin/codex/protocol1-portable-divergence-reference",
+    "producer_commit": "acab8a04c65d56980be8e78f2fd337570993bfff",
+    "producer_tree": "b4ee622e07e153fad8315440155bc9c54906368f",
+    "base_commit": "1a2e0328620b4e8c4584c3d4baf257adb11f3d45",
+    "base_tree": "1bd8ed4e11d3745f159b32f23539f5174fd44803",
+    "diff_path_count": 9,
+    "insertions": 669,
+    "deletions": 15
+  },
+  "live_compatibility": {
+    "origin_main_commit": "2b8d43ed50a9639dfc18c5f6f21677021f70a4b2",
+    "origin_main_tree": "2a15e11af6aab2fc4574df940ec78de4ba29fdd8",
+    "merge_tree": "9a146c97ec8106925a84fce320fe34e3fdf8a164",
+    "clean": true
+  },
+  "protocol_manifest_root": "sha256:08db975c7d8ee797f0a8898e73d51c021306869b3c891c05ded68ab508e3aaac",
+  "findings": [
+    {
+      "id": "PD-1",
+      "severity": "blocking",
+      "category": "authority_independence",
+      "summary": "Both histories authenticate the same device-and-UID local authority principal; separate repository service keys and Decision performers do not make that principal distinct.",
+      "required": "Bind and assert two distinct authenticated Protocol-1 authority principal IDs while preserving separate Repository resources, service identities, Decisions, and roots."
+    },
+    {
+      "id": "PD-2",
+      "severity": "blocking",
+      "category": "fixed_replay_evidence",
+      "summary": "The complete accept and reject histories are ephemeral and expose root relationships only; neither history has immutable expected Git, authority, Event-log, Repository, and Standing roots.",
+      "required": "Freeze complete synthetic histories or durable replay receipts and independently compare replay against every bound terminal root and Standing count."
+    }
+  ],
+  "passing_checks": [
+    "cargo fmt --all -- --check",
+    "uv run --project conformance --locked ruff check conformance/verify_reference_flows.py",
+    "cargo test --locked -p vela-cli --test portable_divergence",
+    "cargo test --locked -p vela-protocol --test object_interop",
+    "cargo clippy --locked -p vela-cli --all-targets -- -D warnings",
+    "PYTHONDONTWRITEBYTECODE=1 uv run --project conformance --locked python conformance/verify.py",
+    "git diff --check 1a2e0328620b4e8c4584c3d4baf257adb11f3d45..acab8a04c65d56980be8e78f2fd337570993bfff"
+  ],
+  "nonclaims": [
+    "This review artifact has no authority or Standing effect; the focused test exercises only disposable synthetic Repositories.",
+    "This review does not merge or modify the producer branch.",
+    "This review does not claim that Protocol 1 generally requires different principals for different Repositories.",
+    "Passing checks do not establish release, external adoption, scientific truth, or global consensus."
+  ],
+  "reviewed_at": "2026-08-21T15:49:09Z"
+}
