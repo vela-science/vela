@@ -18,9 +18,18 @@
     "assertion": "The fixture computation returns 42 for the pinned input.",
     "standing_before_decision": "unassessed"
   },
+  "frozen_histories": {
+    "expected_path": "examples/portable-divergence/expected.json",
+    "expected_root": "sha256:858019d298f55295fe92989bb23a343ce73b6976338f36c7c637c82272274041",
+    "accept_bundle_path": "examples/portable-divergence/accept.git.bundle",
+    "accept_bundle_root": "sha256:2a92803cdb30e2f16d0f3a9b41fcbc24be39fc9693f7abc6f04f2f261a0dd0ba",
+    "reject_bundle_path": "examples/portable-divergence/reject.git.bundle",
+    "reject_bundle_root": "sha256:144de0583805ef53ea8116c3a6ba65eb7870be48563b85d8b8a0819ecea25c9a"
+  },
   "local_histories": {
     "accept": {
       "repository_name": "Portable divergence accept fixture",
+      "synthetic_device": "11111111111111111111111111111111",
       "decision": "accept",
       "performer": "agent:portable-divergence-acceptor",
       "session_ref": "fixture:portable-divergence:accept",
@@ -32,6 +41,7 @@
     },
     "reject": {
       "repository_name": "Portable divergence reject fixture",
+      "synthetic_device": "22222222222222222222222222222222",
       "decision": "reject",
       "performer": "agent:portable-divergence-rejector",
       "session_ref": "fixture:portable-divergence:reject",
@@ -46,6 +56,7 @@
     "same_submission_root": true,
     "same_claim_id_and_root": true,
     "distinct_repository_ids": true,
+    "distinct_authenticated_authority_principals": true,
     "distinct_repository_authority_keys": true,
     "distinct_authority_models": true,
     "distinct_decision_record_roots": true,

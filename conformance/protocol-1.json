@@ -506,11 +506,11 @@
       "sha256": "sha256:2d2bb0d1d50b5b8cfbde448b8fafa9f7d541b54c8d0949c9ab492d04264fb37a"
     },
     {
-      "bytes": 8527,
+      "bytes": 12190,
       "normative": false,
       "path": "conformance/verify_reference_flows.py",
       "role": "reference-flow-verifier",
-      "sha256": "sha256:b05ae06fb261f678974f0edfe2051a61c87588727929a1125d61bcc79c278060"
+      "sha256": "sha256:43f398ae9958adf90e34ff40c0e1b7dee00db69a4b4f4bc5d650f7bfd890b3d1"
     },
     {
       "bytes": 7866,
@@ -618,18 +618,39 @@
       "sha256": "sha256:1569b81ff40b355952b15a839eb2223911f0f48c8f654d9fe5591b6e9cb62aea"
     },
     {
-      "bytes": 2207,
+      "bytes": 2920,
       "normative": false,
       "path": "examples/portable-divergence/README.md",
       "role": "reference-flow",
-      "sha256": "sha256:f5e17e60129fcdaafa0dfbdc69dcad0a6ba0abc33d54ba101e2d90d74765e93e"
+      "sha256": "sha256:0821f85581e050d2f6ffeb51862d8f6654ca2be2aa8a22f35d766ee04ee79c6d"
     },
     {
-      "bytes": 4261,
+      "bytes": 19404,
+      "normative": false,
+      "path": "examples/portable-divergence/accept.git.bundle",
+      "role": "reference-flow",
+      "sha256": "sha256:2a92803cdb30e2f16d0f3a9b41fcbc24be39fc9693f7abc6f04f2f261a0dd0ba"
+    },
+    {
+      "bytes": 4890,
+      "normative": false,
+      "path": "examples/portable-divergence/expected.json",
+      "role": "reference-flow",
+      "sha256": "sha256:858019d298f55295fe92989bb23a343ce73b6976338f36c7c637c82272274041"
+    },
+    {
+      "bytes": 4987,
       "normative": false,
       "path": "examples/portable-divergence/flow.json",
       "role": "reference-flow",
-      "sha256": "sha256:eb29b74771542db409988cbfe1a5d907183d599b409d2cbe1fd1741221f51353"
+      "sha256": "sha256:8a4a2a09d6a84f565fc6d93e834f192367638a9c20681cd857a1ef6cc848009f"
+    },
+    {
+      "bytes": 15959,
+      "normative": false,
+      "path": "examples/portable-divergence/reject.git.bundle",
+      "role": "reference-flow",
+      "sha256": "sha256:144de0583805ef53ea8116c3a6ba65eb7870be48563b85d8b8a0819ecea25c9a"
     },
     {
       "bytes": 1824,
@@ -793,7 +814,7 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:08db975c7d8ee797f0a8898e73d51c021306869b3c891c05ded68ab508e3aaac",
+  "manifest_root": "sha256:6ca327d6ec6f56c051e236be9eee42629e1f67dce393c1518e051ff8c14b279e",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",

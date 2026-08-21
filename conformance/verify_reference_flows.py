@@ -192,6 +192,78 @@ def check_portable_divergence_flow() -> None:
         raise AssertionError("portable divergence envelope key drift")
     if fixture["submission_id"] != "vsb_" + fixture["submission_root"][7:23]:
         raise AssertionError("portable divergence Submission handle drift")
+
+    frozen = flow["frozen_histories"]
+    frozen_path = ROOT / frozen["expected_path"]
+    if digest(frozen_path) != frozen["expected_root"]:
+        raise AssertionError("portable divergence frozen expectations drift")
+    roots = load(frozen_path)
+    if roots["schema"] != "vela.portable-divergence-fixture.v1":
+        raise AssertionError("portable divergence frozen schema drift")
+    if roots["authority_effect"] != "none":
+        raise AssertionError("portable divergence fixtures may not carry authority")
+    for key in ("submission_id", "submission_root"):
+        if roots[key] != fixture[key]:
+            raise AssertionError(f"portable divergence frozen {key} drift")
+    for key in ("claim_id", "claim_root"):
+        if roots[key] != flow["derived_claim"][key]:
+            raise AssertionError(f"portable divergence frozen {key} drift")
+    if roots["does_not_establish"] != flow["does_not_establish"]:
+        raise AssertionError("portable divergence frozen nonclaims drift")
+
+    root_fields = (
+        "bundle_root",
+        "decision_record_root",
+        "event_log_root",
+        "keyset_root",
+        "model_root",
+        "origin_root",
+        "projection_root",
+        "repository_root",
+        "sequence_one_record_root",
+    )
+    for name in ("accept", "reject"):
+        history = roots[name]
+        bundle_path = ROOT / frozen[f"{name}_bundle_path"]
+        if history["bundle"] != bundle_path.name:
+            raise AssertionError(f"portable divergence {name} bundle path drift")
+        if digest(bundle_path) != history["bundle_root"]:
+            raise AssertionError(f"portable divergence {name} bundle drift")
+        if history["bundle_root"] != frozen[f"{name}_bundle_root"]:
+            raise AssertionError(f"portable divergence {name} bundle binding drift")
+        verified = run(["git", "bundle", "verify", str(bundle_path)])
+        if verified.returncode != 0:
+            raise AssertionError(verified.stderr)
+        for key in root_fields:
+            value = history[key]
+            if not isinstance(value, str) or len(value) != 71 or not value.startswith(
+                "sha256:"
+            ):
+                raise AssertionError(f"portable divergence {name} {key} malformed")
+        if history["git_commit"] == history["git_tree"]:
+            raise AssertionError(f"portable divergence {name} Git binding malformed")
+        if not history["events"]:
+            raise AssertionError(f"portable divergence {name} events missing")
+        for event in history["events"]:
+            if len(event["root"]) != 71 or not event["root"].startswith("sha256:"):
+                raise AssertionError(f"portable divergence {name} Event root malformed")
+
+    if roots["accept"]["principal_id"] == roots["reject"]["principal_id"]:
+        raise AssertionError("portable divergence principals must be distinct")
+    for name in ("accept", "reject"):
+        device = flow["local_histories"][name]["synthetic_device"]
+        device_hash = hashlib.sha256(device.encode("ascii")).hexdigest()
+        if not roots[name]["principal_id"].startswith(
+            f"local:device-sha256:{device_hash}|uid:"
+        ):
+            raise AssertionError(f"portable divergence {name} principal drift")
+    if roots["accept"]["standing"] != "accepted":
+        raise AssertionError("portable divergence accepted Standing drift")
+    if roots["reject"]["standing"] != "unassessed":
+        raise AssertionError("portable divergence rejected Standing drift")
+    if roots["accept"]["repository_root"] == roots["reject"]["repository_root"]:
+        raise AssertionError("portable divergence terminal roots must differ")
+
     expected = flow["expected"]
     if (
         expected["global_consensus_required"]

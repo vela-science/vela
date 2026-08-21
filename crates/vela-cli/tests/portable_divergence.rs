@@ -5,12 +5,12 @@
 //! repositories, whose local authorities accept and reject respectively. Each
 //! resulting history replays to the same exact root from a clean clone.
 
-#![cfg(unix)]
+#![cfg(all(unix, feature = "test-support"))]
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Output};
 
-use serde_json::Value;
+use serde_json::{Value, json};
 use vela_protocol::review_method::{ReviewMethodV1, ReviewPerformerV1};
 
 mod support;
@@ -35,6 +35,8 @@ const REJECT_PERFORMER: &str = "agent:portable-divergence-rejector";
 const REJECT_SESSION_REF: &str = "fixture:portable-divergence:reject";
 const REJECT_REASON: &str =
     "This Repository declines to admit the synthetic Claim without its own local check.";
+const ACCEPT_DEVICE: &str = "11111111111111111111111111111111";
+const REJECT_DEVICE: &str = "22222222222222222222222222222222";
 
 fn git(repository: &Path, args: &[&str]) -> String {
     let output = Command::new("git")
@@ -51,6 +53,29 @@ fn git(repository: &Path, args: &[&str]) -> String {
         .expect("Git output is UTF-8")
         .trim()
         .to_string()
+}
+
+fn run_on_device(
+    cwd: &Path,
+    socket: Option<&Path>,
+    home: &Path,
+    device: &str,
+    args: &[&str],
+) -> Output {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_vela"));
+    command
+        .current_dir(cwd)
+        .args(args)
+        .env("HOME", home)
+        .env("NO_COLOR", "1")
+        .env("VELA_ADVICE", "0")
+        .env("VELA_TEST_DEVICE_IDENTIFIER", device)
+        .env_remove("VELA_AGENT_KEY_HEX");
+    match socket {
+        Some(socket) => command.env("SSH_AUTH_SOCK", socket),
+        None => command.env("SSH_AUTH_SOCK", cwd.join("missing-ssh-agent.sock")),
+    };
+    command.output().expect("run vela on synthetic device")
 }
 
 fn repository_manifest(repository: &Path) -> Value {
@@ -94,6 +119,177 @@ fn clone_and_replay(source: &Path, destination: &Path, home: &Path) -> Value {
     success_json(&run(destination, None, home, &["replay", ".", "--json"]))
 }
 
+fn event_receipts(repository: &Path) -> Vec<Value> {
+    let mut paths = std::fs::read_dir(repository.join(".vela/authority/events"))
+        .expect("read authority events")
+        .map(|entry| entry.expect("authority event entry").path())
+        .collect::<Vec<_>>();
+    paths.sort();
+    paths
+        .into_iter()
+        .map(|path| {
+            let bytes = std::fs::read(&path).expect("authority event bytes");
+            let value: Value = serde_json::from_slice(&bytes).expect("authority event JSON");
+            json!({
+                "id": path.file_stem().and_then(|stem| stem.to_str()).expect("event id"),
+                "root": vela_protocol::canonical::sha256_root(&bytes),
+                "kind": value["content"]["kind"],
+            })
+        })
+        .collect()
+}
+
+fn authority_record_receipts(repository: &Path) -> Vec<Value> {
+    let mut paths = std::fs::read_dir(repository.join(".vela/authority/records"))
+        .expect("read authority records")
+        .map(|entry| entry.expect("authority record entry").path())
+        .collect::<Vec<_>>();
+    paths.sort();
+    let mut receipts = paths
+        .into_iter()
+        .map(|path| {
+            let bytes = std::fs::read(&path).expect("authority record bytes");
+            let envelope: Value = serde_json::from_slice(&bytes).expect("authority envelope JSON");
+            let payload = vela_protocol::dsse::decode_base64(
+                "authority payload",
+                envelope["payload"].as_str().expect("authority payload"),
+            )
+            .expect("decode authority payload");
+            let record: Value = serde_json::from_slice(&payload).expect("authority record JSON");
+            json!({
+                "id": path.file_name().and_then(|name| name.to_str()).and_then(|name| name.strip_suffix(".dsse.json")).expect("authority record id"),
+                "root": vela_protocol::canonical::sha256_root(&payload),
+                "sequence": record["content"]["sequence"],
+                "principal_id": record["content"]["principal"]["principal_id"],
+                "after_event_log_root": record["content"]["after_event_log_root"],
+            })
+        })
+        .collect::<Vec<_>>();
+    receipts.sort_by_key(|receipt| receipt["sequence"].as_u64().expect("record sequence"));
+    receipts
+}
+
+fn reference_directory() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/portable-divergence")
+}
+
+#[test]
+fn frozen_distinct_principal_histories_match_every_bound_root() {
+    let reference = reference_directory();
+    let expected: Value = serde_json::from_slice(
+        &std::fs::read(reference.join("expected.json")).expect("frozen expected roots"),
+    )
+    .expect("frozen expected JSON");
+    assert_ne!(
+        expected["accept"]["principal_id"], expected["reject"]["principal_id"],
+        "the frozen histories must authenticate different local principals"
+    );
+    let temporary = tempfile::tempdir().expect("frozen replay directory");
+    let home = temporary.path().join("home");
+    std::fs::create_dir(&home).expect("frozen replay home");
+
+    let mut retained_submissions = Vec::new();
+    let mut retained_claims = Vec::new();
+    for name in ["accept", "reject"] {
+        let history = &expected[name];
+        let bundle = reference.join(history["bundle"].as_str().expect("bundle path"));
+        assert_eq!(
+            vela_protocol::canonical::sha256_root(
+                &std::fs::read(&bundle).expect("frozen Git bundle")
+            ),
+            history["bundle_root"]
+        );
+        let verified = Command::new("git")
+            .args(["bundle", "verify"])
+            .arg(&bundle)
+            .output()
+            .expect("verify Git bundle");
+        assert!(
+            verified.status.success(),
+            "git bundle verify: {}",
+            String::from_utf8_lossy(&verified.stderr)
+        );
+        let repository = temporary.path().join(format!("{name}-repository"));
+        let cloned = Command::new("git")
+            .args(["clone", "-q"])
+            .arg(&bundle)
+            .arg(&repository)
+            .output()
+            .expect("clone frozen Git bundle");
+        assert!(
+            cloned.status.success(),
+            "git clone: {}",
+            String::from_utf8_lossy(&cloned.stderr)
+        );
+
+        let replay = success_json(&run(&repository, None, &home, &["replay", ".", "--json"]));
+        assert_eq!(replay["repository_id"], history["repository_id"]);
+        assert_eq!(replay["origin_id"], history["origin_id"]);
+        assert_eq!(replay["origin_root"], history["origin_root"]);
+        assert_eq!(replay["authority_keyset_root"], history["keyset_root"]);
+        assert_eq!(replay["authority_model_root"], history["model_root"]);
+        assert_eq!(replay["repository_root"], history["repository_root"]);
+        assert_eq!(replay["git_commit"], history["git_commit"]);
+        assert_eq!(replay["git_tree"], history["git_tree"]);
+        assert_eq!(
+            replay["counts"]["accepted_claims"],
+            history["accepted_claim_count"]
+        );
+        assert_eq!(
+            replay["counts"]["pending_claims"],
+            history["pending_claim_count"]
+        );
+
+        let records = authority_record_receipts(&repository);
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[0]["id"], history["sequence_one_record_id"]);
+        assert_eq!(records[0]["root"], history["sequence_one_record_root"]);
+        assert_eq!(records[0]["principal_id"], history["principal_id"]);
+        assert_eq!(records[1]["id"], history["decision_record_id"]);
+        assert_eq!(records[1]["root"], history["decision_record_root"]);
+        assert_eq!(records[1]["principal_id"], history["principal_id"]);
+        assert_eq!(
+            records[1]["after_event_log_root"],
+            history["event_log_root"]
+        );
+        assert_eq!(Value::Array(event_receipts(&repository)), history["events"]);
+
+        let projection = success_json(&run(
+            &repository,
+            None,
+            &home,
+            &["projection", ".", "--json"],
+        ));
+        assert_eq!(projection["projection_root"], history["projection_root"]);
+        assert_eq!(projection["claims"][0]["standing"], history["standing"]);
+        assert_eq!(
+            projection["claims"][0]["proposal_status"],
+            history["proposal_status"]
+        );
+
+        let manifest = repository_manifest(&repository);
+        let submission_path = manifest["submissions"][0]["path"]
+            .as_str()
+            .expect("frozen Submission path");
+        retained_submissions.push(
+            std::fs::read(repository.join(submission_path)).expect("frozen Submission bytes"),
+        );
+        let claim_path = format!("records/claims/sha256/{}.json", &CLAIM_ROOT[7..]);
+        retained_claims
+            .push(std::fs::read(repository.join(claim_path)).expect("frozen Claim bytes"));
+    }
+    assert_eq!(retained_submissions[0], retained_submissions[1]);
+    assert_eq!(
+        vela_protocol::canonical::sha256_root(&retained_submissions[0]),
+        SUBMISSION_ROOT
+    );
+    assert_eq!(retained_claims[0], retained_claims[1]);
+    assert_eq!(
+        vela_protocol::canonical::sha256_root(&retained_claims[0]),
+        CLAIM_ROOT
+    );
+}
+
 #[test]
 fn one_portable_submission_replays_under_divergent_local_decisions() {
     let temporary = tempfile::tempdir().expect("temporary directory");
@@ -119,10 +315,11 @@ fn one_portable_submission_replays_under_divergent_local_decisions() {
     let accept_repository_text = accept_repository.to_string_lossy().into_owned();
     let reject_repository_text = reject_repository.to_string_lossy().into_owned();
 
-    let accept_init_output = run(
+    let accept_init_output = run_on_device(
         temporary.path(),
         Some(accept_agent.socket()),
         &accept_home,
+        ACCEPT_DEVICE,
         &[
             "init",
             &accept_repository_text,
@@ -138,10 +335,11 @@ fn one_portable_submission_replays_under_divergent_local_decisions() {
             .expect("accept init trust anchor");
     let accept_init = success_json(&accept_init_output);
 
-    let reject_init_output = run(
+    let reject_init_output = run_on_device(
         temporary.path(),
         Some(reject_agent.socket()),
         &reject_home,
+        REJECT_DEVICE,
         &[
             "init",
             &reject_repository_text,
@@ -158,6 +356,10 @@ fn one_portable_submission_replays_under_divergent_local_decisions() {
     let reject_init = success_json(&reject_init_output);
 
     assert_ne!(accept_init["repository_id"], reject_init["repository_id"]);
+    assert_ne!(
+        accept_init["authority"]["principal_id"],
+        reject_init["authority"]["principal_id"]
+    );
     assert_ne!(
         accept_init["authority"]["key_id"],
         reject_init["authority"]["key_id"]
@@ -195,6 +397,10 @@ fn one_portable_submission_replays_under_divergent_local_decisions() {
     assert_eq!(flow["derived_claim"]["claim_id"], CLAIM_ID);
     assert_eq!(flow["derived_claim"]["claim_root"], CLAIM_ROOT);
     assert_eq!(
+        flow["local_histories"]["accept"]["synthetic_device"],
+        ACCEPT_DEVICE
+    );
+    assert_eq!(
         flow["local_histories"]["accept"]["performer"],
         ACCEPT_PERFORMER
     );
@@ -209,6 +415,10 @@ fn one_portable_submission_replays_under_divergent_local_decisions() {
     assert_eq!(
         flow["local_histories"]["reject"]["session_ref"],
         REJECT_SESSION_REF
+    );
+    assert_eq!(
+        flow["local_histories"]["reject"]["synthetic_device"],
+        REJECT_DEVICE
     );
     let submission_path = fixture_root.join("submission.json");
     let submission_path_text = submission_path.to_string_lossy().into_owned();
@@ -349,10 +559,11 @@ fn one_portable_submission_replays_under_divergent_local_decisions() {
     let accept_entry_root = accept_inbox["entries"][0]["entry_root"]
         .as_str()
         .expect("accept Inbox entry root");
-    let accepted = success_json(&run(
+    let accepted = success_json(&run_on_device(
         &accept_repository,
         Some(accept_agent.socket()),
         &accept_home,
+        ACCEPT_DEVICE,
         &[
             "review",
             "accept",
@@ -384,10 +595,11 @@ fn one_portable_submission_replays_under_divergent_local_decisions() {
     let reject_entry_root = reject_inbox["entries"][0]["entry_root"]
         .as_str()
         .expect("reject Inbox entry root");
-    let rejected = success_json(&run(
+    let rejected = success_json(&run_on_device(
         &reject_repository,
         Some(reject_agent.socket()),
         &reject_home,
+        REJECT_DEVICE,
         &[
             "review",
             "reject",
@@ -406,6 +618,18 @@ fn one_portable_submission_replays_under_divergent_local_decisions() {
     ));
     assert_eq!(rejected["action"], "reject");
     assert_eq!(rejected["scientific_state_changed"], false);
+    assert_eq!(
+        accepted["authority_principal_id"],
+        accept_init["authority"]["principal_id"]
+    );
+    assert_eq!(
+        rejected["authority_principal_id"],
+        reject_init["authority"]["principal_id"]
+    );
+    assert_ne!(
+        accepted["authority_principal_id"],
+        rejected["authority_principal_id"]
+    );
     assert_ne!(
         accepted["authority_record_root"], rejected["authority_record_root"],
         "independent Repository Decisions must extend different authority histories"

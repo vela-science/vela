@@ -21,11 +21,14 @@ in both Repositories.
 Run the complete disposable demonstration:
 
 ```bash
-cargo test --locked -p vela-cli --test portable_divergence
+cargo test --locked -p vela-cli --features test-support --test portable_divergence
 ```
 
-The test uses two separate temporary OpenSSH agents and two fresh Repository
-identities. It runs the `vela submit`, `verification record`, `review
+The test-support build uses two exact synthetic device identities, two separate
+temporary OpenSSH agents, and two fresh Repository identities. The device
+identities make the authenticated local authority principals distinct without
+requiring a second operating-system account or changing production identity
+resolution. It runs the `vela submit`, `verification record`, `review
 accept|reject`, and `replay` command templates and fixed arguments listed in
 [`flow.json`](flow.json), substituting only the fresh paths, Proposal ids, and
 Inbox roots generated during the run, then
@@ -33,6 +36,14 @@ clones both Git histories and requires each clone to reproduce its source
 commit, tree, Repository root, and Standing. It also requires different local
 keysets, authorization models, sequence-one roots, Decision-record roots, and
 terminal Repository roots.
+
+The same test separately reconstructs the retained
+[`accept.git.bundle`](accept.git.bundle) and
+[`reject.git.bundle`](reject.git.bundle) histories. [`expected.json`](expected.json)
+binds their distinct authenticated principals and every terminal Git,
+sequence-one authority, Decision, event-log, Event, Repository, projection, and
+Standing root. `flow.json` binds the three fixture-file digests so changed bytes
+cannot silently redefine those expectations.
 
 The example demonstrates interoperability without consensus: portable producer
 bytes and their derived Claim identity agree, while authority, Decision, Event,
