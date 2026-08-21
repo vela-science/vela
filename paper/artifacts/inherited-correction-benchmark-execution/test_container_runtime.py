@@ -14,9 +14,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 CANARY = ROOT / "neutral-canary"
 CANARY_02 = ROOT / "neutral-canary-02"
+CANARY_03 = ROOT / "neutral-canary-03"
 RUNTIME = ROOT / "container-runtime"
 IMAGE_01 = "sha256:0ce56e0a4d72dc6ab26cdfcfc1d0280ac0c419dd687e26dda9312d4a09257285"
 IMAGE_02 = "sha256:13b753749787d68d628cea899f6b9875c0fc51c43877599b9aabf2009fe83388"
+IMAGE_03 = "sha256:6274d83356076640d6e4bc810b97d37ac2d1b5ab02546dd7c2ebed16f915b547"
+TRUST_BUNDLE = "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5"
 
 
 def digest(data: bytes) -> str:
@@ -79,6 +82,30 @@ class RuntimeTests(unittest.TestCase):
         self.assertIsNone(receipt["response_bytes"])
         self.assertFalse(receipt["credential_retained"])
 
+    def test_canary_03_frozen_roots_and_manifest_recompute(self) -> None:
+        freeze = load(CANARY_03 / "prelaunch-freeze.json")
+        self.assertEqual(freeze["amendment_root"], canonical_root(load(CANARY_03 / "amendment.json")))
+        self.assertEqual(freeze["registration_root"], canonical_root(load(CANARY_03 / "registration.json")))
+        self.assertEqual(freeze["participant_configuration_root"], canonical_root(load(CANARY_03 / "input/participant-configuration.json")))
+        self.assertEqual(freeze["assignment_root"], canonical_root(load(CANARY_03 / "input/assignment.json")))
+        self.assertEqual(freeze["authorization_root"], canonical_root(load(CANARY_03 / "authorization.json")))
+        self.assertEqual(freeze["permit_root"], canonical_root(load(CANARY_03 / "permit-template/neutral-canary-03.permit.json")))
+        self.assertEqual(freeze["prompt_root"], digest((CANARY_03 / "input/prompt.txt").read_bytes()))
+        self.assertEqual(freeze["image_digest"], IMAGE_03)
+        self.assertEqual(freeze["trust_bundle_bytes"], TRUST_BUNDLE)
+        self.assertEqual(
+            freeze["trust_provenance_root"],
+            canonical_root(load(CANARY_03 / "trust-material/provenance.json")),
+        )
+        self.assertEqual(freeze["diagnosis_root"], canonical_root(load(CANARY_03 / "trust-material/diagnosis.json")))
+        for item in freeze["files"]:
+            content = (CANARY_03 / item["path"]).read_bytes()
+            self.assertEqual(item["bytes"], len(content))
+            self.assertEqual(item["sha256"], digest(content))
+        amendment = load(CANARY_03 / "amendment.json")
+        self.assertEqual(amendment["parent_canary_commit"], "70be21e2404af68daf5673f8094c47563224a11e")
+        self.assertEqual(amendment["parent_canary_disposition"], "terminal calibration evidence; unchanged; no retry")
+
     def test_strict_preflight_and_legacy_regression_are_offline(self) -> None:
         for mode, expected_exit in (("corrected", 0), ("legacy", 1)):
             receipt = load(CANARY_02 / f"offline-preflight/{mode}/receipt.json")
@@ -100,10 +127,45 @@ class RuntimeTests(unittest.TestCase):
                 self.assertEqual((output / "provider-events.jsonl").read_bytes(), b"")
                 self.assertTrue(load(output / "receipt.json")["strict_parse_passed"])
 
+    def test_canary_03_trust_preflights_are_offline_and_fail_closed(self) -> None:
+        for mode in ("positive", "missing", "corrupt"):
+            receipt = load(CANARY_03 / f"offline-preflight/trust/{mode}/receipt.json")
+            self.assertTrue(receipt["trust_check_passed"])
+            self.assertFalse(receipt["provider_contact_possible"])
+            self.assertEqual(receipt["container_network"], "none")
+            self.assertEqual(
+                (CANARY_03 / f"offline-preflight/trust/{mode}/provider-events.jsonl").read_bytes(),
+                b"",
+            )
+            if mode == "positive":
+                self.assertTrue(receipt["expected_success"])
+                self.assertIsNone(receipt["validation_error"])
+                self.assertEqual(receipt["observed_trust_bundle_bytes"], TRUST_BUNDLE)
+                self.assertEqual(receipt["certificate_count"], 150)
+            else:
+                self.assertFalse(receipt["expected_success"])
+                self.assertIsNotNone(receipt["validation_error"])
+                self.assertEqual(receipt["certificate_count"], 0)
+        with tempfile.TemporaryDirectory() as temporary:
+            temporary_path = Path(temporary)
+            for mode in ("positive", "missing", "corrupt"):
+                output = temporary_path / mode
+                output.mkdir()
+                subprocess.run(
+                    [str(RUNTIME / "preflight-trust.sh"), mode, IMAGE_03, TRUST_BUNDLE, str(output)],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual((output / "provider-events.jsonl").read_bytes(), b"")
+                self.assertTrue(load(output / "receipt.json")["trust_check_passed"])
+
     def test_neutral_prompt_excludes_study_facts(self) -> None:
-        prompt = (CANARY / "input/prompt.txt").read_text().lower()
-        for forbidden in ("git-documents", "bounded-calibration", "calibration-a", "yield-b", "stability-c", "installation-d", "aggregate-e"):
-            self.assertNotIn(forbidden, prompt)
+        for canary in (CANARY, CANARY_02, CANARY_03):
+            prompt = (canary / "input/prompt.txt").read_text().lower()
+            for forbidden in ("git-documents", "bounded-calibration", "calibration-a", "yield-b", "stability-c", "installation-d", "aggregate-e"):
+                self.assertNotIn(forbidden, prompt)
+        self.assertNotEqual((CANARY_02 / "input/prompt.txt").read_bytes(), (CANARY_03 / "input/prompt.txt").read_bytes())
 
     def test_pilot_manifest_and_stop_are_closed(self) -> None:
         manifest = load(ROOT / "pilot-capture-manifest.json")
@@ -127,6 +189,8 @@ class RuntimeTests(unittest.TestCase):
         self.assertNotIn("for assignment", runner + launcher)
         self.assertIn('args.length !== 2 || args[0] !== "--run-id"', runner)
         self.assertIn('if [ "$#" -ne 6 ] || [ "$1" != "--run-id" ]', launcher)
+        self.assertIn('SSL_CERT_FILE: TRUST_BUNDLE_PATH', runner)
+        self.assertIn('config.trust_bundle_bytes !== sha(trustBundleBytes)', runner)
 
     def test_default_hold_and_binding_failure_do_not_consume(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

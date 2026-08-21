@@ -24,14 +24,15 @@ const canonical = (value) => {
 const root = (value) => sha(Buffer.from(canonical(value), "utf8"));
 const writeExclusive = (name, data) => writeFileSync(join("/evidence", name), data, { flag: "wx", mode: 0o600 });
 const now = () => new Date().toISOString();
+const TRUST_BUNDLE_PATH = "/etc/ssl/certs/ca-certificates.crt";
 
 function fail(message) {
   process.stderr.write(`${message}\n`);
   process.exitCode = 2;
 }
 
-function verifyBindings(runId, permit, config, assignment, promptBytes, schemaBytes) {
-  expectedKeys(permit, ["schema", "status", "expires_at", "registration_root", "image_digest", "participant_configuration_root", "assignment_root", "run_id", "condition", "participant_instance_id", "prompt_root", "packet_root", "attempt"], "permit");
+function verifyBindings(runId, permit, config, assignment, promptBytes, schemaBytes, trustBundleBytes) {
+  expectedKeys(permit, ["schema", "status", "expires_at", "registration_root", "image_digest", "participant_configuration_root", "assignment_root", "run_id", "condition", "participant_instance_id", "prompt_root", "packet_root", "trust_bundle_bytes", "attempt"], "permit");
   if (permit.schema !== "vela.inherited-correction-launch-permit.v1" || permit.status !== "authorized") throw new Error("permit_not_authorized");
   if (Date.parse(permit.expires_at) <= Date.now()) throw new Error("permit_expired");
   if (permit.run_id !== runId || permit.attempt !== 1) throw new Error("permit_run_or_attempt");
@@ -40,6 +41,8 @@ function verifyBindings(runId, permit, config, assignment, promptBytes, schemaBy
   if (permit.assignment_root !== root(assignment)) throw new Error("permit_assignment_root");
   if (permit.prompt_root !== sha(promptBytes) || config.prompt_root !== sha(promptBytes)) throw new Error("permit_prompt_root");
   if (config.response_schema_bytes !== sha(schemaBytes)) throw new Error("schema_bytes");
+  if (process.env.SSL_CERT_FILE !== TRUST_BUNDLE_PATH || config.trust_bundle_path !== TRUST_BUNDLE_PATH) throw new Error("trust_bundle_path");
+  if (permit.trust_bundle_bytes !== sha(trustBundleBytes) || config.trust_bundle_bytes !== sha(trustBundleBytes)) throw new Error("trust_bundle_bytes");
   if (config.strict_overrides_root !== root(STRICT_OVERRIDES)) throw new Error("strict_overrides_root");
   const exact = assignment.assignments.find(item => item.run_id === runId);
   if (!exact || exact.condition !== permit.condition || exact.participant_instance_id !== permit.participant_instance_id || exact.packet_root !== permit.packet_root) throw new Error("permit_assignment_binding");
@@ -94,7 +97,8 @@ async function main() {
   const assignment = json("/input/assignment.json");
   const promptBytes = bytes("/input/prompt.txt");
   const schemaBytes = bytes("/input/response-schema.json");
-  const exact = verifyBindings(runId, permit, config, assignment, promptBytes, schemaBytes);
+  const trustBundleBytes = bytes(TRUST_BUNDLE_PATH);
+  const exact = verifyBindings(runId, permit, config, assignment, promptBytes, schemaBytes, trustBundleBytes);
 
   // Atomic rename on the permit volume is the irreversible pre-provider consume.
   renameSync(permitPath, consumedPath);
@@ -110,7 +114,7 @@ async function main() {
   ];
   const startedAt = now();
   const start = process.hrtime.bigint();
-  const child = spawn("codex", cliArgs, { cwd: "/work", env: { CODEX_HOME: "/codex-home", PATH: process.env.PATH, HOME: "/tmp" }, stdio: ["pipe", "pipe", "pipe"], detached: true });
+  const child = spawn("codex", cliArgs, { cwd: "/work", env: { CODEX_HOME: "/codex-home", PATH: process.env.PATH, HOME: "/tmp", SSL_CERT_FILE: TRUST_BUNDLE_PATH }, stdio: ["pipe", "pipe", "pipe"], detached: true });
   const stdout = [];
   const stderr = [];
   let streamBuffer = "";
@@ -168,6 +172,7 @@ async function main() {
     timeout_seconds: 600, process_exit_code: exitCode, process_timed_out: timedOut,
     registration_root: permit.registration_root, image_digest: permit.image_digest,
     participant_configuration_root: permit.participant_configuration_root, assignment_root: permit.assignment_root,
+    trust_bundle_bytes: permit.trust_bundle_bytes,
     prompt_root: permit.prompt_root, packet_root: permit.packet_root, provider_events_bytes: sha(eventBytes),
     provider_stderr_bytes: sha(stderrBytes), response_bytes: statSafe(outputPath), event_receipt: eventReceipt,
     cumulative_provider_usage_is_telemetry_only: true, credential_retained: false

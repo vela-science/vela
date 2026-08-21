@@ -1,0 +1,13 @@
+{
+  "diagnosis": "the frozen parent image omitted the operating-system CA bundle required to authenticate the proxy-forwarded provider certificate chain",
+  "docker_https_proxy_configured": true,
+  "observed_failure": "invalid peer certificate: UnknownIssuer followed by failed HTTPS fallback and exact 600-second timeout",
+  "parent_canary_commit": "70be21e2404af68daf5673f8094c47563224a11e",
+  "parent_canary_provider_events_bytes": "sha256:78d64f7f5d7a874e91c879e56f04eacb21797295e3ef7ca9b99a83ad9e873d91",
+  "parent_canary_provider_stderr_bytes": "sha256:9262d314e1db0a6665ca2a6974721f2b059f0fba695e24b16ab6e17e08682adf",
+  "parent_canary_result_root": "sha256:f608681e98eb7e4a49c48c5948dd24e118e74eb7d03754f77307a441ac202349",
+  "parent_image_ca_bundle_present": false,
+  "parent_image_ca_package_installed": false,
+  "parent_image_digest": "sha256:13b753749787d68d628cea899f6b9875c0fc51c43877599b9aabf2009fe83388",
+  "schema": "vela.inherited-correction-trust-diagnosis.v1"
+}
