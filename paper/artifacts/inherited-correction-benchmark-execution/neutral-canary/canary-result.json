@@ -1,0 +1,45 @@
+{
+  "attempt": 1,
+  "capture_files": [
+    {
+      "bytes": "sha256:9efa877e375492f637337f248b5f18e6ddac2f8b18355baf33113524fa1d2ae4",
+      "path": "capture/evidence/launch.json"
+    },
+    {
+      "bytes": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "path": "capture/evidence/provider-events.jsonl"
+    },
+    {
+      "bytes": "sha256:74cb00300ed4a4c23ba979d30d34218cd356e4bfb55b81f10a3dc832d52c56c7",
+      "path": "capture/evidence/provider-stderr.txt"
+    },
+    {
+      "bytes": "sha256:19d3726b0336510174830caf2e5b1745895228dd72e99b7234bfb9203bd959ff",
+      "path": "capture/evidence/terminal-receipt.json"
+    },
+    {
+      "bytes": "sha256:d47d9e6f08e3ecfed56221e2106bd4ed094b3e06c3571533577d891264c2dac2",
+      "path": "capture/permit/hold-state.json"
+    },
+    {
+      "bytes": "sha256:aff9499f2ab062b349a75dc43b43ee4a79bf252837742a8b8ff9a5f70e8d739c",
+      "path": "capture/permit/neutral-canary-01.permit.consumed.json"
+    }
+  ],
+  "confirmatory_denominator_credit": false,
+  "confirmatory_registration_frozen": false,
+  "container_teardown": "clean",
+  "credential_retained": false,
+  "failure": "Codex CLI 0.149.0 strict configuration rejected tools.view_image as an unknown override before provider execution",
+  "model_responses": 0,
+  "permit_consumed": true,
+  "provider_events_bytes": 0,
+  "provider_execution_started": false,
+  "registration_root": "sha256:ee2a043089b42fec5e705b26a9b3f687d8e5566ec7f45115679eb26ae2734f87",
+  "replacement_confirmatory_status": "blocked_0_of_16_not_registered",
+  "retries": 0,
+  "run_id": "neutral-canary-01",
+  "schema": "vela.inherited-correction-neutral-canary-result.v1",
+  "standing_or_authority_effect": "none",
+  "status": "failed_closed_before_provider_request"
+}
