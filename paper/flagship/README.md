@@ -45,4 +45,3 @@ The public-ready paper gate requires this command to pass from the paper's
 exact source commit. An outside person or institution running the package
 after publication supplies downstream external reproduction; the manuscript
 does not count that future event as current evidence.
-

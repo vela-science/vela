@@ -28,4 +28,3 @@ proves a theorem from a passing check, or improves scientific productivity in
 general. It must not turn the failed 16-session gate into a win through
 secondary metrics. It must not call the held-out design a result before its
 registration, execution, and review exist.
-
