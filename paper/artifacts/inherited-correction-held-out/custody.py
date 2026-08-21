@@ -209,10 +209,10 @@ def verify_prelaunch() -> dict[str, Any]:
     benchmark = state["benchmark"]
     benchmark.verify()
     preregistration = state["preregistration"]
-    if preregistration["status"] != "held_pending_independent_adjudication_and_review":
+    if preregistration["status"] != "held_pending_exact_binding_review":
         raise CustodyError("prelaunch_status_not_held")
     commitment = preregistration["bindings"]["adjudication_commitment"]
-    if commitment["status"] != "pending_independent_evaluator_freeze":
+    if commitment["status"] != "frozen_by_independent_evaluator":
         raise CustodyError("adjudication_state_invalid")
     hold = load_json(ROOT / "permit-template/hold-state.json")
     exact_keys(hold, {"schema", "status", "reason", "updated_at"}, "hold")
@@ -229,6 +229,15 @@ def verify_prelaunch() -> dict[str, Any]:
         or freeze.get("trust_bundle_bytes") != runtime["trust_bundle_bytes"]
     ):
         raise CustodyError("runtime_binding_drift")
+    amendment = preregistration["bindings"]["launch_authorization_amendment"]
+    if (
+        preregistration["bindings"]["launch_authorization_amendment_root"]
+        != benchmark.canonical_root(amendment)
+        or freeze.get("launch_authorization_amendment_root")
+        != benchmark.canonical_root(amendment)
+        or amendment.get("status") != "held_pending_exact_binding_review"
+    ):
+        raise CustodyError("launch_authorization_amendment_drift")
     permits = sorted((ROOT / "permit-template").glob("heldout-run-*.permit.json"))
     if len(permits) != 36:
         raise CustodyError("permit_count_invalid")

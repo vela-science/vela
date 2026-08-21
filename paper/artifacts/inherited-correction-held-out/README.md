@@ -33,10 +33,11 @@ cannot enter or alter exact code scoring.
 
 All 36 permits are held and unconsumed. The producer artifact intentionally
 contains no held-out adjudication bytes or answer mapping. An independent
-evaluator must freeze the protected adjudication, provide only its canonical
-root for a transparent prospective amendment, and independently review the
-amended prelaunch bytes before any permit may be released. The scorer refuses
-to open an adjudication file while that commitment remains pending.
+evaluator froze the protected adjudication in evaluator-only custody and
+disclosed only its canonical root and public validation commitment. This
+transparent prospective amendment binds those public fields and the user's
+exact execution authorization while remaining held for independent binding
+review. No permit may be released before that exact PASS.
 
 The pinned model, one-turn container runtime, image, trust bundle, 600-second
 timeout, zero-tool boundary, attempt 1, and zero-retry policy are unchanged

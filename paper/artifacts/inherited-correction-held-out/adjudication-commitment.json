@@ -1,7 +1,17 @@
 {
-  "adjudication_root": null,
+  "adjudication_bytes": {
+    "length": 5883,
+    "sha256": "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d"
+  },
+  "adjudication_root": "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d",
   "answer_bytes_present_in_producer_artifact": false,
+  "consequence_count": 12,
+  "family_count": 3,
+  "frozen_at": "2026-08-21T21:51:33Z",
+  "plaintext_disclosed": false,
+  "private_validation_receipt_root": "sha256:581b944cdfdb82a2f9730ffd3d60fba13c3e4916bbf344ab1d495565dafccf11",
+  "public_commitment_root": "sha256:cf22cc93f1b882e85327943e074ef6d0cd60f90c3989f0801c46d60f5fad721a",
   "required_before_permit_release": true,
   "schema": "vela.inherited-correction-held-out-adjudication-commitment.v1",
-  "status": "pending_independent_evaluator_freeze"
+  "status": "frozen_by_independent_evaluator"
 }

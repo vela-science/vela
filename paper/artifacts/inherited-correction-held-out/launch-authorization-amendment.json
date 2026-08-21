@@ -1,0 +1,52 @@
+{
+  "evaluator_commitment": {
+    "adjudication_bytes": {
+      "length": 5883,
+      "sha256": "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d"
+    },
+    "adjudication_root": "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d",
+    "answer_bytes_present_in_producer_artifact": false,
+    "consequence_count": 12,
+    "family_count": 3,
+    "frozen_at": "2026-08-21T21:51:33Z",
+    "plaintext_disclosed": false,
+    "private_validation_receipt_root": "sha256:581b944cdfdb82a2f9730ffd3d60fba13c3e4916bbf344ab1d495565dafccf11",
+    "public_commitment_root": "sha256:cf22cc93f1b882e85327943e074ef6d0cd60f90c3989f0801c46d60f5fad721a",
+    "required_before_permit_release": true,
+    "schema": "vela.inherited-correction-held-out-adjudication-commitment.v1",
+    "status": "frozen_by_independent_evaluator"
+  },
+  "execution_state": {
+    "fixed_denominator": 36,
+    "permits_consumed": 0,
+    "permits_held": 36,
+    "protected_key_accesses": 0,
+    "provider_calls": 0,
+    "sessions_completed": 0
+  },
+  "prior_qualified_state": {
+    "artifact_root": "sha256:17f113d16aa7b474d91b9f09e4314dce133367b7274187ce7bef87a1bbf7c735",
+    "assignment_root": "sha256:77c81b88813716466f5c935eb79b986874ed132a5986be34152bd8ac70da0205",
+    "producer_commit": "8cc1a89d7b1ae47cb6cabb36bfd79b46c3f4db81",
+    "producer_tree": "98b661c44225425ababecdbb7aead0090d09a4f7",
+    "registration_root": "sha256:185e781cd0b1a06d89488266e9e7147f42834d960063818f0cdf56209c6d3306",
+    "review_commit": "f9b5d67a55c1ad41fcb67cc1d7ebe86d03d37782"
+  },
+  "schema": "vela.inherited-correction-held-out-launch-authorization-amendment.v1",
+  "status": "held_pending_exact_binding_review",
+  "unchanged_controls": {
+    "assignment_cells_and_seed": true,
+    "gates_and_scoring": true,
+    "packets_and_prompts": true,
+    "runtime_and_model": true,
+    "single_use_permits_default_hold": true,
+    "zero_retries_and_substitutions": true
+  },
+  "user_authorization": {
+    "bound_to_prior_qualified_state": true,
+    "requires_exact_amendment_review_before_permit_release": true,
+    "scope": "Execute exactly the frozen 36-session held-out study one predetermined permit at a time; no scheduler, retries, substitutions, packet, prompt, gate, Core, Protocol, Standing, or authority changes.",
+    "source_thread_id": "01a02473-9465-76e2-ac9b-ae41379a3aa6",
+    "status": "authorized"
+  }
+}

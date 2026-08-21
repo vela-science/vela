@@ -25,6 +25,7 @@ SCHEMA_PATH = ROOT / "response-schema.json"
 SEED_PATH = ROOT / "assignment-seed.json"
 RUNTIME_PATH = ROOT / "runtime-binding.json"
 ADJUDICATION_COMMITMENT_PATH = ROOT / "adjudication-commitment.json"
+LAUNCH_AMENDMENT_PATH = ROOT / "launch-authorization-amendment.json"
 SOURCE_PATHS = (
     "DESIGN.md",
     "README.md",
@@ -34,6 +35,7 @@ SOURCE_PATHS = (
     "benchmark.py",
     "custody.py",
     "families-source.json",
+    "launch-authorization-amendment.json",
     "response-schema.json",
     "runtime-binding.json",
     "test_benchmark.py",
@@ -559,9 +561,12 @@ def generated_outputs() -> dict[str, bytes]:
     config_root = canonical_root(participant_configuration)
     outputs["participant-configuration.json"] = json_bytes(participant_configuration)
     commitment = load_json(ADJUDICATION_COMMITMENT_PATH)
+    amendment = load_json(LAUNCH_AMENDMENT_PATH)
+    if amendment.get("evaluator_commitment") != commitment:
+        raise BenchmarkError("launch_amendment_commitment_drift")
     registration = {
         "schema": "vela.inherited-correction-held-out-preregistration.v1",
-        "status": "held_pending_independent_adjudication_and_review",
+        "status": "held_pending_exact_binding_review",
         "purpose": "Test continuation and reassessment cost across three unseen consequential-correction families without assuming lift.",
         "families": sorted(families),
         "design": {
@@ -586,6 +591,8 @@ def generated_outputs() -> dict[str, bytes]:
             "prompt_roots": prompt_roots,
             "runtime_root": canonical_root(runtime),
             "adjudication_commitment": commitment,
+            "launch_authorization_amendment": amendment,
+            "launch_authorization_amendment_root": canonical_root(amendment),
         },
         "scoring": {
             "exact_success": "Exact pair, all four classifications and actions, both authority codes, and all four exact consequence path/digest bindings.",
@@ -632,7 +639,7 @@ def generated_outputs() -> dict[str, bytes]:
             outputs[f"{base}/assignment.json"] = json_bytes(schedule)
     mapping = {
         "schema": "vela.inherited-correction-held-out-configuration-mapping.v1",
-        "status": "held_pending_independent_adjudication_and_review",
+        "status": "held_pending_exact_binding_review",
         "registration_root": registration_root,
         "shared_study_configuration_root": config_root,
         "family_condition_runtime_configuration_roots": runtime_configuration_roots,
@@ -642,7 +649,7 @@ def generated_outputs() -> dict[str, bytes]:
     hold = {
         "schema": "vela.inherited-correction-hold.v1",
         "status": "hold",
-        "reason": "Independent adjudication commitment and exact prelaunch PASS required; no provider call authorized.",
+        "reason": "Exact adjudication-binding review PASS required before any permit release or provider call.",
         "updated_at": load_json(SEED_PATH)["generated_at"],
     }
     outputs["permit-template/hold-state.json"] = json_bytes(hold)
@@ -695,6 +702,7 @@ def generated_outputs() -> dict[str, bytes]:
             ]
         ),
         "adjudication_status": commitment["status"],
+        "launch_authorization_amendment_root": canonical_root(amendment),
         "provider_calls": 0,
     }
     freeze["prelaunch_root"] = canonical_root(freeze)
@@ -754,10 +762,51 @@ def verify() -> None:
     if (ROOT / "manifest.json").read_bytes() != expected_manifest:
         raise BenchmarkError("manifest_drift")
     commitment = load_json(ADJUDICATION_COMMITMENT_PATH)
-    if commitment["status"] != "pending_independent_evaluator_freeze":
+    expected_commitment_keys = {
+        "adjudication_bytes",
+        "adjudication_root",
+        "answer_bytes_present_in_producer_artifact",
+        "consequence_count",
+        "family_count",
+        "frozen_at",
+        "plaintext_disclosed",
+        "private_validation_receipt_root",
+        "public_commitment_root",
+        "required_before_permit_release",
+        "schema",
+        "status",
+    }
+    if set(commitment) != expected_commitment_keys:
+        raise BenchmarkError("adjudication_commitment_fields_invalid")
+    if commitment["status"] != "frozen_by_independent_evaluator":
         raise BenchmarkError("unexpected_adjudication_state")
-    if commitment["adjudication_root"] is not None:
-        raise BenchmarkError("producer_adjudication_root_present")
+    if not isinstance(commitment["adjudication_root"], str):
+        raise BenchmarkError("adjudication_root_missing")
+    if (
+        commitment["plaintext_disclosed"]
+        or commitment["answer_bytes_present_in_producer_artifact"]
+    ):
+        raise BenchmarkError("protected_adjudication_disclosed")
+    if commitment["adjudication_bytes"] != {
+        "length": 5883,
+        "sha256": commitment["adjudication_root"],
+    } or (commitment["family_count"], commitment["consequence_count"]) != (3, 12):
+        raise BenchmarkError("adjudication_public_counts_or_bytes_invalid")
+    amendment = load_json(LAUNCH_AMENDMENT_PATH)
+    if amendment.get("evaluator_commitment") != commitment:
+        raise BenchmarkError("launch_amendment_commitment_drift")
+    if amendment.get("status") != "held_pending_exact_binding_review":
+        raise BenchmarkError("launch_amendment_status_invalid")
+    execution = amendment.get("execution_state", {})
+    if execution != {
+        "sessions_completed": 0,
+        "fixed_denominator": 36,
+        "permits_held": 36,
+        "permits_consumed": 0,
+        "provider_calls": 0,
+        "protected_key_accesses": 0,
+    }:
+        raise BenchmarkError("launch_amendment_execution_state_invalid")
     packet_paths = [
         path
         for path in outputs

@@ -520,8 +520,22 @@ class HeldOutBenchmarkTests(unittest.TestCase):
             preregistration["scoring"]["aggregate_gates"]["total"],
         )
         commitment = preregistration["bindings"]["adjudication_commitment"]
-        self.assertIsNone(commitment["adjudication_root"])
-        self.assertEqual(commitment["status"], "pending_independent_evaluator_freeze")
+        self.assertEqual(
+            commitment["adjudication_root"],
+            "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d",
+        )
+        self.assertEqual(commitment["status"], "frozen_by_independent_evaluator")
+        self.assertFalse(commitment["plaintext_disclosed"])
+        self.assertFalse(commitment["answer_bytes_present_in_producer_artifact"])
+        amendment = preregistration["bindings"]["launch_authorization_amendment"]
+        self.assertEqual(amendment["evaluator_commitment"], commitment)
+        self.assertEqual(
+            preregistration["bindings"]["launch_authorization_amendment_root"],
+            benchmark.canonical_root(amendment),
+        )
+        self.assertEqual(amendment["execution_state"]["sessions_completed"], 0)
+        self.assertEqual(amendment["execution_state"]["permits_held"], 36)
+        self.assertEqual(amendment["execution_state"]["permits_consumed"], 0)
 
 
 if __name__ == "__main__":
