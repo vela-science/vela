@@ -5,7 +5,7 @@ external validation. It is a status record, not a scientific Claim.
 
 ## Demonstrated product behavior
 
-The signed `v0.977.3` CLI can create a native Repository, authenticate a
+The signed `v0.977.4` CLI can create a native Repository, authenticate a
 Submission, retain a scoped Verification Record, record an attributed accept
 or reject Decision, recover an interrupted transaction, replay exact state,
 and explain current Standing.

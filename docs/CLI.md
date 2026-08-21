@@ -241,6 +241,22 @@ Proposal and cannot decide it.
 
 ## Verification
 
+Before lifecycle execution, validate a canonical Review Method and the exact
+bindings the later Verification Record will carry:
+
+```bash
+vela verification check verification/method.json \
+  --profile exact-replay-v1 \
+  --property "<exact property>" \
+  --as verifier:independent-check \
+  --does-not-establish "Scientific acceptance." \
+  --json
+```
+
+This uses the authoritative Review Method parser and the same profile,
+property, actor, and nonclaim binding rule as `verification record`. It needs
+no Repository or signer and returns `changed: false`.
+
 ```bash
 vela verification record . <vpr_id> \
   --profile exact-replay-v1 \
@@ -392,6 +408,22 @@ protocol. It produced no accepted-state cascade or current contract and now
 remains in Git history. The CLI still authors no dependency edge.
 
 ## Repository setup
+
+Check initialization readiness without writing:
+
+```bash
+vela init ./my-repository \
+  --name "Bounded question" \
+  --scope "Does X hold?" \
+  --check --json
+```
+
+The preflight validates the empty, resumable-bootstrap, or initialized target;
+the local runtime identity; and the selected OpenSSH-agent Ed25519 identity.
+It creates no directory, Profile, Git state, transaction journal, or trust pin.
+Linux containers must provide a stable container-local 32-hex machine ID at
+`/etc/machine-id`; missing or malformed identity returns `vela.error.v1` with
+`changed: false`. Vela never substitutes the host identity or invents one.
 
 Create a signed, replayable repository:
 
@@ -588,6 +620,10 @@ Common self-correcting codes are:
 | missing_independent_verification | Inspect `review show`, retain the exact Method, and record an independent passing Verification for the named property. |
 | decision_entry_stale | Rerun `review inbox`, inspect again, and use the new exact `entry_root`. No authority signature was requested. |
 | authority_refused | Check Repository policy, the authority principal, and `ssh-add -l`. `--as` identifies the performer and grants no authority. |
+| runtime_identity_missing | Provision the required local platform identity; for Linux containers, write a stable container-local 32-hex `/etc/machine-id` and do not mount the host value. |
+| runtime_identity_malformed | Correct the local platform identity format before initialization; Vela does not normalize an invalid identity into authority. |
+| review_method_invalid | Validate canonical `vela.review-method.v1` bytes; do not synthesize a second method shape. |
+| review_method_binding_mismatch | Make `--profile`, `--property`, `--as`, and all required nonclaims match the canonical Review Method. |
 | native_integration_manifest_required | Use `status` or `replay` for a Vela Repository; `integration` reads only a non-authoritative native integration manifest. |
 
 ## Fail-closed behavior

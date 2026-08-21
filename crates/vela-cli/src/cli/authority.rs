@@ -326,10 +326,11 @@ struct ExpectedNativeGenesisWrite {
 /// private plan, marker, blobs, history, and exact caller-owned facts. The
 /// signed object delta plus covering DSSE envelope must then equal the complete
 /// canonical delta byte-for-byte before Git or local trust can change.
-pub(crate) fn resume_completed_native_genesis(
+pub(crate) fn resume_completed_native_genesis_with_device(
     repository_path: &Path,
     key_selector: Option<&str>,
     reason: &str,
+    device_identifier: &str,
 ) -> Result<Option<Value>, RepositoryAuthorityInitError> {
     let completed = match load_completed_native_genesis(repository_path)? {
         Some(completed) => completed,
@@ -341,7 +342,7 @@ pub(crate) fn resume_completed_native_genesis(
         ));
     }
     let fingerprint = native_genesis_key_fingerprint(&completed.authority, key_selector)?;
-    verify_native_genesis_account(&completed.record)?;
+    verify_native_genesis_account_with_device(&completed.record, device_identifier)?;
     finish_completed_native_genesis(completed, &fingerprint).map(Some)
 }
 
@@ -816,7 +817,16 @@ fn verify_native_genesis_delta(
 fn verify_native_genesis_account(
     record: &AuthorityRecordV1,
 ) -> Result<(), RepositoryAuthorityInitError> {
-    let mut local = local_session(&record.content.recorded_at)
+    let device = runtime_device_identifier()
+        .map_err(|error| RepositoryAuthorityInitError::Continuation(error.message))?;
+    verify_native_genesis_account_with_device(record, &device)
+}
+
+fn verify_native_genesis_account_with_device(
+    record: &AuthorityRecordV1,
+    device_identifier: &str,
+) -> Result<(), RepositoryAuthorityInitError> {
+    let mut local = local_session_with_device(&record.content.recorded_at, device_identifier)
         .map_err(RepositoryAuthorityInitError::Continuation)?;
     let observed = local
         .observe(&AuthenticationRequest {
@@ -984,10 +994,11 @@ fn finish_completed_native_genesis(
     }))
 }
 
-pub(crate) fn initialize_repository_authority(
+pub(crate) fn initialize_repository_authority_with_device(
     repository_path: &Path,
     key_selector: Option<&str>,
     reason: &str,
+    device_identifier: &str,
 ) -> Result<Value, RepositoryAuthorityInitError> {
     let reason = reason.trim();
     if reason.is_empty() {
@@ -1008,7 +1019,7 @@ pub(crate) fn initialize_repository_authority(
     }
     let identity = select_repository_authority_identity(key_selector)?;
     let recorded_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
-    let local = local_session(&recorded_at)?;
+    let local = local_session_with_device(&recorded_at, device_identifier)?;
     let principal = PrincipalSnapshotV1 {
         principal_id: local.principal_id.clone(),
         principal_class: PrincipalClass::Human,
@@ -1219,7 +1230,13 @@ pub(crate) fn initialize_repository_authority(
     if std::env::var_os("VELA_TEST_INTERRUPT_INIT_AFTER_COMPLETED").is_some() {
         std::process::exit(86);
     }
-    resume_completed_native_genesis(repository_path, key_selector, reason)?.ok_or_else(|| {
+    resume_completed_native_genesis_with_device(
+        repository_path,
+        key_selector,
+        reason,
+        device_identifier,
+    )?
+    .ok_or_else(|| {
         RepositoryAuthorityInitError::Continuation(
             "new native genesis transaction did not remain exactly Completed".into(),
         )
@@ -1391,15 +1408,17 @@ pub(crate) fn canonical_whole_second_time(name: &str, value: &str) -> Result<Str
         .map_err(|error| format!("{name} is not RFC3339: {error}"))
 }
 
-pub(crate) fn local_session(observed_at: &str) -> Result<LocalOsSession, String> {
+pub(crate) fn local_session_with_device(
+    observed_at: &str,
+    device_identifier: &str,
+) -> Result<LocalOsSession, String> {
     let observed = DateTime::parse_from_rfc3339(observed_at)
         .map_err(|error| format!("local session observation time is invalid: {error}"))?
         .with_timezone(&Utc);
-    let device = local_device_identifier()?;
     let subject = format!("uid:{}", rustix::process::geteuid().as_raw());
     let issuer = format!(
         "device-sha256:{}",
-        hex::encode(Sha256::digest(device.as_bytes()))
+        hex::encode(Sha256::digest(device_identifier.as_bytes()))
     );
     let principal_id = format!("local:{issuer}|{subject}");
     let session_root = canonical_root(&json!({
@@ -1419,17 +1438,61 @@ pub(crate) fn local_session(observed_at: &str) -> Result<LocalOsSession, String>
     })
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RuntimeIdentityError {
+    pub(crate) code: &'static str,
+    pub(crate) message: String,
+    pub(crate) remediation: &'static str,
+}
+
+impl std::fmt::Display for RuntimeIdentityError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.message)
+    }
+}
+
+pub(crate) fn runtime_device_identifier() -> Result<String, RuntimeIdentityError> {
+    local_device_identifier_diagnostic()
+}
+
+pub(crate) fn runtime_identity_recovery(
+    error: &RuntimeIdentityError,
+    next_command: &str,
+) -> String {
+    let repair = error
+        .remediation
+        .strip_suffix("; then rerun `vela init --check`")
+        .or_else(|| {
+            error
+                .remediation
+                .strip_suffix(", then rerun the same command")
+        })
+        .unwrap_or(error.remediation);
+    format!("{repair}; then rerun `{next_command}`")
+}
+
 #[cfg(target_os = "macos")]
-fn local_device_identifier() -> Result<String, String> {
+fn local_device_identifier_diagnostic() -> Result<String, RuntimeIdentityError> {
     let output = Command::new("/usr/sbin/ioreg")
         .args(["-rd1", "-c", "IOPlatformExpertDevice"])
         .output()
-        .map_err(|error| format!("inspect macOS platform identity: {error}"))?;
+        .map_err(|error| RuntimeIdentityError {
+            code: "runtime_identity_missing",
+            message: format!("inspect macOS platform identity: {error}"),
+            remediation: "restore access to the macOS IOPlatformUUID, then rerun the same command",
+        })?;
     if !output.status.success() {
-        return Err("macOS platform identity command failed".into());
+        return Err(RuntimeIdentityError {
+            code: "runtime_identity_missing",
+            message: "macOS platform identity command failed".into(),
+            remediation: "restore access to the macOS IOPlatformUUID, then rerun the same command",
+        });
     }
-    let text = String::from_utf8(output.stdout)
-        .map_err(|_| "macOS platform identity output is not UTF-8".to_string())?;
+    let text = String::from_utf8(output.stdout).map_err(|_| RuntimeIdentityError {
+        code: "runtime_identity_malformed",
+        message: "macOS platform identity output is not UTF-8".into(),
+        remediation: "restore a valid macOS IOPlatformUUID, then rerun the same command",
+    })?;
     text.lines()
         .find_map(|line| {
             line.split_once("\"IOPlatformUUID\" = \"")
@@ -1437,18 +1500,84 @@ fn local_device_identifier() -> Result<String, String> {
                 .map(str::to_string)
         })
         .filter(|value| !value.trim().is_empty())
-        .ok_or_else(|| "macOS platform identity is unavailable".to_string())
+        .ok_or_else(|| RuntimeIdentityError {
+            code: "runtime_identity_missing",
+            message: "macOS platform identity is unavailable".into(),
+            remediation: "restore access to the macOS IOPlatformUUID, then rerun the same command",
+        })
 }
 
 #[cfg(target_os = "linux")]
-fn local_device_identifier() -> Result<String, String> {
-    let value = std::fs::read_to_string("/etc/machine-id")
-        .map_err(|error| format!("read Linux machine identity: {error}"))?;
-    let value = value.trim();
-    if value.len() < 16 || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return Err("Linux machine identity is malformed".into());
+fn linux_machine_id_path_from_override(
+    override_path: Option<std::ffi::OsString>,
+) -> std::path::PathBuf {
+    override_path
+        .map(Into::into)
+        .unwrap_or_else(|| "/etc/machine-id".into())
+}
+
+#[cfg(target_os = "linux")]
+fn linux_machine_id_path() -> std::path::PathBuf {
+    #[cfg(feature = "test-support")]
+    let override_path = std::env::var_os("VELA_TEST_MACHINE_ID_PATH");
+    #[cfg(not(feature = "test-support"))]
+    let override_path = None;
+    linux_machine_id_path_from_override(override_path)
+}
+
+#[cfg(target_os = "linux")]
+const LINUX_IDENTITY_REMEDIATION: &str = "provision a stable container-local 32-character lowercase hexadecimal machine ID plus newline at /etc/machine-id; do not mount the host machine ID; then rerun `vela init --check`";
+
+#[cfg(target_os = "linux")]
+fn parse_linux_machine_id(path: &Path, bytes: &[u8]) -> Result<String, RuntimeIdentityError> {
+    let exact_shape = bytes.len() == 33
+        && bytes[32] == b'\n'
+        && bytes[..32]
+            .iter()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(byte));
+    if !exact_shape
+        || bytes[..bytes.len().min(32)]
+            .iter()
+            .all(|byte| *byte == b'0')
+    {
+        return Err(RuntimeIdentityError {
+            code: "runtime_identity_malformed",
+            message: format!(
+                "Linux runtime identity at {} must be exactly 32 lowercase hexadecimal characters followed by one newline and not all zero",
+                path.display()
+            ),
+            remediation: LINUX_IDENTITY_REMEDIATION,
+        });
     }
-    Ok(value.to_ascii_lowercase())
+    String::from_utf8(bytes[..32].to_vec()).map_err(|_| RuntimeIdentityError {
+        code: "runtime_identity_malformed",
+        message: format!("Linux runtime identity at {} is not UTF-8", path.display()),
+        remediation: LINUX_IDENTITY_REMEDIATION,
+    })
+}
+
+#[cfg(target_os = "linux")]
+fn local_device_identifier_diagnostic() -> Result<String, RuntimeIdentityError> {
+    let path = linux_machine_id_path();
+    match std::fs::read(&path) {
+        Ok(bytes) => parse_linux_machine_id(&path, &bytes),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Err(RuntimeIdentityError {
+            code: "runtime_identity_missing",
+            message: format!(
+                "Linux runtime identity is unavailable at {}",
+                path.display()
+            ),
+            remediation: LINUX_IDENTITY_REMEDIATION,
+        }),
+        Err(error) => Err(RuntimeIdentityError {
+            code: "runtime_identity_missing",
+            message: format!(
+                "Linux runtime identity at {} is unreadable: {error}",
+                path.display()
+            ),
+            remediation: LINUX_IDENTITY_REMEDIATION,
+        }),
+    }
 }
 
 fn canonical_root(value: &impl Serialize) -> Result<String, String> {
@@ -1474,7 +1603,8 @@ mod tests {
     #[test]
     fn native_genesis_account_context_rejects_another_account_or_device() {
         let recorded_at = "2026-07-25T15:42:06Z";
-        let mut local = local_session(recorded_at).unwrap();
+        let device = runtime_device_identifier().unwrap();
+        let mut local = local_session_with_device(recorded_at, &device).unwrap();
         let observed = local
             .observe(&AuthenticationRequest {
                 principal_id: local.principal_id.clone(),
@@ -1504,6 +1634,30 @@ mod tests {
         .unwrap_err()
         .to_string();
         assert!(device_error.contains("different operating-system account"));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn linux_identity_has_one_exact_source_and_never_normalizes_bytes() {
+        assert_eq!(
+            linux_machine_id_path_from_override(None),
+            Path::new("/etc/machine-id")
+        );
+        let path = Path::new("/etc/machine-id");
+        assert_eq!(
+            parse_linux_machine_id(path, b"0123456789abcdef0123456789abcdef\n").unwrap(),
+            "0123456789abcdef0123456789abcdef"
+        );
+        for hostile in [
+            b"0123456789ABCDEF0123456789ABCDEF\n".as_slice(),
+            b"0123456789abcdef0123456789abcdef".as_slice(),
+            b" 0123456789abcdef0123456789abcdef\n".as_slice(),
+            b"0123456789abcdef0123456789abcdef\n\n".as_slice(),
+            b"00000000000000000000000000000000\n".as_slice(),
+        ] {
+            let error = parse_linux_machine_id(path, hostile).unwrap_err();
+            assert_eq!(error.code, "runtime_identity_malformed");
+        }
     }
 
     /// The model a fresh repository starts with authorizes exactly the local

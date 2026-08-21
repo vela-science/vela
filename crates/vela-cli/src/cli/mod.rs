@@ -212,6 +212,7 @@ pub fn run_command() {
             scope,
             key,
             reason,
+            check,
             json,
         } => cmd_init(
             &path,
@@ -219,6 +220,7 @@ pub fn run_command() {
             scope.as_deref(),
             key.as_deref(),
             &reason,
+            check,
             json,
         ),
         Commands::Review { action } => cmd_review(action),
@@ -746,9 +748,10 @@ mod tests {
     /// be named here as an argument that is deliberately not a repository.
     #[test]
     fn every_repository_verb_accepts_both_spellings() {
-        /// `init <path>` is a destination to create, so it takes no discovery
-        /// flag. `completions` touches no repository at all.
-        const NOT_REPOSITORY_VERBS: [&str; 2] = ["init", "completions"];
+        /// `init <path>` is a destination to create, while `completions` and
+        /// `verification check` operate on no Repository at all.
+        const NOT_REPOSITORY_PATHS: [&str; 3] =
+            ["vela init", "vela completions", "vela verification check"];
 
         fn walk(command: &clap::Command, path: &str) {
             let leaf = command.get_subcommands().count() == 0;
@@ -778,7 +781,7 @@ mod tests {
                         .any(|arg| arg.get_id() == "repository"),
                     "`{path}` reserves its positional for the exact operation id"
                 );
-            } else if leaf && !NOT_REPOSITORY_VERBS.contains(&name) {
+            } else if leaf && !NOT_REPOSITORY_PATHS.contains(&path.as_str()) {
                 let flag = command
                     .get_arguments()
                     .find(|arg| arg.get_long() == Some("repo"));
@@ -808,7 +811,7 @@ mod tests {
                     "`{path}` accepts --repo but has no positional repository, and only submit may omit one"
                 );
             }
-            if leaf && NOT_REPOSITORY_VERBS.contains(&name) {
+            if leaf && NOT_REPOSITORY_PATHS.contains(&path.as_str()) {
                 assert!(
                     !command
                         .get_arguments()

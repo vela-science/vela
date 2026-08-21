@@ -9,9 +9,132 @@ pub(crate) fn cmd_init(
     scope: Option<&str>,
     key_selector: Option<&str>,
     reason: &str,
+    check: bool,
     json_output: bool,
 ) {
-    crate::ui::set_mode("init", json_output);
+    crate::ui::set_mode(if check { "init.check" } else { "init" }, json_output);
+    if check {
+        let operation_id = vela_repository::OperationId::derive(
+            "init-preflight",
+            format!(
+                "{}|{}|{}",
+                path.display(),
+                name.unwrap_or_default(),
+                scope.unwrap_or_default()
+            )
+            .as_bytes(),
+        );
+        let target_state =
+            crate::init::preflight_target(path, name, scope).unwrap_or_else(|error| {
+                crate::ui::fail_unchanged(
+                    crate::ui::ErrorKind::Domain,
+                    &error,
+                    operation_id.as_str(),
+                    "correct the target path or retained bootstrap, then rerun `vela init --check`",
+                )
+            });
+        runtime_device_identifier().unwrap_or_else(|error| {
+            let recovery = runtime_identity_recovery(&error, "vela init --check");
+            crate::ui::fail_unchanged_coded(
+                crate::ui::ErrorKind::Domain,
+                Some(error.code),
+                &error.message,
+                operation_id.as_str(),
+                &recovery,
+            )
+        });
+        let authority_identity = if target_state == crate::init::InitTargetState::Initialized {
+            None
+        } else {
+            Some(
+                crate::repository_authority_provider::select_repository_authority_identity(
+                    key_selector,
+                )
+                .unwrap_or_else(|error| {
+                    let recovery =
+                        authority_recovery_hint(path, key_selector, reason, json_output, &error);
+                    crate::ui::fail_unchanged(
+                        crate::ui::ErrorKind::Domain,
+                        &error,
+                        operation_id.as_str(),
+                        &recovery,
+                    )
+                }),
+            )
+        };
+        let next_action = if target_state == crate::init::InitTargetState::Initialized {
+            format!(
+                "vela status {} --json",
+                shell_arg(&path.display().to_string())
+            )
+        } else if let (Some(name), Some(scope)) = (name, scope) {
+            format!(
+                "vela init {} --name {} --scope {} --json",
+                shell_arg(&path.display().to_string()),
+                shell_arg(name),
+                shell_arg(scope),
+            )
+        } else {
+            format!("vela init {}", shell_arg(&path.display().to_string()))
+        };
+        let payload = json!({
+            "schema": "vela.init-preflight.v1",
+            "ok": true,
+            "command": "init.check",
+            "changed": false,
+            "authority_effect": "none",
+            "repository_path": path.display().to_string(),
+            "target_state": target_state.as_str(),
+            "runtime_identity": {
+                "available": true,
+                "kind": "local_os_session",
+                "device_identifier_exposed": false,
+            },
+            "authority_signer": authority_identity.as_ref().map(|identity| json!({
+                "available": true,
+                "algorithm": "ssh-ed25519",
+                "fingerprint": identity.fingerprint,
+            })).unwrap_or_else(|| json!({
+                "available": null,
+                "reason": "repository is already initialized; init needs no new signer",
+            })),
+            "checks": ["target", "runtime_identity", "authority_signer"],
+            "next_action": next_action,
+        });
+        if json_output {
+            print_json(&payload);
+        } else {
+            println!(
+                "{} init preflight passed for {}",
+                style::ok("ok"),
+                path.display()
+            );
+            println!("  target    {}", target_state.as_str());
+            println!("  identity  available (device value not exposed)");
+            if let Some(identity) = authority_identity {
+                println!("  signer    {}", identity.fingerprint);
+            } else {
+                println!("  signer    not required for an initialized repository");
+            }
+            println!("  changed   false");
+            println!("  next      {next_action}");
+        }
+        return;
+    }
+    let operation_id = vela_repository::OperationId::derive(
+        "init-runtime-identity",
+        path.display().to_string().as_bytes(),
+    );
+    let device = runtime_device_identifier().unwrap_or_else(|error| {
+        let recovery = runtime_identity_recovery(&error, "vela init --check");
+        crate::ui::fail_unchanged_coded(
+            crate::ui::ErrorKind::Domain,
+            Some(error.code),
+            &error.message,
+            operation_id.as_str(),
+            &recovery,
+        )
+    });
     let store = path.join(".vela");
     let initialized =
         store.join("origin.json").is_file() || store.join("repository.json").is_file();
@@ -51,9 +174,10 @@ pub(crate) fn cmd_init(
     };
     let (mut payload, authority) = if let Some(payload) = staged {
         let authority =
-            initialize_repository_authority(path, key_selector, reason).unwrap_or_else(|error| {
-                fail_authority_initialization(path, key_selector, reason, json_output, error)
-            });
+            initialize_repository_authority_with_device(path, key_selector, reason, &device)
+                .unwrap_or_else(|error| {
+                    fail_authority_initialization(path, key_selector, reason, json_output, error)
+                });
         (payload, authority)
     } else if initialized {
         crate::ui::fail_if_recovery_required(path);
@@ -61,9 +185,10 @@ pub(crate) fn cmd_init(
             crate::repository::verify_profile_at(path).unwrap_or_else(|error| fail_return(&error));
         validate_retained_profile(&profile, name, scope);
         let authority =
-            resume_completed_native_genesis(path, key_selector, reason).unwrap_or_else(|error| {
-                fail_authority_initialization(path, key_selector, reason, json_output, error)
-            });
+            resume_completed_native_genesis_with_device(path, key_selector, reason, &device)
+                .unwrap_or_else(|error| {
+                    fail_authority_initialization(path, key_selector, reason, json_output, error)
+                });
         let Some(authority) = authority else {
             crate::ui::fail_with(
                 crate::ui::ErrorKind::Exists,
@@ -95,9 +220,10 @@ pub(crate) fn cmd_init(
             initialized
         };
         let authority =
-            initialize_repository_authority(path, key_selector, reason).unwrap_or_else(|error| {
-                fail_authority_initialization(path, key_selector, reason, json_output, error)
-            });
+            initialize_repository_authority_with_device(path, key_selector, reason, &device)
+                .unwrap_or_else(|error| {
+                    fail_authority_initialization(path, key_selector, reason, json_output, error)
+                });
         if payload["resumed"].is_null() {
             payload["resumed"] = json!(true);
         }

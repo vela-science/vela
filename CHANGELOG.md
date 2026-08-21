@@ -10,6 +10,28 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+## 0.977.4
+
+- **Container bootstrap failures are actionable before any durable byte.**
+  `vela init --check` reuses the real target, local-session identity, and
+  OpenSSH-agent readiness checks without creating a directory, Profile, Git
+  state, journal, or trust pin. Missing and malformed Linux machine IDs return
+  stable `vela.error.v1` codes with `changed: false`; Vela neither invents an
+  identity nor substitutes the host identity.
+
+- **Review Methods can be validated before a lifecycle begins.** `vela
+  verification check` reuses the authoritative canonical parser and the same
+  profile, property, actor, and nonclaim bindings as `verification record`.
+  Valid, invalid, and binding-mismatch paths are machine-readable and
+  non-mutating; no canonical scientific object or schema version changed.
+
+- **The disposable rejection path is a maintained product regression.** One
+  empty Repository proceeds through packet commit, Submission, failing
+  Verification, rooted rejection, status, replay, and readback with exact
+  no-Standing and no-accepted-state assertions. Docker stdin, Git workdir
+  selection, relative mounts, and experiment-manifest generation remain runner
+  responsibilities rather than Core orchestration.
+
 ## 0.977.3
 
 - **A restarted operator can discover one exact interrupted transaction without

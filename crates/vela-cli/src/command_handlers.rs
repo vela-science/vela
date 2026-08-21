@@ -5,6 +5,71 @@ use crate::command_spec::*;
 
 pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
     match action {
+        VerifyAction::Check {
+            method,
+            profile,
+            property,
+            actor,
+            does_not_establish,
+            json,
+        } => {
+            crate::ui::set_mode("verification.check", json);
+            let request = vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
+                "method": method.display().to_string(),
+                "profile": profile,
+                "property": property,
+                "actor": actor,
+                "does_not_establish": does_not_establish,
+            }))
+            .unwrap_or_default();
+            let operation_id =
+                vela_repository::OperationId::derive("review-method-check", &request);
+            let checked = crate::verification::check_review_method(
+                &method,
+                &profile,
+                &property,
+                &actor,
+                does_not_establish,
+            )
+            .unwrap_or_else(|error| {
+                crate::ui::fail_unchanged_coded(
+                    crate::ui::ErrorKind::Domain,
+                    Some(error.code()),
+                    error.message(),
+                    operation_id.as_str(),
+                    "correct the canonical Review Method or its intended --profile, --property, --as, and --does-not-establish bindings, then rerun `vela verification check`",
+                )
+            });
+            let result = serde_json::json!({
+                "schema": "vela.review-method-validation.v1",
+                "ok": true,
+                "command": "verification.check",
+                "changed": false,
+                "authority_effect": "none",
+                "standing_effect": "none",
+                "method_path": method.display().to_string(),
+                "method_root": checked.root,
+                "method_bytes": checked.bytes,
+                "review_method": checked.method,
+                "bindings": {
+                    "matched": true,
+                    "profile": profile,
+                    "property": property,
+                    "actor": actor,
+                },
+            });
+            if json {
+                print_json(&result);
+            } else {
+                println!("verification check: canonical Review Method is valid");
+                println!(
+                    "  root      {}",
+                    result["method_root"].as_str().unwrap_or("")
+                );
+                println!("  bindings  matched");
+                println!("  changed   false");
+            }
+        }
         VerifyAction::Record {
             first,
             second,

@@ -46,8 +46,8 @@ or merge into an acceptance claim.
 Install the current signed release and inspect the public Math Repository:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.3/install.sh | \
-  VELA_VERSION=v0.977.3 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.4/install.sh | \
+  VELA_VERSION=v0.977.4 bash
 
 git clone https://github.com/vela-science/math.git math
 git -C math checkout 5de716c896065c03c0a470d015ba2a328a527f73
@@ -119,6 +119,21 @@ inheritance; it has not been externally replicated. See the
 | Understand the protocol | [Protocol 1](docs/PROTOCOL.md) |
 | Operate authority safely | [Signing](docs/SIGNING.md) and [threat model](docs/THREAT_MODEL.md) |
 | Find a specific document | [Documentation by task](docs/README.md) |
+
+Before a container or fresh host starts the write loop, check only Vela's own
+runtime prerequisites without creating state:
+
+```bash
+vela init ./repository --name "Bounded question" \
+  --scope "Does the selected finite claim hold?" --check --json
+vela verification check review-method.json \
+  --profile <profile> --property "<property>" --as verifier:<name> \
+  --does-not-establish "Scientific acceptance." --json
+```
+
+Vela reports missing local identity and invalid Review Method bindings. The
+runner still owns container stdin, the Git working directory, bind-mount path
+resolution, and generation of experiment-specific manifests.
 
 The wider project includes:
 

@@ -19,6 +19,117 @@ pub(crate) struct InitOptions<'a> {
     pub(crate) scope: &'a str,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum InitTargetState {
+    Absent,
+    Empty,
+    StagedBootstrap,
+    Bootstrap,
+    Initialized,
+}
+
+impl InitTargetState {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Absent => "absent",
+            Self::Empty => "empty",
+            Self::StagedBootstrap => "staged_bootstrap",
+            Self::Bootstrap => "bootstrap",
+            Self::Initialized => "initialized",
+        }
+    }
+}
+
+fn validate_fresh_preflight_inputs(name: Option<&str>, scope: Option<&str>) -> Result<(), String> {
+    if name.map(str::trim).is_none_or(str::is_empty) {
+        return Err("init --check requires --name for an absent or empty target".into());
+    }
+    if scope.map(str::trim).is_none_or(str::is_empty) {
+        return Err("init --check requires --scope for an absent or empty target".into());
+    }
+    Ok(())
+}
+
+/// Inspect whether `vela init` can safely act on this target without changing
+/// a byte. `init --check` uses the same bootstrap and current-Repository
+/// verifiers that the real initializer relies on for those retained states.
+pub(crate) fn preflight_target(
+    path: &Path,
+    name: Option<&str>,
+    scope: Option<&str>,
+) -> Result<InitTargetState, String> {
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            let mut ancestor = path.parent();
+            while let Some(candidate) = ancestor {
+                match fs::symlink_metadata(candidate) {
+                    Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+                        return Err(format!(
+                            "initialization parent {} must be a real directory",
+                            candidate.display()
+                        ));
+                    }
+                    Ok(_) => {
+                        validate_fresh_preflight_inputs(name, scope)?;
+                        return Ok(InitTargetState::Absent);
+                    }
+                    Err(parent_error) if parent_error.kind() == std::io::ErrorKind::NotFound => {
+                        ancestor = candidate.parent();
+                    }
+                    Err(parent_error) => {
+                        return Err(format!(
+                            "inspect initialization parent '{}': {parent_error}",
+                            candidate.display()
+                        ));
+                    }
+                }
+            }
+            return Err("initialization target has no existing directory ancestor".into());
+        }
+        Err(error) => return Err(format!("inspect init target '{}': {error}", path.display())),
+    };
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(format!(
+            "{} must be a real directory or an absent path",
+            path.display()
+        ));
+    }
+
+    if let Some(staging) = find_initialization_staging(path)? {
+        validate_staged_bootstrap(path, &staging, name, scope)?;
+        return Ok(InitTargetState::StagedBootstrap);
+    }
+
+    let store = path.join(".vela");
+    let origin = store.join("origin.json");
+    let repository = store.join("repository.json");
+    if origin.is_file() && repository.is_file() {
+        crate::repository::verify_repository_at(path, true)?;
+        return Ok(InitTargetState::Initialized);
+    }
+    if store.is_dir() && path.join("vela.toml").is_file() {
+        crate::repository::verify_bootstrap_at(path)?;
+        return Ok(InitTargetState::Bootstrap);
+    }
+
+    let empty = fs::read_dir(path)
+        .map_err(|error| format!("inspect init target '{}': {error}", path.display()))?
+        .next()
+        .transpose()
+        .map_err(|error| format!("inspect init target '{}': {error}", path.display()))?
+        .is_none();
+    if empty {
+        validate_fresh_preflight_inputs(name, scope)?;
+        Ok(InitTargetState::Empty)
+    } else {
+        Err(format!(
+            "refusing to initialize non-empty directory {}",
+            path.display()
+        ))
+    }
+}
+
 pub(crate) fn initialize_minimal(path: &Path, options: InitOptions<'_>) -> Result<Value, String> {
     let name = options.name.trim();
     let scope = options.scope.trim();
