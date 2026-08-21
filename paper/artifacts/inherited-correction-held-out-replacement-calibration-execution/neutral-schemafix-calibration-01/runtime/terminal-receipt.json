@@ -1,0 +1,43 @@
+{
+  "schema": "vela.inherited-correction-terminal-receipt.v1",
+  "run_id": "neutral-schemafix-calibration-01",
+  "condition": "neutral-calibration",
+  "participant_instance_id": "neutral-schemafix-sol-01",
+  "attempt": 1,
+  "status": "completed",
+  "validation_error": null,
+  "provider_started_at": "2026-08-21T23:50:16.511Z",
+  "provider_completed_at": "2026-08-21T23:50:26.003Z",
+  "duration_seconds": 9.46508488,
+  "timeout_seconds": 600,
+  "process_exit_code": 0,
+  "process_timed_out": false,
+  "registration_root": "sha256:4d078776f41ffd1df18768791de58014117319f19727c3b9671b606e527c1276",
+  "image_digest": "sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb",
+  "participant_configuration_root": "sha256:0879e099f9a48ef07be3139933a61c2782b86e9fe95bfec543ae896eaaaee446",
+  "assignment_root": "sha256:10b8ecc0822312d495ce56af2f5653e0538ec5a413c9e0c9acf51732317b6770",
+  "trust_bundle_bytes": "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5",
+  "registered_response_schema_bytes": "sha256:ac96be686e749792956dfa1dfe9560f85c53d55c27fe2e8fd32bcc2a96a634ba",
+  "provider_response_schema_bytes": "sha256:896f242086805d3b51e81ed04e6d50f33eb2b7deb71b7a1689e9abeba3b67eaf",
+  "prompt_root": "sha256:eed8ad5804e999b60457ae959b316a5047c1b310661dcb59a4a7460b1292396e",
+  "packet_root": "sha256:4c94831df6a848e1685b47d8d59714064a377d7feb4fdb366450feb5a4491f1c",
+  "provider_events_bytes": "sha256:3893f57e0a3f63dca65a2f64d6574e3cf72481d0b3df0250595d39763e2a8f88",
+  "provider_stderr_bytes": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "response_bytes": "sha256:9748c08fee1cc90f44c8c50bfd28e8911edd1ca819a0f0a224e209cb04158372",
+  "event_receipt": {
+    "usage": {
+      "input_tokens": 6765,
+      "cached_input_tokens": 0,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 374,
+      "reasoning_output_tokens": 0
+    },
+    "event_count": 4,
+    "response_count": 1,
+    "tool_calls": 0,
+    "turn_count": 1,
+    "compactions": 0
+  },
+  "cumulative_provider_usage_is_telemetry_only": true,
+  "credential_retained": false
+}
