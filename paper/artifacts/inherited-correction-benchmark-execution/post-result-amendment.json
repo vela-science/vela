@@ -1,0 +1,69 @@
+{
+  "categorical_result_unchanged": {
+    "authority_effect": "none",
+    "fixed_denominator": 16,
+    "git_documents": {
+      "authority_errors": 8,
+      "exact_successes": 0,
+      "points": 112,
+      "restricted_mean_seconds": 600.0,
+      "sessions": 8
+    },
+    "positive_gate": "not_supported",
+    "vela": {
+      "authority_errors": 3,
+      "exact_successes": 5,
+      "points": 130,
+      "restricted_mean_seconds": 233.07823840475,
+      "sessions": 8
+    }
+  },
+  "closure": {
+    "canonical_result_bytes": "sha256:48c3ab674e1ef707a207c2a5cf8addab16d7209e8229def76f0f1568a466f83f",
+    "canonicalizer_bytes": "sha256:120ac89c07f66476c8746a932c2da250e7ea7fc4990f3de6d42873d086c34cf9",
+    "fixture_bytes": "sha256:e84049cf0072b86df4305e104c53279f88b3e9f7ff5da6e1211d4e80fcc49a1f",
+    "fixture_metrics_bytes": "sha256:0edc8b9adea2302c60ac988c9a27c0b5e7c3148152ecbae4dcb41fb613159473",
+    "mean_quantum": "0.00000000000001",
+    "ratio_quantum": "0.000000000000001",
+    "regeneration_command": "python3 paper/artifacts/inherited-correction-benchmark-execution/canonicalize-post-result.py --runs-dir paper/artifacts/inherited-correction-benchmark-execution/confirmatory-replacement-execution/runs --output paper/artifacts/inherited-correction-benchmark-execution/confirmatory-replacement-execution/runs/scored-result.json",
+    "rounding": "ROUND_HALF_EVEN",
+    "supported_cpython_checked": [
+      "3.10",
+      "3.11",
+      "3.13",
+      "3.14"
+    ],
+    "test_bytes": "sha256:d7f93035025671d21881aa81a27693ba69aea0f019b12831db68779eae9e8cac"
+  },
+  "created_at": "2026-08-21T20:09:23Z",
+  "finding": {
+    "alternate_cpython_3_10_through_3_13_result_bytes": "sha256:2c7d6e4a3e0cf43c07ea19003dda65887d2965dd5e79f389c5b5960384624caa",
+    "categorical_or_gate_change": false,
+    "committed_cpython_3_14_result_bytes": "sha256:1f1d886c778e8fef0effce59692f761eb6d937afa9421880aed3340079004679",
+    "id": "F06",
+    "scope": "Only the terminal floating-point digits of the Vela restricted mean and ratio differed under the unpinned python3 command. Counts, points, authority errors, exact successes, capture, denominator, and positive gate matched."
+  },
+  "invariants": {
+    "capture_manifest_bytes": "sha256:f8347ca31241de45de7b8867619cca3c51bdf7334ba48904871522227a76155e",
+    "capture_root": "sha256:0e5f60fa1dc78e531d44cb8fff626e73c6b2c0017bbcec52e41220cbfac686fd",
+    "complete_runtime_custody_root": "sha256:619512f17009dd92c651a687cbc17dd5899c0b908619d82de465b9747a7aa3f5",
+    "participant_calls_after_result": 0,
+    "participant_evidence_changed": false,
+    "protected_scientific_rule_changed": false,
+    "replacement_or_retry": false
+  },
+  "previous_result": {
+    "commit": "3207066f22f09b578f354b7028f55559e7b45926",
+    "result_bytes": "sha256:1f1d886c778e8fef0effce59692f761eb6d937afa9421880aed3340079004679",
+    "tree": "451237b4b85df33da5b8d8442fe67bd60b8d3b08"
+  },
+  "review": {
+    "commit": "53fda88b94bc4b2d025c0d42d5fd1ac26441e401",
+    "report_bytes": "sha256:5425443fe993cb9f56433fcbe585defaee0ef54aa830a4acb41a4addc37acf05",
+    "report_path": "reviews/inherited-correction-benchmark/final-replacement-result-3207066f-report.md",
+    "verdict": "BLOCKED",
+    "verdict_bytes": "sha256:fe3c9856a6865d59f1e0dbb8dc31456d72591a0a8a70322ef9875ae052c629ca",
+    "verdict_path": "reviews/inherited-correction-benchmark/final-replacement-result-3207066f-verdict.json"
+  },
+  "schema": "vela.inherited-correction-post-result-amendment.v1"
+}

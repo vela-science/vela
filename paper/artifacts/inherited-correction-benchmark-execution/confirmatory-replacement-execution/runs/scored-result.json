@@ -27,6 +27,6 @@
   ],
   "positive_gate": "not_supported",
   "registration_root": "sha256:a8b4b729e7b2be4f371d4831caa9214959514cb51222da9e422b0634c408a575",
-  "restricted_mean_ratio_vela_over_git_documents": 0.38846373067458334,
+  "restricted_mean_ratio_vela_over_git_documents": 0.388463730674583,
   "schema": "vela.inherited-correction-scored-result.v1"
 }
