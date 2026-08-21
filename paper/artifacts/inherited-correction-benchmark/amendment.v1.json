@@ -1,0 +1,18 @@
+{
+  "amended_at": "2026-08-21T15:51:01Z",
+  "authority_effect": "none",
+  "changes": [
+    "replace free-text keyword action scoring with closed exact action codes",
+    "retain authorization bytes and revalidate full run, packet, assignment, configuration, attempt, and time custody at freeze",
+    "add fail-closed polarity, forged-root, packet-drift, assignment, configuration, attempt, timeout, duration, status, and tool-count tests"
+  ],
+  "current_registration_root": "sha256:7391c3c6adb74633886fd9fb2d35a257e7501bd37153acfb3e19ac850d0e9157",
+  "experimental_sessions_observed_before_amendment": 0,
+  "independent_review_commit": "c377e99e2c982211be7ecb9cba8998c848cf18c2",
+  "independent_review_verdict": "BLOCKED",
+  "previous_producer_commit": "366b610eec75a1520a97b4a7817fde3a4fbbfc7b",
+  "previous_registration_root": "sha256:40a05a33a760404cb606dc218d6deafb1d358916a9fa7954e58973ab1a6d67b1",
+  "reason": "Replace unsafe keyword action scoring and incomplete capture custody before any experimental session.",
+  "result_access_before_amendment": "none",
+  "schema": "vela.inherited-correction-preregistration-amendment.v1"
+}

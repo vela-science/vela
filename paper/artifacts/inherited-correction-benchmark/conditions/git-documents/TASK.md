@@ -9,7 +9,9 @@ Using only the packet:
 2. classify each of `yield-b`, `stability-c`, `installation-d`, and
    `aggregate-e` as exactly one of `affected`, `unaffected`, `must_reassess`,
    or `presently_unprovable`;
-3. give the first safe next action for each Claim;
+3. select one closed first-safe-action code for each Claim from
+   `retrieve_exact_site_q_source`, `no_correction_reassessment`,
+   `rerun_stability_method`, and `recalculate_with_successor_factor`;
 4. state the correction's authority or Standing effect; and
 5. cite at least one exact source or evidence binding.
 

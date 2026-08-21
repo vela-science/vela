@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import re
 import shutil
 import statistics
@@ -27,7 +28,23 @@ MANIFEST_PATH = ROOT / "manifest.sha256"
 GENERATED_DIRS = (ROOT / "conditions/git-documents", ROOT / "conditions/vela")
 CONDITIONS = ("git-documents", "vela")
 LABELS = {"affected", "unaffected", "must_reassess", "presently_unprovable"}
-HEX64 = re.compile(r"^[0-9a-f]{64}$")
+ACTION_CODES = {
+    "retrieve_exact_site_q_source",
+    "no_correction_reassessment",
+    "rerun_stability_method",
+    "recalculate_with_successor_factor",
+}
+SHA256 = re.compile(r"^sha256:[0-9a-f]{64}$")
+RESPONSE_KEYS = {
+    "schema",
+    "fixture_id",
+    "predecessor_claim_id",
+    "successor_claim_id",
+    "consequences",
+    "standing_effect",
+    "source_or_evidence_binding",
+}
+CONSEQUENCE_KEYS = {"claim_id", "classification", "action_code"}
 
 
 class BenchmarkError(ValueError):
@@ -99,6 +116,21 @@ def packet_root(files: dict[str, bytes]) -> str:
         for path, data in sorted(files.items())
     ]
     return canonical_root(entries)
+
+
+def packet_root_from_directory(directory: Path) -> str:
+    if not directory.is_dir() or directory.is_symlink():
+        raise BenchmarkError("packet_directory_invalid")
+    files: dict[str, bytes] = {}
+    for path in sorted(directory.rglob("*")):
+        if path.is_symlink():
+            raise BenchmarkError("packet_symlink_forbidden")
+        if path.is_dir():
+            continue
+        if not path.is_file():
+            raise BenchmarkError("packet_entry_invalid")
+        files[path.relative_to(directory).as_posix()] = path.read_bytes()
+    return packet_root(files)
 
 
 def replay_projection(facts: dict[str, Any]) -> dict[str, Any]:
@@ -399,11 +431,28 @@ def generated_outputs() -> dict[str, bytes]:
         "adjudication_root": canonical_root(load_json(ADJUDICATION_PATH)),
         "participant_task_bytes": byte_digest(TASK_PATH.read_bytes()),
         "response_template_root": canonical_root(load_json(TEMPLATE_PATH)),
+        "benchmark_implementation_bytes": byte_digest(Path(__file__).read_bytes()),
+        "benchmark_tests_bytes": byte_digest((ROOT / "test_benchmark.py").read_bytes()),
+        "authorization_template_root": canonical_root(
+            load_json(ROOT / "protocol/run-authorization-template.json")
+        ),
         "input_equivalence_root": canonical_root(equivalence),
         "condition_packet_roots": equivalence["condition_packet_roots"],
     }
     prereg["registration_root"] = registration_root(prereg)
     outputs["preregistration.json"] = json_bytes(prereg)
+    amendment = {
+        "schema": "vela.inherited-correction-preregistration-amendment.v1",
+        **prereg["prospective_amendment"],
+        "current_registration_root": prereg["registration_root"],
+        "changes": [
+            "replace free-text keyword action scoring with closed exact action codes",
+            "retain authorization bytes and revalidate full run, packet, assignment, configuration, attempt, and time custody at freeze",
+            "add fail-closed polarity, forged-root, packet-drift, assignment, configuration, attempt, timeout, duration, status, and tool-count tests",
+        ],
+        "authority_effect": "none",
+    }
+    outputs["amendment.v1.json"] = json_bytes(amendment)
     result = {
         "schema": "vela.inherited-correction-result.v1",
         "fixture_id": facts["fixture_id"],
@@ -479,6 +528,8 @@ def validate_response(response: Any) -> dict[str, Any]:
         or response.get("schema") != "vela.inherited-correction-response.v1"
     ):
         raise BenchmarkError("response_schema_invalid")
+    if set(response) != RESPONSE_KEYS:
+        raise BenchmarkError("response_fields_invalid")
     if response.get("fixture_id") != "bounded-calibration-correction-v1":
         raise BenchmarkError("response_fixture_invalid")
     consequences = response.get("consequences")
@@ -489,12 +540,11 @@ def validate_response(response: Any) -> dict[str, Any]:
     if ids != expected_ids or len(set(ids)) != 4:
         raise BenchmarkError("response_claim_order_invalid")
     for item in consequences:
+        if not isinstance(item, dict) or set(item) != CONSEQUENCE_KEYS:
+            raise BenchmarkError("response_consequence_fields_invalid")
         if item.get("classification") not in LABELS:
             raise BenchmarkError("response_classification_invalid")
-        if (
-            not isinstance(item.get("first_safe_action"), str)
-            or not item["first_safe_action"].strip()
-        ):
+        if item.get("action_code") not in ACTION_CODES:
             raise BenchmarkError("response_action_invalid")
     for field in (
         "predecessor_claim_id",
@@ -523,8 +573,7 @@ def score_response(response: dict[str, Any]) -> dict[str, Any]:
     for item in response["consequences"]:
         target = expected[item["claim_id"]]
         classification_exact = item["classification"] == target["classification"]
-        action = item["first_safe_action"].casefold()
-        action_exact = all(term in action for term in target["required_action_terms"])
+        action_exact = item["action_code"] == target["required_action_code"]
         points += 2 if classification_exact else 0
         points += 1 if action_exact else 0
         all_classifications &= classification_exact
@@ -562,6 +611,8 @@ def score_response(response: dict[str, Any]) -> dict[str, Any]:
 
 
 def parse_time(value: str) -> datetime:
+    if not isinstance(value, str):
+        raise BenchmarkError("timestamp_invalid")
     parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     if parsed.tzinfo is None:
         raise BenchmarkError("timestamp_timezone_missing")
@@ -572,30 +623,57 @@ def now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def load_authorization(
-    path: Path, prereg: dict[str, Any], runs_dir: Path
-) -> dict[str, Any]:
-    auth = load_json(path)
+def validate_authorization(auth: Any, prereg: dict[str, Any]) -> dict[str, Any]:
+    expected_keys = {
+        "schema",
+        "registration_root",
+        "status",
+        "authorized_by",
+        "authorized_at",
+        "participant_class",
+        "participant_configuration_root",
+        "assignment_seed_commitment",
+        "max_sessions",
+        "assignments",
+    }
+    if not isinstance(auth, dict) or set(auth) != expected_keys:
+        raise BenchmarkError("authorization_fields_invalid")
     if auth.get("schema") != "vela.inherited-correction-run-authorization.v1":
         raise BenchmarkError("authorization_schema_invalid")
     if auth.get("registration_root") != prereg["registration_root"]:
         raise BenchmarkError("authorization_registration_mismatch")
     if auth.get("status") != "authorized":
         raise BenchmarkError("sessions_not_authorized")
+    for field in ("authorized_by", "participant_class"):
+        if not isinstance(auth.get(field), str) or not auth[field].strip():
+            raise BenchmarkError(f"authorization_field_invalid:{field}")
+    parse_time(auth.get("authorized_at"))
+    if not SHA256.fullmatch(auth.get("assignment_seed_commitment", "")):
+        raise BenchmarkError("authorization_seed_commitment_invalid")
     if auth.get("max_sessions") != prereg["assignment"]["total_sessions"]:
         raise BenchmarkError("authorization_denominator_invalid")
     assignments = auth.get("assignments")
     if not isinstance(assignments, list) or len(assignments) != auth["max_sessions"]:
         raise BenchmarkError("authorization_assignments_invalid")
-    run_ids = [item.get("run_id") for item in assignments if isinstance(item, dict)]
-    participant_ids = [
-        item.get("participant_instance_id")
+    assignment_keys = {"run_id", "participant_instance_id", "condition"}
+    if any(
+        not isinstance(item, dict) or set(item) != assignment_keys
         for item in assignments
-        if isinstance(item, dict)
-    ]
-    conditions = [
-        item.get("condition") for item in assignments if isinstance(item, dict)
-    ]
+    ):
+        raise BenchmarkError("authorization_assignment_fields_invalid")
+    run_ids = [item.get("run_id") for item in assignments]
+    participant_ids = [item.get("participant_instance_id") for item in assignments]
+    conditions = [item.get("condition") for item in assignments]
+    if any(
+        not isinstance(run_id, str) or not re.fullmatch(r"[A-Za-z0-9._-]+", run_id)
+        for run_id in run_ids
+    ):
+        raise BenchmarkError("authorization_run_id_invalid")
+    if any(
+        not isinstance(participant_id, str) or not participant_id.strip()
+        for participant_id in participant_ids
+    ):
+        raise BenchmarkError("authorization_participant_invalid")
     if len(set(run_ids)) != len(assignments) or len(set(participant_ids)) != len(
         assignments
     ):
@@ -603,10 +681,17 @@ def load_authorization(
     if any(conditions.count(condition) != 8 for condition in CONDITIONS):
         raise BenchmarkError("authorization_condition_count_invalid")
     configuration_root = auth.get("participant_configuration_root", "")
-    if not isinstance(configuration_root, str) or not re.fullmatch(
-        r"sha256:[0-9a-f]{64}", configuration_root
+    if not isinstance(configuration_root, str) or not SHA256.fullmatch(
+        configuration_root
     ):
         raise BenchmarkError("authorization_configuration_root_invalid")
+    return auth
+
+
+def load_authorization(
+    path: Path, prereg: dict[str, Any], runs_dir: Path
+) -> dict[str, Any]:
+    auth = validate_authorization(load_json(path), prereg)
     existing = len(list(runs_dir.glob("*/run.json"))) if runs_dir.exists() else 0
     if existing >= min(
         auth.get("max_sessions", 0), prereg["assignment"]["total_sessions"]
@@ -646,8 +731,12 @@ def start_run(args: argparse.Namespace) -> None:
     run_dir = runs_dir / args.run_id
     if run_dir.exists():
         raise BenchmarkError("run_exists")
+    started_at = args.started_at or now()
+    if parse_time(started_at) < parse_time(authorization["authorized_at"]):
+        raise BenchmarkError("run_precedes_authorization")
     run_dir.mkdir(parents=True)
     shutil.copytree(ROOT / "conditions" / args.condition, run_dir / "packet")
+    (run_dir / "authorization.json").write_bytes(json_bytes(authorization))
     record = {
         "schema": "vela.inherited-correction-run.v1",
         "run_id": args.run_id,
@@ -660,7 +749,7 @@ def start_run(args: argparse.Namespace) -> None:
         "registration_root": prereg["registration_root"],
         "authorization_root": canonical_root(authorization),
         "status": "started",
-        "started_at": args.started_at or now(),
+        "started_at": started_at,
         "timeout_seconds": prereg["assignment"]["timeout_seconds"],
         "attempt": 1,
     }
@@ -676,6 +765,17 @@ def finish_run(args: argparse.Namespace) -> None:
     record = load_json(record_path)
     if record.get("status") != "started":
         raise BenchmarkError("run_not_started")
+    prereg = load_json(PREREG_PATH)
+    authorization_path = run_dir / "authorization.json"
+    if not authorization_path.is_file() or authorization_path.is_symlink():
+        raise BenchmarkError("authorization_record_missing")
+    authorization = validate_authorization(load_json(authorization_path), prereg)
+    if record.get("registration_root") != prereg["registration_root"]:
+        raise BenchmarkError("run_registration_mismatch")
+    if record.get("authorization_root") != canonical_root(authorization):
+        raise BenchmarkError("run_authorization_mismatch")
+    if record.get("packet_root") != packet_root_from_directory(run_dir / "packet"):
+        raise BenchmarkError("run_packet_mismatch")
     response = validate_response(load_json(args.response.resolve()))
     if args.tool_calls < 0:
         raise BenchmarkError("tool_calls_invalid")
@@ -698,33 +798,140 @@ def finish_run(args: argparse.Namespace) -> None:
     record_path.write_bytes(json_bytes(record))
 
 
+def validate_frozen_run(
+    run_path: Path, prereg: dict[str, Any], equivalence: dict[str, Any]
+) -> tuple[dict[str, Any], Path, Path]:
+    run_dir = run_path.parent
+    response_path = run_dir / "response.json"
+    authorization_path = run_dir / "authorization.json"
+    if (
+        run_dir.is_symlink()
+        or run_path.is_symlink()
+        or not run_path.is_file()
+        or not response_path.is_file()
+        or response_path.is_symlink()
+    ):
+        raise BenchmarkError(f"run_not_frozen:{run_dir.name}")
+    if not authorization_path.is_file() or authorization_path.is_symlink():
+        raise BenchmarkError("authorization_record_missing")
+    record = load_json(run_path)
+    expected_keys = {
+        "schema",
+        "run_id",
+        "participant_instance_id",
+        "participant_configuration_root",
+        "condition",
+        "packet_root",
+        "registration_root",
+        "authorization_root",
+        "status",
+        "started_at",
+        "timeout_seconds",
+        "attempt",
+        "completed_at",
+        "duration_seconds",
+        "tool_calls",
+    }
+    if not isinstance(record, dict) or set(record) != expected_keys:
+        raise BenchmarkError("run_fields_invalid")
+    if record.get("schema") != "vela.inherited-correction-run.v1":
+        raise BenchmarkError("run_schema_invalid")
+    if record.get("run_id") != run_dir.name:
+        raise BenchmarkError("run_directory_identity_mismatch")
+    if record.get("registration_root") != prereg["registration_root"]:
+        raise BenchmarkError("run_registration_mismatch")
+    condition = record.get("condition")
+    if condition not in CONDITIONS:
+        raise BenchmarkError("condition_invalid")
+    expected_packet_root = equivalence["condition_packet_roots"][condition]
+    if record.get("packet_root") != expected_packet_root:
+        raise BenchmarkError("run_packet_root_mismatch")
+    if packet_root_from_directory(run_dir / "packet") != expected_packet_root:
+        raise BenchmarkError("run_packet_bytes_mismatch")
+    authorization = validate_authorization(load_json(authorization_path), prereg)
+    if record.get("authorization_root") != canonical_root(authorization):
+        raise BenchmarkError("run_authorization_mismatch")
+    assignment = next(
+        (
+            item
+            for item in authorization["assignments"]
+            if item["run_id"] == record["run_id"]
+        ),
+        None,
+    )
+    if assignment is None:
+        raise BenchmarkError("run_not_assigned")
+    if assignment["participant_instance_id"] != record.get("participant_instance_id"):
+        raise BenchmarkError("participant_assignment_mismatch")
+    if assignment["condition"] != condition:
+        raise BenchmarkError("condition_assignment_mismatch")
+    if authorization["participant_configuration_root"] != record.get(
+        "participant_configuration_root"
+    ):
+        raise BenchmarkError("participant_configuration_mismatch")
+    if record.get("attempt") != 1:
+        raise BenchmarkError("run_attempt_invalid")
+    timeout = prereg["assignment"]["timeout_seconds"]
+    if record.get("timeout_seconds") != timeout:
+        raise BenchmarkError("run_timeout_mismatch")
+    started = parse_time(record.get("started_at"))
+    completed = parse_time(record.get("completed_at"))
+    if started < parse_time(authorization["authorized_at"]):
+        raise BenchmarkError("run_precedes_authorization")
+    duration = record.get("duration_seconds")
+    if isinstance(duration, bool) or not isinstance(duration, (int, float)):
+        raise BenchmarkError("duration_invalid")
+    if not math.isfinite(duration) or duration < 0:
+        raise BenchmarkError("duration_invalid")
+    measured = (completed - started).total_seconds()
+    if abs(measured - duration) > 1e-6:
+        raise BenchmarkError("duration_timestamp_mismatch")
+    expected_status = "completed" if duration <= timeout else "timed_out"
+    if record.get("status") != expected_status:
+        raise BenchmarkError("run_status_mismatch")
+    tool_calls = record.get("tool_calls")
+    if (
+        isinstance(tool_calls, bool)
+        or not isinstance(tool_calls, int)
+        or tool_calls < 0
+    ):
+        raise BenchmarkError("tool_calls_invalid")
+    validate_response(load_json(response_path))
+    return record, response_path, authorization_path
+
+
 def capture_manifest(runs_dir: Path) -> dict[str, Any]:
     prereg = load_json(PREREG_PATH)
+    equivalence = load_json(EQUIVALENCE_PATH)
     entries = []
     participant_ids = []
+    authorization_roots = []
+    configuration_roots = []
     condition_counts = {condition: 0 for condition in CONDITIONS}
     for run_path in sorted(runs_dir.glob("*/run.json")):
-        record = load_json(run_path)
-        response_path = run_path.parent / "response.json"
-        if (
-            record.get("status") not in {"completed", "timed_out"}
-            or not response_path.is_file()
-        ):
-            raise BenchmarkError(f"run_not_frozen:{run_path.parent.name}")
-        validate_response(load_json(response_path))
+        record, response_path, authorization_path = validate_frozen_run(
+            run_path, prereg, equivalence
+        )
         condition = record.get("condition")
         if condition not in CONDITIONS:
             raise BenchmarkError("condition_invalid")
         condition_counts[condition] += 1
         participant_ids.append(record.get("participant_instance_id"))
+        authorization_roots.append(record["authorization_root"])
+        configuration_roots.append(record["participant_configuration_root"])
         entries.append(
             {
                 "run_id": record["run_id"],
                 "condition": condition,
                 "run_bytes": byte_digest(run_path.read_bytes()),
                 "response_bytes": byte_digest(response_path.read_bytes()),
+                "authorization_bytes": byte_digest(authorization_path.read_bytes()),
+                "registration_root": record["registration_root"],
                 "packet_root": record["packet_root"],
                 "authorization_root": record["authorization_root"],
+                "participant_configuration_root": record[
+                    "participant_configuration_root"
+                ],
                 "duration_seconds": record["duration_seconds"],
                 "tool_calls": record["tool_calls"],
                 "status": record["status"],
@@ -735,6 +942,10 @@ def capture_manifest(runs_dir: Path) -> dict[str, Any]:
         raise BenchmarkError(f"fixed_denominator_incomplete:{len(entries)}/{required}")
     if len(set(participant_ids)) != required:
         raise BenchmarkError("participant_instance_reused")
+    if len(set(authorization_roots)) != 1:
+        raise BenchmarkError("authorization_root_not_fixed")
+    if len(set(configuration_roots)) != 1:
+        raise BenchmarkError("participant_configuration_not_fixed")
     if any(condition_counts[condition] != 8 for condition in CONDITIONS):
         raise BenchmarkError("condition_denominator_invalid")
     value = {
@@ -757,6 +968,7 @@ def verify_capture_manifest(runs_dir: Path) -> None:
 def score_runs(runs_dir: Path) -> dict[str, Any]:
     verify_capture_manifest(runs_dir)
     prereg = load_json(PREREG_PATH)
+    capture = load_json(runs_dir / "capture-manifest.json")
     records = []
     for run_path in sorted(runs_dir.glob("*/run.json")):
         record = load_json(run_path)
@@ -823,6 +1035,8 @@ def score_runs(runs_dir: Path) -> dict[str, Any]:
     return {
         "schema": "vela.inherited-correction-scored-result.v1",
         "registration_root": prereg["registration_root"],
+        "capture_root": capture["capture_root"],
+        "adjudication_root": prereg["bindings"]["adjudication_root"],
         "fixed_denominator": required,
         "conditions": summaries,
         "restricted_mean_ratio_vela_over_git_documents": ratio,

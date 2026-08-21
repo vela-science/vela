@@ -7,22 +7,22 @@
     {
       "claim_id": "aggregate-e",
       "classification": "",
-      "first_safe_action": ""
+      "action_code": ""
     },
     {
       "claim_id": "installation-d",
       "classification": "",
-      "first_safe_action": ""
+      "action_code": ""
     },
     {
       "claim_id": "stability-c",
       "classification": "",
-      "first_safe_action": ""
+      "action_code": ""
     },
     {
       "claim_id": "yield-b",
       "classification": "",
-      "first_safe_action": ""
+      "action_code": ""
     }
   ],
   "standing_effect": "",

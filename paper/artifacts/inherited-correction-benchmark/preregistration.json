@@ -12,16 +12,19 @@
   },
   "benchmark": "Bounded inherited-correction cold-successor evaluation",
   "bindings": {
-    "adjudication_root": "sha256:0d2947ea8422f2b9ce700ee90f521590f5a003f198e34e862a6925e23d2b66ac",
+    "adjudication_root": "sha256:6b2e94c7bfce7c41353eb48cd4962243e3f177fdaccb8c7da48567d99dfca557",
+    "authorization_template_root": "sha256:2c0600b3f4c09b75544e6293a692c96ddf06d485faab40c1703481ada5d8c440",
+    "benchmark_implementation_bytes": "sha256:8ae77954fe43e98d0e884e0cac79c9d16639fe0699453bb9ba0e8285c7980c1c",
+    "benchmark_tests_bytes": "sha256:976d55e62713f21feb048576c1ca24b995ea13ad15ef097362cdd0933396069e",
     "condition_packet_roots": {
-      "git-documents": "sha256:409b30a5abf81464394615f940a67aea11350868083d00e23a9a210eb81dbf29",
-      "vela": "sha256:4abe3d8d9c476805b0dab7f55823cb928006ad829dddbd8eb29e41469ced1ce6"
+      "git-documents": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+      "vela": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97"
     },
-    "input_equivalence_root": "sha256:42e878d6958ad71f529b43734b84711c8ca574fcfdd283548bf37feef3fbc731",
-    "participant_task_bytes": "sha256:2f690a1266e55c8b6f103b168808d5adaaad8998c925d0905c3a4e81683edb21",
+    "input_equivalence_root": "sha256:649cec9ed991172ac4303a78e76e893750a250c2392e93e0a45e8cc44440e014",
+    "participant_task_bytes": "sha256:7a2fb1ff3097da8d09ca6e8cde3790caadcc864fe105666079912845c205225a",
     "public_facts_bytes": "sha256:8ce51888eef75883ba238cb06faf21f7d324ed3b1a73bc244ba9e22b2e589e42",
     "public_facts_root": "sha256:fe8b3363ec9a8305743ca55144a59885a73623b712a32fe0c9050227350bac2a",
-    "response_template_root": "sha256:6fc721d8bc9faa706c5fc76de1a8d1ad2af62fd99d59e4bfb74b97e1dff5028e"
+    "response_template_root": "sha256:78d4d59eedf87b612be8c7845546baebd2a9c85d56aa92f7084c255550c4972b"
   },
   "conditions": [
     {
@@ -76,14 +79,14 @@
   "information_matching": {
     "network": "denied",
     "predecessor_context": "none",
-    "protected_material": "Scorer adjudication classifications and action-term rules are absent from both condition packets until the frozen capture manifest exists.",
+    "protected_material": "Scorer adjudication classifications and Claim-to-action-code mappings are absent from both condition packets until the frozen capture manifest exists.",
     "rule": "Every substantive case fact and every source/evidence byte is present in both conditions; only organization, derived navigation metadata, and read affordances differ."
   },
   "outcomes": {
     "cost": "Restricted mean wall time with every wrong, invalid, failed, or timed-out session assigned the 600-second cap.",
     "interpretation": "Passing is a bounded descriptive signal for this synthetic packet. Failure or an incomplete denominator does not support lower continuation cost. No aggregate scientific or adoption claim is permitted.",
     "positive_gate": "Both arms contain exactly eight sessions; Vela exact successes are at least six and no fewer than Git/documents; Vela has zero authority errors; and Vela restricted mean cost is at most 0.80 of Git/documents.",
-    "primary": "Exact continuation success: exact correction pair, all four classifications, all four first-safe actions, no Standing error, and one exact source/evidence digest.",
+    "primary": "Exact continuation success: exact correction pair, all four classifications, all four closed first-safe-action codes, no Standing error, and one exact source/evidence digest.",
     "secondary": [
       "17-point component score",
       "raw wall time",
@@ -91,8 +94,18 @@
       "authority-error count"
     ]
   },
+  "prospective_amendment": {
+    "amended_at": "2026-08-21T15:51:01Z",
+    "experimental_sessions_observed_before_amendment": 0,
+    "independent_review_commit": "c377e99e2c982211be7ecb9cba8998c848cf18c2",
+    "independent_review_verdict": "BLOCKED",
+    "previous_producer_commit": "366b610eec75a1520a97b4a7817fde3a4fbbfc7b",
+    "previous_registration_root": "sha256:40a05a33a760404cb606dc218d6deafb1d358916a9fa7954e58973ab1a6d67b1",
+    "reason": "Replace unsafe keyword action scoring and incomplete capture custody before any experimental session.",
+    "result_access_before_amendment": "none"
+  },
   "registered_at": "2026-08-21T00:00:00Z",
-  "registration_root": "sha256:40a05a33a760404cb606dc218d6deafb1d358916a9fa7954e58973ab1a6d67b1",
+  "registration_root": "sha256:7391c3c6adb74633886fd9fb2d35a257e7501bd37153acfb3e19ac850d0e9157",
   "schema": "vela.inherited-correction-preregistration.v1",
   "scoring_freeze": {
     "adjudication_access": "Only after all 16 responses, run records, packet roots, durations, and tool counts are frozen into capture-manifest.json.",

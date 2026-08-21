@@ -15,7 +15,11 @@ scientific correction or accepted Standing.
 ## What is frozen
 
 - `preregistration.json` binds the fixed denominator, timeout, scoring gate,
-  candidate-visible inputs, protected adjudication, and both packet roots.
+  candidate-visible inputs, protected adjudication, scorer/capture/test bytes,
+  authorization template, and both packet roots.
+- `amendment.v1.json` retains the first registration and independent BLOCKED
+  review, then records the prospective scorer/custody repair made before any
+  experimental session or result access.
 - `fixture/public-facts.json` and `fixture/{source,evidence}/` are the common
   source facts and exact bytes.
 - `conditions/git-documents/` presents those facts as history, Claim,
@@ -53,7 +57,8 @@ by this artifact or its implementation task. A later operator first needs an
 explicit `vela.inherited-correction-run-authorization.v1` file bound to the
 registration root. `start` rejects missing, mismatched, or exhausted
 authorization and copies only the assigned packet into a fresh run directory.
-`finish` retains the response, timestamps, duration, and tool count.
+`finish` retains the closed-code response, authorization, packet, timestamps,
+duration, and tool count.
 
 After exactly eight no-retry sessions per arm are complete:
 
@@ -64,9 +69,11 @@ python3 paper/artifacts/inherited-correction-benchmark/benchmark.py score \
   --runs-dir <runs> --output <runs>/scored-result.json
 ```
 
-`freeze` validates the fixed denominator and writes a content-bound capture
-manifest without opening the answer key. `score` refuses to access the key
-unless that manifest exists and exactly matches every run and response byte.
+`freeze` revalidates every registration, authorization, assignment,
+configuration, packet byte, attempt, timestamp, duration, timeout, and tool
+count, then writes a content-bound capture manifest without opening the answer
+key. `score` refuses to access the key unless that manifest exists and exactly
+matches every run, authorization, packet, and response byte.
 Wrong, invalid, failed, and timed-out sessions remain in the denominator at the
 600-second cost cap. There are no retries, substitutions, post-hoc rescoring,
 or manual semantic overrides.

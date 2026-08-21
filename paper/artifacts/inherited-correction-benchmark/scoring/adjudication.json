@@ -6,25 +6,25 @@
     {
       "claim_id": "aggregate-e",
       "classification": "presently_unprovable",
-      "required_action_terms": ["site q", "exact", "source"],
+      "required_action_code": "retrieve_exact_site_q_source",
       "rationale": "A known required premise and its content binding are unavailable, so neither affected nor unaffected can presently be established."
     },
     {
       "claim_id": "installation-d",
       "classification": "unaffected",
-      "required_action_terms": ["no", "reassessment"],
+      "required_action_code": "no_correction_reassessment",
       "rationale": "The predecessor was discovery-only; the installation date rests on independent evidence."
     },
     {
       "claim_id": "stability-c",
       "classification": "must_reassess",
-      "required_action_terms": ["rerun", "stability"],
+      "required_action_code": "rerun_stability_method",
       "rationale": "Its direct input must change, but the supplied method cannot determine the post-correction conclusion without a rerun."
     },
     {
       "claim_id": "yield-b",
       "classification": "affected",
-      "required_action_terms": ["recalculate", "12"],
+      "required_action_code": "recalculate_with_successor_factor",
       "rationale": "Its exact required predecessor was superseded and the retained arithmetic used the obsolete factor 10."
     }
   ],

@@ -3,7 +3,7 @@
   "claim": "No result: paid inference, human participation, and scientific validation are not authorized in this workstream.",
   "fixture_id": "bounded-calibration-correction-v1",
   "next_gate": "Obtain explicit experimental authorization, freeze one participant configuration and assignment seed, then capture exactly 16 no-retry cold-successor sessions.",
-  "registration_root": "sha256:40a05a33a760404cb606dc218d6deafb1d358916a9fa7954e58973ab1a6d67b1",
+  "registration_root": "sha256:7391c3c6adb74633886fd9fb2d35a257e7501bd37153acfb3e19ac850d0e9157",
   "required_sessions": 16,
   "schema": "vela.inherited-correction-result.v1",
   "status": "not_run",

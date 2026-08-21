@@ -2,8 +2,8 @@
   "atomic_fact_count": 77,
   "atomic_fact_set_root": "sha256:e85ebd9fad51096191cbbc0f1d431a6a25d830385c44d861d18bc1b5bb3e7d1f",
   "condition_packet_roots": {
-    "git-documents": "sha256:409b30a5abf81464394615f940a67aea11350868083d00e23a9a210eb81dbf29",
-    "vela": "sha256:4abe3d8d9c476805b0dab7f55823cb928006ad829dddbd8eb29e41469ced1ce6"
+    "git-documents": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+    "vela": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97"
   },
   "fixture_id": "bounded-calibration-correction-v1",
   "proof": "Both condition renderers consume the same public-facts object and exact source/evidence byte map. The Git/documents packet carries a flat fact index; the Vela packet carries the same object as a structured projection. verify regenerates and byte-compares both packets.",
