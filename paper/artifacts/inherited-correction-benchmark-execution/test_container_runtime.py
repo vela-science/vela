@@ -56,6 +56,29 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(amendment["parent_canary_commit"], "2c7aed112f9701b58b8373c156c244b68e616886")
         self.assertEqual(amendment["parent_canary_disposition"], "terminal calibration evidence; unchanged; no retry")
 
+    def test_canary_02_terminal_capture_is_closed(self) -> None:
+        result = load(CANARY_02 / "canary-result.json")
+        self.assertEqual(result["status"], "non_result_timeout_before_model_response")
+        self.assertEqual(result["attempt"], 1)
+        self.assertEqual(result["retries"], 0)
+        self.assertTrue(result["permit_consumed"])
+        self.assertTrue(result["provider_execution_started"])
+        self.assertEqual(result["model_responses"], 0)
+        self.assertEqual(result["tool_calls"], 0)
+        self.assertFalse(result["confirmatory_denominator_credit"])
+        self.assertFalse(result["confirmatory_registration_frozen"])
+        self.assertFalse(result["credential_retained"])
+        self.assertEqual(result["container_teardown"], "clean")
+        for item in result["capture_files"]:
+            self.assertEqual(item["bytes"], digest((CANARY_02 / item["path"]).read_bytes()))
+        receipt = load(CANARY_02 / "capture/evidence/terminal-receipt.json")
+        self.assertEqual(receipt["status"], "non_result")
+        self.assertEqual(receipt["validation_error"], "timeout")
+        self.assertTrue(receipt["process_timed_out"])
+        self.assertEqual(receipt["timeout_seconds"], 600)
+        self.assertIsNone(receipt["response_bytes"])
+        self.assertFalse(receipt["credential_retained"])
+
     def test_strict_preflight_and_legacy_regression_are_offline(self) -> None:
         for mode, expected_exit in (("corrected", 0), ("legacy", 1)):
             receipt = load(CANARY_02 / f"offline-preflight/{mode}/receipt.json")

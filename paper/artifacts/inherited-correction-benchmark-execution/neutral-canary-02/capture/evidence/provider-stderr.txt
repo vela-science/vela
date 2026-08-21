@@ -1,0 +1,12 @@
+2026-08-21T16:53:01.439884Z ERROR codex_models_manager::manager: failed to refresh available models: Connection failed: error sending request
+2026-08-21T16:53:01.471102Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: invalid peer certificate: UnknownIssuer, url: wss://chatgpt.com/backend-api/codex/responses
+2026-08-21T16:53:01.500069Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: invalid peer certificate: UnknownIssuer, url: wss://chatgpt.com/backend-api/codex/responses
+2026-08-21T16:53:01.549393Z ERROR codex_models_manager::manager: failed to refresh available models: Connection failed: error sending request
+2026-08-21T16:53:01.718804Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: invalid peer certificate: UnknownIssuer, url: wss://chatgpt.com/backend-api/codex/responses
+2026-08-21T16:53:02.095159Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: invalid peer certificate: UnknownIssuer, url: wss://chatgpt.com/backend-api/codex/responses
+2026-08-21T16:53:02.902442Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: invalid peer certificate: UnknownIssuer, url: wss://chatgpt.com/backend-api/codex/responses
+2026-08-21T16:53:04.673003Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: invalid peer certificate: UnknownIssuer, url: wss://chatgpt.com/backend-api/codex/responses
+2026-08-21T16:53:07.624754Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: invalid peer certificate: UnknownIssuer, url: wss://chatgpt.com/backend-api/codex/responses
+2026-08-21T16:56:04.659839Z ERROR codex_models_manager::manager: failed to refresh available models: Connection failed: error sending request
+2026-08-21T16:59:07.735106Z ERROR codex_models_manager::manager: failed to refresh available models: Connection failed: error sending request
+2026-08-21T17:02:11.002193Z ERROR codex_models_manager::manager: failed to refresh available models: Connection failed: error sending request

@@ -1,0 +1,15 @@
+{
+  "assignment_root": "sha256:89968f1765114228079a56dff11657bea91af43086abbf9d98133543ae55d7e4",
+  "attempt": 1,
+  "condition": "neutral-runtime-calibration",
+  "expires_at": "2026-08-22T23:59:59Z",
+  "image_digest": "sha256:13b753749787d68d628cea899f6b9875c0fc51c43877599b9aabf2009fe83388",
+  "packet_root": "sha256:e8758bd13390f91b6d16f12ed2ac522ff04cba3ea05a5241a8bc93689b09cf37",
+  "participant_configuration_root": "sha256:0a1c4b47bc4f9a612ba1bef6b730e6e04bee30cf0b1f90317acd1c6ba854c1be",
+  "participant_instance_id": "neutral-oci-02",
+  "prompt_root": "sha256:4a96a6d4ce291a3b260d11d832e235b1cadbe2f68b50149ac498c19faa90a684",
+  "registration_root": "sha256:4df05eae048a8fbc0253ff234d6b33f86864a9945492719767216e6b2ce2e209",
+  "run_id": "neutral-canary-02",
+  "schema": "vela.inherited-correction-launch-permit.v1",
+  "status": "authorized"
+}

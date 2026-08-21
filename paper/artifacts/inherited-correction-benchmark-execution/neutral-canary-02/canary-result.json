@@ -1,0 +1,48 @@
+{
+  "attempt": 1,
+  "capture_files": [
+    {
+      "bytes": "sha256:0304378c3207bee4cc7bfa06c23224aab45040f7ecc861140e8889d72a4f5052",
+      "path": "capture/evidence/launch.json"
+    },
+    {
+      "bytes": "sha256:78d64f7f5d7a874e91c879e56f04eacb21797295e3ef7ca9b99a83ad9e873d91",
+      "path": "capture/evidence/provider-events.jsonl"
+    },
+    {
+      "bytes": "sha256:9262d314e1db0a6665ca2a6974721f2b059f0fba695e24b16ab6e17e08682adf",
+      "path": "capture/evidence/provider-stderr.txt"
+    },
+    {
+      "bytes": "sha256:3782fcd12fb334ab6536de67e7989509f92acfa3b74f234c32a1afc6ab10a365",
+      "path": "capture/evidence/terminal-receipt.json"
+    },
+    {
+      "bytes": "sha256:8a0bb8f7253727d35fbe4a5e58f3e0758168e2a0c0fafe765788b71f9e8f9d70",
+      "path": "capture/permit/hold-state.json"
+    },
+    {
+      "bytes": "sha256:3def31330284b93ccb0de0a9631c3315295b977c8ca6df2d9240ff1eca403a46",
+      "path": "capture/permit/neutral-canary-02.permit.consumed.json"
+    }
+  ],
+  "confirmatory_denominator_credit": false,
+  "confirmatory_registration_frozen": false,
+  "container_teardown": "clean",
+  "credential_retained": false,
+  "failure": "Codex CLI 0.149.0 could not establish the ChatGPT provider connection from the pinned container: the WebSocket certificate chain was rejected as UnknownIssuer, HTTPS fallback could not connect, and the exact one-shot process reached the 600-second wall timeout",
+  "model_responses": 0,
+  "permit_consumed": true,
+  "provider_events_bytes": 2121,
+  "provider_execution_started": true,
+  "provider_thread_id": "01a0253d-7b80-75a1-8e70-62b2676b8c3c",
+  "registration_root": "sha256:4df05eae048a8fbc0253ff234d6b33f86864a9945492719767216e6b2ce2e209",
+  "replacement_confirmatory_status": "blocked_0_of_16_not_registered",
+  "retries": 0,
+  "run_id": "neutral-canary-02",
+  "schema": "vela.inherited-correction-neutral-canary-result.v1",
+  "standing_or_authority_effect": "none",
+  "status": "non_result_timeout_before_model_response",
+  "tool_calls": 0,
+  "turns_started": 1
+}
