@@ -1,0 +1,16 @@
+{
+  "authority_effect": "none",
+  "blocking_findings": [],
+  "held_out_cells": 36,
+  "held_out_status": "not_run",
+  "paper_pdf_bytes": 259722,
+  "paper_pdf_root": "sha256:6961a60750370a1150616ad91408509c37c93b44fc46e07e66e23b05f0a97754",
+  "positive_gate": "not_supported",
+  "producer_commit": "384d95b742848d6c31d74fe957454dc9aed83f9e",
+  "producer_parent": "62ecb8ea7771793e9e1232fc99795e65d417dcb7",
+  "producer_tree": "342073f4ff74fc6df4e4d99ce39cd476efcb92d8",
+  "schema": "vela.flagship-paper-prospective-design-review-verdict.v1",
+  "standing_effect": "none",
+  "state_mem_use": "identification_rationale_only",
+  "verdict": "PASS"
+}
