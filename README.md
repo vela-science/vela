@@ -18,12 +18,24 @@
 
 ---
 
-Vela is an open protocol and CLI for scientific results that need to survive
-handoffs between people, agents, repositories, and time.
+Vela is the open protocol for replayable, authority-scoped, correction-aware
+scientific state transitions. The `vela` CLI implements that protocol
+in ordinary Git repositories so results can survive handoffs between people,
+agents, repositories, and time.
+
+The product loop is:
+
+```text
+init -> submit -> verify -> decide -> replay
+```
 
 Each result stays connected to its exact source, evidence, scoped checks, the
 authority that accepted or rejected it, and any correction. The record lives
 in Git. You can replay it without trusting a Vela server.
+
+A Vela Repository is the local authority boundary. A Frontier is only a
+derived query over current Standing: it carries no authority, owns no records,
+and is not a persistent governed repository.
 
 ## Where Vela fits
 

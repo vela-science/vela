@@ -11,20 +11,24 @@ bytes of those systems, but it does not define which scientific assertion a
 result supports, what a verifier checked, who had authority to accept it, or
 which later conclusions need attention when an accepted assertion changes.
 
-Vela is a Git-custodied protocol and command-line system for retaining
-authenticated scientific Submissions, scoped Verification Records, local
-attributed Decisions, replayable Standing, and explicit correction lineage. Its
-core design separates producer evidence, mechanical verification, and local
-scientific authority. Optional workers and read models remain removable.
+Vela is the open protocol for replayable, authority-scoped, correction-aware
+scientific state transitions. Its command-line implementation retains
+authenticated Submissions, scoped Verification Records, attributed Decisions
+admitted through Repository authority, replayable Standing, and explicit
+correction lineage in Git. Core separates producer evidence, mechanical
+verification, and local scientific authority; controllers, agents, attempts,
+runs, campaigns, schedulers, workflows, and read models remain external and
+removable.
 
 This paper asks whether that separation produces measurable inheritance and
 correction value instead of metadata growth. We register a benchmark in
 which separately implemented readers must derive the same bounded correction
 impact, preserve an independent support route, reject authority escalation,
-transfer exact state into a second locally governed Frontier, and improve cold
-continuation over Git plus the same evidence. The pre-campaign audit of four
-mathematical Frontiers found no qualifying historical correction fixture among
-2,831 retained Claims. Rust and clean-room Python readers agree on a synthetic
+transfer exact state into a second locally governed Repository, and improve
+cold continuation over Git plus the same evidence. The pre-campaign audit of
+four historical mathematical Repositories found no qualifying correction
+fixture among 2,831 retained Claims. Rust and clean-room Python readers agree
+on a synthetic
 qualification vector, but that result does not satisfy the scientific,
 federation, external-reproduction, or user-value gates. The current evidence
 also includes one accepted, first-party source-statement supersession, one
@@ -43,7 +47,7 @@ correction but found no hard dependent, support diamond, or non-consequential
 relation, so confirmatory
 two-fixture credit is unavailable in this campaign. The evidence therefore
 supports local admission, scoped verification, Decision, replay, and
-supersession. It now also supports one bounded, first-party cross-Frontier
+supersession. It now also supports one bounded, first-party cross-Repository
 transfer with two exact first-party receiver Verifications, clean-clone replay,
 and zero authority escalation. A separate prospective product loop derived a 4,032-node
 map from an exact compact repository, selected its first Target, retained and
@@ -58,9 +62,10 @@ range. The retained 2026-08-03 Vela Web Atlas checkpoint uses the repository-v4
 reader. Its exact projection at root
 `sha256:8bc68a34296b7e33bee7ca2321333bf84ea9d6b96867b55dd2c64ff85394917e`
 contains 4,142 graph nodes, 2,592 edges, 6,713 native source records, and 5,844
-Frontier bindings, including the later non-authorizing Formal withdrawal, the
-accepted Quantum correction, the native Formal Lean result, and the separately
-accepted Formal cross-Frontier retention. The exact bounded Erdős range through
+historical `Frontier` bindings, including the later non-authorizing Formal
+withdrawal, the accepted Quantum correction, the native Formal Lean result,
+and the separately accepted Formal cross-Repository retention. The exact
+bounded Erdős range through
 `10430800` is also accepted, and `10430801..10431000` is the current exact
 next range. Six Erdős Proposals remain pending; one
 broader-worded Erdős predecessor Proposal remains retained separately rather
@@ -89,8 +94,15 @@ Existing systems solve parts of the problem:
 - repositories and review systems coordinate publication; and
 - databases make current projections searchable.
 
-Vela should preserve those mechanisms and keep its own surface small. The
-paper tests a narrower question:
+**Version control for scientific state** is the public shorthand. The shipped
+product loop is `init -> submit -> verify -> decide -> replay`: external work
+may propose a bounded transition, but only an authorized Repository Decision
+changes Standing and replay derives the result. Protocol 1 is normative;
+Frontiers and other projections are derived; external activity and control
+remain source-owned; and the paper's unevaluated hypotheses remain speculative.
+
+Vela should preserve existing production, workflow, and discovery mechanisms
+and keep its own surface small. The paper tests a narrower question:
 
 > Can independently governed scientific repositories exchange exact proposed
 > state transitions, verify their causal inputs, apply local authority, replay
@@ -114,15 +126,16 @@ The paper makes four contributions only if their evidence gates pass:
 1. a small protocol waist for Submission, Verification, Decision, and replay;
 2. a bounded correction-impact contract with explicit completeness and
    relation semantics;
-3. a two-implementation, adversarial, cross-Frontier evaluation; and
+3. a two-implementation, adversarial, cross-Repository evaluation; and
 4. a matched cold-use comparison against Git plus identical evidence.
 
-At present, the first contribution, one bounded cross-Frontier transfer, and
+At present, the first contribution, one bounded cross-Repository transfer, and
 synthetic implementation qualification are demonstrated. One exact
 map-to-target loop reached a terminal human Decision, replayed Standing, and a
 deterministic remap. The loop reproduced a stale-Target failure that later
-source-local closure and exact completions repaired. The exact four-Frontier
-Atlas is now released. Three first-party native Harbor comparisons pass
+source-local closure and exact completions repaired. The exact historical
+four-Frontier Atlas is now released. Three first-party native Harbor
+comparisons pass
 bounded quantum-correction, post-Decision Erdős continuation, and Formal
 receiver-continuation gates. A fourth Astra source-fidelity comparison failed
 its exactness gate. Post-Decision Quantum remapping is complete, but real
@@ -132,22 +145,23 @@ experiments.
 
 ## 2. Scope and system model
 
-### 2.1 Frontier
+### 2.1 Repository and Frontier
 
-A **Frontier** is an independently governed Git repository containing
-canonical scientific records and an append-only authority history. A Frontier
-has one current repository root:
+A **Repository** is an independently governed ordinary Git repository
+containing canonical scientific records and an append-only authority history.
+It is the local authority boundary and has one current repository root over
+the canonical current object sets specified by Protocol 1. Readable identifiers
+are routing handles; full roots are object identity.
 
-```text
-R_F = H(epoch, accepted Claims, pending Claims, Submissions,
-        Verification Records, Decisions, authority heads, Artifacts)
-```
+A Repository does not represent global truth. It retains the replayable
+scientific Standing produced by one bounded governance context.
 
-`H` is canonical JSON followed by SHA-256. Readable identifiers are routing
-handles; full roots are object identity.
-
-A Frontier does not represent global truth. It represents the replayable
-scientific Standing produced by one governance context.
+A **Frontier** is a derived query over current Standing in one or more
+Repositories. It has no persistent governed identity, owns no records or
+authority, and can be rebuilt or discarded without changing Standing.
+Historical evaluation sections retain `Frontier` where it is part of an
+archived repository name, artifact field, or recorded benchmark label; those
+names do not define the current architecture.
 
 ### 2.2 Actors and authority
 
@@ -156,9 +170,9 @@ The system distinguishes:
 - **producer:** authenticates a proposed Claim and its evidence;
 - **verifier:** authenticates one scoped check over exact retained inputs;
 - **repository writer:** authorizes an exact repository transaction;
-- **reviewer:** makes a semantic Decision under the Frontier's local policy;
+- **reviewer:** performs a semantic Decision subject to Repository authority;
 - **reader:** derives non-authoritative projections; and
-- **foreign Frontier:** retains attributed state but applies its own authority.
+- **other Repository:** retains attributed state but applies its own authority.
 
 No role is inferred from model capability, computational cost, package origin,
 or verifier success.
@@ -171,8 +185,8 @@ or verifier success.
 | Submission | Authenticated producer request over exact Artifacts | producer attribution |
 | Verification Record | Scoped result over exact Claim, Submission, Proposal, Artifacts, and implementation | verifier attribution |
 | Proposal | Pending requested transition | none |
-| Decision | Accept, reject, or withdraw one exact Proposal | local reviewer |
-| Event | Append-only semantic transition | local Frontier |
+| Decision | Accept or reject one exact Proposal | attributed reviewer through Repository authority |
+| Event | Append-only semantic transition | local Repository |
 | Standing | Deterministic replay result | derived from local history |
 
 ### 2.4 State transition
@@ -259,7 +273,7 @@ application, or worker runtime.
 ### 3.5 Transition validation
 
 The reference implementation separates validation from publication. Given a
-Frontier `F` and proposed transaction `T`, it derives the complete post-state
+Repository `R` and proposed transaction `T`, it derives the complete post-state
 before installing any canonical bytes:
 
 ```text
@@ -350,7 +364,7 @@ CORRECTION-IMPACT(I):
 ```
 
 The output is non-authoritative. It contains no Standing field and cannot
-write a Frontier.
+write a Repository.
 
 ### 4.3 Required properties
 
@@ -652,7 +666,7 @@ graph source
 `paper/artifacts/map-target-loop/post-decision.json`, root
 `sha256:b29e8cbb50aff3cc81a4ac6f4cf261b9a3ca9d80dbe69614d9a771116d80151c`.
 The materializer cannot invoke a Decision, push Git, activate the read model,
-read a human key, or mutate a Frontier.
+read a human key, or mutate a Repository.
 
 The initial loop did not produce a safe next handoff. The first offer still
 bound packet root
@@ -970,7 +984,7 @@ prepared without changing the source. The consequence-map root is
 | B7 support diversity | pending | entry gate failed | exact route accounting |
 | B8 second Frontier | exact receiver retention, scoped Verification, and clean-clone replay pass with zero accepted delta | entry gate failed | zero imported authority |
 | B9 observability | synthetic pass only | entry gate failed | no silent truncation |
-| B10 cold inheritance | three task classes pass task-specific Harbor gates; independent-user and real correction-impact gates remain open | entry gate failed | restricted time-to-exact ratio ≤0.80, upper 95% bound <1, no family reversal |
+| B10 cold inheritance | three task classes pass task-specific Harbor gates; independent-user and real correction-impact gates remain open | entry gate failed | restricted time-to-exact ratio at most 0.80, upper 95% bound <1, no family reversal |
 
 No aggregate score is reported.
 
@@ -1015,7 +1029,7 @@ The evaluation includes:
 - **Repository writer:** a writer can publish an authorized transaction but
   cannot supply the separate reviewer Decision required for Standing.
   Corrupt or incomplete postimages fail strict replay. Compromise of both
-  roles is equivalent to compromise of that Frontier's local governance.
+  roles is equivalent to compromise of that Repository's local governance.
 - **Reviewer:** an authorized reviewer can make a poor or malicious Decision.
   Vela preserves its exact inputs, actor, reason, and resulting Event; it
   cannot make the judgment scientifically correct.
@@ -1027,7 +1041,7 @@ The evaluation includes:
   bind projections to canonical Git roots, and canonical replay does not
   require the projection. Users can still be misled if they never inspect its
   source root.
-- **Foreign Frontier:** foreign state must be attributed information with no
+- **Other Repository:** foreign state must be attributed information with no
   imported local authority. A derived edge-layer envelope passes real-source
   semantic, signature, and containment checks without changing the protocol.
   Formal Conjectures initially retained it as a pending local Proposal,
@@ -1159,7 +1173,7 @@ collapsing their distinct judgments.
 | PROV / DataLad / RO-Crate | provenance and portable run metadata | local authority semantics |
 | in-toto / TUF | software supply-chain or update integrity | scientific correctness |
 | Lean kernel | proof checks against an exact formal statement | statement fidelity or importance |
-| artifact evaluation | artifact availability, function, or reproduced results | a Frontier's local Decision |
+| artifact evaluation | artifact availability, function, or reproduced results | a Repository's local Decision |
 
 The registered benchmark is meaningful only if Vela's added column produces
 measurable value after all existing layers are held constant. That column
@@ -1196,7 +1210,8 @@ but not canonical.
 The Math Atlas has passed rooted, bounded Neon ingestion and clean-room
 reconstruction on the current schema. Its last exact deployed checkpoint
 contains 4,142 graph nodes, 2,592 edges, 6,713 native source records, and 5,844
-Frontier bindings. It does not include the later Erdős correction Proposal. No
+historical `Frontier` bindings. It does not include the later Erdős correction
+Proposal. No
 1,000,000-record result exists. These results establish
 bounded reconstruction and operation, not general scalability, adoption, or
 user value. Current counts describe the audited corpus, not a capacity limit

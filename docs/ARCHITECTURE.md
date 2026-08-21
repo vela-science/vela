@@ -1,14 +1,14 @@
 # Vela architecture
 
-Vela is version control for scientific state.
+Vela is the open protocol for replayable, authority-scoped, correction-aware
+scientific state transitions. **Version control for scientific state** is the
+public shorthand.
 
-Its technical category is a Git-native protocol and CLI for governed,
-replayable scientific-state transitions: the portable boundary that records
-what is claimed, evidenced, checked, decided, corrected, inherited, and safe
-to do next. Its long-range strategic category is scientific state and
-inheritance infrastructure. That direction remains a hypothesis until
-different producers and readers demonstrate cheaper continuation, correction
-handling, and downstream reuse.
+The CLI is the Git-native implementation of the portable boundary that
+records what is claimed, evidenced, checked, decided, corrected, and inherited.
+Its long-range role as scientific-state and inheritance infrastructure remains
+a hypothesis until different producers and readers demonstrate cheaper
+continuation, correction handling, and downstream reuse.
 
 The product hierarchy is:
 
@@ -35,6 +35,18 @@ The exact operator loop is:
 init -> submit -> verify -> decide -> replay
 ```
 
+The architecture keeps four kinds of material separate:
+
+| Kind | Contents | Authority effect |
+| --- | --- | --- |
+| Normative protocol | Protocol 1, its normative schemas, and conformance vectors | Defines canonical objects, replay, and the Decision boundary |
+| Derived views | Projections, indexes, Problems views, and Frontiers over current Standing | Read-only, rebuildable, and no authority |
+| External activity and control | Controllers, agents, attempts, runs, campaigns, schedulers, and workflows | Source-owned activity that may produce a Submission but is not Core state |
+| Speculative research | Papers, benchmarks, exploratory reducers, and unvalidated product hypotheses | Evidence or research only; never protocol semantics or Standing |
+
+Only [Protocol 1](PROTOCOL.md) and the interoperability material it marks
+normative define protocol behavior. This architecture is explanatory.
+
 The public navigation loop around it is:
 
 ```text
@@ -56,10 +68,11 @@ blocker. This is a product and evaluation property, not a protocol object. A
 map, obligation generator, ranking, or learning policy remains read-only and
 cannot change Standing.
 
-A Repository is one ordinary Git repository for a bounded scientific scope, and
-it is the only authority boundary. A Frontier is a derived query over the
-unresolved state inside one or more of them: it has no identifier and owns
-nothing (ADR 0039). Vela defines the portable records, replay rules, repository
+A Repository is one ordinary Git repository for a bounded scientific scope,
+and it is the local authority boundary. A Frontier is a derived query over
+current Standing inside one or more Repositories: it has no persistent
+identity, owns no records or authority, and is never a governed repository
+(ADR 0039). Vela defines the portable records, replay rules, repository
 authority, and Decision boundary. Producers and readers remain replaceable.
 
 ## Scientific-state flow
