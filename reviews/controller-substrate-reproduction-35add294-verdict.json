@@ -1,0 +1,41 @@
+{
+  "schema": "vela.independent-review-verdict.v1",
+  "review": "controller-substrate-reproduction-35add294",
+  "verdict": "PASS",
+  "subject": {
+    "base_commit": "4685462c44b1f073870f31025ae73d1d8770ce73",
+    "producer_commit": "35add294b5400f3a8cdc1ec08d680992fee8f137",
+    "producer_tree": "05b3dad910fbf0e61e0d23ed178c95dfc2dbc79d",
+    "manifest_sha256": "d3a53fe7954957c1159b06bca72d972c492e45c4c4bbac8b9e09c5c6d3efd5bc",
+    "artifact_root": "sha256:39cd088440a6a4175f7a7299419adc13a705c9ca54db8c1692594dbfdae488a9"
+  },
+  "gates": {
+    "immutable_subject": "pass",
+    "manifest_and_artifact_roots": "pass",
+    "bundle_integrity_and_history": "pass",
+    "standing_delta": "pass",
+    "authority_separation": "pass",
+    "replay_and_remap_cross_consistency": "pass",
+    "stale_target_retention": "pass",
+    "read_only_materializer_surface": "pass",
+    "focused_checks": "pass",
+    "claim_ceiling": "pass"
+  },
+  "evidence": {
+    "erdos_bundle_sha256": "8bfbfd434643dd0135460aa47846cbbfb2a73ed23a330753ace4ed3d2744274d",
+    "vela_web_bundle_sha256": "9c7d6ec608235ac5510ef921313cbb28065479aef8c7e1b3dcd50c303493d518",
+    "verifier_output_sha256": "5b092942bf064b1771c456dc030d81df4138a2976351bb07046b4ba5d088474a",
+    "accepted_before": 2771,
+    "accepted_after_verification": 2771,
+    "accepted_after_decision": 2772,
+    "decision_actor_class": "human",
+    "authority_effect": "none"
+  },
+  "scope": {
+    "merge_authorized": false,
+    "scientific_acceptance": false,
+    "external_reproduction": false,
+    "authority_effect": "none",
+    "standing_effect": "none"
+  }
+}
