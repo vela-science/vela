@@ -1,0 +1,63 @@
+{
+  "schema": "vela.independent-confirmatory-prelaunch-verdict.v1",
+  "review_id": "inherited-correction-confirmatory-prelaunch-2026-08-21",
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/inherited-correction-study",
+    "producer_commit": "b4bd2542b2fb71944a0d1e7e487b007392c008b6",
+    "producer_tree": "67924828f98dcd921a029549e0ba82a4db275d41",
+    "parent_commit": "4c7bd6a811bbd0cf1ebd357d3ad72abb9127442a",
+    "benchmark_registration_root": "sha256:7391c3c6adb74633886fd9fb2d35a257e7501bd37153acfb3e19ac850d0e9157",
+    "runtime_registration_root": "sha256:1ae5d204c369bdd71fc502192cafbbd17db89dc5544ee4cd2ebe3b75ac8147ec"
+  },
+  "verdict": "BLOCKED",
+  "failed_gates": [
+    {
+      "id": "G07_deterministic_scoring",
+      "finding": "F04",
+      "summary": "The unchanged benchmark scoring gate can be opened from run/response records without any container terminal receipt or consumed-permit evidence."
+    },
+    {
+      "id": "G08_deterministic_custody",
+      "finding": "F04",
+      "summary": "No frozen verifier bridges the two condition-specific runtime roots and terminal receipts to the single study root required by benchmark authorization and capture."
+    }
+  ],
+  "finding": {
+    "id": "F04",
+    "title": "Runtime terminal evidence is not bound into benchmark capture or scoring",
+    "benchmark_study_configuration_root": "sha256:46b3325497d42a1d265890013fe310a474f1dc8c60315e8f10d575c0d6e0f9ec",
+    "runtime_condition_configuration_roots": {
+      "git-documents": "sha256:ba36d835b5e0d0b01bffe3f882e594a33d198f34e58670e988f7f41f342359f1",
+      "vela": "sha256:7baec83c5d644bc4472e8348023be04c26e378b798fb992455bf832dc60c48f0"
+    },
+    "reproduction": "A deterministic 16-run benchmark capture manifest succeeds with zero terminal-receipt.json files; actual run-once receipts emit condition roots that cannot satisfy the benchmark's required single authorization root.",
+    "experimental_output_observed": false
+  },
+  "otherwise_passed_evidence": [
+    "immutable remote subject and exact 34-file additive scope",
+    "balanced deterministic assignment with 16 unique participants",
+    "same-information path-preserving prompts and shared response schema",
+    "fixed model/runtime/tool/timeout/retry controls",
+    "16 exact root-bound permits held and unconsumed",
+    "all documented roots and manifest entries",
+    "two byte-exact 32-file regenerations",
+    "all nominal deterministic checks twice"
+  ],
+  "prelaunch_qualified": false,
+  "participant_launch_authorized_by_review": false,
+  "permit_release_authorized_by_review": false,
+  "authority_effect": "none",
+  "experimental_status": {
+    "required_sessions": 16,
+    "executed_sessions": 0,
+    "result": "not_run",
+    "permits_consumed": 0,
+    "hold_status": "hold"
+  },
+  "minimal_repair": "Prospectively freeze and test a fail-closed runtime-to-benchmark capture and scoring bridge that requires and hashes one exact terminal receipt, consumed permit, response, and provider-event record per assigned run and validates each condition root under the authorized study root.",
+  "nonclaims": [
+    "This review did not launch a participant or access scoring for an experiment.",
+    "This verdict does not authorize a call, permit release, merge, scientific claim, Protocol/Core change, Decision, authority action, or Standing effect."
+  ]
+}
