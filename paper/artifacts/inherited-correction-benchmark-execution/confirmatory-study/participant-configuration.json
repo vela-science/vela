@@ -1,7 +1,7 @@
 {
   "condition_runtime_configuration_roots": {
-    "git-documents": "sha256:ba36d835b5e0d0b01bffe3f882e594a33d198f34e58670e988f7f41f342359f1",
-    "vela": "sha256:7baec83c5d644bc4472e8348023be04c26e378b798fb992455bf832dc60c48f0"
+    "git-documents": "sha256:8438a94b0a3193b916f77ed1d993c315902e7169ed09f5ea52b6dfb5501bcbe0",
+    "vela": "sha256:b467c98e96f55ee95a3ca966d4966653420d92109a0a35550a7441a7d188fbc2"
   },
   "condition_specific_fields": [
     "packet_root",
@@ -9,7 +9,7 @@
     "condition_runtime_configuration_root"
   ],
   "fixed_across_all_sessions": true,
-  "registration_root": "sha256:1ae5d204c369bdd71fc502192cafbbd17db89dc5544ee4cd2ebe3b75ac8147ec",
+  "registration_root": "sha256:aaa951dc6cb34c6b86e5a5a096e974ac51c56ba9c02be6690e5fa1bdc7c77a5e",
   "schema": "vela.inherited-correction-fixed-participant-configuration.v2",
   "shared_runtime": {
     "attempt": 1,

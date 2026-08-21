@@ -50,15 +50,25 @@ git diff --check
 preregistration bindings, unrun result, and manifest. Review uses `verify`,
 which regenerates those bytes in memory and rejects drift.
 
-## Later capture protocol
+## Confirmatory capture protocol
 
-No paid inference, human participation, or scientific validation is authorized
-by this artifact or its implementation task. A later operator first needs an
-explicit `vela.inherited-correction-run-authorization.v1` file bound to the
-registration root. `start` rejects missing, mismatched, or exhausted
-authorization and copies only the assigned packet into a fresh run directory.
-`finish` retains the closed-code response, authorization, packet, timestamps,
-duration, and tool count.
+The separate confirmatory registration records the user's bounded execution
+authorization, but every permit remains held pending exact independent
+prelaunch PASS. The retired `start`/`finish` path cannot create a scorable run.
+After one authorized one-shot container attempt is terminal, the only ingest
+path is:
+
+```bash
+python3 paper/artifacts/inherited-correction-benchmark-execution/confirmatory-custody.py ingest \
+  --capture-dir <exact-run-capture> --runs-dir <runs> --run-id <exact-run-id>
+```
+
+The bridge requires the assigned atomically consumed permit, launch record,
+terminal receipt, provider-event stream, stderr, and any runtime response. It
+revalidates their byte digests and every registration, authorization,
+assignment, shared-to-condition configuration mapping, prompt, packet, image,
+trust, runtime, identity, attempt, timeout, status, time, usage, event, and
+response relationship before generating one benchmark run record.
 
 After exactly eight no-retry sessions per arm are complete:
 
@@ -69,11 +79,11 @@ python3 paper/artifacts/inherited-correction-benchmark/benchmark.py score \
   --runs-dir <runs> --output <runs>/scored-result.json
 ```
 
-`freeze` revalidates every registration, authorization, assignment,
-configuration, packet byte, attempt, timestamp, duration, timeout, and tool
-count, then writes a content-bound capture manifest without opening the answer
-key. `score` refuses to access the key unless that manifest exists and exactly
-matches every run, authorization, packet, and response byte.
+`freeze` requires exactly the fixed sixteen bridge-generated records and their
+complete runtime custody. It writes a content-bound capture manifest without
+opening the answer key. `score` recomputes that custody and refuses to access
+the key unless the manifest exactly matches every run, consumed permit,
+terminal receipt, event stream, response, authorization, packet, and root.
 Wrong, invalid, failed, and timed-out sessions remain in the denominator at the
 600-second cost cap. There are no retries, substitutions, post-hoc rescoring,
 or manual semantic overrides.

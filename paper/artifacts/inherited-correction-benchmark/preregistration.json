@@ -14,8 +14,8 @@
   "bindings": {
     "adjudication_root": "sha256:6b2e94c7bfce7c41353eb48cd4962243e3f177fdaccb8c7da48567d99dfca557",
     "authorization_template_root": "sha256:2c0600b3f4c09b75544e6293a692c96ddf06d485faab40c1703481ada5d8c440",
-    "benchmark_implementation_bytes": "sha256:8ae77954fe43e98d0e884e0cac79c9d16639fe0699453bb9ba0e8285c7980c1c",
-    "benchmark_tests_bytes": "sha256:976d55e62713f21feb048576c1ca24b995ea13ad15ef097362cdd0933396069e",
+    "benchmark_implementation_bytes": "sha256:3e5848afe2bc4ce8d940cfc7181df4c50a583ed95b820f4729baabee0bada0c4",
+    "benchmark_tests_bytes": "sha256:2947908b9efdf3b6a1007ed5ae3c5941890ffa7a9d9a26845319ef92c7923e58",
     "condition_packet_roots": {
       "git-documents": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
       "vela": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97"
@@ -24,7 +24,9 @@
     "participant_task_bytes": "sha256:7a2fb1ff3097da8d09ca6e8cde3790caadcc864fe105666079912845c205225a",
     "public_facts_bytes": "sha256:8ce51888eef75883ba238cb06faf21f7d324ed3b1a73bc244ba9e22b2e589e42",
     "public_facts_root": "sha256:fe8b3363ec9a8305743ca55144a59885a73623b712a32fe0c9050227350bac2a",
-    "response_template_root": "sha256:78d4d59eedf87b612be8c7845546baebd2a9c85d56aa92f7084c255550c4972b"
+    "response_template_root": "sha256:78d4d59eedf87b612be8c7845546baebd2a9c85d56aa92f7084c255550c4972b",
+    "runtime_custody_bridge_bytes": "sha256:06b1501911fbb351ea6285f3bcd3a354b06b7e2dce1f4ea23536883aeff7be8b",
+    "runtime_custody_tests_bytes": "sha256:29d09d9ed73d3692b18e619a3ff04d7e412c4487e271aac0b75375d9b8866320"
   },
   "conditions": [
     {
@@ -105,7 +107,7 @@
     "result_access_before_amendment": "none"
   },
   "registered_at": "2026-08-21T00:00:00Z",
-  "registration_root": "sha256:7391c3c6adb74633886fd9fb2d35a257e7501bd37153acfb3e19ac850d0e9157",
+  "registration_root": "sha256:78cc6e0154ec1baaa4eb86a15131ad9910802a5a2aeae2b82779de3c3ba6e67b",
   "schema": "vela.inherited-correction-preregistration.v1",
   "scoring_freeze": {
     "adjudication_access": "Only after all 16 responses, run records, packet roots, durations, and tool counts are frozen into capture-manifest.json.",

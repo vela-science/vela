@@ -91,6 +91,10 @@ class ConfirmatoryPrelaunchTests(unittest.TestCase):
             freeze["authorization_root"],
             canonical_root(load(STUDY / "authorization.json")),
         )
+        self.assertEqual(
+            freeze["authorized_configuration_mapping_root"],
+            canonical_root(load(STUDY / "configuration-mapping.json")),
+        )
         for condition, expected in freeze[
             "condition_runtime_configuration_roots"
         ].items():

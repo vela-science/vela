@@ -9,7 +9,7 @@
     "secret_retention": false
   },
   "base_image_digest": "sha256:cadbfafeb6baf87eaaffa40b3640209c4b7fd38cebde65059d15bc39cd636b85",
-  "benchmark_registration_root": "sha256:7391c3c6adb74633886fd9fb2d35a257e7501bd37153acfb3e19ac850d0e9157",
+  "benchmark_registration_root": "sha256:78cc6e0154ec1baaa4eb86a15131ad9910802a5a2aeae2b82779de3c3ba6e67b",
   "calibration_only_bytes": {
     "canary_01_prelaunch": "sha256:d392ded1b1fe82abcc522ef92248de8b8b3c442bb9a825d83ecc6ed66bfa741a",
     "canary_01_result": "sha256:9fa7cce6b30abce0c156e8225315e3590c05dcfeff6c221e9f720f8e189cd701",
@@ -46,6 +46,11 @@
     "timeout_seconds": 600,
     "tools": "none"
   },
+  "f04_blocked_disposition": "terminal held prelaunch evidence; zero calls; prospectively superseded only by the custody bridge",
+  "f04_blocked_freeze_root": "sha256:56eaacf7a1dc30402d86740744e42312deee9103eee7af78cce237e990156659",
+  "f04_blocked_producer_commit": "b4bd2542b2fb71944a0d1e7e487b007392c008b6",
+  "f04_blocked_registration_root": "sha256:1ae5d204c369bdd71fc502192cafbbd17db89dc5544ee4cd2ebe3b75ac8147ec",
+  "f04_blocked_review_commit": "23986b9b02ea5ba1324cd9aad91545f969db8a56",
   "frozen_at": "2026-08-21T17:55:04Z",
   "image_digest": "sha256:6274d83356076640d6e4bc810b97d37ac2d1b5ab02546dd7c2ebed16f915b547",
   "participant": {
@@ -55,6 +60,7 @@
     "reasoning_effort": "high",
     "service_tier": "default"
   },
+  "prospective_custody_repair": "require exact consumed permit, terminal receipt, provider events, runtime response, and authorized shared-to-condition configuration mapping before capture or scoring",
   "protected_scoring": "outside participant container; inaccessible until all 16 terminal captures and capture root freeze",
   "response_schema_bytes": "sha256:6e5e1e35285f4a0bc7ac929bd50f0e1cc3b8cd0b7541e1cabcc90565cc1e30e7",
   "runtime_pass_canary_result_root": "sha256:53d7b376ca90b0dc33db2c53703a63e0700068159b991c8250ce8f1f47fba018",
@@ -65,11 +71,13 @@
   "scientific_or_authority_effect": "none",
   "scoring_bindings": {
     "adjudication_root": "sha256:6b2e94c7bfce7c41353eb48cd4962243e3f177fdaccb8c7da48567d99dfca557",
-    "benchmark_implementation_bytes": "sha256:8ae77954fe43e98d0e884e0cac79c9d16639fe0699453bb9ba0e8285c7980c1c",
-    "benchmark_registration_root": "sha256:7391c3c6adb74633886fd9fb2d35a257e7501bd37153acfb3e19ac850d0e9157",
-    "benchmark_tests_bytes": "sha256:976d55e62713f21feb048576c1ca24b995ea13ad15ef097362cdd0933396069e",
+    "benchmark_implementation_bytes": "sha256:3e5848afe2bc4ce8d940cfc7181df4c50a583ed95b820f4729baabee0bada0c4",
+    "benchmark_registration_root": "sha256:78cc6e0154ec1baaa4eb86a15131ad9910802a5a2aeae2b82779de3c3ba6e67b",
+    "benchmark_tests_bytes": "sha256:2947908b9efdf3b6a1007ed5ae3c5941890ffa7a9d9a26845319ef92c7923e58",
     "positive_gate": "registered unchanged in benchmark preregistration",
-    "response_schema_bytes": "sha256:6e5e1e35285f4a0bc7ac929bd50f0e1cc3b8cd0b7541e1cabcc90565cc1e30e7"
+    "response_schema_bytes": "sha256:6e5e1e35285f4a0bc7ac929bd50f0e1cc3b8cd0b7541e1cabcc90565cc1e30e7",
+    "runtime_custody_bridge_bytes": "sha256:06b1501911fbb351ea6285f3bcd3a354b06b7e2dce1f4ea23536883aeff7be8b",
+    "runtime_custody_tests_bytes": "sha256:29d09d9ed73d3692b18e619a3ff04d7e412c4487e271aac0b75375d9b8866320"
   },
   "status": "frozen_prelaunch_independent_review_required",
   "strict_overrides_root": "sha256:7b70dd58746b35a014550167fe7dc3f7a00fd5f5ee5e3058aa4207d41e3dc830",

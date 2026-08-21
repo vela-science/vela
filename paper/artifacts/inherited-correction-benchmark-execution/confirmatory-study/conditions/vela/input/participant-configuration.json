@@ -11,7 +11,7 @@
   "prompt_root": "sha256:d2392a7f4bbcca0e153c01f842459d7721696fa552acb8b783f6ce3f88572ad8",
   "provider_usage_disposition": "cost telemetry only; only genuine provider context/output-limit failure invalidates",
   "reasoning_effort": "high",
-  "registration_root": "sha256:1ae5d204c369bdd71fc502192cafbbd17db89dc5544ee4cd2ebe3b75ac8147ec",
+  "registration_root": "sha256:aaa951dc6cb34c6b86e5a5a096e974ac51c56ba9c02be6690e5fa1bdc7c77a5e",
   "response_schema_bytes": "sha256:6e5e1e35285f4a0bc7ac929bd50f0e1cc3b8cd0b7541e1cabcc90565cc1e30e7",
   "retries": 0,
   "schema": "vela.inherited-correction-oci-participant-configuration.v3",

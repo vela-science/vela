@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import math
 import re
@@ -45,10 +46,35 @@ RESPONSE_KEYS = {
     "source_or_evidence_binding",
 }
 CONSEQUENCE_KEYS = {"claim_id", "classification", "action_code"}
+REGISTERED_ADJUDICATION_ROOT = (
+    "sha256:6b2e94c7bfce7c41353eb48cd4962243e3f177fdaccb8c7da48567d99dfca557"
+)
+REGISTERED_ADJUDICATION_BYTES = (
+    "a7af895d0e85dafe8cd35b624dd7a54a8da583ac52421fd993431296928f3971"
+)
+CUSTODY_BRIDGE_PATH = (
+    ROOT.parent / "inherited-correction-benchmark-execution" / "confirmatory-custody.py"
+)
+CUSTODY_TEST_PATH = CUSTODY_BRIDGE_PATH.with_name("test_confirmatory_custody.py")
+_CUSTODY_BRIDGE: Any | None = None
 
 
 class BenchmarkError(ValueError):
     """Stable benchmark contract error."""
+
+
+def custody_bridge() -> Any:
+    global _CUSTODY_BRIDGE
+    if _CUSTODY_BRIDGE is None:
+        spec = importlib.util.spec_from_file_location(
+            "inherited_correction_confirmatory_custody", CUSTODY_BRIDGE_PATH
+        )
+        if spec is None or spec.loader is None:
+            raise BenchmarkError("runtime_custody_bridge_unavailable")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _CUSTODY_BRIDGE = module
+    return _CUSTODY_BRIDGE
 
 
 def canonical_bytes(value: Any) -> bytes:
@@ -428,11 +454,13 @@ def generated_outputs() -> dict[str, bytes]:
     prereg["bindings"] = {
         "public_facts_root": canonical_root(facts),
         "public_facts_bytes": byte_digest(FACTS_PATH.read_bytes()),
-        "adjudication_root": canonical_root(load_json(ADJUDICATION_PATH)),
+        "adjudication_root": REGISTERED_ADJUDICATION_ROOT,
         "participant_task_bytes": byte_digest(TASK_PATH.read_bytes()),
         "response_template_root": canonical_root(load_json(TEMPLATE_PATH)),
         "benchmark_implementation_bytes": byte_digest(Path(__file__).read_bytes()),
         "benchmark_tests_bytes": byte_digest((ROOT / "test_benchmark.py").read_bytes()),
+        "runtime_custody_bridge_bytes": byte_digest(CUSTODY_BRIDGE_PATH.read_bytes()),
+        "runtime_custody_tests_bytes": byte_digest(CUSTODY_TEST_PATH.read_bytes()),
         "authorization_template_root": canonical_root(
             load_json(ROOT / "protocol/run-authorization-template.json")
         ),
@@ -449,6 +477,7 @@ def generated_outputs() -> dict[str, bytes]:
             "replace free-text keyword action scoring with closed exact action codes",
             "retain authorization bytes and revalidate full run, packet, assignment, configuration, attempt, and time custody at freeze",
             "add fail-closed polarity, forged-root, packet-drift, assignment, configuration, attempt, timeout, duration, status, and tool-count tests",
+            "require exact consumed-permit, terminal-receipt, event-stream, runtime-response, and shared-to-condition configuration custody before capture or scoring",
         ],
         "authority_effect": "none",
     }
@@ -461,8 +490,8 @@ def generated_outputs() -> dict[str, bytes]:
         "valid_sessions": 0,
         "required_sessions": prereg["assignment"]["total_sessions"],
         "authority_effect": "none",
-        "claim": "No result: paid inference, human participation, and scientific validation are not authorized in this workstream.",
-        "next_gate": "Obtain explicit experimental authorization, freeze one participant configuration and assignment seed, then capture exactly 16 no-retry cold-successor sessions.",
+        "claim": "No result: the authorized confirmatory study remains at zero of sixteen pending exact independent prelaunch custody review.",
+        "next_gate": "Obtain exact independent PASS for the frozen fail-closed runtime custody bridge before consuming the first single-use permit.",
     }
     outputs["result.json"] = json_bytes(result)
     return outputs
@@ -479,7 +508,12 @@ def artifact_manifest() -> bytes:
         ):
             continue
         relative = path.relative_to(ROOT).as_posix()
-        entries.append(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {relative}")
+        file_hash = (
+            REGISTERED_ADJUDICATION_BYTES
+            if path == ADJUDICATION_PATH
+            else hashlib.sha256(path.read_bytes()).hexdigest()
+        )
+        entries.append(f"{file_hash}  {relative}")
     return ("\n".join(entries) + "\n").encode()
 
 
@@ -503,20 +537,18 @@ def verify() -> None:
     prereg = load_json(PREREG_PATH)
     if prereg.get("registration_root") != registration_root(prereg):
         raise BenchmarkError("registration_root_mismatch")
-    adjudication_bytes = ADJUDICATION_PATH.read_bytes()
-    adjudication = load_json(ADJUDICATION_PATH)
-    expected_labels = {
-        item["claim_id"]: item["classification"]
-        for item in adjudication["consequences"]
-    }
-    if expected_labels != derive_classifications(load_json(FACTS_PATH)):
-        raise BenchmarkError("adjudication_classification_mismatch")
+    if not ADJUDICATION_PATH.is_file() or ADJUDICATION_PATH.is_symlink():
+        raise BenchmarkError("protected_adjudication_missing_or_unsafe")
     validate_replay(
         load_json(ROOT / "conditions/vela/replay.json"), load_json(FACTS_PATH)
     )
     for directory in GENERATED_DIRS:
         for path in directory.rglob("*"):
-            if path.is_file() and path.read_bytes() == adjudication_bytes:
+            if (
+                path.is_file()
+                and hashlib.sha256(path.read_bytes()).hexdigest()
+                == REGISTERED_ADJUDICATION_BYTES
+            ):
                 raise BenchmarkError("protected_adjudication_leaked")
     if MANIFEST_PATH.read_bytes() != artifact_manifest():
         raise BenchmarkError("manifest_drift")
@@ -557,10 +589,24 @@ def validate_response(response: Any) -> dict[str, Any]:
     return response
 
 
-def score_response(response: dict[str, Any]) -> dict[str, Any]:
+def load_registered_adjudication() -> dict[str, Any]:
+    raw = ADJUDICATION_PATH.read_bytes()
+    if hashlib.sha256(raw).hexdigest() != REGISTERED_ADJUDICATION_BYTES:
+        raise BenchmarkError("protected_adjudication_bytes_drift")
+    try:
+        adjudication = json.loads(raw)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise BenchmarkError("protected_adjudication_invalid") from error
+    if canonical_root(adjudication) != REGISTERED_ADJUDICATION_ROOT:
+        raise BenchmarkError("protected_adjudication_root_drift")
+    return adjudication
+
+
+def score_response(
+    response: dict[str, Any], adjudication: dict[str, Any]
+) -> dict[str, Any]:
     response = validate_response(response)
-    key = load_json(ADJUDICATION_PATH)
-    expected = {item["claim_id"]: item for item in key["consequences"]}
+    expected = {item["claim_id"]: item for item in adjudication["consequences"]}
     points = 0
     pair_exact = (
         response["predecessor_claim_id"] == "calibration-a-v1"
@@ -701,120 +747,112 @@ def load_authorization(
 
 
 def start_run(args: argparse.Namespace) -> None:
-    verify()
-    prereg = load_json(PREREG_PATH)
-    runs_dir = args.runs_dir.resolve()
-    authorization = load_authorization(args.authorization.resolve(), prereg, runs_dir)
-    if args.condition not in CONDITIONS:
-        raise BenchmarkError("condition_invalid")
-    if not args.run_id or not re.fullmatch(r"[A-Za-z0-9._-]+", args.run_id):
-        raise BenchmarkError("run_id_invalid")
-    assignment = next(
-        (
-            item
-            for item in authorization["assignments"]
-            if item["run_id"] == args.run_id
-        ),
-        None,
-    )
-    if assignment is None:
-        raise BenchmarkError("run_not_assigned")
-    if assignment["participant_instance_id"] != args.participant_instance_id:
-        raise BenchmarkError("participant_assignment_mismatch")
-    if assignment["condition"] != args.condition:
-        raise BenchmarkError("condition_assignment_mismatch")
-    if (
-        authorization["participant_configuration_root"]
-        != args.participant_configuration_root
-    ):
-        raise BenchmarkError("participant_configuration_mismatch")
-    run_dir = runs_dir / args.run_id
-    if run_dir.exists():
-        raise BenchmarkError("run_exists")
-    started_at = args.started_at or now()
-    if parse_time(started_at) < parse_time(authorization["authorized_at"]):
-        raise BenchmarkError("run_precedes_authorization")
-    run_dir.mkdir(parents=True)
-    shutil.copytree(ROOT / "conditions" / args.condition, run_dir / "packet")
-    (run_dir / "authorization.json").write_bytes(json_bytes(authorization))
-    record = {
-        "schema": "vela.inherited-correction-run.v1",
-        "run_id": args.run_id,
-        "participant_instance_id": args.participant_instance_id,
-        "participant_configuration_root": args.participant_configuration_root,
-        "condition": args.condition,
-        "packet_root": load_json(EQUIVALENCE_PATH)["condition_packet_roots"][
-            args.condition
-        ],
-        "registration_root": prereg["registration_root"],
-        "authorization_root": canonical_root(authorization),
-        "status": "started",
-        "started_at": started_at,
-        "timeout_seconds": prereg["assignment"]["timeout_seconds"],
-        "attempt": 1,
-    }
-    (run_dir / "run.json").write_bytes(json_bytes(record))
-    print(run_dir)
+    del args
+    raise BenchmarkError("runtime_custody_ingest_required")
 
 
 def finish_run(args: argparse.Namespace) -> None:
-    run_dir = args.run_dir.resolve()
-    record_path = run_dir / "run.json"
-    if not record_path.is_file():
-        raise BenchmarkError("run_missing")
-    record = load_json(record_path)
-    if record.get("status") != "started":
-        raise BenchmarkError("run_not_started")
-    prereg = load_json(PREREG_PATH)
-    authorization_path = run_dir / "authorization.json"
-    if not authorization_path.is_file() or authorization_path.is_symlink():
-        raise BenchmarkError("authorization_record_missing")
-    authorization = validate_authorization(load_json(authorization_path), prereg)
-    if record.get("registration_root") != prereg["registration_root"]:
-        raise BenchmarkError("run_registration_mismatch")
-    if record.get("authorization_root") != canonical_root(authorization):
-        raise BenchmarkError("run_authorization_mismatch")
-    if record.get("packet_root") != packet_root_from_directory(run_dir / "packet"):
-        raise BenchmarkError("run_packet_mismatch")
-    response = validate_response(load_json(args.response.resolve()))
-    if args.tool_calls < 0:
-        raise BenchmarkError("tool_calls_invalid")
-    completed = args.completed_at or now()
-    duration = (
-        parse_time(completed) - parse_time(record["started_at"])
-    ).total_seconds()
-    if duration < 0:
-        raise BenchmarkError("duration_negative")
-    timeout = record["timeout_seconds"]
-    record.update(
-        {
-            "status": "completed" if duration <= timeout else "timed_out",
-            "completed_at": completed,
-            "duration_seconds": duration,
-            "tool_calls": args.tool_calls,
-        }
-    )
-    (run_dir / "response.json").write_bytes(json_bytes(response))
-    record_path.write_bytes(json_bytes(record))
+    del args
+    raise BenchmarkError("runtime_custody_ingest_required")
 
 
 def validate_frozen_run(
     run_path: Path, prereg: dict[str, Any], equivalence: dict[str, Any]
-) -> tuple[dict[str, Any], Path, Path]:
+) -> tuple[dict[str, Any], Path | None, Path]:
     run_dir = run_path.parent
     response_path = run_dir / "response.json"
     authorization_path = run_dir / "authorization.json"
-    if (
-        run_dir.is_symlink()
-        or run_path.is_symlink()
-        or not run_path.is_file()
-        or not response_path.is_file()
-        or response_path.is_symlink()
-    ):
+    if run_dir.is_symlink() or run_path.is_symlink() or not run_path.is_file():
         raise BenchmarkError(f"run_not_frozen:{run_dir.name}")
     if not authorization_path.is_file() or authorization_path.is_symlink():
         raise BenchmarkError("authorization_record_missing")
     record = load_json(run_path)
+    if record.get("schema") == "vela.inherited-correction-run.v2":
+        try:
+            ingested = custody_bridge().validate_ingested_run(run_dir)
+        except ValueError as error:
+            raise BenchmarkError(str(error)) from error
+        if record != ingested["record"]:
+            raise BenchmarkError("runtime_benchmark_record_not_bridge_generated")
+        expected_keys = {
+            "schema",
+            "run_id",
+            "participant_instance_id",
+            "participant_configuration_root",
+            "condition_runtime_configuration_root",
+            "authorized_configuration_mapping_root",
+            "condition",
+            "packet_root",
+            "registration_root",
+            "runtime_registration_root",
+            "authorization_root",
+            "runtime_custody_root",
+            "status",
+            "started_at",
+            "timeout_seconds",
+            "attempt",
+            "completed_at",
+            "duration_seconds",
+            "tool_calls",
+        }
+        if set(record) != expected_keys:
+            raise BenchmarkError("run_fields_invalid")
+        if record.get("run_id") != run_dir.name:
+            raise BenchmarkError("run_directory_identity_mismatch")
+        if record.get("registration_root") != prereg["registration_root"]:
+            raise BenchmarkError("run_registration_mismatch")
+        condition = record.get("condition")
+        if condition not in CONDITIONS:
+            raise BenchmarkError("condition_invalid")
+        expected_packet_root = equivalence["condition_packet_roots"][condition]
+        if record.get("packet_root") != expected_packet_root:
+            raise BenchmarkError("run_packet_root_mismatch")
+        if packet_root_from_directory(run_dir / "packet") != expected_packet_root:
+            raise BenchmarkError("run_packet_bytes_mismatch")
+        authorization = validate_authorization(load_json(authorization_path), prereg)
+        if record.get("authorization_root") != canonical_root(authorization):
+            raise BenchmarkError("run_authorization_mismatch")
+        assignment = next(
+            (
+                item
+                for item in authorization["assignments"]
+                if item["run_id"] == record["run_id"]
+            ),
+            None,
+        )
+        if assignment is None:
+            raise BenchmarkError("run_not_assigned")
+        if assignment["participant_instance_id"] != record.get(
+            "participant_instance_id"
+        ):
+            raise BenchmarkError("participant_assignment_mismatch")
+        if assignment["condition"] != condition:
+            raise BenchmarkError("condition_assignment_mismatch")
+        if authorization["participant_configuration_root"] != record.get(
+            "participant_configuration_root"
+        ):
+            raise BenchmarkError("participant_configuration_mismatch")
+        if parse_time(record["started_at"]) < parse_time(
+            authorization["authorized_at"]
+        ):
+            raise BenchmarkError("run_precedes_authorization")
+        if record.get("attempt") != 1 or record.get("timeout_seconds") != 600:
+            raise BenchmarkError("run_attempt_or_timeout_invalid")
+        if record.get("status") not in {"completed", "timed_out", "failed"}:
+            raise BenchmarkError("run_status_mismatch")
+        tool_calls = record.get("tool_calls")
+        if (
+            isinstance(tool_calls, bool)
+            or not isinstance(tool_calls, int)
+            or tool_calls < 0
+        ):
+            raise BenchmarkError("tool_calls_invalid")
+        response = ingested["response_path"]
+        if response is not None:
+            validate_response(load_json(response))
+        return record, response, authorization_path
+    if not response_path.is_file() or response_path.is_symlink():
+        raise BenchmarkError(f"run_not_frozen:{run_dir.name}")
     expected_keys = {
         "schema",
         "run_id",
@@ -924,7 +962,11 @@ def capture_manifest(runs_dir: Path) -> dict[str, Any]:
                 "run_id": record["run_id"],
                 "condition": condition,
                 "run_bytes": byte_digest(run_path.read_bytes()),
-                "response_bytes": byte_digest(response_path.read_bytes()),
+                "response_bytes": (
+                    byte_digest(response_path.read_bytes())
+                    if response_path is not None
+                    else None
+                ),
                 "authorization_bytes": byte_digest(authorization_path.read_bytes()),
                 "registration_root": record["registration_root"],
                 "packet_root": record["packet_root"],
@@ -935,6 +977,7 @@ def capture_manifest(runs_dir: Path) -> dict[str, Any]:
                 "duration_seconds": record["duration_seconds"],
                 "tool_calls": record["tool_calls"],
                 "status": record["status"],
+                "runtime_custody_root": record.get("runtime_custody_root"),
             }
         )
     required = prereg["assignment"]["total_sessions"]
@@ -948,11 +991,18 @@ def capture_manifest(runs_dir: Path) -> dict[str, Any]:
         raise BenchmarkError("participant_configuration_not_fixed")
     if any(condition_counts[condition] != 8 for condition in CONDITIONS):
         raise BenchmarkError("condition_denominator_invalid")
+    try:
+        complete_custody = custody_bridge().complete_custody(runs_dir)
+    except ValueError as error:
+        raise BenchmarkError(str(error)) from error
     value = {
         "schema": "vela.inherited-correction-capture-manifest.v1",
         "registration_root": prereg["registration_root"],
         "condition_counts": condition_counts,
         "runs": entries,
+        "complete_runtime_custody_root": complete_custody[
+            "complete_runtime_custody_root"
+        ],
         "adjudication_accessed": False,
     }
     value["capture_root"] = canonical_root(value)
@@ -969,12 +1019,13 @@ def score_runs(runs_dir: Path) -> dict[str, Any]:
     verify_capture_manifest(runs_dir)
     prereg = load_json(PREREG_PATH)
     capture = load_json(runs_dir / "capture-manifest.json")
+    adjudication = load_registered_adjudication()
     records = []
     for run_path in sorted(runs_dir.glob("*/run.json")):
         record = load_json(run_path)
         response_path = run_path.parent / "response.json"
         score = (
-            score_response(load_json(response_path))
+            score_response(load_json(response_path), adjudication)
             if response_path.is_file()
             else None
         )
@@ -1054,19 +1105,6 @@ def main() -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("build")
     sub.add_parser("verify")
-    start = sub.add_parser("start")
-    start.add_argument("--authorization", type=Path, required=True)
-    start.add_argument("--runs-dir", type=Path, required=True)
-    start.add_argument("--run-id", required=True)
-    start.add_argument("--participant-instance-id", required=True)
-    start.add_argument("--participant-configuration-root", required=True)
-    start.add_argument("--condition", choices=CONDITIONS, required=True)
-    start.add_argument("--started-at")
-    finish = sub.add_parser("finish")
-    finish.add_argument("--run-dir", type=Path, required=True)
-    finish.add_argument("--response", type=Path, required=True)
-    finish.add_argument("--tool-calls", type=int, required=True)
-    finish.add_argument("--completed-at")
     score = sub.add_parser("score")
     score.add_argument("--runs-dir", type=Path, required=True)
     score.add_argument("--output", type=Path)
@@ -1078,10 +1116,6 @@ def main() -> int:
     elif args.command == "verify":
         verify()
         print("inherited-correction benchmark: verified")
-    elif args.command == "start":
-        start_run(args)
-    elif args.command == "finish":
-        finish_run(args)
     elif args.command == "freeze":
         runs_dir = args.runs_dir.resolve()
         (runs_dir / "capture-manifest.json").write_bytes(

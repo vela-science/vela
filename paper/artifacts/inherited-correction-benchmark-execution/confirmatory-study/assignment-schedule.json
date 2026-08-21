@@ -98,7 +98,7 @@
     }
   ],
   "image_digest": "sha256:6274d83356076640d6e4bc810b97d37ac2d1b5ab02546dd7c2ebed16f915b547",
-  "registration_root": "sha256:1ae5d204c369bdd71fc502192cafbbd17db89dc5544ee4cd2ebe3b75ac8147ec",
+  "registration_root": "sha256:aaa951dc6cb34c6b86e5a5a096e974ac51c56ba9c02be6690e5fa1bdc7c77a5e",
   "schema": "vela.inherited-correction-runtime-assignment.v2",
   "seed_commitment": "sha256:ee8fd882e47989e508c0f663931dfab102424adbda3659809333b9a965c1f1c2"
 }

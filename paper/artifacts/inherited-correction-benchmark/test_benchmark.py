@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import shutil
 import tempfile
 import unittest
 from copy import deepcopy
 from pathlib import Path
+from unittest.mock import patch
 
 MODULE_PATH = Path(__file__).with_name("benchmark.py")
 SPEC = importlib.util.spec_from_file_location(
@@ -116,6 +118,17 @@ class BenchmarkTests(unittest.TestCase):
     def test_committed_outputs_verify(self) -> None:
         benchmark.verify()
 
+    def test_prelaunch_verify_does_not_open_protected_adjudication(self) -> None:
+        real_open = io.open
+
+        def guarded_open(file, *args, **kwargs):
+            if Path(file).resolve() == benchmark.ADJUDICATION_PATH:
+                raise AssertionError("protected adjudication opened before capture")
+            return real_open(file, *args, **kwargs)
+
+        with patch("io.open", side_effect=guarded_open):
+            benchmark.verify()
+
     def test_prospective_amendment_retains_blocked_registration(self) -> None:
         amendment = benchmark.load_json(benchmark.ROOT / "amendment.v1.json")
         prereg = benchmark.load_json(benchmark.PREREG_PATH)
@@ -130,11 +143,10 @@ class BenchmarkTests(unittest.TestCase):
             amendment["experimental_sessions_observed_before_amendment"], 0
         )
 
-    def test_exact_response_scores_full_credit(self) -> None:
-        score = benchmark.score_response(exact_response())
-        self.assertTrue(score["exact_success"])
-        self.assertEqual(score["points"], 17)
-        self.assertFalse(score["authority_error"])
+    def test_exact_response_validates_without_opening_protected_scoring(self) -> None:
+        self.assertEqual(
+            benchmark.validate_response(exact_response()), exact_response()
+        )
 
     def test_wrong_unknown_label_is_rejected(self) -> None:
         response = exact_response()
@@ -157,14 +169,12 @@ class BenchmarkTests(unittest.TestCase):
         with self.assertRaisesRegex(
             benchmark.BenchmarkError, "response_consequence_fields_invalid"
         ):
-            benchmark.score_response(response)
+            benchmark.validate_response(response)
 
-    def test_wrong_closed_action_code_loses_exact_credit(self) -> None:
+    def test_wrong_but_closed_action_code_remains_structurally_valid(self) -> None:
         response = exact_response()
         response["consequences"][0]["action_code"] = "no_correction_reassessment"
-        score = benchmark.score_response(response)
-        self.assertFalse(score["exact_success"])
-        self.assertFalse(score["consequences"][0]["action_exact"])
+        self.assertEqual(benchmark.validate_response(response), response)
 
     def test_fixture_derives_all_four_classifications(self) -> None:
         derived = benchmark.derive_classifications(
@@ -196,24 +206,16 @@ class BenchmarkTests(unittest.TestCase):
         ):
             benchmark.score_runs(Path(directory))
 
-    def test_fixed_capture_and_scoring(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
+    def test_synthetic_fixed_denominator_cannot_open_capture_or_scoring(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            self.assertRaisesRegex(
+                benchmark.BenchmarkError, "runtime_fixed_denominator"
+            ),
+        ):
             runs_dir = Path(directory)
             make_runs(runs_dir)
-            capture = benchmark.capture_manifest(runs_dir)
-            (runs_dir / "capture-manifest.json").write_bytes(
-                benchmark.json_bytes(capture)
-            )
-            result = benchmark.score_runs(runs_dir)
-            self.assertEqual(result["positive_gate"], "pass")
-            self.assertEqual(result["fixed_denominator"], 16)
-            self.assertEqual(result["capture_root"], capture["capture_root"])
-            self.assertEqual(
-                result["adjudication_root"],
-                benchmark.load_json(benchmark.PREREG_PATH)["bindings"][
-                    "adjudication_root"
-                ],
-            )
+            benchmark.capture_manifest(runs_dir)
 
     def test_forged_custody_fields_fail_closed(self) -> None:
         mutations = [

@@ -1,9 +1,9 @@
 {
   "authority_effect": "none",
-  "claim": "No result: paid inference, human participation, and scientific validation are not authorized in this workstream.",
+  "claim": "No result: the authorized confirmatory study remains at zero of sixteen pending exact independent prelaunch custody review.",
   "fixture_id": "bounded-calibration-correction-v1",
-  "next_gate": "Obtain explicit experimental authorization, freeze one participant configuration and assignment seed, then capture exactly 16 no-retry cold-successor sessions.",
-  "registration_root": "sha256:7391c3c6adb74633886fd9fb2d35a257e7501bd37153acfb3e19ac850d0e9157",
+  "next_gate": "Obtain exact independent PASS for the frozen fail-closed runtime custody bridge before consuming the first single-use permit.",
+  "registration_root": "sha256:78cc6e0154ec1baaa4eb86a15131ad9910802a5a2aeae2b82779de3c3ba6e67b",
   "required_sessions": 16,
   "schema": "vela.inherited-correction-result.v1",
   "status": "not_run",

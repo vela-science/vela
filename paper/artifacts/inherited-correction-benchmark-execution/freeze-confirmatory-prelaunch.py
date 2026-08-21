@@ -25,13 +25,21 @@ TRUST_BUNDLE_PATH = "/etc/ssl/certs/ca-certificates.crt"
 TRUST_BUNDLE_BYTES = (
     "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5"
 )
-BENCHMARK_REGISTRATION = (
-    "sha256:7391c3c6adb74633886fd9fb2d35a257e7501bd37153acfb3e19ac850d0e9157"
-)
+BENCHMARK_REGISTRATION = json.loads((BENCHMARK / "preregistration.json").read_text())[
+    "registration_root"
+]
 RUNTIME_PASS_PRODUCER = "4c7bd6a811bbd0cf1ebd357d3ad72abb9127442a"
 RUNTIME_PASS_REVIEW = "2ebf1ad8cb0f5d16b7bcee8e5510f3aed5dc1395"
 RUNTIME_PASS_CANARY_RESULT = (
     "sha256:53d7b376ca90b0dc33db2c53703a63e0700068159b991c8250ce8f1f47fba018"
+)
+F04_BLOCKED_PRODUCER = "b4bd2542b2fb71944a0d1e7e487b007392c008b6"
+F04_BLOCKED_REVIEW = "23986b9b02ea5ba1324cd9aad91545f969db8a56"
+F04_BLOCKED_REGISTRATION = (
+    "sha256:1ae5d204c369bdd71fc502192cafbbd17db89dc5544ee4cd2ebe3b75ac8147ec"
+)
+F04_BLOCKED_FREEZE = (
+    "sha256:56eaacf7a1dc30402d86740744e42312deee9103eee7af78cce237e990156659"
 )
 PACKET_ROOTS = {
     "git-documents": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
@@ -195,6 +203,12 @@ def main() -> int:
         "adjudication_root": "sha256:6b2e94c7bfce7c41353eb48cd4962243e3f177fdaccb8c7da48567d99dfca557",
         "response_schema_bytes": response_schema_bytes,
         "positive_gate": "registered unchanged in benchmark preregistration",
+        "runtime_custody_bridge_bytes": digest(
+            (ROOT / "confirmatory-custody.py").read_bytes()
+        ),
+        "runtime_custody_tests_bytes": digest(
+            (ROOT / "test_confirmatory_custody.py").read_bytes()
+        ),
     }
     registration = {
         "schema": "vela.inherited-correction-confirmatory-registration.v2",
@@ -204,6 +218,12 @@ def main() -> int:
         "runtime_pass_producer_commit": RUNTIME_PASS_PRODUCER,
         "runtime_pass_review_commit": RUNTIME_PASS_REVIEW,
         "runtime_pass_canary_result_root": RUNTIME_PASS_CANARY_RESULT,
+        "f04_blocked_producer_commit": F04_BLOCKED_PRODUCER,
+        "f04_blocked_review_commit": F04_BLOCKED_REVIEW,
+        "f04_blocked_registration_root": F04_BLOCKED_REGISTRATION,
+        "f04_blocked_freeze_root": F04_BLOCKED_FREEZE,
+        "f04_blocked_disposition": "terminal held prelaunch evidence; zero calls; prospectively superseded only by the custody bridge",
+        "prospective_custody_repair": "require exact consumed permit, terminal receipt, provider events, runtime response, and authorized shared-to-condition configuration mapping before capture or scoring",
         "image_digest": IMAGE,
         "base_image_digest": BASE_IMAGE,
         "runtime_source_root": runtime_source_root,
@@ -356,6 +376,15 @@ def main() -> int:
     }
     authorization_root = canonical_root(authorization)
     write(OUTPUT / "authorization.json", authorization)
+    configuration_mapping = {
+        "schema": "vela.inherited-correction-authorized-configuration-mapping.v1",
+        "status": "authorized",
+        "authorization_root": authorization_root,
+        "shared_study_configuration_root": study_configuration_root,
+        "condition_runtime_configuration_roots": condition_configuration_roots,
+    }
+    configuration_mapping_root = canonical_root(configuration_mapping)
+    write(OUTPUT / "configuration-mapping.json", configuration_mapping)
 
     permit_roots = {}
     for item in assignments:
@@ -396,6 +425,7 @@ def main() -> int:
         "registration_root": registration_root,
         "participant_configuration_root": study_configuration_root,
         "condition_runtime_configuration_roots": condition_configuration_roots,
+        "authorized_configuration_mapping_root": configuration_mapping_root,
         "assignment_seed_commitment": seed_commitment,
         "assignment_root": assignment_root,
         "authorization_root": authorization_root,
@@ -408,6 +438,7 @@ def main() -> int:
         "strict_overrides_root": strict_root,
         "scoring_bindings_root": canonical_root(scoring_bindings),
         "runtime_pass_review_commit": RUNTIME_PASS_REVIEW,
+        "f04_blocked_review_commit": F04_BLOCKED_REVIEW,
         "confirmatory_provider_calls": 0,
         "permits_consumed": [],
         "hold_status": "hold",
