@@ -1,0 +1,92 @@
+{
+  "schema": "vela.independent-inherited-correction-held-out-stopped-state-verdict.v1",
+  "review_id": "inherited-correction-held-out-stopped-state-2026-08-21",
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/inherited-correction-study",
+    "producer_commit": "d3bff9206609c53a0dc9b2ef7f85bbdc894a9904",
+    "producer_tree": "212c90ce47727bdabc027d727c2554dff51f5527",
+    "parent_run_01_freeze": "3bce5d955ba69ae4cdb790422943b183a0e98058"
+  },
+  "verdict": "PASS",
+  "review_scope": [
+    "stopped-state truthfulness",
+    "run-01 custody and terminal evidence",
+    "remaining unissued denominator",
+    "prospective provider-schema compatibility boundary"
+  ],
+  "failed_gates": [],
+  "passed_gates": [
+    "exact two-file immutable scope",
+    "single terminal run-01 non-result",
+    "exact runtime custody, receipt, and event roots",
+    "no provider response or completed model turn",
+    "runs 02-36 unissued",
+    "zero retry, substitution, protected-key access, and scoring",
+    "fresh replacement registration required",
+    "provider-only derivative keeps registered schema and local uniqueness enforcement"
+  ],
+  "files": {
+    "stopped_record_bytes": "sha256:f6814ac506063e67777d81f5df11996c21e1c76fea06efbac7f93d2e4cf92d40",
+    "compatibility_assessment_bytes": "sha256:65e98a1f4be431502cf993bc2b58b81e90f087ecfebe70d26e871ec7cf7a40e4"
+  },
+  "stopped_state": {
+    "status": "stopped_after_terminal_run_01",
+    "fixed_denominator": 36,
+    "terminal_runs": 1,
+    "sole_run_id": "heldout-run-01",
+    "terminal_status": "non_result",
+    "bridged_run_status": "failed",
+    "attempt": 1,
+    "provider_calls": 1,
+    "provider_response_present": false,
+    "agent_messages": 0,
+    "completed_turns": 0,
+    "permits_consumed": 1,
+    "permits_held_unissued": 35,
+    "unissued_runs": 35,
+    "retries": 0,
+    "substitutions": 0,
+    "protected_key_accesses": 0,
+    "scoring_runs": 0,
+    "replacement_credit": false,
+    "continuation_forbidden": true,
+    "runtime_custody_root": "sha256:ab00eb1cb19474a3ed1306eaa20ceaa8ab784f62ffed268e1e97b4f6a9ea017f",
+    "provider_error_code": "invalid_json_schema"
+  },
+  "prospective_candidate": {
+    "status": "design_only_not_implemented",
+    "provider_only_deleted_pointer": "/properties/evidence_bindings/uniqueItems",
+    "registered_response_schema_must_remain_byte_exact": true,
+    "locked_ajv_final_validation_required": true,
+    "benchmark_distinct_complete_binding_validation_required": true,
+    "registered_and_provider_schema_roots_must_be_custody_bound": true,
+    "neutral_provider_calibration_requires_separate_authorization": true,
+    "fresh_replacement_registration_required": true,
+    "fresh_seed_ids_assignments_and_permits_required": true,
+    "independent_prelaunch_pass_required": true
+  },
+  "focused_checks": {
+    "remote_identity_and_two_file_scope": "pass",
+    "new_file_hashes": "pass",
+    "capture_validation": "pass",
+    "ingested_runtime_custody_reconstruction": "pass",
+    "stopped_counts_and_absence_checks": "pass",
+    "held_out_benchmark_verify": "pass",
+    "held_out_tests": "19 passed",
+    "git_diff_check": "pass"
+  },
+  "stopped_state_qualified": true,
+  "prospective_boundary_methodologically_sufficient": true,
+  "compatibility_implementation_qualified": false,
+  "calibration_authorized_by_review": false,
+  "replacement_execution_authorized_by_review": false,
+  "permit_release_performed_by_review": false,
+  "provider_call_performed_by_review": false,
+  "protected_key_accessed_by_review": false,
+  "authority_effect": "none",
+  "nonclaims": [
+    "This PASS does not qualify a provider-schema implementation or establish that the provider accepts the proposed derivative.",
+    "This PASS does not authorize continuation, calibration, replacement execution, scoring, merge, Protocol/Core change, authority action, Standing, or a Decision effect."
+  ]
+}
