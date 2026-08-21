@@ -18,9 +18,13 @@ OUTPUT = ROOT / "neutral-canary-03"
 IMAGE = "sha256:6274d83356076640d6e4bc810b97d37ac2d1b5ab02546dd7c2ebed16f915b547"
 BASE_IMAGE = "sha256:cadbfafeb6baf87eaaffa40b3640209c4b7fd38cebde65059d15bc39cd636b85"
 TRUST_BUNDLE_PATH = "/etc/ssl/certs/ca-certificates.crt"
-TRUST_BUNDLE_BYTES = "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5"
+TRUST_BUNDLE_BYTES = (
+    "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5"
+)
 CA_PACKAGE_VERSION = "20250419~deb12u1"
-CA_PACKAGE_BYTES = "sha256:62b08a77d985d4253894b1f69aebda5925034ca4e294add364167fad8cb64a44"
+CA_PACKAGE_BYTES = (
+    "sha256:62b08a77d985d4253894b1f69aebda5925034ca4e294add364167fad8cb64a44"
+)
 
 
 def encoded(value: Any) -> bytes:
@@ -40,7 +44,9 @@ def write(path: Path, value: Any) -> None:
     path.write_bytes(encoded(value))
 
 
-def tree_manifest(directory: Path, excluded: set[str] | None = None) -> list[dict[str, Any]]:
+def tree_manifest(
+    directory: Path, excluded: set[str] | None = None
+) -> list[dict[str, Any]]:
     excluded = excluded or set()
     files = []
     for path in sorted(item for item in directory.rglob("*") if item.is_file()):
@@ -48,7 +54,9 @@ def tree_manifest(directory: Path, excluded: set[str] | None = None) -> list[dic
         if relative in excluded or "/node_modules/" in f"/{relative}/":
             continue
         content = path.read_bytes()
-        files.append({"path": relative, "bytes": len(content), "sha256": digest(content)})
+        files.append(
+            {"path": relative, "bytes": len(content), "sha256": digest(content)}
+        )
     return files
 
 
@@ -76,7 +84,12 @@ def main() -> int:
         "sha256:87fd5a02862c171bc619a5ecd664113a29134928d1333d525361de0d343d07df\n"
     )
     schema = json.loads((OUTPUT / "packet/response-schema.json").read_text())
-    schema["properties"]["identifiers"]["items"]["enum"] = ["ember", "fjord", "garnet", "hollow"]
+    schema["properties"]["identifiers"]["items"]["enum"] = [
+        "ember",
+        "fjord",
+        "garnet",
+        "hollow",
+    ]
     schema["properties"]["sum"]["const"] = 39
     write(OUTPUT / "packet/response-schema.json", schema)
     (OUTPUT / "input").mkdir(parents=True)
@@ -111,7 +124,13 @@ def main() -> int:
             source = temporary_path / "trust" / mode
             source.mkdir(parents=True)
             subprocess.run(
-                [str(RUNTIME / "preflight-trust.sh"), mode, IMAGE, TRUST_BUNDLE_BYTES, str(source)],
+                [
+                    str(RUNTIME / "preflight-trust.sh"),
+                    mode,
+                    IMAGE,
+                    TRUST_BUNDLE_BYTES,
+                    str(source),
+                ],
                 check=True,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -120,11 +139,26 @@ def main() -> int:
 
     cli_evidence = OUTPUT / "cli-evidence"
     cli_evidence.mkdir()
-    docker_prefix = ["docker", "run", "--rm", "--network=none", "--tmpfs", "/codex-home:rw,nosuid,size=16m,uid=10001,gid=10001"]
-    (cli_evidence / "version.txt").write_bytes(command_bytes([*docker_prefix, "--entrypoint", "codex", IMAGE, "--version"]))
-    (cli_evidence / "features-list.txt").write_bytes(command_bytes([*docker_prefix, "--entrypoint", "codex", IMAGE, "features", "list"]))
+    docker_prefix = [
+        "docker",
+        "run",
+        "--rm",
+        "--network=none",
+        "--tmpfs",
+        "/codex-home:rw,nosuid,size=16m,uid=10001,gid=10001",
+    ]
+    (cli_evidence / "version.txt").write_bytes(
+        command_bytes([*docker_prefix, "--entrypoint", "codex", IMAGE, "--version"])
+    )
+    (cli_evidence / "features-list.txt").write_bytes(
+        command_bytes(
+            [*docker_prefix, "--entrypoint", "codex", IMAGE, "features", "list"]
+        )
+    )
     help_raw = command_bytes([*docker_prefix, "--entrypoint", "codex", IMAGE, "--help"])
-    (cli_evidence / "help.txt").write_bytes(b"\n".join(line.rstrip() for line in help_raw.splitlines()) + b"\n")
+    (cli_evidence / "help.txt").write_bytes(
+        b"\n".join(line.rstrip() for line in help_raw.splitlines()) + b"\n"
+    )
     (cli_evidence / "help-raw.sha256").write_text(digest(help_raw) + "\n")
 
     trust_provenance = {
@@ -268,7 +302,9 @@ def main() -> int:
     }
     configuration_root = canonical_root(configuration)
     write(OUTPUT / "input/participant-configuration.json", configuration)
-    (OUTPUT / "input/response-schema.json").write_bytes((OUTPUT / "packet/response-schema.json").read_bytes())
+    (OUTPUT / "input/response-schema.json").write_bytes(
+        (OUTPUT / "packet/response-schema.json").read_bytes()
+    )
     assignment = {
         "schema": "vela.inherited-correction-neutral-canary-assignment.v3",
         "registration_root": registration_root,
@@ -316,11 +352,21 @@ def main() -> int:
     write(OUTPUT / "permit-template/neutral-canary-03.permit.json", permit)
     write(
         OUTPUT / "permit-template/hold-state.default.json",
-        {"schema": "vela.inherited-correction-hold.v1", "status": "hold", "reason": "default; no launch without exact frozen release", "updated_at": "2026-08-21T17:28:13Z"},
+        {
+            "schema": "vela.inherited-correction-hold.v1",
+            "status": "hold",
+            "reason": "default; no launch without exact frozen release",
+            "updated_at": "2026-08-21T17:28:13Z",
+        },
     )
     write(
         OUTPUT / "permit-template/hold-state.json",
-        {"schema": "vela.inherited-correction-hold.v1", "status": "release", "reason": "one distinct neutral calibration canary-03 only; confirmatory study remains held", "updated_at": "2026-08-21T17:28:13Z"},
+        {
+            "schema": "vela.inherited-correction-hold.v1",
+            "status": "release",
+            "reason": "one distinct neutral calibration canary-03 only; confirmatory study remains held",
+            "updated_at": "2026-08-21T17:28:13Z",
+        },
     )
     freeze = {
         "schema": "vela.inherited-correction-neutral-canary-freeze.v3",
@@ -346,7 +392,18 @@ def main() -> int:
         "confirmatory_status": "stopped_0_of_16_replacement_not_registered",
     }
     write(OUTPUT / "prelaunch-freeze.json", freeze)
-    print(json.dumps({key: freeze[key] for key in freeze if key.endswith("_root") or key in {"image_digest", "trust_bundle_bytes"}}, indent=2, sort_keys=True))
+    print(
+        json.dumps(
+            {
+                key: freeze[key]
+                for key in freeze
+                if key.endswith("_root")
+                or key in {"image_digest", "trust_bundle_bytes"}
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
     return 0
 
 

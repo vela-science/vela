@@ -37,27 +37,73 @@ def load(path: Path) -> object:
 class RuntimeTests(unittest.TestCase):
     def test_all_frozen_roots_recompute(self) -> None:
         freeze = load(CANARY / "prelaunch-freeze.json")
-        self.assertEqual(freeze["registration_root"], canonical_root(load(CANARY / "registration.json")))
-        self.assertEqual(freeze["participant_configuration_root"], canonical_root(load(CANARY / "input/participant-configuration.json")))
-        self.assertEqual(freeze["assignment_root"], canonical_root(load(CANARY / "input/assignment.json")))
-        self.assertEqual(freeze["authorization_root"], canonical_root(load(CANARY / "authorization.json")))
-        self.assertEqual(freeze["permit_root"], canonical_root(load(CANARY / "permit-template/neutral-canary-01.permit.json")))
-        self.assertEqual(freeze["prompt_root"], digest((CANARY / "input/prompt.txt").read_bytes()))
+        self.assertEqual(
+            freeze["registration_root"],
+            canonical_root(load(CANARY / "registration.json")),
+        )
+        self.assertEqual(
+            freeze["participant_configuration_root"],
+            canonical_root(load(CANARY / "input/participant-configuration.json")),
+        )
+        self.assertEqual(
+            freeze["assignment_root"],
+            canonical_root(load(CANARY / "input/assignment.json")),
+        )
+        self.assertEqual(
+            freeze["authorization_root"],
+            canonical_root(load(CANARY / "authorization.json")),
+        )
+        self.assertEqual(
+            freeze["permit_root"],
+            canonical_root(
+                load(CANARY / "permit-template/neutral-canary-01.permit.json")
+            ),
+        )
+        self.assertEqual(
+            freeze["prompt_root"], digest((CANARY / "input/prompt.txt").read_bytes())
+        )
         self.assertEqual(freeze["image_digest"], IMAGE_01)
 
     def test_canary_02_frozen_roots_recompute(self) -> None:
         freeze = load(CANARY_02 / "prelaunch-freeze.json")
-        self.assertEqual(freeze["amendment_root"], canonical_root(load(CANARY_02 / "amendment.json")))
-        self.assertEqual(freeze["registration_root"], canonical_root(load(CANARY_02 / "registration.json")))
-        self.assertEqual(freeze["participant_configuration_root"], canonical_root(load(CANARY_02 / "input/participant-configuration.json")))
-        self.assertEqual(freeze["assignment_root"], canonical_root(load(CANARY_02 / "input/assignment.json")))
-        self.assertEqual(freeze["authorization_root"], canonical_root(load(CANARY_02 / "authorization.json")))
-        self.assertEqual(freeze["permit_root"], canonical_root(load(CANARY_02 / "permit-template/neutral-canary-02.permit.json")))
-        self.assertEqual(freeze["prompt_root"], digest((CANARY_02 / "input/prompt.txt").read_bytes()))
+        self.assertEqual(
+            freeze["amendment_root"], canonical_root(load(CANARY_02 / "amendment.json"))
+        )
+        self.assertEqual(
+            freeze["registration_root"],
+            canonical_root(load(CANARY_02 / "registration.json")),
+        )
+        self.assertEqual(
+            freeze["participant_configuration_root"],
+            canonical_root(load(CANARY_02 / "input/participant-configuration.json")),
+        )
+        self.assertEqual(
+            freeze["assignment_root"],
+            canonical_root(load(CANARY_02 / "input/assignment.json")),
+        )
+        self.assertEqual(
+            freeze["authorization_root"],
+            canonical_root(load(CANARY_02 / "authorization.json")),
+        )
+        self.assertEqual(
+            freeze["permit_root"],
+            canonical_root(
+                load(CANARY_02 / "permit-template/neutral-canary-02.permit.json")
+            ),
+        )
+        self.assertEqual(
+            freeze["prompt_root"], digest((CANARY_02 / "input/prompt.txt").read_bytes())
+        )
         self.assertEqual(freeze["image_digest"], IMAGE_02)
         amendment = load(CANARY_02 / "amendment.json")
-        self.assertEqual(amendment["parent_canary_commit"], "2c7aed112f9701b58b8373c156c244b68e616886")
-        self.assertEqual(amendment["parent_canary_disposition"], "terminal calibration evidence; unchanged; no retry")
+        self.assertEqual(
+            amendment["parent_canary_commit"],
+            "2c7aed112f9701b58b8373c156c244b68e616886",
+        )
+        self.assertEqual(
+            amendment["parent_canary_disposition"],
+            "terminal calibration evidence; unchanged; no retry",
+        )
 
     def test_canary_02_terminal_capture_is_closed(self) -> None:
         result = load(CANARY_02 / "canary-result.json")
@@ -73,7 +119,9 @@ class RuntimeTests(unittest.TestCase):
         self.assertFalse(result["credential_retained"])
         self.assertEqual(result["container_teardown"], "clean")
         for item in result["capture_files"]:
-            self.assertEqual(item["bytes"], digest((CANARY_02 / item["path"]).read_bytes()))
+            self.assertEqual(
+                item["bytes"], digest((CANARY_02 / item["path"]).read_bytes())
+            )
         receipt = load(CANARY_02 / "capture/evidence/terminal-receipt.json")
         self.assertEqual(receipt["status"], "non_result")
         self.assertEqual(receipt["validation_error"], "timeout")
@@ -84,27 +132,57 @@ class RuntimeTests(unittest.TestCase):
 
     def test_canary_03_frozen_roots_and_manifest_recompute(self) -> None:
         freeze = load(CANARY_03 / "prelaunch-freeze.json")
-        self.assertEqual(freeze["amendment_root"], canonical_root(load(CANARY_03 / "amendment.json")))
-        self.assertEqual(freeze["registration_root"], canonical_root(load(CANARY_03 / "registration.json")))
-        self.assertEqual(freeze["participant_configuration_root"], canonical_root(load(CANARY_03 / "input/participant-configuration.json")))
-        self.assertEqual(freeze["assignment_root"], canonical_root(load(CANARY_03 / "input/assignment.json")))
-        self.assertEqual(freeze["authorization_root"], canonical_root(load(CANARY_03 / "authorization.json")))
-        self.assertEqual(freeze["permit_root"], canonical_root(load(CANARY_03 / "permit-template/neutral-canary-03.permit.json")))
-        self.assertEqual(freeze["prompt_root"], digest((CANARY_03 / "input/prompt.txt").read_bytes()))
+        self.assertEqual(
+            freeze["amendment_root"], canonical_root(load(CANARY_03 / "amendment.json"))
+        )
+        self.assertEqual(
+            freeze["registration_root"],
+            canonical_root(load(CANARY_03 / "registration.json")),
+        )
+        self.assertEqual(
+            freeze["participant_configuration_root"],
+            canonical_root(load(CANARY_03 / "input/participant-configuration.json")),
+        )
+        self.assertEqual(
+            freeze["assignment_root"],
+            canonical_root(load(CANARY_03 / "input/assignment.json")),
+        )
+        self.assertEqual(
+            freeze["authorization_root"],
+            canonical_root(load(CANARY_03 / "authorization.json")),
+        )
+        self.assertEqual(
+            freeze["permit_root"],
+            canonical_root(
+                load(CANARY_03 / "permit-template/neutral-canary-03.permit.json")
+            ),
+        )
+        self.assertEqual(
+            freeze["prompt_root"], digest((CANARY_03 / "input/prompt.txt").read_bytes())
+        )
         self.assertEqual(freeze["image_digest"], IMAGE_03)
         self.assertEqual(freeze["trust_bundle_bytes"], TRUST_BUNDLE)
         self.assertEqual(
             freeze["trust_provenance_root"],
             canonical_root(load(CANARY_03 / "trust-material/provenance.json")),
         )
-        self.assertEqual(freeze["diagnosis_root"], canonical_root(load(CANARY_03 / "trust-material/diagnosis.json")))
+        self.assertEqual(
+            freeze["diagnosis_root"],
+            canonical_root(load(CANARY_03 / "trust-material/diagnosis.json")),
+        )
         for item in freeze["files"]:
             content = (CANARY_03 / item["path"]).read_bytes()
             self.assertEqual(item["bytes"], len(content))
             self.assertEqual(item["sha256"], digest(content))
         amendment = load(CANARY_03 / "amendment.json")
-        self.assertEqual(amendment["parent_canary_commit"], "70be21e2404af68daf5673f8094c47563224a11e")
-        self.assertEqual(amendment["parent_canary_disposition"], "terminal calibration evidence; unchanged; no retry")
+        self.assertEqual(
+            amendment["parent_canary_commit"],
+            "70be21e2404af68daf5673f8094c47563224a11e",
+        )
+        self.assertEqual(
+            amendment["parent_canary_disposition"],
+            "terminal calibration evidence; unchanged; no retry",
+        )
 
     def test_canary_03_terminal_capture_passes_exact_contract(self) -> None:
         result = load(CANARY_03 / "canary-result.json")
@@ -123,7 +201,9 @@ class RuntimeTests(unittest.TestCase):
         self.assertFalse(result["credential_retained"])
         self.assertEqual(result["container_teardown"], "clean")
         for item in result["capture_files"]:
-            self.assertEqual(item["bytes"], digest((CANARY_03 / item["path"]).read_bytes()))
+            self.assertEqual(
+                item["bytes"], digest((CANARY_03 / item["path"]).read_bytes())
+            )
         receipt = load(CANARY_03 / "capture/evidence/terminal-receipt.json")
         self.assertEqual(receipt["status"], "completed")
         self.assertIsNone(receipt["validation_error"])
@@ -141,7 +221,12 @@ class RuntimeTests(unittest.TestCase):
             self.assertTrue(receipt["strict_parse_passed"])
             self.assertFalse(receipt["provider_contact_possible"])
             self.assertEqual(receipt["process_exit_code"], expected_exit)
-            self.assertEqual((CANARY_02 / f"offline-preflight/{mode}/provider-events.jsonl").read_bytes(), b"")
+            self.assertEqual(
+                (
+                    CANARY_02 / f"offline-preflight/{mode}/provider-events.jsonl"
+                ).read_bytes(),
+                b"",
+            )
         with tempfile.TemporaryDirectory() as temporary:
             temporary_path = Path(temporary)
             for mode in ("corrected", "legacy"):
@@ -163,7 +248,9 @@ class RuntimeTests(unittest.TestCase):
             self.assertFalse(receipt["provider_contact_possible"])
             self.assertEqual(receipt["container_network"], "none")
             self.assertEqual(
-                (CANARY_03 / f"offline-preflight/trust/{mode}/provider-events.jsonl").read_bytes(),
+                (
+                    CANARY_03 / f"offline-preflight/trust/{mode}/provider-events.jsonl"
+                ).read_bytes(),
                 b"",
             )
             if mode == "positive":
@@ -181,7 +268,13 @@ class RuntimeTests(unittest.TestCase):
                 output = temporary_path / mode
                 output.mkdir()
                 subprocess.run(
-                    [str(RUNTIME / "preflight-trust.sh"), mode, IMAGE_03, TRUST_BUNDLE, str(output)],
+                    [
+                        str(RUNTIME / "preflight-trust.sh"),
+                        mode,
+                        IMAGE_03,
+                        TRUST_BUNDLE,
+                        str(output),
+                    ],
                     check=True,
                     capture_output=True,
                     text=True,
@@ -192,9 +285,20 @@ class RuntimeTests(unittest.TestCase):
     def test_neutral_prompt_excludes_study_facts(self) -> None:
         for canary in (CANARY, CANARY_02, CANARY_03):
             prompt = (canary / "input/prompt.txt").read_text().lower()
-            for forbidden in ("git-documents", "bounded-calibration", "calibration-a", "yield-b", "stability-c", "installation-d", "aggregate-e"):
+            for forbidden in (
+                "git-documents",
+                "bounded-calibration",
+                "calibration-a",
+                "yield-b",
+                "stability-c",
+                "installation-d",
+                "aggregate-e",
+            ):
                 self.assertNotIn(forbidden, prompt)
-        self.assertNotEqual((CANARY_02 / "input/prompt.txt").read_bytes(), (CANARY_03 / "input/prompt.txt").read_bytes())
+        self.assertNotEqual(
+            (CANARY_02 / "input/prompt.txt").read_bytes(),
+            (CANARY_03 / "input/prompt.txt").read_bytes(),
+        )
 
     def test_pilot_manifest_and_stop_are_closed(self) -> None:
         manifest = load(ROOT / "pilot-capture-manifest.json")
@@ -213,13 +317,16 @@ class RuntimeTests(unittest.TestCase):
     def test_source_has_one_shot_consume_before_spawn_and_no_scheduler(self) -> None:
         runner = (RUNTIME / "run-once.mjs").read_text()
         launcher = (RUNTIME / "launch-one.sh").read_text()
-        self.assertLess(runner.index("renameSync(permitPath, consumedPath)"), runner.index('spawn("codex"'))
+        self.assertLess(
+            runner.index("renameSync(permitPath, consumedPath)"),
+            runner.index('spawn("codex"'),
+        )
         self.assertNotIn("run-01 through run-16", runner + launcher)
         self.assertNotIn("for assignment", runner + launcher)
         self.assertIn('args.length !== 2 || args[0] !== "--run-id"', runner)
         self.assertIn('if [ "$#" -ne 6 ] || [ "$1" != "--run-id" ]', launcher)
-        self.assertIn('SSL_CERT_FILE: TRUST_BUNDLE_PATH', runner)
-        self.assertIn('config.trust_bundle_bytes !== sha(trustBundleBytes)', runner)
+        self.assertIn("SSL_CERT_FILE: TRUST_BUNDLE_PATH", runner)
+        self.assertIn("config.trust_bundle_bytes !== sha(trustBundleBytes)", runner)
 
     def test_default_hold_and_binding_failure_do_not_consume(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -230,9 +337,19 @@ class RuntimeTests(unittest.TestCase):
             shutil.copytree(CANARY_02 / "input", input_dir)
             shutil.copytree(CANARY_02 / "permit-template", permit_dir)
             evidence_dir.mkdir()
-            shutil.copy(permit_dir / "hold-state.default.json", permit_dir / "hold-state.json")
+            shutil.copy(
+                permit_dir / "hold-state.default.json", permit_dir / "hold-state.json"
+            )
             result = subprocess.run(
-                [str(RUNTIME / "launch-one.sh"), "--run-id", "neutral-canary-02", IMAGE_02, str(input_dir), str(permit_dir), str(evidence_dir)],
+                [
+                    str(RUNTIME / "launch-one.sh"),
+                    "--run-id",
+                    "neutral-canary-02",
+                    IMAGE_02,
+                    str(input_dir),
+                    str(permit_dir),
+                    str(evidence_dir),
+                ],
                 text=True,
                 capture_output=True,
                 check=False,
@@ -240,12 +357,27 @@ class RuntimeTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("launch_on_hold", result.stderr)
             self.assertTrue((permit_dir / "neutral-canary-02.permit.json").exists())
-            self.assertFalse((permit_dir / "neutral-canary-02.permit.consumed.json").exists())
+            self.assertFalse(
+                (permit_dir / "neutral-canary-02.permit.consumed.json").exists()
+            )
 
-            shutil.copy(CANARY_02 / "permit-template/hold-state.json", permit_dir / "hold-state.json")
-            (input_dir / "prompt.txt").write_bytes((input_dir / "prompt.txt").read_bytes() + b"drift")
+            shutil.copy(
+                CANARY_02 / "permit-template/hold-state.json",
+                permit_dir / "hold-state.json",
+            )
+            (input_dir / "prompt.txt").write_bytes(
+                (input_dir / "prompt.txt").read_bytes() + b"drift"
+            )
             result = subprocess.run(
-                [str(RUNTIME / "launch-one.sh"), "--run-id", "neutral-canary-02", IMAGE_02, str(input_dir), str(permit_dir), str(evidence_dir)],
+                [
+                    str(RUNTIME / "launch-one.sh"),
+                    "--run-id",
+                    "neutral-canary-02",
+                    IMAGE_02,
+                    str(input_dir),
+                    str(permit_dir),
+                    str(evidence_dir),
+                ],
                 text=True,
                 capture_output=True,
                 check=False,
@@ -253,7 +385,9 @@ class RuntimeTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("permit_prompt_root", result.stderr)
             self.assertTrue((permit_dir / "neutral-canary-02.permit.json").exists())
-            self.assertFalse((permit_dir / "neutral-canary-02.permit.consumed.json").exists())
+            self.assertFalse(
+                (permit_dir / "neutral-canary-02.permit.consumed.json").exists()
+            )
 
 
 if __name__ == "__main__":
