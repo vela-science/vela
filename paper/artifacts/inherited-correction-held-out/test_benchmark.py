@@ -520,8 +520,50 @@ class HeldOutBenchmarkTests(unittest.TestCase):
             preregistration["scoring"]["aggregate_gates"]["total"],
         )
         commitment = preregistration["bindings"]["adjudication_commitment"]
-        self.assertIsNone(commitment["adjudication_root"])
-        self.assertEqual(commitment["status"], "pending_independent_evaluator_freeze")
+        self.assertEqual(
+            commitment["adjudication_root"],
+            "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d",
+        )
+        self.assertEqual(commitment["status"], "frozen")
+        self.assertFalse(commitment["plaintext_disclosed"])
+        self.assertFalse(commitment["answer_bytes_present_in_producer_artifact"])
+        amendment = preregistration["bindings"]["launch_authorization_amendment"]
+        self.assertEqual(amendment["status"], "authorized_held_pending_binding_review")
+        self.assertEqual(amendment["execution_state"]["sessions_completed"], 0)
+        self.assertEqual(amendment["execution_state"]["permits_consumed"], 0)
+
+    def test_public_adjudication_commitment_is_exact_and_answer_free(self) -> None:
+        commitment = benchmark.load_json(ROOT / "adjudication-commitment.json")
+        self.assertEqual(
+            commitment,
+            {
+                "schema": "vela.inherited-correction-held-out-adjudication-commitment.v1",
+                "status": "frozen",
+                "adjudication_root": "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d",
+                "adjudication_bytes_sha256": "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d",
+                "adjudication_bytes_length": 5883,
+                "private_validation_receipt_root": "sha256:581b944cdfdb82a2f9730ffd3d60fba13c3e4916bbf344ab1d495565dafccf11",
+                "public_commitment_root": "sha256:cf22cc93f1b882e85327943e074ef6d0cd60f90c3989f0801c46d60f5fad721a",
+                "frozen_at": "2026-08-21T21:51:33Z",
+                "family_count": 3,
+                "consequence_count": 12,
+                "plaintext_disclosed": False,
+                "answer_bytes_present_in_producer_artifact": False,
+                "required_before_permit_release": True,
+            },
+        )
+        amendment = benchmark.load_json(ROOT / "launch-authorization-amendment.json")
+        for key, value in amendment["evaluator_commitment"].items():
+            self.assertEqual(commitment[key], value)
+        self.assertFalse((ROOT / "adjudication.json").exists())
+        self.assertEqual(
+            amendment["authorization"]["bound_prior_producer_commit"],
+            "8cc1a89d7b1ae47cb6cabb36bfd79b46c3f4db81",
+        )
+        self.assertEqual(
+            amendment["authorization"]["bound_prior_review_commit"],
+            "f9b5d67a55c1ad41fcb67cc1d7ebe86d03d37782",
+        )
 
 
 if __name__ == "__main__":

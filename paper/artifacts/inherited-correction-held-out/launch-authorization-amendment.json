@@ -1,0 +1,42 @@
+{
+  "authorization": {
+    "basis": "explicit user launch authorization relayed by the supervising task",
+    "bound_prior_artifact_root": "sha256:17f113d16aa7b474d91b9f09e4314dce133367b7274187ce7bef87a1bbf7c735",
+    "bound_prior_assignment_root": "sha256:77c81b88813716466f5c935eb79b986874ed132a5986be34152bd8ac70da0205",
+    "bound_prior_producer_commit": "8cc1a89d7b1ae47cb6cabb36bfd79b46c3f4db81",
+    "bound_prior_registration_root": "sha256:185e781cd0b1a06d89488266e9e7147f42834d960063818f0cdf56209c6d3306",
+    "bound_prior_review_commit": "f9b5d67a55c1ad41fcb67cc1d7ebe86d03d37782",
+    "scope": "exact frozen 36-session inherited-correction held-out study only",
+    "source_task_id": "01a02473-9465-76e2-ac9b-ae41379a3aa6"
+  },
+  "evaluator_commitment": {
+    "adjudication_bytes_length": 5883,
+    "adjudication_bytes_sha256": "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d",
+    "adjudication_root": "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d",
+    "answer_bytes_present_in_producer_artifact": false,
+    "consequence_count": 12,
+    "family_count": 3,
+    "frozen_at": "2026-08-21T21:51:33Z",
+    "plaintext_disclosed": false,
+    "private_validation_receipt_root": "sha256:581b944cdfdb82a2f9730ffd3d60fba13c3e4916bbf344ab1d495565dafccf11",
+    "public_commitment_root": "sha256:cf22cc93f1b882e85327943e074ef6d0cd60f90c3989f0801c46d60f5fad721a"
+  },
+  "execution_state": {
+    "fixed_denominator": 36,
+    "permits_consumed": 0,
+    "permits_held": 36,
+    "protected_key_accesses": 0,
+    "provider_calls": 0,
+    "sessions_completed": 0
+  },
+  "invariants": {
+    "assignment_cells_unchanged": true,
+    "gates_unchanged": true,
+    "packets_unchanged": true,
+    "prompts_unchanged": true,
+    "runtime_unchanged": true,
+    "zero_retries_substitutions": true
+  },
+  "schema": "vela.inherited-correction-held-out-launch-authorization-amendment.v1",
+  "status": "authorized_held_pending_binding_review"
+}

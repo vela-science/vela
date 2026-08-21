@@ -1,7 +1,7 @@
 {
-  "adjudication_status": "pending_independent_evaluator_freeze",
-  "assignment_root": "sha256:77c81b88813716466f5c935eb79b986874ed132a5986be34152bd8ac70da0205",
-  "configuration_mapping_root": "sha256:709713f1d27852cbf3b5169091c476b55b490529eeed84f8aac2decf01fecb6d",
+  "adjudication_status": "frozen",
+  "assignment_root": "sha256:ffd6f8f4cda599bf2314b65d08bd5b7ddcdd387ef58fdb28aa536553946d56bb",
+  "configuration_mapping_root": "sha256:9ff4c50b23190631886b1ef4dee783c940f40955dcf2a68f0f58542b70015b6a",
   "equivalence_root": "sha256:12904756aa4683934eb925ae856d6afd50897dc1d855f3b55ce4e51ce6391bc1",
   "image_digest": "sha256:1dee2374077c83e3dbdb2e09d32ef4fa3a414d200b800839857353e13d3c4e09",
   "packet_roots": {
@@ -22,8 +22,8 @@
     }
   },
   "participant_configuration_root": "sha256:adb7aef1966a25631077dd3466a04a785e369698fdbae0e8f09ace5ca995380e",
-  "permit_set_root": "sha256:e7f9ce0725c82250927355541ca1651fc44b4d925255e57481d0e2b4f85bb438",
-  "prelaunch_root": "sha256:f1dc641ad0dac285dd94f84d37746a34fac6f30d05e8ee3d773599b01fb32ea8",
+  "permit_set_root": "sha256:52ffc2b44892d367fd3d33067197cb5f51f3e33a07cd59b7991a7932dcc7d3ae",
+  "prelaunch_root": "sha256:f52e4b1241bcf2a59e62224baedcc55724636d77bad0baaff40555e5d8c45a03",
   "prompt_roots": {
     "method-version-correction": {
       "git-documents": "sha256:0cdb1987b360859a756ae60dfeec363b5e13cd1f5bf217e903d07c4f692e8033",
@@ -42,22 +42,22 @@
     }
   },
   "provider_calls": 0,
-  "registration_root": "sha256:185e781cd0b1a06d89488266e9e7147f42834d960063818f0cdf56209c6d3306",
+  "registration_root": "sha256:b5dadb5ff20a664c1a0ead6e7c0be73de0c2f7389820654032d12f55e0471d16",
   "runtime_configuration_roots": {
     "method-version-correction": {
-      "git-documents": "sha256:a39696810948ad440711f11ccb50f086baa9f0d29a4697278ca9e56a1b90c5c3",
-      "state-wrapper": "sha256:6cbb47a4c0236cfbc983ed0a72e47bba955ce2c97ae2b2066ecdb0955e35ccd9",
-      "vela": "sha256:bbf23544e15df0a93f0f4e6506cd1b83138d1e3dfb34d44749423a39347f7a20"
+      "git-documents": "sha256:f6beab71c4949eefcc18479b76e0d935863bb76ed36962cc5075a33465afb399",
+      "state-wrapper": "sha256:cd411f63c4f4260791a420e095f550a3a8e58e8181429acd08238b39ff0f1b44",
+      "vela": "sha256:6367df41058ad22309298c29d36e23e7237ae3e0a6f23f0990edfa88cc96b569"
     },
     "provenance-revocation": {
-      "git-documents": "sha256:8b1e035d34d3d6ebe8a1d2ead07e9e90634ed5661ebe9179441332c1cb237045",
-      "state-wrapper": "sha256:e826a9a8bc00b3f86301f8fde19d823920a8c48689da16c09fe70c93b16a534b",
-      "vela": "sha256:32d2651cfa444d85012fa7e33384f3a4c099080ad6333074b3393072e95e5d82"
+      "git-documents": "sha256:ee5e7d94babcc8ff15846beddf9bd889ae57faae19dedc1f812d4a47e63ae793",
+      "state-wrapper": "sha256:5e90aa3f00aaf07ff402d5a02b8513f97abcac44f547a671c4bffa73408c74d2",
+      "vela": "sha256:a1be5b74bef52348a32db81de16976085e2de0f933b3c55f7560099451ba787f"
     },
     "taxonomy-remap": {
-      "git-documents": "sha256:a60a8248bf739d37e7ec31e3d6abaebf8e556ed246dafbbd2ac2fd1420a7712b",
-      "state-wrapper": "sha256:4a93e68cd108b51ac8dedee9e767a28a64db14cec9c26cb38190abc8273e4bce",
-      "vela": "sha256:69b48fe5bcd165167a537292caed8b26e1a584dc7aed4afd9198065a4df288a3"
+      "git-documents": "sha256:43525455ba6f2e407bbf945147486a51501706b5dce7c1b34a77527ef2391fec",
+      "state-wrapper": "sha256:30c7f3cdc6d6e32a2a4992637b396e0a35cc927cb5b2ee111a6ea0198a9e0f3d",
+      "vela": "sha256:8f307cda04c73258ad9e7d2c07536b22ec59f11f460d1ea252a93bcf2413279f"
     }
   },
   "runtime_root": "sha256:33f0d3b40e674a4c0934f27080e28325be9a30edfbd11682801066c22911ee6a",

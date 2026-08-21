@@ -31,12 +31,13 @@ cannot enter or alter exact code scoring.
 
 ## Held state and protected answers
 
-All 36 permits are held and unconsumed. The producer artifact intentionally
-contains no held-out adjudication bytes or answer mapping. An independent
-evaluator must freeze the protected adjudication, provide only its canonical
-root for a transparent prospective amendment, and independently review the
-amended prelaunch bytes before any permit may be released. The scorer refuses
-to open an adjudication file while that commitment remains pending.
+All 36 permits are held and unconsumed. The producer artifact contains no
+held-out adjudication bytes or answer mapping. An independent evaluator froze
+the protected adjudication outside producer custody and disclosed only its
+canonical root and public custody metadata. The transparent prospective launch
+amendment binds that commitment and the exact user authorization. Independent
+review of the amended held bytes is still required before any permit may be
+released.
 
 The pinned model, one-turn container runtime, image, trust bundle, 600-second
 timeout, zero-tool boundary, attempt 1, and zero-retry policy are unchanged

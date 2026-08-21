@@ -209,11 +209,27 @@ def verify_prelaunch() -> dict[str, Any]:
     benchmark = state["benchmark"]
     benchmark.verify()
     preregistration = state["preregistration"]
-    if preregistration["status"] != "held_pending_independent_adjudication_and_review":
+    if preregistration["status"] != "held_pending_adjudication_binding_review":
         raise CustodyError("prelaunch_status_not_held")
     commitment = preregistration["bindings"]["adjudication_commitment"]
-    if commitment["status"] != "pending_independent_evaluator_freeze":
+    if commitment["status"] != "frozen":
         raise CustodyError("adjudication_state_invalid")
+    amendment = preregistration["bindings"]["launch_authorization_amendment"]
+    if (
+        amendment.get("status") != "authorized_held_pending_binding_review"
+        or amendment.get("evaluator_commitment", {}).get("adjudication_root")
+        != commitment.get("adjudication_root")
+        or amendment.get("execution_state")
+        != {
+            "sessions_completed": 0,
+            "fixed_denominator": 36,
+            "permits_held": 36,
+            "permits_consumed": 0,
+            "provider_calls": 0,
+            "protected_key_accesses": 0,
+        }
+    ):
+        raise CustodyError("launch_amendment_invalid")
     hold = load_json(ROOT / "permit-template/hold-state.json")
     exact_keys(hold, {"schema", "status", "reason", "updated_at"}, "hold")
     if (

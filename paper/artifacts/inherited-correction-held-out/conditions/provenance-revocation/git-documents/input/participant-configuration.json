@@ -12,7 +12,7 @@
   "provider": "openai-chatgpt-oauth-codex",
   "provider_usage_disposition": "cost telemetry only; only genuine provider context/output-limit failure invalidates",
   "reasoning_effort": "high",
-  "registration_root": "sha256:185e781cd0b1a06d89488266e9e7147f42834d960063818f0cdf56209c6d3306",
+  "registration_root": "sha256:b5dadb5ff20a664c1a0ead6e7c0be73de0c2f7389820654032d12f55e0471d16",
   "response_schema_bytes": "sha256:ac96be686e749792956dfa1dfe9560f85c53d55c27fe2e8fd32bcc2a96a634ba",
   "retries": 0,
   "schema": "vela.inherited-correction-oci-participant-configuration.v3",
