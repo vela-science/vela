@@ -1,0 +1,73 @@
+{
+  "schema": "vela.inherited-correction-launch-freeze.v1",
+  "status": "authorized_prelaunch_0_of_16",
+  "frozen_at": "2026-08-21T16:13:52.644954Z",
+  "authoritative_implementation": {
+    "producer_commit": "8336b584a8303026e747ce4a7c7257e3efb1db2c",
+    "producer_tree": "996bbb8417bf807cb0230b0294e1d4d845e6e3b9",
+    "independent_review_commit": "73323bf366df13d6d26ed6b0557d9a36c77b0a7e",
+    "independent_review_report_bytes": "sha256:45adee9527ead9ade8a08138bb4d43742130178ec6537596601edad84adc23b6",
+    "independent_review_verdict_bytes": "sha256:df770ba95c13562235b37271f7afb2ba99071a136b3cd6cbcb2a47da629f4fb1",
+    "registration_root": "sha256:7391c3c6adb74633886fd9fb2d35a257e7501bd37153acfb3e19ac850d0e9157",
+    "amendment_root": "sha256:e8fc90aad7b0d7d0f1aad120e87d7f972c0f537f1ffdc6ca9ce58fe67c4fa1e8",
+    "implementation_bytes": "sha256:8ae77954fe43e98d0e884e0cac79c9d16639fe0699453bb9ba0e8285c7980c1c",
+    "tests_bytes": "sha256:976d55e62713f21feb048576c1ca24b995ea13ad15ef097362cdd0933396069e"
+  },
+  "packets": {
+    "git-documents": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+    "vela": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97",
+    "input_equivalence_root": "sha256:649cec9ed991172ac4303a78e76e893750a250c2392e93e0a45e8cc44440e014"
+  },
+  "authorization": {
+    "root": "sha256:8fd487199665a4bc19e83b9d86037002e817b7439f5e99adfd0ea91fa64f34da",
+    "bytes": "sha256:f5d459d85a04e5a56e15ae6c1876be84ae7131dbc25749030309e8af5437ce30",
+    "max_sessions": 16,
+    "attempt": 1,
+    "timeout_seconds": 600,
+    "retries": 0,
+    "substitutions": 0
+  },
+  "participant_configuration": {
+    "root": "sha256:ba006bae3cb7eee61a37298512690a1e9aab9d3813d0d89f959e9f632981c9f2",
+    "bytes": "sha256:c53af380ed0ee6aab7e3cd0dbab92ce423e52521dc5fb91f4ff440d1a236e6c0",
+    "provider": "openai",
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "high",
+    "service_tier": "default",
+    "availability": "confirmed through ChatGPT OAuth model catalog before launch",
+    "combined_context_token_ceiling": 32768,
+    "input_token_ceiling": 24576,
+    "output_token_ceiling": 8192
+  },
+  "assignment": {
+    "seed_commitment": "sha256:0acc500fdbe9e89e45887d508631fa41d934b8220821efb446b25e63c792d7f0",
+    "seed_root": "sha256:ba36764a840739a0b3ae3a348a67f3e3bd0cb09efcc9dbe4e77c59f170d46792",
+    "schedule_root": "sha256:a739722f29491131b033555fae41f7352596f93a31320d9a559e51d7fa486ea8",
+    "git_documents_sessions": 8,
+    "vela_sessions": 8,
+    "execution_order": "run-01 through run-16 sequentially"
+  },
+  "capture_adapter": {
+    "runner_bytes": "sha256:71347ab41f06374368542603811db2de4bda9bba1cce6af77505203142dc3d5f",
+    "response_schema_bytes": "sha256:6e5e1e35285f4a0bc7ac929bd50f0e1cc3b8cd0b7541e1cabcc90565cc1e30e7",
+    "protected_adjudication_access_before_capture": false,
+    "raw_provider_events_retained": true,
+    "raw_provider_stderr_retained": true,
+    "provider_usage_retained": true,
+    "provider_cost_if_unavailable": "null with reason"
+  },
+  "billing": {
+    "authentication_path": "ChatGPT OAuth subscription",
+    "expected_platform_api_cost_usd": 0,
+    "hard_total_contingency_ceiling_usd": 25,
+    "automatic_purchase_or_top_up": false,
+    "user_contingency_authority_usd": 1000,
+    "contingency_authority_used_for_configuration": false
+  },
+  "execution_disclosure": {
+    "participant_sessions_started": 0,
+    "participant_outputs_observed": 0,
+    "adjudication_accessed_for_execution": false,
+    "standing_or_authority_effect": "none"
+  }
+}
