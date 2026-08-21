@@ -1,0 +1,97 @@
+{
+  "schema": "vela.independent-inherited-correction-held-out-runtime-reproducibility-verdict.v1",
+  "review_id": "inherited-correction-held-out-f08-reproducibility-2026-08-21",
+  "reviewed_at": "2026-08-21T23:40:00Z",
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/inherited-correction-study",
+    "producer_commit": "bccae8ff047d20797347361725b8510c08e56960",
+    "producer_tree": "84124655704f474f199c16794ae005d85b84cbe8",
+    "parent_commit": "3f4d61c248a43a94d09e0d848693101dd1841aa0",
+    "prior_blocked_review_commit": "b81ffbfff0ed0d08f39c0fa9c2ee300eaf693b68"
+  },
+  "verdict": "PASS",
+  "failed_gates": [],
+  "passed_gates": [
+    "G08_deterministic_runtime_custody"
+  ],
+  "finding_closure": {
+    "id": "F08",
+    "status": "closed",
+    "summary": "Two independent empty-cache docker-container builders reproduced the complete OCI archive byte-for-byte and matched the frozen image, config, and archive identities."
+  },
+  "runtime_reproduction": {
+    "platform": "linux/arm64",
+    "builder_driver": "docker-container",
+    "buildkit_version": "v0.32.2",
+    "independent_empty_cache_builders": 2,
+    "no_cache": true,
+    "provenance": false,
+    "pull": false,
+    "source_date_epoch": 1757289600,
+    "oci_rewrite_timestamp": true,
+    "byte_identical_complete_oci_archives": true,
+    "image_manifest_digest": "sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb",
+    "image_config_digest": "sha256:c0868b563acbd5dd6c80d9512cc1bf019598d3579026fc7fed465cef2d60e56c",
+    "oci_tar_bytes": "sha256:b48f80b60ad1407824e8cd9e1fd3c60abcfd486ed672f8d31ddc9918a28b0b74",
+    "all_manifest_config_and_layer_blobs_verified": true,
+    "loaded_image_offline_provider_schema_preflight_passed": true,
+    "container_network": "none",
+    "provider_events_bytes": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "bindings": {
+    "registration_root": "sha256:4d078776f41ffd1df18768791de58014117319f19727c3b9671b606e527c1276",
+    "assignment_root": "sha256:1e9da0f496480ece506e283a11ecdef991a17af7ecacc2d16d4cd164b8cdb27b",
+    "runtime_root": "sha256:4ec67f446c98848eed59f3a3597a395962c14f3fe2fadcda70a367e9738772ab",
+    "runtime_source_root": "sha256:57ef9fda64b3f9cc0fd253d3ea807075e1adb466c42621cd4109bed6e774eafb",
+    "registered_response_schema_bytes": "sha256:ac96be686e749792956dfa1dfe9560f85c53d55c27fe2e8fd32bcc2a96a634ba",
+    "provider_response_schema_bytes": "sha256:896f242086805d3b51e81ed04e6d50f33eb2b7deb71b7a1689e9abeba3b67eaf",
+    "participant_configuration_root": "sha256:1ea86cdbf2c9c02154c0ba7dde449b0050fefb51492898b09c1c9b2a28b1f777",
+    "configuration_mapping_root": "sha256:4633cc802750ade0a0ae483fa5c747bdad7990df9d7f18c6e202bf2ec7e30920",
+    "permit_set_root": "sha256:652942dad383cfcd2434c47bc33218fa6a9676474a84b3c7e5da9025695d17c1",
+    "prelaunch_root": "sha256:a65e92ba45c9d3bd66c673bc1f980bc6f3769760cee4fdaaf24d598af164b8f6",
+    "artifact_root": "sha256:1e49c6461a9a43359be65772579e4b9678d68235ba9288b7218e2bd64cb628c9"
+  },
+  "unchanged_invariants": [
+    "stopped original evidence remains byte-exact at 1/36 with run 01 retained as a non-result and runs 02-36 unissued",
+    "participant packets, prompts, registered schema, provider derivative semantics, study design, scoring gates, participant identities, and scientific source/evidence bytes",
+    "model, reasoning effort, service tier, timeout, token ceiling, one-turn no-tools attempt-one zero-retry runtime semantics",
+    "protected adjudication plaintext remains absent from producer custody"
+  ],
+  "focused_checks": {
+    "cpython_versions": [
+      "3.10",
+      "3.11",
+      "3.13",
+      "3.14"
+    ],
+    "benchmark_tests": 21,
+    "provider_runtime_tests": 5,
+    "event_contract_tests": "passed",
+    "ruff": "passed",
+    "git_diff_check": "passed",
+    "regeneration_git_byte_clean": true,
+    "archive_and_identity_adversaries": "failed_closed"
+  },
+  "prelaunch_qualified": true,
+  "neutral_calibration_permit_release_authorized_by_review": false,
+  "participant_permit_release_authorized_by_review": false,
+  "participant_launch_authorized_by_review": false,
+  "authority_effect": "none",
+  "experimental_status": {
+    "required_sessions": 36,
+    "executed_sessions": 0,
+    "result": "not_run",
+    "participant_permits_held": 36,
+    "participant_permits_consumed": 0,
+    "neutral_calibration_permit_held": 1,
+    "neutral_calibration_permit_consumed": 0,
+    "provider_calls": 0,
+    "protected_key_accesses": 0,
+    "scoring_runs": 0
+  },
+  "nonclaims": [
+    "This verdict does not release a calibration or participant permit and does not authorize a participant launch, provider call, inference, protected-key access, or scoring action.",
+    "This verdict does not authorize a merge or establish lift, scientific acceptance, Protocol or Core validity, Repository authority, Standing, or a Decision effect."
+  ]
+}
