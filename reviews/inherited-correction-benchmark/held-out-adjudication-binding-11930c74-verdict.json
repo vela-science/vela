@@ -1,0 +1,86 @@
+{
+  "schema": "vela.independent-inherited-correction-held-out-adjudication-binding-verdict.v1",
+  "review_id": "inherited-correction-held-out-adjudication-binding-2026-08-21",
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/inherited-correction-study",
+    "producer_commit": "11930c74d8d0283e9d847765856c816ce7835fb5",
+    "producer_tree": "bf71eabf334f3181e55c33c74f85cffdbb760c4d",
+    "parent_commit": "8cc1a89d7b1ae47cb6cabb36bfd79b46c3f4db81",
+    "prior_independent_pass": "f9b5d67a55c1ad41fcb67cc1d7ebe86d03d37782"
+  },
+  "verdict": "PASS",
+  "review_scope": [
+    "exact public evaluator commitment binding",
+    "prospective user launch-authorization binding",
+    "amended deterministic identities",
+    "participant and scientific byte preservation",
+    "36-cell held prelaunch state"
+  ],
+  "failed_gates": [],
+  "passed_gates": [
+    "public commitment canonical root",
+    "adjudication root and byte identity",
+    "private validation receipt identity",
+    "prior producer, review, registration, assignment, and artifact bindings",
+    "no protected plaintext in producer bytes",
+    "unchanged participant packets, prompts, schema, assignments, scoring, and gates",
+    "36 held permits with zero consumption, calls, sessions, key access, or scoring"
+  ],
+  "evaluator_commitment": {
+    "status": "frozen",
+    "adjudication_root": "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d",
+    "adjudication_bytes": "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d",
+    "adjudication_byte_length": 5883,
+    "frozen_at": "2026-08-21T21:51:33Z",
+    "private_validation_receipt_root": "sha256:581b944cdfdb82a2f9730ffd3d60fba13c3e4916bbf344ab1d495565dafccf11",
+    "public_commitment_root": "sha256:cf22cc93f1b882e85327943e074ef6d0cd60f90c3989f0801c46d60f5fad721a",
+    "family_count": 3,
+    "consequence_count": 12,
+    "plaintext_disclosed": false,
+    "answer_bytes_present_in_producer_artifact": false
+  },
+  "amended_bindings": {
+    "authorization_amendment_root": "sha256:b12c904c0ae87158826b5e47fee7f91efb4fa1dc83202277fa35cdd5450f68cd",
+    "registration_root": "sha256:b5dadb5ff20a664c1a0ead6e7c0be73de0c2f7389820654032d12f55e0471d16",
+    "assignment_root": "sha256:ffd6f8f4cda599bf2314b65d08bd5b7ddcdd387ef58fdb28aa536553946d56bb",
+    "participant_configuration_root": "sha256:adb7aef1966a25631077dd3466a04a785e369698fdbae0e8f09ace5ca995380e",
+    "runtime_root": "sha256:33f0d3b40e674a4c0934f27080e28325be9a30edfbd11682801066c22911ee6a",
+    "equivalence_root": "sha256:12904756aa4683934eb925ae856d6afd50897dc1d855f3b55ce4e51ce6391bc1",
+    "configuration_mapping_root": "sha256:9ff4c50b23190631886b1ef4dee783c940f40955dcf2a68f0f58542b70015b6a",
+    "permit_set_root": "sha256:52ffc2b44892d367fd3d33067197cb5f51f3e33a07cd59b7991a7932dcc7d3ae",
+    "prelaunch_root": "sha256:f52e4b1241bcf2a59e62224baedcc55724636d77bad0baaff40555e5d8c45a03",
+    "artifact_root": "sha256:f2e22c514947291c75a29ded79c6e26a6d75f6635495c7a0db5b38699e84225a"
+  },
+  "experimental_status": {
+    "fixed_denominator": 36,
+    "sessions_completed": 0,
+    "permits_held": 36,
+    "permits_consumed": 0,
+    "provider_calls": 0,
+    "protected_key_accesses": 0,
+    "result": "not_run"
+  },
+  "focused_checks": {
+    "remote_identity_and_66_path_scope": "pass",
+    "all_disclosed_hashes_and_roots": "pass",
+    "evaluator_public_commitment_without_plaintext_access": "pass",
+    "participant_visible_no_diff": "pass",
+    "scientific_scoring_assignment_preservation": "pass",
+    "ruff_0_12_11": "pass",
+    "cpython_3_10_3_11_3_13_3_14": "19 tests each; verify and prelaunch pass",
+    "isolated_cpython_3_14_regeneration": "216 files byte-identical",
+    "prior_benchmark_tests": "16 passed",
+    "git_diff_check": "pass"
+  },
+  "adjudication_binding_review_qualified": true,
+  "protected_plaintext_opened_by_review": false,
+  "permit_released_by_review": false,
+  "provider_call_performed_by_review": false,
+  "merge_authorized_by_review": false,
+  "authority_effect": "none",
+  "nonclaims": [
+    "This PASS is not a scored benchmark result or evidence of lift.",
+    "This review did not release a permit, call a provider, access protected plaintext, score, merge, or create Protocol/Core, authority, Standing, or Decision effects."
+  ]
+}
