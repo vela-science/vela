@@ -1,0 +1,79 @@
+{
+  "schema": "vela.independent-confirmatory-score-snapshot-rereview-verdict.v1",
+  "review_id": "inherited-correction-confirmatory-f05-2026-08-21",
+  "prior_review": {
+    "commit": "4dd3efc45d222e3d41defef38a5ce8306a1c6391",
+    "verdict": "BLOCKED",
+    "finding": "F05",
+    "failed_gates": [
+      "G07_deterministic_scoring",
+      "G08_deterministic_custody"
+    ]
+  },
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/inherited-correction-study",
+    "producer_commit": "7596c12291c22a5b4b81a1ab1eb49189318f57de",
+    "producer_tree": "af67f32ebfb97990fe4faaac90176880f6cfb0b6",
+    "parent_commit": "f919654a7e55d336c5588719e962e2d67a699710",
+    "benchmark_registration_root": "sha256:a18f067652883680b39aea269e66fb4a833b8466790d7031abf2e4ab3748a3d2",
+    "runtime_registration_root": "sha256:345d54e2bc8c76eb66a8938a03f26001ea4f953c04bf58d9c8cd7f8ad039d1b2"
+  },
+  "verdict": "PASS",
+  "review_scope": [
+    "F05",
+    "G07_deterministic_scoring",
+    "G08_deterministic_custody"
+  ],
+  "resolved_findings": [
+    {
+      "id": "F05",
+      "result": "resolved",
+      "evidence": "All capture-listed run and response bytes are opened no-follow, required to be regular files, read once, digest-checked, buffered, and used to derive the capture root before adjudication; scoring uses only those immutable buffers."
+    }
+  ],
+  "failed_gates": [],
+  "passed_gates": [
+    "G07_deterministic_scoring",
+    "G08_deterministic_custody"
+  ],
+  "adversarial_receipts": {
+    "post_verify_run_drift": "capture_run_bytes_drift before adjudication",
+    "post_verify_response_drift": "capture_response_bytes_drift before adjudication",
+    "protected_key_calls_on_drift": 0,
+    "snapshot_file_reads_before_gate": 32,
+    "snapshot_file_reads_after_score": 32,
+    "post_snapshot_path_mutation_changed_score": false,
+    "protected_adjudication_opened": false
+  },
+  "nominal_checks": {
+    "ruff_0_12_11_check": "pass",
+    "ruff_0_12_11_format_check": "pass",
+    "event_contract_wrapper": "pass",
+    "runtime_tests": "11 passed",
+    "custody_tests": "10 passed",
+    "prelaunch_tests": "6 passed",
+    "benchmark_verify": "pass",
+    "benchmark_tests": "16 passed",
+    "custody_prelaunch_verify": "pass",
+    "prelaunch_regeneration": "32 manifest entries plus prelaunch freeze byte-identical",
+    "git_diff_check": "pass"
+  },
+  "qualification": "The exact corrective commit prospectively resolves F05 and qualifies deterministic capture-to-score byte custody only; it does not authorize execution.",
+  "prelaunch_custody_qualified": true,
+  "experimental_execution_authorized": false,
+  "permit_release_authorized_by_review": false,
+  "authority_effect": "none",
+  "confirmatory_status": {
+    "required_sessions": 16,
+    "executed_sessions": 0,
+    "result": "not_run",
+    "permits_consumed": 0,
+    "hold_status": "hold",
+    "scheduler": "none"
+  },
+  "nonclaims": [
+    "This PASS does not release a hold or authorize a participant, provider call, permit consumption, or any confirmatory session.",
+    "This PASS is not a positive-lift result, scientific acceptance, merge approval, Protocol/Core change, Decision, authority action, or Standing effect."
+  ]
+}
