@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "vela.inherited-correction-response.v1",
+      "type": "string"
+    },
+    "fixture_id": {
+      "const": "bounded-calibration-correction-v1",
+      "type": "string"
+    },
+    "predecessor_claim_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "successor_claim_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "consequences": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "claim_id": {
+            "enum": [
+              "aggregate-e",
+              "installation-d",
+              "stability-c",
+              "yield-b"
+            ],
+            "type": "string"
+          },
+          "classification": {
+            "enum": [
+              "affected",
+              "unaffected",
+              "must_reassess",
+              "presently_unprovable"
+            ],
+            "type": "string"
+          },
+          "action_code": {
+            "enum": [
+              "retrieve_exact_site_q_source",
+              "no_correction_reassessment",
+              "rerun_stability_method",
+              "recalculate_with_successor_factor"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "claim_id",
+          "classification",
+          "action_code"
+        ],
+        "type": "object"
+      },
+      "maxItems": 4,
+      "minItems": 4,
+      "type": "array"
+    },
+    "standing_effect": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "source_or_evidence_binding": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "fixture_id",
+    "predecessor_claim_id",
+    "successor_claim_id",
+    "consequences",
+    "standing_effect",
+    "source_or_evidence_binding"
+  ],
+  "type": "object"
+}
