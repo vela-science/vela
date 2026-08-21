@@ -1,0 +1,57 @@
+{
+  "schema": "vela.independent-post-canary-review-verdict.v1",
+  "review_id": "inherited-correction-runtime-canary-03-2026-08-21",
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/inherited-correction-study",
+    "result_commit": "e5f11cc58b3675f171cab2fc57b5714b330152f3",
+    "result_tree": "b6ccfe6ba47753d17e555bc41eb4e500aafe20a8",
+    "prelaunch_commit": "c7d9b96740d8d2aaa1f86728302aa47e5ccf370d",
+    "prelaunch_tree": "8c69d357b315b4d7a7690d8255eab05dfd310e85",
+    "result_base": "70be21e2404af68daf5673f8094c47563224a11e",
+    "image_digest": "sha256:6274d83356076640d6e4bc810b97d37ac2d1b5ab02546dd7c2ebed16f915b547"
+  },
+  "verdict": "BLOCKED",
+  "failed_gates": [
+    {
+      "id": "G08_deterministic_custody",
+      "finding": "F03",
+      "summary": "The claimed locked Ruff check and format check do not pass on the exact changed Python files in a clean checkout.",
+      "reproduction": {
+        "ruff_check": "exit 1: EXE001 because freeze-canary-03.py has a shebang but Git mode 100644",
+        "ruff_format_check": "exit 1: freeze-canary-03.py and test_container_runtime.py would be reformatted",
+        "standalone_node_prerequisite": "Bare test-events.mjs fails without local ajv; it passes after npm ci --omit=dev --ignore-scripts from the committed lockfile."
+      }
+    }
+  ],
+  "otherwise_passed_evidence": [
+    "immutable two-commit prelaunch/result lineage and scoped diff",
+    "exact local Linux arm64 image identity",
+    "hash-pinned Debian package and independently reconstructed 150-certificate Mozilla bundle",
+    "TLS verification enabled and no insecure override",
+    "offline positive/missing/corrupt trust polarity with zero provider bytes",
+    "read-only OAuth mount into disposable CODEX_HOME with no retained credential artifact",
+    "atomic pre-provider permit consumption and replay refusal",
+    "exact four-event, one-response, zero-tool terminal receipt",
+    "all documented prelaunch, result, capture, provenance, and diagnosis hashes",
+    "byte-exact regeneration of all 36 prelaunch files",
+    "11 runtime tests, event test after locked dependency restore, benchmark verify, 15 benchmark tests, and git diff check"
+  ],
+  "runtime_evidence_disposition": "substantively matched but not qualified because the frozen all-deterministic-checks pass rule is unsatisfied",
+  "calibration_runtime_qualified": false,
+  "replacement_confirmatory_registration_frozen": false,
+  "experimental_execution_authorized": false,
+  "authority_effect": "none",
+  "confirmatory_status": {
+    "required_sessions": 16,
+    "executed_sessions": 0,
+    "registration": "not_registered",
+    "result": "not_run"
+  },
+  "minimal_repair": "Ruff-format the two changed Python files, resolve EXE001 by executable mode or shebang removal, and document the locked npm dependency restore before the standalone Node test; then provide a new immutable commit for narrow re-review.",
+  "nonclaims": [
+    "This review did not run a provider or paid model.",
+    "This review does not authorize another canary or any confirmatory session.",
+    "This review is not a scientific-lift result, merge approval, protocol acceptance, Decision, authority action, or Standing effect."
+  ]
+}
