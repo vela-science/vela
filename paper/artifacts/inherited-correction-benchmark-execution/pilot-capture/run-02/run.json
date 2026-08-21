@@ -1,0 +1,17 @@
+{
+  "attempt": 1,
+  "authorization_root": "sha256:8fd487199665a4bc19e83b9d86037002e817b7439f5e99adfd0ea91fa64f34da",
+  "completed_at": "2026-08-21T16:19:38.388004Z",
+  "condition": "vela",
+  "duration_seconds": 26.261709,
+  "packet_root": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97",
+  "participant_configuration_root": "sha256:ba006bae3cb7eee61a37298512690a1e9aab9d3813d0d89f959e9f632981c9f2",
+  "participant_instance_id": "cold-02",
+  "registration_root": "sha256:7391c3c6adb74633886fd9fb2d35a257e7501bd37153acfb3e19ac850d0e9157",
+  "run_id": "run-02",
+  "schema": "vela.inherited-correction-run.v1",
+  "started_at": "2026-08-21T16:19:12.126295Z",
+  "status": "completed",
+  "timeout_seconds": 600,
+  "tool_calls": 3
+}

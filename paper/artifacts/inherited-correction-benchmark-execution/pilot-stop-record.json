@@ -1,0 +1,21 @@
+{
+  "authorization_root": "sha256:8fd487199665a4bc19e83b9d86037002e817b7439f5e99adfd0ea91fa64f34da",
+  "disposition": "all six runs retained unchanged as calibration-only non-results; no retry, scoring, denominator credit, or empirical-lift claim",
+  "participant_configuration_root": "sha256:ba006bae3cb7eee61a37298512690a1e9aab9d3813d0d89f959e9f632981c9f2",
+  "pilot_capture_manifest_root": "sha256:0b61e1f5300585c41006e5bd61b9cdc6ffc5e038bddfbbfed4f215f4887e4685",
+  "reason": "model_context_window and auto-compaction are live per-request controls, while Codex provider input_tokens is cumulative across repeated tool turns; the frozen cumulative-input invalidation rule did not measure the intended construct",
+  "registration_root": "sha256:7391c3c6adb74633886fd9fb2d35a257e7501bd37153acfb3e19ac850d0e9157",
+  "schema": "vela.inherited-correction-runtime-stop.v1",
+  "standing_or_authority_effect": "none",
+  "started_run_ids": [
+    "run-01",
+    "run-02",
+    "run-03",
+    "run-04",
+    "run-05",
+    "run-06"
+  ],
+  "status": "stopped_before_run_07",
+  "stopped_at": "2026-08-21T16:21:25.419666Z",
+  "unstarted_first_run_id": "run-07"
+}

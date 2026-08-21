@@ -1,0 +1,17 @@
+{
+  "attempt": 1,
+  "authorization_root": "sha256:8fd487199665a4bc19e83b9d86037002e817b7439f5e99adfd0ea91fa64f34da",
+  "completed_at": "2026-08-21T16:21:01.158736Z",
+  "condition": "git-documents",
+  "duration_seconds": 31.721598,
+  "packet_root": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+  "participant_configuration_root": "sha256:ba006bae3cb7eee61a37298512690a1e9aab9d3813d0d89f959e9f632981c9f2",
+  "participant_instance_id": "cold-05",
+  "registration_root": "sha256:7391c3c6adb74633886fd9fb2d35a257e7501bd37153acfb3e19ac850d0e9157",
+  "run_id": "run-05",
+  "schema": "vela.inherited-correction-run.v1",
+  "started_at": "2026-08-21T16:20:29.437138Z",
+  "status": "completed",
+  "timeout_seconds": 600,
+  "tool_calls": 4
+}

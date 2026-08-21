@@ -1,0 +1,10 @@
+{
+  "assignment_root": "sha256:4e601864d5dd802bcb820899ae72d3b435c1c0da169aca7e7e0ae378f04b0fb2",
+  "authorization_source": "user-authorized exact study runtime repair relayed by coordinator task 01a024dc-f015-7950-be0f-181931282ebc",
+  "confirmatory_sessions_authorized": 0,
+  "max_sessions": 1,
+  "participant_configuration_root": "sha256:2cdfb9b0c5e27e6f918791b9eb384e3c1fc3a22fe93f8262cd8137e0bc24b716",
+  "registration_root": "sha256:ee2a043089b42fec5e705b26a9b3f687d8e5566ec7f45115679eb26ae2734f87",
+  "schema": "vela.inherited-correction-neutral-canary-authorization.v1",
+  "status": "authorized_calibration_only"
+}

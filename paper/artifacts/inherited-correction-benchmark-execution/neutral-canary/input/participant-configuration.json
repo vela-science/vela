@@ -1,0 +1,22 @@
+{
+  "attempt": 1,
+  "authentication": "read-only ChatGPT OAuth auth.json mount into disposable CODEX_HOME",
+  "base_image_digest": "sha256:cadbfafeb6baf87eaaffa40b3640209c4b7fd38cebde65059d15bc39cd636b85",
+  "codex_cli_version": "0.149.0",
+  "image_digest": "sha256:0ce56e0a4d72dc6ab26cdfcfc1d0280ac0c419dd687e26dda9312d4a09257285",
+  "model": "gpt-5.6-sol",
+  "one_model_turn": true,
+  "one_prompt": true,
+  "output_token_ceiling": 8192,
+  "prompt_root": "sha256:4a96a6d4ce291a3b260d11d832e235b1cadbe2f68b50149ac498c19faa90a684",
+  "provider_usage_disposition": "cost telemetry only; only genuine provider context/output-limit failure invalidates",
+  "reasoning_effort": "high",
+  "registration_root": "sha256:ee2a043089b42fec5e705b26a9b3f687d8e5566ec7f45115679eb26ae2734f87",
+  "response_schema_bytes": "sha256:45cea4563ecd77eb8434b22915cb3ca1c342171d21da0952e2adea423a1f1282",
+  "retries": 0,
+  "schema": "vela.inherited-correction-oci-participant-configuration.v1",
+  "service_tier": "default",
+  "store": "ephemeral",
+  "timeout_seconds": 600,
+  "tools": "none"
+}
