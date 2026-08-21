@@ -1,0 +1,117 @@
+{
+  "schema": "vela.independent-inherited-correction-final-result-verdict.v1",
+  "review_id": "inherited-correction-final-replacement-result-2026-08-21",
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/inherited-correction-study",
+    "prelaunch_commit": "2fc59d5f57e45298f833e65f123ac9eafea2810b",
+    "prelaunch_tree": "29ff77485baf47d8c563400a71313e4502120071",
+    "prelaunch_review": "3c0c8cfa050b30a5d19c9e7e623fc549ac18264b",
+    "capture_commit": "0aa38e9413d7fa4c03aa799200c88b8ed867f5c9",
+    "capture_tree": "8483a18a71540d314beac1e6e2f107faa36d9aa8",
+    "result_commit": "3207066f22f09b578f354b7028f55559e7b45926",
+    "result_tree": "451237b4b85df33da5b8d8442fe67bd60b8d3b08",
+    "result_parent": "0aa38e9413d7fa4c03aa799200c88b8ed867f5c9"
+  },
+  "verdict": "BLOCKED",
+  "failed_gates": [
+    {
+      "id": "F06",
+      "gate": "exact scoring determinism",
+      "finding": "The unpinned python3 scorer serializes two floating-point summary fields differently across CPython versions, so the committed result bytes are not independently deterministic.",
+      "committed_result_bytes": "sha256:1f1d886c778e8fef0effce59692f761eb6d937afa9421880aed3340079004679",
+      "cpython_3_11_result_bytes": "sha256:2c7d6e4a3e0cf43c07ea19003dda65887d2965dd5e79f389c5b5960384624caa",
+      "differing_fields": {
+        "conditions.vela.restricted_mean_seconds": {
+          "committed_and_cpython_3_14": 233.07823840475,
+          "cpython_3_10_through_3_13": 233.07823840474998
+        },
+        "restricted_mean_ratio_vela_over_git_documents": {
+          "committed_and_cpython_3_14": 0.38846373067458334,
+          "cpython_3_10_through_3_13": 0.3884637306745833
+        }
+      },
+      "substantive_gate_changed": false,
+      "minimal_closure": "Record a transparent post-result amendment, bind an exact scorer runtime or canonical decimal/rounding semantics with a cross-version fixture, and regenerate only from the same sealed capture without rerunning participants."
+    }
+  ],
+  "passed_gates": [
+    "immutable producer commit, tree, and parent lineage",
+    "linear one-run-per-commit capture history",
+    "complete 16-run runtime custody",
+    "fixed 8+8 denominator with unique participants and permits",
+    "exact frozen capture inputs and registered condition packets",
+    "pre-key capture verification",
+    "no-follow immutable scoring snapshot before adjudication",
+    "points, exact-success counts, authority-error counts, gate, and claim ceiling"
+  ],
+  "bindings": {
+    "benchmark_registration_root": "sha256:a8b4b729e7b2be4f371d4831caa9214959514cb51222da9e422b0634c408a575",
+    "runtime_registration_root": "sha256:988326b2f9ef7232795a73070823993251fa0481450a792b51905ce85d7e31b4",
+    "assignment_root": "sha256:c17d9b6860f6fb9f4aba352864ac66db0ad8f87f19d01ac14103f8fdf7a16c64",
+    "authorization_root": "sha256:9dee4bdaa818313a20f09209c2647d022ce08b456681dbe6607ccd0a22e02041",
+    "configuration_mapping_root": "sha256:fc83efbb02022a156f71e771db17d002ba93e8ac876b42f9dc62c66d505732f8",
+    "shared_configuration_root": "sha256:f808a660fc663245cf67c298cf1ff53a4b35402fd704e1281d03a83d567319ff",
+    "image_digest": "sha256:1dee2374077c83e3dbdb2e09d32ef4fa3a414d200b800839857353e13d3c4e09",
+    "trust_bundle_bytes": "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5",
+    "git_documents_packet_root": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+    "vela_packet_root": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97",
+    "complete_runtime_custody_root": "sha256:619512f17009dd92c651a687cbc17dd5899c0b908619d82de465b9747a7aa3f5",
+    "capture_root": "sha256:0e5f60fa1dc78e531d44cb8fff626e73c6b2c0017bbcec52e41220cbfac686fd"
+  },
+  "execution": {
+    "fixed_denominator": 16,
+    "git_documents_sessions": 8,
+    "vela_sessions": 8,
+    "completed": 16,
+    "attempt": 1,
+    "unique_provider_threads": 16,
+    "unique_consumed_permits": 16,
+    "tool_calls": 0,
+    "compactions": 0,
+    "total_duration_seconds": 210.053573638,
+    "input_tokens": 313968,
+    "cached_input_tokens": 28928,
+    "output_tokens": 8421,
+    "reasoning_output_tokens": 4184
+  },
+  "categorical_result": {
+    "git_documents_points": 112,
+    "git_documents_exact_successes": 0,
+    "git_documents_authority_errors": 8,
+    "vela_points": 130,
+    "vela_exact_successes": 5,
+    "vela_authority_errors": 3,
+    "positive_gate": "not_supported",
+    "authority_effect": "none"
+  },
+  "review_adjudication_access": {
+    "occurred_only_after_capture_verification": true,
+    "complete_scorer_invocations": 1,
+    "diagnostic_key_reads": 1,
+    "provider_or_participant_calls": 0
+  },
+  "checks": {
+    "event_schema_contract": "pass",
+    "runtime_tests": "12 passed",
+    "custody_tests": "10 passed",
+    "prelaunch_tests": "9 passed",
+    "custody_prelaunch_verify": "pass",
+    "benchmark_verify": "pass",
+    "benchmark_tests": "16 passed",
+    "real_capture_validation": "16 passed",
+    "real_ingested_run_validation": "16 passed",
+    "git_diff_check": "pass",
+    "exact_score_byte_reproduction": "fail"
+  },
+  "custody_qualified": true,
+  "denominator_qualified": true,
+  "packet_equivalence_qualified": true,
+  "immutable_snapshot_order_qualified": true,
+  "exact_result_bytes_qualified": false,
+  "final_result_qualified": false,
+  "positive_claim_supported": false,
+  "rerun_authorized_by_review": false,
+  "merge_authorized_by_review": false,
+  "authority_effect": "none"
+}
