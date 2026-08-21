@@ -1,0 +1,136 @@
+{
+  "authority": {
+    "decision_present": false,
+    "instruction": "Classify and propose next actions only; do not change Standing or infer acceptance.",
+    "scientific_validation_present": false,
+    "standing_effect": "none"
+  },
+  "bounds": {
+    "complete_claim_set": false,
+    "complete_relation_set_for_listed_claims": true,
+    "known_missing_claim_ids": [
+      "site-q-yield"
+    ],
+    "listed_consequence_claim_ids": [
+      "aggregate-e",
+      "installation-d",
+      "stability-c",
+      "yield-b"
+    ],
+    "max_claims": 8,
+    "max_relations": 8
+  },
+  "claims": [
+    {
+      "assertion": "Sample S has adjusted yield 50 units.",
+      "claim_id": "yield-b",
+      "evidence_path": "evidence/yield-b.json",
+      "next_action": "Recalculate the adjusted yield from the retained raw count using calibration-a-v2."
+    },
+    {
+      "assertion": "Process P remains stable under the adjusted-yield method.",
+      "claim_id": "stability-c",
+      "evidence_path": "evidence/stability-c-method.md",
+      "next_action": "Rerun the documented stability method after yield-b is recalculated."
+    },
+    {
+      "assertion": "Instrument I was installed on 2025-01-15.",
+      "claim_id": "installation-d",
+      "evidence_path": "evidence/installation-d.json",
+      "next_action": "No correction-driven reassessment is required."
+    },
+    {
+      "assertion": "The two-site aggregate adjusted yield is at most 100 units.",
+      "claim_id": "aggregate-e",
+      "evidence_path": "evidence/aggregate-e.md",
+      "next_action": "Recover the exact Site Q input and its source binding before assessing aggregate-e."
+    }
+  ],
+  "correction": {
+    "kind": "supersedes",
+    "predecessor": {
+      "assertion": "The instrument scale factor is 10 units per count.",
+      "claim_id": "calibration-a-v1",
+      "source_path": "source/calibration-a-v1.md"
+    },
+    "reason": "The v1 calculation omitted the documented 1.2 temperature compensation factor.",
+    "successor": {
+      "assertion": "The instrument scale factor is 12 units per count.",
+      "claim_id": "calibration-a-v2",
+      "source_path": "source/calibration-a-v2.md"
+    }
+  },
+  "fixture_id": "bounded-calibration-correction-v1",
+  "projection_effect": "none",
+  "relations": [
+    {
+      "kind": "requires_exact",
+      "meaning": "yield-b used the exact predecessor scale factor and must be recalculated when that input is superseded.",
+      "relation_id": "yield-b-requires-calibration-a-v1",
+      "source_claim_id": "yield-b",
+      "target_claim_id": "calibration-a-v1"
+    },
+    {
+      "kind": "requires_result",
+      "meaning": "stability-c consumes yield-b, but its retained method does not determine the post-correction outcome without a rerun.",
+      "relation_id": "stability-c-requires-yield-b",
+      "source_claim_id": "stability-c",
+      "target_claim_id": "yield-b"
+    },
+    {
+      "kind": "discovery_only",
+      "meaning": "The calibration file helped locate the installation record but supplies no premise for its date.",
+      "relation_id": "installation-d-discovered-with-calibration-a-v1",
+      "source_claim_id": "installation-d",
+      "target_claim_id": "calibration-a-v1"
+    },
+    {
+      "kind": "requires_result",
+      "meaning": "aggregate-e consumes the corrected Site P yield and an exact Site Q input.",
+      "relation_id": "aggregate-e-requires-yield-b",
+      "source_claim_id": "aggregate-e",
+      "target_claim_id": "yield-b"
+    },
+    {
+      "kind": "requires_unavailable",
+      "meaning": "The Site Q source and content binding are absent from the bounded packet.",
+      "relation_id": "aggregate-e-requires-site-q",
+      "source_claim_id": "aggregate-e",
+      "target_claim_id": "site-q-yield"
+    }
+  ],
+  "schema": "vela.inherited-correction-read-projection.v1",
+  "scope": "One synthetic calibration correction and its explicitly bounded downstream consequences.",
+  "source_and_evidence": [
+    {
+      "bytes": 308,
+      "path": "evidence/aggregate-e.md",
+      "sha256": "sha256:4d21a5c2b17e661b185af15c37a8e5c5308b93de7893007fafcb7a94e9fa8c21"
+    },
+    {
+      "bytes": 209,
+      "path": "evidence/installation-d.json",
+      "sha256": "sha256:0f76500ac8ce773c9cb779c9b8113376495c847fa0208849bee95dfdd0f2df36"
+    },
+    {
+      "bytes": 374,
+      "path": "evidence/stability-c-method.md",
+      "sha256": "sha256:2b84dbae5224b6dedd1f0d991a31f4032b7ff0c41f200aec25b4a136331589f6"
+    },
+    {
+      "bytes": 191,
+      "path": "evidence/yield-b.json",
+      "sha256": "sha256:8603f377d7b7db77934f546c6c5e139e758f7b3597d48637f285020f46e8ed7d"
+    },
+    {
+      "bytes": 252,
+      "path": "source/calibration-a-v1.md",
+      "sha256": "sha256:2febf2f053d156ef8dea517f72db89885c0dfc7f9e828d641f8c0d3cea5c86a8"
+    },
+    {
+      "bytes": 337,
+      "path": "source/calibration-a-v2.md",
+      "sha256": "sha256:d562e9ad5d02de2aae0c423288e600e5ec883a0983ce12ff177592cd186eab3b"
+    }
+  ]
+}

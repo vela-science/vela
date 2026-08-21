@@ -1,0 +1,24 @@
+{
+  "claim": {
+    "assertion": "Instrument I was installed on 2025-01-15.",
+    "claim_id": "installation-d",
+    "evidence_path": "evidence/installation-d.json",
+    "next_action": "No correction-driven reassessment is required."
+  },
+  "evidence_binding": {
+    "bytes": 209,
+    "path": "evidence/installation-d.json",
+    "sha256": "sha256:0f76500ac8ce773c9cb779c9b8113376495c847fa0208849bee95dfdd0f2df36"
+  },
+  "incoming_relations": [
+    {
+      "kind": "discovery_only",
+      "meaning": "The calibration file helped locate the installation record but supplies no premise for its date.",
+      "relation_id": "installation-d-discovered-with-calibration-a-v1",
+      "source_claim_id": "installation-d",
+      "target_claim_id": "calibration-a-v1"
+    }
+  ],
+  "schema": "vela.inherited-correction-why.v1",
+  "standing_effect": "none"
+}
