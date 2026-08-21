@@ -1,0 +1,21 @@
+{
+  "adjudication_status": "pending_independent_evaluator_freeze",
+  "authority_effect": "none",
+  "blocking_findings": [],
+  "held_out_artifact_root": "sha256:17f113d16aa7b474d91b9f09e4314dce133367b7274187ce7bef87a1bbf7c735",
+  "held_out_permits_consumed": 0,
+  "held_out_permits_held": 36,
+  "held_out_prelaunch_review": "f9b5d67a55c1ad41fcb67cc1d7ebe86d03d37782",
+  "held_out_producer_commit": "8cc1a89d7b1ae47cb6cabb36bfd79b46c3f4db81",
+  "held_out_registration_root": "sha256:185e781cd0b1a06d89488266e9e7147f42834d960063818f0cdf56209c6d3306",
+  "held_out_status": "not_run",
+  "paper_pdf_bytes": 261237,
+  "paper_pdf_root": "sha256:e632861832163c2c18559ff677ba62173b26ba8e8bce33a67939e91b81b4951d",
+  "positive_gate": "not_supported",
+  "producer_commit": "85077212ed1a1465b803fcc904f1a15bc224ca50",
+  "producer_parent": "384d95b742848d6c31d74fe957454dc9aed83f9e",
+  "producer_tree": "dcc661bc3c77dedce5cf8f3a8ef96edab66ee75f",
+  "schema": "vela.flagship-paper-terminal-reconciliation-review-verdict.v1",
+  "standing_effect": "none",
+  "verdict": "PASS"
+}
