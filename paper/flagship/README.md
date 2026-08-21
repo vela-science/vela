@@ -4,6 +4,10 @@ This directory contains a separate working manuscript for Vela's flagship
 evidence program. It does not replace [`paper/vela.md`](../vela.md), change
 Protocol 1, or report a scientific Decision.
 
+Vela's registry is global, while authority remains local to each Repository.
+Derived global Frontiers query current Standing across plural Repositories and
+carry no authority. The registry does not assert a single global truth ledger.
+
 The draft separates four questions:
 
 1. Do conforming readers replay the same valid Repository bytes to the same
@@ -16,9 +20,12 @@ The draft separates four questions:
    cost under a preregistered matched comparison?
 
 The first three have bounded executable evidence. The sealed 16-session study
-did not satisfy its preregistered positive gate. A fresh 36-cell,
-three-family, three-arm held-out design remains work in progress and has not
-run.
+did not satisfy its preregistered positive gate. The fresh 36-cell,
+three-family, three-arm held-out study has independent prelaunch qualification
+and remains `0/36`, `not_run`, with all 36 permits held. The next step requires
+separate explicit user authorization for protected-adjudication freeze and
+binding, followed by execution of this registered study. No duplicate study is
+needed.
 
 Read the [claim-evidence matrix](CLAIM_EVIDENCE.md) before the
 [manuscript](manuscript.md). The matrix controls the wording of empirical
