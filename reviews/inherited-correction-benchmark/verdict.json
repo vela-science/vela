@@ -1,0 +1,84 @@
+{
+  "schema": "vela.independent-review-verdict.v1",
+  "review_id": "inherited-correction-benchmark-2026-08-21",
+  "review_protocol_commit": "523fe501aead2d0cb5a679dcab5df2054726d373",
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/inherited-correction-benchmark",
+    "base_commit": "1a2e0328620b4e8c4584c3d4baf257adb11f3d45",
+    "base_tree": "1bd8ed4e11d3745f159b32f23539f5174fd44803",
+    "producer_commit": "366b610eec75a1520a97b4a7817fde3a4fbbfc7b",
+    "producer_tree": "13ecd767b04b3367f9b98aebb2cb4da5e576494b",
+    "registration_root": "sha256:40a05a33a760404cb606dc218d6deafb1d358916a9fa7954e58973ab1a6d67b1"
+  },
+  "verdict": "BLOCKED",
+  "experimental_execution_authorized": false,
+  "authority_effect": "none",
+  "failed_gates": [
+    "G06_cold_successor_protocol",
+    "G07_deterministic_scoring",
+    "G08_deterministic_custody"
+  ],
+  "blocking_findings": [
+    {
+      "id": "F01",
+      "path": "paper/artifacts/inherited-correction-benchmark/benchmark.py",
+      "line": 527,
+      "summary": "Negated unsafe actions satisfy keyword-only action scoring and receive exact-success credit.",
+      "reproduction_result": {
+        "points": 17,
+        "maximum_points": 17,
+        "exact_success": true,
+        "all_action_exact": true
+      }
+    },
+    {
+      "id": "F02",
+      "path": "paper/artifacts/inherited-correction-benchmark/benchmark.py",
+      "line": 701,
+      "summary": "Capture and scoring accept forged run bindings and negative duration, then pass the positive gate.",
+      "reproduction_result": {
+        "capture_root": "sha256:8d97ff4c28d4c25fa10eca15503f41b0d0c686183fdd91ed53fa8e27b0259987",
+        "forged_registration_root_accepted": true,
+        "forged_packet_root_accepted": true,
+        "forged_authorization_root_accepted": true,
+        "negative_duration_accepted": true,
+        "restricted_mean_ratio_vela_over_git_documents": -1.6666666666666667,
+        "positive_gate": "pass"
+      }
+    }
+  ],
+  "passed_gates": [
+    "G01_immutable_subject",
+    "G02_temporal_preregistration",
+    "G03_exact_ground_truth",
+    "G04_consequential_bounded_chain",
+    "G05_same_information_fairness",
+    "G09_no_positive_result_assumption",
+    "G10_no_core_or_authority_expansion",
+    "G11_external_execution_gate"
+  ],
+  "nominal_checks": {
+    "runs_per_check": 2,
+    "benchmark_verify": "pass",
+    "benchmark_tests": "7 passed",
+    "ruff_check": "pass",
+    "ruff_format_check": "pass",
+    "correction_impact_python": "sha256:935e084f8c5c45bcee234d2e9752062ba54493aa1b14f731e0efbbb1ecc01df6",
+    "correction_impact_rust": "5 passed",
+    "full_conformance": "sha256:e014259269ea34452bb5a583a29ee478bec53e67128ec9eafa6d099a883fc24c",
+    "git_diff_check": "pass",
+    "artifact_manifest": "pass",
+    "referenced_hashes": "match"
+  },
+  "required_before_rereview": [
+    "Replace keyword-only free-text action scoring with an exact safe-action representation and adversarial polarity tests.",
+    "At freeze, validate every run and packet byte against preregistration, retained authorization and assignment, participant configuration, timestamps, duration, timeout, attempt, and tool count.",
+    "Add fail-closed tests for forged roots, packet drift, unauthorized assignments, impossible timing, invalid attempt, and negated unsafe actions."
+  ],
+  "nonclaims": [
+    "This verdict is not scientific acceptance or Standing.",
+    "This verdict does not authorize paid inference or human participation.",
+    "Nominal deterministic checks passing does not establish benchmark validity while the blocking findings remain."
+  ]
+}
