@@ -1,0 +1,12 @@
+{
+  "schema": "vela.inherited-correction-run-authorization.v1",
+  "registration_root": "",
+  "status": "not_authorized",
+  "authorized_by": "",
+  "authorized_at": "",
+  "participant_class": "",
+  "participant_configuration_root": "",
+  "assignment_seed_commitment": "",
+  "max_sessions": 0,
+  "assignments": []
+}

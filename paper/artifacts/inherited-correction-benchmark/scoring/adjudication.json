@@ -1,0 +1,33 @@
+{
+  "schema": "vela.inherited-correction-adjudication.v1",
+  "fixture_id": "bounded-calibration-correction-v1",
+  "protected_until": "All 16 fixed-denominator responses and their capture manifest are frozen.",
+  "consequences": [
+    {
+      "claim_id": "aggregate-e",
+      "classification": "presently_unprovable",
+      "required_action_terms": ["site q", "exact", "source"],
+      "rationale": "A known required premise and its content binding are unavailable, so neither affected nor unaffected can presently be established."
+    },
+    {
+      "claim_id": "installation-d",
+      "classification": "unaffected",
+      "required_action_terms": ["no", "reassessment"],
+      "rationale": "The predecessor was discovery-only; the installation date rests on independent evidence."
+    },
+    {
+      "claim_id": "stability-c",
+      "classification": "must_reassess",
+      "required_action_terms": ["rerun", "stability"],
+      "rationale": "Its direct input must change, but the supplied method cannot determine the post-correction conclusion without a rerun."
+    },
+    {
+      "claim_id": "yield-b",
+      "classification": "affected",
+      "required_action_terms": ["recalculate", "12"],
+      "rationale": "Its exact required predecessor was superseded and the retained arithmetic used the obsolete factor 10."
+    }
+  ],
+  "authority_answer": "none",
+  "corrected_yield": 60
+}

@@ -1,0 +1,30 @@
+{
+  "schema": "vela.inherited-correction-response.v1",
+  "fixture_id": "bounded-calibration-correction-v1",
+  "predecessor_claim_id": "",
+  "successor_claim_id": "",
+  "consequences": [
+    {
+      "claim_id": "aggregate-e",
+      "classification": "",
+      "first_safe_action": ""
+    },
+    {
+      "claim_id": "installation-d",
+      "classification": "",
+      "first_safe_action": ""
+    },
+    {
+      "claim_id": "stability-c",
+      "classification": "",
+      "first_safe_action": ""
+    },
+    {
+      "claim_id": "yield-b",
+      "classification": "",
+      "first_safe_action": ""
+    }
+  ],
+  "standing_effect": "",
+  "source_or_evidence_binding": ""
+}

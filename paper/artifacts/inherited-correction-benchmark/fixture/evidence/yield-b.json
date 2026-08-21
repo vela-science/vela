@@ -1,0 +1,8 @@
+{
+  "schema": "example.yield-calculation.v1",
+  "claim_id": "yield-b",
+  "raw_count": 5,
+  "calibration_revision": "calibration-a-v1",
+  "scale_factor": 10,
+  "reported_adjusted_yield": 50
+}
