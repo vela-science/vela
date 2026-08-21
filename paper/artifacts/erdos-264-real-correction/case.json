@@ -1,0 +1,158 @@
+{
+  "schema": "vela.erdos-264-real-correction.v1",
+  "authority": "non_authoritative",
+  "fixture": "erdos-264-source-statement-correction",
+  "source": {
+    "repository": "https://github.com/google-deepmind/formal-conjectures.git",
+    "path": "FormalConjectures/ErdosProblems/264.lean",
+    "changed_symbol": "Erdos264.IsIrrationalitySequence",
+    "predecessor": {
+      "commit": "593e6b76702c5dbffaaa91b59f4faaed705d04ce",
+      "tree": "5e79f7198c3891bdbb3fc6ec10c2b2a804cc56cb",
+      "blob": "8490f7dc0575480c7729acd5713433fc0af9c71b",
+      "file_root": "sha256:98386d8f28112c5e952ec40c4ee439c27f3ff7560a4e767b493ccebc628fb29f",
+      "definition_root": "sha256:c01f8742a00360a2a36cab0ce0c3be1e62d9539ca88df2d935607ea8492448cb"
+    },
+    "successor": {
+      "commit": "0598b8f281060a18416d60753fd75621d659bb07",
+      "tree": "e040cfc1cd6e5d1a79cf156047f452c2268c1920",
+      "blob": "3ff5ce70001355549571a07eee77960939323b57",
+      "file_root": "sha256:5a3a0fb7063ed77d644a5c1cab503851e68d87b02c0882db8fa52e801aba1166",
+      "definition_root": "sha256:6d8f5197e916b28724e586c8a79bd5e0607748a4bb9c50fccb2625bdc41ff986"
+    },
+    "full_index_diff_root": "sha256:a1935f112f5e086cac55d0933f6aa5588893aa7452512d5a0319e12fba4a472f",
+    "semantic_delta": [
+      "The perturbation changes from b : Nat -> Nat to b : Nat -> Int.",
+      "The corrected definition requires both BddAbove and BddBelow.",
+      "The corrected definition admits negative perturbations and makes the two nonzero premises independent."
+    ],
+    "direct_consumers": [
+      "Erdos264.erdos_264.parts.i",
+      "Erdos264.erdos_264.parts.ii",
+      "Erdos264.erdos_264.variants.example",
+      "Erdos264.erdos_264.variants.ko_tao_neg",
+      "Erdos264.erdos_264.variants.ko_tao_pos"
+    ]
+  },
+  "retained_evidence": {
+    "repository": "https://github.com/vela-science/erdos-frontier.git",
+    "commit": "12fdb0ad09c710469e50a60e8a6e2c81c9d18c3f",
+    "tree": "8b57c21c6c2a1ae279a3171cbad47291ab7af44c",
+    "correction": {
+      "artifact": {
+        "path": "artifacts/fidelity/erdos-264-source-transition.v1.json",
+        "root": "sha256:4443284e9856a2df1902dd81fb443f4042fb28b510278bfa2fe23ef935be3173"
+      },
+      "submission": {
+        "id": "vsb_0030695bb694112c",
+        "path": "records/submissions/sha256/d1d8268c3965d6de989281783fb7d1671146fac89a50c86ab4aa52e7b5f3fef8.json",
+        "root": "sha256:d1d8268c3965d6de989281783fb7d1671146fac89a50c86ab4aa52e7b5f3fef8"
+      },
+      "verification": {
+        "id": "vvr_dca5ba7f3288acbf",
+        "path": "records/verifications/sha256/7916115d50fc14cb5def642a7e98546f5ae0bffd348b6bfd2fb2936c0e68799d.json",
+        "root": "sha256:7916115d50fc14cb5def642a7e98546f5ae0bffd348b6bfd2fb2936c0e68799d"
+      },
+      "claim": {
+        "id": "vcl_5a7df5408c6b11aa52745af2ce1203db3b39cb9a9404c27309f4ee490ffb1386",
+        "path": "records/claims/sha256/4d3f546331886ba10891c1ceb46267993d41b99ed746a19b74d91ccb9448b16e.json",
+        "root": "sha256:4d3f546331886ba10891c1ceb46267993d41b99ed746a19b74d91ccb9448b16e"
+      },
+      "proposal": {
+        "id": "vpr_2f52fe736670aff8",
+        "path": "records/proposals/sha256/e39bffa8b082252788ac39d56879ccbfe83e9684775ef648bb9cdb18ec22c981.json",
+        "root": "sha256:e39bffa8b082252788ac39d56879ccbfe83e9684775ef648bb9cdb18ec22c981"
+      },
+      "decision": {
+        "authority_record": {
+          "id": "var_862a88c79456a6a5",
+          "path": ".vela/authority/records/var_862a88c79456a6a5.dsse.json",
+          "file_root": "sha256:e60bdf2c05f60deca8330f85bb4bd9aa41aced83d3de895709c8dfe13b8b1a7e"
+        },
+        "review_event": {
+          "id": "vev_0325f467077ed92e",
+          "path": ".vela/authority/events/vev_0325f467077ed92e.json",
+          "file_root": "sha256:2e4d2b9faf940b605dba9d0ebefaa08d93b214fc9b6fc4f8071aa5c1736833db"
+        },
+        "transition_event": {
+          "id": "vev_2e265868d5a76496",
+          "path": ".vela/authority/events/vev_2e265868d5a76496.json",
+          "file_root": "sha256:caac7f2984f720cbc453acfa3e1e574b8aa4d218ede36195d4edc8c029e5febc"
+        },
+        "sequence": 4,
+        "event_log_before": "sha256:a8cb60fc4a61c0df2b8deee193ce9ae4f2125a106379ca8026ac75ca432d2a78",
+        "event_log_after": "sha256:f7e132f4316b01d6abcf5ef30efee72a4a423718c1630853cf00f38fa82d56f2",
+        "repository_before": "sha256:60c2a1393147d5264f909f4d023b35d7a81e1c6e9eda31bcfea3140d313b1466",
+        "repository_after": "sha256:7b4f3c057bd97f9f04d7dea67d3ea77d13c4156fa5abb78c6a4288278ceb7094"
+      }
+    },
+    "accepted_dependent_repair": {
+      "source": {
+        "commit": "e6d6b867dc85eec2f88bc47496b4314c623f9f92",
+        "tree": "1e24e996a9fee330dc885ec2b314f60bfd508985",
+        "blob": "2f3a187a7f1a429b78c888eefb86548d80edecc3",
+        "file_root": "sha256:c59caaa2524e3edd52944e63f5d9bb0614f1bc36d7fb8a0fec7029c14c266b46",
+        "corrected_definition_root": "sha256:6d8f5197e916b28724e586c8a79bd5e0607748a4bb9c50fccb2625bdc41ff986"
+      },
+      "artifact": {
+        "path": "artifacts/erdos264-parts-i-proof-repair/264.lean",
+        "root": "sha256:9ba4b0c8aa144985aac8df40ee070c0ffe4ab7b59915d9b44eb90b42f96935e8"
+      },
+      "verifier_capsule": {
+        "path": "execution/erdos-264-proof-repair/verifier-capsule.v1.json",
+        "root": "sha256:bf64cbb1d43b31432482fede2f000d96dbd6e95769bb639124aada4f2b1bfdfe"
+      },
+      "verification": {
+        "id": "vvr_3c05f6340fee38be",
+        "path": "records/verifications/sha256/9f39c297721c4fee479ac8ecb4b649806a2d3bdd928305e485b8cef0637c1b8c.json",
+        "root": "sha256:9f39c297721c4fee479ac8ecb4b649806a2d3bdd928305e485b8cef0637c1b8c"
+      },
+      "claim": {
+        "id": "vcl_930b7bb4b4bb11cc3b35de01690ff106ab47c464e828bdafb18d26d3998a1616",
+        "path": "records/claims/sha256/f10be036e34c291bfb4c58a61e1c2e91696b717e5bd7b4f50d27bd85bf0e3051.json",
+        "root": "sha256:f10be036e34c291bfb4c58a61e1c2e91696b717e5bd7b4f50d27bd85bf0e3051"
+      },
+      "proposal": {
+        "id": "vpr_69b5b3e26d39acbe",
+        "path": "records/proposals/sha256/93167fec1c8172bfbec5f7e624d0901ddf09e59e1935d1497cd44f43bac7453c.json",
+        "root": "sha256:93167fec1c8172bfbec5f7e624d0901ddf09e59e1935d1497cd44f43bac7453c"
+      },
+      "decision": {
+        "authority_record": {
+          "id": "var_39e6894a8f9021d0",
+          "path": ".vela/authority/records/var_39e6894a8f9021d0.dsse.json",
+          "file_root": "sha256:f93c63e3957d3561d5ea789d94b6095de941388a18a6d8996ea1178b019d0a96"
+        },
+        "review_event": {
+          "id": "vev_7abd13c53ee521f6",
+          "path": ".vela/authority/events/vev_7abd13c53ee521f6.json",
+          "file_root": "sha256:ec6ff7bbeb1c10d7cda475ec4aeea91d218cab107ad1d43785608943e414084d"
+        },
+        "transition_event": {
+          "id": "vev_1eb5a0cf93129351",
+          "path": ".vela/authority/events/vev_1eb5a0cf93129351.json",
+          "file_root": "sha256:3e03ffdc34988c40c19d32371e71b3f744ca404195f3ef7e1e66e492a115ea78"
+        },
+        "sequence": 5,
+        "event_log_before": "sha256:f7e132f4316b01d6abcf5ef30efee72a4a423718c1630853cf00f38fa82d56f2",
+        "event_log_after": "sha256:efdfcf8388c3a541c2f7227d2b4a9de5ec7e87df39e05ddb69dc4c116d9b1e77",
+        "repository_before": "sha256:c140453eaa36a314fdbbc524aea84a7bb6e91f89eeface403487fe3c3bfad574",
+        "repository_after": "sha256:f53da541680e2317cd96d64237fa0ced9eb6e4776b03023d5675d0e76b35bc2c"
+      }
+    }
+  },
+  "claim_ceiling": {
+    "established": [
+      "An exact, merged upstream source-definition correction has five direct same-file theorem consumers.",
+      "The retained Vela history records scoped Verification, an attributed correction Decision, and deterministic event-log and Repository roots.",
+      "One of those five source consumers later has an accepted exact proof-repair Claim bound to the corrected definition."
+    ],
+    "not_established": [
+      "The five source consumers are not five Vela Claim depends edges; the dependency inventory is source-level evidence.",
+      "The retained history does not contain a support diamond for this correction.",
+      "One accepted dependent repair does not establish complete propagation, general scientific lift, or lower continuation cost.",
+      "This artifact does not prove Erdős problem 264, the other four consumer theorems, external independence, or adoption.",
+      "This artifact has no authority and changes no Standing."
+    ]
+  }
+}
