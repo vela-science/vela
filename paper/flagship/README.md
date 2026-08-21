@@ -16,8 +16,9 @@ The draft separates four questions:
    cost under a preregistered matched comparison?
 
 The first three have bounded executable evidence. The sealed 16-session study
-did not satisfy its preregistered positive gate. A fresh 24-session,
-three-family held-out design remains work in progress and has not run.
+did not satisfy its preregistered positive gate. A fresh 36-cell,
+three-family, three-arm held-out design remains work in progress and has not
+run.
 
 Read the [claim-evidence matrix](CLAIM_EVIDENCE.md) before the
 [manuscript](manuscript.md). The matrix controls the wording of empirical

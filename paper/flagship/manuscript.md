@@ -34,8 +34,9 @@ authority errors and the Git/documents arm eight. The preregistered positive
 gate was `not_supported`. A byte-bound audit found exact correction pairs,
 consequence classifications, and safe actions in all 16 responses; the misses
 arose from prose-versus-code authority fields and path-without-digest source
-bindings. Those findings motivate a fresh protected 24-session, three-family
-held-out test. They do not rescore the sealed trial or establish lift.
+bindings. Those findings motivate a fresh protected 36-cell, three-family,
+three-arm held-out test. They do not rescore the sealed trial or establish
+lift.
 
 # 1. Claim
 
@@ -213,20 +214,63 @@ bindings. Independent review recomputed every row and the audit root.
 ## 4.7 Held-out replication, work in progress
 
 The prospective design uses three unseen correction families with different
-vocabularies and dependency topologies. Each family contains the four bounded
-consequence classes. Four fresh participant instances per arm and family yield
-24 fixed sessions, balanced 12+12. The response contract replaces prose
-authority fields with a closed generic code and replaces free-text source
-bindings with structured `{path, sha256}` objects. Explanatory prose remains
-outside exact scoring.
+vocabularies, dependency topologies, and authority regimes. The registration
+must fix each regime and its safe-action boundary before packet generation.
+Each family contains the four bounded consequence classes.
+
+The three arms separate presentation structure from Vela-specific governance
+and inheritance:
+
+- **Git/documents, $G$.** Ordinary source, history, dependency, and evidence
+  documents present the candidate-visible facts.
+- **Neutral structured-state wrapper, $N$.** A typed current/superseded state
+  and dependency view presents the same facts. It contains no Vela Repository,
+  Decision, Event, Standing, or authority replay.
+- **Vela, $V$.** Correction, replay, per-Claim bindings, and authority-scoped
+  views present the same facts through the existing protocol substrate.
+
+All three arms receive identical atomic facts. The implementation must match
+packet and prompt length prospectively under a frozen comparison rule, before
+participants or the implementation lane can inspect protected adjudication.
+Four fresh participant instances per arm and family yield
+$3 \times 3 \times 4 = 36$ fixed cells, balanced at 12 per arm. The response
+contract uses a closed generic authority code and structured `{path, sha256}`
+source bindings. Explanatory prose remains outside exact scoring.
+
+For each preregistered primary metric $M$, the analysis reports additive arm
+differences:
+
+$$
+\Delta_{\mathrm{structure}} = M_N - M_G,
+\qquad
+\Delta_{\mathrm{governance}} = M_V - M_N,
+$$
+
+and
+
+$$
+\Delta_{\mathrm{total}} = M_V - M_G
+= \Delta_{\mathrm{structure}} + \Delta_{\mathrm{governance}}.
+$$
+
+The registration must fix the favorable direction for error or loss metrics.
+Restricted-time ratios remain secondary descriptive measures and cannot move a
+primary additive gate. The length- and cost-matched wrapper comparison in
+[StateMem v1](https://arxiv.org/abs/2608.19652v1) motivates this identification
+strategy: a neutral structured view helps estimate the effect of state
+structure without assigning that wrapper Vela semantics. StateMem's reported
+results do not count as evidence for Vela, this benchmark, or adoption.
 
 An independent evaluator must custody the protected labels and action answers,
 publish only their root before execution, and release them after all captures
-freeze. The implementation must bind a fresh seed, schedule, packets,
-information-equivalence proofs, canonical decimal metrics, single-use permits,
-and fail-closed adversaries before any model call. This manuscript revision
-contains no frozen registration, independent prelaunch verdict, participant
-call, or result for that design.
+freeze. The implementation must bind a fresh seed, 36-cell schedule, packets,
+information-equivalence and length-matching proofs, canonical decimal metrics,
+single-use permits, and fail-closed adversaries before any model call. The
+freeze must place every permit in `hold`, and prelaunch review must PASS before
+one may be consumed. The protocol allows no retry or substitution. This
+manuscript revision contains no frozen registration, permit set, independent
+prelaunch verdict, participant call, or result for this design. Its status is
+`not_run`.
 
 # 5. Results
 
@@ -238,7 +282,7 @@ call, or result for that design.
 | Erdős 264 | One real source correction, five direct consumers, source-preserving repair, attributed Decision, replay, and successor handoff; matched study 0/1 versus 0/1. | Action-complete case, no causal lift |
 | Inherited correction | Git/documents: 112 points, 0 exact, 8 authority errors, restricted mean 600 s. Vela: 130 points, 5 exact, 3 authority errors, restricted mean 233.07823840475 s. Ratio 0.388463730674583. | `positive_gate=not_supported` |
 | Miss audit | All 16 pair, class, and action answers exact; 11 semantic-none prose misses; 8 path-without-digest misses. | Directional contract and navigation evidence |
-| Held-out replication | No frozen or executed result. | Open |
+| Held-out replication | Proposed 36-cell, three-family, three-arm design; no frozen registration or executed result. | `not_run`; open |
 
 The 16-session counts and time ratio show a directional internal difference.
 The registered gate required at least six Vela exact successes, no Vela
@@ -266,7 +310,7 @@ test a closed contract without changing the old score.
 | Sealed 16-session result | producer `7641d775911f6026a9c36649d6cf1354dd1f70c0`; result `sha256:48c3ab674e1ef707a207c2a5cf8addab16d7209e8229def76f0f1568a466f83f` | Registration, packets, 16 captures, scorer, canonical result | Independently reviewed at `1f7ebabee72058619e8081d71c3fc4325b81f64b` |
 | Capture and custody | capture `sha256:0e5f60fa1dc78e531d44cb8fff626e73c6b2c0017bbcec52e41220cbfac686fd`; custody `sha256:619512f17009dd92c651a687cbc17dd5899c0b908619d82de465b9747a7aa3f5` | Exact denominator, permits, terminal receipts, provider events, and responses | Independently reconstructed |
 | Miss audit | producer `de13073ff8f3a9f2958f8c93c848205c533ddb1e`; artifact `sha256:8463024ee31116c33cee9e43262286bb78855654ecc974e77818bf4dfac581af` | Frozen per-cell classifications and prospective fixes | Independently reviewed at `720053e9fc0cb95d2b2258516663300f43b29c16` |
-| Held-out three-family design | root pending | Protected 24-session registration, packets, answer-key commitment, assignments, and capture plan | Work in progress; not executed |
+| Held-out three-family design | root pending | Prospective protected 36-cell registration, three matched arms, packets, answer-key commitment, assignments, and capture plan | Work in progress; `not_run`; unreviewed |
 
 # 7. Reproduction contract
 
@@ -298,6 +342,12 @@ first-party infrastructure, and eight sessions per condition. It failed its
 positive gate. The audit found output-contract and navigation effects within
 that fixture; it cannot separate every model, packet, or scorer effect.
 
+The three-arm design may separate structured presentation from Vela-specific
+governance only within its frozen families and authority regimes. Prospective
+length matching cannot make distinct representations identical, and the
+neutral wrapper cannot test Repository authorization or Standing replay. The
+design remains unreviewed and `not_run`.
+
 The portable-divergence identities are synthetic test-support principals. The
 controller trace and Erdős 264 handoff used first-party operators on colocated
 machines. The real correction case has five direct consumers, but its relation
@@ -317,8 +367,10 @@ automatic scientific acceptance, or controller authority. It does not call a
 Verification a Decision. It does not report the 16-session time ratio as
 positive lift, because the registered gate failed. It does not count the
 post-result audit as a rescore. It does not call the held-out design executed,
-reviewed, or successful. It does not claim external reproduction, adoption, or
-general productivity.
+reviewed, or successful. It assigns no Repository, Decision, Event, Standing,
+or authority semantics to the neutral wrapper. It does not use StateMem's
+results as Vela evidence. It does not claim external reproduction, adoption,
+or general productivity.
 
 # 10. Current paper-ready gate
 
@@ -336,3 +388,19 @@ Items 1 through 3 exist. Items 4 and 5 remain open in this working draft.
 External execution after publication can test the package under a new operator
 and institution. The manuscript will report that future event only after it
 occurs.
+
+## 10.1 Compressed critical path
+
+These planning ranges assume the existing bounded scope and no infrastructure
+failure. The fastest case assumes first-pass method and result review. The
+expected case allows one narrow correction cycle at each review boundary.
+
+| Stage | Fastest case | Expected duration | Exit condition |
+| --- | --- | --- | --- |
+| Implement and freeze the three-arm packets, wrapper, registration, and permits | 8 hours | 1--2 days | Immutable 36-cell design with all permits held |
+| Independent method and exact-byte prelaunch review | 4 hours | 0.5--1 day | Exact PASS for the frozen design |
+| Sequential execution and custody | 8--12 hours | 1--2 days | Exactly 36 terminal cells frozen, with failures retained and zero retries |
+| Deterministic scoring and independent post-result review | 4--8 hours | 0.5--1 day | Canonical result plus exact PASS or a reported blocker |
+| Manuscript and public reproduction-bundle integration | 2--4 hours | 0.5--1 day | Updated claim matrix, artifact manifest, render, and one-command check |
+| **Internal paper critical path** | **26--36 hours** | **3.5--7 days** | Internal paper-ready gate evaluated without an external executor |
+| External reproduction after publication | 0 hours added | 0 days added | Downstream validation, outside this paper-ready gate |
