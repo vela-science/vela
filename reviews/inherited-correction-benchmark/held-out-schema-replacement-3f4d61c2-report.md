@@ -104,4 +104,3 @@ that different qualification boundary). Then bind the corrected image and
 runtime roots, regenerate the fresh registration, configuration, permits,
 prelaunch freeze, and manifest while preserving 0/36 and both holds, and submit
 those immutable bytes for another independent review.
-
