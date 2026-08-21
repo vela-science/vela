@@ -1,0 +1,68 @@
+{
+  "schema": "vela.independent-confirmatory-custody-rereview-verdict.v1",
+  "review_id": "inherited-correction-confirmatory-custody-f919654a-2026-08-21",
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/inherited-correction-study",
+    "producer_commit": "f919654a7e55d336c5588719e962e2d67a699710",
+    "producer_tree": "352d7796e09bf4339c9296c44192c3a0d0e71331",
+    "parent_commit": "b4bd2542b2fb71944a0d1e7e487b007392c008b6",
+    "prior_blocked_review_commit": "23986b9b02ea5ba1324cd9aad91545f969db8a56",
+    "benchmark_registration_root": "sha256:78cc6e0154ec1baaa4eb86a15131ad9910802a5a2aeae2b82779de3c3ba6e67b",
+    "runtime_registration_root": "sha256:aaa951dc6cb34c6b86e5a5a096e974ac51c56ba9c02be6690e5fa1bdc7c77a5e"
+  },
+  "verdict": "BLOCKED",
+  "prior_finding_status": {
+    "id": "F04",
+    "status": "closed",
+    "summary": "Bridge-generated v2 records and complete runtime custody are now mandatory for the exact 16-cell capture; synthetic legacy records fail closed."
+  },
+  "failed_gates": [
+    {
+      "id": "G07_deterministic_scoring",
+      "finding": "F05",
+      "summary": "Scoring re-reads mutable response bytes after capture verification and can return a result calculated from bytes absent from the frozen capture."
+    },
+    {
+      "id": "G08_deterministic_custody",
+      "finding": "F05",
+      "summary": "The pre-key custody check does not bind the later response reads that actually influence scoring."
+    }
+  ],
+  "finding": {
+    "id": "F05",
+    "title": "Scoring can consume response bytes that are not in the frozen capture",
+    "location": "paper/artifacts/inherited-correction-benchmark/benchmark.py:1018",
+    "frozen_response_bytes": "sha256:c1ee1533b583f517e1b69f49dcdff15f283f463f4f64d12a5bfa0ad2de60ae12",
+    "scored_response_bytes": "sha256:211cf71c89c6b265fe76fa702c54f228646647ca8669978f7e18272042cc2d5f",
+    "reproduction": "Build and capture all 16 bridge-generated offline controls; after verify_capture_manifest returns but before score_runs reads responses, replace one response with another structurally valid closed response. score_runs returns a result bound to the old capture_root while scoring the replacement bytes.",
+    "protected_adjudication_opened": false,
+    "experimental_output_observed": false
+  },
+  "otherwise_passed_evidence": [
+    "immutable remote subject and exact 37-path artifact-only scope",
+    "all disclosed source hashes, modes, roots, and manifest entries",
+    "authorized shared-to-condition configuration mapping",
+    "mandatory consumed-permit, terminal-receipt, provider-event, stderr, response, and runtime-source custody",
+    "exact fixed 16-cell bridge capture with protected adjudication patched absent",
+    "legacy synthetic, missing, duplicated, drifted, cross-root, time, usage, event, response, and permit adversaries",
+    "failure and timeout retention without retry or scorable response",
+    "all nominal deterministic checks"
+  ],
+  "prelaunch_qualified": false,
+  "participant_launch_authorized_by_review": false,
+  "permit_release_authorized_by_review": false,
+  "authority_effect": "none",
+  "experimental_status": {
+    "required_sessions": 16,
+    "executed_sessions": 0,
+    "result": "not_run",
+    "permits_consumed": 0,
+    "hold_status": "hold"
+  },
+  "minimal_repair": "Before protected-key access, load and validate the exact run and response bytes into an immutable in-memory snapshot bound to the capture manifest, and score only that snapshot; add an adversary that mutates a response at the gate boundary and must fail closed.",
+  "nonclaims": [
+    "This review did not launch a participant, consume a permit, or open protected adjudication.",
+    "This verdict does not authorize a call, permit release, merge, scientific claim, Protocol/Core change, Decision, authority action, or Standing effect."
+  ]
+}
