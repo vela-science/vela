@@ -44,25 +44,17 @@ dependencies.
 ## PDF render
 
 The qualifying local renderer uses Pandoc 3.9 and
-pdfTeX 3.141592653-2.6-1.40.26 from TeX Live 2024. From a clean source tree,
-run:
+pdfTeX 3.141592653-2.6-1.40.26 from TeX Live 2024. It requires a clean source
+tree and sets `SOURCE_DATE_EPOCH` to the exact `HEAD` commit timestamp before
+Pandoc starts. Run:
 
 ```bash
-mkdir -p output/pdf
-pandoc paper/flagship/manuscript.md \
-  --from=gfm+yaml_metadata_block \
-  --standalone \
-  --pdf-engine=pdflatex \
-  --lua-filter paper/filters/break-exact-values.lua \
-  --include-in-header paper/preamble.tex \
-  -V papersize:letter \
-  -V geometry:margin=0.8in \
-  -V fontsize=10pt \
-  -V colorlinks=true \
-  -V linkcolor=black \
-  -V urlcolor=blue \
-  -o output/pdf/vela-flagship-working-paper.pdf
+python3 paper/flagship/render.py
 ```
+
+The renderer reports the commit, tree, source timestamp, source and support
+roots, and generated PDF root. Two renders of one clean commit must be
+byte-identical.
 
 The public-ready paper gate requires this command to pass from the paper's
 exact source commit. An outside person or institution running the package
