@@ -1,0 +1,67 @@
+{
+  "schema": "vela.independent-post-canary-rereview-verdict.v1",
+  "review_id": "inherited-correction-runtime-canary-03-f03-2026-08-21",
+  "prior_review": {
+    "commit": "a80d72bc5286fe7b0fd4df99570544165aec75b6",
+    "verdict": "BLOCKED",
+    "finding": "F03",
+    "failed_gate": "G08_deterministic_custody"
+  },
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/inherited-correction-study",
+    "producer_commit": "4c7bd6a811bbd0cf1ebd357d3ad72abb9127442a",
+    "producer_tree": "006eec100cff769b2b378d96ea4b9ad4c2530191",
+    "parent_commit": "e5f11cc58b3675f171cab2fc57b5714b330152f3"
+  },
+  "verdict": "PASS",
+  "review_scope": [
+    "F03",
+    "G08_deterministic_custody"
+  ],
+  "resolved_findings": [
+    {
+      "id": "F03",
+      "result": "resolved",
+      "evidence": "Both changed Python files pass locked Ruff 0.12.11 check and format check, the shebang script is executable, and the executable wrapper restores locked Node dependencies before the event test."
+    }
+  ],
+  "failed_gates": [],
+  "passed_gates": [
+    "G08_deterministic_custody"
+  ],
+  "unchanged_subject_evidence": {
+    "canary_01_tree": "6ac6d05b4a71761758dafe5395c3095e12c746f5",
+    "canary_02_tree": "4685b2985884d5676bc9d3c6b99964a7cfc1bbe2",
+    "canary_03_tree": "1dd121c9c1d843576a2fbc98091270edfa5b0bfe",
+    "container_runtime_tree": "b5df0ebb3127874857d5a3bd6e305db183be13c2",
+    "prelaunch_bytes": "sha256:1405e33a4c5627c510d85174f602b6951c7b2c17e3903a28708867299682e1c4"
+  },
+  "nominal_checks": {
+    "runs_per_check": 2,
+    "ruff_0_12_11_check": "pass",
+    "ruff_0_12_11_format_check": "pass",
+    "event_contract_wrapper": "pass",
+    "runtime_tests": "11 passed",
+    "benchmark_verify": "pass",
+    "benchmark_tests": "15 passed",
+    "prelaunch_regeneration": "36 files byte-identical",
+    "git_diff_check": "pass",
+    "canary_and_runtime_bytes_unchanged": true
+  },
+  "qualification": "The exact corrective commit resolves the deterministic-custody blocker and qualifies the previously substantively passing container runtime and canary-03 calibration evidence only.",
+  "calibration_runtime_qualified": true,
+  "replacement_confirmatory_registration_frozen": false,
+  "experimental_execution_authorized": false,
+  "authority_effect": "none",
+  "confirmatory_status": {
+    "required_sessions": 16,
+    "executed_sessions": 0,
+    "registration": "not_registered",
+    "result": "not_run"
+  },
+  "nonclaims": [
+    "This PASS does not authorize another canary or any confirmatory session.",
+    "This PASS is not a scientific-lift result, merge approval, protocol acceptance, Decision, authority action, or Standing effect."
+  ]
+}
