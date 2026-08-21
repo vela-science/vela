@@ -1,7 +1,7 @@
 {
   "adjudication_status": "pending_independent_evaluator_freeze",
-  "assignment_root": "sha256:65709707cd75e2de43e3c421a8c0ef1d6439bca8f8f5af32d125cbfd512f0cc1",
-  "configuration_mapping_root": "sha256:69906d913d23896edfa96fb108c59bf399493b4333e7136d54ba8b0acaa7f04c",
+  "assignment_root": "sha256:77c81b88813716466f5c935eb79b986874ed132a5986be34152bd8ac70da0205",
+  "configuration_mapping_root": "sha256:709713f1d27852cbf3b5169091c476b55b490529eeed84f8aac2decf01fecb6d",
   "equivalence_root": "sha256:12904756aa4683934eb925ae856d6afd50897dc1d855f3b55ce4e51ce6391bc1",
   "image_digest": "sha256:1dee2374077c83e3dbdb2e09d32ef4fa3a414d200b800839857353e13d3c4e09",
   "packet_roots": {
@@ -21,9 +21,9 @@
       "vela": "sha256:7bef1b55dc0c32934dfa1f08ab5765d56de8f96ca7088b20df32956f8f1f18ba"
     }
   },
-  "participant_configuration_root": "sha256:3d2e281d23aa5160ac2f83bf4dc9e69698211d26bd0843ccfaf26e5c5055fc84",
-  "permit_set_root": "sha256:3eeea5bc0152616691149519cf5bf47f20f2ee88fd66836e011a6342b82d6794",
-  "prelaunch_root": "sha256:015eb785c136316cac16ed206822cf87ebef7484c2b065753822d36faa002d4b",
+  "participant_configuration_root": "sha256:adb7aef1966a25631077dd3466a04a785e369698fdbae0e8f09ace5ca995380e",
+  "permit_set_root": "sha256:e7f9ce0725c82250927355541ca1651fc44b4d925255e57481d0e2b4f85bb438",
+  "prelaunch_root": "sha256:f1dc641ad0dac285dd94f84d37746a34fac6f30d05e8ee3d773599b01fb32ea8",
   "prompt_roots": {
     "method-version-correction": {
       "git-documents": "sha256:0cdb1987b360859a756ae60dfeec363b5e13cd1f5bf217e903d07c4f692e8033",
@@ -42,25 +42,25 @@
     }
   },
   "provider_calls": 0,
-  "registration_root": "sha256:b179fb4090871003d2d632e21a639420d8d0df8a79b529f372bc28e525355a42",
+  "registration_root": "sha256:185e781cd0b1a06d89488266e9e7147f42834d960063818f0cdf56209c6d3306",
   "runtime_configuration_roots": {
     "method-version-correction": {
-      "git-documents": "sha256:c6f4253ee44b0f82f04a84658bda22fb878246569671878f7b5902046e0c34f4",
-      "state-wrapper": "sha256:3d0ea0649f92cfa882119d1f5facbc56f096e4a2557284bfc1c3ab4b08bb5e4c",
-      "vela": "sha256:2409a08028f0181f98d1af40711a3d72f165a96ca607729f6e9d63b995fe98f0"
+      "git-documents": "sha256:a39696810948ad440711f11ccb50f086baa9f0d29a4697278ca9e56a1b90c5c3",
+      "state-wrapper": "sha256:6cbb47a4c0236cfbc983ed0a72e47bba955ce2c97ae2b2066ecdb0955e35ccd9",
+      "vela": "sha256:bbf23544e15df0a93f0f4e6506cd1b83138d1e3dfb34d44749423a39347f7a20"
     },
     "provenance-revocation": {
-      "git-documents": "sha256:4f930cf1efbc8450a17d7cb32102eef6de161b97901ddfc84f1865f3ac58ec68",
-      "state-wrapper": "sha256:bbb4b382dcef64ce324464ed8507ebdc5bac328c652d236b10ea02131ce6ccc6",
-      "vela": "sha256:95e4ff52e67a7f7dbb66c0c7a75ee35f1bd6639e5c3f98f8ccb0d7af79cfc518"
+      "git-documents": "sha256:8b1e035d34d3d6ebe8a1d2ead07e9e90634ed5661ebe9179441332c1cb237045",
+      "state-wrapper": "sha256:e826a9a8bc00b3f86301f8fde19d823920a8c48689da16c09fe70c93b16a534b",
+      "vela": "sha256:32d2651cfa444d85012fa7e33384f3a4c099080ad6333074b3393072e95e5d82"
     },
     "taxonomy-remap": {
-      "git-documents": "sha256:49017631793a3dc724a4f88bf55bd63749758e4e1ae587f37f7c828140fdaeed",
-      "state-wrapper": "sha256:4243d6cb0e35df3f6fc2ec2ab19be46e9178c8b38af68b02f33163c4af2641bd",
-      "vela": "sha256:ab36ff0cfe6083d5798f5384df1b2bb295b3b96c62027092e49cfb08ce263d5d"
+      "git-documents": "sha256:a60a8248bf739d37e7ec31e3d6abaebf8e556ed246dafbbd2ac2fd1420a7712b",
+      "state-wrapper": "sha256:4a93e68cd108b51ac8dedee9e767a28a64db14cec9c26cb38190abc8273e4bce",
+      "vela": "sha256:69b48fe5bcd165167a537292caed8b26e1a584dc7aed4afd9198065a4df288a3"
     }
   },
-  "runtime_root": "sha256:34188b459164493ad587adb7cbde4f35db5bfe2ba8c165b6d4413111f4a1ae27",
+  "runtime_root": "sha256:33f0d3b40e674a4c0934f27080e28325be9a30edfbd11682801066c22911ee6a",
   "schema": "vela.inherited-correction-held-out-prelaunch-freeze.v1",
   "status": "held",
   "trust_bundle_bytes": "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5"

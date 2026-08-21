@@ -29,7 +29,7 @@
         "vela": "sha256:7bef1b55dc0c32934dfa1f08ab5765d56de8f96ca7088b20df32956f8f1f18ba"
       }
     },
-    "participant_configuration_root": "sha256:3d2e281d23aa5160ac2f83bf4dc9e69698211d26bd0843ccfaf26e5c5055fc84",
+    "participant_configuration_root": "sha256:adb7aef1966a25631077dd3466a04a785e369698fdbae0e8f09ace5ca995380e",
     "prompt_roots": {
       "method-version-correction": {
         "git-documents": "sha256:0cdb1987b360859a756ae60dfeec363b5e13cd1f5bf217e903d07c4f692e8033",
@@ -48,7 +48,7 @@
       }
     },
     "response_schema_bytes": "sha256:ac96be686e749792956dfa1dfe9560f85c53d55c27fe2e8fd32bcc2a96a634ba",
-    "runtime_root": "sha256:34188b459164493ad587adb7cbde4f35db5bfe2ba8c165b6d4413111f4a1ae27",
+    "runtime_root": "sha256:33f0d3b40e674a4c0934f27080e28325be9a30edfbd11682801066c22911ee6a",
     "task_bytes": "sha256:df1d1aab35634b5cc732cfe098530336cbb234a85388817d0d323dc5fe7eef1b",
     "test_bytes": "sha256:a692c24e97fc20772d1db70485060fdf81cab277ec9e58c6f27dba31905f8222"
   },
@@ -71,7 +71,7 @@
     "taxonomy-remap"
   ],
   "purpose": "Test continuation and reassessment cost across three unseen consequential-correction families without assuming lift.",
-  "registration_root": "sha256:b179fb4090871003d2d632e21a639420d8d0df8a79b529f372bc28e525355a42",
+  "registration_root": "sha256:185e781cd0b1a06d89488266e9e7147f42834d960063818f0cdf56209c6d3306",
   "schema": "vela.inherited-correction-held-out-preregistration.v1",
   "scoring": {
     "aggregate_gates": {

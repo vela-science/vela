@@ -12,7 +12,7 @@
   "provider": "openai-chatgpt-oauth-codex",
   "reasoning_effort": "high",
   "retries": 0,
-  "runtime_review_commit": "2ebf1ad8cb0f5d16b7bcee8e5510f3aed5dc1395",
+  "runtime_review_commit": "3c0c8cfa050b30a5d19c9e7e623fc549ac18264b",
   "runtime_source_root": "sha256:398f798daf4b2ebd86a878021025adbc073155e13d9123b140da2bc8fcb32b8a",
   "schema": "vela.inherited-correction-held-out-runtime-binding.v1",
   "schema_validator": "ajv/dist/2020.js@8.17.1",
