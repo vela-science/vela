@@ -1,0 +1,107 @@
+{
+  "schema": "vela.independent-review-protocol.v1",
+  "review_id": "inherited-correction-benchmark-2026-08-21",
+  "title": "Review Vela inherited correction benchmark",
+  "reviewer_role": "independent_reviewer",
+  "frozen_on": "2026-08-21",
+  "baseline": {
+    "remote": "https://github.com/vela-science/vela.git",
+    "commit": "1a2e0328620b4e8c4584c3d4baf257adb11f3d45",
+    "tree": "1bd8ed4e11d3745f159b32f23539f5174fd44803",
+    "tag": "v0.977.4",
+    "evidence_sha256": {
+      "docs/EVIDENCE.md": "0ef0f5db33985584ee8ac9f758d2f49f3541057c630e42c646d8611be3b0747d",
+      "docs/PROTOCOL.md": "17b5af6a8a499b2c26744f68df7695aaf24990a60ef5387627acdabdbf5dc2a0",
+      "docs/adr/0004-verifiable-scientific-composition-experiment.md": "a9ca3761d1afcc1537b7608e45da47e9b6d1de3d10d4bd68c25b3da795130a60",
+      "docs/adr/0026-correction-benchmark-and-whitepaper-evidence-contract.md": "b4a7ca223ddd979f943ca7d059c3ced5795def75d753c816a1723843e3c477da",
+      "docs/adr/0036-flagship-mathematical-breakthrough-campaign.md": "26a1802583084b2d0885548f675dd6d609caa76820f4eeb25a595dadb301f095",
+      "conformance/fixtures/correction/diamond-input.json": "74cb6104048b3c390d429ca82117148da91107f67086af47f73bd1228c3cdacd",
+      "conformance/fixtures/correction/diamond-expected.json": "a7d2916e41f86f19e95d0c5440ef7246185aded64a58c38df4d711817803e91d",
+      "conformance/fixtures/correction/diamond-adversarial.json": "bec5f77be334e776d629adcefcaae2b1382ecefb41809e4183986027f55517cf"
+    },
+    "known_limits": [
+      "The frozen correction-impact diamond is synthetic and does not establish a real accepted dependency cascade.",
+      "The Phase 0 cold-successor comparison is internal and does not establish external replication or general causal lift.",
+      "A Verification, Git commit, deterministic check, or favorable benchmark score does not change Standing or establish scientific acceptance."
+    ]
+  },
+  "independence": {
+    "producer_bytes_must_not_be_edited": true,
+    "moving_producer_state_must_not_be_reviewed": true,
+    "subject_must_be_fetched_from_remote_by_immutable_commit": true,
+    "authority_or_standing_actions_forbidden": true,
+    "paid_model_calls_forbidden": true,
+    "human_studies_or_contact_forbidden": true,
+    "merge_forbidden": true
+  },
+  "required_handoff": [
+    "remote URL and immutable producer commit",
+    "producer tree",
+    "branch or immutable ref from which the commit can be fetched",
+    "exact base commit",
+    "preregistration path and SHA-256 root",
+    "preregistration commit that predates every experimental execution",
+    "artifact manifest path and root",
+    "deterministic verification commands",
+    "explicit disclosure of whether any experimental, paid-inference, or human-validation execution occurred"
+  ],
+  "gates": [
+    {
+      "id": "G01_immutable_subject",
+      "requirement": "The handed-off commit and tree reconstruct exactly from the named remote; the reviewed diff is base-commit-bound and contains no uncommitted or post-handoff bytes."
+    },
+    {
+      "id": "G02_temporal_preregistration",
+      "requirement": "The complete plan, answer-key commitment, selection rule, arms, budgets, stopping rules, scoring rules, nonclaims, and publication rule were frozen in Git before any experimental execution. Missing temporal evidence blocks confirmatory readiness."
+    },
+    {
+      "id": "G03_exact_ground_truth",
+      "requirement": "The preregistration gives complete, source-bound, machine-readable ground truth for affected, unaffected, must-reassess, and presently-unprovable items; identities are full roots, sets are deterministically ordered, omissions are explicit, and every classification cites exact source bytes."
+    },
+    {
+      "id": "G04_consequential_bounded_chain",
+      "requirement": "The fixture contains a genuine bounded correction with at least one consequential dependency or support consequence, at least one preserved unaffected route or sibling, and a declared completeness boundary. A byte mutation, metadata-only change, or synthetic graph relabeled as real blocks this gate."
+    },
+    {
+      "id": "G05_same_information_fairness",
+      "requirement": "The Vela and Git-plus-documents arms derive from one canonical fact manifest and expose the same scientific, correction, dependency, authority, limitation, and source facts with equivalent tools and budgets. Packet size may differ and must be reported; hidden Vela-only facts block this gate."
+    },
+    {
+      "id": "G06_cold_successor_protocol",
+      "requirement": "Fresh isolated successors receive only the frozen arm packet and public instructions; assignments, task order, model identity, environment, network policy, time, token, tool, retry, intervention, and failure-charging rules are frozen. No private maintainer explanation is allowed."
+    },
+    {
+      "id": "G07_deterministic_scoring",
+      "requirement": "Machine scoring is answer-key-bound, arm-blind where feasible, deterministic across repeated runs, preserves failures and non-results in the denominator, reports every item, and grants no credit for authority confusion or unsupported inference."
+    },
+    {
+      "id": "G08_deterministic_custody",
+      "requirement": "Fixtures, manifests, prompts, source bindings, replay inputs, expected outputs, and evidence records have recomputable full hashes; generation and verification succeed from a clean exact checkout without a hosted Vela service or hidden local state."
+    },
+    {
+      "id": "G09_no_positive_result_assumption",
+      "requirement": "The plan admits positive, neutral, negative, partial, timeout, and unavailable outcomes without substitution or selective retry, and claims no benefit before scored execution and separate validation."
+    },
+    {
+      "id": "G10_no_core_or_authority_expansion",
+      "requirement": "The benchmark adds research evidence only: no Core crate, protocol object, schema, Standing reducer, authority path, Decision rule, writer, service dependency, or scientific-repository authority is added or changed."
+    },
+    {
+      "id": "G11_external_execution_gate",
+      "requirement": "Paid inference and human validation remain explicitly not executed and not authorized by this review. A passing deterministic review may establish readiness only; execution requires a separately recorded approval, budget, credential-custody plan, and validation protocol."
+    }
+  ],
+  "deterministic_review": {
+    "minimum_runs_per_command": 2,
+    "compare_repeated_output_bytes": true,
+    "recompute_all_manifest_and_documented_roots": true,
+    "reconstruct_in_clean_temporary_checkout": true,
+    "fail_closed_on_missing_or_inaccessible_bytes": true,
+    "verdict_values": [
+      "PASS",
+      "BLOCKED"
+    ],
+    "pass_rule": "PASS only when every gate is supported by commit-bound evidence and every deterministic check succeeds. Otherwise BLOCKED with exact failed gate identifiers."
+  },
+  "verdict_scope": "Benchmark-package readiness for a separately authorized paid-inference and human-validation phase. It is not a benchmark result, scientific acceptance, protocol acceptance, release qualification, or authority action."
+}
