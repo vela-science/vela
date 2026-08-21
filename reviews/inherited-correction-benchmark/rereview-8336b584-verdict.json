@@ -1,0 +1,80 @@
+{
+  "schema": "vela.independent-rereview-verdict.v1",
+  "review_id": "inherited-correction-benchmark-repair-2026-08-21",
+  "prior_review": {
+    "commit": "c377e99e2c982211be7ecb9cba8998c848cf18c2",
+    "verdict": "BLOCKED",
+    "findings": [
+      "F01",
+      "F02"
+    ]
+  },
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/inherited-correction-benchmark",
+    "original_base_commit": "1a2e0328620b4e8c4584c3d4baf257adb11f3d45",
+    "producer_commit": "8336b584a8303026e747ce4a7c7257e3efb1db2c",
+    "producer_tree": "996bbb8417bf807cb0230b0294e1d4d845e6e3b9",
+    "registration_root": "sha256:7391c3c6adb74633886fd9fb2d35a257e7501bd37153acfb3e19ac850d0e9157"
+  },
+  "live_main_observation": {
+    "commit": "2b8d43ed50a9639dfc18c5f6f21677021f70a4b2",
+    "merge_compatibility_reviewed": false
+  },
+  "verdict": "PASS",
+  "resolved_findings": [
+    {
+      "id": "F01",
+      "result": "resolved",
+      "evidence": "Closed action codes reject prior negated free text; a valid wrong code loses exact-success credit."
+    },
+    {
+      "id": "F02",
+      "result": "resolved",
+      "evidence": "Freeze rejects forged custody roots, packet drift, assignment/configuration drift, invalid attempt/timeout/time/status/tool fields, and binds capture and adjudication roots."
+    }
+  ],
+  "failed_gates": [],
+  "passed_gates": [
+    "G01_immutable_subject",
+    "G02_temporal_preregistration",
+    "G03_exact_ground_truth",
+    "G04_consequential_bounded_chain",
+    "G05_same_information_fairness",
+    "G06_cold_successor_protocol",
+    "G07_deterministic_scoring",
+    "G08_deterministic_custody",
+    "G09_no_positive_result_assumption",
+    "G10_no_core_or_authority_expansion",
+    "G11_external_execution_gate"
+  ],
+  "qualification": "The immutable amended artifact is ready as a deterministic preregistration, packet, capture-custody, and scoring implementation for separate experimental-authorization consideration.",
+  "experimental_execution_authorized": false,
+  "authority_effect": "none",
+  "experimental_status": {
+    "required_sessions": 16,
+    "executed_sessions": 0,
+    "result": "not_run",
+    "paid_inference": "not_authorized",
+    "human_or_scientific_validation": "not_authorized"
+  },
+  "nominal_checks": {
+    "runs_per_check": 2,
+    "benchmark_verify": "pass",
+    "benchmark_tests": "15 passed",
+    "ruff_check": "pass",
+    "ruff_format_check": "pass",
+    "correction_impact_python": "sha256:935e084f8c5c45bcee234d2e9752062ba54493aa1b14f731e0efbbb1ecc01df6",
+    "correction_impact_rust": "5 passed",
+    "full_conformance": "sha256:e014259269ea34452bb5a583a29ee478bec53e67128ec9eafa6d099a883fc24c",
+    "git_diff_check": "pass",
+    "artifact_manifest": "pass",
+    "referenced_hashes": "match",
+    "independent_prior_blocker_reproduction": "fail_closed"
+  },
+  "nonclaims": [
+    "This PASS does not authorize any experimental session.",
+    "This PASS is not a positive Vela-lift result, scientific validation, acceptance, or Standing.",
+    "This PASS does not certify compatibility or mergeability with the independently advanced main branch."
+  ]
+}
