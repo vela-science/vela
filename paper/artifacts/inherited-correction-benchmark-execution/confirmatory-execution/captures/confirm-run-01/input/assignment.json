@@ -1,0 +1,104 @@
+{
+  "assignments": [
+    {
+      "condition": "vela",
+      "packet_root": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97",
+      "participant_instance_id": "confirm-sol-01",
+      "run_id": "confirm-run-01"
+    },
+    {
+      "condition": "git-documents",
+      "packet_root": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+      "participant_instance_id": "confirm-sol-02",
+      "run_id": "confirm-run-02"
+    },
+    {
+      "condition": "git-documents",
+      "packet_root": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+      "participant_instance_id": "confirm-sol-03",
+      "run_id": "confirm-run-03"
+    },
+    {
+      "condition": "vela",
+      "packet_root": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97",
+      "participant_instance_id": "confirm-sol-04",
+      "run_id": "confirm-run-04"
+    },
+    {
+      "condition": "git-documents",
+      "packet_root": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+      "participant_instance_id": "confirm-sol-05",
+      "run_id": "confirm-run-05"
+    },
+    {
+      "condition": "vela",
+      "packet_root": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97",
+      "participant_instance_id": "confirm-sol-06",
+      "run_id": "confirm-run-06"
+    },
+    {
+      "condition": "git-documents",
+      "packet_root": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+      "participant_instance_id": "confirm-sol-07",
+      "run_id": "confirm-run-07"
+    },
+    {
+      "condition": "git-documents",
+      "packet_root": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+      "participant_instance_id": "confirm-sol-08",
+      "run_id": "confirm-run-08"
+    },
+    {
+      "condition": "git-documents",
+      "packet_root": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+      "participant_instance_id": "confirm-sol-09",
+      "run_id": "confirm-run-09"
+    },
+    {
+      "condition": "git-documents",
+      "packet_root": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+      "participant_instance_id": "confirm-sol-10",
+      "run_id": "confirm-run-10"
+    },
+    {
+      "condition": "vela",
+      "packet_root": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97",
+      "participant_instance_id": "confirm-sol-11",
+      "run_id": "confirm-run-11"
+    },
+    {
+      "condition": "vela",
+      "packet_root": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97",
+      "participant_instance_id": "confirm-sol-12",
+      "run_id": "confirm-run-12"
+    },
+    {
+      "condition": "vela",
+      "packet_root": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97",
+      "participant_instance_id": "confirm-sol-13",
+      "run_id": "confirm-run-13"
+    },
+    {
+      "condition": "git-documents",
+      "packet_root": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+      "participant_instance_id": "confirm-sol-14",
+      "run_id": "confirm-run-14"
+    },
+    {
+      "condition": "vela",
+      "packet_root": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97",
+      "participant_instance_id": "confirm-sol-15",
+      "run_id": "confirm-run-15"
+    },
+    {
+      "condition": "vela",
+      "packet_root": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97",
+      "participant_instance_id": "confirm-sol-16",
+      "run_id": "confirm-run-16"
+    }
+  ],
+  "image_digest": "sha256:6274d83356076640d6e4bc810b97d37ac2d1b5ab02546dd7c2ebed16f915b547",
+  "registration_root": "sha256:345d54e2bc8c76eb66a8938a03f26001ea4f953c04bf58d9c8cd7f8ad039d1b2",
+  "schema": "vela.inherited-correction-runtime-assignment.v2",
+  "seed_commitment": "sha256:ee8fd882e47989e508c0f663931dfab102424adbda3659809333b9a965c1f1c2"
+}
