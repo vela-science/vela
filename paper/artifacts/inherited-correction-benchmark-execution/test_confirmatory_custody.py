@@ -152,6 +152,16 @@ def mutate_json(path: Path, field: str, value) -> None:
     path.write_bytes(custody.encoded(document))
 
 
+def make_complete_runs(base: Path) -> Path:
+    runs = base / "runs"
+    for run_id in sorted(custody.static_state()["rows"]):
+        custody.ingest(make_capture(base / "captures" / run_id, run_id), runs, run_id)
+    (runs / "capture-manifest.json").write_bytes(
+        benchmark.json_bytes(benchmark.capture_manifest(runs))
+    )
+    return runs
+
+
 class ConfirmatoryCustodyTests(unittest.TestCase):
     def test_static_mapping_is_explicit_authorized_and_exact(self) -> None:
         state = custody.static_state()
@@ -355,6 +365,50 @@ class ConfirmatoryCustodyTests(unittest.TestCase):
                 complete["complete_runtime_custody_root"],
             )
             self.assertFalse(capture["adjudication_accessed"])
+
+    def test_gate_boundary_run_and_response_mutations_fail_before_key(self) -> None:
+        cases = ("run", "response")
+        for case in cases:
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
+                base = Path(temporary)
+                runs = make_complete_runs(base)
+                original_verify = benchmark.verify_capture_manifest
+
+                def verify_then_mutate(runs_dir: Path):
+                    capture = original_verify(runs_dir)
+                    if case == "run":
+                        path = runs_dir / "confirm-run-01/run.json"
+                        value = benchmark.load_json(path)
+                        value["tool_calls"] = 1
+                    else:
+                        path = runs_dir / "confirm-run-01/response.json"
+                        value = benchmark.load_json(path)
+                        value["consequences"][0]["action_code"] = (
+                            "no_correction_reassessment"
+                        )
+                        benchmark.validate_response(value)
+                    path.write_bytes(benchmark.json_bytes(value))
+                    return capture
+
+                expected = (
+                    "capture_run_bytes_drift"
+                    if case == "run"
+                    else "capture_response_bytes_drift"
+                )
+                with (
+                    patch.object(
+                        benchmark,
+                        "verify_capture_manifest",
+                        side_effect=verify_then_mutate,
+                    ),
+                    patch.object(
+                        benchmark,
+                        "load_registered_adjudication",
+                        side_effect=AssertionError("protected key opened"),
+                    ),
+                    self.assertRaisesRegex(benchmark.BenchmarkError, expected),
+                ):
+                    benchmark.score_runs(runs)
 
     def test_missing_duplicate_and_synthetic_records_never_open_capture(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

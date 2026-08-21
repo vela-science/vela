@@ -1,9 +1,9 @@
 {
-  "assignment_root": "sha256:3b4ad819d74e81408274d2e836f03008184028e1343cb2b4c7b1c863411c206a",
+  "assignment_root": "sha256:33ff47e1df10bca0ab7d0756b762108564138ae438142a3d00a8ffe9fca15368",
   "assignment_seed_commitment": "sha256:ee8fd882e47989e508c0f663931dfab102424adbda3659809333b9a965c1f1c2",
-  "authorization_root": "sha256:0c1515b2f913429da3a902e9fe71645d6952125632aca601dfac4da0323719e2",
-  "authorized_configuration_mapping_root": "sha256:e5f4e11369661d5059ff2f69b099903ccd70dad1e6987d27b4b1088c0700453b",
-  "benchmark_registration_root": "sha256:78cc6e0154ec1baaa4eb86a15131ad9910802a5a2aeae2b82779de3c3ba6e67b",
+  "authorization_root": "sha256:468ffca20b33f489859b7173bc4e96e012c1385032abca0457e115b5675e4f2e",
+  "authorized_configuration_mapping_root": "sha256:b061605a16c9c3c1dbb78f746c28dbd87d6b065ad5c5daa7f5b19ea6e81944e0",
+  "benchmark_registration_root": "sha256:a18f067652883680b39aea269e66fb4a833b8466790d7031abf2e4ab3748a3d2",
   "calibration_artifacts_unchanged": {
     "canary_01_prelaunch": "sha256:d392ded1b1fe82abcc522ef92248de8b8b3c442bb9a825d83ecc6ed66bfa741a",
     "canary_01_result": "sha256:9fa7cce6b30abce0c156e8225315e3590c05dcfeff6c221e9f720f8e189cd701",
@@ -16,16 +16,17 @@
   },
   "claim_ceiling": "prospective runtime and custody qualification only; no empirical lift, scientific acceptance, Standing, authority, or Decision effect",
   "condition_runtime_configuration_roots": {
-    "git-documents": "sha256:8438a94b0a3193b916f77ed1d993c315902e7169ed09f5ea52b6dfb5501bcbe0",
-    "vela": "sha256:b467c98e96f55ee95a3ca966d4966653420d92109a0a35550a7441a7d188fbc2"
+    "git-documents": "sha256:1cb24f2e2881614adf070e2894e098afb3a1fdb21088ae33e1d73f1bf110a509",
+    "vela": "sha256:b4a7b621424fe98a44d848a23aa34fa6f622367c9e55f2a2b1a5697f209748f9"
   },
   "confirmatory_provider_calls": 0,
   "f04_blocked_review_commit": "23986b9b02ea5ba1324cd9aad91545f969db8a56",
+  "f05_blocked_review_commit": "4dd3efc45d222e3d41defef38a5ce8306a1c6391",
   "files": [
     {
       "bytes": 3968,
       "path": "assignment-schedule.json",
-      "sha256": "sha256:df6f202968bf88cbde0a2bf2b3131329684dae077f0a2ad1c769e3da50a92e32"
+      "sha256": "sha256:b0c2fd093de119cf22002f8dd28bf750e6d39060507114298251ef1d6a858965"
     },
     {
       "bytes": 542,
@@ -35,17 +36,17 @@
     {
       "bytes": 2740,
       "path": "authorization.json",
-      "sha256": "sha256:9286e8e03fc4ac89c3cdb95f1a6c112d5066b3844d8720820177c50b8f777b3e"
+      "sha256": "sha256:3f121164c3e9697fa014aa69ef16865ab145948afb5edd50dca4bc208dc292ee"
     },
     {
       "bytes": 3968,
       "path": "conditions/git-documents/input/assignment.json",
-      "sha256": "sha256:df6f202968bf88cbde0a2bf2b3131329684dae077f0a2ad1c769e3da50a92e32"
+      "sha256": "sha256:b0c2fd093de119cf22002f8dd28bf750e6d39060507114298251ef1d6a858965"
     },
     {
       "bytes": 2666,
       "path": "conditions/git-documents/input/participant-configuration.json",
-      "sha256": "sha256:687ff922752bdf0aa6a542cda0d7736b2a8d4ff6b389bb7f57a3505219e63f91"
+      "sha256": "sha256:78f33ad84e595d673b4e9061338dafd4145a691675b4b9dcefa4ff4510019d8b"
     },
     {
       "bytes": 22107,
@@ -60,12 +61,12 @@
     {
       "bytes": 3968,
       "path": "conditions/vela/input/assignment.json",
-      "sha256": "sha256:df6f202968bf88cbde0a2bf2b3131329684dae077f0a2ad1c769e3da50a92e32"
+      "sha256": "sha256:b0c2fd093de119cf22002f8dd28bf750e6d39060507114298251ef1d6a858965"
     },
     {
       "bytes": 2666,
       "path": "conditions/vela/input/participant-configuration.json",
-      "sha256": "sha256:0da102b331df38987145b0d0940d1144f4fbef99ad385fb1a61691dbd034c5b1"
+      "sha256": "sha256:0c87bf148afd59b30229213635508ec36958d86df3eadf85998485aba92af251"
     },
     {
       "bytes": 23484,
@@ -80,92 +81,92 @@
     {
       "bytes": 549,
       "path": "configuration-mapping.json",
-      "sha256": "sha256:dc890b2158c2bd0cc9c5e3e68d7017330e6445c39643d678b49dc565f0271163"
+      "sha256": "sha256:2ddeb158513963e826a17cd6567f76aaf7b526c4031572dabb32f2828bdf2dff"
     },
     {
       "bytes": 1235,
       "path": "participant-configuration.json",
-      "sha256": "sha256:9cb32eca094d48a2c3ead562f3fa7b599c6e078fc8d1841e99b2e0c616c2502e"
+      "sha256": "sha256:dac0fa2508146d7bdd273545fc639383ba084f3afbad0800fb9bfe4da22b649f"
     },
     {
       "bytes": 924,
       "path": "permit-template/confirm-run-01.permit.json",
-      "sha256": "sha256:2c8775a70f9e8935d6841d01fefd8de62cbda12a694288789af7ca4399600d21"
+      "sha256": "sha256:f93f907d16c4748ffaf04f00f7af0f649077755f2e007b8683186f4315cbfe2e"
     },
     {
       "bytes": 933,
       "path": "permit-template/confirm-run-02.permit.json",
-      "sha256": "sha256:eed0eff367ee1178639739adb107d0aceb44a3ccae87897fe569c3b308d3b4ec"
+      "sha256": "sha256:483c3396f19c5cce4efcf7363e15fb0315a386c02ac1dfafc69dde73a90aa262"
     },
     {
       "bytes": 933,
       "path": "permit-template/confirm-run-03.permit.json",
-      "sha256": "sha256:59867dacb588a58255471870ea84965b60dec351087263717e7e88617bc2d03c"
+      "sha256": "sha256:4b38ad4721a8da0ad699c920ced98295884a63b8b27881b4f35025bcbe48f6da"
     },
     {
       "bytes": 924,
       "path": "permit-template/confirm-run-04.permit.json",
-      "sha256": "sha256:cfe1eb3223e7ccb6556930c6da88167e8ec6d85c592f386a26a0ccd712422695"
+      "sha256": "sha256:b6c82bf3d3b74ec6045f78fd3f624e86b3b15a36edbc80dfea16470ec0efd43f"
     },
     {
       "bytes": 933,
       "path": "permit-template/confirm-run-05.permit.json",
-      "sha256": "sha256:8ef25c5134c124a578578b3f203d9abba16e1e2ded26c4d9b64c8614a156de5c"
+      "sha256": "sha256:42a0dc53c72d7cd48b8572532395e9f8956668df7cc62a4c58844fa778318d88"
     },
     {
       "bytes": 924,
       "path": "permit-template/confirm-run-06.permit.json",
-      "sha256": "sha256:d612019c54e8e73ffebc5781c3128491e325654db4c099a87b8359d03c67125f"
+      "sha256": "sha256:1822847f8c2223ec9e64b46f6900565654b91f60f3918bfa78c4776fdd2737ba"
     },
     {
       "bytes": 933,
       "path": "permit-template/confirm-run-07.permit.json",
-      "sha256": "sha256:cf87ef5468915cf6d576c3dde4136f943f77fa4c80b6bbbe98a779825ab529a5"
+      "sha256": "sha256:fd3c96f50eb60686c9bbcefe4215476b7763b422a57bc055f5beb47a2884b319"
     },
     {
       "bytes": 933,
       "path": "permit-template/confirm-run-08.permit.json",
-      "sha256": "sha256:19f4a6eee48f7306d16ef46324150ac3352a71e62a6eb456a0c06716a3d33dd7"
+      "sha256": "sha256:c718514858995e44c365793990b1ec2c7421d95475a36512366a2433e89adeae"
     },
     {
       "bytes": 933,
       "path": "permit-template/confirm-run-09.permit.json",
-      "sha256": "sha256:f2f9e1303222a248c00ddadf4f309a88081c51a263864a314c7e0ef0642aabc9"
+      "sha256": "sha256:93be0a135f6df7350b2c21f5e899ff0fab0b90ebd323ea2dcfeb5055329ddb3d"
     },
     {
       "bytes": 933,
       "path": "permit-template/confirm-run-10.permit.json",
-      "sha256": "sha256:093145775eeed620c85d32f167140f1899d9b53b4083b7511eb863083b46197f"
+      "sha256": "sha256:92900c715d2bc6cee4b2bfb1a1b8781c7a8b97e75b73ac7eb1f9f3a87a5cd56f"
     },
     {
       "bytes": 924,
       "path": "permit-template/confirm-run-11.permit.json",
-      "sha256": "sha256:084a60af71a54aa1792ed52410de28c11d3b7fc7379944ef9ac59146c164fc2d"
+      "sha256": "sha256:55478abbf0f8f63d95284a0c51f4bfaecb0ee16c9922d36db5dd81141f44b74b"
     },
     {
       "bytes": 924,
       "path": "permit-template/confirm-run-12.permit.json",
-      "sha256": "sha256:2ce97b357ad02bf4e6ad97a0555b7635421cb5ebcc2b9a0f19ed9126184d01b3"
+      "sha256": "sha256:e38490793c8a8683f0b3ef48954f5eba2cf351d7f0ff30520829eaa45c09b4cd"
     },
     {
       "bytes": 924,
       "path": "permit-template/confirm-run-13.permit.json",
-      "sha256": "sha256:9a342d88f6063651e2c3647aaa63f4562bde8a1dfa8ef77c90c17c6040938089"
+      "sha256": "sha256:b5f5f7881a4b090a7f58c2c56742d9adcb1b142897360b835adb49e266a7b2ad"
     },
     {
       "bytes": 933,
       "path": "permit-template/confirm-run-14.permit.json",
-      "sha256": "sha256:4a7d0bce5686f113a42be5bd361cef49003356ba40178265d083d6f188d5460b"
+      "sha256": "sha256:6d9dd98f4a4ed03982d56bce7c7b4aaa0640ae2146bceed9c1681eacc6563ab8"
     },
     {
       "bytes": 924,
       "path": "permit-template/confirm-run-15.permit.json",
-      "sha256": "sha256:7de967925d7523511d37fcd144267dca7b4515f79e12fc59e0a1fad0184a969b"
+      "sha256": "sha256:08fa40268dfe77efc4c3310f553ddbf677f39d6dbaadc4ddd4ab657cd7837a39"
     },
     {
       "bytes": 924,
       "path": "permit-template/confirm-run-16.permit.json",
-      "sha256": "sha256:a2e499b42872790a7ce8bfd374476845d169451e4aee566da22964ca09eb3e86"
+      "sha256": "sha256:bd68b200dc18d8bdb58931fc2796a8b7c76fafcc8632bca5401e4132e278bfa2"
     },
     {
       "bytes": 237,
@@ -178,9 +179,9 @@
       "sha256": "sha256:609ae940183d8d6eb63a32416cddcf4292b48a0ace53d6b65cbeaefad436797e"
     },
     {
-      "bytes": 5599,
+      "bytes": 6337,
       "path": "registration.json",
-      "sha256": "sha256:5ad6963adf02603562edcde22713bc2bb1ad8cf56f3f0630517414f17dd8591f"
+      "sha256": "sha256:ed9db47ae38af2d0e29ef826efbbda4f4d230a64493793dc4ee5b7cf6bba48c9"
     }
   ],
   "frozen_at": "2026-08-21T17:55:04Z",
@@ -190,36 +191,36 @@
     "git-documents": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
     "vela": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97"
   },
-  "participant_configuration_root": "sha256:c4447adbcd27442e80b97b1881c9cb9300e457a06d9ba787babfbe9a254278bf",
+  "participant_configuration_root": "sha256:ed944c27285871bb39eb6ef80085824fa7dd1245d792a6a509b4723a882abaf4",
   "permit_roots": {
-    "confirm-run-01": "sha256:95b46783b0de8d6a857eb2c4acab322c0ac06cf865ad10cb20a3478e3ab0cf1b",
-    "confirm-run-02": "sha256:824091068b25857b353d2aceca366a3c62db68b1721f744313291a0547c12add",
-    "confirm-run-03": "sha256:c5a3cacba8f8b011c54c686defb8eb5b2b96d603d4dfafb02f37ea0eb31dbe44",
-    "confirm-run-04": "sha256:6ae03cf08ceed90b32b1d0a51d7ccc4816e1f523d7906e9c1dba6c8e3df9ab0f",
-    "confirm-run-05": "sha256:8e34684f1556387003f0c053ed70f9feb89cb59a4a5ce224f480ec17a48c9200",
-    "confirm-run-06": "sha256:5a4171723de08b021a07b0337d0699f17f075f13259a91001f95ebc50a7d241c",
-    "confirm-run-07": "sha256:22d8c7f4a27ad4ff974b942b0c6e58871067ebf64e2081579aadd133b20a1955",
-    "confirm-run-08": "sha256:261a66debfc7587668d953365b162d0ffc584d9a02f97a97f135a030b06bfb22",
-    "confirm-run-09": "sha256:c64899980ccc8ee6a97c065b2fdbd2a4b41321143de4bc950a47c06ffb662dc0",
-    "confirm-run-10": "sha256:6036b59266ab8045862a7f3d0400199e79f13b3bfbfcf627185b787293b549a2",
-    "confirm-run-11": "sha256:9e956c0eb2bde0ae15d0116091356e4c0c66a802be6493bda465c283eb31c052",
-    "confirm-run-12": "sha256:7d07beca62a0019f8740ec0edaed6cde72907b3fc2b8d8c8a85bf37601e08da9",
-    "confirm-run-13": "sha256:2006bbbe687138cac1fe9ba08df0aa6e6f31f78a06d62abb884ee8208fb5ddf0",
-    "confirm-run-14": "sha256:742e16af0393091c7eceb98509da8474bd01c6c627d615eee43ecbacf7756c18",
-    "confirm-run-15": "sha256:444ce820ec8a7313aaf73f5cad709cd44997a6ab849eaf487348737e9b5bb238",
-    "confirm-run-16": "sha256:2ed9239b74195976ca84be3c5bea10ac63142493a806ddcc1a468a112c285e2f"
+    "confirm-run-01": "sha256:76509cc6065f1b83411faf449665d61c3be2a03b0f45d9369d594b4bd76cb4b9",
+    "confirm-run-02": "sha256:4c5c27513412241172c4c1b6572890e84960775361a922135d077a86c53a535d",
+    "confirm-run-03": "sha256:182c2b1877c359349eff472006e57dc0df6f55ca96a419677f2cfb549deabde1",
+    "confirm-run-04": "sha256:3a07a60c0b6501798846aa79ca221758f2da8e477a14c5aad925ed28a756fc17",
+    "confirm-run-05": "sha256:4d32de50e1d76492a25448303522d211253069da59a0bccf492d03d6385c4e75",
+    "confirm-run-06": "sha256:dfeb78b142536f2945a285634c242f4b1aeb4dd66e9aa82462a441ab2622ef75",
+    "confirm-run-07": "sha256:35d1efbd93ce474425e0ab4c9e5fcad5a4c86d0d300c948902b77dc9013a66dc",
+    "confirm-run-08": "sha256:5612cc0fb9e90a1ede688d4954e74198ae55549dd5c159166f46f34f99256c2d",
+    "confirm-run-09": "sha256:5aed6e35967fc773d74dc8ae594ccc76825c19265ddaab47a26e9fe313ce84bb",
+    "confirm-run-10": "sha256:43f2239e275180f026c605d39f18c58083ef6f8680af02d1891fbf0a8015862d",
+    "confirm-run-11": "sha256:2bdf9a950b38cf42a8f4c68dd56c0596b29da9dfd45806bca77a0fc074a201a8",
+    "confirm-run-12": "sha256:ec9da9f661f12eaaa7949f32d0e0ff02d9d15a2bbcb8f42fe5c70189a7ae7081",
+    "confirm-run-13": "sha256:d50bdb891fe84d224adef1c9d454d7a9344012f16c989363dcb9815ea0324609",
+    "confirm-run-14": "sha256:de99e3a7b3c0ec821f78dc2b17606c94c3e28cc46e94c15ba6a55c2f14ec56f8",
+    "confirm-run-15": "sha256:d734e91a0d9eada5d7b9fa8131adbf2a0158db7c41b58f19151a9487bf94a7ee",
+    "confirm-run-16": "sha256:bff2b7c322e0dcd0f78bb6a1bfd4fa355d1905f7f72416d44ab4f758df155c8b"
   },
   "permits_consumed": [],
   "prompt_roots": {
     "git-documents": "sha256:430b48e3e11a202ab4f8d9c41f6bc89dd682b2e18ef180cfc69545bbfd74cbbe",
     "vela": "sha256:d2392a7f4bbcca0e153c01f842459d7721696fa552acb8b783f6ce3f88572ad8"
   },
-  "registration_root": "sha256:aaa951dc6cb34c6b86e5a5a096e974ac51c56ba9c02be6690e5fa1bdc7c77a5e",
+  "registration_root": "sha256:345d54e2bc8c76eb66a8938a03f26001ea4f953c04bf58d9c8cd7f8ad039d1b2",
   "runtime_pass_review_commit": "2ebf1ad8cb0f5d16b7bcee8e5510f3aed5dc1395",
   "runtime_source_root": "sha256:42ecc2f27d6758c0fa6cd20d19e02a20dd90935b82526a43b190c96a75896549",
   "scheduler": "none",
   "schema": "vela.inherited-correction-confirmatory-prelaunch-freeze.v2",
-  "scoring_bindings_root": "sha256:c694880a9d25fe4b6fd7ae05468a3bf3a2b0f02fa80050536618e06c6778e213",
+  "scoring_bindings_root": "sha256:1f40fdd938161839a0fed6d8509a23d443e37140162fc1ce44c3cc0fa8826ad0",
   "status": "frozen_prelaunch_0_of_16_independent_review_required",
   "strict_overrides_root": "sha256:7b70dd58746b35a014550167fe7dc3f7a00fd5f5ee5e3058aa4207d41e3dc830",
   "trust_bundle_bytes": "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5"

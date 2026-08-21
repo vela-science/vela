@@ -7,7 +7,7 @@
     "add fail-closed polarity, forged-root, packet-drift, assignment, configuration, attempt, timeout, duration, status, and tool-count tests",
     "require exact consumed-permit, terminal-receipt, event-stream, runtime-response, and shared-to-condition configuration custody before capture or scoring"
   ],
-  "current_registration_root": "sha256:78cc6e0154ec1baaa4eb86a15131ad9910802a5a2aeae2b82779de3c3ba6e67b",
+  "current_registration_root": "sha256:a18f067652883680b39aea269e66fb4a833b8466790d7031abf2e4ab3748a3d2",
   "experimental_sessions_observed_before_amendment": 0,
   "independent_review_commit": "c377e99e2c982211be7ecb9cba8998c848cf18c2",
   "independent_review_verdict": "BLOCKED",

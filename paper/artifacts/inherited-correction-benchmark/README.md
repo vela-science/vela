@@ -83,7 +83,10 @@ python3 paper/artifacts/inherited-correction-benchmark/benchmark.py score \
 complete runtime custody. It writes a content-bound capture manifest without
 opening the answer key. `score` recomputes that custody and refuses to access
 the key unless the manifest exactly matches every run, consumed permit,
-terminal receipt, event stream, response, authorization, packet, and root.
+terminal receipt, event stream, response, authorization, packet, and root. It
+then buffers each capture-listed run and response exactly once, derives the
+scored capture root from those immutable bytes, and never reopens the mutable
+paths during scoring.
 Wrong, invalid, failed, and timed-out sessions remain in the denominator at the
 600-second cost cap. There are no retries, substitutions, post-hoc rescoring,
 or manual semantic overrides.

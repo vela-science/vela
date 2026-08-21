@@ -86,8 +86,8 @@
   "authorized_by": "user via coordinator task 01a024dc-f015-7950-be0f-181931282ebc",
   "max_sessions": 16,
   "participant_class": "gpt-5.6-sol high/default through pinned Codex 0.149.0 OAuth container runtime",
-  "participant_configuration_root": "sha256:c4447adbcd27442e80b97b1881c9cb9300e457a06d9ba787babfbe9a254278bf",
-  "registration_root": "sha256:78cc6e0154ec1baaa4eb86a15131ad9910802a5a2aeae2b82779de3c3ba6e67b",
+  "participant_configuration_root": "sha256:ed944c27285871bb39eb6ef80085824fa7dd1245d792a6a509b4723a882abaf4",
+  "registration_root": "sha256:a18f067652883680b39aea269e66fb4a833b8466790d7031abf2e4ab3748a3d2",
   "schema": "vela.inherited-correction-run-authorization.v1",
   "status": "authorized"
 }

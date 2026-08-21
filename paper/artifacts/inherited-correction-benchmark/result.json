@@ -3,7 +3,7 @@
   "claim": "No result: the authorized confirmatory study remains at zero of sixteen pending exact independent prelaunch custody review.",
   "fixture_id": "bounded-calibration-correction-v1",
   "next_gate": "Obtain exact independent PASS for the frozen fail-closed runtime custody bridge before consuming the first single-use permit.",
-  "registration_root": "sha256:78cc6e0154ec1baaa4eb86a15131ad9910802a5a2aeae2b82779de3c3ba6e67b",
+  "registration_root": "sha256:a18f067652883680b39aea269e66fb4a833b8466790d7031abf2e4ab3748a3d2",
   "required_sessions": 16,
   "schema": "vela.inherited-correction-result.v1",
   "status": "not_run",

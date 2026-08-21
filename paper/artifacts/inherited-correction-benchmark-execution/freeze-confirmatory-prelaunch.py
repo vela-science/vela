@@ -41,6 +41,14 @@ F04_BLOCKED_REGISTRATION = (
 F04_BLOCKED_FREEZE = (
     "sha256:56eaacf7a1dc30402d86740744e42312deee9103eee7af78cce237e990156659"
 )
+F05_BLOCKED_PRODUCER = "f919654a7e55d336c5588719e962e2d67a699710"
+F05_BLOCKED_REVIEW = "4dd3efc45d222e3d41defef38a5ce8306a1c6391"
+F05_BLOCKED_REGISTRATION = (
+    "sha256:78cc6e0154ec1baaa4eb86a15131ad9910802a5a2aeae2b82779de3c3ba6e67b"
+)
+F05_BLOCKED_FREEZE = (
+    "sha256:db5f37730f8f0d0291c9bab467acc58a1c3f58210d662fa748ad8990f7aba37b"
+)
 PACKET_ROOTS = {
     "git-documents": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
     "vela": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97",
@@ -224,6 +232,12 @@ def main() -> int:
         "f04_blocked_freeze_root": F04_BLOCKED_FREEZE,
         "f04_blocked_disposition": "terminal held prelaunch evidence; zero calls; prospectively superseded only by the custody bridge",
         "prospective_custody_repair": "require exact consumed permit, terminal receipt, provider events, runtime response, and authorized shared-to-condition configuration mapping before capture or scoring",
+        "f05_blocked_producer_commit": F05_BLOCKED_PRODUCER,
+        "f05_blocked_review_commit": F05_BLOCKED_REVIEW,
+        "f05_blocked_registration_root": F05_BLOCKED_REGISTRATION,
+        "f05_blocked_freeze_root": F05_BLOCKED_FREEZE,
+        "f05_blocked_disposition": "terminal held prelaunch evidence; zero calls; prospectively superseded only by capture-bound immutable scoring bytes",
+        "prospective_score_snapshot_repair": "buffer and digest-check all 16 capture-bound run and response bytes before protected adjudication access; derive the scored capture root from and score only that immutable snapshot",
         "image_digest": IMAGE,
         "base_image_digest": BASE_IMAGE,
         "runtime_source_root": runtime_source_root,
@@ -439,6 +453,7 @@ def main() -> int:
         "scoring_bindings_root": canonical_root(scoring_bindings),
         "runtime_pass_review_commit": RUNTIME_PASS_REVIEW,
         "f04_blocked_review_commit": F04_BLOCKED_REVIEW,
+        "f05_blocked_review_commit": F05_BLOCKED_REVIEW,
         "confirmatory_provider_calls": 0,
         "permits_consumed": [],
         "hold_status": "hold",

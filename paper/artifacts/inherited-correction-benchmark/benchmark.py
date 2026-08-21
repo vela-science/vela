@@ -8,8 +8,10 @@ import hashlib
 import importlib.util
 import json
 import math
+import os
 import re
 import shutil
+import stat
 import statistics
 import sys
 from datetime import datetime, timezone
@@ -1009,24 +1011,124 @@ def capture_manifest(runs_dir: Path) -> dict[str, Any]:
     return value
 
 
-def verify_capture_manifest(runs_dir: Path) -> None:
+def verify_capture_manifest(runs_dir: Path) -> dict[str, Any]:
     path = runs_dir / "capture-manifest.json"
-    if not path.is_file() or load_json(path) != capture_manifest(runs_dir):
+    if not path.is_file() or path.is_symlink():
         raise BenchmarkError("capture_manifest_missing_or_drifted")
+    observed = load_json(path)
+    if observed != capture_manifest(runs_dir):
+        raise BenchmarkError("capture_manifest_missing_or_drifted")
+    return observed
+
+
+def read_score_snapshot_file(path: Path, label: str) -> bytes:
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as error:
+        raise BenchmarkError(f"capture_{label}_missing_or_unsafe") from error
+    try:
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise BenchmarkError(f"capture_{label}_missing_or_unsafe")
+        with os.fdopen(descriptor, "rb") as handle:
+            descriptor = -1
+            return handle.read()
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+def parse_score_snapshot_json(data: bytes, label: str) -> Any:
+    try:
+        return json.loads(data)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise BenchmarkError(f"capture_{label}_json_invalid") from error
+
+
+def capture_bound_score_snapshot(
+    runs_dir: Path, capture: dict[str, Any]
+) -> tuple[dict[str, Any], tuple[tuple[bytes, bytes | None], ...]]:
+    entries = capture.get("runs")
+    if not isinstance(entries, list):
+        raise BenchmarkError("capture_runs_invalid")
+    snapshot_entries = []
+    snapshot_bytes = []
+    seen = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise BenchmarkError("capture_run_entry_invalid")
+        run_id = entry.get("run_id")
+        if (
+            not isinstance(run_id, str)
+            or not run_id
+            or Path(run_id).name != run_id
+            or run_id in seen
+        ):
+            raise BenchmarkError("capture_run_identity_invalid")
+        seen.add(run_id)
+        run_dir = runs_dir / run_id
+        run_bytes = read_score_snapshot_file(run_dir / "run.json", "run")
+        if byte_digest(run_bytes) != entry.get("run_bytes"):
+            raise BenchmarkError("capture_run_bytes_drift")
+        record = parse_score_snapshot_json(run_bytes, "run")
+        bound_fields = {
+            "run_id": "run_id",
+            "condition": "condition",
+            "registration_root": "registration_root",
+            "packet_root": "packet_root",
+            "authorization_root": "authorization_root",
+            "participant_configuration_root": "participant_configuration_root",
+            "duration_seconds": "duration_seconds",
+            "tool_calls": "tool_calls",
+            "status": "status",
+            "runtime_custody_root": "runtime_custody_root",
+        }
+        if not isinstance(record, dict) or any(
+            record.get(record_key) != entry.get(entry_key)
+            for record_key, entry_key in bound_fields.items()
+        ):
+            raise BenchmarkError("capture_run_record_drift")
+        response_path = run_dir / "response.json"
+        expected_response = entry.get("response_bytes")
+        if expected_response is None:
+            if response_path.exists() or response_path.is_symlink():
+                raise BenchmarkError("capture_unregistered_response")
+            response_bytes = None
+        else:
+            response_bytes = read_score_snapshot_file(response_path, "response")
+            if byte_digest(response_bytes) != expected_response:
+                raise BenchmarkError("capture_response_bytes_drift")
+            validate_response(parse_score_snapshot_json(response_bytes, "response"))
+        snapshot_entry = dict(entry)
+        snapshot_entry["run_bytes"] = byte_digest(run_bytes)
+        snapshot_entry["response_bytes"] = (
+            byte_digest(response_bytes) if response_bytes is not None else None
+        )
+        snapshot_entries.append(snapshot_entry)
+        snapshot_bytes.append((run_bytes, response_bytes))
+    snapshot_capture = dict(capture)
+    claimed_root = snapshot_capture.pop("capture_root", None)
+    snapshot_capture["runs"] = snapshot_entries
+    derived_root = canonical_root(snapshot_capture)
+    if claimed_root != derived_root:
+        raise BenchmarkError("capture_snapshot_root_mismatch")
+    snapshot_capture["capture_root"] = derived_root
+    return snapshot_capture, tuple(snapshot_bytes)
 
 
 def score_runs(runs_dir: Path) -> dict[str, Any]:
-    verify_capture_manifest(runs_dir)
+    capture = verify_capture_manifest(runs_dir)
+    capture, snapshot = capture_bound_score_snapshot(runs_dir, capture)
     prereg = load_json(PREREG_PATH)
-    capture = load_json(runs_dir / "capture-manifest.json")
     adjudication = load_registered_adjudication()
     records = []
-    for run_path in sorted(runs_dir.glob("*/run.json")):
-        record = load_json(run_path)
-        response_path = run_path.parent / "response.json"
+    for run_bytes, response_bytes in snapshot:
+        record = parse_score_snapshot_json(run_bytes, "run")
         score = (
-            score_response(load_json(response_path), adjudication)
-            if response_path.is_file()
+            score_response(
+                parse_score_snapshot_json(response_bytes, "response"), adjudication
+            )
+            if response_bytes is not None
             else None
         )
         records.append((record, score))
