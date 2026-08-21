@@ -1,0 +1,65 @@
+{
+  "schema": "vela.independent-inherited-correction-held-out-prelaunch-verdict.v1",
+  "review_id": "inherited-correction-held-out-prelaunch-2026-08-21",
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/inherited-correction-study",
+    "producer_commit": "b1528898e5877a5dd0c863a28db71c9fd5623f60",
+    "producer_tree": "608fe2ea360fc48c6015f479c53a19b99c6a73d5",
+    "parent_commit": "de13073ff8f3a9f2958f8c93c848205c533ddb1e",
+    "registration_root": "sha256:b179fb4090871003d2d632e21a639420d8d0df8a79b529f372bc28e525355a42"
+  },
+  "verdict": "BLOCKED",
+  "failed_gates": [
+    {
+      "id": "G06_cold_successor_protocol",
+      "finding": "F07",
+      "summary": "The exact frozen Draft-2020 runtime environment is not bound to the independent review that qualified its image and source bytes."
+    },
+    {
+      "id": "G08_deterministic_custody",
+      "finding": "F07",
+      "summary": "The runtime provenance names review 2ebf1ad8, while image 1dee237 and source root 398f798 were qualified by later review 3c0c8cfa, which is absent from the artifact."
+    }
+  ],
+  "finding": {
+    "id": "F07",
+    "title": "Frozen runtime qualification points to the wrong independent review",
+    "bound_runtime_review": "2ebf1ad8cb0f5d16b7bcee8e5510f3aed5dc1395",
+    "bound_image_digest": "sha256:1dee2374077c83e3dbdb2e09d32ef4fa3a414d200b800839857353e13d3c4e09",
+    "bound_runtime_source_root": "sha256:398f798daf4b2ebd86a878021025adbc073155e13d9123b140da2bc8fcb32b8a",
+    "qualifying_review": "3c0c8cfa050b30a5d19c9e7e623fc549ac18264b",
+    "qualifying_producer": "2fc59d5f57e45298f833e65f123ac9eafea2810b",
+    "earlier_review_image_digest": "sha256:6274d83356076640d6e4bc810b97d37ac2d1b5ab02546dd7c2ebed16f915b547",
+    "experimental_output_observed": false
+  },
+  "otherwise_passed_evidence": [
+    "exact remote commit, tree, parent, and 215-file confined scope",
+    "all disclosed byte digests and canonical roots",
+    "36 unique balanced assignments and held root-bound permits",
+    "same atomic facts and exact source/evidence bytes within each family",
+    "neutral-wrapper forbidden-vocabulary and prompt-length controls",
+    "closed response codes and exact structured source bindings",
+    "capture-bound immutable snapshot scoring and fixed denominator",
+    "family-balanced additive estimands and strict governance increment",
+    "cross-version deterministic verification and isolated byte-exact regeneration",
+    "zero provider calls, permit consumption, adjudication access, and scoring"
+  ],
+  "prelaunch_qualified": false,
+  "participant_launch_authorized_by_review": false,
+  "permit_release_authorized_by_review": false,
+  "authority_effect": "none",
+  "experimental_status": {
+    "required_sessions": 36,
+    "executed_sessions": 0,
+    "result": "not_run",
+    "permits_consumed": 0,
+    "hold_status": "hold",
+    "adjudication_status": "pending_independent_evaluator_freeze"
+  },
+  "minimal_repair": "Prospectively bind review 3c0c8cfa (or an exact structured base-runtime plus Draft-2020 repair lineage) to image 1dee237 and source root 398f798, regenerate every dependent root and manifest entry while preserving 0/36, and submit the immutable repaired bytes for re-review.",
+  "nonclaims": [
+    "This verdict does not authorize adjudication release, a permit release, participant/provider call, scoring, or inference.",
+    "This verdict does not authorize a merge or establish lift, scientific acceptance, Protocol/Core validity, authority, Standing, or a Decision effect."
+  ]
+}
