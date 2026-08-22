@@ -1,5 +1,5 @@
 {
-  "artifact_root": "sha256:feb41e79aafacdd6534cd8c8ec347420d47006c5a7a2d711f5e1daa7c9c73899",
+  "artifact_root": "sha256:78a107fa77819075467790fae87870acfba1b04dd2fed5b889f4d304c13a0c9a",
   "entries": [
     {
       "bytes": 2412,
@@ -7,9 +7,9 @@
       "sha256": "sha256:54c656f792c31673ee8a77bd2712a16ce7737cdf0580d4bc82fb8c01eb74a9e6"
     },
     {
-      "bytes": 10332,
+      "bytes": 10362,
       "path": "README.md",
-      "sha256": "sha256:bfd8e5a82d280fb16684b06394ab0339ad646c39b5fbbce86afe66e9bff03fb1"
+      "sha256": "sha256:919ac58da8c0186958941dd85d67fd81c58b86ba266f3d567b7511d9b0732138"
     },
     {
       "bytes": 706,

@@ -132,12 +132,12 @@ second_oci=/ABSOLUTE/TEMP/PATH/schemafix-b.oci.tar
 docker load --input "$first_oci"
 paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/preflight-provider-schema.sh \
   sha256:f75ed4428ee3ab3f3275db0378e7375c1364f8b9f06d2f1bb4158502a84d4fc1 \
-  "$PWD/paper/artifacts/inherited-correction-held-out-replacement/calibration/input" \
+  "$PWD/paper/artifacts/inherited-correction-held-out-order-replacement/calibration/input" \
   EMPTY_OUTPUT_DIRECTORY
-python3 paper/artifacts/inherited-correction-held-out-replacement/benchmark.py verify
-python3 paper/artifacts/inherited-correction-held-out-replacement/custody.py verify-prelaunch
-python3 paper/artifacts/inherited-correction-held-out-replacement/test_benchmark.py
-python3 paper/artifacts/inherited-correction-held-out-replacement/test_provider_schema_runtime.py
+python3 paper/artifacts/inherited-correction-held-out-order-replacement/benchmark.py verify
+python3 paper/artifacts/inherited-correction-held-out-order-replacement/custody.py verify-prelaunch
+python3 paper/artifacts/inherited-correction-held-out-order-replacement/test_benchmark.py
+python3 paper/artifacts/inherited-correction-held-out-order-replacement/test_provider_schema_runtime.py
 git diff --check
 ```
 
