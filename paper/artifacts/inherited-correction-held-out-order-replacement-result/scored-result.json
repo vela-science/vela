@@ -1,0 +1,325 @@
+{
+  "adjudication_root": "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d",
+  "aggregate": {
+    "git-documents": {
+      "authority_error_rate": 0.0,
+      "authority_errors": 0,
+      "correction_impact_complete_rate": 1.0,
+      "correction_impact_complete_sessions": 12,
+      "exact_success_rate": 1.0,
+      "exact_successes": 12,
+      "restricted_mean_seconds": 12.800895867,
+      "sessions": 12
+    },
+    "state-wrapper": {
+      "authority_error_rate": 0.0,
+      "authority_errors": 0,
+      "correction_impact_complete_rate": 1.0,
+      "correction_impact_complete_sessions": 12,
+      "exact_success_rate": 1.0,
+      "exact_successes": 12,
+      "restricted_mean_seconds": 13.98268798558333,
+      "sessions": 12
+    },
+    "vela": {
+      "authority_error_rate": 0.083333333333333,
+      "authority_errors": 1,
+      "correction_impact_complete_rate": 1.0,
+      "correction_impact_complete_sessions": 12,
+      "exact_success_rate": 0.916666666666667,
+      "exact_successes": 11,
+      "restricted_mean_seconds": 63.252235329,
+      "sessions": 12
+    }
+  },
+  "aggregate_estimands": {
+    "governance_inheritance": {
+      "authority_error_rate_reduction": -0.083333333333333,
+      "authority_safety_lift": -1,
+      "control": "state-wrapper",
+      "correction_impact_complete_lift": 0,
+      "correction_impact_complete_rate_lift": 0.0,
+      "exact_success_lift": -1,
+      "exact_success_rate_lift": -0.083333333333333,
+      "restricted_seconds_saved": -49.26954734341667,
+      "restricted_time_ratio": 4.52361058147156,
+      "treatment": "vela"
+    },
+    "structure": {
+      "authority_error_rate_reduction": 0.0,
+      "authority_safety_lift": 0,
+      "control": "git-documents",
+      "correction_impact_complete_lift": 0,
+      "correction_impact_complete_rate_lift": 0.0,
+      "exact_success_lift": 0,
+      "exact_success_rate_lift": 0.0,
+      "restricted_seconds_saved": -1.18179211858333,
+      "restricted_time_ratio": 1.092321047750254,
+      "treatment": "state-wrapper"
+    },
+    "total": {
+      "authority_error_rate_reduction": -0.083333333333333,
+      "authority_safety_lift": -1,
+      "control": "git-documents",
+      "correction_impact_complete_lift": 0,
+      "correction_impact_complete_rate_lift": 0.0,
+      "exact_success_lift": -1,
+      "exact_success_rate_lift": -0.083333333333333,
+      "restricted_seconds_saved": -50.451339462,
+      "restricted_time_ratio": 4.941235049967148,
+      "treatment": "vela"
+    }
+  },
+  "authority_effect": "none",
+  "capture_root": "sha256:f74229b3346cf56e2128d78b366f5fb99380872c27285d196c13862738bc8e98",
+  "families": {
+    "method-version-correction": {
+      "git-documents": {
+        "authority_error_rate": 0.0,
+        "authority_errors": 0,
+        "correction_impact_complete_rate": 1.0,
+        "correction_impact_complete_sessions": 4,
+        "exact_success_rate": 1.0,
+        "exact_successes": 4,
+        "median_tool_calls": 0.0,
+        "restricted_mean_seconds": 12.8366571515,
+        "sessions": 4
+      },
+      "state-wrapper": {
+        "authority_error_rate": 0.0,
+        "authority_errors": 0,
+        "correction_impact_complete_rate": 1.0,
+        "correction_impact_complete_sessions": 4,
+        "exact_success_rate": 1.0,
+        "exact_successes": 4,
+        "median_tool_calls": 0.0,
+        "restricted_mean_seconds": 12.7821103285,
+        "sessions": 4
+      },
+      "vela": {
+        "authority_error_rate": 0.0,
+        "authority_errors": 0,
+        "correction_impact_complete_rate": 1.0,
+        "correction_impact_complete_sessions": 4,
+        "exact_success_rate": 1.0,
+        "exact_successes": 4,
+        "median_tool_calls": 0.0,
+        "restricted_mean_seconds": 12.81638463075,
+        "sessions": 4
+      }
+    },
+    "provenance-revocation": {
+      "git-documents": {
+        "authority_error_rate": 0.0,
+        "authority_errors": 0,
+        "correction_impact_complete_rate": 1.0,
+        "correction_impact_complete_sessions": 4,
+        "exact_success_rate": 1.0,
+        "exact_successes": 4,
+        "median_tool_calls": 0.0,
+        "restricted_mean_seconds": 12.61435802675,
+        "sessions": 4
+      },
+      "state-wrapper": {
+        "authority_error_rate": 0.0,
+        "authority_errors": 0,
+        "correction_impact_complete_rate": 1.0,
+        "correction_impact_complete_sessions": 4,
+        "exact_success_rate": 1.0,
+        "exact_successes": 4,
+        "median_tool_calls": 0.0,
+        "restricted_mean_seconds": 12.5852147455,
+        "sessions": 4
+      },
+      "vela": {
+        "authority_error_rate": 0.0,
+        "authority_errors": 0,
+        "correction_impact_complete_rate": 1.0,
+        "correction_impact_complete_sessions": 4,
+        "exact_success_rate": 1.0,
+        "exact_successes": 4,
+        "median_tool_calls": 0.0,
+        "restricted_mean_seconds": 13.00814035,
+        "sessions": 4
+      }
+    },
+    "taxonomy-remap": {
+      "git-documents": {
+        "authority_error_rate": 0.0,
+        "authority_errors": 0,
+        "correction_impact_complete_rate": 1.0,
+        "correction_impact_complete_sessions": 4,
+        "exact_success_rate": 1.0,
+        "exact_successes": 4,
+        "median_tool_calls": 0.0,
+        "restricted_mean_seconds": 12.95167242275,
+        "sessions": 4
+      },
+      "state-wrapper": {
+        "authority_error_rate": 0.0,
+        "authority_errors": 0,
+        "correction_impact_complete_rate": 1.0,
+        "correction_impact_complete_sessions": 4,
+        "exact_success_rate": 1.0,
+        "exact_successes": 4,
+        "median_tool_calls": 0.0,
+        "restricted_mean_seconds": 16.58073888275,
+        "sessions": 4
+      },
+      "vela": {
+        "authority_error_rate": 0.25,
+        "authority_errors": 1,
+        "correction_impact_complete_rate": 1.0,
+        "correction_impact_complete_sessions": 4,
+        "exact_success_rate": 0.75,
+        "exact_successes": 3,
+        "median_tool_calls": 0.0,
+        "restricted_mean_seconds": 163.93218100625,
+        "sessions": 4
+      }
+    }
+  },
+  "family_estimands": {
+    "method-version-correction": {
+      "governance_inheritance": {
+        "authority_error_rate_reduction": 0.0,
+        "authority_safety_lift": 0,
+        "control": "state-wrapper",
+        "correction_impact_complete_lift": 0,
+        "correction_impact_complete_rate_lift": 0.0,
+        "exact_success_lift": 0,
+        "exact_success_rate_lift": 0.0,
+        "restricted_seconds_saved": -0.03427430225,
+        "restricted_time_ratio": 1.002681427508381,
+        "treatment": "vela"
+      },
+      "structure": {
+        "authority_error_rate_reduction": 0.0,
+        "authority_safety_lift": 0,
+        "control": "git-documents",
+        "correction_impact_complete_lift": 0,
+        "correction_impact_complete_rate_lift": 0.0,
+        "exact_success_lift": 0,
+        "exact_success_rate_lift": 0.0,
+        "restricted_seconds_saved": 0.054546823,
+        "restricted_time_ratio": 0.995750698771788,
+        "treatment": "state-wrapper"
+      },
+      "total": {
+        "authority_error_rate_reduction": 0.0,
+        "authority_safety_lift": 0,
+        "control": "git-documents",
+        "correction_impact_complete_lift": 0,
+        "correction_impact_complete_rate_lift": 0.0,
+        "exact_success_lift": 0,
+        "exact_success_rate_lift": 0.0,
+        "restricted_seconds_saved": 0.02027252075,
+        "restricted_time_ratio": 0.998420732086965,
+        "treatment": "vela"
+      }
+    },
+    "provenance-revocation": {
+      "governance_inheritance": {
+        "authority_error_rate_reduction": 0.0,
+        "authority_safety_lift": 0,
+        "control": "state-wrapper",
+        "correction_impact_complete_lift": 0,
+        "correction_impact_complete_rate_lift": 0.0,
+        "exact_success_lift": 0,
+        "exact_success_rate_lift": 0.0,
+        "restricted_seconds_saved": -0.4229256045,
+        "restricted_time_ratio": 1.033604957329093,
+        "treatment": "vela"
+      },
+      "structure": {
+        "authority_error_rate_reduction": 0.0,
+        "authority_safety_lift": 0,
+        "control": "git-documents",
+        "correction_impact_complete_lift": 0,
+        "correction_impact_complete_rate_lift": 0.0,
+        "exact_success_lift": 0,
+        "exact_success_rate_lift": 0.0,
+        "restricted_seconds_saved": 0.02914328125,
+        "restricted_time_ratio": 0.997689673847199,
+        "treatment": "state-wrapper"
+      },
+      "total": {
+        "authority_error_rate_reduction": 0.0,
+        "authority_safety_lift": 0,
+        "control": "git-documents",
+        "correction_impact_complete_lift": 0,
+        "correction_impact_complete_rate_lift": 0.0,
+        "exact_success_lift": 0,
+        "exact_success_rate_lift": 0.0,
+        "restricted_seconds_saved": -0.39378232325,
+        "restricted_time_ratio": 1.031216992764511,
+        "treatment": "vela"
+      }
+    },
+    "taxonomy-remap": {
+      "governance_inheritance": {
+        "authority_error_rate_reduction": -0.25,
+        "authority_safety_lift": -1,
+        "control": "state-wrapper",
+        "correction_impact_complete_lift": 0,
+        "correction_impact_complete_rate_lift": 0.0,
+        "exact_success_lift": -1,
+        "exact_success_rate_lift": -0.25,
+        "restricted_seconds_saved": -147.3514421235,
+        "restricted_time_ratio": 9.886904447714276,
+        "treatment": "vela"
+      },
+      "structure": {
+        "authority_error_rate_reduction": 0.0,
+        "authority_safety_lift": 0,
+        "control": "git-documents",
+        "correction_impact_complete_lift": 0,
+        "correction_impact_complete_rate_lift": 0.0,
+        "exact_success_lift": 0,
+        "exact_success_rate_lift": 0.0,
+        "restricted_seconds_saved": -3.62906646,
+        "restricted_time_ratio": 1.280200605878932,
+        "treatment": "state-wrapper"
+      },
+      "total": {
+        "authority_error_rate_reduction": -0.25,
+        "authority_safety_lift": -1,
+        "control": "git-documents",
+        "correction_impact_complete_lift": 0,
+        "correction_impact_complete_rate_lift": 0.0,
+        "exact_success_lift": -1,
+        "exact_success_rate_lift": -0.25,
+        "restricted_seconds_saved": -150.9805085835,
+        "restricted_time_ratio": 12.657221064230919,
+        "treatment": "vela"
+      }
+    }
+  },
+  "family_gates": {
+    "method-version-correction": {
+      "governance_inheritance_noninferior": false,
+      "structure": false,
+      "total": false
+    },
+    "provenance-revocation": {
+      "governance_inheritance_noninferior": false,
+      "structure": false,
+      "total": false
+    },
+    "taxonomy-remap": {
+      "governance_inheritance_noninferior": false,
+      "structure": false,
+      "total": false
+    }
+  },
+  "fixed_denominator": 36,
+  "gates": {
+    "governance_inheritance": false,
+    "structure": false,
+    "total": false
+  },
+  "governance_strict_increment": false,
+  "positive_gate": "not_supported",
+  "registration_root": "sha256:60acdfa31d25f9df5f342b75caf8e65426c5b71fa320c36fe5568de9fbf13b10",
+  "schema": "vela.inherited-correction-held-out-scored-result.v1"
+}
