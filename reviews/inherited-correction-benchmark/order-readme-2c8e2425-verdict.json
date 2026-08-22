@@ -1,0 +1,99 @@
+{
+  "schema": "vela.independent-inherited-correction-order-readme-repair-verdict.v1",
+  "review_id": "inherited-correction-order-readme-repair-2026-08-22",
+  "reviewed_at": "2026-08-22T01:38:39Z",
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/inherited-correction-study",
+    "producer_commit": "2c8e2425f17aa6488f59d23c48da5f852cab34b4",
+    "producer_tree": "0bb4b9d349e4d6c6fcf79c9a81fc25b9e289b769",
+    "parent_commit": "ad5e236e3f29c347c4e3510f4585ec865ae6ef3f",
+    "blocked_review_commit": "7a17e333b1a45965183a94a9b534f07c9d5949b7"
+  },
+  "verdict": "PASS",
+  "failed_gates": [],
+  "repair_scope": {
+    "authored_files": [
+      "paper/artifacts/inherited-correction-held-out-order-replacement/README.md"
+    ],
+    "generated_files": [
+      "paper/artifacts/inherited-correction-held-out-order-replacement/manifest.json"
+    ],
+    "executable_paths_corrected": 5,
+    "remaining_stale_executable_predecessor_paths": 0,
+    "intentional_historical_predecessor_references_preserved": true,
+    "unexpected_semantic_changes": 0
+  },
+  "documented_commands": {
+    "network_none_preflight": "PASS",
+    "benchmark_verify": "PASS",
+    "custody_verify_prelaunch": "PASS",
+    "benchmark_tests": {
+      "status": "PASS",
+      "tests": 24
+    },
+    "provider_runtime_tests": {
+      "status": "PASS",
+      "tests": 9
+    },
+    "git_diff_check": "PASS",
+    "successor_registration_reported": "sha256:60acdfa31d25f9df5f342b75caf8e65426c5b71fa320c36fe5568de9fbf13b10",
+    "successor_assignment_reported": "sha256:64a356db4800b6fb04090ae81a6c2d33bf37ad8b71e92e01567edc5fa6362e72",
+    "successor_permits_reported": 36,
+    "successor_permits_consumed_reported": 0,
+    "order_contract_tests_exercised": true
+  },
+  "roots": {
+    "artifact_root": "sha256:78a107fa77819075467790fae87870acfba1b04dd2fed5b889f4d304c13a0c9a",
+    "registration_root": "sha256:60acdfa31d25f9df5f342b75caf8e65426c5b71fa320c36fe5568de9fbf13b10",
+    "assignment_root": "sha256:64a356db4800b6fb04090ae81a6c2d33bf37ad8b71e92e01567edc5fa6362e72",
+    "prelaunch_root": "sha256:22c33b1fdb1030774d09924cfd6d0236270f1536ad96769c4dc80937c55315d3",
+    "permit_set_root": "sha256:24909f426fcc7e917f6f45072f558806fe7a12d3853b1ef8e6a5c86ab6b50d45"
+  },
+  "determinism": {
+    "verified_python_versions": [
+      "3.10",
+      "3.11",
+      "3.12",
+      "3.13",
+      "3.14"
+    ],
+    "complete_generated_file_set_digest": "sha256:f9f65762471f102fc6bc3aefce86ad582abe2103c7be69dee8659872a9792405",
+    "artifact_root_equal_across_versions": true,
+    "byte_identical_across_versions": true,
+    "manifest_entries_recomputed": 238,
+    "changed_manifest_entries": [
+      "README.md"
+    ]
+  },
+  "successor_state": {
+    "result": "not_run",
+    "required_participant_sessions": 36,
+    "executed_participant_sessions": 0,
+    "participant_permits_held": 36,
+    "participant_permits_consumed": 0,
+    "calibration_permits_held": 1,
+    "calibration_permits_consumed": 0,
+    "provider_calls": 0,
+    "protected_key_accesses": 0,
+    "scoring_runs": 0,
+    "authority_effect": "none"
+  },
+  "unchanged_invariants": [
+    "successor order-contract implementation, registration, assignment, prelaunch, permit set, runtime and image",
+    "participant packets, prompts, schemas, scientific facts, scoring gates, protected commitment, stopped evidence, calibration evidence, Core, Protocol, Standing, and Repository authority"
+  ],
+  "reviewer_actions": {
+    "provider_calls": 0,
+    "permits_released": 0,
+    "protected_key_accesses": 0,
+    "scoring_runs": 0,
+    "authority_effect": "none"
+  },
+  "participant_permit_release_authorized_by_review": false,
+  "calibration_permit_release_authorized_by_review": false,
+  "nonclaims": [
+    "This verdict confirms only the README/self-verification repair.",
+    "This verdict does not authorize a provider call, permit release, protected-key access, scoring action, merge, scientific claim, Protocol or Core change, Repository authority, Standing, or Decision effect."
+  ]
+}
