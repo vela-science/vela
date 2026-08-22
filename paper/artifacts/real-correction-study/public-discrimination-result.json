@@ -1,0 +1,13 @@
+{
+  "authority_aware_exact": 3,
+  "authority_aware_output_root": "sha256:4674de537f8e1b911db2500283f6f591ca287dcdfb0871e9c352c025038525f4",
+  "case_contract_root": "sha256:e588db44ce10e6bc78ff2dfca1a013a1e7d09248c7ecc89fee9fcb838687437f",
+  "cases": 3,
+  "fact_only_exact": 1,
+  "fact_only_output_root": "sha256:28c2f5544bb7e934fa1b9313f26a2f7c43723be5139363d14b9e28e0a05b7f44",
+  "participant_evidence": false,
+  "schema": "vela.real-correction-public-discrimination-result.v1",
+  "source_atoms_root": "sha256:7b9005dd10c3dc959be485a29a369cc41280d77069e91d3878275c7198f34297",
+  "source_fact_extraction_is_sufficient": false,
+  "status": "authority_irreducible_by_construction_only"
+}

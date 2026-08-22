@@ -1,0 +1,402 @@
+{
+  "files": {
+    "README.md": {
+      "bytes": 3282,
+      "mode": "0o644",
+      "sha256": "sha256:7adb2a5ee255b59aa49ef3cad6ba0dc1b8b4350cf14f0eddb9f04edd4db38768"
+    },
+    "arm-contract.json": {
+      "bytes": 1644,
+      "mode": "0o644",
+      "sha256": "sha256:a13d589e9151ae442d39dd940b32aee9387fbb4fd263cfd61564fe4115a60e44"
+    },
+    "claim-matrix.md": {
+      "bytes": 2581,
+      "mode": "0o644",
+      "sha256": "sha256:1611e34bbacbfc08370e8ee43a05362c5d5f52f78f43845f0ec8ef3ad37863e8"
+    },
+    "discrimination-cases.json": {
+      "bytes": 1296,
+      "mode": "0o644",
+      "sha256": "sha256:ddbc6a61b8f5f81b42f975eb5edd63c615e64663a7afeb85d2f6b70a101c0ce2"
+    },
+    "estimands-and-gates.md": {
+      "bytes": 6099,
+      "mode": "0o644",
+      "sha256": "sha256:12605852e7ee950597e2c0f3322a5a5400f466574f0c0190b1c5c43e2195275b"
+    },
+    "failure-audit.json": {
+      "bytes": 6167,
+      "mode": "0o644",
+      "sha256": "sha256:79f248d4b7aa3ea28de3f01645504ef429a3ed7d16c66354930265aba4762232"
+    },
+    "failure-audit.md": {
+      "bytes": 3095,
+      "mode": "0o644",
+      "sha256": "sha256:8a302825a1238c00fbf65c99c56598380d29dcb451927ce4c3fff096a95d6418"
+    },
+    "falsification-conditions.md": {
+      "bytes": 2587,
+      "mode": "0o644",
+      "sha256": "sha256:90bfeae621ef5774e86786f304abf473b9c5b46e36059beb1d2954078f9cb4c2"
+    },
+    "fixture-qualification.json": {
+      "bytes": 11145,
+      "mode": "0o644",
+      "sha256": "sha256:fd65d66e931df13809d5ab57818d735cb71932822256928d49f61408dff2bab7"
+    },
+    "fixtures/erdos-1055/predecessor/FormalConjectures/ErdosProblems/1055.lean": {
+      "bytes": 3616,
+      "mode": "0o644",
+      "sha256": "sha256:ac988afdb5ab32d9dbfda77a94bc2859e0d873c9c09790a68acb85d4b1e959f9"
+    },
+    "fixtures/erdos-1055/successor/FormalConjectures/ErdosProblems/1055.lean": {
+      "bytes": 4036,
+      "mode": "0o644",
+      "sha256": "sha256:d3270825487fd25edb928565035455ca7ffa6b03a0dfaf44ba58d86abbd8e6d5"
+    },
+    "fixtures/erdos-264/evidence-binding.json": {
+      "bytes": 10356,
+      "mode": "0o644",
+      "sha256": "sha256:9a80e03654a2d6afef0fab82b671c5b1443606f95d319800381159fcd451c795"
+    },
+    "fixtures/erdos-264/formal-conjectures-repair-source/FormalConjectures/ErdosProblems/264.lean": {
+      "bytes": 3403,
+      "mode": "0o644",
+      "sha256": "sha256:c59caaa2524e3edd52944e63f5d9bb0614f1bc36d7fb8a0fec7029c14c266b46"
+    },
+    "fixtures/erdos-264/hosted-proof/src/v4.29.1/ErdosProblems/Erdos264.lean": {
+      "bytes": 63034,
+      "mode": "0o644",
+      "sha256": "sha256:10c61b6082a51a85d7b0e41bffc7ee0799d46183b6a3848a9816cf9e943fedf2"
+    },
+    "fixtures/erdos-264/predecessor/FormalConjectures/ErdosProblems/264.lean": {
+      "bytes": 3358,
+      "mode": "0o644",
+      "sha256": "sha256:98386d8f28112c5e952ec40c4ee439c27f3ff7560a4e767b493ccebc628fb29f"
+    },
+    "fixtures/erdos-264/repository-history/sequence-01/after.json": {
+      "bytes": 831555,
+      "mode": "0o644",
+      "sha256": "sha256:89cacf7d7665aa5942d7d6e5fc221b53b5f5794ce76077782f3b2c0820cd0b18"
+    },
+    "fixtures/erdos-264/repository-history/sequence-01/before.json": {
+      "bytes": 837665,
+      "mode": "0o644",
+      "sha256": "sha256:8a95f5d495233708790e4ee1e911339a4c040defd63e09ec687d99f73e6701c9"
+    },
+    "fixtures/erdos-264/repository-history/sequence-02/after.json": {
+      "bytes": 834487,
+      "mode": "0o644",
+      "sha256": "sha256:e9b67253e139e2fd365aa0f7dce0949f898174895f1602c59fd6c5b0d862c443"
+    },
+    "fixtures/erdos-264/repository-history/sequence-02/before.json": {
+      "bytes": 834493,
+      "mode": "0o644",
+      "sha256": "sha256:5a7f78b70777096665b968c70ce652406973310087cd2d69f3cd92a4f3362bb2"
+    },
+    "fixtures/erdos-264/repository-history/sequence-03/after.json": {
+      "bytes": 836079,
+      "mode": "0o644",
+      "sha256": "sha256:d07477153b4f3fedff624537fafdb66a24290df14ebdf559687a954b70db3090"
+    },
+    "fixtures/erdos-264/repository-history/sequence-03/before.json": {
+      "bytes": 836085,
+      "mode": "0o644",
+      "sha256": "sha256:65c678a89fceba4e44500a6743a23f7d3adf6c189133e417838dd2d28ea6009d"
+    },
+    "fixtures/erdos-264/repository-history/sequence-04/after.json": {
+      "bytes": 837119,
+      "mode": "0o644",
+      "sha256": "sha256:7b4f3c057bd97f9f04d7dea67d3ea77d13c4156fa5abb78c6a4288278ceb7094"
+    },
+    "fixtures/erdos-264/repository-history/sequence-04/before.json": {
+      "bytes": 837419,
+      "mode": "0o644",
+      "sha256": "sha256:60c2a1393147d5264f909f4d023b35d7a81e1c6e9eda31bcfea3140d313b1466"
+    },
+    "fixtures/erdos-264/repository-history/sequence-05/after.json": {
+      "bytes": 839491,
+      "mode": "0o644",
+      "sha256": "sha256:f53da541680e2317cd96d64237fa0ced9eb6e4776b03023d5675d0e76b35bc2c"
+    },
+    "fixtures/erdos-264/repository-history/sequence-05/before.json": {
+      "bytes": 839497,
+      "mode": "0o644",
+      "sha256": "sha256:c140453eaa36a314fdbbc524aea84a7bb6e91f89eeface403487fe3c3bfad574"
+    },
+    "fixtures/erdos-264/successor/FormalConjectures/ErdosProblems/264.lean": {
+      "bytes": 3419,
+      "mode": "0o644",
+      "sha256": "sha256:5a3a0fb7063ed77d644a5c1cab503851e68d87b02c0882db8fa52e801aba1166"
+    },
+    "fixtures/erdos-264/vela-repository/.vela/authority/events/vev_0325f467077ed92e.json": {
+      "bytes": 1529,
+      "mode": "0o644",
+      "sha256": "sha256:2e4d2b9faf940b605dba9d0ebefaa08d93b214fc9b6fc4f8071aa5c1736833db"
+    },
+    "fixtures/erdos-264/vela-repository/.vela/authority/events/vev_0697e43b72ca9f36.json": {
+      "bytes": 1629,
+      "mode": "0o644",
+      "sha256": "sha256:cc1e9493555093c37399c9f5a25683a67a6b34b4ebc82a2215f5f1a428df1a9e"
+    },
+    "fixtures/erdos-264/vela-repository/.vela/authority/events/vev_1eb5a0cf93129351.json": {
+      "bytes": 2172,
+      "mode": "0o644",
+      "sha256": "sha256:3e03ffdc34988c40c19d32371e71b3f744ca404195f3ef7e1e66e492a115ea78"
+    },
+    "fixtures/erdos-264/vela-repository/.vela/authority/events/vev_2e265868d5a76496.json": {
+      "bytes": 2053,
+      "mode": "0o644",
+      "sha256": "sha256:caac7f2984f720cbc453acfa3e1e574b8aa4d218ede36195d4edc8c029e5febc"
+    },
+    "fixtures/erdos-264/vela-repository/.vela/authority/events/vev_37fa3d9f9be64e58.json": {
+      "bytes": 1447,
+      "mode": "0o644",
+      "sha256": "sha256:816dbf3fcdf0f32488b80288c06adc7f70e887f57fe0f962011caae8cf478052"
+    },
+    "fixtures/erdos-264/vela-repository/.vela/authority/events/vev_4176b1a0700b2256.json": {
+      "bytes": 1931,
+      "mode": "0o644",
+      "sha256": "sha256:1dee037e316bfbf641b52d06dab7406dad4f1b0a46aca7d376bbc07ddf694aeb"
+    },
+    "fixtures/erdos-264/vela-repository/.vela/authority/events/vev_53e2221142bf8400.json": {
+      "bytes": 1882,
+      "mode": "0o644",
+      "sha256": "sha256:1f4cdef80f7ce10ec839bcf32162131b1b8aa48884344b84bef4488b2954ae0c"
+    },
+    "fixtures/erdos-264/vela-repository/.vela/authority/events/vev_670c0f9318e2332f.json": {
+      "bytes": 1541,
+      "mode": "0o644",
+      "sha256": "sha256:8d63e2f7c2c16bfcd3b65d1fc084af26a5cfc1499064f2021b27f4cfdadeee4a"
+    },
+    "fixtures/erdos-264/vela-repository/.vela/authority/events/vev_7abd13c53ee521f6.json": {
+      "bytes": 1631,
+      "mode": "0o644",
+      "sha256": "sha256:ec6ff7bbeb1c10d7cda475ec4aeea91d218cab107ad1d43785608943e414084d"
+    },
+    "fixtures/erdos-264/vela-repository/.vela/authority/keysets/c4a88730dead6074cce49cce6649b23874dfed41c598815852f62ca65741f328.json": {
+      "bytes": 407,
+      "mode": "0o644",
+      "sha256": "sha256:c4a88730dead6074cce49cce6649b23874dfed41c598815852f62ca65741f328"
+    },
+    "fixtures/erdos-264/vela-repository/.vela/authority/policies/3c0743077d051b5a84e932dcfe6fc4e764fe39738a3040aebdc11276f53ee83f.json": {
+      "bytes": 745,
+      "mode": "0o644",
+      "sha256": "sha256:3c0743077d051b5a84e932dcfe6fc4e764fe39738a3040aebdc11276f53ee83f"
+    },
+    "fixtures/erdos-264/vela-repository/.vela/authority/policy-material/entities/d2ee11de37fb6025d7fb072a6787fc92c8939461eb41215b8b9e76801b72e6cb.json": {
+      "bytes": 316,
+      "mode": "0o644",
+      "sha256": "sha256:d2ee11de37fb6025d7fb072a6787fc92c8939461eb41215b8b9e76801b72e6cb"
+    },
+    "fixtures/erdos-264/vela-repository/.vela/authority/policy-material/policies/c997e39a024934e7355f73422ac10f401398e2ff593dc89de6ffe25c97d452ec.cedar": {
+      "bytes": 1151,
+      "mode": "0o644",
+      "sha256": "sha256:c997e39a024934e7355f73422ac10f401398e2ff593dc89de6ffe25c97d452ec"
+    },
+    "fixtures/erdos-264/vela-repository/.vela/authority/policy-material/schema/2563eb2848122e4bf366be8101abff7b17dfc6d49e1aab7541db1ac73df86ad7.cedarschema": {
+      "bytes": 5245,
+      "mode": "0o644",
+      "sha256": "sha256:2563eb2848122e4bf366be8101abff7b17dfc6d49e1aab7541db1ac73df86ad7"
+    },
+    "fixtures/erdos-264/vela-repository/.vela/authority/records/var_39e6894a8f9021d0.dsse.json": {
+      "bytes": 6127,
+      "mode": "0o644",
+      "sha256": "sha256:f93c63e3957d3561d5ea789d94b6095de941388a18a6d8996ea1178b019d0a96"
+    },
+    "fixtures/erdos-264/vela-repository/.vela/authority/records/var_7f7700bbca5a556d.dsse.json": {
+      "bytes": 6795,
+      "mode": "0o644",
+      "sha256": "sha256:fb6b99c49229f80fb35340cb27ff383b0f8ed6b4c50231bbf249ce1e194cc55c"
+    },
+    "fixtures/erdos-264/vela-repository/.vela/authority/records/var_862a88c79456a6a5.dsse.json": {
+      "bytes": 5987,
+      "mode": "0o644",
+      "sha256": "sha256:e60bdf2c05f60deca8330f85bb4bd9aa41aced83d3de895709c8dfe13b8b1a7e"
+    },
+    "fixtures/erdos-264/vela-repository/.vela/authority/records/var_f8ca9ec260786748.dsse.json": {
+      "bytes": 5879,
+      "mode": "0o644",
+      "sha256": "sha256:d8e9731dbcca7a7c94c2db6df47573bc6dcb5aeafad6a786e0589eea2948a23e"
+    },
+    "fixtures/erdos-264/vela-repository/.vela/authority/records/var_ffa42dd829022312.dsse.json": {
+      "bytes": 6007,
+      "mode": "0o644",
+      "sha256": "sha256:a099e4dae3e303ea1bf0107e8bc7c49c9dd9434caa803368036971d99f0d9c89"
+    },
+    "fixtures/erdos-264/vela-repository/.vela/origin.json": {
+      "bytes": 1318,
+      "mode": "0o644",
+      "sha256": "sha256:9b833692d6456ce6212b39870af4d51118d52557085f2e2f2c4752e884b47bb2"
+    },
+    "fixtures/erdos-264/vela-repository/.vela/repository.json": {
+      "bytes": 842088,
+      "mode": "0o644",
+      "sha256": "sha256:f03be3a76ce43be0c2f9ca63ff731b9a5ff5c010b768e95b46a35f3a067eed96"
+    },
+    "fixtures/erdos-264/vela-repository/artifacts/erdos264-parts-i-proof-repair/264.lean": {
+      "bytes": 18916,
+      "mode": "0o644",
+      "sha256": "sha256:9ba4b0c8aa144985aac8df40ee070c0ffe4ab7b59915d9b44eb90b42f96935e8"
+    },
+    "fixtures/erdos-264/vela-repository/artifacts/fidelity/erdos-264-source-transition.v1.json": {
+      "bytes": 4981,
+      "mode": "0o644",
+      "sha256": "sha256:4443284e9856a2df1902dd81fb443f4042fb28b510278bfa2fe23ef935be3173"
+    },
+    "fixtures/erdos-264/vela-repository/campaigns/erdos-264-commons-disposition.md": {
+      "bytes": 4804,
+      "mode": "0o644",
+      "sha256": "sha256:7a1d521f9203a2f59251f271512224eed1bb155708e2380013abf5ab2d5c5e52"
+    },
+    "fixtures/erdos-264/vela-repository/execution/erdos-264-proof-repair/producer-profile.v1.json": {
+      "bytes": 1468,
+      "mode": "0o644",
+      "sha256": "sha256:7e00ee6245c4d8e0012c3ad73ad416bf7f5efd3ed6fa138d71f96aa4684202e4"
+    },
+    "fixtures/erdos-264/vela-repository/execution/erdos-264-proof-repair/result-contract.v1.json": {
+      "bytes": 1858,
+      "mode": "0o644",
+      "sha256": "sha256:666b6e1b60e9c5d8b8b0ec7d9c3062e9e237360f6f7d9b379ccdfa29d05d9c2c"
+    },
+    "fixtures/erdos-264/vela-repository/execution/erdos-264-proof-repair/verifier-capsule.v1.json": {
+      "bytes": 1087,
+      "mode": "0o644",
+      "sha256": "sha256:bf64cbb1d43b31432482fede2f000d96dbd6e95769bb639124aada4f2b1bfdfe"
+    },
+    "fixtures/erdos-264/vela-repository/execution/erdos-264-proof-repair/verify.py": {
+      "bytes": 8507,
+      "mode": "0o644",
+      "sha256": "sha256:eaddd4a14ba472c28764efd4538a6c9daa6c0ef373e68bf1f31b9930cf1b886a"
+    },
+    "fixtures/erdos-264/vela-repository/execution/erdos-264/source-transition-verification.v1.json": {
+      "bytes": 3864,
+      "mode": "0o644",
+      "sha256": "sha256:4fc89ce7fcb7ca244e56f097096c2009166a5e0a25850aea144e6e36e628ac21"
+    },
+    "fixtures/erdos-264/vela-repository/records/artifacts/sha256/4443284e9856a2df1902dd81fb443f4042fb28b510278bfa2fe23ef935be3173": {
+      "bytes": 4981,
+      "mode": "0o644",
+      "sha256": "sha256:4443284e9856a2df1902dd81fb443f4042fb28b510278bfa2fe23ef935be3173"
+    },
+    "fixtures/erdos-264/vela-repository/records/artifacts/sha256/9ba4b0c8aa144985aac8df40ee070c0ffe4ab7b59915d9b44eb90b42f96935e8": {
+      "bytes": 18916,
+      "mode": "0o644",
+      "sha256": "sha256:9ba4b0c8aa144985aac8df40ee070c0ffe4ab7b59915d9b44eb90b42f96935e8"
+    },
+    "fixtures/erdos-264/vela-repository/records/claims/sha256/254621848ba12e76bff9970be183532499be6d86e4ee50e6bed341dc6739f00d.json": {
+      "bytes": 665,
+      "mode": "0o644",
+      "sha256": "sha256:254621848ba12e76bff9970be183532499be6d86e4ee50e6bed341dc6739f00d"
+    },
+    "fixtures/erdos-264/vela-repository/records/claims/sha256/4d3f546331886ba10891c1ceb46267993d41b99ed746a19b74d91ccb9448b16e.json": {
+      "bytes": 1358,
+      "mode": "0o644",
+      "sha256": "sha256:4d3f546331886ba10891c1ceb46267993d41b99ed746a19b74d91ccb9448b16e"
+    },
+    "fixtures/erdos-264/vela-repository/records/claims/sha256/62dd229a78539a2c74747b0b0ee859f326b18b9bfc13395eea0168a6c7d734ac.json": {
+      "bytes": 581,
+      "mode": "0o644",
+      "sha256": "sha256:62dd229a78539a2c74747b0b0ee859f326b18b9bfc13395eea0168a6c7d734ac"
+    },
+    "fixtures/erdos-264/vela-repository/records/claims/sha256/7b12517e7ba9c077e00f18d8db3c0430950e1b05f1e2acf05593c2218a85d7be.json": {
+      "bytes": 617,
+      "mode": "0o644",
+      "sha256": "sha256:7b12517e7ba9c077e00f18d8db3c0430950e1b05f1e2acf05593c2218a85d7be"
+    },
+    "fixtures/erdos-264/vela-repository/records/claims/sha256/f10be036e34c291bfb4c58a61e1c2e91696b717e5bd7b4f50d27bd85bf0e3051.json": {
+      "bytes": 1444,
+      "mode": "0o644",
+      "sha256": "sha256:f10be036e34c291bfb4c58a61e1c2e91696b717e5bd7b4f50d27bd85bf0e3051"
+    },
+    "fixtures/erdos-264/vela-repository/records/proposals/sha256/93167fec1c8172bfbec5f7e624d0901ddf09e59e1935d1497cd44f43bac7453c.json": {
+      "bytes": 1074,
+      "mode": "0o644",
+      "sha256": "sha256:93167fec1c8172bfbec5f7e624d0901ddf09e59e1935d1497cd44f43bac7453c"
+    },
+    "fixtures/erdos-264/vela-repository/records/proposals/sha256/e39bffa8b082252788ac39d56879ccbfe83e9684775ef648bb9cdb18ec22c981.json": {
+      "bytes": 1001,
+      "mode": "0o644",
+      "sha256": "sha256:e39bffa8b082252788ac39d56879ccbfe83e9684775ef648bb9cdb18ec22c981"
+    },
+    "fixtures/erdos-264/vela-repository/records/submissions/sha256/5bd82ea117c726b12ad8c1b9cf6549044f04447cf24371aaab09548363b423d0.json": {
+      "bytes": 2694,
+      "mode": "0o644",
+      "sha256": "sha256:5bd82ea117c726b12ad8c1b9cf6549044f04447cf24371aaab09548363b423d0"
+    },
+    "fixtures/erdos-264/vela-repository/records/submissions/sha256/d1d8268c3965d6de989281783fb7d1671146fac89a50c86ab4aa52e7b5f3fef8.json": {
+      "bytes": 2153,
+      "mode": "0o644",
+      "sha256": "sha256:d1d8268c3965d6de989281783fb7d1671146fac89a50c86ab4aa52e7b5f3fef8"
+    },
+    "fixtures/erdos-264/vela-repository/records/verifications/sha256/7916115d50fc14cb5def642a7e98546f5ae0bffd348b6bfd2fb2936c0e68799d.json": {
+      "bytes": 2181,
+      "mode": "0o644",
+      "sha256": "sha256:7916115d50fc14cb5def642a7e98546f5ae0bffd348b6bfd2fb2936c0e68799d"
+    },
+    "fixtures/erdos-264/vela-repository/records/verifications/sha256/9f39c297721c4fee479ac8ecb4b649806a2d3bdd928305e485b8cef0637c1b8c.json": {
+      "bytes": 2240,
+      "mode": "0o644",
+      "sha256": "sha256:9f39c297721c4fee479ac8ecb4b649806a2d3bdd928305e485b8cef0637c1b8c"
+    },
+    "fixtures/erdos-264/vela-repository/targets/erdos-264-parts-i-proof-repair.json": {
+      "bytes": 3494,
+      "mode": "0o644",
+      "sha256": "sha256:112931d7959a3f9201ea4c8402daef3d91ae25410aba1c8fc6765ce69888e3de"
+    },
+    "fixtures/snake-induced-path/predecessor/FormalConjectures/Wikipedia/SnakeInTheBox.lean": {
+      "bytes": 3744,
+      "mode": "0o644",
+      "sha256": "sha256:1f9d6e1cbd8a7d40717d97abfe3b618c88e32f6f4f2c2ad35fb17ee1069ab9fa"
+    },
+    "fixtures/snake-induced-path/successor/FormalConjectures/Wikipedia/SnakeInTheBox.lean": {
+      "bytes": 3938,
+      "mode": "0o644",
+      "sha256": "sha256:1781f117a71066c6d1e74c5fb04059889169ceb80d1e9d04cb0f48a706977bd3"
+    },
+    "public-discrimination-result.json": {
+      "bytes": 686,
+      "mode": "0o644",
+      "sha256": "sha256:2af4b3bad3eaf88a0c640fc10eafcdfa5751cd0964e2b791e35ce1e130052cbd"
+    },
+    "public-discrimination-source.json": {
+      "bytes": 1202,
+      "mode": "0o644",
+      "sha256": "sha256:e5ad6bc6f493778c6adc35d284531300e54f9029db6cdd197113f33d8e09d22b"
+    },
+    "review-response.json": {
+      "bytes": 2697,
+      "mode": "0o644",
+      "sha256": "sha256:4936def9b855a2c143d9f54639128928a1f6a9a162d9401b7b24a106bff808de"
+    },
+    "roadmap.md": {
+      "bytes": 4441,
+      "mode": "0o644",
+      "sha256": "sha256:5aefb3eb59e08cf323c7374f82f8daa6806bf0534c5e138ff3fb4632ef93762c"
+    },
+    "study-contract.json": {
+      "bytes": 3797,
+      "mode": "0o644",
+      "sha256": "sha256:311a6fc7094b9fdc5611a0874c3548945085399ec7c458fd8ebed91c1748ca80"
+    },
+    "test_verify.py": {
+      "bytes": 10632,
+      "mode": "0o644",
+      "sha256": "sha256:cf0071610776344a9b725624c5f252d9b4ec7fdb6a1f71374f8bced593b6fe40"
+    },
+    "verify.py": {
+      "bytes": 48398,
+      "mode": "0o755",
+      "sha256": "sha256:fa417a83c0644032b3b6ed34f82a3a6cddb3987f63d618c937bdcc206411c71b"
+    }
+  },
+  "generated_exclusions": [
+    "packet-manifest.json",
+    "qualification-result.json",
+    "source-manifest.json"
+  ],
+  "schema": "vela.real-correction-source-manifest.v1",
+  "scope": "Every retained material byte except generated manifests and qualification result.",
+  "source_manifest_root": "sha256:d8987513e4860eaf5bf65f8ec9bd2be9a75691dbcc35de2c05b01fe400c66a17"
+}

@@ -1,7 +1,8 @@
 {
   "schema": "vela.real-correction-public-discrimination.v1",
   "status": "non_confirmatory_public_qualification",
-  "source_atoms_root": "sha256:7b5b9f3e71bf68eac7cf3fd8a94717e218811084369b3cb44c12bfb9c05f8066",
+  "source_atoms_path": "public-discrimination-source.json",
+  "source_atoms_root": "sha256:7b9005dd10c3dc959be485a29a369cc41280d77069e91d3878275c7198f34297",
   "cases": [
     {
       "id": "no-action",

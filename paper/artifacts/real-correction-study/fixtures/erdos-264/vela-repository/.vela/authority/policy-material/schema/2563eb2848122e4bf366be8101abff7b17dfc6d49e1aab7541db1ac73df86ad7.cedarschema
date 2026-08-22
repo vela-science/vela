@@ -1,0 +1,209 @@
+entity Service;
+entity Frontier;
+action "automatic_permit" appliesTo {
+    principal: Service,
+    resource: Frontier,
+    context: {
+        structuralValid: Bool,
+        claimClass: String,
+        assuranceLevel: Long,
+        impactTier: Long,
+        changedFindings: Long,
+        downstreamDependents: Long,
+        assertionTextMutated: Bool,
+        targetContested: Bool,
+        governanceMutation: Bool,
+        independenceSatisfied: Bool,
+        methodIntegritySound: Bool,
+        credentialValid: Bool,
+        hasUnknownFields: Bool,
+        replayability: String,
+        executionBindingPresent: Bool,
+        executionBindingValid: Bool,
+        packetRoot: String,
+        profileRoot: String,
+        verifierCapsuleRoot: String,
+        resultContractRoot: String,
+        producerCredentialRootPresent: Bool,
+        producerCredentialRoot: String
+    }
+};
+
+entity Human;
+entity Proposal;
+action "authority_model_migrate" appliesTo {
+    principal: Human,
+    resource: Frontier,
+    context: {
+        exact: Bool,
+        authentication: {
+            method: String,
+            assurance: String,
+            authenticated_at: String,
+            observed_at: String,
+            expires_at: String,
+            user_presence: Bool,
+            user_verification: Bool,
+            recovery_recent: Bool
+        }
+    }
+};
+action "authority_rotate" appliesTo {
+    principal: Human,
+    resource: Frontier,
+    context: {
+        exact: Bool,
+        authentication: {
+            method: String,
+            assurance: String,
+            authenticated_at: String,
+            observed_at: String,
+            expires_at: String,
+            user_presence: Bool,
+            user_verification: Bool,
+            recovery_recent: Bool
+        }
+    }
+};
+action "authority_close" appliesTo {
+    principal: Human,
+    resource: Frontier,
+    context: {
+        exact: Bool,
+        authentication: {
+            method: String,
+            assurance: String,
+            authenticated_at: String,
+            observed_at: String,
+            expires_at: String,
+            user_presence: Bool,
+            user_verification: Bool,
+            recovery_recent: Bool
+        }
+    }
+};
+action "policy_rotate" appliesTo {
+    principal: Human,
+    resource: Frontier,
+    context: {
+        exact: Bool,
+        authentication: {
+            method: String,
+            assurance: String,
+            authenticated_at: String,
+            observed_at: String,
+            expires_at: String,
+            user_presence: Bool,
+            user_verification: Bool,
+            recovery_recent: Bool
+        }
+    }
+};
+action "review_accept" appliesTo {
+    principal: Human,
+    resource: Proposal,
+    context: {
+        exact: Bool,
+        authentication: {
+            method: String,
+            assurance: String,
+            authenticated_at: String,
+            observed_at: String,
+            expires_at: String,
+            user_presence: Bool,
+            user_verification: Bool,
+            recovery_recent: Bool
+        }
+    }
+};
+action "review_reject" appliesTo {
+    principal: Human,
+    resource: Proposal,
+    context: {
+        exact: Bool,
+        authentication: {
+            method: String,
+            assurance: String,
+            authenticated_at: String,
+            observed_at: String,
+            expires_at: String,
+            user_presence: Bool,
+            user_verification: Bool,
+            recovery_recent: Bool
+        }
+    }
+};
+
+
+action "authority_initialize" appliesTo {
+    principal: Human,
+    resource: Frontier,
+    context: {
+        exact: Bool,
+        authentication: {
+            method: String,
+            assurance: String,
+            authenticated_at: String,
+            observed_at: String,
+            expires_at: String,
+            user_presence: Bool,
+            user_verification: Bool,
+            recovery_recent: Bool
+        }
+    }
+};
+
+entity Agent;
+action "work_claim" appliesTo {
+    principal: Agent,
+    resource: Frontier,
+    context: {
+        exact: Bool,
+        authentication: {
+            method: String,
+            assurance: String,
+            authenticated_at: String,
+            observed_at: String,
+            expires_at: String,
+            user_presence: Bool,
+            user_verification: Bool,
+            recovery_recent: Bool
+        }
+    }
+};
+
+action "submission_register" appliesTo {
+    principal: Agent,
+    resource: Frontier,
+    context: {
+        exact: Bool,
+        authentication: {
+            method: String,
+            assurance: String,
+            authenticated_at: String,
+            observed_at: String,
+            expires_at: String,
+            user_presence: Bool,
+            user_verification: Bool,
+            recovery_recent: Bool
+        }
+    }
+};
+
+action "verification_import" appliesTo {
+    principal: Agent,
+    resource: Frontier,
+    context: {
+        exact: Bool,
+        authentication: {
+            method: String,
+            assurance: String,
+            authenticated_at: String,
+            observed_at: String,
+            expires_at: String,
+            user_presence: Bool,
+            user_verification: Bool,
+            recovery_recent: Bool
+        }
+    }
+};

@@ -42,12 +42,7 @@
         "safe_next_action": "reassess_dependents_without_new_decision",
         "scenario_kind": "observed_first_party_vela_evidence",
         "evidence_paths": [
-          "fixtures/erdos-264/vela-repository/.vela/authority/events/vev_0325f467077ed92e.json",
-          "fixtures/erdos-264/vela-repository/.vela/authority/events/vev_2e265868d5a76496.json",
-          "fixtures/erdos-264/vela-repository/.vela/authority/records/var_862a88c79456a6a5.dsse.json",
-          "fixtures/erdos-264/vela-repository/.vela/authority/keysets/c4a88730dead6074cce49cce6649b23874dfed41c598815852f62ca65741f328.json",
-          "fixtures/erdos-264/vela-repository/artifacts/fidelity/erdos-264-source-transition.v1.json",
-          "fixtures/erdos-264/vela-repository/targets/erdos-264-parts-i-proof-repair.json"
+          "fixtures/erdos-264/evidence-binding.json"
         ]
       },
       "bounded_ground_truth": {
@@ -157,7 +152,7 @@
       },
       "correction": {
         "changed_symbol": "Erdos1055.IsOfClass",
-        "summary": "The recursive successor case excludes membership in every lower class; the least class-2 prime changes from 2 to 13."
+        "summary": "The recursive successor case excludes membership in every lower class. The successor source documents 13 as the class-2 example, but this packet does not independently verify that computation or assume finite-change invariance."
       },
       "authority_scenario": {
         "regime": "authorization_presently_unprovable",
@@ -178,8 +173,8 @@
           {"id": "Erdos1055.exists_p", "classification": "must_reassess", "safe_action": "reverify_claim"},
           {"id": "Erdos1055.p", "classification": "affected", "safe_action": "recompute_with_successor"},
           {"id": "Erdos1055.erdos_1055", "classification": "must_reassess", "safe_action": "rebind_open_question"},
-          {"id": "Erdos1055.erdos_1055.variants.erdos_limit", "classification": "must_reassess", "safe_action": "reverify_finite_change_invariance"},
-          {"id": "Erdos1055.erdos_1055.variants.selfridge_limit", "classification": "must_reassess", "safe_action": "reverify_finite_change_invariance"}
+          {"id": "Erdos1055.erdos_1055.variants.erdos_limit", "classification": "must_reassess", "safe_action": "rederive_and_reverify_under_successor"},
+          {"id": "Erdos1055.erdos_1055.variants.selfridge_limit", "classification": "must_reassess", "safe_action": "rederive_and_reverify_under_successor"}
         ]
       },
       "qualification": {

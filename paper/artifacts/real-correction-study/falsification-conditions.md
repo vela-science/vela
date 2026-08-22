@@ -16,6 +16,9 @@ study before launch, invalidates a fixture, or falsifies a proposed lift.
   local authority input.
 - Independent review finds that an authority scenario is asserted rather than
   evidenced or prospectively declared.
+- Any retained evidence, arm semantic, action meaning, gate, stop line, public
+  discrimination input/output, verifier, or test differs from the committed
+  packet manifest.
 - A confirmatory family, response, assignment, or final label becomes visible
   before its required freeze.
 

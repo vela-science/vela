@@ -10,9 +10,11 @@ Does a replayable, authority-scoped correction record help a cold successor
 take the correct next action after a real scientific source correction, beyond
 the value of ordinary Git/documents and beyond neutral structured state?
 
-Each response must recover five things: the exact predecessor/successor pair;
-the complete bounded impact set; what remains valid; what each named
-repository locally accepts at the bound state; and the first safe next action.
+Each response must recover the exact predecessor/successor pair; the complete
+bounded impact set; what remains valid; what each named repository locally
+accepts at the bound state; the observed historical Decision effect; and the
+first prospective safe next action. Historical effect and prospective action
+are separate fields with separate temporal semantics.
 Source publication, local scientific acceptance, downstream proof status, and
 foreign authority must remain distinct.
 
@@ -93,8 +95,9 @@ contrast may hide a negative governance/inheritance contrast.
 5. Independent methodological review accepts the completeness rules, response
    contract, fixed denominator, custody plan, and gate arithmetic.
 
-The present packet passes only gates 1 and 2. Gates 3–5 remain open, so a
-confirmatory freeze is forbidden.
+The present packet's deterministic self-check passes gates 1 and 2. This is
+not independent acceptance. Gates 3–5 remain open, so a confirmatory freeze is
+forbidden.
 
 ## Candidate confirmatory gates
 

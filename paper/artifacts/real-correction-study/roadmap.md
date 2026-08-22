@@ -22,18 +22,23 @@ The open packet retains three genuine source corrections:
   consumers plus a first-party Vela Decision and proof-repair obligation.
 - Snake-in-the-box repairs the induced-path predicate and changes the semantic
   basis of the longest-snake definitions and six scientific statements.
-- Erdős 1055 makes prime classes exclusive, changes `p 2` from 2 to 13, and
-  propagates into the existence theorem, least-prime definition, and three
-  open asymptotic claims.
+- Erdős 1055 makes prime classes exclusive and propagates into the existence
+  theorem, least-prime definition, and three open asymptotic claims. The
+  packet requires rederivation under the successor and assumes no
+  finite-change theorem.
 
 These fixtures are deliberately open. They qualify source retention,
 dependency boundaries, response semantics, and authority-sensitive action;
 they are ineligible for later confirmatory scoring.
 
-The deterministic check passes all three source/custody boundaries, verifies
-the retained Erdős 264 authority signature, and shows a source-only fact
-extractor can choose only one of three authority-sensitive actions. This is a
-mechanism check, not participant evidence.
+The deterministic check passes all three source/custody boundaries. For Erdős
+264 it reconstructs five signed authority sequences from an independently
+packet-bound trust root, rederives every historical Cedar request and entity
+commitment, verifies the policy allow, rebuilds the event-log roots, checks the
+before/after Repository manifests, and derives the correction and repair
+Standing. It also shows a source-only fact extractor can choose only one of
+three authority-sensitive actions. This is a mechanism check, not participant
+evidence, and independent re-review remains outstanding.
 
 ## Next authorized stages
 

@@ -24,15 +24,18 @@ The schema named only `authority_action_code`; it did not say whether that
 meant the historical admitted action or the participant's safe action now, and
 it accepted all effect/action combinations.
 
-The narrow supported diagnosis is therefore a response-contract and
-current-versus-historical ambiguity. The response does not evidence a general
-misunderstanding of Vela authority: it correctly identified the authorized
-Standing effect. Representation complexity remains only a hypothesis because
-the other three taxonomy/Vela cells returned the registered pair exactly.
+The narrow supported classification is that the response contract contains a
+current-versus-historical ambiguity and this response is consistent with one
+current-safe-action reading. The sealed evidence does not establish why this
+one response selected that reading. Representation complexity and one-sample
+output variance remain unresolved alternatives. The response does not evidence
+a general misunderstanding of Vela authority: it correctly identified the
+authorized Standing effect. The other three taxonomy/Vela cells returned the
+registered pair exactly, but that does not identify the cause of this miss.
 
 ## The time result
 
-The session ran normally for 16.511676507 seconds with no tool calls, timeout,
+The session completed in 16.511676507 seconds with no tool calls, timeout,
 stderr, process error, or schema-validation error. The apparent 600-second
 outlier is the preregistered restricted-time penalty applied to any non-exact
 response. It is an honest frozen trial outcome, but it is not a runtime
@@ -46,7 +49,8 @@ from the first safe action now, define the temporal meaning of both codes,
 reject impossible cross-field combinations, and report correctness separately
 from actual or censored time. All arms should use the same closed response
 contract. A live product change is eligible only if a separate source-bound
-test reproduces this ambiguity on a current Vela read surface.
+test independently reproduces a product-surface defect on a current Vela read
+surface.
 
 Nothing here requires a change to Protocol 1, canonical objects, Repository
 authority, Decision, Event, Standing, or replay. The exact bindings and the

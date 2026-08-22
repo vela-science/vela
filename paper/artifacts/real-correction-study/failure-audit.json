@@ -59,15 +59,16 @@
   ],
   "classification": {
     "representation_complexity": "secondary_hypothesis_not_established",
-    "current_versus_historical_ambiguity": "supported_evaluation_ambiguity",
+    "current_versus_historical_ambiguity": "observed_contract_ambiguity_and_plausible_mechanism_not_causal_finding",
     "authority_semantics": "no_general_misunderstanding_evidenced",
-    "response_contract": "primary_supported_cause",
-    "runtime_behavior": "ruled_out_as_cause",
+    "response_contract": "contract_defect_observed_response_consistent_with_defect_cause_unestablished",
+    "runtime_behavior": "normal_completion_observed_no_runtime_failure_observed",
     "genuine_product_weakness": "not_established"
   },
   "hypotheses": [
     "The response treated authority_effect_code as the observed historical Decision effect and authority_action_code as the participant's currently safe action under the no-mutation instruction.",
-    "The compact Vela authority block may have made both temporal readings salient, but the sealed evidence cannot distinguish representation salience from one-sample output variance."
+    "The compact Vela authority block may have made both temporal readings salient.",
+    "The mismatch may instead reflect representation complexity or one-sample output variance; the sealed evidence cannot distinguish among these mechanisms."
   ],
   "generalizable_changes": [
     "Separate observed_decision_effect from prospective_safe_next_action in every arm.",
