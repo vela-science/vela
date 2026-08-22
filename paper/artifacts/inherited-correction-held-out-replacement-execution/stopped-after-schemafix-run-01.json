@@ -1,0 +1,88 @@
+{
+  "schema": "vela.inherited-correction-held-out-replacement-stopped-registration.v1",
+  "status": "stopped_after_terminal_schemafix_run_01",
+  "stopped_at": "2026-08-22T01:10:33Z",
+  "reason": "The runtime accepted a registered-schema-valid four-consequence response in packet order, but custody imposed an unstated alphabetically sorted claim-id order and rejected ingestion with response_claim_order_invalid.",
+  "producer_commit": "53d3015f3a8e705ecffa610e60ea748963c80995",
+  "producer_tree": "f05cf29a189cf769bc0b2b6a00e88c96ba3ce520",
+  "runtime_review_pass_commit": "4a06ac8aa9a5f07abd019a375d755bfe5f0031aa",
+  "neutral_calibration_review_pass_commit": "00dea270f907887652ab65a764b3ddb3464de1db",
+  "registration_root": "sha256:820b725d04cd3780e4bbdb6a89f3ee980a5bf993259c1f089984a3e7f7407f2b",
+  "assignment_root": "sha256:cf69793d6ed3489b17690088e8f004d95b04859ec60d5aa5cf7e558cbb012b80",
+  "run_id": "schemafix-run-01",
+  "participant_instance_id": "schemafix-sol-01",
+  "family_id": "provenance-revocation",
+  "condition": "git-documents",
+  "attempt": 1,
+  "runtime_terminal_status": "completed",
+  "runtime_validation_error": null,
+  "custody_ingested": false,
+  "custody_error": "response_claim_order_invalid",
+  "registered_schema_prescribes_consequence_order": false,
+  "prompt_prescribes_consequence_order": false,
+  "runtime_validation_preserves_response_order": true,
+  "custody_expected_claim_order": [
+    "archive-accession",
+    "combined-estimate",
+    "north-estimate",
+    "regional-sensitivity"
+  ],
+  "observed_claim_order": [
+    "north-estimate",
+    "regional-sensitivity",
+    "archive-accession",
+    "combined-estimate"
+  ],
+  "runtime_capture_root": "sha256:d3b484af62b5c3b5f69b2547fbf305d604d451ac2d5c96eeefeb8d7fbd62e230",
+  "runtime_capture_entries": [
+    {
+      "path": "runtime/consumed-permit.json",
+      "bytes": 937,
+      "sha256": "sha256:01a039730815e1ae9a57f0ee626be6b95006ab0479b33df06bd9cb19e870dd2d"
+    },
+    {
+      "path": "runtime/launch.json",
+      "bytes": 305,
+      "sha256": "sha256:3126cb93372cae38ac37530a3ffffd8ff166c4001da3e88bdf4657c11f03f550"
+    },
+    {
+      "path": "runtime/participant-response.raw.json",
+      "bytes": 1233,
+      "sha256": "sha256:3a3340575b3ca2a66535a5b24476c0e6e6ba7e29c5462a6b2c0d1d542a3bb457"
+    },
+    {
+      "path": "runtime/provider-events.jsonl",
+      "bytes": 1683,
+      "sha256": "sha256:1d06345c3089fd8dda10b9ccdc3d01fdac5e586c6b81e5be8bd6d99d7519fa66"
+    },
+    {
+      "path": "runtime/provider-stderr.txt",
+      "bytes": 0,
+      "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "runtime/release-state.json",
+      "bytes": 222,
+      "sha256": "sha256:ad06a20ae4c6efc043c62d147a59c9146efb32b783828fb4ac3cc0395bdbd4c6"
+    },
+    {
+      "path": "runtime/terminal-receipt.json",
+      "bytes": 2083,
+      "sha256": "sha256:e91149b47c7c23dbe3f7f37a0bcb0cc336cc3139c4e21edad20eb934092c5a8f"
+    }
+  ],
+  "fixed_denominator": 36,
+  "terminal_runs": 1,
+  "unissued_runs": 35,
+  "unissued_run_range": "schemafix-run-02..schemafix-run-36",
+  "permits_consumed": 1,
+  "permits_held_unissued": 35,
+  "provider_calls": 1,
+  "retries": 0,
+  "substitutions": 0,
+  "protected_key_accesses": 0,
+  "scoring_runs": 0,
+  "result": "not_scored",
+  "replacement_credit": false,
+  "continuation_forbidden": true
+}
