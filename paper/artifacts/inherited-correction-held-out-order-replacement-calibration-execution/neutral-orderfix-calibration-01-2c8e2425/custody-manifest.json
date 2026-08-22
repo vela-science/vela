@@ -1,0 +1,94 @@
+{
+  "custody_root": "sha256:fa1bcda62bcfd7299e40cddf05f50b197cdf1ca9ff37e757052dc5dff0264e32",
+  "files": [
+    {
+      "bytes": 2362,
+      "path": "calibration-result.json",
+      "sha256": "sha256:ea247531f145b94947c81951f94505d479a1f5ce99370bdf26b87d201d7bad17"
+    },
+    {
+      "bytes": 3274,
+      "path": "order-contract-validation.json",
+      "sha256": "sha256:8d8bc4b76ace0f21cebd3210faf4a24c46181b9a55e6edc65ba0c41161d68633"
+    },
+    {
+      "bytes": 965,
+      "path": "runtime/consumed-permit.json",
+      "sha256": "sha256:49890e23614641f695d1e8916c50ad740b6f76aae4f4b1772098e469629aa5df"
+    },
+    {
+      "bytes": 333,
+      "path": "runtime/launch.json",
+      "sha256": "sha256:b3211317f5d9fb226b6b298960eae361040e719ee8b237ad1224052645baadfb"
+    },
+    {
+      "bytes": 1179,
+      "path": "runtime/participant-response.raw.json",
+      "sha256": "sha256:9748c08fee1cc90f44c8c50bfd28e8911edd1ca819a0f0a224e209cb04158372"
+    },
+    {
+      "bytes": 1627,
+      "path": "runtime/provider-events.jsonl",
+      "sha256": "sha256:bab6759f0e24d35ed7788e7ab2da8c45a3ac4f8e95534bbdd74551ecdad23f12"
+    },
+    {
+      "bytes": 0,
+      "path": "runtime/provider-stderr.txt",
+      "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 251,
+      "path": "runtime/release-state.json",
+      "sha256": "sha256:42c48ca6d1f6dc2b5f8cc581d81a9bc926ba3fcbd41645e3d973297ec48b0fe4"
+    },
+    {
+      "bytes": 2108,
+      "path": "runtime/terminal-receipt.json",
+      "sha256": "sha256:4f7c1f92b13815b443942382e141ab26b2636d8cdddcc88b56fbb8e7bc5d5eb5"
+    }
+  ],
+  "frozen_inputs": [
+    {
+      "bytes": 560,
+      "path": "paper/artifacts/inherited-correction-held-out-order-replacement/calibration/input/assignment.json",
+      "sha256": "sha256:55d7b1965d0ba34eb2fe41dbdea79d8319642c3f15b9bdd2ddbda8fa1395f059"
+    },
+    {
+      "bytes": 1801,
+      "path": "paper/artifacts/inherited-correction-held-out-order-replacement/calibration/input/participant-configuration.json",
+      "sha256": "sha256:87ebb827075e31fbfb6aae11197b2d2ee68cf7cbb4bdfcbbfb5b7160fd97c663"
+    },
+    {
+      "bytes": 1795,
+      "path": "paper/artifacts/inherited-correction-held-out-order-replacement/calibration/input/prompt.txt",
+      "sha256": "sha256:eed8ad5804e999b60457ae959b316a5047c1b310661dcb59a4a7460b1292396e"
+    },
+    {
+      "bytes": 2537,
+      "path": "paper/artifacts/inherited-correction-held-out-order-replacement/calibration/input/provider-response-schema.json",
+      "sha256": "sha256:896f242086805d3b51e81ed04e6d50f33eb2b7deb71b7a1689e9abeba3b67eaf"
+    },
+    {
+      "bytes": 2564,
+      "path": "paper/artifacts/inherited-correction-held-out-order-replacement/calibration/input/response-schema.json",
+      "sha256": "sha256:ac96be686e749792956dfa1dfe9560f85c53d55c27fe2e8fd32bcc2a96a634ba"
+    },
+    {
+      "bytes": 1459,
+      "path": "paper/artifacts/inherited-correction-held-out-order-replacement/calibration/input/valid-response.json",
+      "sha256": "sha256:f08e3ba2d767009a0d6553b71690e7cacaa933fcf28ca8cfd4234568a24d9d9f"
+    }
+  ],
+  "independent_review_commit": "0093c6bf7c530009d72a69cfde3586c45ab24072",
+  "issued_permit_root": "sha256:9df666dee4295289725beb38a2f2cd7c5c14ee8c89f3011b3c9dea7866a2b687",
+  "order_contract_validation": "pass",
+  "participant_permits_consumed": 0,
+  "participant_permits_held": 36,
+  "producer_commit": "2c8e2425f17aa6488f59d23c48da5f852cab34b4",
+  "producer_tree": "0bb4b9d349e4d6c6fcf79c9a81fc25b9e289b769",
+  "provider_calls": 1,
+  "run_id": "neutral-orderfix-calibration-01",
+  "schema": "vela.inherited-correction-neutral-order-calibration-custody.v1",
+  "status": "frozen_terminal_pass",
+  "teardown_state": "clean"
+}
