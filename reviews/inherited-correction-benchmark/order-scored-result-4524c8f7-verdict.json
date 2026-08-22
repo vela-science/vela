@@ -1,0 +1,119 @@
+{
+  "schema": "vela.independent-inherited-correction-order-scored-result-verdict.v1",
+  "review_id": "inherited-correction-order-scored-result-2026-08-22",
+  "reviewed_at": "2026-08-22T02:39:46Z",
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/inherited-correction-study",
+    "producer_commit": "4524c8f776943a267e04e03e9a237ecaed14bc2c",
+    "producer_tree": "4d5650a999ac0be59e71d5bd664e885cad5192c7",
+    "parent_commit": "5694bebac03b062d6acdce5a2a900551850e6a1c",
+    "pre_score_pass_review_commit": "b634523ea1c85dce697404968cf7492f09a6412f"
+  },
+  "verdict": "PASS",
+  "failed_gates": [],
+  "roots": {
+    "result_evidence_root": "sha256:d9f017734d1c58ca9ecaba2621a7ddec12e178a78bf6b2d228dc2542aa71a104",
+    "result_bytes": "sha256:ae0c980a18633832a83b73e0c715ee11e702aeb56660c4e027d5ece03425f372",
+    "result_canonical_root": "sha256:92eed5bcb9e6b647d52a53282563077d3829b28c426e0dd9898a073f2590b8a5",
+    "access_receipt_root": "sha256:b63efee54976a9d6da866a49f12c956621e4da4540a04306d3d0f81ca2d7b3b3",
+    "score_capture_root": "sha256:f74229b3346cf56e2128d78b366f5fb99380872c27285d196c13862738bc8e98",
+    "complete_capture_root": "sha256:4a592d88b43dc02d5495d7679834535d6fa97f20759600400253677a946f87fd",
+    "complete_custody_root": "sha256:ccf69e70a3887c8a9f9ddffa2d62051e114a8974b2d2ae83c72366a1eb98dcef",
+    "registration_root": "sha256:60acdfa31d25f9df5f342b75caf8e65426c5b71fa320c36fe5568de9fbf13b10"
+  },
+  "producer_scope": {
+    "added_files": 4,
+    "result_directory_only": true,
+    "artifact_tree_unchanged": true,
+    "capture_tree_unchanged": true,
+    "protected_plaintext_imported_or_committed": false,
+    "participant_mutations": 0,
+    "capture_mutations": 0,
+    "gate_mutations": 0
+  },
+  "custody": {
+    "recorded_scoring_processes": 1,
+    "recorded_scoring_attempts": 1,
+    "provider_reruns": 0,
+    "temporary_plaintext_copy_retained": false,
+    "authority_effect": "none"
+  },
+  "independent_recomputation": {
+    "registered_scorer_invocations": 0,
+    "registered_score_function_imported": false,
+    "runs_recomputed": 36,
+    "all_per_run_scores_recomputed": true,
+    "all_family_arm_metrics_equal": true,
+    "all_aggregate_metrics_equal": true,
+    "all_family_estimands_equal": true,
+    "all_aggregate_estimands_equal": true,
+    "all_family_gates_equal": true,
+    "all_aggregate_gates_equal": true,
+    "half_even_decimal_contract_recomputed": true,
+    "complete_result_object_equal": true,
+    "complete_result_bytes_equal": true,
+    "protected_object_read_in_place": true,
+    "protected_object_copy_retained": false,
+    "protected_plaintext_disclosed": false
+  },
+  "headline_metrics": {
+    "taxonomy_remap_vela": {
+      "sessions": 4,
+      "exact_successes": 3,
+      "correction_impact_complete_sessions": 4,
+      "authority_errors": 1,
+      "restricted_mean_seconds": 163.93218100625
+    },
+    "aggregate": {
+      "git_documents": {
+        "exact_successes": 12,
+        "correction_impact_complete_sessions": 12,
+        "authority_errors": 0,
+        "restricted_mean_seconds": 12.800895867
+      },
+      "state_wrapper": {
+        "exact_successes": 12,
+        "correction_impact_complete_sessions": 12,
+        "authority_errors": 0,
+        "restricted_mean_seconds": 13.98268798558333
+      },
+      "vela": {
+        "exact_successes": 11,
+        "correction_impact_complete_sessions": 12,
+        "authority_errors": 1,
+        "restricted_mean_seconds": 63.252235329
+      }
+    }
+  },
+  "gates": {
+    "structure": false,
+    "governance_inheritance": false,
+    "total": false,
+    "governance_strict_increment": false,
+    "positive_gate": "not_supported"
+  },
+  "claim_ceiling": {
+    "fixed_synthetic_internal_benchmark_only": true,
+    "scientific_acceptance": false,
+    "external_replication": false,
+    "broad_productivity_claim": false,
+    "protocol_or_core_change": false,
+    "repository_authority": false,
+    "standing": false,
+    "decision_effect": false
+  },
+  "reviewer_actions": {
+    "provider_calls": 0,
+    "participant_reruns": 0,
+    "registered_scorer_invocations": 0,
+    "capture_mutations": 0,
+    "participant_mutations": 0,
+    "gate_mutations": 0,
+    "authority_effect": "none"
+  },
+  "nonclaims": [
+    "This verdict confirms only the immutable scored result and its custody evidence.",
+    "This result is one fixed synthetic internal benchmark and does not establish scientific acceptance, external replication, broad productivity, Protocol or Core change, Repository authority, Standing, or Decision effect."
+  ]
+}
