@@ -1,5 +1,5 @@
 {
-  "artifact_root": "sha256:58f2995e8993045d9f9653371c1b49a770e23c59ca85d79cc26ff536a1537a0a",
+  "artifact_root": "sha256:958817c1de7d31497846294208b7178d785a4081e971b578cfd6cdbb8e4fca4a",
   "files": [
     {
       "bytes": 2677,
@@ -65,6 +65,11 @@
       "bytes": 1175,
       "path": "permit/neutral-calibration-anthropic-json-v4-lossless.permit.consumed.json",
       "sha256": "sha256:d9c270cca0418a029a7514cb76c57a8e8751c9029ce35ab5275f92fa8d22ccd7"
+    },
+    {
+      "bytes": 2764,
+      "path": "post-review-classification.json",
+      "sha256": "sha256:0694ae29619162422e45b1fb2af16813f8e1d074263ac71757bb65a9643a0bcb"
     },
     {
       "bytes": 4278,
@@ -192,14 +197,14 @@
       "sha256": "sha256:d53bb34acec5f4495f4cca71e26e592f2875c7e123ef077cb4c488d3a6646a7c"
     },
     {
-      "bytes": 10540,
+      "bytes": 14157,
       "path": "test_verify.py",
-      "sha256": "sha256:2b8ef95091399251e368da9b0327051934e5904ab00803e84dbf514e4cf17904"
+      "sha256": "sha256:e4ab180a24ce84a2c0d2b8e0867976a51cb0468dc97debb3070b2da6f8837ffc"
     },
     {
-      "bytes": 39989,
+      "bytes": 48439,
       "path": "verify.py",
-      "sha256": "sha256:0575c04296573bbce450b1abda39e21809f7dbc5b51906e8d43b6fc7bf504186"
+      "sha256": "sha256:78e63c50a8347d7fe90d5918d00dc8f5dec5d8fa6f65f0fba90e4b225645a376"
     }
   ],
   "schema": "vela.stage-a-anthropic-neutral-v4-artifact.v1"

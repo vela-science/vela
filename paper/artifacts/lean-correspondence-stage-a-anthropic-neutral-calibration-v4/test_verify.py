@@ -20,12 +20,10 @@ SPEC.loader.exec_module(VERIFY)
 class VerificationTests(unittest.TestCase):
     def test_valid_artifact(self) -> None:
         result = VERIFY.verify()
-        self.assertEqual(
-            result["status"], "PASS_TERMINAL_SUCCESS_PENDING_INDEPENDENT_REVIEW"
-        )
+        self.assertEqual(result["status"], "PASS_INDEPENDENTLY_QUALIFIED_ANTHROPIC_V4")
         self.assertEqual(result["provider_calls"], 1)
         self.assertEqual(result["retries"], 0)
-        self.assertFalse(result["positive_qualification"])
+        self.assertTrue(result["positive_qualification"])
 
     def mutate(self, relative: str, action) -> str:
         with tempfile.TemporaryDirectory() as temporary:
@@ -150,6 +148,98 @@ class VerificationTests(unittest.TestCase):
             "terminal-outcome.json",
             lambda x: x.__setitem__("positive_qualification", True),
         )
+
+    def test_missing_post_review_classification_rejected(self) -> None:
+        self.mutate("post-review-classification.json", lambda path: path.unlink())
+
+    def test_wrong_review_commit_rejected_after_reseal(self) -> None:
+        self.mutate_json(
+            "post-review-classification.json",
+            lambda x: x["independent_review"].__setitem__("commit", VERIFY.PRODUCER),
+        )
+
+    def test_wrong_review_tree_rejected_after_reseal(self) -> None:
+        self.mutate_json(
+            "post-review-classification.json",
+            lambda x: x["independent_review"].__setitem__("tree", "0" * 40),
+        )
+
+    def test_wrong_review_parent_rejected_after_reseal(self) -> None:
+        self.mutate_json(
+            "post-review-classification.json",
+            lambda x: x["independent_review"].__setitem__("sole_parent", "0" * 40),
+        )
+
+    def test_review_report_digest_drift_rejected_after_reseal(self) -> None:
+        self.mutate_json(
+            "post-review-classification.json",
+            lambda x: x["independent_review"]["report"].__setitem__(
+                "sha256", "sha256:" + "0" * 64
+            ),
+        )
+
+    def test_review_verdict_digest_drift_rejected_after_reseal(self) -> None:
+        self.mutate_json(
+            "post-review-classification.json",
+            lambda x: x["independent_review"]["verdict"].__setitem__(
+                "sha256", "sha256:" + "0" * 64
+            ),
+        )
+
+    def test_review_verdict_value_drift_rejected_after_reseal(self) -> None:
+        self.mutate_json(
+            "post-review-classification.json",
+            lambda x: x["independent_review"]["verdict"].__setitem__(
+                "value", "BLOCKED"
+            ),
+        )
+
+    def test_post_review_boolean_as_counter_rejected_after_reseal(self) -> None:
+        self.mutate_json(
+            "post-review-classification.json",
+            lambda x: x["amendment_actions"].__setitem__("provider_calls", False),
+        )
+
+    def test_post_review_raw_execution_rewrite_rejected_after_reseal(self) -> None:
+        self.mutate_json(
+            "post-review-classification.json",
+            lambda x: x["amendment_actions"].__setitem__(
+                "raw_execution_bytes_modified", True
+            ),
+        )
+
+    def test_post_review_overclaims_rejected_after_reseal(self) -> None:
+        cases = (
+            ("openai_qualification", True),
+            ("participant_execution_authorized", True),
+            ("participant_permit_release_authorized", True),
+            ("scoring_authorized", True),
+            ("stage_b_selection_authorized", True),
+            ("scientific_claim_authorized", True),
+            ("protocol_or_core_effect", "modified"),
+            ("authority_decision_or_standing_effect", "created"),
+        )
+        for key, value in cases:
+            with self.subTest(key=key):
+                self.mutate_json(
+                    "post-review-classification.json",
+                    lambda x, key=key, value=value: x["claim_ceiling"].__setitem__(
+                        key, value
+                    ),
+                )
+
+    def test_post_review_unknown_field_rejected_after_reseal(self) -> None:
+        self.mutate_json(
+            "post-review-classification.json",
+            lambda x: x["classification"].__setitem__("full_study_qualified", True),
+        )
+
+    def test_reviewed_raw_byte_drift_rejected_after_reseal(self) -> None:
+        def action(path: Path) -> None:
+            path.write_bytes(path.read_bytes() + b" ")
+            self.reseal(path.parents[1])
+
+        self.mutate("raw/actual-network-body-0001.raw.json", action)
 
     def test_bridge_adapter_build_binding_drift_rejected_after_reseal(self) -> None:
         self.mutate_json(

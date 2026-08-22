@@ -15,6 +15,9 @@ sys.dont_write_bytecode = True
 
 PACKAGE = Path(__file__).resolve().parent
 REPO = PACKAGE.parents[2]
+PACKAGE_RELATIVE = (
+    "paper/artifacts/lean-correspondence-stage-a-anthropic-neutral-calibration-v4"
+)
 RUNTIME = PACKAGE.parent / "lean-correspondence-stage-a-runtime-qualification"
 STAGE_A = PACKAGE.parent / "lean-correspondence-stage-a-open-pilot"
 STOPPED_V2 = (
@@ -54,6 +57,22 @@ STOPPED_V3_COMMIT = "37a5a92c314b4f0345eb2d8aadf1890b4e59682d"
 STOPPED_V3_ROOT = (
     "sha256:63cbbdf6ae6c7e906268b31f33198d06b8db0757e6db48b6187286cacd08dcb9"
 )
+EVIDENCE_PRODUCER = "50ebc2280a1154243130c0520e633990b4d5feab"
+EVIDENCE_PRODUCER_TREE = "4a6ff57fb3dea3af0ca8fa2e9c6ff0e89adda7d5"
+EVIDENCE_PRODUCER_ROOT = (
+    "sha256:58f2995e8993045d9f9653371c1b49a770e23c59ca85d79cc26ff536a1537a0a"
+)
+REVIEW_BRANCH = "codex/review-stage-a-anthropic-v4-terminal"
+REVIEW_COMMIT = "42f5c86bb337dd8a87507c5bb85ffe02a3829afc"
+REVIEW_TREE = "28a881f125cd2965dbf03fc44c0388f4b7fd495f"
+REVIEW_REPORT_PATH = "paper/artifacts/lean-correspondence-stage-a-anthropic-neutral-calibration-v4-review/REPORT.md"
+REVIEW_REPORT_ROOT = (
+    "sha256:31f66a81b62a7b7bc2f3402e0146f67013b316f9576ded2e20615b2b6cfcc580"
+)
+REVIEW_VERDICT_PATH = "paper/artifacts/lean-correspondence-stage-a-anthropic-neutral-calibration-v4-review/verdict.json"
+REVIEW_VERDICT_ROOT = (
+    "sha256:0694575d8f370bd7e9c8113ff68d24cf383e155b17a987feb918e53c9fdc3333"
+)
 SOURCE_ROOTS = {
     "controller.py": "sha256:0cd70e76736061ad2d1f8cf609be7a8b8eedf3090eafbe2493ce8c7be580265e",
     "orchestrator.go": "sha256:5daf77799bddc0103212c8727128f8b84801bf8d974d08d86c857c8e3e9d8c9f",
@@ -80,6 +99,7 @@ FILES = frozenset(
         "README.md",
         "artifact-root.json",
         "execution-build.json",
+        "post-review-classification.json",
         "seal.py",
         "terminal-outcome.json",
         "test_verify.py",
@@ -177,10 +197,33 @@ def exact_sha(value: Any, expected: str, label: str) -> None:
     )
 
 
+def exact_typed_equal(observed: Any, expected: Any, label: str) -> None:
+    require(type(observed) is type(expected), label)
+    if type(expected) is dict:
+        require(set(observed) == set(expected), label)
+        for key in expected:
+            exact_typed_equal(observed[key], expected[key], f"{label}:{key}")
+    elif type(expected) is list:
+        require(len(observed) == len(expected), label)
+        for index, item in enumerate(expected):
+            exact_typed_equal(observed[index], item, f"{label}:{index}")
+    else:
+        require(observed == expected, label)
+
+
 def git(*arguments: str) -> str:
     return subprocess.run(
         ["git", *arguments], cwd=REPO, check=True, capture_output=True, text=True
     ).stdout.strip()
+
+
+def git_bytes(commit: str, path: str) -> bytes:
+    return subprocess.run(
+        ["git", "show", f"{commit}:{path}"],
+        cwd=REPO,
+        check=True,
+        capture_output=True,
+    ).stdout
 
 
 def expected_request_custody() -> dict[str, Any]:
@@ -1080,23 +1123,210 @@ def validate_teardown_and_outcome(network: dict[str, Any]) -> None:
         )
 
 
+def validate_parent_evidence_preserved() -> None:
+    package_relative = PACKAGE_RELATIVE
+    parent_manifest = strict_json_bytes(
+        git_bytes(EVIDENCE_PRODUCER, f"{package_relative}/artifact-root.json")
+    )
+    require(
+        parent_manifest["artifact_root"] == EVIDENCE_PRODUCER_ROOT,
+        "reviewed_parent_artifact_root",
+    )
+    mutable_for_amendment = {"verify.py", "test_verify.py"}
+    for entry in parent_manifest["files"]:
+        relative = entry["path"]
+        if relative in mutable_for_amendment:
+            continue
+        raw = (PACKAGE / relative).read_bytes()
+        require(
+            raw == git_bytes(EVIDENCE_PRODUCER, f"{package_relative}/{relative}"),
+            f"reviewed_parent_byte_drift:{relative}",
+        )
+    require(
+        subprocess.run(
+            [
+                "git",
+                "diff",
+                "--quiet",
+                EVIDENCE_PRODUCER,
+                REVIEW_COMMIT,
+                "--",
+                package_relative,
+            ],
+            cwd=REPO,
+            check=False,
+        ).returncode
+        == 0,
+        "review_commit_modified_subject",
+    )
+    if git("rev-parse", "HEAD") != EVIDENCE_PRODUCER:
+        changed = set(
+            git(
+                "diff",
+                "--name-only",
+                EVIDENCE_PRODUCER,
+                "HEAD",
+                "--",
+                package_relative,
+            ).splitlines()
+        )
+        require(
+            changed
+            == {
+                f"{package_relative}/artifact-root.json",
+                f"{package_relative}/post-review-classification.json",
+                f"{package_relative}/test_verify.py",
+                f"{package_relative}/verify.py",
+            },
+            "post_review_change_surface",
+        )
+
+
+def expected_post_review_classification() -> dict[str, Any]:
+    return {
+        "schema": "vela.stage-a-anthropic-neutral-v4-post-review-classification.v1",
+        "subject": {
+            "producer_commit": EVIDENCE_PRODUCER,
+            "producer_tree": EVIDENCE_PRODUCER_TREE,
+            "artifact_root": EVIDENCE_PRODUCER_ROOT,
+            "run_id": RUN_ID,
+            "permit_root": PERMIT_ROOT,
+            "request_sha256": REQUEST_ROOT,
+            "parsed_response_sha256": PARSED_RESPONSE_ROOT,
+        },
+        "independent_review": {
+            "branch": REVIEW_BRANCH,
+            "commit": REVIEW_COMMIT,
+            "tree": REVIEW_TREE,
+            "sole_parent": EVIDENCE_PRODUCER,
+            "report": {"path": REVIEW_REPORT_PATH, "sha256": REVIEW_REPORT_ROOT},
+            "verdict": {
+                "path": REVIEW_VERDICT_PATH,
+                "sha256": REVIEW_VERDICT_ROOT,
+                "schema": "vela.independent-stage-a-anthropic-neutral-v4-review.v1",
+                "value": "PASS",
+            },
+        },
+        "classification": {
+            "anthropic_lossless_runtime": "qualified_exact_pass",
+            "anthropic_neutral_calibration_evidence": "qualified_exact_pass",
+            "basis": "exact_independent_review_only",
+            "positive_qualification": True,
+        },
+        "claim_ceiling": {
+            "positive_anthropic_neutral_runtime_qualification": True,
+            "openai_qualification": False,
+            "participant_execution_authorized": False,
+            "participant_permit_release_authorized": False,
+            "scoring_authorized": False,
+            "stage_b_selection_authorized": False,
+            "scientific_claim_authorized": False,
+            "protocol_or_core_effect": "none",
+            "authority_decision_or_standing_effect": "none",
+        },
+        "amendment_actions": {
+            "credential_accesses": 0,
+            "provider_calls": 0,
+            "permits_released": 0,
+            "scoring_attempts": 0,
+            "stage_b_families_selected": 0,
+            "raw_execution_bytes_modified": False,
+            "protocol_or_core_effect": "none",
+            "authority_effect": "none",
+        },
+        "stopped_state": {
+            "openai_neutral_permit": "held_unqualified",
+            "participant_permits_held": 12,
+            "participant_calls": 0,
+            "participant_execution_authorized": False,
+            "scoring_authorized": False,
+            "stage_b_selection_authorized": False,
+            "scientific_lift": "not_established",
+        },
+    }
+
+
+def validate_post_review() -> None:
+    require(git("rev-parse", f"{REVIEW_COMMIT}^{{tree}}") == REVIEW_TREE, "review_tree")
+    require(
+        git("show", "-s", "--format=%P", REVIEW_COMMIT) == EVIDENCE_PRODUCER,
+        "review_sole_parent",
+    )
+    report_raw = git_bytes(REVIEW_COMMIT, REVIEW_REPORT_PATH)
+    verdict_raw = git_bytes(REVIEW_COMMIT, REVIEW_VERDICT_PATH)
+    exact_sha(digest(report_raw), REVIEW_REPORT_ROOT, "review_report_root")
+    exact_sha(digest(verdict_raw), REVIEW_VERDICT_ROOT, "review_verdict_root")
+    verdict = strict_json_bytes(verdict_raw)
+    exact_typed_equal(
+        verdict["subject"],
+        {
+            "producer_commit": EVIDENCE_PRODUCER,
+            "producer_tree": EVIDENCE_PRODUCER_TREE,
+            "producer_parent": "0aee2129f2f7824f328d9576f72e42f240e08932",
+            "artifact_root": EVIDENCE_PRODUCER_ROOT,
+        },
+        "review_subject",
+    )
+    require(
+        verdict["schema"] == "vela.independent-stage-a-anthropic-neutral-v4-review.v1"
+        and verdict["verdict"] == "PASS",
+        "review_pass",
+    )
+    exact_typed_equal(
+        verdict["qualification"],
+        {
+            "anthropic_neutral_calibration_evidence": "qualified_exact_pass",
+            "anthropic_lossless_runtime": "qualified_exact_pass",
+            "openai_runtime": "not_reviewed_by_this_verdict",
+            "participant_study": "not_authorized",
+            "scientific_lift": "not_established",
+        },
+        "review_qualification",
+    )
+    exact_typed_equal(
+        verdict["claim_ceiling"],
+        expected_post_review_classification()["claim_ceiling"],
+        "review_claim_ceiling",
+    )
+    exact_typed_equal(
+        verdict["review_actions"],
+        {
+            "credential_accesses": 0,
+            "provider_calls": 0,
+            "permits_released": 0,
+            "scoring_attempts": 0,
+            "producer_mutations": 0,
+            "authority_actions": 0,
+        },
+        "review_actions",
+    )
+    exact_typed_equal(
+        load("post-review-classification.json"),
+        expected_post_review_classification(),
+        "post_review_classification",
+    )
+
+
 def verify() -> dict[str, Any]:
     validate_file_set()
+    validate_parent_evidence_preserved()
     validate_producer()
     validate_inputs_and_permit()
     network = validate_request_transport()
     validate_provider_and_terminal(network)
     validate_teardown_and_outcome(network)
+    validate_post_review()
     observed_manifest = load("artifact-root.json")
     require(observed_manifest == seal_manifest(PACKAGE), "artifact_manifest")
     return {
         "schema": "vela.stage-a-anthropic-neutral-v4-verification.v1",
-        "status": "PASS_TERMINAL_SUCCESS_PENDING_INDEPENDENT_REVIEW",
+        "status": "PASS_INDEPENDENTLY_QUALIFIED_ANTHROPIC_V4",
         "artifact_root": observed_manifest["artifact_root"],
         "provider_calls": 1,
         "retries": 0,
-        "positive_qualification": False,
+        "positive_qualification": True,
         "parsed_response_sha256": PARSED_RESPONSE_ROOT,
+        "review_commit": REVIEW_COMMIT,
         "authority_effect": "none",
     }
 

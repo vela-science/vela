@@ -1,0 +1,64 @@
+{
+  "amendment_actions": {
+    "authority_effect": "none",
+    "credential_accesses": 0,
+    "permits_released": 0,
+    "protocol_or_core_effect": "none",
+    "provider_calls": 0,
+    "raw_execution_bytes_modified": false,
+    "scoring_attempts": 0,
+    "stage_b_families_selected": 0
+  },
+  "claim_ceiling": {
+    "authority_decision_or_standing_effect": "none",
+    "openai_qualification": false,
+    "participant_execution_authorized": false,
+    "participant_permit_release_authorized": false,
+    "positive_anthropic_neutral_runtime_qualification": true,
+    "protocol_or_core_effect": "none",
+    "scientific_claim_authorized": false,
+    "scoring_authorized": false,
+    "stage_b_selection_authorized": false
+  },
+  "classification": {
+    "anthropic_lossless_runtime": "qualified_exact_pass",
+    "anthropic_neutral_calibration_evidence": "qualified_exact_pass",
+    "basis": "exact_independent_review_only",
+    "positive_qualification": true
+  },
+  "independent_review": {
+    "branch": "codex/review-stage-a-anthropic-v4-terminal",
+    "commit": "42f5c86bb337dd8a87507c5bb85ffe02a3829afc",
+    "report": {
+      "path": "paper/artifacts/lean-correspondence-stage-a-anthropic-neutral-calibration-v4-review/REPORT.md",
+      "sha256": "sha256:31f66a81b62a7b7bc2f3402e0146f67013b316f9576ded2e20615b2b6cfcc580"
+    },
+    "sole_parent": "50ebc2280a1154243130c0520e633990b4d5feab",
+    "tree": "28a881f125cd2965dbf03fc44c0388f4b7fd495f",
+    "verdict": {
+      "path": "paper/artifacts/lean-correspondence-stage-a-anthropic-neutral-calibration-v4-review/verdict.json",
+      "schema": "vela.independent-stage-a-anthropic-neutral-v4-review.v1",
+      "sha256": "sha256:0694575d8f370bd7e9c8113ff68d24cf383e155b17a987feb918e53c9fdc3333",
+      "value": "PASS"
+    }
+  },
+  "schema": "vela.stage-a-anthropic-neutral-v4-post-review-classification.v1",
+  "stopped_state": {
+    "openai_neutral_permit": "held_unqualified",
+    "participant_calls": 0,
+    "participant_execution_authorized": false,
+    "participant_permits_held": 12,
+    "scientific_lift": "not_established",
+    "scoring_authorized": false,
+    "stage_b_selection_authorized": false
+  },
+  "subject": {
+    "artifact_root": "sha256:58f2995e8993045d9f9653371c1b49a770e23c59ca85d79cc26ff536a1537a0a",
+    "parsed_response_sha256": "sha256:95bf0c205c10167f57d769a0f77daef57ede2db3a6061464957c496e50eddc46",
+    "permit_root": "sha256:dfc9f20e029b7ea51eb28c6b3d81f70eace063c681d56d2c9ce7356b3dbe8b63",
+    "producer_commit": "50ebc2280a1154243130c0520e633990b4d5feab",
+    "producer_tree": "4a6ff57fb3dea3af0ca8fa2e9c6ff0e89adda7d5",
+    "request_sha256": "sha256:cf67944d1872244c9d89ed3f7ad9cc27c3a37a4deba665f47a939985e2c62e8c",
+    "run_id": "neutral-calibration-anthropic-json-v4-lossless"
+  }
+}
