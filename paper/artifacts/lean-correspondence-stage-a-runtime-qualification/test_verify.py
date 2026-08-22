@@ -37,7 +37,7 @@ class RuntimeQualificationCandidateTests(unittest.TestCase):
                 candidate, self.offline_records(), check_git=False
             )
 
-    def test_exact_candidate_passes_held_with_two_truthful_blockers(self) -> None:
+    def test_exact_candidate_passes_held_with_credentials_only_blocker(self) -> None:
         receipt = VERIFY.verify(check_credentials=False, check_git=True)
         self.assertEqual(receipt["provider_calls"], 0)
         self.assertEqual(receipt["neutral_calibrations_run"], 0)
@@ -131,17 +131,20 @@ class RuntimeQualificationCandidateTests(unittest.TestCase):
                 )
                 self.assert_registration_blocked(candidate, "qualifier_binding")
 
-    def test_participant_schema_blocker_cannot_be_erased_or_locally_derived(
+    def test_credentials_blocker_and_maintained_schema_registry_cannot_drift(
         self,
     ) -> None:
         candidate = copy.deepcopy(self.registration)
-        candidate["blockers"] = candidate["blockers"][1:]
+        candidate["blockers"] = []
         self.assert_registration_blocked(candidate, "blockers_drift")
         candidate = copy.deepcopy(self.registration)
-        candidate["provider_schema_boundary"]["participant_provider_derivatives"] = [
-            {"provider": "OpenAI", "root": "sha256:" + "1" * 64}
-        ]
-        self.assert_registration_blocked(candidate, "participant_schema_not_held")
+        candidate["provider_schema_boundary"]["maintained_registry_rules"][0][2] = False
+        self.assert_registration_blocked(candidate, "participant_schema_registry")
+        candidate = copy.deepcopy(self.registration)
+        candidate["provider_schema_boundary"]["participant_provider_derivatives"][0][
+            "provider_schema_sha256"
+        ] = "sha256:" + "1" * 64
+        self.assert_registration_blocked(candidate, "participant_schema_derivatives")
 
     def test_early_authorization_or_neutral_release_fails(self) -> None:
         candidate = copy.deepcopy(self.registration)
@@ -157,6 +160,44 @@ class RuntimeQualificationCandidateTests(unittest.TestCase):
             "neutral-calibration-openai"
         )
         self.assert_registration_blocked(candidate, "neutral_permit_cross_binding")
+        candidate = copy.deepcopy(self.registration)
+        candidate["neutral_calibration_permits"][1]["permit_root"] = candidate[
+            "neutral_calibration_permits"
+        ][0]["permit_root"]
+        self.assert_registration_blocked(candidate, "neutral_permit_root")
+
+    def test_launchable_runtime_cross_binding_or_boundary_inflation_fails(self) -> None:
+        candidate = copy.deepcopy(self.registration)
+        candidate["runtime_boundary"]["runtime_images"][1]["image_digest"] = candidate[
+            "runtime_boundary"
+        ]["runtime_images"][0]["image_digest"]
+        self.assert_registration_blocked(candidate, "runtime_image_binding")
+        candidate = copy.deepcopy(self.registration)
+        candidate["runtime_boundary"]["participant_network_until_authorized"] = True
+        self.assert_registration_blocked(candidate, "runtime_boundary")
+        candidate = copy.deepcopy(self.registration)
+        candidate["runtime_boundary"]["writes"] = True
+        self.assert_registration_blocked(candidate, "runtime_boundary")
+
+    def test_retained_runner_or_launchability_cross_binding_fails_after_reseal(
+        self,
+    ) -> None:
+        for label in (
+            "runner",
+            "bridge",
+            "launchability",
+            "provider_contract",
+            "build_a",
+        ):
+            with self.subTest(label=label):
+                candidate = copy.deepcopy(self.offline)
+                candidate["provider_records"][1]["retained"][label] = copy.deepcopy(
+                    candidate["provider_records"][0]["retained"][label]
+                )
+                self.assert_offline_blocked(
+                    candidate,
+                    "retained_digest|launchability|oci_launchable|provider_contract|retained_build",
+                )
 
     def test_frozen_provider_parameters_cannot_drift(self) -> None:
         candidate = copy.deepcopy(self.registration)

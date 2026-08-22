@@ -1,0 +1,62 @@
+[
+  {
+    "bytes": 398,
+    "path": "Dockerfile",
+    "sha256": "sha256:841c19858b06db1c0f33964b74f7f95275b6074f241c5839c93e2e4a7719a8d6"
+  },
+  {
+    "bytes": 798,
+    "path": "LICENSE",
+    "sha256": "sha256:41410d43956d68e40171c7fa7458ab51f2101f5a17939203a69b8c60a4f31309"
+  },
+  {
+    "bytes": 5767294,
+    "path": "bridge",
+    "sha256": "sha256:651a1e6a97bd270a681afc1f8c4ee2ed6ecc2f0320249c4d207aa9fe90dfe59a"
+  },
+  {
+    "bytes": 12964,
+    "path": "cmd/bridge/main.go",
+    "sha256": "sha256:cc4f15fceac9eac3e1d79712b3e2b43b1c2c057ba51a93fa0fe00e974e6bbccc"
+  },
+  {
+    "bytes": 2574,
+    "path": "cmd/bridge/main_test.go",
+    "sha256": "sha256:a8a7fb691d15f5a0585f139ef885f98107107daf453c4a007a02b20c56a60c2b"
+  },
+  {
+    "bytes": 49,
+    "path": "go.mod",
+    "sha256": "sha256:92779b1c6d6a7154d7f183403bb87fa65682677549927d5e5f2758955dd2073a"
+  },
+  {
+    "bytes": 14167,
+    "path": "main.go",
+    "sha256": "sha256:0a222fdd4c20af754439a30544c48939a66287a9472db70f7a7d50fd670e1aff"
+  },
+  {
+    "bytes": 2832,
+    "path": "main_test.go",
+    "sha256": "sha256:921645f65a55eb92bf0b82c6d66ca7acae03f857e36393857d45b72cffc144d8"
+  },
+  {
+    "bytes": 1469,
+    "path": "provider-contract.json",
+    "sha256": "sha256:70bd4e7dffc425c5ba7456cbfc2f1052f12a441f45cd44b0407522736e717b17"
+  },
+  {
+    "bytes": 2293886,
+    "path": "runner",
+    "sha256": "sha256:d0c4b9a2721be1cdec73668ef16faec7a7060eaec7f974cb7d93cfdbdaea25b7"
+  },
+  {
+    "bytes": 333483,
+    "path": "vendor/ca-certificates.crt",
+    "sha256": "sha256:9dae8d76e55cb08991f2b672d58999ea15560d910759c16b544f843bdffbb994"
+  },
+  {
+    "bytes": 1453,
+    "path": "vendor/go-LICENSE",
+    "sha256": "sha256:911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad"
+  }
+]

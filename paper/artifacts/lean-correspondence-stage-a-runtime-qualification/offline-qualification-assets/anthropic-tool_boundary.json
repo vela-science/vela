@@ -12,9 +12,9 @@
   "mode": "read_only_offline_shell_files",
   "mounts": [
     {
-      "content_root": "sha256:9186728c46464cf4749ea9ffe47f991dbe1f18f288a5e95c40430c87679a0d4b",
+      "content_root": "sha256:426e1200b6ea3d942d51c9a40560be04cb18bcf52885a988301efde1abf958ad",
       "read_only": true,
-      "source": "/private/tmp/vela-stage-a-runtime-qualification/stage-a-runtime-qualification-bundle/schemas",
+      "source": "/private/tmp/vela-stage-a-runtime-qualification-bundle-v1/schemas",
       "target": "/workspace"
     }
   ],

@@ -1,38 +1,105 @@
 {
+  "$id": "https://vela.science/schemas/lean-correspondence-review-response.v1.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
-    "items": {
+    "assignment_id": {
+      "pattern": "^lc-[a-z0-9-]+$",
+      "type": "string"
+    },
+    "authority_scientific_inference": {
+      "additionalProperties": false,
+      "properties": {
+        "repository_authority_effect": {
+          "enum": [
+            "none",
+            "repository_local_decision_evidenced",
+            "unprovable"
+          ]
+        },
+        "scientific_status": {
+          "enum": [
+            "not_established",
+            "bounded_source_claim_only",
+            "unprovable"
+          ]
+        }
+      },
+      "required": [
+        "repository_authority_effect",
+        "scientific_status"
+      ],
+      "type": "object"
+    },
+    "change_classification": {
+      "enum": [
+        "semantic_change",
+        "environment_drift",
+        "both",
+        "neither",
+        "unprovable"
+      ]
+    },
+    "impact_closure": {
       "items": {
         "additionalProperties": false,
         "properties": {
-          "id": {
+          "disposition": {
             "enum": [
-              "a",
-              "b",
-              "c"
+              "recheck",
+              "invalidate_relation",
+              "remains_valid",
+              "blocked_unprovable"
             ]
           },
-          "value": {
-            "type": "integer"
+          "evidence_ids": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "item_id": {
+            "minLength": 1,
+            "type": "string"
           }
         },
         "required": [
-          "id",
-          "value"
+          "item_id",
+          "disposition",
+          "evidence_ids"
         ],
         "type": "object"
       },
-      "maxItems": 3,
       "type": "array"
     },
+    "relation_validation": {
+      "enum": [
+        "valid",
+        "invalid",
+        "cannot_determine"
+      ]
+    },
     "schema": {
-      "const": "neutral-response.v1"
+      "const": "lean-correspondence.review-response.v1"
+    },
+    "uncertainty": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array"
     }
   },
   "required": [
     "schema",
-    "items"
+    "assignment_id",
+    "relation_validation",
+    "change_classification",
+    "impact_closure",
+    "authority_scientific_inference",
+    "uncertainty"
   ],
+  "title": "Lean Correspondence review response",
   "type": "object"
 }

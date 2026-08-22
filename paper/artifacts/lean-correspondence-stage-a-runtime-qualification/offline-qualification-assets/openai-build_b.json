@@ -1,0 +1,23 @@
+{
+  "build_inputs_root": "sha256:ec86a82e59687ad7168fbcca86830bad4a3315756daab61a125de10e78847163",
+  "builder": "independent-b",
+  "config_digest": "sha256:a5ddad20c4f4848fa29dd117b677a612a8bd528befb2446211b846e58b22c496",
+  "controls": {
+    "no_cache": true,
+    "provenance": false,
+    "pull": false,
+    "rewrite_timestamp": true
+  },
+  "empty_cache": true,
+  "image_digest": "sha256:891f518623e8914e1af0f5566e5a35a536087343da169ddb9697da7e3b37d29c",
+  "layer_digests": [
+    "sha256:6c92918a807bbff219d322f943c9bcf2e995af458dab8beda7671c1acb99f432"
+  ],
+  "network_during_build": false,
+  "oci_layout_bytes": "sha256:561356159fc692da9a55978e206a495b7835abcc4778fa9d13138a0530304878",
+  "oci_tar_bytes": "sha256:6d79c573ee201e9a795597a057c089381b0c5c2d270b105878f984feed3f99f3",
+  "platform": "linux/arm64",
+  "schema": "vela.tooling.oci-build-receipt.v1",
+  "source_date_epoch": 1757289600,
+  "source_root": "sha256:f6560663a895ecdc80b39f519667676c57c285e727b22aed3548696ff2d72edd"
+}

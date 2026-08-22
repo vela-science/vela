@@ -1,0 +1,59 @@
+{
+  "endpoint": "https://api.openai.com/v1/responses",
+  "events": {
+    "raw_bytes_retained_before_normalization": true,
+    "terminal_and_teardown_receipts_required": true,
+    "tool_arguments_retained": true,
+    "tool_results_retained": true,
+    "usage_retained_as_telemetry_only": true
+  },
+  "provider_adapter": "openai-responses-v1",
+  "request": {
+    "api": "Responses",
+    "background": false,
+    "max_output_tokens": 32768,
+    "parallel_tool_calls": false,
+    "reasoning_effort": "high",
+    "service_tier": "default",
+    "store": false,
+    "temperature": "omitted"
+  },
+  "schema": "vela.stage-a-provider-runtime-contract.v1",
+  "tools": [
+    {
+      "allowed_argv": [
+        "git",
+        "--no-optional-locks",
+        "status",
+        "--short"
+      ],
+      "cwd": "/workspace",
+      "name": "shell",
+      "read_only": true,
+      "shell_interpolation": false
+    },
+    {
+      "name": "read_file",
+      "operations": [
+        "read",
+        "list",
+        "stat"
+      ],
+      "path_escape": false,
+      "regular_files_only": true,
+      "symlinks": false,
+      "workspace": "/workspace",
+      "write": false
+    }
+  ],
+  "transport": {
+    "credential_fd": 4,
+    "credential_retained": false,
+    "host_bridge_fd": 3,
+    "host_bridge_single_endpoint": "https://api.openai.com/v1/responses",
+    "participant_network": false,
+    "proxy_environment": "ignored",
+    "redirects": "rejected",
+    "unrestricted_clients": false
+  }
+}

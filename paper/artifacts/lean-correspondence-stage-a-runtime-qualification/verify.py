@@ -5,10 +5,12 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import os
 import re
 import subprocess
+import tarfile
 from pathlib import Path
 from typing import Any
 
@@ -20,16 +22,16 @@ ARTIFACT_ROOT = PACKAGE / "artifact-root.json"
 STAGE_A = REPOSITORY / "paper/artifacts/lean-correspondence-stage-a-open-pilot"
 SHA256 = re.compile(r"sha256:[0-9a-f]{64}\Z")
 EXPECTED_REGISTRATION_ROOT = (
-    "sha256:f4a5e56bc6b17cee3a9efd6d0ff91eaf743e2200302a5fda37c337f66838f6d0"
+    "sha256:4c148268b8a34f720a4956e5e4d290820c8793ff03dfaa41dc997b0039d7b0cb"
 )
 EXPECTED_OFFLINE_RECORD_ROOT = (
-    "sha256:74d2e5d47fc5f5165444cf1908bc2408829e2642ea6a01948aea793b763e559a"
+    "sha256:38163b7c1fe6f854a21d140afc42e0fca1827e0d2deac5f82e6258311644e091"
 )
 EXPECTED_QUALIFIER = {
-    "git_commit": "586c305915f9f192822a720df7fd5abf416d9439",
-    "git_tree": "59c1847e8b4a8f57ba515febc487b0ce0e68c37f",
+    "git_commit": "cc3b88d8bfcfd7b4f720a023f049d5c365be9423",
+    "git_tree": "341e0d22fa570b1b5e8dd9f70b219c11308ba45f",
     "path": "tools/evidence_qualification/qualification.py",
-    "sha256": "sha256:6db638f5cec4df9eac53fe8edc2376fcc4db89afe3f08b977d47873669c41ddc",
+    "sha256": "sha256:61591eec3304e299a9344888bc2a6f08cd32785b647ef5b0107da490dbf18013",
 }
 EXPECTED_STAGE_A = {
     "artifact_root": "sha256:f89d335912adbbd0e3b3f1cb98ec3f4fa78a27f3742652ac7244eaa86ed6aca8",
@@ -47,19 +49,27 @@ EXPECTED_PROVIDER = {
         "organization": "OpenAI",
         "model": "gpt-5.6-sol",
         "run_id": "neutral-calibration-openai",
-        "configuration_root": "sha256:62cb5930870d03623d5428fd207fa215ffa6805d985f2e829f500301c87567c7",
-        "qualification_root": "sha256:9425cb0b8d01745a736d218d00149ac1debd7569040bfb97dc60ab5e95069a0c",
-        "image_digest": "sha256:cefa48877aedfd755e5b53aa402b52f0b6176c14931e8a6cdf30562381101ef3",
-        "tool_boundary_root": "sha256:fe029f490165b034571b516ffed1a6af63f1873a1fc890203060b7a81daf4b74",
+        "configuration_root": "sha256:96555c45c33ed2a106cfb261025b752a4eeb1514aa180985ecd5ea0551a6616d",
+        "qualification_root": "sha256:d6d02e5874d9dee46589e2243d6bab9e33207b013c708d6683b7c0db87fc4851",
+        "image_digest": "sha256:891f518623e8914e1af0f5566e5a35a536087343da169ddb9697da7e3b37d29c",
+        "tool_boundary_root": "sha256:0b2e1fb701f70b02f9cc7ad79201f84374dfeb904299b59a6667d36eb4e59c69",
+        "runtime_source_root": "sha256:f6560663a895ecdc80b39f519667676c57c285e727b22aed3548696ff2d72edd",
+        "participant_permit_root": "sha256:20c86ca878e436886a4273735e0f406c686b59efed573af8c5ac740b11084481",
+        "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
+        "launchability_sha256": "sha256:9b315b96addecbd639c8d23311fad77d19516e84acc65536b6501b6b0b630159",
     },
     "anthropic-messages-v1": {
         "organization": "Anthropic",
         "model": "claude-opus-5",
         "run_id": "neutral-calibration-anthropic",
-        "configuration_root": "sha256:437f303c5df25118f70869cebe5179e61459f7518cf0229442a144ffbc2f7e23",
-        "qualification_root": "sha256:2048cfabbb4b4d8a2c865c38055b61ea3c9af7dcc395d02ad13c8cf82755e2bd",
-        "image_digest": "sha256:fc5dc5837c1c6e43e174d206371291454cf6fe0431b7b99b99df8cfa3e63dd5f",
-        "tool_boundary_root": "sha256:5b10101846b4408b59cd5eb6482c23469d363bf73ebf08363915339585986af2",
+        "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
+        "qualification_root": "sha256:140214cfb1b3458063d9a42d7f43f938e0b2e91dd23de49ced66b6c258e72fc9",
+        "image_digest": "sha256:b751e5d0d84abd94872178087d2aa954cfa0f6645376ed108beddcd69d3899fc",
+        "tool_boundary_root": "sha256:01dfbda69c1c7760423fdba41eaac18687a73d9fe683a8a5f207fdc8abe2a7d9",
+        "runtime_source_root": "sha256:208aff004781796ac8799ad0110d665d629ce39b806f38275ddfa55061bd8e7b",
+        "participant_permit_root": "sha256:ea3a8b03a2d6f2dd12ffde74244ec3a8016deb10ed9a9caa42dfcccd8ff31d25",
+        "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
+        "launchability_sha256": "sha256:d717d9fbde73da11b098a6882a99a3aae53456ce41c3fafb851c2c2a934f1fb0",
     },
 }
 EXPECTED_FROZEN_CONFIGURATION = {
@@ -147,6 +157,183 @@ def exact_int(value: Any, expected: int, label: str) -> None:
     require(type(value) is int and value == expected, label)
 
 
+def validate_launchable_runtime(
+    record: dict[str, Any], expected: dict[str, Any], adapter: str
+) -> None:
+    retained = record.get("retained")
+    required = {
+        "image",
+        "launchability",
+        "source_manifest",
+        "build_a",
+        "build_b",
+        "runner",
+        "bridge",
+        "provider_contract",
+        "provider_schema",
+        "tool_boundary",
+        "held_permit",
+        "hold_state",
+    }
+    require(type(retained) is dict and set(retained) == required, "retained_set")
+    image_raw = (PACKAGE / retained["image"]["path"]).read_bytes()
+    runner_raw = (PACKAGE / retained["runner"]["path"]).read_bytes()
+    bridge_raw = (PACKAGE / retained["bridge"]["path"]).read_bytes()
+    contract = load_json(PACKAGE / retained["provider_contract"]["path"])
+    launchability = load_json(PACKAGE / retained["launchability"]["path"])
+    source_manifest = load_json(PACKAGE / retained["source_manifest"]["path"])
+    require(
+        canonical_root(source_manifest) == expected["runtime_source_root"],
+        "retained_source_root",
+    )
+    for label, builder in (("build_a", "independent-a"), ("build_b", "independent-b")):
+        receipt = load_json(PACKAGE / retained[label]["path"])
+        require(
+            receipt.get("builder") == builder
+            and receipt.get("empty_cache") is True
+            and receipt.get("network_during_build") is False
+            and receipt.get("source_root") == expected["runtime_source_root"]
+            and receipt.get("image_digest") == expected["image_digest"]
+            and receipt.get("oci_tar_bytes") == digest(image_raw),
+            "retained_build_receipt",
+        )
+    require(
+        digest((PACKAGE / retained["launchability"]["path"]).read_bytes())
+        == expected["launchability_sha256"],
+        "launchability_bytes",
+    )
+    require(
+        contract.get("provider_adapter") == adapter
+        and contract.get("endpoint")
+        == EXPECTED_FROZEN_CONFIGURATION[adapter]["api"]["endpoint"]
+        and contract.get("transport")
+        == {
+            "credential_fd": 4,
+            "credential_retained": False,
+            "host_bridge_fd": 3,
+            "host_bridge_single_endpoint": EXPECTED_FROZEN_CONFIGURATION[adapter][
+                "api"
+            ]["endpoint"],
+            "participant_network": False,
+            "proxy_environment": "ignored",
+            "redirects": "rejected",
+            "unrestricted_clients": False,
+        },
+        "provider_contract_boundary",
+    )
+    require(
+        contract.get("tools")
+        == [
+            {
+                "name": "shell",
+                "allowed_argv": [
+                    "git",
+                    "--no-optional-locks",
+                    "status",
+                    "--short",
+                ],
+                "cwd": "/workspace",
+                "read_only": True,
+                "shell_interpolation": False,
+            },
+            {
+                "name": "read_file",
+                "workspace": "/workspace",
+                "operations": ["read", "list", "stat"],
+                "regular_files_only": True,
+                "symlinks": False,
+                "path_escape": False,
+                "write": False,
+            },
+        ]
+        and contract.get("events")
+        == {
+            "raw_bytes_retained_before_normalization": True,
+            "terminal_and_teardown_receipts_required": True,
+            "tool_arguments_retained": True,
+            "tool_results_retained": True,
+            "usage_retained_as_telemetry_only": True,
+        },
+        "provider_contract_tool_custody",
+    )
+    require(
+        launchability
+        == {
+            "schema": "vela.stage-a-runtime-launchability.v1",
+            "provider_adapter": adapter,
+            "oci_archive_sha256": digest(image_raw),
+            "image_digest": expected["image_digest"],
+            "layer_digest": launchability.get("layer_digest"),
+            "platform": "linux/arm64",
+            "entrypoint": ["/opt/vela/runner"],
+            "self_test": {
+                "network": "none",
+                "root_filesystem": "read_only",
+                "capabilities": "all_dropped",
+                "no_new_privileges": True,
+                "exit_code": 0,
+                "stdout_sha256": digest(b""),
+                "stderr_sha256": digest(b""),
+                "runner_version": "neutral-runner/1",
+                "host_bridge_self_test": True,
+            },
+            "provider_calls": 0,
+            "credential_values_observed": False,
+        },
+        "launchability_receipt",
+    )
+    try:
+        with tarfile.open(fileobj=io.BytesIO(image_raw), mode="r") as archive:
+            outer = {
+                item.name: archive.extractfile(item).read()
+                for item in archive.getmembers()
+                if item.isfile()
+            }
+        index = json.loads(outer["index.json"])
+        manifest_digest = index["manifests"][0]["digest"]
+        manifest = json.loads(
+            outer["blobs/sha256/" + manifest_digest.removeprefix("sha256:")]
+        )
+        config_digest = manifest["config"]["digest"]
+        config = json.loads(
+            outer["blobs/sha256/" + config_digest.removeprefix("sha256:")]
+        )
+        layer_digest = manifest["layers"][0]["digest"]
+        layer_raw = outer["blobs/sha256/" + layer_digest.removeprefix("sha256:")]
+        with tarfile.open(fileobj=io.BytesIO(layer_raw), mode="r") as layer:
+            members = {item.name: item for item in layer.getmembers()}
+            files = {
+                name: layer.extractfile(item).read() for name, item in members.items()
+            }
+    except (KeyError, IndexError, tarfile.TarError, json.JSONDecodeError) as error:
+        raise CandidateError("launchable_oci_invalid") from error
+    require(manifest_digest == expected["image_digest"], "image_manifest_binding")
+    require(
+        config.get("os") == "linux"
+        and config.get("architecture") == "arm64"
+        and config.get("config", {}).get("User") == "65532:65532"
+        and config.get("config", {}).get("Entrypoint") == ["/opt/vela/runner"]
+        and config.get("config", {}).get("Labels", {}).get("org.vela.runtime-mode")
+        == "held-host-bridge-network-none",
+        "oci_runtime_config",
+    )
+    require(
+        set(files)
+        == {
+            "opt/vela/runner",
+            "opt/vela/bridge",
+            "opt/vela/provider-contract.json",
+            "etc/ssl/certs/ca-certificates.crt",
+        }
+        and files["opt/vela/runner"] == runner_raw
+        and files["opt/vela/bridge"] == bridge_raw
+        and members["opt/vela/runner"].mode == 0o755
+        and members["opt/vela/bridge"].mode == 0o755
+        and digest(layer_raw) == layer_digest == launchability["layer_digest"],
+        "oci_launchable_rootfs",
+    )
+
+
 def git_value(*arguments: str) -> str:
     return subprocess.run(
         ["git", *arguments], cwd=REPOSITORY, check=True, capture_output=True, text=True
@@ -216,6 +403,9 @@ def validate_offline(value: dict[str, Any]) -> dict[str, dict[str, Any]]:
             "qualification_root",
             "image_digest",
             "tool_boundary_root",
+            "runtime_source_root",
+            "participant_permit_root",
+            "provider_schema_bytes",
         ):
             require(receipt.get(key) == expected[key], f"qualifier_binding:{key}")
         gates = receipt.get("gates")
@@ -243,6 +433,7 @@ def validate_offline(value: dict[str, Any]) -> dict[str, dict[str, Any]]:
                 "retained_size",
             )
             require(retained["sha256"] == digest(raw), "retained_digest")
+        validate_launchable_runtime(record, expected, adapter)
         by_adapter[adapter] = record
     require(
         len({item["qualification_receipt"]["image_digest"] for item in records}) == 2,
@@ -277,12 +468,12 @@ def validate_registration(
 ) -> None:
     require(
         value.get("schema")
-        == "vela.lean-correspondence-stage-a-runtime-qualification-candidate.v2",
+        == "vela.lean-correspondence-stage-a-runtime-qualification-candidate.v3",
         "registration_schema",
     )
     require(
         value.get("status")
-        == "held_offline_qualified_schema_registry_and_credentials_blocked",
+        == "held_offline_qualified_launchable_runtime_credentials_only_blocked",
         "registration_status",
     )
     require(value.get("authority_effect") == "none", "registration_authority")
@@ -309,23 +500,48 @@ def validate_registration(
     require(
         type(blockers) is list
         and [item.get("id") for item in blockers]
-        == [
-            "stage_a_participant_schema_not_registered_by_qualifier",
-            "provider_runtime_execution_images_not_materialized",
-            "platform_api_credentials_absent",
-        ],
+        == ["platform_api_credentials_absent"],
         "blockers_drift",
     )
     schema = value.get("provider_schema_boundary", {})
+    expected_rules = [
+        ["/properties/impact_closure/uniqueItems", "uniqueItems", True],
+        [
+            "/properties/impact_closure/items/properties/evidence_ids/minItems",
+            "minItems",
+            1,
+        ],
+        [
+            "/properties/impact_closure/items/properties/evidence_ids/uniqueItems",
+            "uniqueItems",
+            True,
+        ],
+        ["/properties/uncertainty/uniqueItems", "uniqueItems", True],
+    ]
     require(
-        schema.get("participant_provider_derivatives") == []
-        and schema.get("status") == "held_exact_registry_mismatch",
-        "participant_schema_not_held",
+        schema.get("maintained_registry_rules") == expected_rules
+        and schema.get("status") == "qualified_exact_maintained_four_rule_registry",
+        "participant_schema_registry",
     )
     require(
         digest((STAGE_A / "response.schema.json").read_bytes())
         == schema.get("authoritative_schema_sha256"),
         "stage_a_schema_bytes",
+    )
+    derivatives = schema.get("participant_provider_derivatives")
+    require(
+        type(derivatives) is list
+        and derivatives
+        == [
+            {
+                "provider_adapter": adapter,
+                "provider_schema_sha256": EXPECTED_PROVIDER[adapter][
+                    "provider_schema_bytes"
+                ],
+            }
+            for adapter in ("openai-responses-v1", "anthropic-messages-v1")
+        ],
+        "participant_schema_derivatives",
     )
     permits = value.get("neutral_calibration_permits")
     require(type(permits) is list and len(permits) == 2, "neutral_permit_count")
@@ -340,6 +556,10 @@ def validate_registration(
             and permit.get("provider_organization") == expected["organization"]
             and permit.get("run_id") == expected["run_id"],
             "neutral_permit_cross_binding",
+        )
+        require(
+            permit.get("permit_root") == expected["participant_permit_root"],
+            "neutral_permit_root",
         )
     configurations = value.get("participant_configurations")
     require(
@@ -374,8 +594,51 @@ def validate_registration(
             )
         require(
             configuration.get("status")
-            == "candidate_configuration_offline_fixture_qualified_held",
+            == "candidate_configuration_stage_a_schema_launchable_runtime_qualified_held",
             "configuration_status",
+        )
+    offline = value.get("offline_qualification", {})
+    require(
+        offline
+        == {
+            "authority_effect": "none",
+            "neutral_calibrations_run": 0,
+            "path": "offline-qualification.json",
+            "provider_calls": 0,
+            "record_root": EXPECTED_OFFLINE_RECORD_ROOT,
+            "status": "qualified_hold_exact_stage_a_schema_and_launchable_runtimes",
+        },
+        "registration_offline_binding",
+    )
+    runtime = value.get("runtime_boundary", {})
+    require(
+        runtime.get("image_role") == "launchable_provider_specific_held_runtime"
+        and runtime.get("host_bridge")
+        == "single_exact_provider_endpoint_owned_outside_networkless_participant_image"
+        and runtime.get("mounts_read_only") is True
+        and runtime.get("network_during_offline_qualification") is False
+        and runtime.get("participant_network_until_authorized") is False
+        and runtime.get("writes") is False
+        and runtime.get("tool_mode") == "read_only_offline_shell_files"
+        and runtime.get("provider_equivalence_root")
+        == "sha256:bc40341349f6f771be5eef2481fcef3bf72d278b2df65d5df05d01e62e271720",
+        "runtime_boundary",
+    )
+    runtime_images = runtime.get("runtime_images")
+    require(type(runtime_images) is list and len(runtime_images) == 2, "runtime_images")
+    for image in runtime_images:
+        adapter = image.get("provider_adapter")
+        expected = EXPECTED_PROVIDER.get(adapter)
+        require(expected is not None, "runtime_image_adapter")
+        require(
+            image
+            == {
+                "provider_adapter": adapter,
+                "image_digest": expected["image_digest"],
+                "runtime_source_root": expected["runtime_source_root"],
+                "launchability_receipt_sha256": expected["launchability_sha256"],
+            },
+            "runtime_image_binding",
         )
     credentials = value.get("credentials")
     require(type(credentials) is list and len(credentials) == 2, "credential_count")
@@ -474,8 +737,8 @@ def verify(*, check_credentials: bool = True, check_git: bool = True) -> dict[st
         )
         require(not unexpected, "credential_presence_drift")
     return {
-        "schema": "vela.lean-correspondence-stage-a-runtime-qualification-verification.v2",
-        "status": "pass_exact_held_offline_qualification_with_schema_and_credentials_blockers",
+        "schema": "vela.lean-correspondence-stage-a-runtime-qualification-verification.v3",
+        "status": "pass_exact_held_offline_qualification_with_credentials_only_blocker",
         "artifact_root": artifact_root,
         "offline_record_root": EXPECTED_OFFLINE_RECORD_ROOT,
         "provider_calls": 0,
