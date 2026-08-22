@@ -1,0 +1,39 @@
+{
+  "adjudication_accessed": false,
+  "assignment_root": "sha256:64a356db4800b6fb04090ae81a6c2d33bf37ad8b71e92e01567edc5fa6362e72",
+  "complete_custody_root": "sha256:ccf69e70a3887c8a9f9ddffa2d62051e114a8974b2d2ae83c72366a1eb98dcef",
+  "condition_counts": {
+    "git-documents": 12,
+    "state-wrapper": 12,
+    "vela": 12
+  },
+  "duration_seconds_total": "496.941506686",
+  "family_counts": {
+    "method-version-correction": 12,
+    "provenance-revocation": 12,
+    "taxonomy-remap": 12
+  },
+  "fixed_denominator": 36,
+  "frozen_at": "2026-08-22T02:10:07Z",
+  "missing_evidence": false,
+  "outcome_counts": {
+    "completed": 36
+  },
+  "protected_key_accesses": 0,
+  "raw_response_bytes_retained_exactly": true,
+  "registration_root": "sha256:60acdfa31d25f9df5f342b75caf8e65426c5b71fa320c36fe5568de9fbf13b10",
+  "retries": 0,
+  "schema": "vela.inherited-correction-held-out-order-complete-capture.v1",
+  "scoring_runs": 0,
+  "status": "frozen_complete_capture",
+  "substitutions": 0,
+  "teardown_clean": 36,
+  "terminal_runs": 36,
+  "usage": {
+    "cache_write_input_tokens": 0,
+    "cached_input_tokens": 39168,
+    "input_tokens": 326648,
+    "output_tokens": 21637,
+    "reasoning_output_tokens": 7766
+  }
+}
