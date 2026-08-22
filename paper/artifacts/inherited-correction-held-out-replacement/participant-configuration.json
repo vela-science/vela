@@ -30,7 +30,7 @@
     "runtime_base_review_commit": "3c0c8cfa050b30a5d19c9e7e623fc549ac18264b",
     "runtime_compatibility_review_status": "pending_independent_f08_reproducibility_review",
     "runtime_reproducibility_amendment": "runtime-reproducibility-amendment.json",
-    "runtime_source_root": "sha256:6824db6a320829e1a2fc2dc1c4a40ab65cf4b9898e615225027e6302b348247a",
+    "runtime_source_root": "sha256:163f0bab3459e95f59ef503a4105600c9ee096dd16745c3187982a104e731971",
     "schema": "vela.inherited-correction-held-out-runtime-binding.v1",
     "schema_validator": "ajv/dist/2020.js@8.17.1",
     "service_tier": "default",

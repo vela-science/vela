@@ -91,7 +91,7 @@
         "vela": "sha256:7bef1b55dc0c32934dfa1f08ab5765d56de8f96ca7088b20df32956f8f1f18ba"
       }
     },
-    "participant_configuration_root": "sha256:cce78539ba497a1aa5600912e41a63f4038e22e4f3c461af97cb301277831c88",
+    "participant_configuration_root": "sha256:8a90184da5c3d8632c725e1870c2df432764475aae02d0c9b2ed30fa9b8617d2",
     "prompt_roots": {
       "method-version-correction": {
         "git-documents": "sha256:0cdb1987b360859a756ae60dfeec363b5e13cd1f5bf217e903d07c4f692e8033",
@@ -231,7 +231,7 @@
         "vendored_debian_input_copyright": "paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/vendor/ca-certificates.copyright",
         "vendored_debian_input_copyright_bytes": "sha256:e85e1bcad3a915dc7e6f41412bc5bdeba275cadd817896ea0451f2140a93967c",
         "vendored_debian_input_provenance": "paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/vendor/PROVENANCE.json",
-        "vendored_debian_input_provenance_bytes": "sha256:79dcc465bc913cd7ecb87f6a344721cfd959ba2102d70d785c685417c534d196",
+        "vendored_debian_input_provenance_bytes": "sha256:864c2c7e2a1184d896cdda3654d2e9cffe09793ba1fcc0b7113db8b64484af26",
         "vendored_debian_input_sha256": "sha256:62b08a77d985d4253894b1f69aebda5925034ca4e294add364167fad8cb64a44",
         "verification_contract": "paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/verify-reproducible-oci.sh",
         "verification_contract_bytes": "sha256:ba5a4f35a97de112f3eb5c1948534c62a2235d12f5278df41685d07357bf5d62"
@@ -272,7 +272,7 @@
         "sessions_completed": 0
       }
     },
-    "runtime_root": "sha256:eb752aa30ea13b5d7fbd73d0c5a321bb1dd9877fe2aa827e290de4a909b913ed",
+    "runtime_root": "sha256:3f7a753141306771b05c582d1c0ff30489cdb8a35c556e21ac5fdabb9a431ba8",
     "runtime_test_bytes": "sha256:79b36e48c06fa474a8c9d7a453c2b358df6c3bcb78ba127d4fec1273145d7dc5",
     "task_bytes": "sha256:df1d1aab35634b5cc732cfe098530336cbb234a85388817d0d323dc5fe7eef1b",
     "test_bytes": "sha256:2afa1538300118ed869b5e99fc648fbdb3fe97f2a0d6d044a8fae580c8295d10"
@@ -296,7 +296,7 @@
     "taxonomy-remap"
   ],
   "purpose": "Test continuation and reassessment cost across three unseen consequential-correction families without assuming lift.",
-  "registration_root": "sha256:bc34b3e41a74af2605e6bff9f842fae1a5af1640347e3504f16dd949c154ffe2",
+  "registration_root": "sha256:820b725d04cd3780e4bbdb6a89f3ee980a5bf993259c1f089984a3e7f7407f2b",
   "schema": "vela.inherited-correction-held-out-preregistration.v1",
   "scoring": {
     "aggregate_gates": {

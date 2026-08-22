@@ -290,7 +290,7 @@
     }
   ],
   "image_digest": "sha256:f75ed4428ee3ab3f3275db0378e7375c1364f8b9f06d2f1bb4158502a84d4fc1",
-  "registration_root": "sha256:bc34b3e41a74af2605e6bff9f842fae1a5af1640347e3504f16dd949c154ffe2",
+  "registration_root": "sha256:820b725d04cd3780e4bbdb6a89f3ee980a5bf993259c1f089984a3e7f7407f2b",
   "schema": "vela.inherited-correction-held-out-assignment.v1",
   "seed_commitment": "sha256:113604a79da502879a3fbd8ab9131dc81eabb9af0c705e9f2cbd27f4445ecacb"
 }
