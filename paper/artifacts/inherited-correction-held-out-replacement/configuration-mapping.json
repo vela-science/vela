@@ -1,23 +1,23 @@
 {
   "family_condition_runtime_configuration_roots": {
     "method-version-correction": {
-      "git-documents": "sha256:7411290a7dd1c9e1327548826887f0be9d8cd67e65d69c74076f490f70d88204",
-      "state-wrapper": "sha256:15f2b5adf52302dbda151c6fcdcf88c4a9d96645012d1a3df63e0fedf7bde67e",
-      "vela": "sha256:67a7c718434b9030a402a2264c715440913ef203fe7937611849d676d222ea57"
+      "git-documents": "sha256:00e627e430417b2c3bb852e05fd6c5b2a25c5b093c0fb9be306703fc6ac77665",
+      "state-wrapper": "sha256:ce3a803291ba30ceace4feeca3e7289d4da2d351acf23f4fe0ace4ed4b24953b",
+      "vela": "sha256:43afe07ebade95b641f4fad4b985146b58c8a3bf26232541ce4a5f835504d6ad"
     },
     "provenance-revocation": {
-      "git-documents": "sha256:6a63064f26385afbc159699e0d8879c8d1eb22a1c1cbc8b0a9fd15977f42b952",
-      "state-wrapper": "sha256:2d93226b6e230bfac1b26f7121f1a2bf08d19e43a34b12a942ce6e3fd1898e30",
-      "vela": "sha256:9d507aa537adf4a5817977192d1f7e4e548856d0037c2c75bec897bd308e6250"
+      "git-documents": "sha256:ae8ae5d111ae2cb73f26692a306b4ce29cb2c269ddb1b7ff65ec19c0bdb5ed2c",
+      "state-wrapper": "sha256:22c759154e559088f33ecce90bf66740193cce5940a2ba0d5a84a00f29b9d16e",
+      "vela": "sha256:775e8dfc95bf5473e2dec4d66f125b8f93bb15a9f7208f29d3e75dd889e15c9a"
     },
     "taxonomy-remap": {
-      "git-documents": "sha256:f7de2dddce4287b873ba95ec983727af25a9351c4a7063018432856464474789",
-      "state-wrapper": "sha256:ca384610a82d3dc29bddbb7fdb56a002e426a8203d8c03e95ae29d464cefb1e1",
-      "vela": "sha256:73d84a4ede76a0eaf6d342669aef4f1e9fd9b1aa8a50f1c9a0751d9051eb4c5f"
+      "git-documents": "sha256:bcf63491de425732f98966b0e70e4ce8493040fb77ab751c905a3c6334017cc2",
+      "state-wrapper": "sha256:41a523f917470d00586ec130f9b3b1726bfdc3475f33d2677d8aa6d8af3cd644",
+      "vela": "sha256:015552fb89bdbc69d880e486a770c74a07f7d9b0b0bf1537fecde36d417dc17f"
     }
   },
-  "registration_root": "sha256:2e566d435f4ef55b85e5b60a94b7d9913185982246460a440e13b205659b8dcf",
+  "registration_root": "sha256:bc34b3e41a74af2605e6bff9f842fae1a5af1640347e3504f16dd949c154ffe2",
   "schema": "vela.inherited-correction-held-out-configuration-mapping.v1",
-  "shared_study_configuration_root": "sha256:989c00eb5f420b8661e18e0a96765773c1293c04af42d381c0d64c18bd13aee0",
+  "shared_study_configuration_root": "sha256:cce78539ba497a1aa5600912e41a63f4038e22e4f3c461af97cb301277831c88",
   "status": "held_pending_schema_compatibility_review"
 }

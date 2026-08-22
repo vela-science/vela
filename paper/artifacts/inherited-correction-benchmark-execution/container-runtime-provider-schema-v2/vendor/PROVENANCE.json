@@ -1,0 +1,37 @@
+{
+  "schema": "vela.inherited-correction-runtime-vendored-debian-input.v1",
+  "retrieved_at": "2026-08-22T00:25:00Z",
+  "package": {
+    "name": "ca-certificates",
+    "version": "20250419~deb12u1",
+    "architecture": "all",
+    "filename": "ca-certificates_20250419~deb12u1_all.deb",
+    "bytes": 161988,
+    "sha256": "62b08a77d985d4253894b1f69aebda5925034ca4e294add364167fad8cb64a44",
+    "source_url": "https://security.debian.org/debian-security/pool/updates/main/c/ca-certificates/ca-certificates_20250419~deb12u1_all.deb",
+    "source_package": "ca-certificates",
+    "source_package_version": "20250419"
+  },
+  "build_use": {
+    "operation": "Verify the local .deb digest, extract it with dpkg-deb, sort the Mozilla .crt paths under usr/share/ca-certificates/mozilla, and concatenate their bytes into the runtime trust bundle.",
+    "network": "none",
+    "installed_as_debian_package": false,
+    "maintainer_scripts_executed": false,
+    "runtime_trust_bundle_sha256": "714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5"
+  },
+  "licenses": [
+    {
+      "surface": "Debian packaging",
+      "license": "GPL-2.0-or-later"
+    },
+    {
+      "surface": "Mozilla certificate data and nssckbi source",
+      "license": "MPL-2.0"
+    }
+  ],
+  "copyright_notice": {
+    "path": "ca-certificates.copyright",
+    "bytes": 18940,
+    "sha256": "e85e1bcad3a915dc7e6f41412bc5bdeba275cadd817896ea0451f2140a93967c"
+  }
+}

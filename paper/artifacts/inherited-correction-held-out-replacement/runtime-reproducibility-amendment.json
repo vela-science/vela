@@ -1,7 +1,7 @@
 {
-  "schema": "vela.inherited-correction-held-out-runtime-reproducibility-amendment.v2",
+  "schema": "vela.inherited-correction-held-out-runtime-reproducibility-amendment.v3",
   "status": "held_pending_independent_f08_review",
-  "frozen_at": "2026-08-22T00:15:36Z",
+  "frozen_at": "2026-08-22T00:39:18Z",
   "blocked_prelaunch": {
     "producer_commit": "3f4d61c248a43a94d09e0d848693101dd1841aa0",
     "producer_tree": "3553ff7270b479e93a99515aec7cfc54cf30f15f",
@@ -27,6 +27,22 @@
     "protected_key_accesses": 0,
     "scoring_runs": 0
   },
+  "third_blocked_prelaunch": {
+    "producer_commit": "bd3d7ec837490b67801848b3180e3d244290c9ad",
+    "producer_tree": "277aba87a753bee3864096f8297e65cec770b8cd",
+    "review_commit": "0c09f220f27ff77c644e5d778c448b7ef34de8c9",
+    "finding": "F08",
+    "findings": [
+      "The trust-source stage required live mutable Debian repository metadata, signatures, clocks, and network transport.",
+      "The shadow normalizer accepted and rewrote a nonnumeric existing participant last-password-change field."
+    ],
+    "sessions_completed": 0,
+    "participant_permits_released": 0,
+    "participant_permits_consumed": 0,
+    "participant_provider_calls": 0,
+    "protected_key_accesses": 0,
+    "scoring_runs": 0
+  },
   "diagnosis": {
     "base_layers_matched": true,
     "custom_layers_initially_matched": false,
@@ -38,7 +54,9 @@
     "causes": [
       "Build-time timestamps were retained in image config and custom layer tar headers.",
       "npm and Node compile caches retained time-dependent build-only bytes.",
-      "useradd wrote the current UTC day into the participant last-password-change field in /etc/shadow; OCI timestamp rewriting cannot normalize file content."
+      "useradd wrote the current UTC day into the participant last-password-change field in /etc/shadow; OCI timestamp rewriting cannot normalize file content.",
+      "The trust-source stage fetched Debian repository metadata and signatures during each build, so a pinned package digest did not eliminate repository, clock, signature, or network availability dependencies.",
+      "The account normalizer validated the fixed replacement day but did not require the existing participant last-password-change field to be numeric before replacement."
     ]
   },
   "repair": {
@@ -52,18 +70,30 @@
       "/root/.npm",
       "/tmp/node-compile-cache"
     ],
-    "account_database_normalization": "Set the participant /etc/shadow last-password-change field to SOURCE_DATE_EPOCH / 86400 after validating the complete closed participant record.",
+    "account_database_normalization": "Set the participant /etc/shadow last-password-change field to SOURCE_DATE_EPOCH / 86400 only after validating the complete closed participant record, including a decimal existing last-change field.",
     "fixed_participant_shadow_entry": "participant:!:20339:0:99999:7:::",
     "normalization_contract": "paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/normalize-account-database.sh",
-    "normalization_contract_bytes": "sha256:fe5ba3d56396ad14a5767840ff43030e684b103d0ecbfb1234bb5c268062b187",
+    "normalization_contract_bytes": "sha256:a736e2eda750a872e1d0fe51ab04ead2b3dbb3c173b63c916daad67ad62cda7b",
     "cross_day_fixture_a_bytes": "sha256:03f0af76ed8a57e89b3722c9a421d1eee3aa04c96830c611cb4c2e04f84eb4af",
     "cross_day_fixture_b_bytes": "sha256:7a1b1da007bf7472d65a9df1737bacb0b95873fbf177f9f07b4ac0bfbc91a537",
     "fixed_fixture_bytes": "sha256:6bc39c3ea0db88078228448e6fe94f0c282f306394de121a175f3496ea6a24d7",
+    "nonnumeric_fixture_bytes": "sha256:40d6363b173365e0b89f9acb5d22539c41b1eb284b89f8c6e7f7850d9a0c5d7f",
+    "vendored_debian_input": "paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/vendor/ca-certificates_20250419~deb12u1_all.deb",
+    "vendored_debian_input_bytes": 161988,
+    "vendored_debian_input_sha256": "sha256:62b08a77d985d4253894b1f69aebda5925034ca4e294add364167fad8cb64a44",
+    "vendored_debian_input_provenance": "paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/vendor/PROVENANCE.json",
+    "vendored_debian_input_provenance_bytes": "sha256:79dcc465bc913cd7ecb87f6a344721cfd959ba2102d70d785c685417c534d196",
+    "vendored_debian_input_copyright": "paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/vendor/ca-certificates.copyright",
+    "vendored_debian_input_copyright_bytes": "sha256:e85e1bcad3a915dc7e6f41412bc5bdeba275cadd817896ea0451f2140a93967c",
+    "debian_build_step_network": "none",
+    "debian_repository_metadata_used": false,
+    "debian_package_installed": false,
+    "debian_maintainer_scripts_executed": false,
     "build_contract": "paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/build-reproducible-oci.sh",
     "build_contract_bytes": "sha256:3fb073e2eab020edc2de54bbb2f519de14d08d9c468d0ad61e7ad26d43f80886",
     "verification_contract": "paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/verify-reproducible-oci.sh",
     "verification_contract_bytes": "sha256:ba5a4f35a97de112f3eb5c1948534c62a2235d12f5278df41685d07357bf5d62",
-    "dockerfile_bytes": "sha256:85e667cf2cdd54d438f9362727e80d5f52ee6da74279ce7cabc76a05d9d2478c"
+    "dockerfile_bytes": "sha256:819b81115932e60f0e40190703a45239daadbe9dea38fb48d9aae6f089d7283b"
   },
   "clean_build_evidence": {
     "independent_builder_count": 2,
@@ -72,24 +102,24 @@
     "builder_receipts": [
       {
         "builder": "independent-a",
-        "image_digest": "sha256:71bceb9885958619b129d7567b56277422f4c1d17c85a7076fb0d60c07633dea",
-        "image_config_digest": "sha256:a3af3c330d18683d7a6e9f183a0aac1b1fb579faec26b9cd091e58730dfb975e",
-        "oci_tar_bytes": "sha256:deb413a3e695d6e3591a0429afd2883573a0d348ea5ef800755ef6a6cddd5f2d"
+        "image_digest": "sha256:f75ed4428ee3ab3f3275db0378e7375c1364f8b9f06d2f1bb4158502a84d4fc1",
+        "image_config_digest": "sha256:0b41c9eb78b4afcd34b8e6c8c3bf85d81eda431fa4f7f99445c6d951eaa49348",
+        "oci_tar_bytes": "sha256:87a1b1d80a27dbc92a0fd5dd69543c4c55386d3cfef77e7c76dab37d2c905183"
       },
       {
         "builder": "independent-b",
-        "image_digest": "sha256:71bceb9885958619b129d7567b56277422f4c1d17c85a7076fb0d60c07633dea",
-        "image_config_digest": "sha256:a3af3c330d18683d7a6e9f183a0aac1b1fb579faec26b9cd091e58730dfb975e",
-        "oci_tar_bytes": "sha256:deb413a3e695d6e3591a0429afd2883573a0d348ea5ef800755ef6a6cddd5f2d"
+        "image_digest": "sha256:f75ed4428ee3ab3f3275db0378e7375c1364f8b9f06d2f1bb4158502a84d4fc1",
+        "image_config_digest": "sha256:0b41c9eb78b4afcd34b8e6c8c3bf85d81eda431fa4f7f99445c6d951eaa49348",
+        "oci_tar_bytes": "sha256:87a1b1d80a27dbc92a0fd5dd69543c4c55386d3cfef77e7c76dab37d2c905183"
       }
     ],
     "byte_identical_oci_layouts": true,
-    "image_digest": "sha256:71bceb9885958619b129d7567b56277422f4c1d17c85a7076fb0d60c07633dea",
-    "image_config_digest": "sha256:a3af3c330d18683d7a6e9f183a0aac1b1fb579faec26b9cd091e58730dfb975e",
-    "oci_tar_bytes": "sha256:deb413a3e695d6e3591a0429afd2883573a0d348ea5ef800755ef6a6cddd5f2d"
+    "image_digest": "sha256:f75ed4428ee3ab3f3275db0378e7375c1364f8b9f06d2f1bb4158502a84d4fc1",
+    "image_config_digest": "sha256:0b41c9eb78b4afcd34b8e6c8c3bf85d81eda431fa4f7f99445c6d951eaa49348",
+    "oci_tar_bytes": "sha256:87a1b1d80a27dbc92a0fd5dd69543c4c55386d3cfef77e7c76dab37d2c905183"
   },
   "offline_validation": {
-    "loaded_image": "sha256:71bceb9885958619b129d7567b56277422f4c1d17c85a7076fb0d60c07633dea",
+    "loaded_image": "sha256:f75ed4428ee3ab3f3275db0378e7375c1364f8b9f06d2f1bb4158502a84d4fc1",
     "container_network": "none",
     "provider_contact_possible": false,
     "provider_schema_checks_passed": true,
@@ -98,7 +128,11 @@
     "participant_uid": 10001,
     "participant_gid": 10001,
     "participant_home": "/home/participant",
-    "account_database_fixed": true
+    "account_database_fixed": true,
+    "runtime_trust_bundle_bytes": "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5",
+    "runtime_files_changed_from_prior_repair": [
+      "/opt/vela-runner/normalize-account-database.sh"
+    ]
   },
   "execution_state": {
     "sessions_completed": 0,
@@ -120,6 +154,7 @@
     "model_and_runtime_semantics_unchanged": true,
     "gates_unchanged": true,
     "participant_ids_and_seed_unchanged": true,
-    "stopped_original_evidence_unchanged": true
+    "stopped_original_evidence_unchanged": true,
+    "neutral_calibration_evidence_unchanged": true
   }
 }

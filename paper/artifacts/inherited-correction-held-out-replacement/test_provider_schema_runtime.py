@@ -81,9 +81,30 @@ class ProviderSchemaRuntimeTests(unittest.TestCase):
             "./normalize-account-database.sh /etc/shadow \"$fixed_last_change_days\"",
             dockerfile,
         )
+        self.assertNotIn("apt-get", dockerfile)
+        self.assertIn("RUN --network=none", dockerfile)
+        self.assertIn("COPY vendor/${CA_CERTIFICATES_DEB}", dockerfile)
         self.assertEqual(
             dockerfile.count("rm -rf /root/.npm /tmp/node-compile-cache"), 2
         )
+        provenance = json.loads((RUNTIME / "vendor/PROVENANCE.json").read_text())
+        package = RUNTIME / "vendor" / provenance["package"]["filename"]
+        notice = RUNTIME / "vendor" / provenance["copyright_notice"]["path"]
+        self.assertEqual(provenance["package"]["bytes"], len(package.read_bytes()))
+        self.assertEqual(
+            "sha256:" + provenance["package"]["sha256"],
+            digest(package.read_bytes()),
+        )
+        self.assertEqual(
+            provenance["copyright_notice"]["bytes"], len(notice.read_bytes())
+        )
+        self.assertEqual(
+            "sha256:" + provenance["copyright_notice"]["sha256"],
+            digest(notice.read_bytes()),
+        )
+        self.assertEqual(provenance["build_use"]["network"], "none")
+        self.assertFalse(provenance["build_use"]["installed_as_debian_package"])
+        self.assertFalse(provenance["build_use"]["maintainer_scripts_executed"])
         build = (RUNTIME / "build-reproducible-oci.sh").read_text()
         for control in (
             "--platform linux/arm64",
@@ -199,6 +220,51 @@ class ProviderSchemaRuntimeTests(unittest.TestCase):
                 .replace("participant:!:", "participant:*:")
                 .encode(),
             )
+
+    def test_account_database_normalization_rejects_nonnumeric_existing_day(
+        self,
+    ) -> None:
+        fixtures = RUNTIME / "account-database-fixtures"
+        normalizer = RUNTIME / "normalize-account-database.sh"
+        invalid = (fixtures / "shadow-notaday.txt").read_bytes()
+        self.assertIn(b"participant:!:notaday:", invalid)
+        with tempfile.TemporaryDirectory() as temporary:
+            shadow = Path(temporary) / "shadow"
+            shadow.write_bytes(invalid)
+            result = subprocess.run(
+                [str(normalizer), str(shadow), "20339"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(shadow.read_bytes(), invalid)
+
+    def test_account_database_normalization_rejects_duplicate_and_extra_fields(
+        self,
+    ) -> None:
+        fixtures = RUNTIME / "account-database-fixtures"
+        normalizer = RUNTIME / "normalize-account-database.sh"
+        original = (fixtures / "shadow-day-a.txt").read_text()
+        participant = next(
+            line for line in original.splitlines() if line.startswith("participant:")
+        )
+        adversaries = {
+            "duplicate": original + participant + "\n",
+            "extra-field": original.replace(participant, participant + ":extra"),
+        }
+        for name, invalid in adversaries.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as temporary:
+                shadow = Path(temporary) / "shadow"
+                shadow.write_text(invalid)
+                result = subprocess.run(
+                    [str(normalizer), str(shadow), "20339"],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(shadow.read_text(), invalid)
 
     def test_frozen_offline_provider_surface_receipt_is_closed(self) -> None:
         base = ROOT / "offline-preflight/provider-schema"

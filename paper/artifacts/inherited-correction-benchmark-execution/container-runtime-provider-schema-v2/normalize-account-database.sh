@@ -25,7 +25,7 @@ cp -p -- "$shadow_path" "$normalized_path"
 LC_ALL=C awk -F: -v OFS=: -v fixed="$fixed_last_change_days" '
   BEGIN { seen = 0 }
   $1 == "participant" {
-    if (seen != 0 || NF != 9 || $2 != "!" || $4 != "0" ||
+    if (seen != 0 || NF != 9 || $2 != "!" || $3 !~ /^[0-9]+$/ || $4 != "0" ||
         $5 != "99999" || $6 != "7" || $7 != "" || $8 != "" || $9 != "") {
       exit 21
     }

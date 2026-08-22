@@ -84,6 +84,17 @@ empty-cache builders again produce byte-identical complete OCI archives. The
 study remains held at 0/36 pending fresh independent F08/G08 review; the neutral
 calibration is not rerun.
 
+The next independent review found that the certificate layer still fetched
+mutable Debian repository metadata during each build and that the account
+normalizer accepted a nonnumeric existing last-change field. The exact
+`ca-certificates_20250419~deb12u1_all.deb` bytes are now vendored with source,
+digest, and license provenance. The Dockerfile verifies and extracts that local
+input under `RUN --network=none`; it neither updates repository metadata nor
+executes package maintainer scripts. The normalizer now requires the existing
+participant last-change field to be decimal before replacement, with an exact
+`notaday` regression plus duplicate- and extra-field adversaries. The study
+remains held at 0/36 pending fresh independent review.
+
 ## Deterministic checks
 
 From the repository root:
@@ -96,10 +107,10 @@ second_oci=/ABSOLUTE/TEMP/PATH/schemafix-b.oci.tar
 "$runtime/build-reproducible-oci.sh" INDEPENDENT_EMPTY_BUILDER_B "$second_oci"
 "$runtime/verify-reproducible-oci.sh" \
   "$first_oci" "$second_oci" \
-  sha256:71bceb9885958619b129d7567b56277422f4c1d17c85a7076fb0d60c07633dea
+  sha256:f75ed4428ee3ab3f3275db0378e7375c1364f8b9f06d2f1bb4158502a84d4fc1
 docker load --input "$first_oci"
 paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/preflight-provider-schema.sh \
-  sha256:71bceb9885958619b129d7567b56277422f4c1d17c85a7076fb0d60c07633dea \
+  sha256:f75ed4428ee3ab3f3275db0378e7375c1364f8b9f06d2f1bb4158502a84d4fc1 \
   "$PWD/paper/artifacts/inherited-correction-held-out-replacement/calibration/input" \
   EMPTY_OUTPUT_DIRECTORY
 python3 paper/artifacts/inherited-correction-held-out-replacement/benchmark.py verify
