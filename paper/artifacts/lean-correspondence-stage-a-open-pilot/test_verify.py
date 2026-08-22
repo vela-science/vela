@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import tempfile
 import unittest
@@ -12,9 +13,13 @@ from typing import Any
 import verify as VERIFY
 
 ROOT = Path(__file__).resolve().parent
-VELA = ROOT.parents[2]
-IMPLEMENTATION = VELA.parent / "lean-correspondence"
-CANDIDATES = VELA.parent / "lean-proofs"
+VELA = Path(os.environ.get("STAGE_A_VELA_REPO", ROOT.parents[2])).resolve()
+IMPLEMENTATION = Path(
+    os.environ.get("STAGE_A_IMPLEMENTATION_REPO", VELA.parent / "lean-correspondence")
+).resolve()
+CANDIDATES = Path(
+    os.environ.get("STAGE_A_CANDIDATES_REPO", VELA.parent / "lean-proofs")
+).resolve()
 
 
 def write_json(path: Path, value: Any) -> None:

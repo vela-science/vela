@@ -56,7 +56,9 @@ uv run --project conformance --locked python \
   --candidates /absolute/path/to/lean-proofs-at-148e18cc \
   --check-lean
 
-uv run --project conformance --locked python -m unittest discover \
+STAGE_A_IMPLEMENTATION_REPO=/absolute/path/to/lean-correspondence-at-01d0b325 \
+STAGE_A_CANDIDATES_REPO=/absolute/path/to/lean-proofs-at-148e18cc \
+  uv run --project conformance --locked python -m unittest discover \
   -s paper/artifacts/lean-correspondence-stage-a-open-pilot -p 'test_*.py' -v
 ```
 
