@@ -1,0 +1,118 @@
+{
+  "schema": "vela.independent-evidence-infrastructure-review-verdict.v1",
+  "review_id": "evidence-harness-consolidation-27d368e6-2026-08-22",
+  "reviewed_at": "2026-08-22T03:24:05Z",
+  "verdict": "BLOCKED",
+  "authority_effect": "none",
+  "standing_effect": "none",
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/evidence-harness-consolidation",
+    "base_commit": "4685462c44b1f073870f31025ae73d1d8770ce73",
+    "base_tree": "13c5e0cf2e64be907cee4c0fd740ab0027118e13",
+    "producer_commit": "27d368e6fbb111c1c65a51850e6da43596eabd50",
+    "producer_tree": "f47fc77de7aebbebe43abbbbad682681c0232005",
+    "changed_path_count": 6,
+    "insertions": 1934,
+    "deletions": 0
+  },
+  "protocol": {
+    "changed": false,
+    "normative_files": 77,
+    "informative_files": 39,
+    "protocol_1_root": "sha256:6ca327d6ec6f56c051e236be9eee42629e1f67dce393c1518e051ff8c14b279e"
+  },
+  "failed_gates": [
+    {
+      "id": "EQ-01",
+      "category": "self_verification",
+      "summary": "Resolving sys.executable escapes the locked virtual environment; the exact CI command fails on clean Python 3.13 and the suite fails on available 3.12 and 3.13."
+    },
+    {
+      "id": "EQ-02",
+      "category": "runtime_reproducibility",
+      "summary": "Unbound runner versions, duplicate same-file account fixtures, comment-only Dockerfile controls, and incomplete OCI archives can be accepted."
+    },
+    {
+      "id": "EQ-03",
+      "category": "path_and_permit_custody",
+      "summary": "Intermediate bundle symlinks and forged open-shape participant permits can receive qualified_hold."
+    },
+    {
+      "id": "EQ-04",
+      "category": "capture_lifecycle",
+      "summary": "Forged capture schemas, negative teardown time, and reversed lifecycle ordering can receive qualified_hold when byte receipts are internally consistent."
+    }
+  ],
+  "adversarial_qualified_roots": {
+    "unbound_runner_version": "sha256:efa030743e169fa207f36c3d7559b95e3e634b222fbdc167f4a9cfc8199fab73",
+    "duplicate_cross_day_fixture": "sha256:961252c719fbb7ed308d408ac69ccfd079025b660c990d73b213034a4058c6db",
+    "internal_parent_symlink_alias": "sha256:d4d93928879f94cf1813735714b3050a6bc92417b9026cfe5455d85765c70c61",
+    "forged_participant_permit": "sha256:790d53c68f53d05476770fdcb236963c97f2c37be026b645bfba296114f74402",
+    "wrong_schema_negative_time_reordered_events": "sha256:a7c64cc46d0ef53cedbacba69e6ad02a5c9215634f8a0d7c15760c2c186999ec",
+    "comment_only_reproducibility_markers": "sha256:6ec676ea32f3dd45d1b89e2a21a936d0863c58579796a757c10e13dd1250a6e5"
+  },
+  "python_matrix": {
+    "3.11": "20 passed",
+    "3.12": "19 passed, 1 failed",
+    "3.13": "19 passed, 1 failed",
+    "3.14": "20 passed"
+  },
+  "passing_boundaries": [
+    "neutral top-level tools placement with no controller, scheduler, provider invocation, protocol writer, authority, Decision, Standing, or scientific-record effect",
+    "exact allowlisted uniqueItems:true provider-schema deletion and full Draft 2020-12 local validation",
+    "dual raw schema byte custody",
+    "valid response-order variants with retained raw bytes and derived canonical ordering",
+    "Decimal-only half-even serialization across Python 3.11-3.14",
+    "large input telemetry remains telemetry while output ceiling and response schema fail closed",
+    "broad Vela conformance and unchanged Protocol 1 root",
+    "read-only minimum workflow permissions, pinned actions and uv, locked dependencies, and clean offline Zizmor audit",
+    "Math retains Lean, lake, compiler, evaluator, source-verification, runtime, and campaign-permit ownership",
+    "historical 16-cell and 36-cell evidence and review lineage are untouched"
+  ],
+  "passing_checks": [
+    "uv run --project conformance --locked ruff check tools/evidence_qualification",
+    "uv run --project conformance --locked zizmor --offline --min-severity medium .",
+    "PYTHONDONTWRITEBYTECODE=1 uv run --project conformance --locked ./conformance/check-core.sh",
+    "PYTHONDONTWRITEBYTECODE=1 uv run --project conformance --locked python conformance/verify_protocol_1.py",
+    "git diff --check 4685462c44b1f073870f31025ae73d1d8770ce73..27d368e6fbb111c1c65a51850e6da43596eabd50"
+  ],
+  "failing_checks": [
+    "uv run --project conformance --locked python -m unittest tools.evidence_qualification.test_qualification",
+    "Python 3.12 focused suite: self-check dependency escape",
+    "Python 3.13 focused suite: self-check dependency escape"
+  ],
+  "minimal_corrections": [
+    "Bind and execute self-verification inside the exact locked environment on Python 3.11-3.14 without global dependencies.",
+    "Bind an exact expected runner version; require genuinely distinct cross-day fixtures; validate effective Dockerfile controls and every referenced OCI blob.",
+    "Reject symlinks at every bundle path component and validate all permit states against closed exact schemas and types.",
+    "Validate exact capture schema constants, timestamps, statuses, and a closed monotone lifecycle sequence."
+  ],
+  "historical_negative_result": {
+    "scored_commit": "4524c8f776943a267e04e03e9a237ecaed14bc2c",
+    "fixed_denominator": 36,
+    "git_documents_exact_successes": 12,
+    "state_wrapper_exact_successes": 12,
+    "vela_exact_successes": 11,
+    "vela_authority_errors": 1,
+    "positive_gate": "not_supported",
+    "changed": false
+  },
+  "residual_risks": [
+    "Builder independence is attested rather than performed by this command.",
+    "The qualifier deliberately invokes no provider.",
+    "Future provider incompatibilities require maintained allowlisted code and test changes.",
+    "Historical artifacts do not import the qualifier.",
+    "Qualification cannot release permits or create authority, Decision, Standing, or scientific acceptance."
+  ],
+  "reviewer_actions": {
+    "provider_calls": 0,
+    "protected_adjudication_accesses": 0,
+    "producer_mutations": 0,
+    "authority_mutations": 0,
+    "standing_mutations": 0,
+    "merge_actions": 0,
+    "release_actions": 0,
+    "deployment_actions": 0
+  }
+}
