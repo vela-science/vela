@@ -1,14 +1,17 @@
 {
   "authority_effect": "none",
   "consumed": false,
+  "invalid_permit_origin_commit": "9da1c79425c79af632197a719ca45ca07ab22a6c",
+  "invalid_permit_origin_relationship": "ancestor_of_reviewed_predecessor_not_direct_parent",
   "original_permit_root": "sha256:4bed98283ffb3af24ed0c99d7d4e135276770fef8288c11fbe87e9c8b0d37b9f",
-  "original_producer_commit": "9da1c79425c79af632197a719ca45ca07ab22a6c",
   "original_state": "held_unconsumed",
   "provider_adapter": "anthropic-messages-v1",
   "releasable": false,
   "retirement_reason": "packet_root_preimage_is_plaintext_not_runner_loadable_canonical_json",
+  "reviewed_predecessor_commit": "b333186cae1274ebb48353ba72e1ab3be42adcc0",
+  "reviewed_predecessor_parent_commit": "5be82cb3ab1ef11e7e870675337ae3704118fd46",
   "run_id": "neutral-calibration-anthropic",
   "schema": "vela.stage-a-neutral-permit-retirement.v1",
   "status": "retired_non_releasable",
-  "successor_permit_root": "sha256:a19d55e54f2d123f97fea5fab32f7285ca3c08b99db962f0b5b547d623c7be57"
+  "successor_permit_root": "sha256:b9ba39cf1c511043324ca8dfbc02b6c59d91f457a2e560a37d78d32a1b84cdbe"
 }

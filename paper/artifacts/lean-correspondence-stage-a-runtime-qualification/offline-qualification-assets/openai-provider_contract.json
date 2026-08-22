@@ -17,7 +17,10 @@
     "inline_reconstruction": false,
     "mount_path": "/input/packet.json",
     "no_follow": true,
+    "number_lexemes_preserved": true,
     "permit_byte_root_required": true,
+    "recursive_duplicate_keys_rejected": true,
+    "recursive_objects_arrays_primitives_canonical": true,
     "regular_file_only": true,
     "request_byte_root_receipt_required": true,
     "single_link_only": true

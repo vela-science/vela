@@ -22,16 +22,23 @@ ARTIFACT_ROOT = PACKAGE / "artifact-root.json"
 STAGE_A = REPOSITORY / "paper/artifacts/lean-correspondence-stage-a-open-pilot"
 SHA256 = re.compile(r"sha256:[0-9a-f]{64}\Z")
 EXPECTED_REGISTRATION_ROOT = (
-    "sha256:5e5fbcd20e1926a92c24e31cf861107368fc4db1ad11932d88b44da5847e45d9"
+    "sha256:009d84b9851f903d391b71987a140cf0707da4ee15fca1407a6f563b0ae7b49e"
 )
 EXPECTED_OFFLINE_RECORD_ROOT = (
-    "sha256:f5b9f0975e6f1575bc5dbd2ed3987c68cd7240797ca062aab78cd1885dcf8a01"
+    "sha256:7a4c8cf306f74ca603aa29e6c32dc2018788ba2a8c6168a1d9766938af063de8"
 )
 EXPECTED_QUALIFIER = {
     "git_commit": "cc3b88d8bfcfd7b4f720a023f049d5c365be9423",
     "git_tree": "341e0d22fa570b1b5e8dd9f70b219c11308ba45f",
     "path": "tools/evidence_qualification/qualification.py",
     "sha256": "sha256:61591eec3304e299a9344888bc2a6f08cd32785b647ef5b0107da490dbf18013",
+}
+EXPECTED_CORRECTIVE_ANCESTRY = {
+    "invalid_permit_origin_commit": "9da1c79425c79af632197a719ca45ca07ab22a6c",
+    "invalid_permit_origin_relationship": "ancestor_of_reviewed_predecessor_not_direct_parent",
+    "reviewed_predecessor_commit": "b333186cae1274ebb48353ba72e1ab3be42adcc0",
+    "reviewed_predecessor_parent_commit": "5be82cb3ab1ef11e7e870675337ae3704118fd46",
+    "successor_direct_parent_commit": "b333186cae1274ebb48353ba72e1ab3be42adcc0",
 }
 EXPECTED_STAGE_A = {
     "artifact_root": "sha256:f89d335912adbbd0e3b3f1cb98ec3f4fa78a27f3742652ac7244eaa86ed6aca8",
@@ -50,26 +57,26 @@ EXPECTED_PROVIDER = {
         "model": "gpt-5.6-sol",
         "run_id": "neutral-calibration-openai-json-v2",
         "configuration_root": "sha256:96555c45c33ed2a106cfb261025b752a4eeb1514aa180985ecd5ea0551a6616d",
-        "qualification_root": "sha256:5658c76c2db92a2770066178c8aeb87cc40e9ee25fc7ff15ae0b15f06001c83a",
-        "image_digest": "sha256:062563014758785282108b8a46eed4c02797850a8cc388997b224929b95c9f08",
+        "qualification_root": "sha256:aa7a05479b97c97d807604048d1f9569a45a1b6707fa7d96e6ce24a6337486e3",
+        "image_digest": "sha256:c989a72d29712c305b55de9dccbcadb369967205b8dffe5a7de54365540e0717",
         "tool_boundary_root": "sha256:0b2e1fb701f70b02f9cc7ad79201f84374dfeb904299b59a6667d36eb4e59c69",
-        "runtime_source_root": "sha256:b9aeef41db9c97ae5783d5a249ae3bb5ef005e7f245971284d055e6a7a74ee0d",
-        "participant_permit_root": "sha256:bc3e431a4307a370b873368b6d25298fa73a83268a751898fac641d69445bfa5",
+        "runtime_source_root": "sha256:e07d068594a445b245e45cb70e1511c36a475f9f25ead4de3414e084a7b2ff7c",
+        "participant_permit_root": "sha256:86ac7e7a800f5e97da1506e1c3e9830b7ff352301a18df10f02c97f9278f8e65",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
-        "launchability_sha256": "sha256:3e354d53908a9fe8cdf5197f207746c33f852f16bab1d4eee7c996e048a8bc01",
+        "launchability_sha256": "sha256:b6d9a29df9dad8ecd05749b15c3e5ca24eeadec092e0b91b42694fe726622745",
     },
     "anthropic-messages-v1": {
         "organization": "Anthropic",
         "model": "claude-opus-5",
         "run_id": "neutral-calibration-anthropic-json-v2",
         "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
-        "qualification_root": "sha256:2f306360116e5269d9110010c9dcde2c8c354a260b72d5d47f7c279dec3c9e99",
-        "image_digest": "sha256:e0ff53d70522134cb30067920faed5997c6b2f01e1c4a92053dd5756317ae063",
+        "qualification_root": "sha256:130d90f06df8cf15e4479bbb18f5599405afbea6c72ce37558e3c6aec1fa0af1",
+        "image_digest": "sha256:26fa80f822ebc0357670e03b4358d01d8c2190803696b7fd8aefec83e3e84fcf",
         "tool_boundary_root": "sha256:01dfbda69c1c7760423fdba41eaac18687a73d9fe683a8a5f207fdc8abe2a7d9",
-        "runtime_source_root": "sha256:4c40b482c9e423eb46925000fc676c04461f5b5a10ac0605c358056b37451598",
-        "participant_permit_root": "sha256:a19d55e54f2d123f97fea5fab32f7285ca3c08b99db962f0b5b547d623c7be57",
+        "runtime_source_root": "sha256:651c2a4b3e0cb54bf7ad2855d88b99766384d65af5fd3ee2f86742c4476b81c4",
+        "participant_permit_root": "sha256:b9ba39cf1c511043324ca8dfbc02b6c59d91f457a2e560a37d78d32a1b84cdbe",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
-        "launchability_sha256": "sha256:803a592c24985315a732572286ed11501f5bbcba034dcea5868d4dc5a8b22db4",
+        "launchability_sha256": "sha256:c5a470f2bc469dcb3aaa447ebafabaa5f7f4e3de5f537a501568ddef8b484222",
     },
 }
 EXPECTED_FROZEN_CONFIGURATION = {
@@ -240,7 +247,18 @@ def validate_launchable_runtime(
             "provider_adapter": adapter,
             "run_id": retired["run_id"],
             "original_permit_root": retired["permit_root"],
-            "original_producer_commit": "9da1c79425c79af632197a719ca45ca07ab22a6c",
+            "invalid_permit_origin_commit": EXPECTED_CORRECTIVE_ANCESTRY[
+                "invalid_permit_origin_commit"
+            ],
+            "invalid_permit_origin_relationship": EXPECTED_CORRECTIVE_ANCESTRY[
+                "invalid_permit_origin_relationship"
+            ],
+            "reviewed_predecessor_commit": EXPECTED_CORRECTIVE_ANCESTRY[
+                "reviewed_predecessor_commit"
+            ],
+            "reviewed_predecessor_parent_commit": EXPECTED_CORRECTIVE_ANCESTRY[
+                "reviewed_predecessor_parent_commit"
+            ],
             "original_state": "held_unconsumed",
             "retirement_reason": "packet_root_preimage_is_plaintext_not_runner_loadable_canonical_json",
             "successor_permit_root": expected["participant_permit_root"],
@@ -339,6 +357,9 @@ def validate_launchable_runtime(
             "single_link_only": True,
             "no_follow": True,
             "canonical_json_object": True,
+            "recursive_duplicate_keys_rejected": True,
+            "recursive_objects_arrays_primitives_canonical": True,
+            "number_lexemes_preserved": True,
             "inline_reconstruction": False,
             "permit_byte_root_required": True,
             "request_byte_root_receipt_required": True,
@@ -583,6 +604,10 @@ def validate_registration(
     require(
         value.get("maintained_qualifier") == EXPECTED_QUALIFIER, "qualifier_binding"
     )
+    require(
+        value.get("corrective_ancestry") == EXPECTED_CORRECTIVE_ANCESTRY,
+        "corrective_ancestry",
+    )
     require(value.get("stage_a_binding") == EXPECTED_STAGE_A, "stage_a_binding")
     authorization = value.get("authorization", {})
     require(
@@ -669,6 +694,14 @@ def validate_registration(
         require(
             retirement.get("run_id") == retired["run_id"]
             and retirement.get("original_permit_root") == retired["permit_root"]
+            and retirement.get("invalid_permit_origin_commit")
+            == EXPECTED_CORRECTIVE_ANCESTRY["invalid_permit_origin_commit"]
+            and retirement.get("invalid_permit_origin_relationship")
+            == EXPECTED_CORRECTIVE_ANCESTRY["invalid_permit_origin_relationship"]
+            and retirement.get("reviewed_predecessor_commit")
+            == EXPECTED_CORRECTIVE_ANCESTRY["reviewed_predecessor_commit"]
+            and retirement.get("reviewed_predecessor_parent_commit")
+            == EXPECTED_CORRECTIVE_ANCESTRY["reviewed_predecessor_parent_commit"]
             and retirement.get("successor_permit_root")
             == expected["participant_permit_root"]
             and retirement.get("original_state") == "held_unconsumed"
@@ -795,6 +828,31 @@ def validate_registration(
     )
     require(b"sk-" not in raw and b"Bearer " not in raw, "credential_shaped_bytes")
     if check_git:
+        require(
+            git_value(
+                "rev-parse",
+                f"{EXPECTED_CORRECTIVE_ANCESTRY['reviewed_predecessor_commit']}^",
+            )
+            == EXPECTED_CORRECTIVE_ANCESTRY["reviewed_predecessor_parent_commit"],
+            "corrective_parent_ancestry",
+        )
+        ancestry = subprocess.run(
+            [
+                "git",
+                "merge-base",
+                "--is-ancestor",
+                EXPECTED_CORRECTIVE_ANCESTRY["invalid_permit_origin_commit"],
+                EXPECTED_CORRECTIVE_ANCESTRY["reviewed_predecessor_commit"],
+            ],
+            cwd=REPOSITORY,
+            check=False,
+        )
+        require(
+            ancestry.returncode == 0
+            and EXPECTED_CORRECTIVE_ANCESTRY["invalid_permit_origin_commit"]
+            != EXPECTED_CORRECTIVE_ANCESTRY["reviewed_predecessor_parent_commit"],
+            "corrective_origin_ancestry",
+        )
         require(
             git_value("rev-parse", f"{EXPECTED_STAGE_A['pilot_commit']}^{{tree}}")
             == EXPECTED_STAGE_A["pilot_tree"],

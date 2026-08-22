@@ -68,16 +68,19 @@ type runInput struct {
 }
 
 type packetCustodyReceipt struct {
-	Schema               string `json:"schema"`
-	Path                 string `json:"path"`
-	Bytes                int    `json:"bytes"`
-	SHA256               string `json:"sha256"`
-	OpenMode             string `json:"open_mode"`
-	LinkCount            int    `json:"link_count"`
-	CanonicalJSONObject  bool   `json:"canonical_json_object"`
-	InlineReconstruction bool   `json:"inline_reconstruction"`
-	Injection            string `json:"injection"`
-	RequestSHA256        string `json:"request_sha256"`
+	Schema                         string `json:"schema"`
+	Path                           string `json:"path"`
+	Bytes                          int    `json:"bytes"`
+	SHA256                         string `json:"sha256"`
+	OpenMode                       string `json:"open_mode"`
+	LinkCount                      int    `json:"link_count"`
+	CanonicalJSONObject            bool   `json:"canonical_json_object"`
+	RecursiveDuplicateKeysRejected bool   `json:"recursive_duplicate_keys_rejected"`
+	RecursiveCanonical             bool   `json:"recursive_objects_arrays_primitives_canonical"`
+	NumberLexemesPreserved         bool   `json:"number_lexemes_preserved"`
+	InlineReconstruction           bool   `json:"inline_reconstruction"`
+	Injection                      string `json:"injection"`
+	RequestSHA256                  string `json:"request_sha256"`
 }
 
 type stageAResponse struct {
@@ -226,7 +229,7 @@ func readPacketFileWithHook(path string, expectedBytes int, expectedSHA256 strin
 	if err != nil || !os.SameFile(opened, after) || after.Mode()&os.ModeSymlink != 0 || after.Sys().(*syscall.Stat_t).Nlink != 1 {
 		return nil, errors.New("packet path changed during read")
 	}
-	value, err := decodeExactJSONObject(raw)
+	value, err := decodeCanonicalPacketJSONObject(raw)
 	if err != nil {
 		return nil, errors.New("packet is not one closed JSON object")
 	}
@@ -235,6 +238,126 @@ func readPacketFileWithHook(path string, expectedBytes int, expectedSHA256 strin
 		return nil, errors.New("packet bytes are not exact canonical JSON")
 	}
 	return json.RawMessage(raw), nil
+}
+
+func decodeCanonicalPacketJSONObject(raw []byte) (map[string]any, error) {
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	value, err := decodeCanonicalPacketValue(decoder, 0)
+	if err != nil {
+		return nil, err
+	}
+	object, ok := value.(map[string]any)
+	if !ok {
+		return nil, errors.New("packet top level is not an object")
+	}
+	if _, err := decoder.Token(); err != io.EOF {
+		return nil, errors.New("packet contains trailing JSON")
+	}
+	return object, nil
+}
+
+func decodeCanonicalPacketValue(decoder *json.Decoder, depth int) (any, error) {
+	if depth > 256 {
+		return nil, errors.New("packet JSON nesting limit exceeded")
+	}
+	token, err := decoder.Token()
+	if err != nil {
+		return nil, errors.New("packet JSON token invalid")
+	}
+	switch value := token.(type) {
+	case json.Delim:
+		switch value {
+		case '{':
+			object := make(map[string]any)
+			for decoder.More() {
+				keyToken, err := decoder.Token()
+				key, ok := keyToken.(string)
+				if err != nil || !ok {
+					return nil, errors.New("packet object key invalid")
+				}
+				if _, duplicate := object[key]; duplicate {
+					return nil, errors.New("packet object contains duplicate key")
+				}
+				child, err := decodeCanonicalPacketValue(decoder, depth+1)
+				if err != nil {
+					return nil, err
+				}
+				object[key] = child
+			}
+			closing, err := decoder.Token()
+			if err != nil || closing != json.Delim('}') {
+				return nil, errors.New("packet object is incomplete")
+			}
+			return object, nil
+		case '[':
+			array := make([]any, 0)
+			for decoder.More() {
+				child, err := decodeCanonicalPacketValue(decoder, depth+1)
+				if err != nil {
+					return nil, err
+				}
+				array = append(array, child)
+			}
+			closing, err := decoder.Token()
+			if err != nil || closing != json.Delim(']') {
+				return nil, errors.New("packet array is incomplete")
+			}
+			return array, nil
+		default:
+			return nil, errors.New("unexpected packet closing delimiter")
+		}
+	case json.Number:
+		lexeme := value.String()
+		if !isCanonicalPacketNumber(lexeme) {
+			return nil, errors.New("packet number is not canonical decimal JSON")
+		}
+		return value, nil
+	case string, bool, nil:
+		return value, nil
+	default:
+		return nil, errors.New("unsupported packet JSON primitive")
+	}
+}
+
+func isCanonicalPacketNumber(lexeme string) bool {
+	if lexeme == "" {
+		return false
+	}
+	index := 0
+	negative := false
+	if lexeme[index] == '-' {
+		negative = true
+		index++
+		if index == len(lexeme) {
+			return false
+		}
+	}
+	integerStart := index
+	if lexeme[index] == '0' {
+		index++
+	} else {
+		if lexeme[index] < '1' || lexeme[index] > '9' {
+			return false
+		}
+		for index < len(lexeme) && lexeme[index] >= '0' && lexeme[index] <= '9' {
+			index++
+		}
+	}
+	if index < len(lexeme) && lexeme[index] == '.' {
+		index++
+		fractionStart := index
+		for index < len(lexeme) && lexeme[index] >= '0' && lexeme[index] <= '9' {
+			index++
+		}
+		if index == fractionStart || lexeme[index-1] == '0' {
+			return false
+		}
+	}
+	if index != len(lexeme) {
+		return false
+	}
+	return !(negative && lexeme[integerStart:] == "0")
 }
 
 func packetInjection(adapter string) (string, error) {
@@ -257,8 +380,10 @@ func makePacketCustody(input runInput, packet, body []byte) (packetCustodyReceip
 		Schema: "vela.stage-a-neutral-packet-custody.v1", Path: input.PacketPath,
 		Bytes: input.PacketBytes, SHA256: input.PacketSHA256,
 		OpenMode: "read_only_no_follow", LinkCount: 1,
-		CanonicalJSONObject: true, InlineReconstruction: false,
-		Injection: injection, RequestSHA256: digestBytes(body),
+		CanonicalJSONObject: true, RecursiveDuplicateKeysRejected: true,
+		RecursiveCanonical: true, NumberLexemesPreserved: true,
+		InlineReconstruction: false,
+		Injection:            injection, RequestSHA256: digestBytes(body),
 	}
 	if err := validatePacketRequestBinding(input, packet, body, receipt); err != nil {
 		return packetCustodyReceipt{}, err
@@ -273,6 +398,7 @@ func validatePacketRequestBinding(input runInput, packet, body []byte, receipt p
 		receipt.Bytes != input.PacketBytes || receipt.SHA256 != digestBytes(packet) ||
 		receipt.SHA256 != input.PacketSHA256 || receipt.OpenMode != "read_only_no_follow" ||
 		receipt.LinkCount != 1 || !receipt.CanonicalJSONObject || receipt.InlineReconstruction ||
+		!receipt.RecursiveDuplicateKeysRejected || !receipt.RecursiveCanonical || !receipt.NumberLexemesPreserved ||
 		receipt.Injection != expectedInjection || receipt.RequestSHA256 != digestBytes(body) {
 		return errors.New("packet custody or request root binding invalid")
 	}

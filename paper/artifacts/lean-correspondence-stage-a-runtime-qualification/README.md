@@ -27,8 +27,11 @@ content is one committed canonical JSON object plus one committed prompt; an
 equivalence receipt binds the same semantic atoms and expected response
 contract for both providers. The runner loads the packet only from the exact
 read-only `/input/packet.json` mount using no-follow, single-link, pre/post-open
-identity and exact byte-root checks, then binds its exact provider request
-bytes in custody. Inline reconstruction is rejected. The qualifier consumes
+identity and exact byte-root checks. Its packet-only JSON decoder rejects
+duplicate keys at every object depth, retains exact number lexemes, recursively
+canonicalizes objects, arrays, and primitives, and requires byte equality with
+the committed top-level object before binding the exact provider request bytes
+in custody. Inline reconstruction is rejected. The qualifier consumes
 only its synthetic no-science self-test fixture; neither campaign neutral
 permit is consumed and no provider is contacted.
 
@@ -54,6 +57,10 @@ remain held, and the ledgers remain at zero
 participant calls, provider calls, calibrations, responses, scoring, protected
 keys, and Stage B selection. The package has no Protocol, Core, authority,
 Decision, or Standing effect.
+
+The corrective ancestry is explicit: the reviewed predecessor `b333186c` has
+direct parent `5be82cb3`; the invalid-permit origin `9da1c794` is an ancestor,
+not that direct parent. The retirement records bind all three roles separately.
 
 Run the committed stopped-state verifier and regressions with:
 

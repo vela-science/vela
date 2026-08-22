@@ -3,9 +3,9 @@
   "entrypoint": [
     "/opt/vela/runner"
   ],
-  "image_digest": "sha256:062563014758785282108b8a46eed4c02797850a8cc388997b224929b95c9f08",
-  "layer_digest": "sha256:df14b9aaaf88f46a21614e200382f0b290906e7f7816769e470f3139e154f1a4",
-  "oci_archive_sha256": "sha256:b88415570b4791d97663054641a841592edd625135688cc099dc1e206993bd7f",
+  "image_digest": "sha256:c989a72d29712c305b55de9dccbcadb369967205b8dffe5a7de54365540e0717",
+  "layer_digest": "sha256:835979233a7efce22387a4e810a788ce5bf9706fe70ead5ddff254ba45c3c40b",
+  "oci_archive_sha256": "sha256:1bf36a8d6d3276ec6f6c787015c7d0f2cb444d6c65382a6e3e877838c2c232ba",
   "platform": "linux/arm64",
   "provider_adapter": "openai-responses-v1",
   "provider_calls": 0,

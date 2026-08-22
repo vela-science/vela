@@ -201,6 +201,18 @@ class RuntimeQualificationCandidateTests(unittest.TestCase):
         )
         self.assert_registration_blocked(candidate, "retired_permit_state")
 
+    def test_corrective_ancestry_cannot_treat_origin_as_direct_parent(self) -> None:
+        candidate = copy.deepcopy(self.registration)
+        candidate["corrective_ancestry"]["reviewed_predecessor_parent_commit"] = (
+            candidate["corrective_ancestry"]["invalid_permit_origin_commit"]
+        )
+        self.assert_registration_blocked(candidate, "corrective_ancestry")
+        candidate = copy.deepcopy(self.registration)
+        candidate["retired_neutral_calibration_permits"][0][
+            "reviewed_predecessor_parent_commit"
+        ] = candidate["corrective_ancestry"]["invalid_permit_origin_commit"]
+        self.assert_registration_blocked(candidate, "retired_permit_state")
+
     def test_retained_packet_path_or_provider_swap_fails_after_reseal(self) -> None:
         candidate = copy.deepcopy(self.offline)
         candidate["provider_records"][0]["retained"]["neutral_packet"] = copy.deepcopy(

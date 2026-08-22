@@ -27,10 +27,18 @@ func TestPacketFileBindingRejectsRepresentationPathAndFilesystemAdversaries(t *t
 		t.Fatalf("valid canonical packet failed: %s %v", observed, err)
 	}
 	for name, raw := range map[string][]byte{
-		"plaintext":   []byte("neutral packet\n"),
-		"json_string": []byte("\"neutral packet\"\n"),
-		"whitespace":  []byte("{ \"a\":1,\"b\":2}\n"),
-		"key_order":   []byte("{\"b\":2,\"a\":1}\n"),
+		"plaintext":            []byte("neutral packet\n"),
+		"json_string":          []byte("\"neutral packet\"\n"),
+		"whitespace":           []byte("{ \"a\":1,\"b\":2}\n"),
+		"key_order":            []byte("{\"b\":2,\"a\":1}\n"),
+		"nested_key_order":     []byte("{\"a\":{\"y\":2,\"x\":1}}\n"),
+		"nested_duplicate":     []byte("{\"a\":{\"x\":1,\"x\":2}}\n"),
+		"deep_key_order":       []byte("{\"a\":[{\"b\":[{\"y\":2,\"x\":1}]}]}\n"),
+		"deep_duplicate":       []byte("{\"a\":[{\"b\":[{\"x\":1,\"x\":2}]}]}\n"),
+		"number_fraction_zero": []byte("{\"a\":[{\"b\":1.0}]}\n"),
+		"number_exponent":      []byte("{\"a\":[{\"b\":1e0}]}\n"),
+		"number_negative_zero": []byte("{\"a\":[{\"b\":-0}]}\n"),
+		"escaped_string":       []byte("{\"a\":[\"\\u0061\"]}\n"),
 	} {
 		t.Run(name, func(t *testing.T) {
 			candidate := filepath.Join(directory, name+".json")
@@ -41,6 +49,41 @@ func TestPacketFileBindingRejectsRepresentationPathAndFilesystemAdversaries(t *t
 				t.Fatal("accepted noncanonical packet representation")
 			}
 		})
+	}
+	for name, inner := range map[string]string{
+		"deeply_nested_order":     `{"y":2,"x":1}`,
+		"deeply_nested_duplicate": `{"x":1,"x":2}`,
+	} {
+		for range 32 {
+			inner = `{"a":[` + inner + `]}`
+		}
+		raw := []byte(inner + "\n")
+		candidate := filepath.Join(directory, name+".json")
+		if err := os.WriteFile(candidate, raw, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := readPacketFile(candidate, len(raw), digestBytes(raw)); err == nil {
+			t.Fatal("accepted deeply nested noncanonical packet")
+		}
+	}
+	canonicalNested := []byte("{\"a\":[{\"b\":1.25,\"c\":[true,false,null,\"x\"]}]}\n")
+	canonicalPath := filepath.Join(directory, "canonical-nested.json")
+	if err := os.WriteFile(canonicalPath, canonicalNested, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if observed, err := readPacketFile(canonicalPath, len(canonicalNested), digestBytes(canonicalNested)); err != nil || !bytes.Equal(observed, canonicalNested) {
+		t.Fatalf("valid recursively canonical packet failed: %s %v", observed, err)
+	}
+	frozen, err := os.ReadFile(filepath.Join("..", "neutral-calibration", "packet.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	frozenPath := filepath.Join(directory, "frozen-packet.json")
+	if err := os.WriteFile(frozenPath, frozen, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readPacketFile(frozenPath, len(frozen), digestBytes(frozen)); err != nil {
+		t.Fatalf("committed canonical packet failed: %v", err)
 	}
 	if _, err := readPacketFile(path, len(valid), digestBytes([]byte("drift"))); err == nil {
 		t.Fatal("accepted packet root drift")

@@ -27,6 +27,9 @@ from typing import Any
 QUALIFIER_COMMIT = "cc3b88d8bfcfd7b4f720a023f049d5c365be9423"
 QUALIFIER_TREE = "341e0d22fa570b1b5e8dd9f70b219c11308ba45f"
 QUALIFIER_SHA256 = "61591eec3304e299a9344888bc2a6f08cd32785b647ef5b0107da490dbf18013"
+REVIEWED_PREDECESSOR_COMMIT = "b333186cae1274ebb48353ba72e1ab3be42adcc0"
+REVIEWED_PREDECESSOR_PARENT_COMMIT = "5be82cb3ab1ef11e7e870675337ae3704118fd46"
+INVALID_PERMIT_ORIGIN_COMMIT = "9da1c79425c79af632197a719ca45ca07ab22a6c"
 SOURCE_DATE_EPOCH = 1_757_289_600
 RUNNER_SOURCE = Path(__file__).resolve().parent / "runtime-runner"
 NEUTRAL_INPUTS = Path(__file__).resolve().parent / "neutral-calibration"
@@ -239,6 +242,9 @@ def provider_contract(adapter: str) -> dict[str, Any]:
             "single_link_only": True,
             "no_follow": True,
             "canonical_json_object": True,
+            "recursive_duplicate_keys_rejected": True,
+            "recursive_objects_arrays_primitives_canonical": True,
+            "number_lexemes_preserved": True,
             "inline_reconstruction": False,
             "permit_byte_root_required": True,
             "request_byte_root_receipt_required": True,
@@ -739,7 +745,10 @@ def retired_permit_record(adapter: str, successor_root: str) -> dict[str, Any]:
         "provider_adapter": adapter,
         "run_id": run_id,
         "original_permit_root": permit_root,
-        "original_producer_commit": "9da1c79425c79af632197a719ca45ca07ab22a6c",
+        "invalid_permit_origin_commit": INVALID_PERMIT_ORIGIN_COMMIT,
+        "invalid_permit_origin_relationship": "ancestor_of_reviewed_predecessor_not_direct_parent",
+        "reviewed_predecessor_commit": REVIEWED_PREDECESSOR_COMMIT,
+        "reviewed_predecessor_parent_commit": REVIEWED_PREDECESSOR_PARENT_COMMIT,
         "original_state": "held_unconsumed",
         "retirement_reason": "packet_root_preimage_is_plaintext_not_runner_loadable_canonical_json",
         "successor_permit_root": successor_root,

@@ -30,24 +30,24 @@
     "sha256": "sha256:92779b1c6d6a7154d7f183403bb87fa65682677549927d5e5f2758955dd2073a"
   },
   {
-    "bytes": 25173,
+    "bytes": 28809,
     "path": "main.go",
-    "sha256": "sha256:0334045b204fba13c2622140578c771571d48401ca4e4134ee257531238167b1"
+    "sha256": "sha256:25144f6bac59473c437e4ea97c44b0212beb4127eba7fff10ce0c7ba5ab8f29a"
   },
   {
-    "bytes": 8695,
+    "bytes": 10674,
     "path": "main_test.go",
-    "sha256": "sha256:491ea8b4d79f8519770a095798888f97f89620e57287f7eb1863b2d84de788cb"
+    "sha256": "sha256:5df8b254e1692d98234dea90ed5569683c6f78fc5915c8d89bf9a294e4150bb8"
   },
   {
-    "bytes": 2045,
+    "bytes": 2189,
     "path": "provider-contract.json",
-    "sha256": "sha256:15824fd525323372014fba6801766f56d981ce42bc896563d43a84d5d54e1956"
+    "sha256": "sha256:8cb48acf76caf5412b3e108b3be763b32acbfa1db7a3227e3d37daa2e50aeff4"
   },
   {
     "bytes": 2293886,
     "path": "runner",
-    "sha256": "sha256:61701ac19f96a906e378fd56490241bd512dab2c09ac85afbe84075904ea4097"
+    "sha256": "sha256:59ff4ad3b5242d0c59567b15b0b124780c73ab6cf0bda0e951869e4a66891868"
   },
   {
     "bytes": 333483,
