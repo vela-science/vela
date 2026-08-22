@@ -1,11 +1,11 @@
 {
-  "artifact_root": "sha256:744cd258bc661d7806146b8336578f3cb4c93e4d8cb9dfa15ba2362b0aaec2cd",
+  "artifact_root": "sha256:9265ecb3627b3a446468746342d4666d194456f9f080b8bb0461edf2b7ebbe38",
   "authority_effect": "none",
   "entries": [
     {
-      "bytes": 4692,
+      "bytes": 4842,
       "path": "README.md",
-      "sha256": "sha256:e1da40b911b612ff0d5c3f04c46fc472187ac3749545f34f379da588febdc624"
+      "sha256": "sha256:1af7f82293a26baa4779124d5f50e68fd7f77a5c32fc406bd6cf94c5527b3651"
     },
     {
       "bytes": 8166,
@@ -308,9 +308,9 @@
       "sha256": "sha256:6e4714b89b784dd0e637369b7494cc175ce7c5c3f39cdbf959964b9cdfbf973d"
     },
     {
-      "bytes": 14582,
+      "bytes": 14779,
       "path": "test_verify.py",
-      "sha256": "sha256:3186f038b3f3bf738658a37d903ed355c931c7a9a34a22ca3419ff6cfb530dde"
+      "sha256": "sha256:8fb9f0d28e74d05647f7b82911266140b9f932103dec7bde031f13beb65a054f"
     },
     {
       "bytes": 48465,
