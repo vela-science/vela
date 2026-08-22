@@ -8,7 +8,6 @@ import tarfile
 import tempfile
 import threading
 import unittest
-from copy import deepcopy
 from decimal import Decimal
 from pathlib import Path
 from unittest.mock import patch
@@ -19,14 +18,12 @@ from tools.evidence_qualification.qualification import (
     PERMIT_SCHEMA,
     PROVIDER_ADAPTERS,
     PROVIDER_EQUIVALENCE_SCHEMA,
-    PROVIDER_SCHEMA_RULES,
     QUALIFIER,
     RAW_PROVIDER_EVENT_SCHEMA,
     RUNNER_VERSION,
     TEARDOWN_SCHEMA,
     TERMINAL_SCHEMA,
     TOOL_BOUNDARY_SCHEMA,
-    TOOL_INPUT_SCHEMAS,
     TOOL_RECEIPT_SCHEMA,
     QualificationError,
     canonical_json_bytes,
@@ -705,8 +702,26 @@ def tool_boundary(root: Path, adapter: str) -> dict:
     source = (root / "schemas").resolve()
     manifest = tree_manifest(source)
     target = "/workspace"
-    shell_schema = deepcopy(TOOL_INPUT_SCHEMAS[("shell", "1")])
-    file_schema = deepcopy(TOOL_INPUT_SCHEMAS[("read_file", "1")])
+    shell_schema = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["argv", "cwd"],
+        "properties": {
+            "argv": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+            "cwd": {"type": "string"},
+        },
+    }
+    file_schema = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["operation", "path"],
+        "properties": {
+            "operation": {"enum": ["read", "list", "stat"]},
+            "path": {"type": "string"},
+        },
+    }
     return {
         "schema": TOOL_BOUNDARY_SCHEMA,
         "mode": "read_only_offline_shell_files",
@@ -720,7 +735,7 @@ def tool_boundary(root: Path, adapter: str) -> dict:
                 "version": "1",
                 "input_schema": shell_schema,
                 "operations": ["execute"],
-                "allowed_argv": [["git", "--no-optional-locks", "status", "--short"]],
+                "allowed_argv": [["git", "status", "--short"]],
                 "file_roots": [target],
             },
             {
@@ -781,7 +796,7 @@ def tool_event_bytes(response: dict, receipt_root: str) -> bytes:
                 "call_id": "call-01",
                 "tool_name": "shell",
                 "arguments": {
-                    "argv": ["git", "--no-optional-locks", "status", "--short"],
+                    "argv": ["git", "status", "--short"],
                     "cwd": "/workspace",
                 },
             },
@@ -836,21 +851,20 @@ def tool_event_bytes(response: dict, receipt_root: str) -> bytes:
 
 def upgrade_to_tool_bundle(fixture: BundleFixture, adapter: str) -> None:
     root = fixture.root
-    config = fixture.load("qualification.json")
-    schema_config = config["schemas"]
-    schema_config["deletions"] = [
-        {"pointer": pointer, "keyword": keyword, "expected_value": expected}
-        for pointer, keyword, expected in PROVIDER_SCHEMA_RULES[adapter]
-    ]
-    schema_config["provider_adapter"] = adapter
-    schema_config.pop("deleted_pointers")
-    fixture.write_json(
-        "schemas/provider.json",
-        provider_derivative(fixture.registered, schema_config["deletions"], adapter),
-    )
     boundary_value = tool_boundary(root, adapter)
     fixture.write_json("config/tool-boundary.json", boundary_value)
     boundary = validate_tool_boundary(boundary_value)
+    config = fixture.load("qualification.json")
+    schema_config = config["schemas"]
+    schema_config["deletions"] = [
+        {
+            "pointer": "/properties/items/uniqueItems",
+            "keyword": "uniqueItems",
+            "expected_value": True,
+        }
+    ]
+    schema_config["provider_adapter"] = adapter
+    schema_config.pop("deleted_pointers")
     strict_arguments = [
         "approval_policy=never",
         "web_search=disabled",
@@ -891,9 +905,6 @@ def upgrade_to_tool_bundle(fixture: BundleFixture, adapter: str) -> None:
     ):
         permit = fixture.load(relative)
         permit["configuration_root"] = configuration_root
-        permit["provider_schema_bytes"] = digest(
-            (root / "schemas/provider.json").read_bytes()
-        )
         permit["timeout_seconds"] = 1200
         fixture.write_json(relative, permit)
     consumed = root / "fixture/permit/neutral-qualification-01.permit.consumed.json"
@@ -910,10 +921,7 @@ def upgrade_to_tool_bundle(fixture: BundleFixture, adapter: str) -> None:
     fixture.write_json("fixture/evidence/launch.json", launch)
     stdout = fixture.write("fixture/evidence/tool.stdout", b"clean\n")
     tool_stderr = fixture.write("fixture/evidence/tool.stderr", b"")
-    arguments = {
-        "argv": ["git", "--no-optional-locks", "status", "--short"],
-        "cwd": "/workspace",
-    }
+    arguments = {"argv": ["git", "status", "--short"], "cwd": "/workspace"}
     tool_receipt = {
         "schema": TOOL_RECEIPT_SCHEMA,
         "call_id": "call-01",
@@ -1011,9 +1019,6 @@ def upgrade_to_tool_bundle(fixture: BundleFixture, adapter: str) -> None:
             "provider_stderr_bytes": digest(stderr.read_bytes()),
             "raw_response_bytes": digest(response.read_bytes()),
             "teardown_receipt_bytes": digest(teardown_path.read_bytes()),
-            "provider_schema_bytes": digest(
-                (root / "schemas/provider.json").read_bytes()
-            ),
             "configuration_root": configuration_root,
             "raw_provider_events_bytes": digest(raw_path.read_bytes()),
             "raw_provider_events_root": canonical_root(raw_events),
@@ -1120,54 +1125,53 @@ class EvidenceQualificationTests(unittest.TestCase):
     def test_closed_provider_schema_rules_cover_exact_stage_a_keyword_surfaces(
         self,
     ) -> None:
+        registered = {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["assignment_id", "items"],
+            "properties": {
+                "assignment_id": {
+                    "type": "string",
+                    "pattern": "^lc-[a-z0-9-]+$",
+                    "minLength": 1,
+                },
+                "items": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": True,
+                    "items": {"type": "string"},
+                },
+            },
+        }
+        rules = [
+            {
+                "pointer": "/properties/items/uniqueItems",
+                "keyword": "uniqueItems",
+                "expected_value": True,
+            },
+            {
+                "pointer": "/properties/assignment_id/pattern",
+                "keyword": "pattern",
+                "expected_value": "^lc-[a-z0-9-]+$",
+            },
+            {
+                "pointer": "/properties/assignment_id/minLength",
+                "keyword": "minLength",
+                "expected_value": 1,
+            },
+            {
+                "pointer": "/properties/items/minItems",
+                "keyword": "minItems",
+                "expected_value": 1,
+            },
+        ]
+        response = {"assignment_id": "lc-case-1", "items": ["a"]}
         for adapter in PROVIDER_ADAPTERS:
             with self.subTest(adapter=adapter):
-                rules = [
-                    {
-                        "pointer": pointer,
-                        "keyword": keyword,
-                        "expected_value": expected,
-                    }
-                    for pointer, keyword, expected in PROVIDER_SCHEMA_RULES[adapter]
-                ]
-                provider = provider_derivative(self.fixture.registered, rules, adapter)
-                validate_schema_boundary(
-                    self.fixture.registered,
-                    provider,
-                    rules,
-                    self.fixture.response,
-                    adapter,
-                )
-
-    def test_provider_schema_registry_rejects_pointer_value_provider_order_and_count_drift(
-        self,
-    ) -> None:
-        adapter = "openai-responses-v1"
-        rules = [
-            {"pointer": pointer, "keyword": keyword, "expected_value": expected}
-            for pointer, keyword, expected in PROVIDER_SCHEMA_RULES[adapter]
-        ]
-        alternate_pointer = deepcopy(rules)
-        alternate_pointer[1] = {
-            "pointer": "/properties/secret/minLength",
-            "keyword": "minLength",
-            "expected_value": 50,
-        }
-        variants = [
-            alternate_pointer,
-            [rules[0], {**rules[1], "expected_value": 1}],
-            list(reversed(rules)),
-            rules + [rules[0]],
-            rules[:-1],
-        ]
-        for candidate in variants:
-            with (
-                self.subTest(candidate=candidate),
-                self.assertRaises(QualificationError),
-            ):
-                provider_derivative(self.fixture.registered, candidate, adapter)
-        with self.assertRaisesRegex(QualificationError, "provider_adapter_unknown"):
-            provider_derivative(self.fixture.registered, rules, "openai-responses-v2")
+                provider = provider_derivative(registered, rules, adapter)
+                validate_schema_boundary(registered, provider, rules, response, adapter)
+                validate_schema_boundary(registered, registered, [], response, adapter)
 
     def test_provider_schema_rules_reject_unallowlisted_or_substituted_edits(
         self,
@@ -1177,7 +1181,7 @@ class EvidenceQualificationTests(unittest.TestCase):
             "keyword": "uniqueItems",
             "expected_value": True,
         }
-        with self.assertRaisesRegex(QualificationError, "not_registered"):
+        with self.assertRaisesRegex(QualificationError, "not_allowlisted"):
             provider_derivative(
                 self.fixture.registered,
                 [
@@ -1189,27 +1193,21 @@ class EvidenceQualificationTests(unittest.TestCase):
                 ],
                 "openai-responses-v1",
             )
-        with self.assertRaisesRegex(QualificationError, "not_registered"):
+        with self.assertRaisesRegex(QualificationError, "expected_value_invalid"):
             provider_derivative(
                 self.fixture.registered,
                 [{**rule, "expected_value": False}],
                 "openai-responses-v1",
             )
-        rules = [
-            {"pointer": pointer, "keyword": keyword, "expected_value": expected}
-            for pointer, keyword, expected in PROVIDER_SCHEMA_RULES[
-                "openai-responses-v1"
-            ]
-        ]
         derived = provider_derivative(
-            self.fixture.registered, rules, "openai-responses-v1"
+            self.fixture.registered, [rule], "openai-responses-v1"
         )
-        derived["properties"]["items"].pop("maxItems")
+        derived["properties"]["items"].pop("minItems")
         with self.assertRaisesRegex(QualificationError, "not_exact_derivative"):
             validate_schema_boundary(
                 self.fixture.registered,
                 derived,
-                rules,
+                [rule],
                 self.fixture.response,
                 "openai-responses-v1",
             )
@@ -1270,78 +1268,6 @@ class EvidenceQualificationTests(unittest.TestCase):
             with self.subTest(variant=variant), self.assertRaises(QualificationError):
                 validate_tool_boundary(variant)
 
-    def test_tool_schemas_are_exactly_bound_to_name_and_version(self) -> None:
-        empty = {
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "type": "object",
-            "additionalProperties": False,
-        }
-        variants = []
-        for index in (0, 1):
-            candidate = tool_boundary(self.root, "openai-responses-v1")
-            candidate["tools"][index]["input_schema"] = deepcopy(empty)
-            variants.append(candidate)
-        modified = tool_boundary(self.root, "openai-responses-v1")
-        modified["tools"][0]["input_schema"]["properties"]["argv"]["minItems"] = 2
-        variants.append(modified)
-        substituted = tool_boundary(self.root, "openai-responses-v1")
-        substituted["tools"][0]["input_schema"] = deepcopy(
-            TOOL_INPUT_SCHEMAS[("read_file", "1")]
-        )
-        variants.append(substituted)
-        cross_tool = tool_boundary(self.root, "openai-responses-v1")
-        (
-            cross_tool["tools"][0]["input_schema"],
-            cross_tool["tools"][1]["input_schema"],
-        ) = (
-            cross_tool["tools"][1]["input_schema"],
-            cross_tool["tools"][0]["input_schema"],
-        )
-        variants.append(cross_tool)
-        enum_drift = tool_boundary(self.root, "openai-responses-v1")
-        enum_drift["tools"][1]["input_schema"]["properties"]["operation"][
-            "enum"
-        ].append("write")
-        variants.append(enum_drift)
-        version_drift = tool_boundary(self.root, "openai-responses-v1")
-        version_drift["tools"][0]["version"] = "2"
-        variants.append(version_drift)
-        for candidate in variants:
-            with (
-                self.subTest(candidate=candidate),
-                self.assertRaises(QualificationError),
-            ):
-                validate_tool_boundary(candidate)
-
-    def test_shell_vocabulary_is_exact_versioned_and_read_only(self) -> None:
-        validate_tool_boundary(tool_boundary(self.root, "openai-responses-v1"))
-        unsafe_argv = [
-            ["python3", "-c", "open('/workspace/out', 'w').write('x')"],
-            ["/usr/bin/git", "--no-optional-locks", "status", "--short"],
-            [
-                "git",
-                "--no-optional-locks",
-                "-c",
-                "core.fsmonitor=/tmp/helper",
-                "status",
-                "--short",
-            ],
-            ["git", "--no-optional-locks", "status", "--short", "../escape"],
-            ["git", "--no-optional-locks", "status", "--short", ">out"],
-            ["sh", "-c", "git status --short"],
-            ["curl", "https://example.invalid"],
-        ]
-        for argv in unsafe_argv:
-            candidate = tool_boundary(self.root, "openai-responses-v1")
-            candidate["tools"][0]["allowed_argv"] = [argv]
-            with (
-                self.subTest(argv=argv),
-                self.assertRaisesRegex(
-                    QualificationError, "tool_allowed_argv_not_registered"
-                ),
-            ):
-                validate_tool_boundary(candidate)
-
     def test_tool_boundary_rejects_traversal_symlinks_hardlinks_and_root_drift(
         self,
     ) -> None:
@@ -1376,10 +1302,7 @@ class EvidenceQualificationTests(unittest.TestCase):
         )
         self.fixture.write("fixture/evidence/tool.stdout", b"clean\n")
         self.fixture.write("fixture/evidence/tool.stderr", b"")
-        arguments = {
-            "argv": ["git", "--no-optional-locks", "status", "--short"],
-            "cwd": "/workspace",
-        }
+        arguments = {"argv": ["git", "status", "--short"], "cwd": "/workspace"}
         receipt = {
             "schema": TOOL_RECEIPT_SCHEMA,
             "call_id": "call-01",

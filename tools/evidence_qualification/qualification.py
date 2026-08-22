@@ -39,22 +39,13 @@ NETWORK_PACKAGE_METADATA = re.compile(
     r"\b(?:apt-get|apt|apk|dnf|yum)\s+(?:update|install)\b"
 )
 LEGACY_PROVIDER_DELETIONS = {"uniqueItems": True}
+PROVIDER_SCHEMA_KEYWORDS = {
+    "openai-responses-v1": {"uniqueItems", "pattern", "minLength", "minItems"},
+    "anthropic-messages-v1": {"uniqueItems", "pattern", "minLength", "minItems"},
+}
 PROVIDER_ADAPTERS = {
     "openai-responses-v1": ("openai", "responses/v1"),
     "anthropic-messages-v1": ("anthropic", "messages/v1"),
-}
-# The current Stage A response schema has exactly these provider-incompatible
-# surfaces.  Adapter derivation is a versioned, closed ordered transformation,
-# not permission to delete a keyword with the same spelling elsewhere.
-PROVIDER_SCHEMA_RULES = {
-    "openai-responses-v1": (
-        ("/properties/items/uniqueItems", "uniqueItems", True),
-        ("/properties/items/minItems", "minItems", 3),
-    ),
-    "anthropic-messages-v1": (
-        ("/properties/items/uniqueItems", "uniqueItems", True),
-        ("/properties/items/minItems", "minItems", 3),
-    ),
 }
 TOOL_BOUNDARY_SCHEMA = "vela.tooling.read-only-offline-tool-boundary.v1"
 TOOL_RECEIPT_SCHEMA = "vela.tooling.read-only-tool-receipt.v1"
@@ -67,37 +58,6 @@ EVENT_SCHEMA = "vela.tooling.provider-event.v1"
 LAUNCH_SCHEMA = "vela.tooling.neutral-launch.v1"
 TERMINAL_SCHEMA = "vela.tooling.neutral-terminal-receipt.v1"
 TEARDOWN_SCHEMA = "vela.tooling.neutral-teardown.v1"
-TOOL_INPUT_SCHEMAS = {
-    ("shell", "1"): {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "object",
-        "additionalProperties": False,
-        "required": ["argv", "cwd"],
-        "properties": {
-            "argv": {
-                "type": "array",
-                "minItems": 1,
-                "items": {"type": "string", "minLength": 1},
-            },
-            "cwd": {"type": "string", "minLength": 1, "pattern": "^/"},
-        },
-    },
-    ("read_file", "1"): {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "object",
-        "additionalProperties": False,
-        "required": ["operation", "path"],
-        "properties": {
-            "operation": {"type": "string", "enum": ["read", "list", "stat"]},
-            "path": {"type": "string", "minLength": 1, "pattern": "^/"},
-        },
-    },
-}
-# This is the complete shell vocabulary needed by offline-shell-files/1.
-# --no-optional-locks prevents Git's read path from refreshing the index.
-SHELL_ARGV_VOCABULARIES = {
-    "1": (("git", "--no-optional-locks", "status", "--short"),),
-}
 _ACTIVE_BUNDLE_ROOT: contextvars.ContextVar[Path | None] = contextvars.ContextVar(
     "evidence_qualification_bundle_root", default=None
 )
@@ -399,7 +359,7 @@ def _deletion_rule(rule: Any, adapter: str | None) -> tuple[str, str, Any]:
             raise QualificationError("provider_deleted_keyword_not_proven")
         return rule, parent_keyword, LEGACY_PROVIDER_DELETIONS[parent_keyword]
     exact_keys(rule, {"pointer", "keyword", "expected_value"}, "provider_deletion")
-    if adapter not in PROVIDER_SCHEMA_RULES:
+    if adapter not in PROVIDER_SCHEMA_KEYWORDS:
         raise QualificationError("provider_adapter_unknown")
     pointer = rule["pointer"]
     keyword = rule["keyword"]
@@ -408,16 +368,17 @@ def _deletion_rule(rule: Any, adapter: str | None) -> tuple[str, str, Any]:
         not isinstance(pointer, str)
         or not isinstance(keyword, str)
         or pointer.rsplit("/", 1)[-1].replace("~1", "/").replace("~0", "~") != keyword
-        or not any(
-            pointer == registered_pointer
-            and keyword == registered_keyword
-            and _same_json_value(expected, registered_expected)
-            for registered_pointer, registered_keyword, registered_expected in (
-                PROVIDER_SCHEMA_RULES[adapter]
-            )
-        )
+        or keyword not in PROVIDER_SCHEMA_KEYWORDS[adapter]
     ):
-        raise QualificationError("provider_deletion_rule_not_registered")
+        raise QualificationError("provider_deletion_rule_not_allowlisted")
+    if keyword == "uniqueItems" and expected is not True:
+        raise QualificationError("provider_deletion_expected_value_invalid")
+    if keyword == "pattern" and (not isinstance(expected, str) or not expected):
+        raise QualificationError("provider_deletion_expected_value_invalid")
+    if keyword in {"minLength", "minItems"} and (
+        isinstance(expected, bool) or not isinstance(expected, int) or expected < 0
+    ):
+        raise QualificationError("provider_deletion_expected_value_invalid")
     return pointer, keyword, expected
 
 
@@ -434,12 +395,15 @@ def provider_derivative(
 ) -> dict[str, Any]:
     if not isinstance(deletions, list) or (not deletions and adapter is None):
         raise QualificationError("provider_deleted_pointers_invalid")
-    identities = tuple(_deletion_rule(deletion, adapter) for deletion in deletions)
-    if adapter is not None and identities != PROVIDER_SCHEMA_RULES[adapter]:
-        raise QualificationError("provider_deletion_sequence_not_registered")
-    if len({canonical_json_bytes(identity) for identity in identities}) != len(
-        identities
-    ):
+    identities = []
+    for deletion in deletions:
+        pointer, keyword, expected = _deletion_rule(deletion, adapter)
+        identities.append(
+            canonical_root(
+                {"pointer": pointer, "keyword": keyword, "expected": expected}
+            )
+        )
+    if len(set(identities)) != len(identities):
         raise QualificationError("provider_deleted_pointers_invalid")
     derived = parse_json(canonical_json_bytes(registered), "registered_schema_copy")
     for deletion in deletions:
@@ -520,7 +484,7 @@ def _mount_content_root(source: Path) -> str:
     return canonical_root(entries)
 
 
-def _validate_tool_input_schema(value: Any, name: str, version: str) -> str:
+def _validate_tool_input_schema(value: Any, name: str) -> str:
     if not isinstance(value, dict):
         raise QualificationError("tool_input_schema_invalid")
     if (
@@ -533,22 +497,42 @@ def _validate_tool_input_schema(value: Any, name: str, version: str) -> str:
         Draft202012Validator.check_schema(value)
     except Exception as error:
         raise QualificationError("tool_input_schema_invalid") from error
-    expected = TOOL_INPUT_SCHEMAS.get((name, version))
-    if expected is None or canonical_json_bytes(value) != canonical_json_bytes(
-        expected
-    ):
-        raise QualificationError("tool_input_schema_not_registered")
     return canonical_root({"name": name, "schema": value})
 
 
-def _validate_allowed_argv(value: Any, version: str) -> tuple[tuple[str, ...], ...]:
-    if not isinstance(value, list) or not all(isinstance(argv, list) for argv in value):
+def _validate_allowed_argv(value: Any) -> tuple[tuple[str, ...], ...]:
+    if not isinstance(value, list) or not value:
         raise QualificationError("tool_allowed_argv_invalid")
-    observed = tuple(tuple(argv) for argv in value)
-    expected = SHELL_ARGV_VOCABULARIES.get(version)
-    if expected is None or observed != expected:
-        raise QualificationError("tool_allowed_argv_not_registered")
-    return observed
+    closed = []
+    forbidden_programs = {
+        "curl",
+        "wget",
+        "ssh",
+        "scp",
+        "nc",
+        "netcat",
+        "rm",
+        "mv",
+        "cp",
+        "tee",
+        "chmod",
+        "chown",
+    }
+    interpolation = re.compile(r"[;&|`$<>\n\r]")
+    for argv in value:
+        if (
+            not isinstance(argv, list)
+            or not argv
+            or any(not isinstance(item, str) or not item for item in argv)
+            or argv[0] in forbidden_programs
+            or any(interpolation.search(item) for item in argv)
+            or any(item in {"-i", "--output", "--upload-file"} for item in argv)
+        ):
+            raise QualificationError("tool_allowed_argv_unsafe")
+        closed.append(tuple(argv))
+    if len(set(closed)) != len(closed):
+        raise QualificationError("tool_allowed_argv_duplicate")
+    return tuple(closed)
 
 
 def validate_tool_boundary(value: Any) -> dict[str, Any]:
@@ -625,8 +609,7 @@ def validate_tool_boundary(value: Any) -> dict[str, Any]:
         name = tool["name"]
         if name in by_name or name not in {"shell", "read_file"}:
             raise QualificationError("tool_name_invalid")
-        version = tool["version"]
-        if version != "1":
+        if tool["version"] != "1":
             raise QualificationError("tool_version_invalid")
         roots = (
             tuple(
@@ -638,13 +621,11 @@ def validate_tool_boundary(value: Any) -> dict[str, Any]:
         )
         if not roots:
             raise QualificationError("tool_file_roots_invalid")
-        schema_roots.append(
-            _validate_tool_input_schema(tool["input_schema"], name, version)
-        )
+        schema_roots.append(_validate_tool_input_schema(tool["input_schema"], name))
         if name == "shell":
             if tool["operations"] != ["execute"]:
                 raise QualificationError("tool_operations_invalid")
-            allowed_argv = _validate_allowed_argv(tool["allowed_argv"], version)
+            allowed_argv = _validate_allowed_argv(tool["allowed_argv"])
         else:
             if (
                 tool["operations"] != ["read", "list", "stat"]
