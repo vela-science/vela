@@ -19,6 +19,7 @@
     }
   ],
   "execution_authorized": false,
+  "independent_runtime_review_receipt_root": null,
   "maintained_qualifier_receipt_root": null,
   "participant_calls": 0,
   "provider_calls": 0,

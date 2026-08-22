@@ -312,7 +312,7 @@ def build_cases(
             "relation_path": "cases/records/erdos-730.affirmative-rhs-defeq.relation.json",
             "receipt_path": "cases/receipts/erdos-730.affirmative-rhs-defeq.receipt.json",
             "impact_path": None,
-            "claim_ceiling": "affirmative S.Infinite RHS only; not the answer(sorry) biconditional",
+            "claim_ceiling": "affirmative S.Infinite RHS relation only; excludes the full Formal Conjectures biconditional, mathematical truth, scientific acceptance, authority, Decision, and Standing",
             "allowed_impact_ids": ["erdos-730.affirmative-rhs-defeq"],
         },
         {
@@ -336,7 +336,7 @@ def build_cases(
             "relation_path": "cases/records/oeis-303656.fc-to-leaneval-generated-lineage.relation.json",
             "receipt_path": "cases/receipts/oeis-303656.fc-to-leaneval-generated-lineage.receipt.json",
             "impact_path": "cases/reports/oeis-303656.impact.json",
-            "claim_ceiling": "deterministic generated-byte lineage and bounded drift calibration; not truth, solution, or general semantic equivalence",
+            "claim_ceiling": "deterministic generated-byte lineage and bounded drift calibration only; excludes mathematical truth, solution, general semantic equivalence, scientific acceptance, authority, Decision, and Standing",
             "allowed_impact_ids": [
                 "oeis-303656.historical-helper-rename-defeq",
                 "oeis-303656.fc-to-leaneval-generated-lineage",
@@ -396,7 +396,7 @@ def build_cases(
             ),
             "derived_mechanism_atoms": invalid_derived,
             "derived_mechanism_root": canonical_root(invalid_derived),
-            "claim_ceiling": "semantic invalidity of one fixed distinct-numeral calibration relation only",
+            "claim_ceiling": "semantic invalidity of one fixed distinct-numeral calibration relation only; excludes general semantic claims, scientific acceptance, authority, Decision, and Standing",
             "allowed_impact_ids": [
                 "stage-a-open-calibration.distinct-numerals-byte-identity"
             ],
@@ -519,6 +519,7 @@ def main() -> None:
             "prior_review_commit": "4a06ac8aa9a5f07abd019a375d755bfe5f0031aa",
             "reason": "single OpenAI/Codex provider, tools disabled, different prompt and response contract; transitive reuse would violate the reviewed Stage A method",
         },
+        "independent_runtime_review_receipt_root": None,
         "maintained_qualifier_receipt_root": None,
         "provider_calls": 0,
         "participant_calls": 0,
@@ -764,6 +765,7 @@ def main() -> None:
         "registration_root": registration["registration_root"],
         "assignment_root": schedule["assignment_root"],
         "permit_set_root": permit_set_root,
+        "custody_contract_root": canonical_root(custody),
         "fixed_denominator": 12,
         "held_permits": 12,
         "released_permits": 0,

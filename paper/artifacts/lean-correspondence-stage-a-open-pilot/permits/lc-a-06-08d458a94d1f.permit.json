@@ -7,7 +7,7 @@
   "consumed": false,
   "packet_root": "sha256:f6c18b9c69c4bc92283df15cd6f7ab0cfa8cdfdf2797602054ccfe4361116001",
   "prompt_root": "sha256:7b4ebc7fed080611105359ea2ffc07cec292c5e98f7f60809e0819e057f561f2",
-  "registration_contract_root": "sha256:4cd65d7541a1ff7d8ed5e0f8334fd8e2e61c6202d692e356648aea9c63f8db79",
+  "registration_contract_root": "sha256:a291bc126e4bbd599d24ca87c111d8ce640daf9f48c67325b907a48f4457ca7c",
   "releasable": false,
   "response_schema_sha256": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
   "runtime_qualification_receipt_root": null,

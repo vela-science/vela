@@ -31,7 +31,7 @@
       "candidate_packet": "lean-correspondence-v0/cases/erdos-730/packet.json",
       "candidate_packet_sha256": "sha256:3276bfe9762ed81cf2cd700eb1e75a7dd67e68308659d499209879b16758b0ed",
       "case_id": "erdos-730-affirmative-rhs",
-      "claim_ceiling": "affirmative S.Infinite RHS only; not the answer(sorry) biconditional",
+      "claim_ceiling": "affirmative S.Infinite RHS relation only; excludes the full Formal Conjectures biconditional, mathematical truth, scientific acceptance, authority, Decision, and Standing",
       "derived_mechanism_atoms": [
         {
           "bytes": 5968,
@@ -120,7 +120,7 @@
       "candidate_packet": "lean-correspondence-v0/cases/fc-leaneval-oeis-303656/packet.json",
       "candidate_packet_sha256": "sha256:c2300410edf5aa255223d5685adc2ea4cad8ce95873f26b246c0bb125134e7cd",
       "case_id": "fc-leaneval-oeis-303656",
-      "claim_ceiling": "deterministic generated-byte lineage and bounded drift calibration; not truth, solution, or general semantic equivalence",
+      "claim_ceiling": "deterministic generated-byte lineage and bounded drift calibration only; excludes mathematical truth, solution, general semantic equivalence, scientific acceptance, authority, Decision, and Standing",
       "derived_mechanism_atoms": [
         {
           "bytes": 9715,
@@ -191,7 +191,7 @@
         }
       ],
       "case_id": "deliberately-invalid-byte-identity",
-      "claim_ceiling": "semantic invalidity of one fixed distinct-numeral calibration relation only",
+      "claim_ceiling": "semantic invalidity of one fixed distinct-numeral calibration relation only; excludes general semantic claims, scientific acceptance, authority, Decision, and Standing",
       "derived_mechanism_atoms": [
         {
           "bytes": 2572,

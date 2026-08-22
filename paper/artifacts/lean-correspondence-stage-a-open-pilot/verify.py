@@ -17,6 +17,49 @@ import generate
 from jsonschema import Draft202012Validator
 
 ROOT = Path(__file__).resolve().parent
+REQUIRED_RUNTIME_CAPABILITIES = [
+    "cold_fresh_session",
+    "read_only_offline_shell_and_file_tools",
+    "closed_json_response",
+    "1200_second_hard_timeout",
+    "raw_provider_events_usage_stderr_terminal_teardown_custody",
+]
+EXPECTED_INFORMATION_BOUNDARY = {
+    "network_from_participant": False,
+    "source_mounts": "read_only",
+    "same_shell_file_tools": True,
+    "same_prompt_schema_token_timeout_and_semantic_atoms": True,
+}
+EXPECTED_RESPONSE_SCHEMA_ROOT = (
+    "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268"
+)
+EXPECTED_CASE_CEILINGS = {
+    "erdos-730-affirmative-rhs": (
+        "affirmative S.Infinite RHS relation only; excludes the full Formal "
+        "Conjectures biconditional, mathematical truth, scientific acceptance, "
+        "authority, Decision, and Standing"
+    ),
+    "fc-leaneval-oeis-303656": (
+        "deterministic generated-byte lineage and bounded drift calibration only; "
+        "excludes mathematical truth, solution, general semantic equivalence, "
+        "scientific acceptance, authority, Decision, and Standing"
+    ),
+    "deliberately-invalid-byte-identity": (
+        "semantic invalidity of one fixed distinct-numeral calibration relation "
+        "only; excludes general semantic claims, scientific acceptance, authority, "
+        "Decision, and Standing"
+    ),
+}
+EXPECTED_IMPACT_IDS = {
+    "erdos-730-affirmative-rhs": ["erdos-730.affirmative-rhs-defeq"],
+    "fc-leaneval-oeis-303656": [
+        "oeis-303656.historical-helper-rename-defeq",
+        "oeis-303656.fc-to-leaneval-generated-lineage",
+    ],
+    "deliberately-invalid-byte-identity": [
+        "stage-a-open-calibration.distinct-numerals-byte-identity"
+    ],
+}
 REQUIRED_TOP_LEVEL = {
     "README.md",
     "artifact-manifest.json",
@@ -49,6 +92,10 @@ class VerificationError(ValueError):
 def require(condition: bool, code: str) -> None:
     if not condition:
         raise VerificationError(code)
+
+
+def require_exact_fields(value: Any, fields: set[str], code: str) -> None:
+    require(isinstance(value, dict) and set(value) == fields, code)
 
 
 def load_json(path: Path) -> Any:
@@ -111,6 +158,41 @@ def verify_method_and_evidence(
 ) -> None:
     method = load_json(ROOT / "method-binding.json")
     evidence = load_json(ROOT / "evidence-bindings.json")
+    require_exact_fields(
+        method,
+        {
+            "schema",
+            "vela_repository",
+            "method_commit",
+            "method_tree",
+            "method_artifact_path",
+            "method_artifact_root",
+            "prompt_source_sha256",
+            "response_schema_sha256",
+            "authority_effect",
+        },
+        "method_fields",
+    )
+    require_exact_fields(
+        evidence,
+        {
+            "schema",
+            "neutral_implementation",
+            "candidate_packets",
+            "maintained_qualifier",
+            "invalid_fixture_root",
+            "authority_effect",
+        },
+        "evidence_fields",
+    )
+    require(
+        method["schema"] == "vela.lean-correspondence-stage-a-method-binding.v1",
+        "method_schema",
+    )
+    require(
+        evidence["schema"] == "vela.lean-correspondence-stage-a-evidence-bindings.v1",
+        "evidence_schema",
+    )
     require(method["method_commit"] == generate.METHOD_COMMIT, "method_commit")
     require(method["method_tree"] == generate.METHOD_TREE, "method_tree")
     require(
@@ -123,6 +205,15 @@ def verify_method_and_evidence(
         == "sha256:2d909b874eedc765546010e799d6fde709c88f3fcc623b45ab46130c3dfa68e4",
         "method_artifact_root",
     )
+    prompt_raw = (
+        vela_repo / "paper/artifacts/lean-correspondence-foundry-study/PROMPT.md"
+    ).read_bytes()
+    require(
+        method["prompt_source_sha256"]
+        == raw_root(prompt_raw)
+        == "sha256:111f9eb8c03a18d2c08f692591da2f27f2c13a1f098486f6aeb8d40e4f5fd6db",
+        "prompt_source_root",
+    )
     response_raw = (ROOT / "response.schema.json").read_bytes()
     method_response_raw = (
         vela_repo
@@ -131,7 +222,9 @@ def verify_method_and_evidence(
     require(response_raw == method_response_raw, "response_schema_method_drift")
     Draft202012Validator.check_schema(load_json(ROOT / "response.schema.json"))
     require(
-        method["response_schema_sha256"] == raw_root(response_raw),
+        method["response_schema_sha256"]
+        == raw_root(response_raw)
+        == EXPECTED_RESPONSE_SCHEMA_ROOT,
         "response_schema_root",
     )
     require(evidence["maintained_qualifier"]["copied"] is False, "qualifier_copied")
@@ -186,10 +279,25 @@ def verify_method_and_evidence(
         ),
         "import_sha256",
     )
+    require(
+        neutral["cases_root_file_sha256"]
+        == raw_root((implementation / "cases/ROOTS.json").read_bytes()),
+        "cases_root_file_sha256",
+    )
+    require(
+        neutral["cases_manifest_sha256"]
+        == raw_root((implementation / "cases/MANIFEST.sha256").read_bytes()),
+        "cases_manifest_sha256",
+    )
     candidate = evidence["candidate_packets"]
     require(candidate["commit"] == generate.CANDIDATE_COMMIT, "candidate_commit")
     require(candidate["tree"] == generate.CANDIDATE_TREE, "candidate_evidence_tree")
     require(candidate["independent_review"] == "PASS_GO_FOR_IMPORT", "candidate_review")
+    require(
+        evidence["invalid_fixture_root"]
+        == generate.canonical_root(load_json(ROOT / "invalid-fixture/fixture.json")),
+        "invalid_fixture_root",
+    )
     require(evidence["authority_effect"] == "none", "evidence_authority")
 
 
@@ -285,6 +393,34 @@ def verify_invalid_fixture(check_lean: bool) -> None:
 def verify_cases_and_atoms() -> dict[str, dict[str, Any]]:
     selection = load_json(ROOT / "case-selection.json")
     ledger = load_json(ROOT / "atom-equivalence.json")
+    require_exact_fields(
+        selection,
+        {
+            "schema",
+            "stage",
+            "fixed_case_count",
+            "stage_b_eligibility",
+            "cases",
+            "authority_effect",
+        },
+        "case_selection_fields",
+    )
+    require(
+        selection["schema"] == "vela.lean-correspondence-stage-a-case-selection.v1",
+        "case_selection_schema",
+    )
+    require(selection["stage"] == "A_open_non_ceiling", "case_selection_stage")
+    require(selection["authority_effect"] == "none", "case_selection_authority")
+    require_exact_fields(
+        ledger,
+        {"schema", "cases", "information_equivalent", "authority_effect"},
+        "atom_ledger_fields",
+    )
+    require(
+        ledger["schema"] == "vela.lean-correspondence-stage-a-atom-equivalence.v1",
+        "atom_ledger_schema",
+    )
+    require(ledger["authority_effect"] == "none", "atom_ledger_authority")
     require(selection["fixed_case_count"] == 3, "case_count")
     require(
         selection["stage_b_eligibility"] == "permanently_excluded",
@@ -318,6 +454,16 @@ def verify_cases_and_atoms() -> dict[str, dict[str, Any]]:
     require(set(ledger_by_id) == set(ids), "atom_ledger_case_set")
     require(ledger["information_equivalent"] is True, "atom_equivalence_false")
     for case in cases:
+        case_id = case["case_id"]
+        require(
+            case["claim_ceiling"] == EXPECTED_CASE_CEILINGS[case_id],
+            f"claim_ceiling:{case_id}",
+        )
+        require(
+            case["allowed_impact_ids"] == EXPECTED_IMPACT_IDS[case_id],
+            f"allowed_impact_ids:{case_id}",
+        )
+        require(case["authority_effect"] == "none", f"case_authority:{case_id}")
         base = case["base_atoms"]
         derived = case["derived_mechanism_atoms"]
         require(
@@ -330,12 +476,19 @@ def verify_cases_and_atoms() -> dict[str, dict[str, Any]]:
         )
         item = ledger_by_id[case["case_id"]]
         require(
-            item["semantic_atom_root"] == case["semantic_atom_root"],
+            item["raw_semantic_atom_root"] == item["assisted_semantic_atom_root"],
+            f"arm_atom_mismatch:{case_id}",
+        )
+        require(
+            item["semantic_atom_root"]
+            == item["raw_semantic_atom_root"]
+            == item["assisted_semantic_atom_root"]
+            == case["semantic_atom_root"],
             f"ledger_atom_root:{case['case_id']}",
         )
         require(
-            item["raw_semantic_atom_root"] == item["assisted_semantic_atom_root"],
-            f"arm_atom_mismatch:{case['case_id']}",
+            item["assisted_only_derived_root"] == case["derived_mechanism_root"],
+            f"ledger_derived_root:{case_id}",
         )
         require(
             item["protected_label_present"] is False,
@@ -390,6 +543,34 @@ def verify_external_case_assets(
 
 def verify_schedule_packets_prompts(cases: dict[str, dict[str, Any]]) -> dict[str, Any]:
     schedule = load_json(ROOT / "assignment-schedule.json")
+    configurations = load_json(ROOT / "participant-configurations.json")
+    require_exact_fields(
+        schedule,
+        {
+            "schema",
+            "seed_sha256",
+            "fixed_denominator",
+            "rows",
+            "zero_retries",
+            "zero_substitutions",
+            "authority_effect",
+            "assignment_root",
+        },
+        "assignment_fields",
+    )
+    require(
+        schedule["schema"] == "vela.lean-correspondence-stage-a-assignment-schedule.v1",
+        "assignment_schema",
+    )
+    require(
+        schedule["seed_sha256"] == raw_root(generate.SEED_TEXT.encode()),
+        "assignment_seed",
+    )
+    require(
+        schedule["zero_retries"] is True and schedule["zero_substitutions"] is True,
+        "assignment_retry_substitution",
+    )
+    require(schedule["authority_effect"] == "none", "assignment_authority")
     body = {key: value for key, value in schedule.items() if key != "assignment_root"}
     require(
         generate.canonical_root(body) == schedule["assignment_root"], "assignment_root"
@@ -410,14 +591,45 @@ def verify_schedule_packets_prompts(cases: dict[str, dict[str, Any]]) -> dict[st
     }
     observed = {(row["configuration_slot"], row["case_id"], row["arm"]) for row in rows}
     require(observed == expected_cross_product, "assignment_cross_product")
+    slot_roots = {
+        slot["slot_id"]: generate.canonical_root(slot)
+        for slot in configurations["slots"]
+    }
     common, preambles = generate.extract_prompt_sections()
     packet_by_case_arm: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for row in rows:
+        require_exact_fields(
+            row,
+            {
+                "ordinal",
+                "assignment_id",
+                "configuration_slot",
+                "configuration_slot_root",
+                "case_id",
+                "participant_visible_case_id",
+                "arm",
+                "fresh_session",
+                "attempt",
+                "timeout_seconds",
+                "prompt_root",
+                "packet_root",
+            },
+            "assignment_row_fields",
+        )
         require(
             row["fresh_session"] is True and row["attempt"] == 1,
             "fresh_session_attempt",
         )
         require(row["timeout_seconds"] == 1200, "timeout_drift")
+        require(
+            row["participant_visible_case_id"]
+            == cases[row["case_id"]]["participant_visible_id"],
+            "assignment_visible_case_binding",
+        )
+        require(
+            row["configuration_slot_root"] == slot_roots[row["configuration_slot"]],
+            f"assignment_configuration_root:{row['assignment_id']}",
+        )
         prompt_raw = (ROOT / "prompts" / f"{row['assignment_id']}.txt").read_bytes()
         expected_prompt = (
             preambles[row["arm"]]
@@ -432,18 +644,57 @@ def verify_schedule_packets_prompts(cases: dict[str, dict[str, Any]]) -> dict[st
             f"prompt_root:{row['assignment_id']}",
         )
         packet = load_json(ROOT / "packets" / f"{row['assignment_id']}.json")
+        require_exact_fields(
+            packet,
+            {
+                "schema",
+                "assignment_id",
+                "participant_visible_case_id",
+                "arm_exposed_to_participant",
+                "base_semantic_atoms",
+                "semantic_atom_root",
+                "derived_mechanism_atoms",
+                "allowed_impact_ids",
+                "response_schema_sha256",
+                "read_only",
+                "answer_key_present",
+                "authority_effect",
+            },
+            "packet_fields",
+        )
+        require(
+            packet["schema"] == "vela.lean-correspondence-stage-a-packet-manifest.v1",
+            "packet_schema",
+        )
         require(
             generate.canonical_root(packet) == row["packet_root"],
             f"packet_root:{row['assignment_id']}",
         )
         require(packet["assignment_id"] == row["assignment_id"], "packet_assignment")
+        require(
+            packet["participant_visible_case_id"] == row["participant_visible_case_id"],
+            "packet_visible_case_binding",
+        )
         require(packet["arm_exposed_to_participant"] is False, "arm_leakage")
         require(packet["answer_key_present"] is False, "answer_leakage")
+        require(packet["read_only"] is True, "packet_read_only")
         require(packet["authority_effect"] == "none", "packet_authority")
         case = cases[row["case_id"]]
         require(
+            packet["base_semantic_atoms"] == case["base_atoms"], "packet_base_atoms"
+        )
+        require(
             packet["semantic_atom_root"] == case["semantic_atom_root"],
             "packet_atom_root",
+        )
+        require(
+            packet["allowed_impact_ids"] == case["allowed_impact_ids"],
+            "packet_impact_ids",
+        )
+        require(
+            packet["response_schema_sha256"]
+            == raw_root((ROOT / "response.schema.json").read_bytes()),
+            "packet_response_schema",
         )
         if row["arm"] == "raw-source":
             require(packet["derived_mechanism_atoms"] == [], "raw_derived_leakage")
@@ -478,33 +729,246 @@ def verify_registration_permits_state(schedule: dict[str, Any]) -> tuple[str, st
     hold = load_json(ROOT / "hold-state.json")
     state = load_json(ROOT / "prelaunch-state.json")
     custody = load_json(ROOT / "custody-contract.json")
-    require(
-        runtime["status"]
-        == "blocked_missing_exact_two_provider_tool_runtime_qualification",
-        "runtime_blocker_missing",
+    method = load_json(ROOT / "method-binding.json")
+    evidence = load_json(ROOT / "evidence-bindings.json")
+    selection = load_json(ROOT / "case-selection.json")
+    ledger = load_json(ROOT / "atom-equivalence.json")
+    response_root = raw_root((ROOT / "response.schema.json").read_bytes())
+    require_exact_fields(
+        registration,
+        {
+            "schema",
+            "stage",
+            "method_binding_root",
+            "evidence_binding_root",
+            "case_selection_root",
+            "assignment_root",
+            "atom_equivalence_root",
+            "runtime_binding_root",
+            "participant_configurations_root",
+            "response_schema_sha256",
+            "fixed_denominator",
+            "arms",
+            "participant_configuration_slots",
+            "cases",
+            "fresh_sessions_per_cell",
+            "timeout_seconds",
+            "zero_retries",
+            "zero_substitutions",
+            "protected_stage_b_material_created",
+            "provider_calls_authorized",
+            "scoring_authorized",
+            "authority_effect",
+            "registration_contract_root",
+            "permit_set_root",
+            "hold_state_root",
+            "status",
+            "registration_root",
+        },
+        "registration_fields",
     )
     require(
-        runtime["maintained_qualifier_receipt_root"] is None,
-        "early_qualification_receipt",
+        registration["schema"]
+        == "vela.lean-correspondence-stage-a-registration-contract.v1",
+        "registration_schema",
+    )
+    require(
+        registration["status"] == "blocked_prelaunch_review_only", "registration_status"
+    )
+    require_exact_fields(
+        hold,
+        {
+            "schema",
+            "registration_contract_root",
+            "assignment_root",
+            "fixed_denominator",
+            "held",
+            "released",
+            "consumed",
+            "terminal",
+            "permit_set_root",
+            "permits",
+            "provider_calls",
+            "scoring_attempts",
+            "key_accesses",
+            "authority_effect",
+        },
+        "hold_fields",
+    )
+    require(
+        hold["schema"] == "vela.lean-correspondence-stage-a-hold-state.v1",
+        "hold_schema",
+    )
+    require_exact_fields(
+        state,
+        {
+            "schema",
+            "state",
+            "registration_root",
+            "assignment_root",
+            "permit_set_root",
+            "custody_contract_root",
+            "fixed_denominator",
+            "held_permits",
+            "released_permits",
+            "terminal_captures",
+            "participant_configurations_bound",
+            "runtime_qualification_receipt_root",
+            "independent_prelaunch_review",
+            "provider_calls",
+            "participant_responses",
+            "scoring_attempts",
+            "key_accesses",
+            "stage_b_families_selected",
+            "protected_stage_b_key_created",
+            "execution_authorized",
+            "authority_effect",
+        },
+        "state_fields",
+    )
+    require(
+        state["schema"] == "vela.lean-correspondence-stage-a-prelaunch-state.v1",
+        "state_schema",
+    )
+    require_exact_fields(
+        custody,
+        {
+            "schema",
+            "registration_root",
+            "maintained_qualifier",
+            "required_terminal_files",
+            "raw_response_preserved",
+            "closed_response_schema",
+            "one_permit_outstanding",
+            "capture_commit_before_next_release",
+            "zero_retries",
+            "zero_substitutions",
+            "scoring_semantics",
+            "protected_stage_b_key_created",
+            "provider_calls",
+            "authority_effect",
+        },
+        "custody_fields",
+    )
+    require(
+        custody["schema"] == "vela.lean-correspondence-stage-a-custody-contract.v1",
+        "custody_schema",
+    )
+
+    require_exact_fields(
+        runtime,
+        {
+            "schema",
+            "status",
+            "required_participant_configuration_count",
+            "required_distinct_provider_organizations",
+            "required_capabilities",
+            "configuration_slots",
+            "rejected_runtime_evidence",
+            "independent_runtime_review_receipt_root",
+            "maintained_qualifier_receipt_root",
+            "provider_calls",
+            "participant_calls",
+            "execution_authorized",
+            "authority_effect",
+        },
+        "runtime_fields",
+    )
+    require(
+        runtime["schema"] == "vela.lean-correspondence-stage-a-runtime-binding.v1",
+        "runtime_schema",
+    )
+    require(
+        runtime["required_participant_configuration_count"] == 2,
+        "runtime_configuration_count",
+    )
+    require(
+        runtime["required_distinct_provider_organizations"] == 2,
+        "runtime_distinct_provider_count",
+    )
+    require(
+        runtime["required_capabilities"] == REQUIRED_RUNTIME_CAPABILITIES,
+        "runtime_capabilities",
     )
     require(
         runtime["provider_calls"] == runtime["participant_calls"] == 0,
         "runtime_call_count",
     )
     require(runtime["execution_authorized"] is False, "runtime_execution_authorized")
-    require(configurations["status"] == "blocked_unbound", "configuration_status")
+    require(runtime["authority_effect"] == "none", "runtime_authority")
+
+    require_exact_fields(
+        configurations,
+        {
+            "schema",
+            "status",
+            "slots",
+            "information_boundary",
+            "provider_calls",
+            "authority_effect",
+        },
+        "configuration_fields",
+    )
+    require(
+        configurations["schema"]
+        == "vela.lean-correspondence-stage-a-participant-configurations.v1",
+        "configuration_schema",
+    )
+    require(
+        configurations["information_boundary"] == EXPECTED_INFORMATION_BOUNDARY,
+        "configuration_information_boundary",
+    )
+    require(configurations["provider_calls"] == 0, "configuration_provider_calls")
+    require(configurations["authority_effect"] == "none", "configuration_authority")
     require(len(configurations["slots"]) == 2, "configuration_slot_count")
     require(
-        all(slot["status"] == "unbound" for slot in configurations["slots"]),
-        "configuration_early_binding",
+        runtime["configuration_slots"] == configurations["slots"],
+        "runtime_configuration_cross_binding",
+    )
+    slots = configurations["slots"]
+    require(
+        [slot.get("slot_id") for slot in slots]
+        == ["configuration-a", "configuration-b"],
+        "configuration_slot_ids",
+    )
+    for slot in slots:
+        require_exact_fields(
+            slot,
+            {
+                "slot_id",
+                "provider_organization",
+                "immutable_model_snapshot",
+                "configuration_root",
+                "qualification_receipt_root",
+                "status",
+            },
+            "configuration_slot_fields",
+        )
+    all_unbound = all(
+        slot["status"] == "unbound"
+        and slot["provider_organization"] is None
+        and slot["immutable_model_snapshot"] is None
+        and slot["configuration_root"] is None
+        and slot["qualification_receipt_root"] is None
+        for slot in slots
+    )
+    # This frozen artifact contains no runtime or review receipt bytes. Therefore
+    # only the fully unbound prequalification state is valid here. A later bound
+    # artifact must add and verify the exact receipt bytes, not merely insert
+    # plausible-looking roots into this verifier's current schema.
+    require(all_unbound, "configuration_partial_binding")
+    require(configurations["status"] == "blocked_unbound", "configuration_status")
+    require(
+        runtime["status"]
+        == "blocked_missing_exact_two_provider_tool_runtime_qualification",
+        "runtime_blocker_missing",
     )
     require(
-        all(
-            slot["qualification_receipt_root"] is None
-            for slot in configurations["slots"]
-        ),
-        "configuration_early_qualification",
+        runtime["independent_runtime_review_receipt_root"] is None
+        and runtime["maintained_qualifier_receipt_root"] is None,
+        "early_qualification_receipt",
     )
+
     contract_keys = {
         "schema",
         "stage",
@@ -535,6 +999,18 @@ def verify_registration_permits_state(schedule: dict[str, Any]) -> tuple[str, st
         registration["registration_contract_root"] == contract_root,
         "registration_contract_root",
     )
+    expected_transitive_roots = {
+        "method_binding_root": generate.canonical_root(method),
+        "evidence_binding_root": generate.canonical_root(evidence),
+        "case_selection_root": generate.canonical_root(selection),
+        "assignment_root": schedule["assignment_root"],
+        "atom_equivalence_root": generate.canonical_root(ledger),
+        "runtime_binding_root": generate.canonical_root(runtime),
+        "participant_configurations_root": generate.canonical_root(configurations),
+        "response_schema_sha256": response_root,
+    }
+    for field, expected in expected_transitive_roots.items():
+        require(registration[field] == expected, f"registration_{field}")
     registration_body = {
         key: value for key, value in registration.items() if key != "registration_root"
     }
@@ -543,29 +1019,79 @@ def verify_registration_permits_state(schedule: dict[str, Any]) -> tuple[str, st
         "registration_root",
     )
     require(registration["fixed_denominator"] == 12, "registration_denominator")
+    require(
+        registration["stage"] == "A_open_non_ceiling"
+        and registration["arms"] == ["raw-source", "correspondence-assisted"]
+        and registration["participant_configuration_slots"] == 2
+        and registration["cases"] == 3
+        and registration["fresh_sessions_per_cell"] == 1
+        and registration["timeout_seconds"] == 1200
+        and registration["zero_retries"] is True
+        and registration["zero_substitutions"] is True,
+        "registration_closed_design",
+    )
     require(registration["provider_calls_authorized"] is False, "provider_authorized")
     require(registration["scoring_authorized"] is False, "scoring_authorized")
     require(
         registration["protected_stage_b_material_created"] is False,
         "protected_stage_b_material",
     )
+    require(registration["authority_effect"] == "none", "registration_authority")
     permit_files = sorted((ROOT / "permits").glob("*.permit.json"))
     require(len(permit_files) == 12, "permit_count")
     permit_rows = []
     seen_assignments: set[str] = set()
+    schedule_by_assignment = {row["assignment_id"]: row for row in schedule["rows"]}
     for path in permit_files:
         permit = load_json(path)
+        require_exact_fields(
+            permit,
+            {
+                "schema",
+                "registration_contract_root",
+                "assignment_root",
+                "assignment_id",
+                "configuration_slot_root",
+                "packet_root",
+                "prompt_root",
+                "response_schema_sha256",
+                "attempt",
+                "timeout_seconds",
+                "status",
+                "releasable",
+                "consumed",
+                "runtime_qualification_receipt_root",
+                "authority_effect",
+            },
+            "permit_fields",
+        )
         assignment = permit["assignment_id"]
         require(
             assignment not in seen_assignments, "duplicate_reused_permit_assignment"
         )
         seen_assignments.add(assignment)
+        require(assignment in schedule_by_assignment, "permit_unknown_assignment")
+        require(path.name == f"{assignment}.permit.json", "permit_filename_binding")
+        row = schedule_by_assignment[assignment]
         require(
             permit["registration_contract_root"] == contract_root, "permit_registration"
         )
         require(
             permit["assignment_root"] == schedule["assignment_root"],
             "permit_assignment_root",
+        )
+        require(
+            permit["configuration_slot_root"] == row["configuration_slot_root"],
+            "permit_configuration_cross_binding",
+        )
+        require(
+            permit["packet_root"] == row["packet_root"], "permit_packet_cross_binding"
+        )
+        require(
+            permit["prompt_root"] == row["prompt_root"], "permit_prompt_cross_binding"
+        )
+        require(
+            permit["response_schema_sha256"] == response_root, "permit_response_schema"
         )
         require(permit["status"] == "held", "permit_not_held")
         require(
@@ -574,12 +1100,13 @@ def verify_registration_permits_state(schedule: dict[str, Any]) -> tuple[str, st
         )
         require(
             permit["runtime_qualification_receipt_root"] is None,
-            "permit_early_qualification",
+            "permit_early_or_cross_qualification",
         )
         require(
             permit["attempt"] == 1 and permit["timeout_seconds"] == 1200,
             "permit_contract_drift",
         )
+        require(permit["authority_effect"] == "none", "permit_authority")
         permit_rows.append(
             {
                 "assignment_id": assignment,
@@ -587,6 +1114,7 @@ def verify_registration_permits_state(schedule: dict[str, Any]) -> tuple[str, st
                 "status": "held",
             }
         )
+    require(seen_assignments == set(schedule_by_assignment), "permit_assignment_set")
     permit_rows.sort(key=lambda item: item["assignment_id"])
     hold_rows = sorted(hold["permits"], key=lambda item: item["assignment_id"])
     require(permit_rows == hold_rows, "hold_permit_roots")
@@ -594,6 +1122,17 @@ def verify_registration_permits_state(schedule: dict[str, Any]) -> tuple[str, st
     require(
         permit_set_root == hold["permit_set_root"] == registration["permit_set_root"],
         "permit_set_root",
+    )
+    require(
+        hold["registration_contract_root"] == contract_root,
+        "hold_registration_contract_root",
+    )
+    require(
+        hold["assignment_root"] == schedule["assignment_root"], "hold_assignment_root"
+    )
+    require(
+        registration["hold_state_root"] == generate.canonical_root(hold),
+        "registration_hold_state_root",
     )
     require(hold["held"] == hold["fixed_denominator"] == 12, "hold_denominator")
     require(
@@ -604,6 +1143,7 @@ def verify_registration_permits_state(schedule: dict[str, Any]) -> tuple[str, st
         hold["provider_calls"] == hold["scoring_attempts"] == hold["key_accesses"] == 0,
         "hold_forbidden_action",
     )
+    require(hold["authority_effect"] == "none", "hold_authority")
     require(state["state"] == runtime["status"], "state_runtime_status")
     require(
         state["registration_root"] == registration["registration_root"],
@@ -614,23 +1154,78 @@ def verify_registration_permits_state(schedule: dict[str, Any]) -> tuple[str, st
     require(
         state["held_permits"] == 12 and state["released_permits"] == 0, "state_hold"
     )
-    require(state["participant_configurations_bound"] == 0, "state_configuration_count")
     require(
-        state["runtime_qualification_receipt_root"] is None, "state_early_qualification"
+        state["participant_configurations_bound"] == 0,
+        "state_configuration_count",
+    )
+    require(
+        state["runtime_qualification_receipt_root"]
+        == runtime["maintained_qualifier_receipt_root"],
+        "state_runtime_qualification",
     )
     require(
         state["provider_calls"] == state["participant_responses"] == 0, "state_calls"
     )
     require(state["scoring_attempts"] == state["key_accesses"] == 0, "state_score_key")
     require(state["stage_b_families_selected"] == 0, "stage_b_selection")
+    require(state["terminal_captures"] == 0, "state_terminal_captures")
+    require(state["protected_stage_b_key_created"] is False, "state_stage_b_key")
     require(state["execution_authorized"] is False, "state_execution_authorized")
     require(
         custody["registration_root"] == registration["registration_root"],
         "custody_registration",
     )
     require(custody["one_permit_outstanding"] is True, "custody_scheduler")
+    require(
+        custody["required_terminal_files"]
+        == [
+            "consumed-permit.json",
+            "launch.json",
+            "provider-events.jsonl",
+            "provider-stderr.txt",
+            "participant-response.raw.json",
+            "usage.json",
+            "terminal-receipt.json",
+            "teardown.json",
+        ],
+        "custody_terminal_files",
+    )
+    require(
+        custody["maintained_qualifier"] == evidence["maintained_qualifier"],
+        "custody_qualifier",
+    )
+    require(
+        custody["closed_response_schema"] == response_root, "custody_response_schema"
+    )
+    require(custody["raw_response_preserved"] is True, "custody_raw_response")
+    require(
+        custody["capture_commit_before_next_release"] is True, "custody_capture_commit"
+    )
+    require(
+        custody["zero_retries"] is True and custody["zero_substitutions"] is True,
+        "custody_retry_substitution",
+    )
+    expected_scoring = {
+        "relation_validation": "exact closed label against the fixed open calibration adjudication",
+        "change_classification": "exact closed label against the fixed open calibration adjudication",
+        "impact_closure": "closed unique set: every allowed item exactly once, no missing duplicate or unknown id, exact disposition and nonempty supplied evidence bindings",
+        "false_inference": "any authority or scientific claim above the registered case ceiling is an error",
+        "composite_exact": "all three correctness components and no false inference",
+        "failure_timeout_malformed": "retained in the fixed denominator",
+        "restricted_seconds": "min(actual_elapsed_seconds, 1200); missing or nonterminal failure assigned 1200",
+        "one_scoring_attempt": True,
+        "decimal_rounding": "ROUND_HALF_EVEN",
+    }
+    require(
+        custody["scoring_semantics"] == expected_scoring, "custody_scoring_semantics"
+    )
     require(custody["protected_stage_b_key_created"] is False, "custody_stage_b_key")
     require(custody["provider_calls"] == 0, "custody_provider_calls")
+    require(custody["authority_effect"] == "none", "custody_authority")
+    require(
+        state["custody_contract_root"] == generate.canonical_root(custody),
+        "state_custody_contract_root",
+    )
     return registration["registration_root"], permit_set_root
 
 

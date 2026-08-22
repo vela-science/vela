@@ -33,9 +33,12 @@ runtime bundle or maintained-qualifier receipt exists at this commit.
 Consequently `runtime-binding.json` and `prelaunch-state.json` fail closed. Both
 configuration slots are unbound, every one of the 12 permits is held and
 non-releasable, and execution remains unauthorized. A later prospective amendment
-must bind both exact model snapshots and a complete runtime bundle, invoke the
-maintained qualifier at its bound Vela commit, regenerate all transitive roots and
-permits, and obtain a fresh independent exact PASS before any call.
+must bind both exact model snapshots from distinct provider organizations and a
+complete runtime bundle, preserve the same offline read-only tool and network
+boundary, invoke the maintained qualifier at its bound Vela commit, bind both the
+qualifier and independent runtime-review receipts, regenerate all transitive roots
+and permits, and obtain a fresh independent exact PASS before any call. Partially
+bound slots, early receipts, and early permit release are invalid states.
 
 ## Regenerate and verify
 
@@ -63,9 +66,16 @@ maintained qualifier blob, fixed 2 × 3 × 2 denominator, exact prompt/schema
 bytes, arm atom equivalence, unique assignments and held permits, semantic-invalid
 fixture Git identities, compiling declarations, failing witness, zero-call state,
 and absence of response, score, key, capture, Stage B selection, or authority
-material. The adversarial suite rejects stale or missing roots, case substitution,
-answer leakage, arm atom mismatch, duplicate/reused ids, denominator drift, early
-qualification, and early permit release.
+material. Every root is re-derived at the boundary that consumes it: method and
+evidence bindings, case selection and atom ledger, runtime and participant
+configurations, assignment rows, prompt and packet bytes, permits and hold state,
+registration, custody/scoring, prelaunch state, and the outer artifact manifest.
+The adversarial suite refreshes the outer manifest after the reviewed provider,
+tool, network, partial-binding, and claim-inflation mutations and still requires
+failure. It also rejects stale registered roots, cross-bound configuration or
+packet roots, case substitution, answer leakage, arm atom mismatch,
+duplicate/reused ids, denominator drift, early qualification, and early permit
+release.
 
 Passing these checks means only that the blocked prelaunch package is internally
 deterministic. It is not launch authorization, a Stage A result, a Stage B family
