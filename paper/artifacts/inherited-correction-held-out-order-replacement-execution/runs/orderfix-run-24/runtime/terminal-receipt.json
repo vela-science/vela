@@ -1,0 +1,43 @@
+{
+  "schema": "vela.inherited-correction-terminal-receipt.v1",
+  "run_id": "orderfix-run-24",
+  "condition": "vela",
+  "participant_instance_id": "orderfix-sol-24",
+  "attempt": 1,
+  "status": "completed",
+  "validation_error": null,
+  "provider_started_at": "2026-08-22T02:04:50.698Z",
+  "provider_completed_at": "2026-08-22T02:05:03.436Z",
+  "duration_seconds": 12.713049506,
+  "timeout_seconds": 600,
+  "process_exit_code": 0,
+  "process_timed_out": false,
+  "registration_root": "sha256:60acdfa31d25f9df5f342b75caf8e65426c5b71fa320c36fe5568de9fbf13b10",
+  "image_digest": "sha256:f75ed4428ee3ab3f3275db0378e7375c1364f8b9f06d2f1bb4158502a84d4fc1",
+  "participant_configuration_root": "sha256:c70343249414b4e5c783371e8cc8c74dfb73029cacfd35dd767143f19725ed5d",
+  "assignment_root": "sha256:64a356db4800b6fb04090ae81a6c2d33bf37ad8b71e92e01567edc5fa6362e72",
+  "trust_bundle_bytes": "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5",
+  "registered_response_schema_bytes": "sha256:ac96be686e749792956dfa1dfe9560f85c53d55c27fe2e8fd32bcc2a96a634ba",
+  "provider_response_schema_bytes": "sha256:896f242086805d3b51e81ed04e6d50f33eb2b7deb71b7a1689e9abeba3b67eaf",
+  "prompt_root": "sha256:28ac36a3af7a55016c82f964fc2189d73520a5f2ba99887c9fcae3602166136f",
+  "packet_root": "sha256:f12d8d0898f7c9e81ec2855c724a1d37c807afefccd9da20886e17c2eb34ef75",
+  "provider_events_bytes": "sha256:045898745a9fa3d9dad7247faf6b8abce84e7dec49ec5ed9fb18ee6d5846c2ed",
+  "provider_stderr_bytes": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "response_bytes": "sha256:3a3340575b3ca2a66535a5b24476c0e6e6ba7e29c5462a6b2c0d1d542a3bb457",
+  "event_receipt": {
+    "usage": {
+      "input_tokens": 9292,
+      "cached_input_tokens": 0,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 566,
+      "reasoning_output_tokens": 173
+    },
+    "event_count": 4,
+    "response_count": 1,
+    "tool_calls": 0,
+    "turn_count": 1,
+    "compactions": 0
+  },
+  "cumulative_provider_usage_is_telemetry_only": true,
+  "credential_retained": false
+}
