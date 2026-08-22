@@ -1,0 +1,101 @@
+{
+  "attempt": {
+    "attempt": 1,
+    "openai_neutral_permit_released": false,
+    "participant_calls": 0,
+    "participant_permits_released": 0,
+    "permit_consumed": true,
+    "permit_consumed_path": "permit/neutral-calibration-anthropic-json-v2.permit.consumed.json",
+    "permit_root": "sha256:b9ba39cf1c511043324ca8dfbc02b6c59d91f457a2e560a37d78d32a1b84cdbe",
+    "provider_calls": 0,
+    "provider_endpoint_contacted": false,
+    "provider_request_constructed": false,
+    "retries": 0,
+    "run_id": "neutral-calibration-anthropic-json-v2"
+  },
+  "bindings": {
+    "content_equivalence_root": "sha256:1818fb5da3c0b3c57f24083eaa54acb448ce9cd14f59cbd0bd0d2aaef2dac8b8",
+    "credential_fd": 4,
+    "embedded_provider_schema_sha256": "sha256:3478df371053447451409a3948e3512441101f2371b6b2215a41d273833c3266",
+    "host_bridge_endpoint": "https://api.anthropic.com/v1/messages",
+    "image_digest": "sha256:26fa80f822ebc0357670e03b4358d01d8c2190803696b7fd8aefec83e3e84fcf",
+    "mounted_provider_schema_sha256": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
+    "oci_archive_sha256": "sha256:9ffa254d11ee85f2d8c1f87f9eceb55ada20c0319ba98468438ad41f9871d040",
+    "packet_root": "sha256:a38b18fb6284288f352e234aa32cffb79af880a03d8faf7c1e3492e6d8eba267",
+    "participant_network": "none",
+    "prompt_root": "sha256:3443fa942b90f84718cc4e6918ebf6d121ebc40cf58f5b3c610f4e983c4d4ed9",
+    "provider_schema_byte_equal": false,
+    "provider_schema_semantically_equal": true,
+    "runtime_source_root": "sha256:651c2a4b3e0cb54bf7ad2855d88b99766384d65af5fd3ee2f86742c4476b81c4",
+    "trust_bundle_sha256": "sha256:9dae8d76e55cb08991f2b672d58999ea15560d910759c16b544f843bdffbb994"
+  },
+  "credential_teardown": {
+    "acl": "empty",
+    "all_path_components_non_symlink": true,
+    "credential_bytes_in_evidence": false,
+    "credential_fd_closed": true,
+    "credential_retained": false,
+    "link_count": 1,
+    "mode": "0600",
+    "owner_current_user": true,
+    "regular_file": true,
+    "xattrs": [
+      "com.apple.provenance"
+    ]
+  },
+  "custody": {
+    "bridge_stderr_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bridge_stdout_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "container_stderr_path": "raw/container.stderr",
+    "container_stderr_sha256": "sha256:2d79e89b2b70a109c48dcf51a66420acc051e26c4690a6e56348b173023ac3f9",
+    "controller_raw_claimed_provider_calls": 1,
+    "controller_raw_terminal_authoritative": false,
+    "controller_raw_terminal_defect": "provider_calls hardcoded to one despite pre-request failure",
+    "controller_raw_terminal_path": "raw/controller-attempt-terminal.json",
+    "docker_stderr_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docker_stdout_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "endpoint_contact_receipt_path": "endpoint-contact-receipt.json",
+    "provider_events_path": null,
+    "provider_request_path": null,
+    "response_path": null,
+    "run_input_path": "inputs/run.json",
+    "run_input_sha256": "sha256:f91165af7ad651a6e9560b5d9ddda43644c76950b9888d2d49a98807d976d816",
+    "terminal_response_path": null,
+    "tool_requests": 0,
+    "tool_results": 0,
+    "usage_path": null
+  },
+  "failure_code": "provider_schema_mount_binding_invalid",
+  "failure_explanation": "run.json embedded semantically identical but byte-different provider schema; exact runner rejected before request construction",
+  "producer": {
+    "branch": "codex/stage-a-two-provider-runtime-qualification",
+    "commit": "404adad5f03ccf22f0bcf46770dec59b868acc64",
+    "offline_qualification_root": "sha256:7a4c8cf306f74ca603aa29e6c32dc2018788ba2a8c6168a1d9766938af063de8",
+    "runtime_artifact_root": "sha256:cc83563da5c83a421988cd1dd20e09e0779306fdcaa1cd1b437e4793fa00f43e",
+    "runtime_registration_root": "sha256:009d84b9851f903d391b71987a140cf0707da4ee15fca1407a6f563b0ae7b49e",
+    "tree": "ec90f9b6d51bcd48d78be7657e47a99764ffd9af"
+  },
+  "qualifier": {
+    "commit": "cc3b88d8bfcfd7b4f720a023f049d5c365be9423",
+    "sha256": "sha256:61591eec3304e299a9344888bc2a6f08cd32785b647ef5b0107da490dbf18013",
+    "tree": "341e0d22fa570b1b5e8dd9f70b219c11308ba45f"
+  },
+  "schema": "vela.stage-a-anthropic-neutral-terminal-evidence.v1",
+  "status": "failed_pre_provider_request_terminal",
+  "stopped_state": {
+    "authority_effect": "none",
+    "decision": null,
+    "participant_permits_held": 12,
+    "participant_responses": 0,
+    "protected_keys_opened": 0,
+    "scoring_attempts": 0,
+    "stage_b_families_selected": 0,
+    "standing": null
+  },
+  "teardown": {
+    "controller_active": false,
+    "host_bridge_active": false,
+    "participant_container_active": false,
+    "process_receipt_path": "raw/process-teardown.json"
+  }
+}

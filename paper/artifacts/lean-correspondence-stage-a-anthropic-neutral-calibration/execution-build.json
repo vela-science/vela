@@ -1,0 +1,14 @@
+{
+  "go_version": "go version go1.26.2 darwin/arm64",
+  "host_bridge_adapter": "anthropic-messages-v1",
+  "host_bridge_binary_sha256": "sha256:dca8c2e6c54811e59fcd6278830097c99a2ccd7d31736051e9686a8969055080",
+  "host_bridge_build": "GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -ldflags=-s,-w,-X-main.providerAdapter=anthropic-messages-v1",
+  "host_bridge_source": "../lean-correspondence-stage-a-runtime-qualification/runtime-runner/cmd/bridge/main.go",
+  "host_bridge_source_sha256": "sha256:a220212121678014bed63050277984a6c29f657cd0c5833215df8ee21fbf2f22",
+  "orchestrator_binary_sha256": "sha256:9c7513e012670db97b4e605b7f2b201bac54c39764091b86cd89a3089e7a616f",
+  "orchestrator_source_sha256": "sha256:6b5241b0aff5023b2d44c8685c03d269b21c9bf2badcd11048a437881c961a7b",
+  "participant_image_unchanged": true,
+  "runner_relay_binary_sha256": "sha256:fd1188cadf2489f08f1521629a2d6391b3e30e05b9a84b4f2b6be12094d5b972",
+  "runner_relay_source_sha256": "sha256:8a3b9b23a8f036735162dae7cdd0ac009ab87352cff1bc2fae1deed2babf9834",
+  "schema": "vela.stage-a-anthropic-neutral-execution-build.v1"
+}

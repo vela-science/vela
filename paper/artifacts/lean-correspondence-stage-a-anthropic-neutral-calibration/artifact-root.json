@@ -1,0 +1,111 @@
+{
+  "artifact_root": "sha256:49b03a8ba5b6e2dfc56a8fdb2d981e3b56b50696bbe13cad4ead736d2ecc2c75",
+  "files": [
+    {
+      "bytes": 1509,
+      "path": "README.md",
+      "sha256": "sha256:8331593ac841c84d56d6a4818a2a2d276d58541a7f71afd5edb172af09a3d684"
+    },
+    {
+      "bytes": 631,
+      "path": "endpoint-contact-receipt.json",
+      "sha256": "sha256:798a8733f655c0e5aa4e16ddec6dc8471d3fb2897b6c3eeb5940907e0f58ac4f"
+    },
+    {
+      "bytes": 1108,
+      "path": "execution-build.json",
+      "sha256": "sha256:f1af5c6efe75c8cdd0d53f9960aeb39714945fed8c7c76f6e6077612c222c45f"
+    },
+    {
+      "bytes": 12507,
+      "path": "execution-sources/controller.py",
+      "sha256": "sha256:a453479b6f2db5c0fa382d504a969ca0736e6ca7db7316c36f29237e2f35421e"
+    },
+    {
+      "bytes": 5472,
+      "path": "execution-sources/orchestrator.go",
+      "sha256": "sha256:6b5241b0aff5023b2d44c8685c03d269b21c9bf2badcd11048a437881c961a7b"
+    },
+    {
+      "bytes": 892,
+      "path": "execution-sources/runner_relay.go",
+      "sha256": "sha256:8a3b9b23a8f036735162dae7cdd0ac009ab87352cff1bc2fae1deed2babf9834"
+    },
+    {
+      "bytes": 657,
+      "path": "inputs/packet.json",
+      "sha256": "sha256:a38b18fb6284288f352e234aa32cffb79af880a03d8faf7c1e3492e6d8eba267"
+    },
+    {
+      "bytes": 2384,
+      "path": "inputs/provider-schema.json",
+      "sha256": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7"
+    },
+    {
+      "bytes": 3213,
+      "path": "inputs/run.json",
+      "sha256": "sha256:f91165af7ad651a6e9560b5d9ddda43644c76950b9888d2d49a98807d976d816"
+    },
+    {
+      "bytes": 1166,
+      "path": "permit/neutral-calibration-anthropic-json-v2.permit.consumed.json",
+      "sha256": "sha256:69cf9f72ed814b4a39916189a3241ec4e01e4f965fa5ffa31e1beef3727c57fe"
+    },
+    {
+      "bytes": 0,
+      "path": "raw/bridge.stderr",
+      "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "raw/bridge.stdout",
+      "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 38,
+      "path": "raw/container.stderr",
+      "sha256": "sha256:2d79e89b2b70a109c48dcf51a66420acc051e26c4690a6e56348b173023ac3f9"
+    },
+    {
+      "bytes": 491,
+      "path": "raw/controller-attempt-terminal.json",
+      "sha256": "sha256:211332207f6b9c6ae9ecac47802d456fbc8b4a5a45271139f09cf45085c1ed4c"
+    },
+    {
+      "bytes": 0,
+      "path": "raw/docker.stderr",
+      "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "raw/docker.stdout",
+      "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 374,
+      "path": "raw/permit-release.json",
+      "sha256": "sha256:e57e246b9056eeeac6d8b2e61c8cc218528f2ffeeb6ca63b31512cfddc845559"
+    },
+    {
+      "bytes": 315,
+      "path": "raw/process-teardown.json",
+      "sha256": "sha256:aaecbe84ee3464b8ffd7b670eb4859b35174a68d64e96e959ff0c266945fa503"
+    },
+    {
+      "bytes": 4879,
+      "path": "terminal-outcome.json",
+      "sha256": "sha256:e833554dc16a90aff61510ca416cbaf3c8227c6d41623806c80267090de1f688"
+    },
+    {
+      "bytes": 3161,
+      "path": "test_verify.py",
+      "sha256": "sha256:47807e0853f8a102ebd642a1c4077b8ab2b5c7e2bc0d3a76b59c10ba639eae88"
+    },
+    {
+      "bytes": 16833,
+      "path": "verify.py",
+      "sha256": "sha256:8992b5ba762fe260fa3d76e2b5f52f51d88093dd5ec8e5dc3444ba3891ca875b"
+    }
+  ],
+  "schema": "vela.stage-a-anthropic-neutral-terminal-artifact.v1"
+}

@@ -1,0 +1,13 @@
+{
+  "authoritative": true,
+  "bridge_provider_request_frame_received": false,
+  "derivation": "participant runner rejected provider schema mount binding before request construction; bridge remained before its first provider_request frame until teardown",
+  "endpoint_contacted": false,
+  "endpoint_write_attempted": false,
+  "provider_calls": 0,
+  "provider_request_constructed": false,
+  "raw_controller_terminal_authoritative": false,
+  "raw_controller_terminal_path": "raw/controller-attempt-terminal.json",
+  "run_id": "neutral-calibration-anthropic-json-v2",
+  "schema": "vela.stage-a-anthropic-neutral-endpoint-contact.v1"
+}
