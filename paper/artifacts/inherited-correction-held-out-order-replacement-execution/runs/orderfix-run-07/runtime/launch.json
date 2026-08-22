@@ -1,0 +1,8 @@
+{
+  "schema": "vela.inherited-correction-launch.v1",
+  "run_id": "orderfix-run-07",
+  "participant_instance_id": "orderfix-sol-07",
+  "condition": "vela",
+  "permit_bytes": "sha256:690b63dc18905f12ea3a38bde99a990ffa402533a024e88070730c2e869b5afe",
+  "consumed_at": "2026-08-22T01:58:52.386Z"
+}
