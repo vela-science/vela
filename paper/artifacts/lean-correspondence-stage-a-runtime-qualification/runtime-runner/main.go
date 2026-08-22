@@ -22,16 +22,37 @@ var providerAdapter = "unbound"
 const runnerVersion = "neutral-runner/1"
 
 type frame struct {
-	Type      string          `json:"type"`
-	Adapter   string          `json:"adapter,omitempty"`
-	Endpoint  string          `json:"endpoint,omitempty"`
-	Body      json.RawMessage `json:"body,omitempty"`
-	Raw       string          `json:"raw,omitempty"`
-	Name      string          `json:"name,omitempty"`
-	CallID    string          `json:"call_id,omitempty"`
-	Arguments json.RawMessage `json:"arguments,omitempty"`
-	Result    json.RawMessage `json:"result,omitempty"`
-	Error     string          `json:"error,omitempty"`
+	Type            string           `json:"type"`
+	Adapter         string           `json:"adapter,omitempty"`
+	Endpoint        string           `json:"endpoint,omitempty"`
+	Body            json.RawMessage  `json:"body,omitempty"`
+	Raw             string           `json:"raw,omitempty"`
+	Name            string           `json:"name,omitempty"`
+	CallID          string           `json:"call_id,omitempty"`
+	Arguments       json.RawMessage  `json:"arguments,omitempty"`
+	ArgumentCustody *argumentCustody `json:"argument_custody,omitempty"`
+	Result          json.RawMessage  `json:"result,omitempty"`
+	Error           string           `json:"error,omitempty"`
+}
+
+type argumentCustody struct {
+	Schema             string          `json:"schema"`
+	RawField           json.RawMessage `json:"raw_field"`
+	RawFieldSHA256     string          `json:"raw_field_sha256"`
+	DecodedBytesSHA256 string          `json:"decoded_bytes_sha256"`
+	DecodeCount        int             `json:"decode_count"`
+}
+
+type argumentCustodyReceipt struct {
+	Schema             string          `json:"schema"`
+	Adapter            string          `json:"adapter"`
+	Name               string          `json:"name"`
+	CallID             string          `json:"call_id"`
+	RawField           json.RawMessage `json:"raw_field"`
+	DecodedObject      json.RawMessage `json:"decoded_object"`
+	RawFieldSHA256     string          `json:"raw_field_sha256"`
+	DecodedBytesSHA256 string          `json:"decoded_bytes_sha256"`
+	DecodeCount        int             `json:"decode_count"`
 }
 
 type runInput struct {
@@ -227,10 +248,75 @@ func member(value string, allowed ...string) bool {
 	return false
 }
 
+func digestBytes(raw []byte) string {
+	sum := sha256.Sum256(raw)
+	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+func decodeExactJSONObject(raw []byte) (map[string]json.RawMessage, error) {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) < 2 || trimmed[0] != '{' || trimmed[len(trimmed)-1] != '}' {
+		return nil, errors.New("decoded tool arguments are not a JSON object")
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	opening, err := decoder.Token()
+	if err != nil || opening != json.Delim('{') {
+		return nil, errors.New("decoded tool arguments are not a JSON object")
+	}
+	object := make(map[string]json.RawMessage)
+	for decoder.More() {
+		keyToken, err := decoder.Token()
+		key, ok := keyToken.(string)
+		if err != nil || !ok {
+			return nil, errors.New("decoded tool argument key invalid")
+		}
+		if _, exists := object[key]; exists {
+			return nil, errors.New("decoded tool arguments contain duplicate field")
+		}
+		var value json.RawMessage
+		if err := decoder.Decode(&value); err != nil {
+			return nil, errors.New("decoded tool argument value invalid")
+		}
+		object[key] = value
+	}
+	closing, err := decoder.Token()
+	if err != nil || closing != json.Delim('}') {
+		return nil, errors.New("decoded tool arguments object is incomplete")
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return nil, errors.New("decoded tool arguments contain trailing JSON")
+	}
+	return object, nil
+}
+
+func validateOpenAIArgumentCustody(arguments json.RawMessage, custody *argumentCustody) error {
+	if custody == nil || custody.Schema != "vela.openai-function-call-arguments-custody.v1" || custody.DecodeCount != 1 {
+		return errors.New("OpenAI argument custody receipt absent or invalid")
+	}
+	var decodedString string
+	decoder := json.NewDecoder(bytes.NewReader(custody.RawField))
+	if err := decoder.Decode(&decodedString); err != nil {
+		return errors.New("OpenAI arguments raw field is not exactly one JSON string")
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return errors.New("OpenAI arguments raw field contains trailing JSON")
+	}
+	decoded := []byte(decodedString)
+	if _, err := decodeExactJSONObject(decoded); err != nil {
+		return err
+	}
+	if !bytes.Equal(arguments, decoded) || custody.RawFieldSHA256 != digestBytes(custody.RawField) || custody.DecodedBytesSHA256 != digestBytes(decoded) {
+		return errors.New("OpenAI raw-to-decoded argument custody binding mismatch")
+	}
+	return nil
+}
+
 func validateTool(name string, arguments json.RawMessage) error {
-	var object map[string]json.RawMessage
-	if err := json.Unmarshal(arguments, &object); err != nil {
-		return errors.New("tool arguments are not an object")
+	object, err := decodeExactJSONObject(arguments)
+	if err != nil {
+		return err
 	}
 	switch name {
 	case "shell":
@@ -339,6 +425,8 @@ func run() error {
 	scanner := bufio.NewScanner(bridge)
 	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
 	var rawEvents bytes.Buffer
+	var argumentCustodyBytes bytes.Buffer
+	argumentCustodyCount := 0
 	var finalResponse []byte
 	for scanner.Scan() {
 		line := append([]byte(nil), scanner.Bytes()...)
@@ -352,13 +440,34 @@ func run() error {
 		case "provider_event":
 			// Raw provider bytes are retained before any normalization.
 		case "tool_request":
+			if providerAdapter == "openai-responses-v1" {
+				if err := validateOpenAIArgumentCustody(event.Arguments, event.ArgumentCustody); err != nil {
+					return err
+				}
+				receipt, err := canonical(argumentCustodyReceipt{
+					Schema:  "vela.openai-function-call-arguments-custody-receipt.v1",
+					Adapter: providerAdapter, Name: event.Name, CallID: event.CallID,
+					RawField:           event.ArgumentCustody.RawField,
+					DecodedObject:      event.Arguments,
+					RawFieldSHA256:     event.ArgumentCustody.RawFieldSHA256,
+					DecodedBytesSHA256: event.ArgumentCustody.DecodedBytesSHA256,
+					DecodeCount:        event.ArgumentCustody.DecodeCount,
+				})
+				if err != nil {
+					return err
+				}
+				argumentCustodyBytes.Write(receipt)
+				argumentCustodyCount++
+			} else if event.ArgumentCustody != nil {
+				return errors.New("Anthropic tool behavior cannot carry OpenAI argument custody")
+			}
 			if err := validateTool(event.Name, event.Arguments); err != nil {
 				return err
 			}
 			if event.CallID == "" {
 				return errors.New("tool call id absent")
 			}
-			if err := encoder.Encode(frame{Type: "execute_offline_tool", Name: event.Name, CallID: event.CallID, Arguments: event.Arguments}); err != nil {
+			if err := encoder.Encode(frame{Type: "execute_offline_tool", Name: event.Name, CallID: event.CallID, Arguments: event.Arguments, ArgumentCustody: event.ArgumentCustody}); err != nil {
 				return err
 			}
 		case "tool_result":
@@ -396,6 +505,18 @@ func run() error {
 		"response_sha256":     "sha256:" + hex.EncodeToString(sum[:]),
 		"credential_retained": false,
 	})
+	if providerAdapter == "openai-responses-v1" {
+		if err := appendCustody(input.OutputDir, "tool-arguments-custody.jsonl", argumentCustodyBytes.Bytes()); err != nil {
+			return err
+		}
+		var terminal map[string]any
+		if err := json.Unmarshal(receipt, &terminal); err != nil {
+			return err
+		}
+		terminal["tool_arguments_custody_sha256"] = digestBytes(argumentCustodyBytes.Bytes())
+		terminal["tool_arguments_custody_count"] = argumentCustodyCount
+		receipt, _ = canonical(terminal)
+	}
 	return appendCustody(input.OutputDir, "terminal.json", receipt)
 }
 

@@ -22,10 +22,10 @@ ARTIFACT_ROOT = PACKAGE / "artifact-root.json"
 STAGE_A = REPOSITORY / "paper/artifacts/lean-correspondence-stage-a-open-pilot"
 SHA256 = re.compile(r"sha256:[0-9a-f]{64}\Z")
 EXPECTED_REGISTRATION_ROOT = (
-    "sha256:4c148268b8a34f720a4956e5e4d290820c8793ff03dfaa41dc997b0039d7b0cb"
+    "sha256:17712ef57556cb3d0c3039d2250f5e3147b5741591e676e38c8410eec97c08f7"
 )
 EXPECTED_OFFLINE_RECORD_ROOT = (
-    "sha256:38163b7c1fe6f854a21d140afc42e0fca1827e0d2deac5f82e6258311644e091"
+    "sha256:a822929b2266b1a0dfd0ca212de64773c88d94ee779980f4c04a34cc58dbfe4e"
 )
 EXPECTED_QUALIFIER = {
     "git_commit": "cc3b88d8bfcfd7b4f720a023f049d5c365be9423",
@@ -50,26 +50,26 @@ EXPECTED_PROVIDER = {
         "model": "gpt-5.6-sol",
         "run_id": "neutral-calibration-openai",
         "configuration_root": "sha256:96555c45c33ed2a106cfb261025b752a4eeb1514aa180985ecd5ea0551a6616d",
-        "qualification_root": "sha256:d6d02e5874d9dee46589e2243d6bab9e33207b013c708d6683b7c0db87fc4851",
-        "image_digest": "sha256:891f518623e8914e1af0f5566e5a35a536087343da169ddb9697da7e3b37d29c",
+        "qualification_root": "sha256:4f1bead055215f9b3c27247d8a3a07a7caae25ed343b9f3cfda3c329effbcccb",
+        "image_digest": "sha256:a51a4742979549f6d77511c722e86d8425f73c45b5b6681c6756d1d949b199d6",
         "tool_boundary_root": "sha256:0b2e1fb701f70b02f9cc7ad79201f84374dfeb904299b59a6667d36eb4e59c69",
-        "runtime_source_root": "sha256:f6560663a895ecdc80b39f519667676c57c285e727b22aed3548696ff2d72edd",
-        "participant_permit_root": "sha256:20c86ca878e436886a4273735e0f406c686b59efed573af8c5ac740b11084481",
+        "runtime_source_root": "sha256:27daaf77de66f872fc9fbbbfc69bb6dd0bd03e982da2db4de1db85600b843f13",
+        "participant_permit_root": "sha256:96a9c8af3d079ab8c73dd8eaaca05d62eebde2c70efe97a192b462edf2f7ff03",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
-        "launchability_sha256": "sha256:9b315b96addecbd639c8d23311fad77d19516e84acc65536b6501b6b0b630159",
+        "launchability_sha256": "sha256:564712aa1486ec8c603b4f9120fbed2fd353273e9f77eaa1c0754452336f7a5b",
     },
     "anthropic-messages-v1": {
         "organization": "Anthropic",
         "model": "claude-opus-5",
         "run_id": "neutral-calibration-anthropic",
         "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
-        "qualification_root": "sha256:140214cfb1b3458063d9a42d7f43f938e0b2e91dd23de49ced66b6c258e72fc9",
-        "image_digest": "sha256:b751e5d0d84abd94872178087d2aa954cfa0f6645376ed108beddcd69d3899fc",
+        "qualification_root": "sha256:a653ae75b0c600366ee78db2092ab904bc9540d94dc1ad14b110adb10e047002",
+        "image_digest": "sha256:cd460011d0527da49eeeaf343bf76d6fdeb745b15ea1051e9ac3454c72dd480d",
         "tool_boundary_root": "sha256:01dfbda69c1c7760423fdba41eaac18687a73d9fe683a8a5f207fdc8abe2a7d9",
-        "runtime_source_root": "sha256:208aff004781796ac8799ad0110d665d629ce39b806f38275ddfa55061bd8e7b",
-        "participant_permit_root": "sha256:ea3a8b03a2d6f2dd12ffde74244ec3a8016deb10ed9a9caa42dfcccd8ff31d25",
+        "runtime_source_root": "sha256:3104933b541c577a1521445981928e5acfb1a55019622f53c59874dd52c96fb5",
+        "participant_permit_root": "sha256:4bed98283ffb3af24ed0c99d7d4e135276770fef8288c11fbe87e9c8b0d37b9f",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
-        "launchability_sha256": "sha256:d717d9fbde73da11b098a6882a99a3aae53456ce41c3fafb851c2c2a934f1fb0",
+        "launchability_sha256": "sha256:bc1842c8747bfacddf2c8cb2f15ac4e875ba2e7a96b50bef304b1284de03b3ef",
     },
 }
 EXPECTED_FROZEN_CONFIGURATION = {
@@ -182,6 +182,22 @@ def validate_launchable_runtime(
     contract = load_json(PACKAGE / retained["provider_contract"]["path"])
     launchability = load_json(PACKAGE / retained["launchability"]["path"])
     source_manifest = load_json(PACKAGE / retained["source_manifest"]["path"])
+    expected_events = {
+        "raw_bytes_retained_before_normalization": True,
+        "terminal_and_teardown_receipts_required": True,
+        "tool_arguments_retained": True,
+        "tool_results_retained": True,
+        "usage_retained_as_telemetry_only": True,
+    }
+    if adapter == "openai-responses-v1":
+        expected_events.update(
+            {
+                "decoded_argument_bytes_retained": True,
+                "function_call_arguments_decode_count": 1,
+                "function_call_arguments_wire_type": "json_string",
+                "raw_to_decoded_argument_binding_required": True,
+            }
+        )
     require(
         canonical_root(source_manifest) == expected["runtime_source_root"],
         "retained_source_root",
@@ -246,14 +262,7 @@ def validate_launchable_runtime(
                 "write": False,
             },
         ]
-        and contract.get("events")
-        == {
-            "raw_bytes_retained_before_normalization": True,
-            "terminal_and_teardown_receipts_required": True,
-            "tool_arguments_retained": True,
-            "tool_results_retained": True,
-            "usage_retained_as_telemetry_only": True,
-        },
+        and contract.get("events") == expected_events,
         "provider_contract_tool_custody",
     )
     require(

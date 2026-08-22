@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -11,6 +12,46 @@ func withAdapter(t *testing.T, adapter string) {
 	previous := providerAdapter
 	providerAdapter = adapter
 	t.Cleanup(func() { providerAdapter = previous })
+}
+
+func TestOpenAIArgumentCustodyBinding(t *testing.T) {
+	decoded := json.RawMessage(`{"operation":"list","path":"/workspace"}`)
+	rawField, err := json.Marshal(string(decoded))
+	if err != nil {
+		t.Fatal(err)
+	}
+	custody := argumentCustody{
+		Schema:   "vela.openai-function-call-arguments-custody.v1",
+		RawField: rawField, RawFieldSHA256: digestBytes(rawField),
+		DecodedBytesSHA256: digestBytes(decoded), DecodeCount: 1,
+	}
+	if err := validateOpenAIArgumentCustody(decoded, &custody); err != nil {
+		t.Fatal(err)
+	}
+	for name, mutate := range map[string]func(*argumentCustody, *json.RawMessage){
+		"raw": func(value *argumentCustody, _ *json.RawMessage) {
+			value.RawField = json.RawMessage(`"{\"operation\":\"stat\",\"path\":\"/workspace\"}"`)
+		},
+		"raw_digest": func(value *argumentCustody, _ *json.RawMessage) {
+			value.RawFieldSHA256 = "sha256:" + string(bytes.Repeat([]byte{'0'}, 64))
+		},
+		"decoded_digest": func(value *argumentCustody, _ *json.RawMessage) {
+			value.DecodedBytesSHA256 = "sha256:" + string(bytes.Repeat([]byte{'1'}, 64))
+		},
+		"decoded": func(_ *argumentCustody, value *json.RawMessage) {
+			*value = json.RawMessage(`{"operation":"stat","path":"/workspace"}`)
+		},
+		"decode_count": func(value *argumentCustody, _ *json.RawMessage) { value.DecodeCount = 2 },
+	} {
+		t.Run(name, func(t *testing.T) {
+			candidateCustody := custody
+			candidateDecoded := append(json.RawMessage(nil), decoded...)
+			mutate(&candidateCustody, &candidateDecoded)
+			if validateOpenAIArgumentCustody(candidateDecoded, &candidateCustody) == nil {
+				t.Fatal("accepted argument custody drift")
+			}
+		})
+	}
 }
 
 func TestProviderSpecificRequestClosure(t *testing.T) {

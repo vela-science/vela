@@ -1,10 +1,10 @@
 {
-  "artifact_root": "sha256:c09c8ce5607df15f452cf8af582e63fb86836a70de218dcd4bf06093ac0b901b",
+  "artifact_root": "sha256:8aa5e0181ec911ec0a5eb680067967a581648612a4a6d41e77e8354e4ffb5474",
   "entries": [
     {
-      "bytes": 3256,
+      "bytes": 3676,
       "path": "README.md",
-      "sha256": "sha256:daed6843f761df08f8271eec15dc9dc0cb6bc652ea88351d5b21be18ac3c63e6"
+      "sha256": "sha256:d56a253f6f86a3db94c2fe225c71349fba62e1561fb7b1a936e83e2ec4a3c13a"
     },
     {
       "bytes": 1521,
@@ -14,22 +14,22 @@
     {
       "bytes": 5767294,
       "path": "offline-qualification-assets/anthropic-bridge.bin",
-      "sha256": "sha256:651a1e6a97bd270a681afc1f8c4ee2ed6ecc2f0320249c4d207aa9fe90dfe59a"
+      "sha256": "sha256:c5390da8b25764be13493f57531196a03c798750b54efec32b46b48d90408767"
     },
     {
       "bytes": 991,
       "path": "offline-qualification-assets/anthropic-build_a.json",
-      "sha256": "sha256:d30b177375ac9c67872fb898e74e288fe42c46fb23c7673bdfb31a4687972744"
+      "sha256": "sha256:86c8a788934dcb4de31314fee849e52df0b0a42f9b85b3ac87eb303d0944d87e"
     },
     {
       "bytes": 991,
       "path": "offline-qualification-assets/anthropic-build_b.json",
-      "sha256": "sha256:9edad4ecf5e800b60e8b9244ec5deabeb51ecb23f029d22c2245f4a610440d8b"
+      "sha256": "sha256:60c82f889980a72ed65e52c00d385b7baa033a81acd913ff93a2b6f663ed0b26"
     },
     {
       "bytes": 1158,
       "path": "offline-qualification-assets/anthropic-held_permit.json",
-      "sha256": "sha256:cea9c1624117ac59eaae8b179fdff3bb0bbf4af3b6dc48a1f2559fcbbee7a146"
+      "sha256": "sha256:6f048a375ac5d3cdb6b61ae4e8b0b9007b96f939a237b277e499f10b17999e75"
     },
     {
       "bytes": 227,
@@ -39,12 +39,12 @@
     {
       "bytes": 8417280,
       "path": "offline-qualification-assets/anthropic-image.tar",
-      "sha256": "sha256:a037af7b68a532d47d59af123ce25adb96fb19c19c57a1d5f46993bc3af6e593"
+      "sha256": "sha256:308c8bf6509cf3f6432fda044d45276707f1526eb56484b18949f43a8212142b"
     },
     {
       "bytes": 960,
       "path": "offline-qualification-assets/anthropic-launchability.json",
-      "sha256": "sha256:d717d9fbde73da11b098a6882a99a3aae53456ce41c3fafb851c2c2a934f1fb0"
+      "sha256": "sha256:bc1842c8747bfacddf2c8cb2f15ac4e875ba2e7a96b50bef304b1284de03b3ef"
     },
     {
       "bytes": 1469,
@@ -59,12 +59,12 @@
     {
       "bytes": 2293886,
       "path": "offline-qualification-assets/anthropic-runner.bin",
-      "sha256": "sha256:d0c4b9a2721be1cdec73668ef16faec7a7060eaec7f974cb7d93cfdbdaea25b7"
+      "sha256": "sha256:c93b8d48431b1d4e9c233236ebe1ae2967e3e302f027fcacca8ce916ba188e50"
     },
     {
       "bytes": 1753,
       "path": "offline-qualification-assets/anthropic-source_manifest.json",
-      "sha256": "sha256:cce5e0288740698c38acb8a4f4b61283ce4c110c91819f4e91a69cf6f85cd7a1"
+      "sha256": "sha256:d995fabf6559dca2eac1fa60beaa03ba2f733febc0c7e315141ab80c3bf9db29"
     },
     {
       "bytes": 2487,
@@ -74,22 +74,22 @@
     {
       "bytes": 5767294,
       "path": "offline-qualification-assets/openai-bridge.bin",
-      "sha256": "sha256:3cacc3df023ce053f31ccd835ca1e4b06763f8f475b4013fe72372652506370a"
+      "sha256": "sha256:42e12b04d2d1f2653a7b00cd0aa7341854fb731b70d1d617d4ff455412db04ca"
     },
     {
       "bytes": 991,
       "path": "offline-qualification-assets/openai-build_a.json",
-      "sha256": "sha256:3ccb74d0372c2b98e89bb7f81cd54fd537cbb87695cfca3c246743fa40b053dc"
+      "sha256": "sha256:eca218ed7d7cd2e3337a1fda07dc0b8e4556187b1c2a24cb8faaa6c83bb6a84b"
     },
     {
       "bytes": 991,
       "path": "offline-qualification-assets/openai-build_b.json",
-      "sha256": "sha256:c7397d966ed7a2eaefb05beb14fc505c900979a9ab2259e5cf47542f73b64774"
+      "sha256": "sha256:45eeac0609a18601c2961888ade8ff056dd7edb0dd5621d0eacaad46f36c3cb6"
     },
     {
       "bytes": 1149,
       "path": "offline-qualification-assets/openai-held_permit.json",
-      "sha256": "sha256:c7a7d25518390d92a49f909d65f1525d4fbe03af0e8e277d2005356cb93eac6f"
+      "sha256": "sha256:ea5d47aa27449bf7116e9379a9f298883d41d8918b35ae7e47906b366901bd22"
     },
     {
       "bytes": 224,
@@ -99,17 +99,17 @@
     {
       "bytes": 8417280,
       "path": "offline-qualification-assets/openai-image.tar",
-      "sha256": "sha256:6d79c573ee201e9a795597a057c089381b0c5c2d270b105878f984feed3f99f3"
+      "sha256": "sha256:1cba48d807839174b3ef806ab0bfa3b9dc95f55880a9fd3279a36bde4818dcd2"
     },
     {
       "bytes": 958,
       "path": "offline-qualification-assets/openai-launchability.json",
-      "sha256": "sha256:9b315b96addecbd639c8d23311fad77d19516e84acc65536b6501b6b0b630159"
+      "sha256": "sha256:564712aa1486ec8c603b4f9120fbed2fd353273e9f77eaa1c0754452336f7a5b"
     },
     {
-      "bytes": 1473,
+      "bytes": 1675,
       "path": "offline-qualification-assets/openai-provider_contract.json",
-      "sha256": "sha256:876d1c153923761dd44c4fbda455b42ea153b366331bdb3116fab71dbedd560f"
+      "sha256": "sha256:d6f2e135fce4208de18d06466c2e7c60115d8ef8be6e66096965e41adaee93a8"
     },
     {
       "bytes": 2384,
@@ -119,12 +119,12 @@
     {
       "bytes": 2293886,
       "path": "offline-qualification-assets/openai-runner.bin",
-      "sha256": "sha256:9fd1a2b7d635cdf9ba5176dcdd44c18956ce8a1149b1dfc80e246b4a65f8a80c"
+      "sha256": "sha256:2321118acfdc5f62d256cabe3c6c9d67ff9d82d844f2d635614033cf11b66ebe"
     },
     {
       "bytes": 1753,
       "path": "offline-qualification-assets/openai-source_manifest.json",
-      "sha256": "sha256:12810f158942dda7125c85ce4d3c2ca5915ce445404668955ecd89814863ca49"
+      "sha256": "sha256:b3461df942a49c3a585e1486f0e78b29fdce10af4c13fd9c912cf5ada465d9a3"
     },
     {
       "bytes": 2483,
@@ -134,17 +134,17 @@
     {
       "bytes": 17039,
       "path": "offline-qualification.json",
-      "sha256": "sha256:5ea205d14898e9d441ddd2d5e4b87d1d9b0e9ca30e6547055dd90bc5f7a806f4"
+      "sha256": "sha256:ba64cf29a304084a63abe4f78d83cc3659dd4c71ac9a884096bcd917866ae3b3"
     },
     {
-      "bytes": 37656,
+      "bytes": 38004,
       "path": "offline_qualify.py",
-      "sha256": "sha256:61fb167e6ae14d34bad445ddd24c6709f800797a1abe0e336a001bfb6eb19b16"
+      "sha256": "sha256:e43a9177b72e000617e31c79ba0e5ec7a6db7acdeecc4140e2deb32f1005d64b"
     },
     {
       "bytes": 8738,
       "path": "registration.json",
-      "sha256": "sha256:5a6b75c32e7922eb92f5ddd9938a4b0287dad9409178643c75110ef1b86ced73"
+      "sha256": "sha256:e154c7090f843df7188be56da954988535c39695106e280c8a354f85e212c932"
     },
     {
       "bytes": 398,
@@ -157,14 +157,14 @@
       "sha256": "sha256:41410d43956d68e40171c7fa7458ab51f2101f5a17939203a69b8c60a4f31309"
     },
     {
-      "bytes": 12964,
+      "bytes": 18470,
       "path": "runtime-runner/cmd/bridge/main.go",
-      "sha256": "sha256:cc4f15fceac9eac3e1d79712b3e2b43b1c2c057ba51a93fa0fe00e974e6bbccc"
+      "sha256": "sha256:a220212121678014bed63050277984a6c29f657cd0c5833215df8ee21fbf2f22"
     },
     {
-      "bytes": 2574,
+      "bytes": 5691,
       "path": "runtime-runner/cmd/bridge/main_test.go",
-      "sha256": "sha256:a8a7fb691d15f5a0585f139ef885f98107107daf453c4a007a02b20c56a60c2b"
+      "sha256": "sha256:6e0c829472adf4b1a1eafced072442fce18f596359cdc40424ad1c24bfebbaae"
     },
     {
       "bytes": 49,
@@ -172,14 +172,14 @@
       "sha256": "sha256:92779b1c6d6a7154d7f183403bb87fa65682677549927d5e5f2758955dd2073a"
     },
     {
-      "bytes": 14167,
+      "bytes": 19043,
       "path": "runtime-runner/main.go",
-      "sha256": "sha256:0a222fdd4c20af754439a30544c48939a66287a9472db70f7a7d50fd670e1aff"
+      "sha256": "sha256:e4d70d6775554e392bbe07df3fe2dc2bf7615ad2dc0407f50c83f594707c2d01"
     },
     {
-      "bytes": 2832,
+      "bytes": 4459,
       "path": "runtime-runner/main_test.go",
-      "sha256": "sha256:921645f65a55eb92bf0b82c6d66ca7acae03f857e36393857d45b72cffc144d8"
+      "sha256": "sha256:f54e509fddd552a53ba8c2a8dd0a162c6d12ef49859f77c8949408ff87962cfa"
     },
     {
       "bytes": 10795,
@@ -187,9 +187,9 @@
       "sha256": "sha256:64a20d50d7f875ccb798b62b805ed08227edb5ef288cc2cb7ef88cdbd94090bd"
     },
     {
-      "bytes": 29615,
+      "bytes": 29982,
       "path": "verify.py",
-      "sha256": "sha256:338d1cafdd5511ce7029ad383af99ef725890c48dc93688ef5bc82ee5b2cc0d9"
+      "sha256": "sha256:1781eeed524f710c7f952bb8a5ff6417f375964d60f5d0a68e8c5e6ece49d5e6"
     }
   ],
   "schema": "vela.lean-correspondence-stage-a-runtime-qualification-artifact-root.v2"

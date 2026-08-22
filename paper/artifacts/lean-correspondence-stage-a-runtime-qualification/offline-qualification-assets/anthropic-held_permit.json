@@ -4,7 +4,7 @@
   "condition": "neutral-no-science-held",
   "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
   "consumed_at": null,
-  "image_digest": "sha256:b751e5d0d84abd94872178087d2aa954cfa0f6645376ed108beddcd69d3899fc",
+  "image_digest": "sha256:cd460011d0527da49eeeaf343bf76d6fdeb745b15ea1051e9ac3454c72dd480d",
   "issued_at": "2026-08-21T00:00:00Z",
   "packet_root": "sha256:10e442e8135b7aa2a8379169f455292c14eedcf574c08de713fe273b5df88aff",
   "participant_id": "neutral-calibration-anthropic",
@@ -14,7 +14,7 @@
   "registration_id": "stage-a-runtime-registration",
   "run_id": "neutral-calibration-anthropic",
   "runner_version": "neutral-runner/1",
-  "runtime_source_root": "sha256:208aff004781796ac8799ad0110d665d629ce39b806f38275ddfa55061bd8e7b",
+  "runtime_source_root": "sha256:3104933b541c577a1521445981928e5acfb1a55019622f53c59874dd52c96fb5",
   "schema": "vela.tooling.closed-launch-permit.v1",
   "status": "held",
   "timeout_seconds": 1200

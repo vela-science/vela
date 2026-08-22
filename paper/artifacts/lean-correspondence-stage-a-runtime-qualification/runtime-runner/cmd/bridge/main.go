@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,16 +22,104 @@ import (
 var providerAdapter = "unbound"
 
 type frame struct {
-	Type      string          `json:"type"`
-	Adapter   string          `json:"adapter,omitempty"`
-	Endpoint  string          `json:"endpoint,omitempty"`
-	Body      json.RawMessage `json:"body,omitempty"`
-	Raw       string          `json:"raw,omitempty"`
-	Name      string          `json:"name,omitempty"`
-	CallID    string          `json:"call_id,omitempty"`
-	Arguments json.RawMessage `json:"arguments,omitempty"`
-	Result    json.RawMessage `json:"result,omitempty"`
-	Error     string          `json:"error,omitempty"`
+	Type            string           `json:"type"`
+	Adapter         string           `json:"adapter,omitempty"`
+	Endpoint        string           `json:"endpoint,omitempty"`
+	Body            json.RawMessage  `json:"body,omitempty"`
+	Raw             string           `json:"raw,omitempty"`
+	Name            string           `json:"name,omitempty"`
+	CallID          string           `json:"call_id,omitempty"`
+	Arguments       json.RawMessage  `json:"arguments,omitempty"`
+	ArgumentCustody *argumentCustody `json:"argument_custody,omitempty"`
+	Result          json.RawMessage  `json:"result,omitempty"`
+	Error           string           `json:"error,omitempty"`
+}
+
+type argumentCustody struct {
+	Schema             string          `json:"schema"`
+	RawField           json.RawMessage `json:"raw_field"`
+	RawFieldSHA256     string          `json:"raw_field_sha256"`
+	DecodedBytesSHA256 string          `json:"decoded_bytes_sha256"`
+	DecodeCount        int             `json:"decode_count"`
+}
+
+func digestBytes(raw []byte) string {
+	sum := sha256.Sum256(raw)
+	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+func decodeExactJSONObject(raw []byte) (map[string]json.RawMessage, error) {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) < 2 || trimmed[0] != '{' || trimmed[len(trimmed)-1] != '}' {
+		return nil, errors.New("decoded tool arguments are not a JSON object")
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	opening, err := decoder.Token()
+	if err != nil || opening != json.Delim('{') {
+		return nil, errors.New("decoded tool arguments are not a JSON object")
+	}
+	object := make(map[string]json.RawMessage)
+	for decoder.More() {
+		keyToken, err := decoder.Token()
+		key, ok := keyToken.(string)
+		if err != nil || !ok {
+			return nil, errors.New("decoded tool argument key invalid")
+		}
+		if _, exists := object[key]; exists {
+			return nil, errors.New("decoded tool arguments contain duplicate field")
+		}
+		var value json.RawMessage
+		if err := decoder.Decode(&value); err != nil {
+			return nil, errors.New("decoded tool argument value invalid")
+		}
+		object[key] = value
+	}
+	closing, err := decoder.Token()
+	if err != nil || closing != json.Delim('}') {
+		return nil, errors.New("decoded tool arguments object is incomplete")
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return nil, errors.New("decoded tool arguments contain trailing JSON")
+	}
+	return object, nil
+}
+
+func decodeOpenAIArguments(raw json.RawMessage) (json.RawMessage, *argumentCustody, error) {
+	var encoded string
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	if err := decoder.Decode(&encoded); err != nil {
+		return nil, nil, errors.New("OpenAI function_call.arguments must be exactly one JSON string")
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return nil, nil, errors.New("OpenAI function_call.arguments contains trailing JSON")
+	}
+	decoded := json.RawMessage([]byte(encoded))
+	if _, err := decodeExactJSONObject(decoded); err != nil {
+		return nil, nil, err
+	}
+	return decoded, &argumentCustody{
+		Schema:             "vela.openai-function-call-arguments-custody.v1",
+		RawField:           append(json.RawMessage(nil), raw...),
+		RawFieldSHA256:     digestBytes(raw),
+		DecodedBytesSHA256: digestBytes(decoded),
+		DecodeCount:        1,
+	}, nil
+}
+
+func validateArgumentCustody(arguments json.RawMessage, custody *argumentCustody) error {
+	if custody == nil {
+		return errors.New("OpenAI argument custody absent")
+	}
+	decoded, expected, err := decodeOpenAIArguments(custody.RawField)
+	if err != nil || custody.Schema != expected.Schema || custody.DecodeCount != 1 ||
+		custody.RawFieldSHA256 != expected.RawFieldSHA256 ||
+		custody.DecodedBytesSHA256 != expected.DecodedBytesSHA256 ||
+		!bytes.Equal(arguments, decoded) {
+		return errors.New("OpenAI raw-to-decoded argument custody binding mismatch")
+	}
+	return nil
 }
 
 func endpoint() (string, error) {
@@ -73,15 +163,12 @@ func closedPath(workspace, logical string) (string, os.FileInfo, error) {
 }
 
 func executeTool(workspace, name string, arguments json.RawMessage) (json.RawMessage, error) {
-	var object map[string]json.RawMessage
-	if err := json.Unmarshal(arguments, &object); err != nil {
-		return nil, errors.New("tool arguments invalid")
+	object, err := validateToolArguments(name, arguments)
+	if err != nil {
+		return nil, err
 	}
 	switch name {
 	case "shell":
-		if len(object) != 2 {
-			return nil, errors.New("shell arguments not closed")
-		}
 		var argv []string
 		var cwd string
 		if err := json.Unmarshal(object["argv"], &argv); err != nil ||
@@ -98,9 +185,6 @@ func executeTool(workspace, name string, arguments json.RawMessage) (json.RawMes
 		}
 		return json.Marshal(map[string]any{"stdout": string(stdout), "stderr": "", "exit_code": 0})
 	case "read_file":
-		if len(object) != 2 {
-			return nil, errors.New("read_file arguments not closed")
-		}
 		var operation string
 		var logical string
 		if err := json.Unmarshal(object["operation"], &operation); err != nil ||
@@ -146,6 +230,41 @@ func executeTool(workspace, name string, arguments json.RawMessage) (json.RawMes
 	default:
 		return nil, errors.New("tool is not allowed")
 	}
+}
+
+func validateToolArguments(name string, arguments json.RawMessage) (map[string]json.RawMessage, error) {
+	object, err := decodeExactJSONObject(arguments)
+	if err != nil {
+		return nil, err
+	}
+	switch name {
+	case "shell":
+		if len(object) != 2 || object["argv"] == nil || object["cwd"] == nil {
+			return nil, errors.New("shell arguments not closed")
+		}
+		var argv []string
+		var cwd string
+		if err := json.Unmarshal(object["argv"], &argv); err != nil ||
+			json.Unmarshal(object["cwd"], &cwd) != nil || cwd != "/workspace" ||
+			len(argv) != 4 || argv[0] != "git" || argv[1] != "--no-optional-locks" || argv[2] != "status" || argv[3] != "--short" {
+			return nil, errors.New("shell command is not exact")
+		}
+	case "read_file":
+		if len(object) != 2 || object["operation"] == nil || object["path"] == nil {
+			return nil, errors.New("read_file arguments not closed")
+		}
+		var operation, logical string
+		if err := json.Unmarshal(object["operation"], &operation); err != nil ||
+			json.Unmarshal(object["path"], &logical) != nil ||
+			(operation != "read" && operation != "list" && operation != "stat") ||
+			(logical != "/workspace" && !strings.HasPrefix(logical, "/workspace/")) ||
+			filepath.Clean(logical) != logical || strings.ContainsRune(logical, '\x00') {
+			return nil, errors.New("read_file arguments invalid")
+		}
+	default:
+		return nil, errors.New("tool is not allowed")
+	}
+	return object, nil
 }
 
 func client() *http.Client {
@@ -215,14 +334,24 @@ func parseResponse(raw []byte) (json.RawMessage, []frame, error) {
 			_ = json.Unmarshal(block["name"], &name)
 			_ = json.Unmarshal(block["call_id"], &callID)
 			arguments := block["arguments"]
+			var custody *argumentCustody
 			if kind == "tool_use" {
 				arguments = block["input"]
 				_ = json.Unmarshal(block["id"], &callID)
+			} else if providerAdapter == "openai-responses-v1" {
+				decodedArguments, decodedCustody, decodeErr := decodeOpenAIArguments(arguments)
+				if decodeErr != nil {
+					return nil, nil, decodeErr
+				}
+				arguments, custody = decodedArguments, decodedCustody
 			}
 			if callID == "" {
 				return nil, nil, errors.New("provider tool call id missing")
 			}
-			tools = append(tools, frame{Type: "tool_request", Name: name, CallID: callID, Arguments: arguments})
+			if _, err := validateToolArguments(name, arguments); err != nil {
+				return nil, nil, err
+			}
+			tools = append(tools, frame{Type: "tool_request", Name: name, CallID: callID, Arguments: arguments, ArgumentCustody: custody})
 		}
 		if kind == "text" || kind == "output_text" {
 			var value string
@@ -356,6 +485,13 @@ func serve(workspace string) error {
 		var execution frame
 		if err := json.Unmarshal(scanner.Bytes(), &execution); err != nil || execution.Type != "execute_offline_tool" || execution.Name != tool.Name || execution.CallID != tool.CallID || !bytes.Equal(execution.Arguments, tool.Arguments) {
 			return errors.New("participant tool validation mismatch")
+		}
+		if providerAdapter == "openai-responses-v1" {
+			if err := validateArgumentCustody(execution.Arguments, execution.ArgumentCustody); err != nil || execution.ArgumentCustody.RawFieldSHA256 != tool.ArgumentCustody.RawFieldSHA256 || execution.ArgumentCustody.DecodedBytesSHA256 != tool.ArgumentCustody.DecodedBytesSHA256 {
+				return errors.New("participant OpenAI argument custody mismatch")
+			}
+		} else if execution.ArgumentCustody != nil {
+			return errors.New("Anthropic tool behavior cannot carry OpenAI argument custody")
 		}
 		result, err := executeTool(workspace, execution.Name, execution.Arguments)
 		if err != nil {

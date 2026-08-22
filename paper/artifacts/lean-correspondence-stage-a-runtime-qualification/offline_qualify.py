@@ -187,6 +187,22 @@ def provider_contract(adapter: str) -> dict[str, Any]:
             "thinking": "adaptive",
         }
     )
+    events = {
+        "raw_bytes_retained_before_normalization": True,
+        "tool_arguments_retained": True,
+        "tool_results_retained": True,
+        "usage_retained_as_telemetry_only": True,
+        "terminal_and_teardown_receipts_required": True,
+    }
+    if adapter == "openai-responses-v1":
+        events.update(
+            {
+                "function_call_arguments_wire_type": "json_string",
+                "function_call_arguments_decode_count": 1,
+                "decoded_argument_bytes_retained": True,
+                "raw_to_decoded_argument_binding_required": True,
+            }
+        )
     return {
         "schema": "vela.stage-a-provider-runtime-contract.v1",
         "provider_adapter": adapter,
@@ -202,13 +218,7 @@ def provider_contract(adapter: str) -> dict[str, Any]:
             "credential_fd": 4,
             "credential_retained": False,
         },
-        "events": {
-            "raw_bytes_retained_before_normalization": True,
-            "tool_arguments_retained": True,
-            "tool_results_retained": True,
-            "usage_retained_as_telemetry_only": True,
-            "terminal_and_teardown_receipts_required": True,
-        },
+        "events": events,
         "tools": [
             {
                 "name": "shell",

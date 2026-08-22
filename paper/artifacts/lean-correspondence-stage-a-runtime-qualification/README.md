@@ -26,6 +26,13 @@ CA trust, and distinct held neutral-calibration permits. The qualifier consumes
 only its synthetic no-science self-test fixture; neither campaign neutral
 permit is consumed and no provider is contacted.
 
+The OpenAI Responses bridge requires every `function_call.arguments` wire
+value to be exactly one JSON string. It decodes that string exactly once,
+rejects malformed, non-object, double-encoded, or non-closed tool arguments,
+and binds the retained raw field to the exact decoded object bytes with a
+dedicated custody receipt and digest. Anthropic `tool_use.input` remains the
+unchanged object-shaped Messages contract.
+
 The candidate remains blocked only because both Platform API-key classes are
 absent. Only their environment names and absence were checked; no credential
 value or consumer OAuth surface was requested, used, or inspected. Independent

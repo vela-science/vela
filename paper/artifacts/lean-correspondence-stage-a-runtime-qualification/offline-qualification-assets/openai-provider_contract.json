@@ -1,7 +1,11 @@
 {
   "endpoint": "https://api.openai.com/v1/responses",
   "events": {
+    "decoded_argument_bytes_retained": true,
+    "function_call_arguments_decode_count": 1,
+    "function_call_arguments_wire_type": "json_string",
     "raw_bytes_retained_before_normalization": true,
+    "raw_to_decoded_argument_binding_required": true,
     "terminal_and_teardown_receipts_required": true,
     "tool_arguments_retained": true,
     "tool_results_retained": true,

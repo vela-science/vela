@@ -34,10 +34,10 @@
           "single_use_permit_hold": true,
           "trust_and_mounts": true
         },
-        "image_config_digest": "sha256:a5ddad20c4f4848fa29dd117b677a612a8bd528befb2446211b846e58b22c496",
-        "image_digest": "sha256:891f518623e8914e1af0f5566e5a35a536087343da169ddb9697da7e3b37d29c",
+        "image_config_digest": "sha256:a5afa0cc98a6f28eb5813cf146b03719ac54864b891bb4dd8184f47094822303",
+        "image_digest": "sha256:a51a4742979549f6d77511c722e86d8425f73c45b5b6681c6756d1d949b199d6",
         "input_tokens_telemetry": 100,
-        "neutral_capture_root": "sha256:13eb339fc1fc3b69663d31f2241a6c91c9c23e4202e0f5140eb07783c94549f3",
+        "neutral_capture_root": "sha256:f0cf1915c930819f04cb615b96177f3b7fff203606df62c90e837acf9168a779",
         "normalized_events_bytes": "sha256:9a885be7ca6a8b6ecbe0033a256709f353de7882a5c61b0f520bb4061d90e3a5",
         "normalized_tool_semantics_root": "sha256:6f858cdfb3c2ca19bdd00b89a1fe98e42615a5ef08d4f5f2dfea560be65c25c9",
         "participant_hold_root": "sha256:a88467323c3cfcc290eafa9f1285966db4c9c09bfe980434ffcf711bb03db412",
@@ -46,7 +46,7 @@
           "attempt": 1,
           "condition": "neutral-no-science-held",
           "configuration_root": "sha256:96555c45c33ed2a106cfb261025b752a4eeb1514aa180985ecd5ea0551a6616d",
-          "image_digest": "sha256:891f518623e8914e1af0f5566e5a35a536087343da169ddb9697da7e3b37d29c",
+          "image_digest": "sha256:a51a4742979549f6d77511c722e86d8425f73c45b5b6681c6756d1d949b199d6",
           "packet_root": "sha256:121535562a8cd7a7b7ade4d02dbbf82d811567fc9c2df274bc801b681d8e54f3",
           "participant_id": "neutral-calibration-openai",
           "prompt_root": "sha256:bce464b9e5456f1c8930365f12d7c4e3c50ce08ea373f1477a8844ace0123fcd",
@@ -55,10 +55,10 @@
           "registration_id": "stage-a-runtime-registration",
           "run_id": "neutral-calibration-openai",
           "runner_version": "neutral-runner/1",
-          "runtime_source_root": "sha256:f6560663a895ecdc80b39f519667676c57c285e727b22aed3548696ff2d72edd",
+          "runtime_source_root": "sha256:27daaf77de66f872fc9fbbbfc69bb6dd0bd03e982da2db4de1db85600b843f13",
           "timeout_seconds": 1200
         },
-        "participant_permit_root": "sha256:20c86ca878e436886a4273735e0f406c686b59efed573af8c5ac740b11084481",
+        "participant_permit_root": "sha256:96a9c8af3d079ab8c73dd8eaaca05d62eebde2c70efe97a192b462edf2f7ff03",
         "participant_permits_consumed": 0,
         "participant_visible_atoms_root": "sha256:3814a08354123311f292c2673ec2e7c5cf0308762dd23ec6ef76398c7d3166df",
         "pre_key_snapshot_root": "sha256:469f4ebd7ae669239ee01d54f89f4d084ef8c633fde40e520ab526fc2192e641",
@@ -66,12 +66,12 @@
         "provider_calls": 0,
         "provider_equivalence_root": "sha256:bc40341349f6f771be5eef2481fcef3bf72d278b2df65d5df05d01e62e271720",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
-        "qualification_root": "sha256:d6d02e5874d9dee46589e2243d6bab9e33207b013c708d6683b7c0db87fc4851",
+        "qualification_root": "sha256:4f1bead055215f9b3c27247d8a3a07a7caae25ed343b9f3cfda3c329effbcccb",
         "raw_provider_events_bytes": "sha256:cc71fcd9c05055ca93b96a9bce2d193a2c4a639032205de89fa2e6cf946c3712",
         "raw_provider_events_root": "sha256:bd28099252d4509901e2337636254921d2a20de5482ba25b15be4f9af529d661",
         "raw_response_bytes": "sha256:6e87719bca647b009b3f9e49105478b9690a14d83a637d5bfbbc72ebc30f47a3",
         "registered_schema_bytes": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
-        "runtime_source_root": "sha256:f6560663a895ecdc80b39f519667676c57c285e727b22aed3548696ff2d72edd",
+        "runtime_source_root": "sha256:27daaf77de66f872fc9fbbbfc69bb6dd0bd03e982da2db4de1db85600b843f13",
         "schema": "vela.tooling.evidence-qualification-receipt.v1",
         "scientific_sessions": 0,
         "self_verification_root": "sha256:dd9830b8745a4ba6d98d4090eb889c56e8d769ebf4c2cffdbd53a5771c4c3103",
@@ -85,22 +85,22 @@
         "bridge": {
           "bytes": 5767294,
           "path": "offline-qualification-assets/openai-bridge.bin",
-          "sha256": "sha256:3cacc3df023ce053f31ccd835ca1e4b06763f8f475b4013fe72372652506370a"
+          "sha256": "sha256:42e12b04d2d1f2653a7b00cd0aa7341854fb731b70d1d617d4ff455412db04ca"
         },
         "build_a": {
           "bytes": 991,
           "path": "offline-qualification-assets/openai-build_a.json",
-          "sha256": "sha256:3ccb74d0372c2b98e89bb7f81cd54fd537cbb87695cfca3c246743fa40b053dc"
+          "sha256": "sha256:eca218ed7d7cd2e3337a1fda07dc0b8e4556187b1c2a24cb8faaa6c83bb6a84b"
         },
         "build_b": {
           "bytes": 991,
           "path": "offline-qualification-assets/openai-build_b.json",
-          "sha256": "sha256:c7397d966ed7a2eaefb05beb14fc505c900979a9ab2259e5cf47542f73b64774"
+          "sha256": "sha256:45eeac0609a18601c2961888ade8ff056dd7edb0dd5621d0eacaad46f36c3cb6"
         },
         "held_permit": {
           "bytes": 1149,
           "path": "offline-qualification-assets/openai-held_permit.json",
-          "sha256": "sha256:c7a7d25518390d92a49f909d65f1525d4fbe03af0e8e277d2005356cb93eac6f"
+          "sha256": "sha256:ea5d47aa27449bf7116e9379a9f298883d41d8918b35ae7e47906b366901bd22"
         },
         "hold_state": {
           "bytes": 224,
@@ -110,17 +110,17 @@
         "image": {
           "bytes": 8417280,
           "path": "offline-qualification-assets/openai-image.tar",
-          "sha256": "sha256:6d79c573ee201e9a795597a057c089381b0c5c2d270b105878f984feed3f99f3"
+          "sha256": "sha256:1cba48d807839174b3ef806ab0bfa3b9dc95f55880a9fd3279a36bde4818dcd2"
         },
         "launchability": {
           "bytes": 958,
           "path": "offline-qualification-assets/openai-launchability.json",
-          "sha256": "sha256:9b315b96addecbd639c8d23311fad77d19516e84acc65536b6501b6b0b630159"
+          "sha256": "sha256:564712aa1486ec8c603b4f9120fbed2fd353273e9f77eaa1c0754452336f7a5b"
         },
         "provider_contract": {
-          "bytes": 1473,
+          "bytes": 1675,
           "path": "offline-qualification-assets/openai-provider_contract.json",
-          "sha256": "sha256:876d1c153923761dd44c4fbda455b42ea153b366331bdb3116fab71dbedd560f"
+          "sha256": "sha256:d6f2e135fce4208de18d06466c2e7c60115d8ef8be6e66096965e41adaee93a8"
         },
         "provider_schema": {
           "bytes": 2384,
@@ -130,12 +130,12 @@
         "runner": {
           "bytes": 2293886,
           "path": "offline-qualification-assets/openai-runner.bin",
-          "sha256": "sha256:9fd1a2b7d635cdf9ba5176dcdd44c18956ce8a1149b1dfc80e246b4a65f8a80c"
+          "sha256": "sha256:2321118acfdc5f62d256cabe3c6c9d67ff9d82d844f2d635614033cf11b66ebe"
         },
         "source_manifest": {
           "bytes": 1753,
           "path": "offline-qualification-assets/openai-source_manifest.json",
-          "sha256": "sha256:12810f158942dda7125c85ce4d3c2ca5915ce445404668955ecd89814863ca49"
+          "sha256": "sha256:b3461df942a49c3a585e1486f0e78b29fdce10af4c13fd9c912cf5ada465d9a3"
         },
         "tool_boundary": {
           "bytes": 2483,
@@ -174,10 +174,10 @@
           "single_use_permit_hold": true,
           "trust_and_mounts": true
         },
-        "image_config_digest": "sha256:d09ef61c52d0ade896184d0ce78d2c4db754913ace56beea867197685a2f0761",
-        "image_digest": "sha256:b751e5d0d84abd94872178087d2aa954cfa0f6645376ed108beddcd69d3899fc",
+        "image_config_digest": "sha256:fab49cd1780dd6fd541cfb03df5349b85f0a24b01f160206bc3154a9fcc1eddd",
+        "image_digest": "sha256:cd460011d0527da49eeeaf343bf76d6fdeb745b15ea1051e9ac3454c72dd480d",
         "input_tokens_telemetry": 100,
-        "neutral_capture_root": "sha256:0ec628696164518a7627ed77963948826ecf86297d50e0862418ccd8d13e3157",
+        "neutral_capture_root": "sha256:373c2d88b61f16734e3e11945baa7ede05ad870b91c7485caed2e9982d5763eb",
         "normalized_events_bytes": "sha256:9a885be7ca6a8b6ecbe0033a256709f353de7882a5c61b0f520bb4061d90e3a5",
         "normalized_tool_semantics_root": "sha256:6f858cdfb3c2ca19bdd00b89a1fe98e42615a5ef08d4f5f2dfea560be65c25c9",
         "participant_hold_root": "sha256:f2668374338222843f05958a04bfb73310f468111abca2e4234a1fa1ffa9565f",
@@ -186,7 +186,7 @@
           "attempt": 1,
           "condition": "neutral-no-science-held",
           "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
-          "image_digest": "sha256:b751e5d0d84abd94872178087d2aa954cfa0f6645376ed108beddcd69d3899fc",
+          "image_digest": "sha256:cd460011d0527da49eeeaf343bf76d6fdeb745b15ea1051e9ac3454c72dd480d",
           "packet_root": "sha256:10e442e8135b7aa2a8379169f455292c14eedcf574c08de713fe273b5df88aff",
           "participant_id": "neutral-calibration-anthropic",
           "prompt_root": "sha256:4e5f1f54ece0ea64713db5e163ee31600b304c3f39b70edcdfa60fdbabc5fae4",
@@ -195,10 +195,10 @@
           "registration_id": "stage-a-runtime-registration",
           "run_id": "neutral-calibration-anthropic",
           "runner_version": "neutral-runner/1",
-          "runtime_source_root": "sha256:208aff004781796ac8799ad0110d665d629ce39b806f38275ddfa55061bd8e7b",
+          "runtime_source_root": "sha256:3104933b541c577a1521445981928e5acfb1a55019622f53c59874dd52c96fb5",
           "timeout_seconds": 1200
         },
-        "participant_permit_root": "sha256:ea3a8b03a2d6f2dd12ffde74244ec3a8016deb10ed9a9caa42dfcccd8ff31d25",
+        "participant_permit_root": "sha256:4bed98283ffb3af24ed0c99d7d4e135276770fef8288c11fbe87e9c8b0d37b9f",
         "participant_permits_consumed": 0,
         "participant_visible_atoms_root": "sha256:3814a08354123311f292c2673ec2e7c5cf0308762dd23ec6ef76398c7d3166df",
         "pre_key_snapshot_root": "sha256:469f4ebd7ae669239ee01d54f89f4d084ef8c633fde40e520ab526fc2192e641",
@@ -206,12 +206,12 @@
         "provider_calls": 0,
         "provider_equivalence_root": "sha256:bc40341349f6f771be5eef2481fcef3bf72d278b2df65d5df05d01e62e271720",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
-        "qualification_root": "sha256:140214cfb1b3458063d9a42d7f43f938e0b2e91dd23de49ced66b6c258e72fc9",
+        "qualification_root": "sha256:a653ae75b0c600366ee78db2092ab904bc9540d94dc1ad14b110adb10e047002",
         "raw_provider_events_bytes": "sha256:887b76771bbf16fde341c1f5963303255f910bc30e5129e5cd5ceea8249ec031",
         "raw_provider_events_root": "sha256:4106dc00b8120a9175441ef41e731f2858dcb99e7500232b8594103e35f9a953",
         "raw_response_bytes": "sha256:6e87719bca647b009b3f9e49105478b9690a14d83a637d5bfbbc72ebc30f47a3",
         "registered_schema_bytes": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
-        "runtime_source_root": "sha256:208aff004781796ac8799ad0110d665d629ce39b806f38275ddfa55061bd8e7b",
+        "runtime_source_root": "sha256:3104933b541c577a1521445981928e5acfb1a55019622f53c59874dd52c96fb5",
         "schema": "vela.tooling.evidence-qualification-receipt.v1",
         "scientific_sessions": 0,
         "self_verification_root": "sha256:dd9830b8745a4ba6d98d4090eb889c56e8d769ebf4c2cffdbd53a5771c4c3103",
@@ -225,22 +225,22 @@
         "bridge": {
           "bytes": 5767294,
           "path": "offline-qualification-assets/anthropic-bridge.bin",
-          "sha256": "sha256:651a1e6a97bd270a681afc1f8c4ee2ed6ecc2f0320249c4d207aa9fe90dfe59a"
+          "sha256": "sha256:c5390da8b25764be13493f57531196a03c798750b54efec32b46b48d90408767"
         },
         "build_a": {
           "bytes": 991,
           "path": "offline-qualification-assets/anthropic-build_a.json",
-          "sha256": "sha256:d30b177375ac9c67872fb898e74e288fe42c46fb23c7673bdfb31a4687972744"
+          "sha256": "sha256:86c8a788934dcb4de31314fee849e52df0b0a42f9b85b3ac87eb303d0944d87e"
         },
         "build_b": {
           "bytes": 991,
           "path": "offline-qualification-assets/anthropic-build_b.json",
-          "sha256": "sha256:9edad4ecf5e800b60e8b9244ec5deabeb51ecb23f029d22c2245f4a610440d8b"
+          "sha256": "sha256:60c82f889980a72ed65e52c00d385b7baa033a81acd913ff93a2b6f663ed0b26"
         },
         "held_permit": {
           "bytes": 1158,
           "path": "offline-qualification-assets/anthropic-held_permit.json",
-          "sha256": "sha256:cea9c1624117ac59eaae8b179fdff3bb0bbf4af3b6dc48a1f2559fcbbee7a146"
+          "sha256": "sha256:6f048a375ac5d3cdb6b61ae4e8b0b9007b96f939a237b277e499f10b17999e75"
         },
         "hold_state": {
           "bytes": 227,
@@ -250,12 +250,12 @@
         "image": {
           "bytes": 8417280,
           "path": "offline-qualification-assets/anthropic-image.tar",
-          "sha256": "sha256:a037af7b68a532d47d59af123ce25adb96fb19c19c57a1d5f46993bc3af6e593"
+          "sha256": "sha256:308c8bf6509cf3f6432fda044d45276707f1526eb56484b18949f43a8212142b"
         },
         "launchability": {
           "bytes": 960,
           "path": "offline-qualification-assets/anthropic-launchability.json",
-          "sha256": "sha256:d717d9fbde73da11b098a6882a99a3aae53456ce41c3fafb851c2c2a934f1fb0"
+          "sha256": "sha256:bc1842c8747bfacddf2c8cb2f15ac4e875ba2e7a96b50bef304b1284de03b3ef"
         },
         "provider_contract": {
           "bytes": 1469,
@@ -270,12 +270,12 @@
         "runner": {
           "bytes": 2293886,
           "path": "offline-qualification-assets/anthropic-runner.bin",
-          "sha256": "sha256:d0c4b9a2721be1cdec73668ef16faec7a7060eaec7f974cb7d93cfdbdaea25b7"
+          "sha256": "sha256:c93b8d48431b1d4e9c233236ebe1ae2967e3e302f027fcacca8ce916ba188e50"
         },
         "source_manifest": {
           "bytes": 1753,
           "path": "offline-qualification-assets/anthropic-source_manifest.json",
-          "sha256": "sha256:cce5e0288740698c38acb8a4f4b61283ce4c110c91819f4e91a69cf6f85cd7a1"
+          "sha256": "sha256:d995fabf6559dca2eac1fa60beaa03ba2f733febc0c7e315141ab80c3bf9db29"
         },
         "tool_boundary": {
           "bytes": 2487,
@@ -290,7 +290,7 @@
     "sha256": "sha256:61591eec3304e299a9344888bc2a6f08cd32785b647ef5b0107da490dbf18013",
     "tree": "341e0d22fa570b1b5e8dd9f70b219c11308ba45f"
   },
-  "record_root": "sha256:38163b7c1fe6f854a21d140afc42e0fca1827e0d2deac5f82e6258311644e091",
+  "record_root": "sha256:a822929b2266b1a0dfd0ca212de64773c88d94ee779980f4c04a34cc58dbfe4e",
   "schema": "vela.lean-correspondence-stage-a-offline-runtime-qualification.v1",
   "status": "offline_qualified_hold",
   "trust_bundle_sha256": "sha256:9dae8d76e55cb08991f2b672d58999ea15560d910759c16b544f843bdffbb994"
