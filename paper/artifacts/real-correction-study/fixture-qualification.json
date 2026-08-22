@@ -1,0 +1,200 @@
+{
+  "schema": "vela.real-correction-fixture-qualification.v1",
+  "status": "open_qualification_only",
+  "source_repository": {
+    "repository": "https://github.com/google-deepmind/formal-conjectures.git",
+    "refreshed_origin_main": "4c2d575a3b4eab02dbb9e72b6627b1969a991276"
+  },
+  "fixtures": [
+    {
+      "id": "erdos-264-integer-perturbation",
+      "title": "Erdos 264 integer-valued perturbation correction",
+      "source": {
+        "path": "FormalConjectures/ErdosProblems/264.lean",
+        "predecessor": {
+          "commit": "593e6b76702c5dbffaaa91b59f4faaed705d04ce",
+          "tree": "5e79f7198c3891bdbb3fc6ec10c2b2a804cc56cb",
+          "blob": "8490f7dc0575480c7729acd5713433fc0af9c71b",
+          "bytes": 3358,
+          "sha256": "sha256:98386d8f28112c5e952ec40c4ee439c27f3ff7560a4e767b493ccebc628fb29f",
+          "retained_path": "fixtures/erdos-264/predecessor/FormalConjectures/ErdosProblems/264.lean"
+        },
+        "successor": {
+          "commit": "0598b8f281060a18416d60753fd75621d659bb07",
+          "tree": "e040cfc1cd6e5d1a79cf156047f452c2268c1920",
+          "blob": "3ff5ce70001355549571a07eee77960939323b57",
+          "bytes": 3419,
+          "sha256": "sha256:5a3a0fb7063ed77d644a5c1cab503851e68d87b02c0882db8fa52e801aba1166",
+          "retained_path": "fixtures/erdos-264/successor/FormalConjectures/ErdosProblems/264.lean"
+        },
+        "upstream_full_index_diff_sha256": "sha256:a1935f112f5e086cac55d0933f6aa5588893aa7452512d5a0319e12fba4a472f"
+      },
+      "correction": {
+        "changed_symbol": "Erdos264.IsIrrationalitySequence",
+        "summary": "The bounded perturbation changes from Nat-valued to Int-valued, adds a lower bound, and makes the two nonzero premises independent."
+      },
+      "authority_scenario": {
+        "regime": "independently_authorized_acceptance",
+        "upstream_git_is_authority": false,
+        "decision_present": true,
+        "authorization_verifiable_from_retained_bytes": true,
+        "local_standing": "accepted_successor",
+        "safe_next_action": "reassess_dependents_without_new_decision",
+        "scenario_kind": "observed_first_party_vela_evidence",
+        "evidence_paths": [
+          "fixtures/erdos-264/vela-repository/.vela/authority/events/vev_0325f467077ed92e.json",
+          "fixtures/erdos-264/vela-repository/.vela/authority/events/vev_2e265868d5a76496.json",
+          "fixtures/erdos-264/vela-repository/.vela/authority/records/var_862a88c79456a6a5.dsse.json",
+          "fixtures/erdos-264/vela-repository/.vela/authority/keysets/c4a88730dead6074cce49cce6649b23874dfed41c598815852f62ca65741f328.json",
+          "fixtures/erdos-264/vela-repository/artifacts/fidelity/erdos-264-source-transition.v1.json",
+          "fixtures/erdos-264/vela-repository/targets/erdos-264-parts-i-proof-repair.json"
+        ]
+      },
+      "bounded_ground_truth": {
+        "scope_rule": "All theorem declarations in the exact successor file that directly reference IsIrrationalitySequence, plus the three named local Claim dispositions and the retained hosted proof named by the first-party transition artifact.",
+        "complete": true,
+        "consequences": [
+          {"id": "Erdos264.erdos_264.parts.i", "classification": "affected", "safe_action": "reverify_against_successor"},
+          {"id": "Erdos264.erdos_264.parts.ii", "classification": "affected", "safe_action": "reverify_against_successor"},
+          {"id": "Erdos264.erdos_264.variants.example", "classification": "affected", "safe_action": "reverify_against_successor"},
+          {"id": "Erdos264.erdos_264.variants.ko_tao_neg", "classification": "affected", "safe_action": "reverify_against_successor"},
+          {"id": "Erdos264.erdos_264.variants.ko_tao_pos", "classification": "affected", "safe_action": "reverify_against_successor"},
+          {"id": "independent-problem-claim", "classification": "unaffected", "safe_action": "retain"},
+          {"id": "mutable-source-locator-claim", "classification": "affected", "safe_action": "retain_as_superseded_history"},
+          {"id": "hosted-parts-i-proof", "classification": "must_reassess", "safe_action": "rebind_and_reverify"}
+        ]
+      },
+      "qualification": {
+        "exact_predecessor_successor": true,
+        "retained_source_bytes": true,
+        "consequential_downstream_dependency": true,
+        "bounded_completeness": true,
+        "authority_sensitive_safe_action": true
+      }
+    },
+    {
+      "id": "snake-induced-path",
+      "title": "Snake-in-the-box induced-path correction",
+      "source": {
+        "path": "FormalConjectures/Wikipedia/SnakeInTheBox.lean",
+        "predecessor": {
+          "commit": "5dd9f04d6c53be13cdec8ba8792e242582a7f5c7",
+          "tree": "d2f3e0b42fb191c12ea62ea7f402496d412a98f8",
+          "blob": "d1f8c21775ed62d222a0441a325b1b6209942d64",
+          "bytes": 3744,
+          "sha256": "sha256:1f9d6e1cbd8a7d40717d97abfe3b618c88e32f6f4f2c2ad35fb17ee1069ab9fa",
+          "retained_path": "fixtures/snake-induced-path/predecessor/FormalConjectures/Wikipedia/SnakeInTheBox.lean"
+        },
+        "successor": {
+          "commit": "89091814b683af5e580251762b8c5633bf53c6f2",
+          "tree": "2d573d1b3b082ea5de8b6f6a375d67788b019184",
+          "blob": "9682d8124dc617b7dc823afaf309ddd893279031",
+          "bytes": 3938,
+          "sha256": "sha256:1781f117a71066c6d1e74c5fb04059889169ceb80d1e9d04cb0f48a706977bd3",
+          "retained_path": "fixtures/snake-induced-path/successor/FormalConjectures/Wikipedia/SnakeInTheBox.lean"
+        },
+        "upstream_full_index_diff_sha256": "sha256:c85fc2e5a4e3f3044d4cf9c96e909d51ec97cc3ef99813dce80475e097962772"
+      },
+      "correction": {
+        "changed_symbol": "SnakeInBox.IsSnakeInGraphOfLength",
+        "summary": "Equality of vertex sets is replaced by equality with the path subgraph, so ambient chords are excluded as intended."
+      },
+      "authority_scenario": {
+        "regime": "no_authorized_acceptance_action",
+        "upstream_git_is_authority": false,
+        "decision_present": false,
+        "authorization_verifiable_from_retained_bytes": false,
+        "local_standing": "predecessor_only",
+        "safe_next_action": "prepare_submission_no_status_change",
+        "scenario_kind": "prospective_evaluation_local_context",
+        "evidence_paths": []
+      },
+      "bounded_ground_truth": {
+        "scope_rule": "Hypercube plus every declaration from IsSnakeInGraphOfLength through snake_upper_bound in the exact successor file; this closes the file-local transitive dependency boundary.",
+        "complete": true,
+        "consequences": [
+          {"id": "SnakeInBox.Hypercube", "classification": "unaffected", "safe_action": "retain"},
+          {"id": "SnakeInBox.IsSnakeInGraphOfLength", "classification": "affected", "safe_action": "replace_with_successor"},
+          {"id": "SnakeInBox.LongestSnakeInGraph", "classification": "affected", "safe_action": "recompute_with_successor"},
+          {"id": "SnakeInBox.LongestSnakeInTheBox", "classification": "affected", "safe_action": "recompute_with_successor"},
+          {"id": "SnakeInBox.snake_zero_zero", "classification": "must_reassess", "safe_action": "reverify_successor_proof"},
+          {"id": "SnakeInBox.snake_small_dimensions", "classification": "must_reassess", "safe_action": "reverify_claim"},
+          {"id": "SnakeInBox.snake_dim_nine", "classification": "must_reassess", "safe_action": "rebind_open_question"},
+          {"id": "SnakeInBox.snake_dim_nine_lower_bound", "classification": "must_reassess", "safe_action": "reverify_claim"},
+          {"id": "SnakeInBox.snake_upper_bound", "classification": "must_reassess", "safe_action": "reverify_claim"}
+        ]
+      },
+      "qualification": {
+        "exact_predecessor_successor": true,
+        "retained_source_bytes": true,
+        "consequential_downstream_dependency": true,
+        "bounded_completeness": true,
+        "authority_sensitive_safe_action": true
+      }
+    },
+    {
+      "id": "erdos-1055-exclusive-prime-class",
+      "title": "Erdos 1055 exclusive prime-class correction",
+      "source": {
+        "path": "FormalConjectures/ErdosProblems/1055.lean",
+        "predecessor": {
+          "commit": "38d5a036c5005ff3e6c5fd91a5bd0e472565ee61",
+          "tree": "5b38f60870b297c7c17b057ebfd660114458bcd3",
+          "blob": "4835f12e96d618c7e9014f31a85f7549baf2ab79",
+          "bytes": 3616,
+          "sha256": "sha256:ac988afdb5ab32d9dbfda77a94bc2859e0d873c9c09790a68acb85d4b1e959f9",
+          "retained_path": "fixtures/erdos-1055/predecessor/FormalConjectures/ErdosProblems/1055.lean"
+        },
+        "successor": {
+          "commit": "ab7989605ff82ae5680812b2a70bfbf52c33fa87",
+          "tree": "6a82a3ab09f5f7a1f729a2fdb8211b344cab0816",
+          "blob": "4348f2fe3b7f212801fb6f6be94400a29936c044",
+          "bytes": 4036,
+          "sha256": "sha256:d3270825487fd25edb928565035455ca7ffa6b03a0dfaf44ba58d86abbd8e6d5",
+          "retained_path": "fixtures/erdos-1055/successor/FormalConjectures/ErdosProblems/1055.lean"
+        },
+        "upstream_full_index_diff_sha256": "sha256:3c2c03eb84a3662379108418710dff0733b2c49000f7ed2fd584daca464d5c50"
+      },
+      "correction": {
+        "changed_symbol": "Erdos1055.IsOfClass",
+        "summary": "The recursive successor case excludes membership in every lower class; the least class-2 prime changes from 2 to 13."
+      },
+      "authority_scenario": {
+        "regime": "authorization_presently_unprovable",
+        "upstream_git_is_authority": false,
+        "decision_present": true,
+        "authorization_verifiable_from_retained_bytes": false,
+        "local_standing": "status_change_unprovable",
+        "safe_next_action": "withhold_status_change_request_authority_chain",
+        "scenario_kind": "prospective_evaluation_local_context",
+        "evidence_paths": []
+      },
+      "bounded_ground_truth": {
+        "scope_rule": "Every declaration in the exact successor file that directly or transitively consumes IsOfClass, plus the unchanged class-1 base clause.",
+        "complete": true,
+        "consequences": [
+          {"id": "Erdos1055.class-one-base-clause", "classification": "unaffected", "safe_action": "retain"},
+          {"id": "Erdos1055.IsOfClass", "classification": "affected", "safe_action": "replace_with_successor"},
+          {"id": "Erdos1055.exists_p", "classification": "must_reassess", "safe_action": "reverify_claim"},
+          {"id": "Erdos1055.p", "classification": "affected", "safe_action": "recompute_with_successor"},
+          {"id": "Erdos1055.erdos_1055", "classification": "must_reassess", "safe_action": "rebind_open_question"},
+          {"id": "Erdos1055.erdos_1055.variants.erdos_limit", "classification": "must_reassess", "safe_action": "reverify_finite_change_invariance"},
+          {"id": "Erdos1055.erdos_1055.variants.selfridge_limit", "classification": "must_reassess", "safe_action": "reverify_finite_change_invariance"}
+        ]
+      },
+      "qualification": {
+        "exact_predecessor_successor": true,
+        "retained_source_bytes": true,
+        "consequential_downstream_dependency": true,
+        "bounded_completeness": true,
+        "authority_sensitive_safe_action": true
+      }
+    }
+  ],
+  "research_boundary": {
+    "open_ground_truth_only": true,
+    "eligible_for_confirmatory_scoring": false,
+    "protected_final_key_created": false,
+    "reason": "These fixtures expose their qualification ground truth for methodological review. Any confirmatory study must use fresh held-out correction families."
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "schema": "vela.real-correction-three-arm-contract.v1",
+  "status": "design_only_not_preregistered",
+  "shared_atoms": [
+    "exact predecessor and successor source bytes",
+    "source commit, tree, blob, byte count, and SHA-256 bindings",
+    "the same bounded dependency and completeness scope",
+    "the same local-repository authority facts",
+    "the same repository-local status facts",
+    "the same action vocabulary and response schema"
+  ],
+  "arms": [
+    {
+      "id": "git-documents",
+      "presentation": "ordinary Git history, manifests, prose authority records, and dependency documents",
+      "must_not_add": ["derived current-state answer", "Vela object names", "protected labels"]
+    },
+    {
+      "id": "structured-state",
+      "presentation": "neutral closed JSON for history, current state, dependencies, local acceptance, and evidence bindings",
+      "must_not_add": ["Vela Decision semantics", "Vela Standing semantics", "protected labels"]
+    },
+    {
+      "id": "vela",
+      "presentation": "read-only Vela Claim, Correction, Decision, Standing, replay, and correction-impact views",
+      "must_not_add": ["new protocol semantics", "authority mutation", "protected labels"]
+    }
+  ],
+  "required_question": [
+    "What exact source state changed?",
+    "Which bounded downstream items must be reassessed?",
+    "Which items remain valid and why?",
+    "What does each named repository locally accept at the bound root?",
+    "What is the first safe next action?"
+  ],
+  "authority_non_escalation": "A source merge, signature, Verification, or foreign Decision cannot be rendered as local acceptance."
+}
