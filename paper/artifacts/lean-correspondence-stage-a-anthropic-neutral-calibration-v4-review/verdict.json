@@ -1,0 +1,89 @@
+{
+  "schema": "vela.independent-stage-a-anthropic-neutral-v4-review.v1",
+  "verdict": "PASS",
+  "subject": {
+    "producer_commit": "50ebc2280a1154243130c0520e633990b4d5feab",
+    "producer_tree": "4a6ff57fb3dea3af0ca8fa2e9c6ff0e89adda7d5",
+    "producer_parent": "0aee2129f2f7824f328d9576f72e42f240e08932",
+    "artifact_root": "sha256:58f2995e8993045d9f9653371c1b49a770e23c59ca85d79cc26ff536a1537a0a"
+  },
+  "bindings": {
+    "permit_root": "sha256:dfc9f20e029b7ea51eb28c6b3d81f70eace063c681d56d2c9ce7356b3dbe8b63",
+    "request_bytes": 4278,
+    "request_sha256": "sha256:cf67944d1872244c9d89ed3f7ad9cc27c3a37a4deba665f47a939985e2c62e8c",
+    "provider_schema_bytes": 2384,
+    "provider_schema_sha256": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
+    "provider_schema_occurrences": 1,
+    "provider_request_frame_sha256": "sha256:6ba0a6cd840dc28d8dbba2f9b019d0e37cee109924593a328c173f38000cf074",
+    "provider_response_sha256": "sha256:4b90af7d3453c95f8b59a49d6bf7761593cc2ef9ccbfee96fbff7abc8934c50e",
+    "parsed_response_sha256": "sha256:95bf0c205c10167f57d769a0f77daef57ede2db3a6061464957c496e50eddc46",
+    "anthropic_bridge_bytes": 5918210,
+    "anthropic_bridge_sha256": "sha256:c6a8cb2f256eea8654a82333fd59c9b8aa0c086c0fec3629c56bd4bef2794eb4",
+    "prior_v2_artifact_root": "sha256:b72c5d8c5bdf66e528524719773dfc37dda98b7b219c841349a9c6e4874abb1b",
+    "prior_v3_artifact_root": "sha256:63cbbdf6ae6c7e906268b31f33198d06b8db0757e6db48b6187286cacd08dcb9"
+  },
+  "execution": {
+    "attempts": 1,
+    "provider_calls": 1,
+    "endpoint_attempts": 1,
+    "retries": 0,
+    "permit_reused": false,
+    "response_schema_valid": true,
+    "request_byte_identical_through_endpoint_write": true,
+    "provider_response_terminal_success": true,
+    "all_child_exit_codes_zero": true,
+    "teardown_complete": true,
+    "credential_fd_closed": true,
+    "credential_buffer_scrubbed": true,
+    "credential_retained": false
+  },
+  "held_state": {
+    "openai_neutral_permit_held": true,
+    "participant_permits_held": 12,
+    "participant_calls": 0,
+    "scoring_attempts": 0,
+    "stage_b_families_selected": 0,
+    "authority_effect": "none"
+  },
+  "qualification": {
+    "anthropic_neutral_calibration_evidence": "qualified_exact_pass",
+    "anthropic_lossless_runtime": "qualified_exact_pass",
+    "openai_runtime": "not_reviewed_by_this_verdict",
+    "participant_study": "not_authorized",
+    "scientific_lift": "not_established"
+  },
+  "review_gates": {
+    "artifact_verifier": "PASS",
+    "committed_adversaries": 34,
+    "dual_fresh_cache_bridge_builds_byte_identical": true,
+    "runtime_parent": "PASS",
+    "stage_a_lean": "PASS",
+    "frozen_method": "PASS",
+    "prior_v2": "PASS",
+    "prior_v3": "PASS",
+    "schemas": "PASS",
+    "ruff": "PASS",
+    "conformance": "PASS",
+    "reseal": "PASS",
+    "clean_detached_state": true
+  },
+  "claim_ceiling": {
+    "positive_anthropic_neutral_runtime_qualification": true,
+    "openai_qualification": false,
+    "participant_execution_authorized": false,
+    "participant_permit_release_authorized": false,
+    "scoring_authorized": false,
+    "stage_b_selection_authorized": false,
+    "scientific_claim_authorized": false,
+    "protocol_or_core_effect": "none",
+    "authority_decision_or_standing_effect": "none"
+  },
+  "review_actions": {
+    "credential_accesses": 0,
+    "provider_calls": 0,
+    "permits_released": 0,
+    "scoring_attempts": 0,
+    "producer_mutations": 0,
+    "authority_actions": 0
+  }
+}
