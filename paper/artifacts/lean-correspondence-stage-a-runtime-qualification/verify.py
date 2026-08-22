@@ -20,12 +20,16 @@ REGISTRATION = PACKAGE / "registration.json"
 OFFLINE = PACKAGE / "offline-qualification.json"
 ARTIFACT_ROOT = PACKAGE / "artifact-root.json"
 STAGE_A = REPOSITORY / "paper/artifacts/lean-correspondence-stage-a-open-pilot"
+STOPPED = (
+    REPOSITORY
+    / "paper/artifacts/lean-correspondence-stage-a-anthropic-neutral-calibration"
+)
 SHA256 = re.compile(r"sha256:[0-9a-f]{64}\Z")
 EXPECTED_REGISTRATION_ROOT = (
-    "sha256:009d84b9851f903d391b71987a140cf0707da4ee15fca1407a6f563b0ae7b49e"
+    "sha256:e0903af7d0e5d9c120601bdd786e8d9b3ca0c7532bac1a4a60e718690f32091e"
 )
 EXPECTED_OFFLINE_RECORD_ROOT = (
-    "sha256:7a4c8cf306f74ca603aa29e6c32dc2018788ba2a8c6168a1d9766938af063de8"
+    "sha256:2314d77a6e0fb8f85a88ad398b84725eb75deb43c8c6062e3418affd5d893004"
 )
 EXPECTED_QUALIFIER = {
     "git_commit": "cc3b88d8bfcfd7b4f720a023f049d5c365be9423",
@@ -39,6 +43,9 @@ EXPECTED_CORRECTIVE_ANCESTRY = {
     "reviewed_predecessor_commit": "b333186cae1274ebb48353ba72e1ab3be42adcc0",
     "reviewed_predecessor_parent_commit": "5be82cb3ab1ef11e7e870675337ae3704118fd46",
     "successor_direct_parent_commit": "b333186cae1274ebb48353ba72e1ab3be42adcc0",
+    "stopped_evidence_commit": "30210517f3b1bee420bc61e9a4484ecff8b68ae7",
+    "stopped_evidence_tree": "a2c878542e92442134f56b79501448ba14e16e28",
+    "prospective_successor_direct_parent_commit": "30210517f3b1bee420bc61e9a4484ecff8b68ae7",
 }
 EXPECTED_STAGE_A = {
     "artifact_root": "sha256:f89d335912adbbd0e3b3f1cb98ec3f4fa78a27f3742652ac7244eaa86ed6aca8",
@@ -57,26 +64,26 @@ EXPECTED_PROVIDER = {
         "model": "gpt-5.6-sol",
         "run_id": "neutral-calibration-openai-json-v2",
         "configuration_root": "sha256:96555c45c33ed2a106cfb261025b752a4eeb1514aa180985ecd5ea0551a6616d",
-        "qualification_root": "sha256:aa7a05479b97c97d807604048d1f9569a45a1b6707fa7d96e6ce24a6337486e3",
-        "image_digest": "sha256:c989a72d29712c305b55de9dccbcadb369967205b8dffe5a7de54365540e0717",
+        "qualification_root": "sha256:295ed850de980d6d37505274b1ecf1f7670db278ba0001aa12f897b13ca74468",
+        "image_digest": "sha256:a9b67182ae941262b9a9eb7483e11b57a2b4cc52112980a2deb63039b0353e18",
         "tool_boundary_root": "sha256:0b2e1fb701f70b02f9cc7ad79201f84374dfeb904299b59a6667d36eb4e59c69",
-        "runtime_source_root": "sha256:e07d068594a445b245e45cb70e1511c36a475f9f25ead4de3414e084a7b2ff7c",
-        "participant_permit_root": "sha256:86ac7e7a800f5e97da1506e1c3e9830b7ff352301a18df10f02c97f9278f8e65",
+        "runtime_source_root": "sha256:e49bf74c6333d44e02f7834e5807fd21f0932a8f11e82ca5c6a72d210cf23bec",
+        "participant_permit_root": "sha256:78cd091bfcf6888dbaa01598221fdb95e803d7be3849fa3074a754bb7b7f8c8a",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
-        "launchability_sha256": "sha256:b6d9a29df9dad8ecd05749b15c3e5ca24eeadec092e0b91b42694fe726622745",
+        "launchability_sha256": "sha256:6e280337443b087c9cfd9bff63576d78d91a1ec555d43d647df0c22e7f4d02cc",
     },
     "anthropic-messages-v1": {
         "organization": "Anthropic",
         "model": "claude-opus-5",
-        "run_id": "neutral-calibration-anthropic-json-v2",
+        "run_id": "neutral-calibration-anthropic-json-v3-replacement",
         "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
-        "qualification_root": "sha256:130d90f06df8cf15e4479bbb18f5599405afbea6c72ce37558e3c6aec1fa0af1",
-        "image_digest": "sha256:26fa80f822ebc0357670e03b4358d01d8c2190803696b7fd8aefec83e3e84fcf",
+        "qualification_root": "sha256:f1221c6ff4f5beb0604b73c744c4289e89c95b3f041814836d3d782414b13a96",
+        "image_digest": "sha256:d314adbd8b3765d9aada03bd5bd87ec77826cd81fdc8c8aab3982dce3165385d",
         "tool_boundary_root": "sha256:01dfbda69c1c7760423fdba41eaac18687a73d9fe683a8a5f207fdc8abe2a7d9",
-        "runtime_source_root": "sha256:651c2a4b3e0cb54bf7ad2855d88b99766384d65af5fd3ee2f86742c4476b81c4",
-        "participant_permit_root": "sha256:b9ba39cf1c511043324ca8dfbc02b6c59d91f457a2e560a37d78d32a1b84cdbe",
+        "runtime_source_root": "sha256:27502e951b7c924738d9edbee7bcbf8044e371731076726ca5408425caef7e4a",
+        "participant_permit_root": "sha256:7ddf24c9dbeac2cdce1a4ca1972a0984287dbcf528881ae01cbfe297217e2f32",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
-        "launchability_sha256": "sha256:c5a470f2bc469dcb3aaa447ebafabaa5f7f4e3de5f537a501568ddef8b484222",
+        "launchability_sha256": "sha256:e653f3068205d73138b1f664617ed539636fe34a571d2fcc2e87c081cedffdc2",
     },
 }
 EXPECTED_FROZEN_CONFIGURATION = {
@@ -145,6 +152,37 @@ EXPECTED_NEUTRAL_CONTENT = {
     "schema": "vela.stage-a-neutral-content-equivalence.v1",
     "semantic_atoms_root": "sha256:a19a614c3ef81d7f78fa9952af05535dccaa8d3d41cb0c2bafed6aafb9b1a9d8",
 }
+EXPECTED_PRIOR_CONSUMED_NON_CALL = {
+    "schema": "vela.stage-a-consumed-neutral-non-call-lineage.v1",
+    "producer_commit": "30210517f3b1bee420bc61e9a4484ecff8b68ae7",
+    "producer_tree": "a2c878542e92442134f56b79501448ba14e16e28",
+    "artifact_root": "sha256:b72c5d8c5bdf66e528524719773dfc37dda98b7b219c841349a9c6e4874abb1b",
+    "provider_adapter": "anthropic-messages-v1",
+    "run_id": "neutral-calibration-anthropic-json-v2",
+    "permit_root": "sha256:b9ba39cf1c511043324ca8dfbc02b6c59d91f457a2e560a37d78d32a1b84cdbe",
+    "consumed_permit_bytes": "sha256:69cf9f72ed814b4a39916189a3241ec4e01e4f965fa5ffa31e1beef3727c57fe",
+    "endpoint_contact_receipt_bytes": "sha256:798a8733f655c0e5aa4e16ddec6dc8471d3fb2897b6c3eeb5940907e0f58ac4f",
+    "permit_consumed": True,
+    "provider_calls": 0,
+    "endpoint_contacted": False,
+    "retryable": False,
+    "replacement_authorized": False,
+    "denominator_disposition": "permanent_consumed_non_call",
+    "authority_effect": "none",
+}
+EXPECTED_CALL_DERIVATION = {
+    "schema": "vela.stage-a-provider-call-derivation.v1",
+    "source": "successful_endpoint_write_request_attempt_receipts_only",
+    "controller_source_path": "neutral_controller.py",
+    "controller_source_sha256": "sha256:27e604324c4e0c2b06eb1a8cb0c5dd0cfb9b71780ce27583b52674ad230c0706",
+    "controller": 0,
+    "bridge": 0,
+    "runner": 0,
+    "terminal": 0,
+    "custody": 0,
+    "endpoint_write_receipts": 0,
+    "pre_request_failures_count_as_calls": False,
+}
 
 
 class CandidateError(ValueError):
@@ -186,6 +224,102 @@ def exact_int(value: Any, expected: int, label: str) -> None:
     require(type(value) is int and value == expected, label)
 
 
+def expected_request_bytes(
+    adapter: str, run_input: dict[str, Any], packet: bytes, schema: bytes
+) -> bytes:
+    tool_specs = [
+        {
+            "name": "shell",
+            "description": "Return git --no-optional-locks status --short for the read-only workspace.",
+            "input_schema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["argv", "cwd"],
+                "properties": {
+                    "argv": {
+                        "const": ["git", "--no-optional-locks", "status", "--short"]
+                    },
+                    "cwd": {"const": "/workspace"},
+                },
+            },
+        },
+        {
+            "name": "read_file",
+            "description": "Read one regular non-symlink file below the read-only workspace.",
+            "input_schema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["operation", "path"],
+                "properties": {
+                    "operation": {"enum": ["read", "list", "stat"]},
+                    "path": {"type": "string", "pattern": "^/workspace(?:/|$)"},
+                },
+            },
+        },
+    ]
+    sentinel = "__VELA_EXACT_PROVIDER_SCHEMA_BYTES__"
+    if adapter == "openai-responses-v1":
+        tools = [
+            {
+                "type": "function",
+                "name": tool["name"],
+                "description": tool["description"],
+                "parameters": tool["input_schema"],
+                "strict": True,
+            }
+            for tool in tool_specs
+        ]
+        value = {
+            "model": run_input["model"],
+            "background": False,
+            "store": False,
+            "parallel_tool_calls": False,
+            "max_output_tokens": 32768,
+            "reasoning": {"effort": "high"},
+            "service_tier": "default",
+            "input": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "input_text", "text": run_input["prompt"]},
+                        {"type": "input_text", "text": packet.decode()},
+                    ],
+                }
+            ],
+            "tools": tools,
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "name": "stage_a_response",
+                    "schema": sentinel,
+                    "strict": True,
+                }
+            },
+        }
+    else:
+        value = {
+            "model": run_input["model"],
+            "max_tokens": 32768,
+            "service_tier": "standard_only",
+            "thinking": {"type": "adaptive"},
+            "output_config": {
+                "effort": "high",
+                "format": {"type": "json_schema", "schema": sentinel},
+            },
+            "messages": [
+                {
+                    "role": "user",
+                    "content": run_input["prompt"] + "\n" + packet.decode(),
+                }
+            ],
+            "tools": tool_specs,
+        }
+    template = canonical_bytes(value)
+    needle = json.dumps(sentinel).encode()
+    require(template.count(needle) == 1, "request_schema_splice")
+    return template.replace(needle, schema, 1)
+
+
 def validate_launchable_runtime(
     record: dict[str, Any], expected: dict[str, Any], adapter: str
 ) -> None:
@@ -198,6 +332,7 @@ def validate_launchable_runtime(
         "build_b",
         "runner",
         "bridge",
+        "preflight",
         "provider_contract",
         "provider_schema",
         "tool_boundary",
@@ -206,18 +341,107 @@ def validate_launchable_runtime(
         "neutral_packet",
         "neutral_prompt",
         "retired_permit",
+        "run_input",
+        "materialization_receipt",
+        "offline_validation_receipt",
+        "request_bytes",
     }
     require(type(retained) is dict and set(retained) == required, "retained_set")
     image_raw = (PACKAGE / retained["image"]["path"]).read_bytes()
     runner_raw = (PACKAGE / retained["runner"]["path"]).read_bytes()
     bridge_raw = (PACKAGE / retained["bridge"]["path"]).read_bytes()
+    preflight_raw = (PACKAGE / retained["preflight"]["path"]).read_bytes()
     contract = load_json(PACKAGE / retained["provider_contract"]["path"])
     launchability = load_json(PACKAGE / retained["launchability"]["path"])
+    exact_int(launchability.get("provider_calls"), 0, "launchability_provider_calls")
+    exact_int(
+        launchability.get("endpoint_write_receipts"),
+        0,
+        "launchability_endpoint_write_receipts",
+    )
     source_manifest = load_json(PACKAGE / retained["source_manifest"]["path"])
     neutral_packet = (PACKAGE / retained["neutral_packet"]["path"]).read_bytes()
     neutral_prompt = (PACKAGE / retained["neutral_prompt"]["path"]).read_bytes()
     held_permit = load_json(PACKAGE / retained["held_permit"]["path"])
     retirement = load_json(PACKAGE / retained["retired_permit"]["path"])
+    run_raw = (PACKAGE / retained["run_input"]["path"]).read_bytes()
+    run_input = load_json(PACKAGE / retained["run_input"]["path"])
+    materialization = load_json(PACKAGE / retained["materialization_receipt"]["path"])
+    validation = load_json(PACKAGE / retained["offline_validation_receipt"]["path"])
+    request_raw = (PACKAGE / retained["request_bytes"]["path"]).read_bytes()
+    provider_schema_raw = (PACKAGE / retained["provider_schema"]["path"]).read_bytes()
+    start = materialization.get("raw_inserted_start")
+    end = materialization.get("raw_inserted_end")
+    for key, expected_number in (
+        ("source_bytes", len(provider_schema_raw)),
+        ("raw_inserted_start", start),
+        ("raw_inserted_end", end),
+    ):
+        require(type(materialization.get(key)) is int, "materialized_range_type")
+        if key == "source_bytes":
+            exact_int(materialization.get(key), expected_number, "materialized_size")
+    exact_int(validation.get("endpoint_write_receipts"), 0, "offline_validation_count")
+    exact_int(validation.get("provider_calls"), 0, "offline_validation_count")
+    require(
+        materialization
+        == {
+            "schema": "vela.stage-a-run-input-materialization.v1",
+            "source_path": "/input/provider-schema.json",
+            "source_regular": True,
+            "source_single_link": True,
+            "source_no_follow": True,
+            "source_pre_post_same_inode": True,
+            "source_bytes": len(provider_schema_raw),
+            "source_sha256": digest(provider_schema_raw),
+            "raw_inserted_start": start,
+            "raw_inserted_end": end,
+            "raw_inserted_sha256": digest(provider_schema_raw),
+            "run_json_sha256": digest(run_raw),
+            "mounted_schema_root": digest(provider_schema_raw),
+            "request_schema_sha256": digest(provider_schema_raw),
+            "parse_reserialization_used": False,
+        }
+        and end == start + len(provider_schema_raw)
+        and run_raw[start:end] == provider_schema_raw,
+        "materialization_custody",
+    )
+    require(
+        run_input.get("run_id") == expected["run_id"]
+        and run_input.get("provider_schema_path") == "/input/provider-schema.json"
+        and type(run_input.get("provider_schema_bytes")) is int
+        and run_input.get("provider_schema_bytes") == len(provider_schema_raw)
+        and run_input.get("provider_schema_sha256") == digest(provider_schema_raw)
+        and run_input.get("materialization_receipt_path")
+        == "/input/materialization-receipt.json"
+        and run_input.get("packet_path") == "/input/packet.json"
+        and run_input.get("output_dir") == "/evidence",
+        "run_input_binding",
+    )
+    require(
+        validation
+        == {
+            "schema": "vela.stage-a-offline-pre-request-validation.v1",
+            "status": "pass",
+            "adapter": adapter,
+            "run_id": expected["run_id"],
+            "run_json_sha256": digest(run_raw),
+            "mounted_schema_root": digest(provider_schema_raw),
+            "request_schema_sha256": digest(provider_schema_raw),
+            "request_sha256": digest(request_raw),
+            "participant_validation_path": "exact_runner_prepare_and_request_construction",
+            "dummy_credential_fd": True,
+            "credential_secret": False,
+            "endpoint_contact_forbidden": True,
+            "endpoint_write_receipts": 0,
+            "provider_calls": 0,
+        }
+        and request_raw.count(provider_schema_raw) == 1
+        and request_raw
+        == expected_request_bytes(
+            adapter, run_input, neutral_packet, provider_schema_raw
+        ),
+        "offline_same_input_validation",
+    )
     retired = EXPECTED_RETIRED_PERMITS[adapter]
     require(
         digest(neutral_packet) == EXPECTED_NEUTRAL_CONTENT["packet_root"]
@@ -393,6 +617,18 @@ def validate_launchable_runtime(
                 "host_bridge_self_test": True,
             },
             "provider_calls": 0,
+            "endpoint_write_receipts": 0,
+            "offline_pre_request_validation": {
+                "status": "pass",
+                "network": "none",
+                "same_run_input": True,
+                "dummy_non_secret_credential_fd": True,
+                "receipt_sha256": digest(
+                    (
+                        PACKAGE / retained["offline_validation_receipt"]["path"]
+                    ).read_bytes()
+                ),
+            },
             "credential_values_observed": False,
         },
         "launchability_receipt",
@@ -437,13 +673,16 @@ def validate_launchable_runtime(
         == {
             "opt/vela/runner",
             "opt/vela/bridge",
+            "opt/vela/preflight",
             "opt/vela/provider-contract.json",
             "etc/ssl/certs/ca-certificates.crt",
         }
         and files["opt/vela/runner"] == runner_raw
         and files["opt/vela/bridge"] == bridge_raw
+        and files["opt/vela/preflight"] == preflight_raw
         and members["opt/vela/runner"].mode == 0o755
         and members["opt/vela/bridge"].mode == 0o755
+        and members["opt/vela/preflight"].mode == 0o755
         and digest(layer_raw) == layer_digest == launchability["layer_digest"],
         "oci_launchable_rootfs",
     )
@@ -456,6 +695,11 @@ def git_value(*arguments: str) -> str:
 
 
 def validate_offline(value: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    exact_int(
+        value.get("prior_consumed_non_call", {}).get("provider_calls"),
+        0,
+        "prior_consumed_provider_calls",
+    )
     require(
         value.get("schema")
         == "vela.lean-correspondence-stage-a-offline-runtime-qualification.v1",
@@ -465,6 +709,48 @@ def validate_offline(value: dict[str, Any]) -> dict[str, dict[str, Any]]:
     for key in ("provider_calls", "neutral_calibrations_run", "participant_calls"):
         exact_int(value.get(key), 0, f"offline_counter:{key}")
     require(value.get("authority_effect") == "none", "offline_authority")
+    for key in (
+        "controller",
+        "bridge",
+        "runner",
+        "terminal",
+        "custody",
+        "endpoint_write_receipts",
+    ):
+        exact_int(
+            value.get("provider_call_derivation", {}).get(key),
+            0,
+            f"provider_call_derivation:{key}",
+        )
+    require(
+        value.get("prior_consumed_non_call") == EXPECTED_PRIOR_CONSUMED_NON_CALL,
+        "prior_consumed_non_call",
+    )
+    require(
+        value.get("provider_call_derivation") == EXPECTED_CALL_DERIVATION,
+        "provider_call_derivation",
+    )
+    require(
+        digest(
+            (PACKAGE / EXPECTED_CALL_DERIVATION["controller_source_path"]).read_bytes()
+        )
+        == EXPECTED_CALL_DERIVATION["controller_source_sha256"],
+        "provider_call_controller_source",
+    )
+    require(
+        load_json(STOPPED / "artifact-root.json").get("artifact_root")
+        == EXPECTED_PRIOR_CONSUMED_NON_CALL["artifact_root"]
+        and digest((STOPPED / "endpoint-contact-receipt.json").read_bytes())
+        == EXPECTED_PRIOR_CONSUMED_NON_CALL["endpoint_contact_receipt_bytes"]
+        and digest(
+            (
+                STOPPED
+                / "permit/neutral-calibration-anthropic-json-v2.permit.consumed.json"
+            ).read_bytes()
+        )
+        == EXPECTED_PRIOR_CONSUMED_NON_CALL["consumed_permit_bytes"],
+        "prior_consumed_non_call_bytes",
+    )
     body = dict(value)
     observed_root = body.pop("record_root", None)
     require(observed_root == canonical_root(body), "offline_inner_root")
@@ -497,9 +783,20 @@ def validate_offline(value: dict[str, Any]) -> dict[str, dict[str, Any]]:
             record.get("held_neutral_run_id") == expected["run_id"], "offline_run_id"
         )
         exact_int(record.get("provider_calls"), 0, "offline_provider_calls")
+        exact_int(
+            record.get("endpoint_write_receipts"),
+            0,
+            "offline_endpoint_write_receipts",
+        )
         require(
             record.get("consumed_neutral_permit_exists") is False,
             "offline_early_permit_consume",
+        )
+        require(
+            record.get("permit_state")
+            == "held_non_releasable_pending_independent_review"
+            and record.get("offline_pre_request_validation") == "pass",
+            "offline_permit_preflight_state",
         )
         receipt = record.get("qualification_receipt")
         require(
@@ -583,12 +880,11 @@ def validate_registration(
 ) -> None:
     require(
         value.get("schema")
-        == "vela.lean-correspondence-stage-a-runtime-qualification-candidate.v3",
+        == "vela.lean-correspondence-stage-a-runtime-qualification-candidate.v4",
         "registration_schema",
     )
     require(
-        value.get("status")
-        == "held_offline_qualified_launchable_runtime_credentials_only_blocked",
+        value.get("status") == "held_offline_validated_pending_independent_review",
         "registration_status",
     )
     require(value.get("authority_effect") == "none", "registration_authority")
@@ -609,6 +905,14 @@ def validate_registration(
         "corrective_ancestry",
     )
     require(value.get("stage_a_binding") == EXPECTED_STAGE_A, "stage_a_binding")
+    require(
+        value.get("prior_consumed_non_call") == EXPECTED_PRIOR_CONSUMED_NON_CALL,
+        "registration_prior_consumed_non_call",
+    )
+    require(
+        value.get("provider_call_derivation") == EXPECTED_CALL_DERIVATION,
+        "registration_provider_call_derivation",
+    )
     authorization = value.get("authorization", {})
     require(
         authorization.get("neutral_calibration_execution_authorized") is False
@@ -619,7 +923,7 @@ def validate_registration(
     require(
         type(blockers) is list
         and [item.get("id") for item in blockers]
-        == ["platform_api_credentials_absent"],
+        == ["independent_exact_review_required"],
         "blockers_drift",
     )
     schema = value.get("provider_schema_boundary", {})
@@ -680,6 +984,10 @@ def validate_registration(
         require(
             permit.get("permit_root") == expected["participant_permit_root"],
             "neutral_permit_root",
+        )
+        require(
+            permit.get("offline_pre_request_validation") == "pass",
+            "neutral_permit_offline_validation",
         )
     retired_permits = value.get("retired_neutral_calibration_permits")
     require(
@@ -762,7 +1070,7 @@ def validate_registration(
             )
         require(
             configuration.get("status")
-            == "candidate_configuration_stage_a_schema_launchable_runtime_qualified_held",
+            == "candidate_configuration_exact_schema_pre_request_validated_held",
             "configuration_status",
         )
     offline = value.get("offline_qualification", {})
@@ -774,7 +1082,7 @@ def validate_registration(
             "path": "offline-qualification.json",
             "provider_calls": 0,
             "record_root": EXPECTED_OFFLINE_RECORD_ROOT,
-            "status": "qualified_hold_exact_stage_a_schema_and_launchable_runtimes",
+            "status": "qualified_hold_exact_schema_launchable_runtimes_and_offline_same_input_preflight",
         },
         "registration_offline_binding",
     )
@@ -789,7 +1097,12 @@ def validate_registration(
         and runtime.get("writes") is False
         and runtime.get("tool_mode") == "read_only_offline_shell_files"
         and runtime.get("provider_equivalence_root")
-        == "sha256:bc40341349f6f771be5eef2481fcef3bf72d278b2df65d5df05d01e62e271720",
+        == "sha256:bc40341349f6f771be5eef2481fcef3bf72d278b2df65d5df05d01e62e271720"
+        and runtime.get("run_input_materialization")
+        == "exact_raw_schema_file_byte_splice_no_parse_reserialization"
+        and runtime.get("offline_same_input_pre_request_validation") is True
+        and runtime.get("provider_calls_derived_from_endpoint_write_receipts_only")
+        is True,
         "runtime_boundary",
     )
     runtime_images = runtime.get("runtime_images")
@@ -805,6 +1118,16 @@ def validate_registration(
                 "image_digest": expected["image_digest"],
                 "runtime_source_root": expected["runtime_source_root"],
                 "launchability_receipt_sha256": expected["launchability_sha256"],
+                "run_input_sha256": records[adapter]["retained"]["run_input"]["sha256"],
+                "materialization_receipt_sha256": records[adapter]["retained"][
+                    "materialization_receipt"
+                ]["sha256"],
+                "offline_validation_receipt_sha256": records[adapter]["retained"][
+                    "offline_validation_receipt"
+                ]["sha256"],
+                "request_bytes_sha256": records[adapter]["retained"]["request_bytes"][
+                    "sha256"
+                ],
             },
             "runtime_image_binding",
         )
@@ -817,7 +1140,7 @@ def validate_registration(
     )
     for credential in credentials:
         require(
-            credential.get("presence") == "absent"
+            credential.get("presence") == "not_checked_in_this_correction"
             and credential.get("retained") is False
             and credential.get("value_observed") is False,
             "credential_state",
@@ -932,7 +1255,7 @@ def verify(*, check_credentials: bool = True, check_git: bool = True) -> dict[st
         require(not unexpected, "credential_presence_drift")
     return {
         "schema": "vela.lean-correspondence-stage-a-runtime-qualification-verification.v3",
-        "status": "pass_exact_held_offline_qualification_with_credentials_only_blocker",
+        "status": "pass_exact_held_offline_validation_pending_independent_review",
         "artifact_root": artifact_root,
         "offline_record_root": EXPECTED_OFFLINE_RECORD_ROOT,
         "provider_calls": 0,

@@ -33,6 +33,7 @@ type frame struct {
 	ArgumentCustody *argumentCustody `json:"argument_custody,omitempty"`
 	Result          json.RawMessage  `json:"result,omitempty"`
 	Error           string           `json:"error,omitempty"`
+	ProviderCalls   int              `json:"provider_calls,omitempty"`
 }
 
 type argumentCustody struct {
@@ -460,7 +461,12 @@ func serve(workspace string) error {
 		return errors.New("provider request escaped exact endpoint")
 	}
 	body := requestFrame.Body
+	providerCalls := 0
 	for turn := 0; turn < 64; turn++ {
+		providerCalls++
+		if err := encoder.Encode(frame{Type: "endpoint_attempt", ProviderCalls: providerCalls}); err != nil {
+			return err
+		}
 		raw, err := contact(context.Background(), exactEndpoint, credential, body)
 		if err != nil {
 			return err
@@ -473,7 +479,7 @@ func serve(workspace string) error {
 			return err
 		}
 		if len(tools) == 0 {
-			return encoder.Encode(frame{Type: "terminal", Body: terminal})
+			return encoder.Encode(frame{Type: "terminal", Body: terminal, ProviderCalls: providerCalls})
 		}
 		if len(tools) != 1 {
 			return errors.New("parallel tool calls are forbidden")

@@ -1,7 +1,7 @@
 {
   "build_inputs_root": "sha256:ec86a82e59687ad7168fbcca86830bad4a3315756daab61a125de10e78847163",
   "builder": "independent-b",
-  "config_digest": "sha256:0d16b7a8dc8f71b8e17d07f776d840c18e49219fd3ef657082f1b54c83574f4c",
+  "config_digest": "sha256:7eda8fc9c59153f21ea9519c24d9e8670cb5a5885aaad2839176968a2d00336d",
   "controls": {
     "no_cache": true,
     "provenance": false,
@@ -9,15 +9,15 @@
     "rewrite_timestamp": true
   },
   "empty_cache": true,
-  "image_digest": "sha256:26fa80f822ebc0357670e03b4358d01d8c2190803696b7fd8aefec83e3e84fcf",
+  "image_digest": "sha256:d314adbd8b3765d9aada03bd5bd87ec77826cd81fdc8c8aab3982dce3165385d",
   "layer_digests": [
-    "sha256:a68a685a6fc0ce563750453c951922da8d5d752122a0c5373ef35dfd38aed9e1"
+    "sha256:fa56bba74595f245c92dc85d8116b1c58ec1b9612839b0cbfce25ae754c44bc8"
   ],
   "network_during_build": false,
   "oci_layout_bytes": "sha256:561356159fc692da9a55978e206a495b7835abcc4778fa9d13138a0530304878",
-  "oci_tar_bytes": "sha256:9ffa254d11ee85f2d8c1f87f9eceb55ada20c0319ba98468438ad41f9871d040",
+  "oci_tar_bytes": "sha256:696086205ac13334bebbd30c94e09e4ec71d99922e8babfd9ef90b45c5fad7eb",
   "platform": "linux/arm64",
   "schema": "vela.tooling.oci-build-receipt.v1",
   "source_date_epoch": 1757289600,
-  "source_root": "sha256:651c2a4b3e0cb54bf7ad2855d88b99766384d65af5fd3ee2f86742c4476b81c4"
+  "source_root": "sha256:27502e951b7c924738d9edbee7bcbf8044e371731076726ca5408425caef7e4a"
 }

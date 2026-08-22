@@ -1,11 +1,19 @@
 {
   "credential_values_observed": false,
+  "endpoint_write_receipts": 0,
   "entrypoint": [
     "/opt/vela/runner"
   ],
-  "image_digest": "sha256:c989a72d29712c305b55de9dccbcadb369967205b8dffe5a7de54365540e0717",
-  "layer_digest": "sha256:835979233a7efce22387a4e810a788ce5bf9706fe70ead5ddff254ba45c3c40b",
-  "oci_archive_sha256": "sha256:1bf36a8d6d3276ec6f6c787015c7d0f2cb444d6c65382a6e3e877838c2c232ba",
+  "image_digest": "sha256:a9b67182ae941262b9a9eb7483e11b57a2b4cc52112980a2deb63039b0353e18",
+  "layer_digest": "sha256:267da290a7025b910bfcec0e12b70a26e607040e6bda379d81218adf73b63a5c",
+  "oci_archive_sha256": "sha256:215549ff1968166a0612bff35f00f0b2e232d8a6c19c58a62cb661637175a2f0",
+  "offline_pre_request_validation": {
+    "dummy_non_secret_credential_fd": true,
+    "network": "none",
+    "receipt_sha256": "sha256:5cbe267e7815cdc98885011c5d8aa2e344fb4add86cea85cd14d8da31d36c5eb",
+    "same_run_input": true,
+    "status": "pass"
+  },
   "platform": "linux/arm64",
   "provider_adapter": "openai-responses-v1",
   "provider_calls": 0,

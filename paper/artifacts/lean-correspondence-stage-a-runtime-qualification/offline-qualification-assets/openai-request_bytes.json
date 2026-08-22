@@ -1,0 +1,106 @@
+{"background":false,"input":[{"content":[{"text":"Return exactly one JSON object conforming to the supplied Stage A response schema. Review only the synthetic neutral packet. Do not infer scientific acceptance, repository authority, a Decision, Standing, execution authorization, or any claim beyond the packet. The exact assignment_id is lc-neutral-calibration.\n","type":"input_text"},{"text":"{\"assignment_id\":\"lc-neutral-calibration\",\"expected_response_contract\":{\"assignment_id\":\"lc-neutral-calibration\",\"authority_effect\":\"none\",\"schema\":\"lean-correspondence.review-response.v1\",\"scientific_status\":\"not_established\"},\"schema\":\"vela.stage-a-neutral-calibration-packet.v1\",\"semantic_atoms\":[{\"id\":\"neutral-source\",\"kind\":\"synthetic_text\",\"value\":\"alpha\"},{\"id\":\"neutral-target\",\"kind\":\"synthetic_text\",\"value\":\"alpha\"},{\"id\":\"neutral-relation\",\"kind\":\"declared_relation\",\"value\":\"byte_identity\"}],\"task\":\"Classify the synthetic byte-identical relation using only these atoms; this fixture carries no scientific claim and has no authority effect.\"}\n","type":"input_text"}],"role":"user"}],"max_output_tokens":32768,"model":"gpt-5.6-sol","parallel_tool_calls":false,"reasoning":{"effort":"high"},"service_tier":"default","store":false,"text":{"format":{"name":"stage_a_response","schema":{
+  "$id": "https://vela.science/schemas/lean-correspondence-review-response.v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assignment_id": {
+      "pattern": "^lc-[a-z0-9-]+$",
+      "type": "string"
+    },
+    "authority_scientific_inference": {
+      "additionalProperties": false,
+      "properties": {
+        "repository_authority_effect": {
+          "enum": [
+            "none",
+            "repository_local_decision_evidenced",
+            "unprovable"
+          ]
+        },
+        "scientific_status": {
+          "enum": [
+            "not_established",
+            "bounded_source_claim_only",
+            "unprovable"
+          ]
+        }
+      },
+      "required": [
+        "repository_authority_effect",
+        "scientific_status"
+      ],
+      "type": "object"
+    },
+    "change_classification": {
+      "enum": [
+        "semantic_change",
+        "environment_drift",
+        "both",
+        "neither",
+        "unprovable"
+      ]
+    },
+    "impact_closure": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "disposition": {
+            "enum": [
+              "recheck",
+              "invalidate_relation",
+              "remains_valid",
+              "blocked_unprovable"
+            ]
+          },
+          "evidence_ids": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "item_id": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_id",
+          "disposition",
+          "evidence_ids"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "relation_validation": {
+      "enum": [
+        "valid",
+        "invalid",
+        "cannot_determine"
+      ]
+    },
+    "schema": {
+      "const": "lean-correspondence.review-response.v1"
+    },
+    "uncertainty": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "assignment_id",
+    "relation_validation",
+    "change_classification",
+    "impact_closure",
+    "authority_scientific_inference",
+    "uncertainty"
+  ],
+  "title": "Lean Correspondence review response",
+  "type": "object"
+}
+,"strict":true,"type":"json_schema"}},"tools":[{"description":"Return git --no-optional-locks status --short for the read-only workspace.","name":"shell","parameters":{"additionalProperties":false,"properties":{"argv":{"const":["git","--no-optional-locks","status","--short"]},"cwd":{"const":"/workspace"}},"required":["argv","cwd"],"type":"object"},"strict":true,"type":"function"},{"description":"Read one regular non-symlink file below the read-only workspace.","name":"read_file","parameters":{"additionalProperties":false,"properties":{"operation":{"enum":["read","list","stat"]},"path":{"pattern":"^/workspace(?:/|$)","type":"string"}},"required":["operation","path"],"type":"object"},"strict":true,"type":"function"}]}

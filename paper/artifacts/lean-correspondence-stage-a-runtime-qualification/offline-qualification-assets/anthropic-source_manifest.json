@@ -1,8 +1,8 @@
 [
   {
-    "bytes": 398,
+    "bytes": 433,
     "path": "Dockerfile",
-    "sha256": "sha256:841c19858b06db1c0f33964b74f7f95275b6074f241c5839c93e2e4a7719a8d6"
+    "sha256": "sha256:e6f29f21f153e5f9129e13d74630b6183691e28aa68347d5904d5f0d7f1884e3"
   },
   {
     "bytes": 798,
@@ -12,12 +12,12 @@
   {
     "bytes": 5767294,
     "path": "bridge",
-    "sha256": "sha256:c5390da8b25764be13493f57531196a03c798750b54efec32b46b48d90408767"
+    "sha256": "sha256:7a2f0d7efdee152bb0007e6c03ebc1e309a98466eb525fbcc27a2667d44343cc"
   },
   {
-    "bytes": 18470,
+    "bytes": 18728,
     "path": "cmd/bridge/main.go",
-    "sha256": "sha256:a220212121678014bed63050277984a6c29f657cd0c5833215df8ee21fbf2f22"
+    "sha256": "sha256:83e9e456718d2cf53aaff61da13265a0c968cfc50e5cc0fa6c4b7061618b05ec"
   },
   {
     "bytes": 5691,
@@ -25,19 +25,29 @@
     "sha256": "sha256:6e0c829472adf4b1a1eafced072442fce18f596359cdc40424ad1c24bfebbaae"
   },
   {
+    "bytes": 915,
+    "path": "cmd/preflight/main.go",
+    "sha256": "sha256:4ac171d35fc83f6e7cea8f9c28bff1112a9a4241f7ace2f9ddb8db52a1a34444"
+  },
+  {
     "bytes": 49,
     "path": "go.mod",
     "sha256": "sha256:92779b1c6d6a7154d7f183403bb87fa65682677549927d5e5f2758955dd2073a"
   },
   {
-    "bytes": 28809,
+    "bytes": 38699,
     "path": "main.go",
-    "sha256": "sha256:25144f6bac59473c437e4ea97c44b0212beb4127eba7fff10ce0c7ba5ab8f29a"
+    "sha256": "sha256:3c6e23d20dca0f0e652ea6b65a8c135f6ae7013c5f44fed126bc5fb1b0e87b09"
   },
   {
-    "bytes": 10674,
+    "bytes": 12469,
     "path": "main_test.go",
-    "sha256": "sha256:5df8b254e1692d98234dea90ed5569683c6f78fc5915c8d89bf9a294e4150bb8"
+    "sha256": "sha256:359661ad9ab0db2af7464ae7592aa69d8931347d5b97301866eb06352a96723f"
+  },
+  {
+    "bytes": 1900670,
+    "path": "preflight",
+    "sha256": "sha256:50260524d000005b052e262ed62a86774b1b51d538fc21e748e461a425190137"
   },
   {
     "bytes": 1993,
@@ -47,7 +57,7 @@
   {
     "bytes": 2293886,
     "path": "runner",
-    "sha256": "sha256:8c6e5cc79218dcc6d70c341620fb4bd8948088038c823b73ccd38ae5cc31b247"
+    "sha256": "sha256:3b2c5cbe15ab51b39aa7ecfbafc97cc43ae1dc399a992b0bb96ac07666b492b1"
   },
   {
     "bytes": 333483,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import importlib.util
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -36,6 +37,23 @@ class RuntimeQualificationCandidateTests(unittest.TestCase):
             VERIFY.validate_registration(
                 candidate, self.offline_records(), check_git=False
             )
+
+    def assert_resealed_retained_json_blocked(
+        self, adapter_index: int, label: str, mutate, message: str
+    ) -> None:
+        candidate = copy.deepcopy(self.offline)
+        retained = candidate["provider_records"][adapter_index]["retained"][label]
+        path = VERIFY.PACKAGE / retained["path"]
+        original = path.read_bytes()
+        try:
+            value = VERIFY.load_json(path)
+            mutate(value)
+            raw = (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
+            path.write_bytes(raw)
+            retained.update(bytes=len(raw), sha256=VERIFY.digest(raw))
+            self.assert_offline_blocked(candidate, message)
+        finally:
+            path.write_bytes(original)
 
     def test_exact_candidate_passes_held_with_credentials_only_blocker(self) -> None:
         receipt = VERIFY.verify(check_credentials=False, check_git=True)
@@ -218,7 +236,9 @@ class RuntimeQualificationCandidateTests(unittest.TestCase):
         candidate["provider_records"][0]["retained"]["neutral_packet"] = copy.deepcopy(
             candidate["provider_records"][0]["retained"]["neutral_prompt"]
         )
-        self.assert_offline_blocked(candidate, "neutral_content_retained_binding")
+        self.assert_offline_blocked(
+            candidate, "neutral_content_retained_binding|offline_same_input_validation"
+        )
         candidate = copy.deepcopy(self.offline)
         candidate["provider_records"][1]["retained"]["retired_permit"] = copy.deepcopy(
             candidate["provider_records"][0]["retained"]["retired_permit"]
@@ -292,6 +312,160 @@ class RuntimeQualificationCandidateTests(unittest.TestCase):
         candidate = copy.deepcopy(self.registration)
         candidate["execution_authorized"] = True
         self.assert_registration_blocked(candidate, "registration_root")
+
+    def test_materialization_path_root_inode_and_reserialization_drift_fails(
+        self,
+    ) -> None:
+        mutations = (
+            ("source_path", "/input/other-schema.json"),
+            ("source_sha256", "sha256:" + "0" * 64),
+            ("source_pre_post_same_inode", False),
+            ("source_single_link", False),
+            ("source_no_follow", False),
+            ("parse_reserialization_used", True),
+            ("raw_inserted_sha256", "sha256:" + "1" * 64),
+            ("run_json_sha256", "sha256:" + "2" * 64),
+        )
+        for key, value in mutations:
+            with self.subTest(key=key):
+                self.assert_resealed_retained_json_blocked(
+                    1,
+                    "materialization_receipt",
+                    lambda item, key=key, value=value: item.__setitem__(key, value),
+                    "materialization_custody",
+                )
+
+    def test_missing_stale_or_swapped_offline_validation_fails(self) -> None:
+        for key, value in (
+            ("status", "stale"),
+            ("run_json_sha256", "sha256:" + "0" * 64),
+            ("request_sha256", "sha256:" + "1" * 64),
+            ("endpoint_contact_forbidden", False),
+            ("endpoint_write_receipts", True),
+            ("provider_calls", False),
+        ):
+            with self.subTest(key=key):
+                self.assert_resealed_retained_json_blocked(
+                    1,
+                    "offline_validation_receipt",
+                    lambda item, key=key, value=value: item.__setitem__(key, value),
+                    "offline_same_input_validation|offline_validation_count",
+                )
+        candidate = copy.deepcopy(self.offline)
+        candidate["provider_records"][1]["retained"]["offline_validation_receipt"] = (
+            copy.deepcopy(
+                candidate["provider_records"][0]["retained"][
+                    "offline_validation_receipt"
+                ]
+            )
+        )
+        self.assert_offline_blocked(candidate, "offline_same_input_validation")
+
+    def test_request_bytes_and_run_representation_substitution_fail(self) -> None:
+        candidate = copy.deepcopy(self.offline)
+        retained = candidate["provider_records"][1]["retained"]["request_bytes"]
+        path = VERIFY.PACKAGE / retained["path"]
+        original = path.read_bytes()
+        validation_retained = candidate["provider_records"][1]["retained"][
+            "offline_validation_receipt"
+        ]
+        validation_path = VERIFY.PACKAGE / validation_retained["path"]
+        validation_original = validation_path.read_bytes()
+        launch_retained = candidate["provider_records"][1]["retained"]["launchability"]
+        launch_path = VERIFY.PACKAGE / launch_retained["path"]
+        launch_original = launch_path.read_bytes()
+        try:
+            value = json.loads(original)
+            value["model"] = "substituted-model"
+            raw = VERIFY.canonical_bytes(value)
+            path.write_bytes(raw)
+            retained.update(bytes=len(raw), sha256=VERIFY.digest(raw))
+            validation = json.loads(validation_original)
+            validation["request_sha256"] = VERIFY.digest(raw)
+            validation_raw = (
+                json.dumps(validation, indent=2, sort_keys=True) + "\n"
+            ).encode()
+            validation_path.write_bytes(validation_raw)
+            validation_retained.update(
+                bytes=len(validation_raw), sha256=VERIFY.digest(validation_raw)
+            )
+            launch = json.loads(launch_original)
+            launch["offline_pre_request_validation"]["receipt_sha256"] = VERIFY.digest(
+                validation_raw
+            )
+            launch_raw = (json.dumps(launch, indent=2, sort_keys=True) + "\n").encode()
+            launch_path.write_bytes(launch_raw)
+            launch_retained.update(
+                bytes=len(launch_raw), sha256=VERIFY.digest(launch_raw)
+            )
+            self.assert_offline_blocked(candidate, "offline_same_input_validation")
+        finally:
+            path.write_bytes(original)
+            validation_path.write_bytes(validation_original)
+            launch_path.write_bytes(launch_original)
+        for replacement in ('"quoted-schema"', '"e30="'):
+            candidate = copy.deepcopy(self.offline)
+            retained = candidate["provider_records"][1]["retained"]["run_input"]
+            path = VERIFY.PACKAGE / retained["path"]
+            original = path.read_bytes()
+            receipt_retained = candidate["provider_records"][1]["retained"][
+                "materialization_receipt"
+            ]
+            receipt_path = VERIFY.PACKAGE / receipt_retained["path"]
+            receipt_original = receipt_path.read_bytes()
+            try:
+                materialization = json.loads(receipt_original)
+                start = materialization["raw_inserted_start"]
+                end = materialization["raw_inserted_end"]
+                raw = original[:start] + replacement.encode() + original[end:]
+                path.write_bytes(raw)
+                retained.update(bytes=len(raw), sha256=VERIFY.digest(raw))
+                materialization.update(
+                    {
+                        "raw_inserted_end": start + len(replacement),
+                        "raw_inserted_sha256": VERIFY.digest(replacement.encode()),
+                        "run_json_sha256": VERIFY.digest(raw),
+                    }
+                )
+                receipt_raw = (
+                    json.dumps(materialization, indent=2, sort_keys=True) + "\n"
+                ).encode()
+                receipt_path.write_bytes(receipt_raw)
+                receipt_retained.update(
+                    bytes=len(receipt_raw), sha256=VERIFY.digest(receipt_raw)
+                )
+                self.assert_offline_blocked(
+                    candidate, "materialization_custody|run_input_binding"
+                )
+            finally:
+                path.write_bytes(original)
+                receipt_path.write_bytes(receipt_original)
+
+    def test_call_count_derivation_and_consumed_permit_reuse_fail(self) -> None:
+        for key, value in (
+            ("source", "hardcoded"),
+            ("controller", 1),
+            ("bridge", False),
+            ("runner", 1),
+            ("terminal", True),
+            ("custody", 1),
+            ("endpoint_write_receipts", 1),
+            ("pre_request_failures_count_as_calls", True),
+        ):
+            candidate = copy.deepcopy(self.offline)
+            candidate["provider_call_derivation"][key] = value
+            self.assert_offline_blocked(candidate, "provider_call_derivation")
+        candidate = copy.deepcopy(self.registration)
+        candidate["neutral_calibration_permits"][1]["run_id"] = (
+            "neutral-calibration-anthropic-json-v2"
+        )
+        candidate["neutral_calibration_permits"][1]["permit_root"] = candidate[
+            "prior_consumed_non_call"
+        ]["permit_root"]
+        self.assert_registration_blocked(candidate, "neutral_permit_cross_binding")
+        candidate = copy.deepcopy(self.registration)
+        candidate["prior_consumed_non_call"]["replacement_authorized"] = True
+        self.assert_registration_blocked(candidate, "registration_prior_consumed")
 
 
 if __name__ == "__main__":

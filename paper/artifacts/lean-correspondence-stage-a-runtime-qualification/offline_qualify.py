@@ -30,6 +30,20 @@ QUALIFIER_SHA256 = "61591eec3304e299a9344888bc2a6f08cd32785b647ef5b0107da490dbf1
 REVIEWED_PREDECESSOR_COMMIT = "b333186cae1274ebb48353ba72e1ab3be42adcc0"
 REVIEWED_PREDECESSOR_PARENT_COMMIT = "5be82cb3ab1ef11e7e870675337ae3704118fd46"
 INVALID_PERMIT_ORIGIN_COMMIT = "9da1c79425c79af632197a719ca45ca07ab22a6c"
+STOPPED_EVIDENCE_COMMIT = "30210517f3b1bee420bc61e9a4484ecff8b68ae7"
+STOPPED_EVIDENCE_TREE = "a2c878542e92442134f56b79501448ba14e16e28"
+STOPPED_EVIDENCE_ROOT = (
+    "sha256:b72c5d8c5bdf66e528524719773dfc37dda98b7b219c841349a9c6e4874abb1b"
+)
+CONSUMED_NON_CALL_PERMIT_ROOT = (
+    "sha256:b9ba39cf1c511043324ca8dfbc02b6c59d91f457a2e560a37d78d32a1b84cdbe"
+)
+CONSUMED_NON_CALL_PERMIT_BYTES = (
+    "sha256:69cf9f72ed814b4a39916189a3241ec4e01e4f965fa5ffa31e1beef3727c57fe"
+)
+ENDPOINT_ZERO_RECEIPT_BYTES = (
+    "sha256:798a8733f655c0e5aa4e16ddec6dc8471d3fb2897b6c3eeb5940907e0f58ac4f"
+)
 SOURCE_DATE_EPOCH = 1_757_289_600
 RUNNER_SOURCE = Path(__file__).resolve().parent / "runtime-runner"
 NEUTRAL_INPUTS = Path(__file__).resolve().parent / "neutral-calibration"
@@ -50,7 +64,7 @@ PROVIDERS = {
     "anthropic-messages-v1": (
         "Anthropic",
         "claude-opus-5",
-        "neutral-calibration-anthropic-json-v2",
+        "neutral-calibration-anthropic-json-v3-replacement",
     ),
 }
 RETIRED_PERMITS = {
@@ -276,7 +290,7 @@ def provider_contract(adapter: str) -> dict[str, Any]:
     }
 
 
-def build_runner(adapter: str, target: Path, cache: Path) -> tuple[bytes, bytes]:
+def build_runner(adapter: str, target: Path, cache: Path) -> tuple[bytes, bytes, bytes]:
     shutil.copytree(
         RUNNER_SOURCE,
         target,
@@ -326,13 +340,32 @@ def build_runner(adapter: str, target: Path, cache: Path) -> tuple[bytes, bytes]
         env=env,
         check=True,
     )
-    return output.read_bytes(), bridge.read_bytes()
+    preflight = target / "preflight"
+    subprocess.run(
+        [
+            "go",
+            "build",
+            "-mod=readonly",
+            "-trimpath",
+            "-buildvcs=false",
+            "-ldflags",
+            "-s -w -buildid=",
+            "-o",
+            str(preflight),
+            "./cmd/preflight",
+        ],
+        cwd=target,
+        env=env,
+        check=True,
+    )
+    return output.read_bytes(), bridge.read_bytes(), preflight.read_bytes()
 
 
 def actual_oci(
     adapter: str,
     runner_raw: bytes,
     bridge_raw: bytes,
+    preflight_raw: bytes,
     contract_raw: bytes,
     trust_raw: bytes,
     q: Any,
@@ -341,10 +374,13 @@ def actual_oci(
         {
             "opt/vela/runner": runner_raw,
             "opt/vela/bridge": bridge_raw,
+            "opt/vela/preflight": preflight_raw,
             "opt/vela/provider-contract.json": contract_raw,
             "etc/ssl/certs/ca-certificates.crt": trust_raw,
         },
-        executable=frozenset({"opt/vela/runner", "opt/vela/bridge"}),
+        executable=frozenset(
+            {"opt/vela/runner", "opt/vela/bridge", "opt/vela/preflight"}
+        ),
     )
     layer_digest = q.digest(rootfs)
     config = {
@@ -411,7 +447,9 @@ def actual_oci(
     return raw, manifest_digest, config_digest, [layer_digest], q.digest(layout_raw)
 
 
-def verify_launchable_image(image_raw: bytes, adapter: str, q: Any) -> dict[str, Any]:
+def verify_launchable_image(
+    image_raw: bytes, adapter: str, q: Any, input_dir: Path, evidence_dir: Path
+) -> dict[str, Any]:
     with tarfile.open(fileobj=io.BytesIO(image_raw), mode="r") as archive:
         members = {
             member.name: archive.extractfile(member).read()
@@ -478,12 +516,34 @@ def verify_launchable_image(image_raw: bytes, adapter: str, q: Any) -> dict[str,
             check=True,
             capture_output=True,
         )
+        evidence_dir.mkdir(parents=True, exist_ok=True)
+        os.chmod(evidence_dir, 0o777)
+        offline_validation = subprocess.run(
+            [
+                "docker",
+                "run",
+                *controls,
+                "--tmpfs",
+                "/tmp:rw,noexec,nosuid,size=1m",
+                "--mount",
+                f"type=bind,src={input_dir},dst=/input,readonly",
+                "--mount",
+                f"type=bind,src={evidence_dir},dst=/evidence",
+                "--entrypoint",
+                "/opt/vela/preflight",
+                tag,
+            ],
+            check=True,
+            capture_output=True,
+        )
     if (
         self_test.stdout
         or self_test.stderr
         or version.stdout != b"neutral-runner/1\n"
         or bridge_test.stdout
         or bridge_test.stderr
+        or offline_validation.stdout
+        or offline_validation.stderr
     ):
         raise ValueError("launchability_self_test_output_drift")
     return {
@@ -506,6 +566,16 @@ def verify_launchable_image(image_raw: bytes, adapter: str, q: Any) -> dict[str,
             "host_bridge_self_test": True,
         },
         "provider_calls": 0,
+        "endpoint_write_receipts": 0,
+        "offline_pre_request_validation": {
+            "status": "pass",
+            "network": "none",
+            "same_run_input": True,
+            "dummy_non_secret_credential_fd": True,
+            "receipt_sha256": q.digest(
+                (evidence_dir / "offline-pre-request-validation.json").read_bytes()
+            ),
+        },
         "credential_values_observed": False,
     }
 
@@ -519,13 +589,13 @@ def provider_image(bundle: Path, adapter: str, trust_raw: bytes, q: Any) -> None
     ):
         first_root = Path(first)
         second_root = Path(second)
-        runner_a, bridge_a = build_runner(
+        runner_a, bridge_a, preflight_a = build_runner(
             adapter, first_root / "source", first_root / "cache"
         )
-        runner_b, bridge_b = build_runner(
+        runner_b, bridge_b, preflight_b = build_runner(
             adapter, second_root / "source", second_root / "cache"
         )
-        if runner_a != runner_b or bridge_a != bridge_b:
+        if runner_a != runner_b or bridge_a != bridge_b or preflight_a != preflight_b:
             raise ValueError("independent_runner_binaries_not_byte_identical")
         shutil.copytree(first_root / "source", runtime_source)
     contract_raw = encoded(provider_contract(adapter))
@@ -561,8 +631,12 @@ def provider_image(bundle: Path, adapter: str, trust_raw: bytes, q: Any) -> None
     }
     write_json(bundle / "runtime/build-inputs.json", build_inputs)
     build_inputs_root = q.canonical_root(build_inputs)
-    oci_a = actual_oci(adapter, runner_a, bridge_a, contract_raw, trust_raw, q)
-    oci_b = actual_oci(adapter, runner_b, bridge_b, contract_raw, trust_raw, q)
+    oci_a = actual_oci(
+        adapter, runner_a, bridge_a, preflight_a, contract_raw, trust_raw, q
+    )
+    oci_b = actual_oci(
+        adapter, runner_b, bridge_b, preflight_b, contract_raw, trust_raw, q
+    )
     if oci_a != oci_b:
         raise ValueError("independent_oci_builds_not_byte_identical")
     raw, manifest_digest, config_digest, layers, layout_digest = oci_a
@@ -738,6 +812,49 @@ def hold_neutral_permit(bundle: Path, adapter: str, q: Any) -> None:
     write_json(config_path, config)
 
 
+def materialize_provider_input(bundle: Path, adapter: str) -> tuple[Path, Path]:
+    _provider, model, run_id = PROVIDERS[adapter]
+    input_dir = bundle / "runtime/preflight-input"
+    evidence_dir = bundle / "runtime/preflight-evidence"
+    if input_dir.exists():
+        shutil.rmtree(input_dir)
+    if evidence_dir.exists():
+        shutil.rmtree(evidence_dir)
+    input_dir.mkdir(parents=True)
+    evidence_dir.mkdir(parents=True)
+    for source, name in (
+        (bundle / "schemas/provider.json", "provider-schema.json"),
+        (NEUTRAL_INPUTS / "packet.json", "packet.json"),
+    ):
+        shutil.copyfile(source, input_dir / name)
+        os.chmod(input_dir / name, 0o444)
+    materializer = RUNNER_SOURCE.parent / "run_input_materialize.py"
+    subprocess.run(
+        [
+            sys.executable,
+            str(materializer),
+            "--schema",
+            str(input_dir / "provider-schema.json"),
+            "--run",
+            str(input_dir / "run.json"),
+            "--receipt",
+            str(input_dir / "materialization-receipt.json"),
+            "--run-id",
+            run_id,
+            "--model",
+            model,
+            "--prompt-file",
+            str(NEUTRAL_INPUTS / "prompt.txt"),
+            "--packet-file",
+            str(NEUTRAL_INPUTS / "packet.json"),
+        ],
+        check=True,
+    )
+    os.chmod(input_dir / "run.json", 0o444)
+    os.chmod(input_dir / "materialization-receipt.json", 0o444)
+    return input_dir, evidence_dir
+
+
 def retired_permit_record(adapter: str, successor_root: str) -> dict[str, Any]:
     run_id, permit_root = RETIRED_PERMITS[adapter]
     return {
@@ -756,6 +873,44 @@ def retired_permit_record(adapter: str, successor_root: str) -> dict[str, Any]:
         "consumed": False,
         "releasable": False,
         "authority_effect": "none",
+    }
+
+
+def prior_consumed_non_call() -> dict[str, Any]:
+    return {
+        "schema": "vela.stage-a-consumed-neutral-non-call-lineage.v1",
+        "producer_commit": STOPPED_EVIDENCE_COMMIT,
+        "producer_tree": STOPPED_EVIDENCE_TREE,
+        "artifact_root": STOPPED_EVIDENCE_ROOT,
+        "provider_adapter": "anthropic-messages-v1",
+        "run_id": "neutral-calibration-anthropic-json-v2",
+        "permit_root": CONSUMED_NON_CALL_PERMIT_ROOT,
+        "consumed_permit_bytes": CONSUMED_NON_CALL_PERMIT_BYTES,
+        "endpoint_contact_receipt_bytes": ENDPOINT_ZERO_RECEIPT_BYTES,
+        "permit_consumed": True,
+        "provider_calls": 0,
+        "endpoint_contacted": False,
+        "retryable": False,
+        "replacement_authorized": False,
+        "denominator_disposition": "permanent_consumed_non_call",
+        "authority_effect": "none",
+    }
+
+
+def provider_call_derivation() -> dict[str, Any]:
+    controller = RUNNER_SOURCE.parent / "neutral_controller.py"
+    return {
+        "schema": "vela.stage-a-provider-call-derivation.v1",
+        "source": "successful_endpoint_write_request_attempt_receipts_only",
+        "controller_source_path": "neutral_controller.py",
+        "controller_source_sha256": digest(controller.read_bytes()),
+        "controller": 0,
+        "bridge": 0,
+        "runner": 0,
+        "terminal": 0,
+        "custody": 0,
+        "endpoint_write_receipts": 0,
+        "pre_request_failures_count_as_calls": False,
     }
 
 
@@ -903,8 +1058,13 @@ def run(repository: Path, workspace: Path, output: Path, trust_bundle: Path) -> 
         provider, model, run_id = PROVIDERS[adapter]
         prefix = provider.lower()
         retained = {}
+        input_dir, evidence_dir = materialize_provider_input(bundle, adapter)
         launchability = verify_launchable_image(
-            (bundle / "runtime/a.oci.tar").read_bytes(), adapter, q
+            (bundle / "runtime/a.oci.tar").read_bytes(),
+            adapter,
+            q,
+            input_dir,
+            evidence_dir,
         )
         write_json(bundle / "runtime/launchability.json", launchability)
         for label, relative in (
@@ -915,11 +1075,22 @@ def run(repository: Path, workspace: Path, output: Path, trust_bundle: Path) -> 
             ("build_b", "runtime/independent-b.json"),
             ("runner", "runtime/source/runner"),
             ("bridge", "runtime/source/bridge"),
+            ("preflight", "runtime/source/preflight"),
             ("provider_contract", "runtime/source/provider-contract.json"),
             ("provider_schema", "schemas/provider.json"),
             ("tool_boundary", "config/tool-boundary.json"),
             ("held_permit", "permit/participant-run-01.permit.json"),
             ("hold_state", "permit/hold-state.json"),
+            ("run_input", "runtime/preflight-input/run.json"),
+            (
+                "materialization_receipt",
+                "runtime/preflight-input/materialization-receipt.json",
+            ),
+            (
+                "offline_validation_receipt",
+                "runtime/preflight-evidence/offline-pre-request-validation.json",
+            ),
+            ("request_bytes", "runtime/preflight-evidence/request.raw.json"),
         ):
             raw = (bundle / relative).read_bytes()
             suffix = Path(relative).suffix or ".bin"
@@ -960,6 +1131,9 @@ def run(repository: Path, workspace: Path, output: Path, trust_bundle: Path) -> 
                 "qualification_receipt": receipt,
                 "retained": retained,
                 "consumed_neutral_permit_exists": False,
+                "permit_state": "held_non_releasable_pending_independent_review",
+                "offline_pre_request_validation": "pass",
+                "endpoint_write_receipts": 0,
                 "provider_calls": 0,
             }
         )
@@ -972,7 +1146,9 @@ def run(repository: Path, workspace: Path, output: Path, trust_bundle: Path) -> 
             "sha256": "sha256:" + QUALIFIER_SHA256,
         },
         "trust_bundle_sha256": digest(trust_raw),
+        "prior_consumed_non_call": prior_consumed_non_call(),
         "provider_records": records,
+        "provider_call_derivation": provider_call_derivation(),
         "provider_calls": 0,
         "neutral_calibrations_run": 0,
         "participant_calls": 0,
@@ -1040,8 +1216,13 @@ def main() -> int:
             receipt = q.qualify_bundle(bundle)
             provider, model, run_id = PROVIDERS[adapter]
             retained = {}
+            input_dir, evidence_dir = materialize_provider_input(bundle, adapter)
             launchability = verify_launchable_image(
-                (bundle / "runtime/a.oci.tar").read_bytes(), adapter, q
+                (bundle / "runtime/a.oci.tar").read_bytes(),
+                adapter,
+                q,
+                input_dir,
+                evidence_dir,
             )
             write_json(bundle / "runtime/launchability.json", launchability)
             for label, relative in (
@@ -1052,11 +1233,22 @@ def main() -> int:
                 ("build_b", "runtime/independent-b.json"),
                 ("runner", "runtime/source/runner"),
                 ("bridge", "runtime/source/bridge"),
+                ("preflight", "runtime/source/preflight"),
                 ("provider_contract", "runtime/source/provider-contract.json"),
                 ("provider_schema", "schemas/provider.json"),
                 ("tool_boundary", "config/tool-boundary.json"),
                 ("held_permit", "permit/participant-run-01.permit.json"),
                 ("hold_state", "permit/hold-state.json"),
+                ("run_input", "runtime/preflight-input/run.json"),
+                (
+                    "materialization_receipt",
+                    "runtime/preflight-input/materialization-receipt.json",
+                ),
+                (
+                    "offline_validation_receipt",
+                    "runtime/preflight-evidence/offline-pre-request-validation.json",
+                ),
+                ("request_bytes", "runtime/preflight-evidence/request.raw.json"),
             ):
                 raw = (bundle / relative).read_bytes()
                 target = (
@@ -1104,6 +1296,9 @@ def main() -> int:
                     "qualification_receipt": receipt,
                     "retained": retained,
                     "consumed_neutral_permit_exists": False,
+                    "permit_state": "held_non_releasable_pending_independent_review",
+                    "offline_pre_request_validation": "pass",
+                    "endpoint_write_receipts": 0,
                     "provider_calls": 0,
                 }
             )
@@ -1116,7 +1311,9 @@ def main() -> int:
                 "sha256": "sha256:" + QUALIFIER_SHA256,
             },
             "trust_bundle_sha256": digest(trust_raw),
+            "prior_consumed_non_call": prior_consumed_non_call(),
             "provider_records": records,
+            "provider_call_derivation": provider_call_derivation(),
             "provider_calls": 0,
             "neutral_calibrations_run": 0,
             "participant_calls": 0,

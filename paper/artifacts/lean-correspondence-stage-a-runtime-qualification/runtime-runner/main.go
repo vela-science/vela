@@ -34,6 +34,7 @@ type frame struct {
 	ArgumentCustody *argumentCustody `json:"argument_custody,omitempty"`
 	Result          json.RawMessage  `json:"result,omitempty"`
 	Error           string           `json:"error,omitempty"`
+	ProviderCalls   int              `json:"provider_calls,omitempty"`
 }
 
 type argumentCustody struct {
@@ -57,14 +58,25 @@ type argumentCustodyReceipt struct {
 }
 
 type runInput struct {
-	RunID          string          `json:"run_id"`
-	Model          string          `json:"model"`
-	Prompt         string          `json:"prompt"`
-	PacketPath     string          `json:"packet_path"`
-	PacketBytes    int             `json:"packet_bytes"`
-	PacketSHA256   string          `json:"packet_sha256"`
-	ProviderSchema json.RawMessage `json:"provider_schema"`
-	OutputDir      string          `json:"output_dir"`
+	RunID                      string          `json:"run_id"`
+	Model                      string          `json:"model"`
+	Prompt                     string          `json:"prompt"`
+	PacketPath                 string          `json:"packet_path"`
+	PacketBytes                int             `json:"packet_bytes"`
+	PacketSHA256               string          `json:"packet_sha256"`
+	ProviderSchema             json.RawMessage `json:"provider_schema"`
+	ProviderSchemaPath         string          `json:"provider_schema_path"`
+	ProviderSchemaBytes        int             `json:"provider_schema_bytes"`
+	ProviderSchemaSHA256       string          `json:"provider_schema_sha256"`
+	MaterializationReceiptPath string          `json:"materialization_receipt_path"`
+	OutputDir                  string          `json:"output_dir"`
+}
+
+type preparedRun struct {
+	input  runInput
+	packet json.RawMessage
+	body   []byte
+	schema []byte
 }
 
 type packetCustodyReceipt struct {
@@ -81,6 +93,24 @@ type packetCustodyReceipt struct {
 	InlineReconstruction           bool   `json:"inline_reconstruction"`
 	Injection                      string `json:"injection"`
 	RequestSHA256                  string `json:"request_sha256"`
+}
+
+type materializationReceipt struct {
+	Schema                   string `json:"schema"`
+	SourcePath               string `json:"source_path"`
+	SourceRegular            bool   `json:"source_regular"`
+	SourceSingleLink         bool   `json:"source_single_link"`
+	SourceNoFollow           bool   `json:"source_no_follow"`
+	SourcePrePostSameInode   bool   `json:"source_pre_post_same_inode"`
+	SourceBytes              int    `json:"source_bytes"`
+	SourceSHA256             string `json:"source_sha256"`
+	RawInsertedStart         int    `json:"raw_inserted_start"`
+	RawInsertedEnd           int    `json:"raw_inserted_end"`
+	RawInsertedSHA256        string `json:"raw_inserted_sha256"`
+	RunJSONSHA256            string `json:"run_json_sha256"`
+	MountedSchemaRoot        string `json:"mounted_schema_root"`
+	RequestSchemaSHA256      string `json:"request_schema_sha256"`
+	ParseReserializationUsed bool   `json:"parse_reserialization_used"`
 }
 
 type stageAResponse struct {
@@ -161,7 +191,7 @@ func requestBody(input runInput, packet json.RawMessage) ([]byte, error) {
 				"strict": true,
 			})
 		}
-		return canonical(map[string]any{
+		return canonicalWithRawSchema(map[string]any{
 			"model": input.Model, "background": false, "store": false,
 			"parallel_tool_calls": false, "max_output_tokens": 32768,
 			"reasoning": map[string]any{"effort": "high"}, "service_tier": "default",
@@ -180,7 +210,7 @@ func requestBody(input runInput, packet json.RawMessage) ([]byte, error) {
 	for index, tool := range toolSpecs {
 		tools[index] = tool
 	}
-	return canonical(map[string]any{
+	return canonicalWithRawSchema(map[string]any{
 		"model": input.Model, "max_tokens": 32768,
 		"service_tier": "standard_only", "thinking": map[string]any{"type": "adaptive"},
 		"output_config": map[string]any{
@@ -192,11 +222,182 @@ func requestBody(input runInput, packet json.RawMessage) ([]byte, error) {
 	})
 }
 
+const rawSchemaSentinel = "__VELA_EXACT_PROVIDER_SCHEMA_BYTES__"
+
+// canonicalWithRawSchema canonicalizes every request field except the mounted
+// provider schema. That value is inserted as the exact reviewed file bytes.
+func canonicalWithRawSchema(value map[string]any) ([]byte, error) {
+	var replace func(any) any
+	replace = func(current any) any {
+		switch typed := current.(type) {
+		case map[string]any:
+			result := make(map[string]any, len(typed))
+			for key, child := range typed {
+				if raw, ok := child.(json.RawMessage); ok && bytes.Equal(raw, valueSchema(value)) {
+					result[key] = rawSchemaSentinel
+				} else {
+					result[key] = replace(child)
+				}
+			}
+			return result
+		case []any:
+			result := make([]any, len(typed))
+			for index, child := range typed {
+				result[index] = replace(child)
+			}
+			return result
+		default:
+			return current
+		}
+	}
+	schema := valueSchema(value)
+	if len(schema) == 0 {
+		return nil, errors.New("provider schema absent from request")
+	}
+	template, err := canonical(replace(value))
+	if err != nil {
+		return nil, err
+	}
+	needle, _ := json.Marshal(rawSchemaSentinel)
+	if bytes.Count(template, needle) != 1 {
+		return nil, errors.New("provider schema insertion point is not unique")
+	}
+	return bytes.Replace(template, needle, schema, 1), nil
+}
+
+func valueSchema(value map[string]any) json.RawMessage {
+	if text, ok := value["text"].(map[string]any); ok {
+		if format, ok := text["format"].(map[string]any); ok {
+			if raw, ok := format["schema"].(json.RawMessage); ok {
+				return raw
+			}
+		}
+	}
+	if output, ok := value["output_config"].(map[string]any); ok {
+		if format, ok := output["format"].(map[string]any); ok {
+			if raw, ok := format["schema"].(json.RawMessage); ok {
+				return raw
+			}
+		}
+	}
+	return nil
+}
+
 func readBoundPacket(path string, expectedBytes int, expectedSHA256 string) (json.RawMessage, error) {
 	if path != "/input/packet.json" || expectedBytes <= 0 || expectedBytes > 16*1024*1024 {
 		return nil, errors.New("packet path or size binding invalid")
 	}
 	return readPacketFile(path, expectedBytes, expectedSHA256)
+}
+
+func readBoundSchema(path string, expectedBytes int, expectedSHA256 string) ([]byte, error) {
+	if path != "/input/provider-schema.json" || expectedBytes <= 0 || expectedBytes > 16*1024*1024 {
+		return nil, errors.New("provider schema path or size binding invalid")
+	}
+	before, err := os.Lstat(path)
+	if err != nil || !before.Mode().IsRegular() || before.Mode()&os.ModeSymlink != 0 || before.Sys().(*syscall.Stat_t).Nlink != 1 {
+		return nil, errors.New("provider schema must be one regular non-symlink link")
+	}
+	fd, err := syscall.Open(path, syscall.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, errors.New("provider schema no-follow open failed")
+	}
+	file := os.NewFile(uintptr(fd), "provider-schema")
+	defer file.Close()
+	opened, err := file.Stat()
+	if err != nil || !os.SameFile(before, opened) {
+		return nil, errors.New("provider schema open binding changed")
+	}
+	raw, err := io.ReadAll(io.LimitReader(file, int64(expectedBytes)+1))
+	if err != nil || len(raw) != expectedBytes || digestBytes(raw) != expectedSHA256 {
+		return nil, errors.New("provider schema byte/root binding invalid")
+	}
+	after, err := os.Lstat(path)
+	if err != nil || !os.SameFile(opened, after) || after.Mode()&os.ModeSymlink != 0 || after.Sys().(*syscall.Stat_t).Nlink != 1 {
+		return nil, errors.New("provider schema path changed during read")
+	}
+	var object map[string]json.RawMessage
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	if err := decoder.Decode(&object); err != nil || object == nil {
+		return nil, errors.New("provider schema is not a JSON object")
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return nil, errors.New("provider schema contains trailing JSON")
+	}
+	return raw, nil
+}
+
+func strictRunInput(raw []byte) (runInput, error) {
+	var input runInput
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil {
+		return input, errors.New("strict run input invalid")
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF || input.OutputDir != "/evidence" || input.RunID == "" || input.Model == "" {
+		return input, errors.New("strict run input invalid")
+	}
+	return input, nil
+}
+
+func prepare() (*preparedRun, error) {
+	inputRaw, err := os.ReadFile("/input/run.json")
+	if err != nil {
+		return nil, err
+	}
+	input, err := strictRunInput(inputRaw)
+	if err != nil {
+		return nil, err
+	}
+	schema, err := readBoundSchema(input.ProviderSchemaPath, input.ProviderSchemaBytes, input.ProviderSchemaSHA256)
+	if err != nil || !bytes.Equal(bytes.TrimRight(schema, " \t\r\n"), input.ProviderSchema) {
+		return nil, errors.New("provider schema mount binding invalid")
+	}
+	if input.MaterializationReceiptPath != "/input/materialization-receipt.json" {
+		return nil, errors.New("materialization receipt path invalid")
+	}
+	receiptRaw, err := os.ReadFile(input.MaterializationReceiptPath)
+	if err != nil {
+		return nil, err
+	}
+	var receipt materializationReceipt
+	decoder := json.NewDecoder(bytes.NewReader(receiptRaw))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&receipt) != nil {
+		return nil, errors.New("materialization receipt invalid")
+	}
+	var extra any
+	if decoder.Decode(&extra) != io.EOF {
+		return nil, errors.New("materialization receipt trailing JSON")
+	}
+	start, end := receipt.RawInsertedStart, receipt.RawInsertedEnd
+	if receipt.Schema != "vela.stage-a-run-input-materialization.v1" || receipt.SourcePath != input.ProviderSchemaPath ||
+		!receipt.SourceRegular || !receipt.SourceSingleLink || !receipt.SourceNoFollow || !receipt.SourcePrePostSameInode ||
+		receipt.SourceBytes != len(schema) || receipt.SourceSHA256 != digestBytes(schema) ||
+		receipt.RawInsertedSHA256 != digestBytes(schema) || receipt.MountedSchemaRoot != digestBytes(schema) ||
+		receipt.RequestSchemaSHA256 != digestBytes(schema) || receipt.ParseReserializationUsed ||
+		receipt.RunJSONSHA256 != digestBytes(inputRaw) || start < 0 || end != start+len(schema) || end > len(inputRaw) ||
+		!bytes.Equal(inputRaw[start:end], schema) {
+		return nil, errors.New("materialization custody binding invalid")
+	}
+	// The JSON decoder necessarily excludes trailing syntax whitespace from a
+	// RawMessage. Restore the exact bound file bytes only after the explicit
+	// inserted byte range above has been checked against the mounted file.
+	input.ProviderSchema = json.RawMessage(schema)
+	packet, err := readBoundPacket(input.PacketPath, input.PacketBytes, input.PacketSHA256)
+	if err != nil {
+		return nil, err
+	}
+	body, err := requestBody(input, packet)
+	if err != nil {
+		return nil, err
+	}
+	if bytes.Count(body, schema) != 1 {
+		return nil, errors.New("request structured-output schema byte binding invalid")
+	}
+	return &preparedRun{input: input, packet: packet, body: body, schema: schema}, nil
 }
 
 func readPacketFile(path string, expectedBytes int, expectedSHA256 string) (json.RawMessage, error) {
@@ -654,28 +855,11 @@ func appendCustody(directory, name string, raw []byte) error {
 }
 
 func run() error {
-	inputRaw, err := os.ReadFile("/input/run.json")
+	prepared, err := prepare()
 	if err != nil {
 		return err
 	}
-	var input runInput
-	decoder := json.NewDecoder(bytes.NewReader(inputRaw))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&input); err != nil || input.OutputDir != "/evidence" || input.RunID == "" || input.Model == "" {
-		return errors.New("strict run input invalid")
-	}
-	providerSchema, err := os.ReadFile("/input/provider-schema.json")
-	if err != nil || !bytes.Equal(bytes.TrimSpace(providerSchema), bytes.TrimSpace(input.ProviderSchema)) {
-		return errors.New("provider schema mount binding invalid")
-	}
-	packet, err := readBoundPacket(input.PacketPath, input.PacketBytes, input.PacketSHA256)
-	if err != nil {
-		return err
-	}
-	body, err := requestBody(input, packet)
-	if err != nil {
-		return err
-	}
+	input, packet, body := prepared.input, prepared.packet, prepared.body
 	if err := appendCustody(input.OutputDir, "request.raw.json", body); err != nil {
 		return err
 	}
@@ -705,6 +889,7 @@ func run() error {
 	var rawEvents bytes.Buffer
 	var argumentCustodyBytes bytes.Buffer
 	argumentCustodyCount := 0
+	providerCalls := 0
 	var finalResponse []byte
 	for scanner.Scan() {
 		line := append([]byte(nil), scanner.Bytes()...)
@@ -715,6 +900,11 @@ func run() error {
 			return errors.New("bridge frame invalid")
 		}
 		switch event.Type {
+		case "endpoint_attempt":
+			if event.ProviderCalls != providerCalls+1 {
+				return errors.New("provider call receipt count drift")
+			}
+			providerCalls++
 		case "provider_event":
 			// Raw provider bytes are retained before any normalization.
 		case "tool_request":
@@ -753,6 +943,9 @@ func run() error {
 				return errors.New("empty tool result")
 			}
 		case "terminal":
+			if event.ProviderCalls != providerCalls {
+				return errors.New("bridge terminal provider call count drift")
+			}
 			if event.Error != "" {
 				return errors.New(event.Error)
 			}
@@ -783,6 +976,7 @@ func run() error {
 		"response_sha256":     "sha256:" + hex.EncodeToString(sum[:]),
 		"packet_sha256":       input.PacketSHA256,
 		"request_sha256":      digestBytes(body),
+		"provider_calls":      providerCalls,
 		"credential_retained": false,
 	})
 	if providerAdapter == "openai-responses-v1" {
@@ -800,6 +994,65 @@ func run() error {
 	return appendCustody(input.OutputDir, "terminal.json", receipt)
 }
 
+func validateInputOffline() error {
+	credential := os.NewFile(4, "offline-validation-dummy-credential")
+	if credential == nil {
+		return errors.New("offline validation credential descriptor absent")
+	}
+	raw, err := io.ReadAll(io.LimitReader(credential, 128))
+	_ = credential.Close()
+	defer clear(raw)
+	if err != nil || !bytes.Equal(raw, []byte("offline-validation-dummy-no-secret\n")) {
+		return errors.New("offline validation dummy credential invalid")
+	}
+	prepared, err := prepare()
+	if err != nil {
+		return err
+	}
+	if err := appendCustody(prepared.input.OutputDir, "request.raw.json", prepared.body); err != nil {
+		return err
+	}
+	packetCustody, err := makePacketCustody(prepared.input, prepared.packet, prepared.body)
+	if err != nil {
+		return err
+	}
+	packetReceipt, err := canonical(packetCustody)
+	if err != nil {
+		return err
+	}
+	if err := appendCustody(prepared.input.OutputDir, "packet-custody.json", packetReceipt); err != nil {
+		return err
+	}
+	receipt, err := canonical(map[string]any{
+		"schema":                      "vela.stage-a-offline-pre-request-validation.v1",
+		"status":                      "pass",
+		"adapter":                     providerAdapter,
+		"run_id":                      prepared.input.RunID,
+		"run_json_sha256":             digestFile("/input/run.json"),
+		"mounted_schema_root":         digestBytes(prepared.schema),
+		"request_schema_sha256":       digestBytes(prepared.schema),
+		"request_sha256":              digestBytes(prepared.body),
+		"participant_validation_path": "exact_runner_prepare_and_request_construction",
+		"dummy_credential_fd":         true,
+		"credential_secret":           false,
+		"endpoint_contact_forbidden":  true,
+		"endpoint_write_receipts":     0,
+		"provider_calls":              0,
+	})
+	if err != nil {
+		return err
+	}
+	return appendCustody(prepared.input.OutputDir, "offline-pre-request-validation.json", receipt)
+}
+
+func digestFile(path string) string {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return digestBytes(raw)
+}
+
 func main() {
 	var err error
 	switch {
@@ -810,8 +1063,10 @@ func main() {
 		err = selfTest()
 	case len(os.Args) == 2 && os.Args[1] == "--run":
 		err = run()
+	case len(os.Args) == 2 && os.Args[1] == "--validate-input":
+		err = validateInputOffline()
 	default:
-		err = errors.New("accepted arguments are exactly --version, --self-test, or --run")
+		err = errors.New("accepted arguments are exactly --version, --self-test, --validate-input, or --run")
 	}
 	if err != nil {
 		_, _ = io.WriteString(os.Stderr, err.Error()+"\n")

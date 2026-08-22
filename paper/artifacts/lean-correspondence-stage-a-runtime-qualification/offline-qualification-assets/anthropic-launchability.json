@@ -1,11 +1,19 @@
 {
   "credential_values_observed": false,
+  "endpoint_write_receipts": 0,
   "entrypoint": [
     "/opt/vela/runner"
   ],
-  "image_digest": "sha256:26fa80f822ebc0357670e03b4358d01d8c2190803696b7fd8aefec83e3e84fcf",
-  "layer_digest": "sha256:a68a685a6fc0ce563750453c951922da8d5d752122a0c5373ef35dfd38aed9e1",
-  "oci_archive_sha256": "sha256:9ffa254d11ee85f2d8c1f87f9eceb55ada20c0319ba98468438ad41f9871d040",
+  "image_digest": "sha256:d314adbd8b3765d9aada03bd5bd87ec77826cd81fdc8c8aab3982dce3165385d",
+  "layer_digest": "sha256:fa56bba74595f245c92dc85d8116b1c58ec1b9612839b0cbfce25ae754c44bc8",
+  "oci_archive_sha256": "sha256:696086205ac13334bebbd30c94e09e4ec71d99922e8babfd9ef90b45c5fad7eb",
+  "offline_pre_request_validation": {
+    "dummy_non_secret_credential_fd": true,
+    "network": "none",
+    "receipt_sha256": "sha256:6b82168a774f4412100b8de7c7eadf12022d329e176b50686c07e0003ee0729b",
+    "same_run_input": true,
+    "status": "pass"
+  },
   "platform": "linux/arm64",
   "provider_adapter": "anthropic-messages-v1",
   "provider_calls": 0,
