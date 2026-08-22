@@ -1,0 +1,16 @@
+{
+  "schema": "vela.lean-correspondence-stage-b-prelaunch-state.v1",
+  "state": "method_frozen",
+  "authority_effect": "none",
+  "selected_family_count": 0,
+  "family_assignment_prelaunch_binding_root": null,
+  "selected_binding_review": {
+    "status": "not_requested",
+    "reviewed_binding_root": null,
+    "review_commit": null,
+    "independent": false
+  },
+  "qualification_receipt_root": null,
+  "stage_b_permits_created": false,
+  "stage_b_permits_releasable": false
+}

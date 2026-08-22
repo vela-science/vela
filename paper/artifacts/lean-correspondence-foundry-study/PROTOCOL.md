@@ -178,6 +178,30 @@ this proof fails, the control is omitted and no presentation-lift claim is made.
 The prelaunch artifact freezes `control_included` and the final denominator at
 72 or 108; it cannot change after any permit is released.
 
+### Mandatory selected-binding review stop
+
+Held-out selection does not lead directly to runtime qualification or permit
+release. Once all six family roots, assignment schedule, arms, prompts,
+participant configurations, adjudication commitment, and final denominator are
+frozen under one `family_assignment_prelaunch_binding_root`, the state machine
+enters `selection_frozen_pending_independent_review` and stops.
+
+A reviewer independent of source selection, adjudication, packet construction,
+runner construction, participants, and scoring must inspect that complete
+binding after selection and return exact PASS. The review record binds the same
+root, its own immutable review commit, and every closed finding. A missing,
+pending, blocked, stale, differently rooted, or self-authored review cannot
+advance the state. Any change to a selected family, assignment, arm byte,
+participant configuration, adjudication commitment, denominator, or other
+prelaunch byte invalidates the review and returns to the pending-review state.
+
+Only `selected_binding_independent_review_passed` may transition to runtime
+qualification. Stage B permits cannot be created, marked releasable, or released
+before both this selected-binding review and the later maintained-qualifier
+receipt pass. `prelaunch-state-machine.json` is the closed machine contract;
+`prelaunch-state.schema.json` and the verifier enforce its current zero-state and
+permit guard.
+
 ### Immutable runtime and custody
 
 Before any permit release, one prelaunch artifact binds:
@@ -248,13 +272,17 @@ Aggregate flagship success requires every family gate plus:
   raw in either participant configuration;
 - assisted composite exact strictly exceeds raw within each participant
   configuration; and
+- assisted relation accuracy is not below raw within either participant
+  configuration; and
 - restricted-time ratio at most 0.80.
 
 Equality never passes a lift gate. A faster arm that misses any correctness or
 safety gate is `not_supported`. Correctness/safety gates passing with a slower
 ratio supports only bounded accuracy/safety lift, not restricted-time lift or
 the flagship combined claim. Every family and configuration remains visible;
-no aggregate can hide a reversal.
+no aggregate can hide a relation, composite, or safety reversal. An aggregate
+relation increment cannot pass while either participant configuration has fewer
+assisted relation-correct responses than raw.
 
 The optional witness/inheritance gate additionally requires assisted composite
 exact to exceed structured-unwitnessed by at least 6 aggregate responses, zero

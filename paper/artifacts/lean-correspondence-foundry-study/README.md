@@ -31,6 +31,9 @@ is neither rerun nor reinterpreted.
 
 - `study-contract.json`: stages, participants, denominators, estimands, gates,
   stop lines, and the required later prelaunch bindings.
+- `prelaunch-state-machine.json`, `prelaunch-state.json`, and
+  `prelaunch-state.schema.json`: the closed Stage B launch states and the
+  mandatory independent exact review of the selected family/assignment binding.
 - `response.schema.json`: one closed participant response.
 - `foundry-packet.schema.json`: the future derived display packet.
 - `evidence-bindings.json`: exact current Vela, maintained qualifier, reviewed
@@ -66,5 +69,10 @@ assignment seed commitment, selected source commits/trees/blobs, atom-
 equivalence receipts, adjudication commitment, and the receipt emitted by the
 maintained qualifier at `tools/evidence_qualification/qualification.py`. This
 directory does not copy that machinery and does not satisfy that gate.
+
+After held-out selection freezes that complete binding, a separate independent
+review must return exact PASS against the same root. Any binding change clears
+the PASS. Runtime qualification and Stage B permit readiness remain unreachable
+until that review gate closes.
 
 Authority effect: **none**.

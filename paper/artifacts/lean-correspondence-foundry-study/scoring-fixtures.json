@@ -39,5 +39,101 @@
       "minimum_strict_increment": 1,
       "expected_positive": false
     }
+  ],
+  "flagship_cases": [
+    {
+      "name": "all_gates_pass",
+      "expected_pass": true,
+      "summary": {
+        "families": [
+          {
+            "assisted": {"relation_correct": 5, "change_classification_correct": 5, "impact_complete": 5, "composite_exact": 5, "false_inference": 0},
+            "raw": {"relation_correct": 4, "change_classification_correct": 4, "impact_complete": 4, "composite_exact": 4, "false_inference": 0}
+          },
+          {
+            "assisted": {"relation_correct": 5, "change_classification_correct": 5, "impact_complete": 5, "composite_exact": 5, "false_inference": 0},
+            "raw": {"relation_correct": 4, "change_classification_correct": 4, "impact_complete": 4, "composite_exact": 4, "false_inference": 0}
+          },
+          {
+            "assisted": {"relation_correct": 5, "change_classification_correct": 5, "impact_complete": 5, "composite_exact": 5, "false_inference": 0},
+            "raw": {"relation_correct": 4, "change_classification_correct": 4, "impact_complete": 4, "composite_exact": 4, "false_inference": 0}
+          },
+          {
+            "assisted": {"relation_correct": 5, "change_classification_correct": 5, "impact_complete": 5, "composite_exact": 5, "false_inference": 0},
+            "raw": {"relation_correct": 4, "change_classification_correct": 4, "impact_complete": 4, "composite_exact": 4, "false_inference": 0}
+          },
+          {
+            "assisted": {"relation_correct": 5, "change_classification_correct": 5, "impact_complete": 5, "composite_exact": 5, "false_inference": 0},
+            "raw": {"relation_correct": 4, "change_classification_correct": 4, "impact_complete": 4, "composite_exact": 4, "false_inference": 0}
+          },
+          {
+            "assisted": {"relation_correct": 5, "change_classification_correct": 5, "impact_complete": 5, "composite_exact": 5, "false_inference": 0},
+            "raw": {"relation_correct": 4, "change_classification_correct": 4, "impact_complete": 4, "composite_exact": 4, "false_inference": 0}
+          }
+        ],
+        "aggregate": {
+          "assisted": {"relation_correct": 30, "change_classification_correct": 30, "impact_complete": 30, "composite_exact": 30, "false_inference": 0},
+          "raw": {"relation_correct": 24, "change_classification_correct": 24, "impact_complete": 24, "composite_exact": 24, "false_inference": 0},
+          "restricted_time_ratio": "0.800000000000"
+        },
+        "configurations": [
+          {
+            "assisted": {"relation_correct": 16, "composite_exact": 15, "false_inference": 0},
+            "raw": {"relation_correct": 12, "composite_exact": 12, "false_inference": 0}
+          },
+          {
+            "assisted": {"relation_correct": 14, "composite_exact": 15, "false_inference": 0},
+            "raw": {"relation_correct": 12, "composite_exact": 12, "false_inference": 0}
+          }
+        ]
+      }
+    },
+    {
+      "name": "aggregate_passes_but_configuration_relation_reverses",
+      "expected_pass": false,
+      "summary": {
+        "families": [
+          {
+            "assisted": {"relation_correct": 5, "change_classification_correct": 5, "impact_complete": 5, "composite_exact": 5, "false_inference": 0},
+            "raw": {"relation_correct": 3, "change_classification_correct": 4, "impact_complete": 4, "composite_exact": 4, "false_inference": 0}
+          },
+          {
+            "assisted": {"relation_correct": 5, "change_classification_correct": 5, "impact_complete": 5, "composite_exact": 5, "false_inference": 0},
+            "raw": {"relation_correct": 4, "change_classification_correct": 4, "impact_complete": 4, "composite_exact": 4, "false_inference": 0}
+          },
+          {
+            "assisted": {"relation_correct": 5, "change_classification_correct": 5, "impact_complete": 5, "composite_exact": 5, "false_inference": 0},
+            "raw": {"relation_correct": 4, "change_classification_correct": 4, "impact_complete": 4, "composite_exact": 4, "false_inference": 0}
+          },
+          {
+            "assisted": {"relation_correct": 5, "change_classification_correct": 5, "impact_complete": 5, "composite_exact": 5, "false_inference": 0},
+            "raw": {"relation_correct": 4, "change_classification_correct": 4, "impact_complete": 4, "composite_exact": 4, "false_inference": 0}
+          },
+          {
+            "assisted": {"relation_correct": 5, "change_classification_correct": 5, "impact_complete": 5, "composite_exact": 5, "false_inference": 0},
+            "raw": {"relation_correct": 4, "change_classification_correct": 4, "impact_complete": 4, "composite_exact": 4, "false_inference": 0}
+          },
+          {
+            "assisted": {"relation_correct": 5, "change_classification_correct": 5, "impact_complete": 5, "composite_exact": 5, "false_inference": 0},
+            "raw": {"relation_correct": 4, "change_classification_correct": 4, "impact_complete": 4, "composite_exact": 4, "false_inference": 0}
+          }
+        ],
+        "aggregate": {
+          "assisted": {"relation_correct": 30, "change_classification_correct": 30, "impact_complete": 30, "composite_exact": 30, "false_inference": 0},
+          "raw": {"relation_correct": 23, "change_classification_correct": 24, "impact_complete": 24, "composite_exact": 24, "false_inference": 0},
+          "restricted_time_ratio": "0.800000000000"
+        },
+        "configurations": [
+          {
+            "assisted": {"relation_correct": 18, "composite_exact": 15, "false_inference": 0},
+            "raw": {"relation_correct": 10, "composite_exact": 12, "false_inference": 0}
+          },
+          {
+            "assisted": {"relation_correct": 12, "composite_exact": 15, "false_inference": 0},
+            "raw": {"relation_correct": 13, "composite_exact": 12, "false_inference": 0}
+          }
+        ]
+      }
+    }
   ]
 }

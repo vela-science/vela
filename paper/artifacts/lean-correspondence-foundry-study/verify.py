@@ -78,6 +78,116 @@ def strict_lift(assisted: int, control: int, minimum: int) -> bool:
     return assisted > control and assisted - control >= minimum
 
 
+def aggregate_flagship_gates_pass(
+    summary: dict[str, Any], contract: dict[str, Any]
+) -> bool:
+    gates = contract["aggregate_gates"]
+    pairs = (
+        (
+            "relation_correct",
+            "assisted_relation_correct_minimum",
+            "assisted_relation_strict_increment_minimum",
+        ),
+        (
+            "change_classification_correct",
+            "assisted_change_classification_correct_minimum",
+            "assisted_change_classification_strict_increment_minimum",
+        ),
+        (
+            "impact_complete",
+            "assisted_impact_complete_minimum",
+            "assisted_impact_strict_increment_minimum",
+        ),
+        (
+            "composite_exact",
+            "assisted_composite_exact_minimum",
+            "assisted_composite_strict_increment_minimum",
+        ),
+    )
+    for metric, minimum, increment in pairs:
+        assisted = summary["assisted"][metric]
+        raw = summary["raw"][metric]
+        if assisted < gates[minimum] or not strict_lift(
+            assisted, raw, gates[increment]
+        ):
+            return False
+    return summary["assisted"]["false_inference"] <= gates[
+        "assisted_false_inference_maximum"
+    ] and Decimal(summary["restricted_time_ratio"]) <= Decimal(
+        gates["restricted_time_ratio_maximum"]
+    )
+
+
+def family_flagship_gates_pass(
+    families: list[dict[str, Any]], contract: dict[str, Any]
+) -> bool:
+    gate = contract["per_family_gate"]
+    if len(families) != contract["stage_b"]["families"]:
+        return False
+    for family in families:
+        assisted = family["assisted"]
+        raw = family["raw"]
+        if assisted["composite_exact"] < gate["assisted_composite_exact_minimum"]:
+            return False
+        if not strict_lift(
+            assisted["composite_exact"],
+            raw["composite_exact"],
+            gate["assisted_composite_strict_increment_minimum"],
+        ):
+            return False
+        if any(
+            assisted[metric] < raw[metric]
+            for metric in (
+                "relation_correct",
+                "change_classification_correct",
+                "impact_complete",
+            )
+        ):
+            return False
+        if assisted["false_inference"] > gate["assisted_false_inference_maximum"]:
+            return False
+    return True
+
+
+def configuration_flagship_gates_pass(
+    configurations: list[dict[str, Any]], contract: dict[str, Any]
+) -> bool:
+    gates = contract["aggregate_gates"]
+    if len(configurations) != contract["stage_b"]["participant_configurations"]:
+        return False
+    for configuration in configurations:
+        assisted = configuration["assisted"]
+        raw = configuration["raw"]
+        if gates["strict_composite_increment_required_per_configuration"] and not (
+            assisted["composite_exact"] > raw["composite_exact"]
+        ):
+            return False
+        relation_reversal = assisted["relation_correct"] < raw["relation_correct"]
+        if (
+            gates["relation_noninferiority_required_per_configuration"]
+            and relation_reversal
+        ):
+            return False
+        if (
+            not gates["relation_reversals_allowed_per_configuration"]
+            and relation_reversal
+        ):
+            return False
+        if assisted["false_inference"] > gates["assisted_false_inference_maximum"]:
+            return False
+        if assisted["false_inference"] > raw["false_inference"]:
+            return False
+    return True
+
+
+def flagship_pass(summary: dict[str, Any], contract: dict[str, Any]) -> bool:
+    return (
+        family_flagship_gates_pass(summary["families"], contract)
+        and aggregate_flagship_gates_pass(summary["aggregate"], contract)
+        and configuration_flagship_gates_pass(summary["configurations"], contract)
+    )
+
+
 def require(condition: bool, code: str) -> None:
     if not condition:
         raise VerificationError(code)
@@ -215,6 +325,18 @@ def verify_contract(contract: dict[str, Any]) -> None:
     require(aggregate["speed_alone_can_pass"] is False, "speed_alone")
     require(aggregate["assisted_false_inference_maximum"] == 0, "aggregate_safety")
     require(
+        aggregate["relation_noninferiority_required_per_configuration"] is True,
+        "configuration_relation_noninferiority",
+    )
+    require(
+        aggregate["relation_reversals_allowed_per_configuration"] is False,
+        "configuration_relation_reversal",
+    )
+    require(
+        aggregate["flagship_requires_every_configuration_relation_gate"] is True,
+        "configuration_relation_flagship",
+    )
+    require(
         Decimal(aggregate["restricted_time_ratio_maximum"]) == Decimal("0.8"),
         "time_ratio",
     )
@@ -230,6 +352,29 @@ def verify_contract(contract: dict[str, Any]) -> None:
     require(
         contract["custody"]["prelaunch_qualification_receipt_required"] is True,
         "qualifier_receipt",
+    )
+    custody = contract["custody"]
+    require(
+        custody["selected_family_assignment_binding_independent_review_required"]
+        is True,
+        "selected_binding_review_required",
+    )
+    require(
+        custody["selected_binding_review_timing"]
+        == "after held-out family and assignment binding freeze; before runtime qualification or any Stage B participant permit",
+        "selected_binding_review_timing",
+    )
+    require(
+        custody["selected_binding_review_exact_pass_required"] is True,
+        "selected_binding_review_exact_pass",
+    )
+    require(
+        custody["selected_binding_review_root_equality_required"] is True,
+        "selected_binding_review_root_equality",
+    )
+    require(
+        custody["binding_change_invalidates_selected_binding_review"] is True,
+        "selected_binding_review_invalidation",
     )
     stage_c = contract["stage_c"]
     require(
@@ -335,11 +480,174 @@ def verify_bindings(bindings: dict[str, Any], repo: Path) -> None:
     )
 
 
-def verify_schemas() -> None:
+def verify_prelaunch_state(state: dict[str, Any], machine: dict[str, Any]) -> None:
+    expected_states = {
+        "method_frozen",
+        "stage_a_passed",
+        "selection_frozen_pending_independent_review",
+        "selected_binding_independent_review_passed",
+        "runtime_qualified",
+        "ready_for_stage_b_permit_creation",
+        "stopped",
+    }
+    require(
+        machine.get("schema")
+        == "vela.lean-correspondence-stage-b-prelaunch-state-machine.v1",
+        "prelaunch_machine_schema",
+    )
+    require(machine.get("authority_effect") == "none", "prelaunch_machine_authority")
+    require(
+        set(machine.get("states", [])) == expected_states, "prelaunch_machine_states"
+    )
+    expected_transitions = {
+        (
+            "method_frozen",
+            "stage_a_passed",
+            "stage_a_independent_exact_pass",
+        ),
+        (
+            "stage_a_passed",
+            "selection_frozen_pending_independent_review",
+            "six_eligible_families_three_repositories_and_complete_assignment_prelaunch_binding_frozen",
+        ),
+        (
+            "selection_frozen_pending_independent_review",
+            "selected_binding_independent_review_passed",
+            "independent_exact_pass_review_root_equals_family_assignment_prelaunch_binding_root",
+        ),
+        (
+            "selected_binding_independent_review_passed",
+            "runtime_qualified",
+            "maintained_evidence_qualifier_exact_pass_on_same_binding",
+        ),
+        (
+            "runtime_qualified",
+            "ready_for_stage_b_permit_creation",
+            "selected_binding_review_and_qualification_current_and_all_other_prelaunch_gates_pass",
+        ),
+    }
+    actual_transitions = {
+        (item.get("from"), item.get("to"), item.get("guard"))
+        for item in machine.get("transitions", [])
+    }
+    require(
+        actual_transitions == expected_transitions
+        and len(machine.get("transitions", [])) == len(expected_transitions),
+        "prelaunch_machine_transitions",
+    )
+    closed = machine.get("closed_gate", {})
+    require(
+        closed.get("stage_b_permits_releasable_only_in_state")
+        == "ready_for_stage_b_permit_creation",
+        "permit_release_state_gate",
+    )
+    require(
+        closed.get("required_selected_binding_review_status") == "PASS",
+        "permit_review_status_gate",
+    )
+    require(
+        closed.get("reviewed_root_must_equal_binding_root") is True,
+        "permit_review_root_gate",
+    )
+    require(
+        closed.get("review_must_follow_binding_freeze") is True,
+        "permit_review_order_gate",
+    )
+    require(
+        closed.get("runtime_qualification_must_follow_review") is True,
+        "permit_qualification_order_gate",
+    )
+    require(
+        any(
+            item.get("event")
+            == "family_assignment_or_prelaunch_binding_changes_after_review"
+            and item.get("to") == "selection_frozen_pending_independent_review"
+            and "selected_binding_review" in item.get("clears", [])
+            for item in machine.get("invalidations", [])
+        ),
+        "selected_binding_review_invalidation_transition",
+    )
+
+    current_state = state["state"]
+    require(current_state in expected_states, "prelaunch_state")
+    require(state["authority_effect"] == "none", "prelaunch_authority")
+    binding_root = state["family_assignment_prelaunch_binding_root"]
+    review = state["selected_binding_review"]
+    if current_state == "method_frozen":
+        require(state["selected_family_count"] == 0, "frozen_selected_family_count")
+        require(binding_root is None, "frozen_binding_root")
+        require(
+            review
+            == {
+                "status": "not_requested",
+                "reviewed_binding_root": None,
+                "review_commit": None,
+                "independent": False,
+            },
+            "frozen_selected_binding_review",
+        )
+        require(state["qualification_receipt_root"] is None, "frozen_qualification")
+
+    post_selection = {
+        "selection_frozen_pending_independent_review",
+        "selected_binding_independent_review_passed",
+        "runtime_qualified",
+        "ready_for_stage_b_permit_creation",
+    }
+    if current_state in post_selection:
+        require(state["selected_family_count"] == 6, "selected_family_count")
+        require(binding_root is not None, "selected_binding_root")
+
+    post_review = {
+        "selected_binding_independent_review_passed",
+        "runtime_qualified",
+        "ready_for_stage_b_permit_creation",
+    }
+    if current_state in post_review:
+        require(review["status"] == "PASS", "selected_binding_review_status")
+        require(review["independent"] is True, "selected_binding_review_independence")
+        require(review["review_commit"] is not None, "selected_binding_review_commit")
+        require(
+            review["reviewed_binding_root"] == binding_root,
+            "selected_binding_review_root_mismatch",
+        )
+
+    if current_state in {"runtime_qualified", "ready_for_stage_b_permit_creation"}:
+        require(
+            state["qualification_receipt_root"] is not None, "qualification_receipt"
+        )
+
+    if state["stage_b_permits_created"] or state["stage_b_permits_releasable"]:
+        require(
+            current_state == "ready_for_stage_b_permit_creation",
+            "permit_state_not_ready",
+        )
+        require(review["status"] == "PASS", "permit_without_review_pass")
+        require(review["independent"] is True, "permit_without_independent_review")
+        require(
+            review["reviewed_binding_root"] == binding_root,
+            "permit_review_root_mismatch",
+        )
+        require(
+            state["qualification_receipt_root"] is not None,
+            "permit_without_qualification",
+        )
+
+
+def verify_schemas() -> tuple[dict[str, Any], dict[str, Any]]:
     response = load_json(ROOT / "response.schema.json")
     foundry = load_json(ROOT / "foundry-packet.schema.json")
+    prelaunch_schema = load_json(ROOT / "prelaunch-state.schema.json")
+    prelaunch_state = load_json(ROOT / "prelaunch-state.json")
+    prelaunch_machine = load_json(ROOT / "prelaunch-state-machine.json")
     Draft202012Validator.check_schema(response)
     Draft202012Validator.check_schema(foundry)
+    Draft202012Validator.check_schema(prelaunch_schema)
+    errors = sorted(
+        Draft202012Validator(prelaunch_schema).iter_errors(prelaunch_state),
+        key=lambda error: list(error.absolute_path),
+    )
+    require(not errors, f"prelaunch_state_schema:{errors[0].message if errors else ''}")
     require(response.get("additionalProperties") is False, "response_open")
     require(foundry.get("additionalProperties") is False, "foundry_open")
     require(
@@ -357,6 +665,8 @@ def verify_schemas() -> None:
         "global_standing" not in canonical_bytes(foundry).decode(),
         "global_standing_surface",
     )
+    verify_prelaunch_state(prelaunch_state, prelaunch_machine)
+    return prelaunch_state, prelaunch_machine
 
 
 def verify_scoring_fixtures() -> None:
@@ -380,6 +690,12 @@ def verify_scoring_fixtures() -> None:
             )
             is item["expected_positive"],
             "strict_lift_fixture",
+        )
+    for item in fixture["flagship_cases"]:
+        require(
+            flagship_pass(item["summary"], load_json(ROOT / "study-contract.json"))
+            is item["expected_pass"],
+            f"flagship_fixture:{item['name']}",
         )
 
 
