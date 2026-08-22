@@ -64,6 +64,10 @@ jobs:
         run: cargo build --locked --release -p vela-cli --bin vela
       - name: complete Rust protocol and task-first test union
         run: uv run --project conformance --locked ./conformance/check-core.sh
+      - name: neutral evidence runtime qualification regressions
+        run: |
+          uv run --project conformance --locked ruff check tools/evidence_qualification
+          uv run --project conformance --locked python -m unittest tools.evidence_qualification.test_qualification
       - name: current Submission and Verification interoperability waist
         env:
           VELA_EPHEMERAL_ACCOUNT_HOME: "1"
