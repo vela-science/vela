@@ -1,10 +1,10 @@
 {
-  "artifact_root": "sha256:77b6e12779d2a33fe5b66654161b00e4a91a9a3c44132f8f6d8359a45b5fdf4c",
+  "artifact_root": "sha256:63cbbdf6ae6c7e906268b31f33198d06b8db0757e6db48b6187286cacd08dcb9",
   "files": [
     {
-      "bytes": 1543,
+      "bytes": 2804,
       "path": "README.md",
-      "sha256": "sha256:ac502f68b915613fc6facd099f0d6a5c0c64e7b06fe5c62cb310372ca969ee9d"
+      "sha256": "sha256:3c2e62576d87b9ce22ea02a9328979219d717f903f480d884af12219fcc81d02"
     },
     {
       "bytes": 1848,
@@ -25,6 +25,11 @@
       "bytes": 892,
       "path": "execution-sources/runner_relay.go",
       "sha256": "sha256:8a3b9b23a8f036735162dae7cdd0ac009ab87352cff1bc2fae1deed2babf9834"
+    },
+    {
+      "bytes": 1765,
+      "path": "extract_actual_request.py",
+      "sha256": "sha256:a36381353699d07120d23cc9b50cee61129c87e0d572f012947a2ff3c88ce5d9"
     },
     {
       "bytes": 4278,
@@ -60,6 +65,11 @@
       "bytes": 1178,
       "path": "permit/neutral-calibration-anthropic-json-v3-replacement.permit.consumed.json",
       "sha256": "sha256:92bb69095536f0d7be026baed085b530ced623d2408d8e0c63fc2175a4b1a6f3"
+    },
+    {
+      "bytes": 3363,
+      "path": "raw/actual-transmitted-body.raw.json",
+      "sha256": "sha256:2f151e66b7bfcb1cab61c0ae37386180c4fae3bd9a8278535af2621ffba4e63a"
     },
     {
       "bytes": 715,
@@ -162,14 +172,19 @@
       "sha256": "sha256:1101b0dd80c7b5bbd3362dac7413f7c0a2370810f4b6f4bf1cc184e06bab8eec"
     },
     {
-      "bytes": 4594,
-      "path": "test_verify.py",
-      "sha256": "sha256:c2b9be0774c413cda5136e762d9fd40336cf6f1543e1e87e512a4427ca331d92"
+      "bytes": 1710,
+      "path": "terminal-outcome.json",
+      "sha256": "sha256:630ef1fa3c7afe15c920bb266c9691735a35dcf2f231d32be95c3bcc63776aa6"
     },
     {
-      "bytes": 20653,
+      "bytes": 10908,
+      "path": "test_verify.py",
+      "sha256": "sha256:510229e2b8a9628fe55f995493f10450bb8e87ef6029b40dd2314bc6c23d397e"
+    },
+    {
+      "bytes": 39796,
       "path": "verify.py",
-      "sha256": "sha256:3340097abb557e700e96f1593672a11159bffbdf9bcee608396222d410650b36"
+      "sha256": "sha256:aa56ef512056fa880b559c16e3af713355f341b1a50c81b8f0bd3f6d32097c63"
     }
   ],
   "schema": "vela.stage-a-anthropic-neutral-v3-artifact.v1"
