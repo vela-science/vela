@@ -2675,13 +2675,32 @@ def _qualify_root(root: Path) -> dict[str, Any]:
     valid_response = parse_json(valid_raw, "valid_response")
     closed = schema_config["closed_set"]
     exact_keys(closed, {"field", "key", "expected"}, "closed_set")
+    registered_schema_sha256 = digest(registered_raw)
+    declared_tools = (
+        config["configuration"].get("tools")
+        if isinstance(config["configuration"], dict)
+        else None
+    )
+    declared_tool_mode = (
+        "no_tools" if declared_tools in {"none", "no_tools"} else declared_tools
+    )
+    if not modern_schema and (
+        declared_tool_mode != "no_tools"
+        or registered_schema_sha256 != NEUTRAL_REGISTERED_SCHEMA_SHA256
+    ):
+        raise QualificationError("provider_legacy_schema_binding_invalid")
+    if declared_tool_mode == "read_only_offline_shell_files" and (
+        not modern_schema
+        or registered_schema_sha256 != STAGE_A_REGISTERED_SCHEMA_SHA256
+    ):
+        raise QualificationError("provider_tool_schema_binding_invalid")
     validate_schema_boundary(
         registered,
         provider,
         schema_config["deletions" if modern_schema else "deleted_pointers"],
         valid_response,
         schema_config["provider_adapter"] if modern_schema else None,
-        digest(registered_raw) if modern_schema else None,
+        registered_schema_sha256 if modern_schema else None,
     )
     canonical_valid = normalize_closed_set(
         valid_response, closed["field"], closed["key"], closed["expected"]
@@ -2695,7 +2714,7 @@ def _qualify_root(root: Path) -> dict[str, Any]:
         "provider_adapter": schema_config["provider_adapter"]
         if modern_schema
         else None,
-        "registered_bytes": digest(registered_raw),
+        "registered_bytes": registered_schema_sha256,
         "provider_bytes": digest(provider_raw),
         "closed_set_field": closed["field"],
         "closed_set_key": closed["key"],

@@ -1279,6 +1279,106 @@ def upgrade_to_stage_a_tool_bundle(fixture: BundleFixture, adapter: str) -> None
     upgrade_to_tool_bundle(fixture, adapter)
 
 
+def replace_stage_a_tool_schema_with_legacy_fallback(fixture: BundleFixture) -> None:
+    root = fixture.root
+    configuration = fixture.load("qualification.json")
+    adapter = configuration["configuration"]["provider_adapter"]
+    schemas = configuration["schemas"]
+    schemas["deleted_pointers"] = ["/properties/impact_closure/uniqueItems"]
+    schemas.pop("deletions")
+    schemas.pop("provider_adapter")
+    fixture.write_json("qualification.json", configuration)
+    fixture.write_json(
+        "schemas/provider.json",
+        provider_derivative(fixture.registered, schemas["deleted_pointers"]),
+    )
+    provider_schema_sha256 = digest((root / "schemas/provider.json").read_bytes())
+    boundary_value = tool_boundary(root, adapter)
+    fixture.write_json("config/tool-boundary.json", boundary_value)
+    boundary = validate_tool_boundary(boundary_value)
+    configuration_root = canonical_root(
+        {
+            "configuration": configuration["configuration"],
+            "tool_boundary_root": boundary["tool_boundary_root"],
+        }
+    )
+    compatibility = fixture.load("config/compatibility.json")
+    compatibility["configuration_root"] = configuration_root
+    compatibility["tool_boundary_root"] = boundary["tool_boundary_root"]
+    fixture.write_json("config/compatibility.json", compatibility)
+    permit_paths = (
+        "permit/participant-run-01.permit.json",
+        "fixture/permit/neutral-qualification-01.permit.template.json",
+        "fixture/permit/neutral-qualification-01.permit.consumed.json",
+    )
+    for relative in permit_paths:
+        permit = fixture.load(relative)
+        permit["configuration_root"] = configuration_root
+        permit["provider_schema_bytes"] = provider_schema_sha256
+        fixture.write_json(relative, permit)
+    consumed = root / "fixture/permit/neutral-qualification-01.permit.consumed.json"
+    launch_path = root / "fixture/evidence/launch.json"
+    launch = fixture.load("fixture/evidence/launch.json")
+    launch["permit_bytes"] = digest(consumed.read_bytes())
+    launch["configuration_root"] = configuration_root
+    launch["tool_boundary_root"] = boundary["tool_boundary_root"]
+    fixture.write_json("fixture/evidence/launch.json", launch)
+    teardown_path = root / "fixture/evidence/teardown.json"
+    teardown = fixture.load("fixture/evidence/teardown.json")
+    teardown["permit_bytes"] = digest(consumed.read_bytes())
+    teardown["launch_bytes"] = digest(launch_path.read_bytes())
+    teardown["tool_boundary_root"] = boundary["tool_boundary_root"]
+    fixture.write_json("fixture/evidence/teardown.json", teardown)
+    terminal_path = root / "fixture/evidence/terminal-receipt.json"
+    terminal = fixture.load("fixture/evidence/terminal-receipt.json")
+    terminal["permit_bytes"] = digest(consumed.read_bytes())
+    terminal["launch_bytes"] = digest(launch_path.read_bytes())
+    terminal["teardown_receipt_bytes"] = digest(teardown_path.read_bytes())
+    terminal["provider_schema_bytes"] = provider_schema_sha256
+    terminal["configuration_root"] = configuration_root
+    terminal["tool_boundary_root"] = boundary["tool_boundary_root"]
+    fixture.write_json("fixture/evidence/terminal-receipt.json", terminal)
+    equivalence = fixture.load("fixture/provider-equivalence.json")
+    current = [
+        item for item in equivalence["providers"] if item["provider_adapter"] == adapter
+    ]
+    assert len(current) == 1
+    current[0]["provider_schema_bytes"] = provider_schema_sha256
+    for item in equivalence["providers"]:
+        item["tool_boundary_root"] = validate_tool_boundary(
+            tool_boundary(root, item["provider_adapter"])
+        )["tool_boundary_root"]
+    fixture.write_json("fixture/provider-equivalence.json", equivalence)
+    evidence_paths = [
+        consumed,
+        launch_path,
+        root / "fixture/evidence/provider-events.jsonl",
+        root / "fixture/evidence/provider-stderr.txt",
+        root / "fixture/evidence/response.raw.json",
+        terminal_path,
+        teardown_path,
+        root / "fixture/evidence/provider-events.raw.jsonl",
+        root / "fixture/evidence/tool-receipts.json",
+        root / "fixture/evidence/tool.stdout",
+        root / "fixture/evidence/tool.stderr",
+    ]
+    entries = [
+        {
+            "path": path.relative_to(root / "fixture").as_posix(),
+            "bytes": path.stat().st_size,
+            "sha256": digest(path.read_bytes()),
+        }
+        for path in evidence_paths
+    ]
+    entries.sort(key=lambda item: item["path"])
+    capture = {
+        "schema": "vela.tooling.neutral-capture-manifest.v1",
+        "entries": entries,
+    }
+    capture["capture_root"] = canonical_root(capture)
+    fixture.write_json("fixture/capture-manifest.json", capture)
+
+
 class EvidenceQualificationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
@@ -1498,6 +1598,78 @@ class EvidenceQualificationTests(unittest.TestCase):
                 self.assertEqual(first["provider_adapter"], adapter)
                 self.assertEqual(first["provider_calls"], 0)
 
+    def test_stage_a_tool_bundle_rejects_fully_rebound_legacy_fallback(self) -> None:
+        for adapter in PROVIDER_ADAPTERS:
+            with (
+                self.subTest(adapter=adapter),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                fixture = BundleFixture(Path(directory).resolve())
+                upgrade_to_stage_a_tool_bundle(fixture, adapter)
+                replace_stage_a_tool_schema_with_legacy_fallback(fixture)
+                with self.assertRaisesRegex(
+                    QualificationError, "provider_legacy_schema_binding_invalid"
+                ):
+                    qualify_bundle(fixture.root)
+
+    def test_legacy_schema_requires_exact_neutral_hash_and_exact_fields(self) -> None:
+        mutated_registered = b" " + (self.root / "schemas/registered.json").read_bytes()
+        self.fixture.write("schemas/registered.json", mutated_registered)
+        mutated_registered_sha256 = digest(mutated_registered)
+        self.assertNotEqual(mutated_registered_sha256, NEUTRAL_REGISTERED_SCHEMA_SHA256)
+        for relative in (
+            "permit/participant-run-01.permit.json",
+            "fixture/permit/neutral-qualification-01.permit.template.json",
+            "fixture/permit/neutral-qualification-01.permit.consumed.json",
+        ):
+            permit = self.fixture.load(relative)
+            permit["registered_schema_bytes"] = mutated_registered_sha256
+            self.fixture.write_json(relative, permit)
+        consumed = (
+            self.root / "fixture/permit/neutral-qualification-01.permit.consumed.json"
+        )
+        launch = self.fixture.load("fixture/evidence/launch.json")
+        launch["permit_bytes"] = digest(consumed.read_bytes())
+        self.fixture.write_json("fixture/evidence/launch.json", launch)
+        teardown = self.fixture.load("fixture/evidence/teardown.json")
+        teardown["permit_bytes"] = digest(consumed.read_bytes())
+        teardown["launch_bytes"] = digest(
+            (self.root / "fixture/evidence/launch.json").read_bytes()
+        )
+        self.fixture.write_json("fixture/evidence/teardown.json", teardown)
+        terminal = self.fixture.load("fixture/evidence/terminal-receipt.json")
+        terminal["registered_schema_bytes"] = mutated_registered_sha256
+        terminal["permit_bytes"] = digest(consumed.read_bytes())
+        terminal["launch_bytes"] = digest(
+            (self.root / "fixture/evidence/launch.json").read_bytes()
+        )
+        terminal["teardown_receipt_bytes"] = digest(
+            (self.root / "fixture/evidence/teardown.json").read_bytes()
+        )
+        self.fixture.write_json("fixture/evidence/terminal-receipt.json", terminal)
+        self.fixture.refresh_capture_bindings()
+        self.assertBlocked("provider_legacy_schema_binding_invalid")
+
+        for mutation in (
+            lambda schemas: schemas.__setitem__(
+                "provider_adapter", "openai-responses-v1"
+            ),
+            lambda schemas: schemas.pop("deleted_pointers"),
+        ):
+            with tempfile.TemporaryDirectory() as directory:
+                fixture = BundleFixture(Path(directory).resolve())
+                config = fixture.load("qualification.json")
+                mutation(config["schemas"])
+                fixture.write_json("qualification.json", config)
+                with self.assertRaisesRegex(
+                    QualificationError, "schemas_fields_invalid"
+                ):
+                    qualify_bundle(fixture.root)
+
+    def test_tool_mode_rejects_modern_neutral_schema_hash(self) -> None:
+        upgrade_to_tool_bundle(self.fixture, "openai-responses-v1")
+        self.assertBlocked("provider_tool_schema_binding_invalid")
+
     def test_provider_schema_registry_rejects_pointer_value_provider_order_and_count_drift(
         self,
     ) -> None:
@@ -1617,7 +1789,7 @@ class EvidenceQualificationTests(unittest.TestCase):
                 tempfile.TemporaryDirectory() as directory,
             ):
                 fixture = BundleFixture(Path(directory).resolve())
-                upgrade_to_tool_bundle(fixture, adapter)
+                upgrade_to_stage_a_tool_bundle(fixture, adapter)
                 first = qualify_bundle(fixture.root)
                 second = qualify_bundle(fixture.root)
                 self.assertEqual(

@@ -61,7 +61,12 @@ constraint remain in the provider derivative. Any alternate schema hash,
 pointer, value, adapter, ordering, multiplicity, omission, or additional edit
 fails closed. The full registered Draft 2020-12 schema remains byte-exact and
 authoritative for local response validation. The legacy unique-items pointer
-list remains available only to the historical no-tool format.
+list remains available only when the tool mode is exactly `no_tools` and the
+registered schema bytes match the historical neutral hash above. Every
+`read_only_offline_shell_files` bundle must instead bind the frozen Stage A
+schema hash, one of the two exact provider adapters, and that adapter's complete
+ordered four-rule registry; the legacy shape and the neutral modern registry
+both fail closed in tool mode.
 
 The `shell/1` and `read_file/1` input schemas are checked-in canonical Draft
 2020-12 schemas bound by tool name, version, and schema root. The complete
