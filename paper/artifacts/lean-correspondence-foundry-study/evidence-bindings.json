@@ -1,0 +1,105 @@
+{
+  "schema": "vela.lean-correspondence-foundry-evidence-bindings.v1",
+  "frozen_on": "2026-08-22",
+  "authority_effect": "none",
+  "vela_current_main": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "commit": "6dec29363686ee1361aa3e20efbc31832c4b2631",
+    "tree": "8068860440967bfdced9c55f33fe27eb000f6237"
+  },
+  "maintained_evidence_qualifier": {
+    "path": "tools/evidence_qualification/qualification.py",
+    "blob": "be1982fc09c8d859b7da131c242de243e6f989b8",
+    "sha256": "628ac203a48ef19c649dd64dedc010d104d728eb0edbb66392e93955fab872b9",
+    "reviewed_corrective_commit": "5fcb5567a329728a6c9e813546a3c97638b42e75",
+    "reviewed_corrective_tree": "46620b21fd9c980e33ee3c5257c121ccbae479af",
+    "required_future_receipt_root": null,
+    "note": "The future prelaunch must run this maintained qualifier and bind its receipt; no runtime bundle or receipt is created here."
+  },
+  "lean_correspondence_kernel": {
+    "repository": "/Users/williamblair/personal/lean-correspondence",
+    "commit": "5791abba6077b3e91d32b90f9bf120ca65e0e719",
+    "tree": "92562aa8838a6dadc004ffaa7f81186312d219de",
+    "verify_blob": "63d1f448ec1d9714c7cf17e22383625a1c37d249",
+    "independent_review_thread": "01a027ff-22d2-7a41-a5be-4429966e5ff3",
+    "independent_review_report_sha256": "27357a167aef1726de09a0c2e80e4584fb68a4af5fa41de66ef3797d333ab390",
+    "verdict": "PASS"
+  },
+  "visible_calibration_packets": {
+    "repository": "https://github.com/williamjblair/lean-proofs.git",
+    "branch": "codex/lean-correspondence-v0-candidates",
+    "commit": "148e18cce542f397ccb60b21a896ba063f6d6cca",
+    "tree": "0d2e5533f41d2e54575a2d4b6e1ec9feabf998e7",
+    "independent_review_thread": "01a02804-5bf8-7500-aa1b-a26d8bcd3b84",
+    "verdict": "PASS_GO_FOR_IMPORT",
+    "cases": [
+      {
+        "id": "erdos-730-affirmative-rhs",
+        "packet_path": "lean-correspondence-v0/cases/erdos-730/packet.json",
+        "packet_sha256": "3276bfe9762ed81cf2cd700eb1e75a7dd67e68308659d499209879b16758b0ed",
+        "claim_ceiling": "affirmative S.Infinite RHS only; not the answer(sorry) biconditional"
+      },
+      {
+        "id": "fc-leaneval-oeis-303656",
+        "packet_path": "lean-correspondence-v0/cases/fc-leaneval-oeis-303656/packet.json",
+        "packet_sha256": "c2300410edf5aa255223d5685adc2ea4cad8ce95873f26b246c0bb125134e7cd",
+        "formal_conjectures_adapter_commit": "2654e42de2026de6cdb248ad5ed0f1c7d659c8fa",
+        "formal_conjectures_adapter_tree": "c0e85ad6fb5af5cf1a14a3a00f12a6c2ac3ae26d",
+        "generator_commit": "a726789593eeac5c32ad82760061cd5bf6cae662",
+        "lean_eval_commit": "7699436464052268e6c04b41554bfbc2c6908ec5",
+        "lean_eval_tree": "0074a0fc513fe20f15094a389efbbb056df82817",
+        "claim_ceiling": "deterministic generated-byte lineage and bounded drift calibration; not truth, solution, or general semantic equivalence"
+      }
+    ]
+  },
+  "prior_36_cell_negative_result": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "commit": "4524c8f776943a267e04e03e9a237ecaed14bc2c",
+    "tree": "4d5650a999ac0be59e71d5bd664e885cad5192c7",
+    "result_path": "paper/artifacts/inherited-correction-held-out-order-replacement-result/scored-result.json",
+    "result_sha256": "ae0c980a18633832a83b73e0c715ee11e702aeb56660c4e027d5ece03425f372",
+    "registration_root": "sha256:60acdfa31d25f9df5f342b75caf8e65426c5b71fa320c36fe5568de9fbf13b10",
+    "capture_root": "sha256:f74229b3346cf56e2128d78b366f5fb99380872c27285d196c13862738bc8e98",
+    "adjudication_root": "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d",
+    "result_canonical_root": "sha256:92eed5bcb9e6b647d52a53282563077d3829b28c426e0dd9898a073f2590b8a5",
+    "result_evidence_root": "sha256:d9f017734d1c58ca9ecaba2621a7ddec12e178a78bf6b2d228dc2542aa71a104",
+    "fixed_denominator": 36,
+    "git_documents_exact": "12/12",
+    "state_wrapper_exact": "12/12",
+    "vela_exact": "11/12",
+    "vela_authority_errors": 1,
+    "positive_gate": "not_supported",
+    "reuse": "forbidden"
+  },
+  "real_correction_packet": {
+    "producer_commit": "9b7a3448d9b9925624a7f73fb0b712dfd14f8d34",
+    "producer_tree": "efc28aec19efdccd4f436c3001f78378f5869450",
+    "qualification_root": "sha256:b08e1872be57e37857c740f82ae96df56ad023d91a345a8b73ebf25cba854165",
+    "packet_root": "sha256:d2b9f5bc3cf95005c1964643fcb870133cc9e952bedc2a0d9ad6fc909579d71e",
+    "evidence_repository_commit": "12fdb0ad09c710469e50a60e8a6e2c81c9d18c3f",
+    "evidence_repository_tree": "8b57c21c6c2a1ae279a3171cbad47291ab7af44c",
+    "evidence_repository_root": "sha256:f03be3a76ce43be0c2f9ca63ff731b9a5ff5c010b768e95b46a35f3a067eed96"
+  },
+  "portable_plural_authority_reference": {
+    "core_commit": "4685462c44b1f073870f31025ae73d1d8770ce73",
+    "core_tree": "13c5e0cf2e64be907cee4c0fd740ab0027118e13",
+    "submission_root": "sha256:f1669cdfa498ff85c162bce6173f04b39cdf7620fb198a19b45f6d932302204a",
+    "claim_root": "sha256:e865c5a2aafd459d52d9b1c8a7734104b1e2d8d1c047c5400684f01505f83632",
+    "accept_repository_root": "sha256:cd9d73e81841bb74802e07de80c07425ecbfbe81156cbfbca11848a885753b31",
+    "reject_repository_root": "sha256:a2ff58f7425ea65bf87c0eb96462fc9d2124fd7923bdbd784bfc00e841617e4b",
+    "accept_standing": "accepted",
+    "reject_standing": "unassessed"
+  },
+  "vela_web_plural_authority_frontiers": {
+    "repository": "https://github.com/vela-science/vela-web.git",
+    "commit": "05896f850eae5967f19c0e77f2de4a84fabef4c0",
+    "tree": "8b6bbbb150749aeec25aad39c1734e5968a578ca",
+    "producer_commit": "2083855a516562701775384f120bc8455ba0ac84",
+    "independent_review_commit": "33780767345b685e9f7b04e55c12de14d4762ae4",
+    "source_packet_blob": "297555d52c89f5ae7a29a1f8e67088a9b3ccd328",
+    "source_packet_root": "sha256:38827057cca6161e9decd9ed9ca3408f12b81e1f237293a6903adb893613a325",
+    "registry_projection_root": "sha256:087ffd92fa2ebc56e88f1b5e304bc4ed07c45b96e987e65be391ec780e184709",
+    "synthetic_correction_packet_root": "sha256:a88e3fbf9bcc0d7b20ff9449cd2bfaaf36d807a1db176d3e8b548ec693c62745",
+    "authority_effect": "none"
+  }
+}

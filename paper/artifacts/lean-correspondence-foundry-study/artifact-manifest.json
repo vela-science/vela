@@ -1,0 +1,61 @@
+{
+  "schema": "vela.lean-correspondence-foundry-artifact-manifest.v1",
+  "artifact_root": "sha256:1ca3a51874d60370021ff955446709e5430ad54bf731962b3dbd2e93595e691a",
+  "entries": [
+    {
+      "path": "PAPER_PLAN.md",
+      "bytes": 7303,
+      "sha256": "bba3acac1dc786ff20b234789d73d3203aa26d0f768c238266bba4a27192cc27"
+    },
+    {
+      "path": "PROMPT.md",
+      "bytes": 3439,
+      "sha256": "111f9eb8c03a18d2c08f692591da2f27f2c13a1f098486f6aeb8d40e4f5fd6db"
+    },
+    {
+      "path": "PROTOCOL.md",
+      "bytes": 15699,
+      "sha256": "f23d171f5d3b944e2cfc91c99ac1c66b70f9adc08e2a91ab1bc7f5034cc4fd06"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3388,
+      "sha256": "248f6adea9b39b00fd964063cbb71e0590dcf5d70420255089eb685439559b53"
+    },
+    {
+      "path": "evidence-bindings.json",
+      "bytes": 6123,
+      "sha256": "a9abe6625e68a2c45865bf1b04a023d718bb8d21f478bb6398dc5db846435d5f"
+    },
+    {
+      "path": "foundry-packet.schema.json",
+      "bytes": 6029,
+      "sha256": "b9953c621101cac688c37cb4fd8284312dbec218f2555909e9b875406635c25d"
+    },
+    {
+      "path": "response.schema.json",
+      "bytes": 2498,
+      "sha256": "b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268"
+    },
+    {
+      "path": "scoring-fixtures.json",
+      "bytes": 898,
+      "sha256": "763dafe5575ba22b3ff3972fef01a07e622803ed44541af6241c4aa7da13ae86"
+    },
+    {
+      "path": "study-contract.json",
+      "bytes": 5181,
+      "sha256": "5b5eb75e74a0ca5e04cff59340b43a3c405690e93d69940e26e275226ca22b59"
+    },
+    {
+      "path": "test_verify.py",
+      "bytes": 2715,
+      "sha256": "3af2be389a7d77043015fe1d8a4e4197a13fdba3238ed07e3392f95884278e86"
+    },
+    {
+      "path": "verify.py",
+      "bytes": 14202,
+      "sha256": "8fbe02bad7923f487e98bc8594cb46dc4590dddf896c70181a4be355d1cc9c34"
+    }
+  ]
+}

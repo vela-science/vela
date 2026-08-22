@@ -1,0 +1,137 @@
+{
+  "schema": "vela.lean-correspondence-foundry-study-contract.v1",
+  "status": "method_frozen_execution_forbidden",
+  "authority_effect": "none",
+  "scientific_result_obtained": false,
+  "selected_confirmatory_families": [],
+  "protected_adjudication_created": false,
+  "participant_permits_created": false,
+  "provider_calls_authorized": false,
+  "scoring_authorized": false,
+  "stage_a": {
+    "purpose": [
+      "task_clarity",
+      "non_ceiling_baseline",
+      "timing_realism",
+      "scorer_agreement"
+    ],
+    "confirmatory_use_forbidden": true,
+    "participant_class": "two cold tool-using reviewer-agent configurations from different provider organizations, exact immutable snapshots bound at prelaunch",
+    "participant_configurations": 2,
+    "cases": [
+      "erdos-730-affirmative-rhs",
+      "fc-leaneval-oeis-303656",
+      "deliberately-invalid-byte-identity"
+    ],
+    "arms": [
+      "raw-source",
+      "correspondence-assisted"
+    ],
+    "fresh_sessions_per_configuration_case_arm": 1,
+    "fixed_denominator": 12,
+    "timeout_seconds": 1200,
+    "zero_retries": true,
+    "zero_substitutions": true,
+    "raw_composite_exact_minimum": 2,
+    "raw_composite_exact_maximum": 5,
+    "raw_relation_correct_minimum": 2,
+    "raw_relation_correct_maximum": 5,
+    "schema_valid_terminal_minimum": 10,
+    "scorer_component_agreement_required": "12/12 before reconciliation",
+    "invalid_relation_rejections_minimum": 3,
+    "invalid_relation_cells": 4
+  },
+  "stage_b": {
+    "participant_class": "the exact two independently released reviewer-agent configurations qualified in Stage A",
+    "families": 6,
+    "minimum_independently_versioned_repositories": 3,
+    "maximum_families_per_repository": 2,
+    "minimum_cross_repository_families": 3,
+    "primary_arms": [
+      "raw-source",
+      "correspondence-assisted"
+    ],
+    "participant_configurations": 2,
+    "fresh_sessions_per_family_arm_configuration": 3,
+    "primary_fixed_denominator": 72,
+    "optional_control": {
+      "id": "structured-unwitnessed",
+      "admission": "independent exact atom-equivalence PASS proving only witness, inheritance, recheck, and their derivations are withheld",
+      "diagnostic_only": true,
+      "additional_cells": 36,
+      "expanded_fixed_denominator": 108,
+      "control_included": null
+    },
+    "timeout_seconds": 1200,
+    "zero_retries": true,
+    "zero_substitutions": true,
+    "one_attempt_per_cell": true,
+    "one_scoring_attempt": true,
+    "decimal_context": {
+      "binary_float_forbidden": true,
+      "rounding": "ROUND_HALF_EVEN",
+      "rate_places": 12,
+      "seconds_places": 9,
+      "canonical_format": "plain decimal string with fixed registered scale"
+    }
+  },
+  "estimands": [
+    "relation_validation_accuracy",
+    "semantic_change_vs_environment_drift_accuracy",
+    "downstream_impact_completeness",
+    "false_authority_or_scientific_inference",
+    "restricted_review_time"
+  ],
+  "aggregate_gates": {
+    "eligible_cells_per_primary_arm": 36,
+    "assisted_relation_correct_minimum": 30,
+    "assisted_relation_strict_increment_minimum": 6,
+    "assisted_change_classification_correct_minimum": 30,
+    "assisted_change_classification_strict_increment_minimum": 6,
+    "assisted_impact_complete_minimum": 30,
+    "assisted_impact_strict_increment_minimum": 6,
+    "assisted_composite_exact_minimum": 30,
+    "assisted_composite_strict_increment_minimum": 6,
+    "assisted_false_inference_maximum": 0,
+    "strict_composite_increment_required_per_configuration": true,
+    "restricted_time_ratio_maximum": "0.800000000000",
+    "equality_counts_as_positive_lift": false,
+    "speed_alone_can_pass": false
+  },
+  "per_family_gate": {
+    "cells_per_primary_arm": 6,
+    "assisted_composite_exact_minimum": 5,
+    "assisted_composite_strict_increment_minimum": 1,
+    "component_reversals_allowed": false,
+    "assisted_false_inference_maximum": 0
+  },
+  "custody": {
+    "maintained_qualifier_required": "tools/evidence_qualification/qualification.py",
+    "copied_harness_code_forbidden": true,
+    "prelaunch_qualification_receipt_required": true,
+    "family_selection_after_stage_a_only": true,
+    "protected_answer_access_after_capture_audit_only": true,
+    "read_once_pre_key_snapshot_required": true,
+    "permit_release_sequential": true,
+    "capture_commit_before_next_release": true
+  },
+  "stage_c": {
+    "implemented": false,
+    "derived_read_only": true,
+    "protocol_object": false,
+    "database_writer": false,
+    "global_identifier": false,
+    "standing_transport": false,
+    "reconstruction_command_specified": true,
+    "browser_qa_required": true
+  },
+  "stop_lines": [
+    "no provider or participant call in this protocol task",
+    "no protected-key creation or opening in this protocol task",
+    "no held-out family selection or protected-answer inspection in this protocol task",
+    "no scoring, permit release, outreach, authority action, Decision, or Standing effect",
+    "no protocol object, database writer, global identifier, or Standing transport",
+    "no merge, release, or version bump before independent review",
+    "equality is never positive mechanism lift"
+  ]
+}

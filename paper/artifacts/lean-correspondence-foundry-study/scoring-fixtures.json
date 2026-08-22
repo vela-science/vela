@@ -1,0 +1,43 @@
+{
+  "schema": "vela.lean-correspondence-scoring-fixtures.v1",
+  "no_scientific_data": true,
+  "time_cap_seconds": "1200.000000000",
+  "elapsed_seconds": [
+    "10.000000000",
+    "20.000000000",
+    "1300.000000000",
+    null
+  ],
+  "expected_restricted_seconds": [
+    "10.000000000",
+    "20.000000000",
+    "1200.000000000",
+    "1200.000000000"
+  ],
+  "expected_restricted_mean": "607.500000000",
+  "rate_fixture": {
+    "numerator": 5,
+    "denominator": 6,
+    "expected": "0.833333333333"
+  },
+  "lift_fixtures": [
+    {
+      "assisted": 5,
+      "control": 4,
+      "minimum_strict_increment": 1,
+      "expected_positive": true
+    },
+    {
+      "assisted": 5,
+      "control": 5,
+      "minimum_strict_increment": 1,
+      "expected_positive": false
+    },
+    {
+      "assisted": 4,
+      "control": 5,
+      "minimum_strict_increment": 1,
+      "expected_positive": false
+    }
+  ]
+}
