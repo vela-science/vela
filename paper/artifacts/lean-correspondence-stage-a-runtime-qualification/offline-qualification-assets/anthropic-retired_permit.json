@@ -1,0 +1,14 @@
+{
+  "authority_effect": "none",
+  "consumed": false,
+  "original_permit_root": "sha256:4bed98283ffb3af24ed0c99d7d4e135276770fef8288c11fbe87e9c8b0d37b9f",
+  "original_producer_commit": "9da1c79425c79af632197a719ca45ca07ab22a6c",
+  "original_state": "held_unconsumed",
+  "provider_adapter": "anthropic-messages-v1",
+  "releasable": false,
+  "retirement_reason": "packet_root_preimage_is_plaintext_not_runner_loadable_canonical_json",
+  "run_id": "neutral-calibration-anthropic",
+  "schema": "vela.stage-a-neutral-permit-retirement.v1",
+  "status": "retired_non_releasable",
+  "successor_permit_root": "sha256:14551f44cc3d3ba947bf737391b33e675cb499334e3b9360eb3bea20c51a26e5"
+}

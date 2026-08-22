@@ -29,6 +29,7 @@ QUALIFIER_TREE = "341e0d22fa570b1b5e8dd9f70b219c11308ba45f"
 QUALIFIER_SHA256 = "61591eec3304e299a9344888bc2a6f08cd32785b647ef5b0107da490dbf18013"
 SOURCE_DATE_EPOCH = 1_757_289_600
 RUNNER_SOURCE = Path(__file__).resolve().parent / "runtime-runner"
+NEUTRAL_INPUTS = Path(__file__).resolve().parent / "neutral-calibration"
 CANONICAL_BUNDLE = Path("/private/tmp/vela-stage-a-runtime-qualification-bundle-v1")
 CANONICAL_QUALIFIER = Path(
     "/private/tmp/vela-stage-a-runtime-qualification-maintained-v1"
@@ -38,11 +39,25 @@ CANONICAL_ENVIRONMENT = Path(
 )
 ADAPTERS = ("openai-responses-v1", "anthropic-messages-v1")
 PROVIDERS = {
-    "openai-responses-v1": ("OpenAI", "gpt-5.6-sol", "neutral-calibration-openai"),
+    "openai-responses-v1": (
+        "OpenAI",
+        "gpt-5.6-sol",
+        "neutral-calibration-openai-json-v2",
+    ),
     "anthropic-messages-v1": (
         "Anthropic",
         "claude-opus-5",
+        "neutral-calibration-anthropic-json-v2",
+    ),
+}
+RETIRED_PERMITS = {
+    "openai-responses-v1": (
+        "neutral-calibration-openai",
+        "sha256:96a9c8af3d079ab8c73dd8eaaca05d62eebde2c70efe97a192b462edf2f7ff03",
+    ),
+    "anthropic-messages-v1": (
         "neutral-calibration-anthropic",
+        "sha256:4bed98283ffb3af24ed0c99d7d4e135276770fef8288c11fbe87e9c8b0d37b9f",
     ),
 }
 
@@ -217,6 +232,21 @@ def provider_contract(adapter: str) -> dict[str, Any]:
             "unrestricted_clients": False,
             "credential_fd": 4,
             "credential_retained": False,
+        },
+        "packet_input": {
+            "mount_path": "/input/packet.json",
+            "regular_file_only": True,
+            "single_link_only": True,
+            "no_follow": True,
+            "canonical_json_object": True,
+            "inline_reconstruction": False,
+            "permit_byte_root_required": True,
+            "request_byte_root_receipt_required": True,
+            "injection": (
+                "input[0].content[1].text_exact_packet_bytes"
+                if adapter == "openai-responses-v1"
+                else "messages[0].content_exact_prompt_newline_packet_bytes"
+            ),
         },
         "events": events,
         "tools": [
@@ -677,8 +707,8 @@ def hold_neutral_permit(bundle: Path, adapter: str, q: Any) -> None:
             "participant_id": "neutral-calibration-" + provider.lower(),
             "run_id": run_id,
             "condition": "neutral-no-science-held",
-            "prompt_root": q.digest((run_id + " prompt\n").encode()),
-            "packet_root": q.digest((run_id + " packet\n").encode()),
+            "prompt_root": q.digest((NEUTRAL_INPUTS / "prompt.txt").read_bytes()),
+            "packet_root": q.digest((NEUTRAL_INPUTS / "packet.json").read_bytes()),
         }
     )
     permit_path = bundle / participant["permit"]
@@ -696,6 +726,24 @@ def hold_neutral_permit(bundle: Path, adapter: str, q: Any) -> None:
     write_json(hold_path, hold)
     participant["consumed_permit"] = f"permit/{run_id}.permit.consumed.json"
     write_json(config_path, config)
+
+
+def retired_permit_record(adapter: str, successor_root: str) -> dict[str, Any]:
+    run_id, permit_root = RETIRED_PERMITS[adapter]
+    return {
+        "schema": "vela.stage-a-neutral-permit-retirement.v1",
+        "provider_adapter": adapter,
+        "run_id": run_id,
+        "original_permit_root": permit_root,
+        "original_producer_commit": "9da1c79425c79af632197a719ca45ca07ab22a6c",
+        "original_state": "held_unconsumed",
+        "retirement_reason": "packet_root_preimage_is_plaintext_not_runner_loadable_canonical_json",
+        "successor_permit_root": successor_root,
+        "status": "retired_non_releasable",
+        "consumed": False,
+        "releasable": False,
+        "authority_effect": "none",
+    }
 
 
 def refresh_capture(bundle: Path, fixture: Any) -> None:
@@ -869,6 +917,27 @@ def run(repository: Path, workspace: Path, output: Path, trust_bundle: Path) -> 
                 "bytes": len(raw),
                 "sha256": q.digest(raw),
             }
+        for label, source_name in (
+            ("neutral_packet", "packet.json"),
+            ("neutral_prompt", "prompt.txt"),
+        ):
+            raw = (NEUTRAL_INPUTS / source_name).read_bytes()
+            target = output_assets / f"{prefix}-{label}{Path(source_name).suffix}"
+            write(target, raw)
+            retained[label] = {
+                "path": target.relative_to(output.parent).as_posix(),
+                "bytes": len(raw),
+                "sha256": q.digest(raw),
+            }
+        retirement = retired_permit_record(adapter, receipt["participant_permit_root"])
+        target = output_assets / f"{prefix}-retired_permit.json"
+        write_json(target, retirement)
+        raw = target.read_bytes()
+        retained["retired_permit"] = {
+            "path": target.relative_to(output.parent).as_posix(),
+            "bytes": len(raw),
+            "sha256": q.digest(raw),
+        }
         records.append(
             {
                 "provider_adapter": adapter,
@@ -901,7 +970,7 @@ def run(repository: Path, workspace: Path, output: Path, trust_bundle: Path) -> 
 
 
 def main() -> int:
-    global RUNNER_SOURCE
+    global RUNNER_SOURCE, NEUTRAL_INPUTS
     parser = argparse.ArgumentParser()
     parser.add_argument("--repository", type=Path, required=True)
     parser.add_argument("--workspace", type=Path, required=True)
@@ -912,6 +981,10 @@ def main() -> int:
     RUNNER_SOURCE = (
         args.repository.resolve()
         / "paper/artifacts/lean-correspondence-stage-a-runtime-qualification/runtime-runner"
+    )
+    NEUTRAL_INPUTS = (
+        args.repository.resolve()
+        / "paper/artifacts/lean-correspondence-stage-a-runtime-qualification/neutral-calibration"
     )
     if args.inside_fixed_environment:
         # Avoid recopying over the module currently executing from the fixed path.
@@ -983,6 +1056,32 @@ def main() -> int:
                     "bytes": len(raw),
                     "sha256": q.digest(raw),
                 }
+            for label, source_name in (
+                ("neutral_packet", "packet.json"),
+                ("neutral_prompt", "prompt.txt"),
+            ):
+                raw = (NEUTRAL_INPUTS / source_name).read_bytes()
+                target = (
+                    output_assets
+                    / f"{provider.lower()}-{label}{Path(source_name).suffix}"
+                )
+                write(target, raw)
+                retained[label] = {
+                    "path": target.relative_to(args.output.parent).as_posix(),
+                    "bytes": len(raw),
+                    "sha256": q.digest(raw),
+                }
+            retirement = retired_permit_record(
+                adapter, receipt["participant_permit_root"]
+            )
+            target = output_assets / f"{provider.lower()}-retired_permit.json"
+            write_json(target, retirement)
+            raw = target.read_bytes()
+            retained["retired_permit"] = {
+                "path": target.relative_to(args.output.parent).as_posix(),
+                "bytes": len(raw),
+                "sha256": q.digest(raw),
+            }
             records.append(
                 {
                     "provider_adapter": adapter,

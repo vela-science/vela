@@ -1,0 +1,14 @@
+{
+  "authority_effect": "none",
+  "consumed": false,
+  "original_permit_root": "sha256:96a9c8af3d079ab8c73dd8eaaca05d62eebde2c70efe97a192b462edf2f7ff03",
+  "original_producer_commit": "9da1c79425c79af632197a719ca45ca07ab22a6c",
+  "original_state": "held_unconsumed",
+  "provider_adapter": "openai-responses-v1",
+  "releasable": false,
+  "retirement_reason": "packet_root_preimage_is_plaintext_not_runner_loadable_canonical_json",
+  "run_id": "neutral-calibration-openai",
+  "schema": "vela.stage-a-neutral-permit-retirement.v1",
+  "status": "retired_non_releasable",
+  "successor_permit_root": "sha256:3b03a49a026302bb44fe3e581f003faaa4216724c0750cccff4e08bee19a37c4"
+}

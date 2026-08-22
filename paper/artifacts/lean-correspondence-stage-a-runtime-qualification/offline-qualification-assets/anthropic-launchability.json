@@ -3,9 +3,9 @@
   "entrypoint": [
     "/opt/vela/runner"
   ],
-  "image_digest": "sha256:cd460011d0527da49eeeaf343bf76d6fdeb745b15ea1051e9ac3454c72dd480d",
-  "layer_digest": "sha256:2a824f39ceb9c0a423b207062b5b6e727f97ec91e9ff3d899430c24c1869cefe",
-  "oci_archive_sha256": "sha256:308c8bf6509cf3f6432fda044d45276707f1526eb56484b18949f43a8212142b",
+  "image_digest": "sha256:e0ff53d70522134cb30067920faed5997c6b2f01e1c4a92053dd5756317ae063",
+  "layer_digest": "sha256:6fbfba2dabfefbb79ebec481b9233c51ccf02988df9b50386de028054d9e10bb",
+  "oci_archive_sha256": "sha256:3d4bc2c3bd6733849b888027e146a2bf8b6cd1961db135c4489288a83967eb11",
   "platform": "linux/arm64",
   "provider_adapter": "anthropic-messages-v1",
   "provider_calls": 0,

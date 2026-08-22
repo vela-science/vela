@@ -22,10 +22,10 @@ ARTIFACT_ROOT = PACKAGE / "artifact-root.json"
 STAGE_A = REPOSITORY / "paper/artifacts/lean-correspondence-stage-a-open-pilot"
 SHA256 = re.compile(r"sha256:[0-9a-f]{64}\Z")
 EXPECTED_REGISTRATION_ROOT = (
-    "sha256:17712ef57556cb3d0c3039d2250f5e3147b5741591e676e38c8410eec97c08f7"
+    "sha256:9760302aea92428c894c380118bb95fd091f669a3b64da78a6f92650e6987844"
 )
 EXPECTED_OFFLINE_RECORD_ROOT = (
-    "sha256:a822929b2266b1a0dfd0ca212de64773c88d94ee779980f4c04a34cc58dbfe4e"
+    "sha256:84da94c9b9d248ea89f952b5b324e8c5ca877a578ff4c10bbb241c8cd32bfc9a"
 )
 EXPECTED_QUALIFIER = {
     "git_commit": "cc3b88d8bfcfd7b4f720a023f049d5c365be9423",
@@ -48,28 +48,28 @@ EXPECTED_PROVIDER = {
     "openai-responses-v1": {
         "organization": "OpenAI",
         "model": "gpt-5.6-sol",
-        "run_id": "neutral-calibration-openai",
+        "run_id": "neutral-calibration-openai-json-v2",
         "configuration_root": "sha256:96555c45c33ed2a106cfb261025b752a4eeb1514aa180985ecd5ea0551a6616d",
-        "qualification_root": "sha256:4f1bead055215f9b3c27247d8a3a07a7caae25ed343b9f3cfda3c329effbcccb",
-        "image_digest": "sha256:a51a4742979549f6d77511c722e86d8425f73c45b5b6681c6756d1d949b199d6",
+        "qualification_root": "sha256:4125faf3edcad47a3991822a90bec65975afc0b512005b31bcac8d6484245597",
+        "image_digest": "sha256:062563014758785282108b8a46eed4c02797850a8cc388997b224929b95c9f08",
         "tool_boundary_root": "sha256:0b2e1fb701f70b02f9cc7ad79201f84374dfeb904299b59a6667d36eb4e59c69",
-        "runtime_source_root": "sha256:27daaf77de66f872fc9fbbbfc69bb6dd0bd03e982da2db4de1db85600b843f13",
-        "participant_permit_root": "sha256:96a9c8af3d079ab8c73dd8eaaca05d62eebde2c70efe97a192b462edf2f7ff03",
+        "runtime_source_root": "sha256:b8789db2379c46587638e5657ec75f02babb7d278afb58a67fdf48986e88704c",
+        "participant_permit_root": "sha256:3b03a49a026302bb44fe3e581f003faaa4216724c0750cccff4e08bee19a37c4",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
-        "launchability_sha256": "sha256:564712aa1486ec8c603b4f9120fbed2fd353273e9f77eaa1c0754452336f7a5b",
+        "launchability_sha256": "sha256:3e354d53908a9fe8cdf5197f207746c33f852f16bab1d4eee7c996e048a8bc01",
     },
     "anthropic-messages-v1": {
         "organization": "Anthropic",
         "model": "claude-opus-5",
-        "run_id": "neutral-calibration-anthropic",
+        "run_id": "neutral-calibration-anthropic-json-v2",
         "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
-        "qualification_root": "sha256:a653ae75b0c600366ee78db2092ab904bc9540d94dc1ad14b110adb10e047002",
-        "image_digest": "sha256:cd460011d0527da49eeeaf343bf76d6fdeb745b15ea1051e9ac3454c72dd480d",
+        "qualification_root": "sha256:d42fdf3eb248e709eb72f0f0bb11a4b318db5e4af1887fafde9d602e759a684a",
+        "image_digest": "sha256:e0ff53d70522134cb30067920faed5997c6b2f01e1c4a92053dd5756317ae063",
         "tool_boundary_root": "sha256:01dfbda69c1c7760423fdba41eaac18687a73d9fe683a8a5f207fdc8abe2a7d9",
-        "runtime_source_root": "sha256:3104933b541c577a1521445981928e5acfb1a55019622f53c59874dd52c96fb5",
-        "participant_permit_root": "sha256:4bed98283ffb3af24ed0c99d7d4e135276770fef8288c11fbe87e9c8b0d37b9f",
+        "runtime_source_root": "sha256:c3be56e47ec578d6d27fbb540c700c647e73831cc67879f9604eeab49537a7e7",
+        "participant_permit_root": "sha256:14551f44cc3d3ba947bf737391b33e675cb499334e3b9360eb3bea20c51a26e5",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
-        "launchability_sha256": "sha256:bc1842c8747bfacddf2c8cb2f15ac4e875ba2e7a96b50bef304b1284de03b3ef",
+        "launchability_sha256": "sha256:803a592c24985315a732572286ed11501f5bbcba034dcea5868d4dc5a8b22db4",
     },
 }
 EXPECTED_FROZEN_CONFIGURATION = {
@@ -115,6 +115,28 @@ EXPECTED_FROZEN_CONFIGURATION = {
             "timeout_seconds": 1200,
         },
     },
+}
+EXPECTED_RETIRED_PERMITS = {
+    "openai-responses-v1": {
+        "run_id": "neutral-calibration-openai",
+        "permit_root": "sha256:96a9c8af3d079ab8c73dd8eaaca05d62eebde2c70efe97a192b462edf2f7ff03",
+    },
+    "anthropic-messages-v1": {
+        "run_id": "neutral-calibration-anthropic",
+        "permit_root": "sha256:4bed98283ffb3af24ed0c99d7d4e135276770fef8288c11fbe87e9c8b0d37b9f",
+    },
+}
+EXPECTED_NEUTRAL_CONTENT = {
+    "content_equivalence_root": "sha256:1818fb5da3c0b3c57f24083eaa54acb448ce9cd14f59cbd0bd0d2aaef2dac8b8",
+    "expected_response_schema_root": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
+    "information_equivalent": True,
+    "packet_path": "neutral-calibration/packet.json",
+    "packet_root": "sha256:a38b18fb6284288f352e234aa32cffb79af880a03d8faf7c1e3492e6d8eba267",
+    "prompt_path": "neutral-calibration/prompt.txt",
+    "prompt_root": "sha256:3443fa942b90f84718cc4e6918ebf6d121ebc40cf58f5b3c610f4e983c4d4ed9",
+    "provider_adapters": ["openai-responses-v1", "anthropic-messages-v1"],
+    "schema": "vela.stage-a-neutral-content-equivalence.v1",
+    "semantic_atoms_root": "sha256:a19a614c3ef81d7f78fa9952af05535dccaa8d3d41cb0c2bafed6aafb9b1a9d8",
 }
 
 
@@ -174,6 +196,9 @@ def validate_launchable_runtime(
         "tool_boundary",
         "held_permit",
         "hold_state",
+        "neutral_packet",
+        "neutral_prompt",
+        "retired_permit",
     }
     require(type(retained) is dict and set(retained) == required, "retained_set")
     image_raw = (PACKAGE / retained["image"]["path"]).read_bytes()
@@ -182,6 +207,50 @@ def validate_launchable_runtime(
     contract = load_json(PACKAGE / retained["provider_contract"]["path"])
     launchability = load_json(PACKAGE / retained["launchability"]["path"])
     source_manifest = load_json(PACKAGE / retained["source_manifest"]["path"])
+    neutral_packet = (PACKAGE / retained["neutral_packet"]["path"]).read_bytes()
+    neutral_prompt = (PACKAGE / retained["neutral_prompt"]["path"]).read_bytes()
+    held_permit = load_json(PACKAGE / retained["held_permit"]["path"])
+    retirement = load_json(PACKAGE / retained["retired_permit"]["path"])
+    retired = EXPECTED_RETIRED_PERMITS[adapter]
+    require(
+        digest(neutral_packet) == EXPECTED_NEUTRAL_CONTENT["packet_root"]
+        and neutral_packet
+        == (PACKAGE / EXPECTED_NEUTRAL_CONTENT["packet_path"]).read_bytes()
+        and digest(neutral_prompt) == EXPECTED_NEUTRAL_CONTENT["prompt_root"]
+        and neutral_prompt
+        == (PACKAGE / EXPECTED_NEUTRAL_CONTENT["prompt_path"]).read_bytes(),
+        "neutral_content_retained_binding",
+    )
+    require(
+        held_permit.get("provider_schema_bytes") == expected["provider_schema_bytes"]
+        and held_permit.get("configuration_root") == expected["configuration_root"]
+        and held_permit.get("image_digest") == expected["image_digest"]
+        and held_permit.get("runtime_source_root") == expected["runtime_source_root"]
+        and held_permit.get("run_id") == expected["run_id"]
+        and held_permit.get("packet_root") == EXPECTED_NEUTRAL_CONTENT["packet_root"]
+        and held_permit.get("prompt_root") == EXPECTED_NEUTRAL_CONTENT["prompt_root"]
+        and held_permit.get("status") == "held"
+        and held_permit.get("consumed_at") is None,
+        "neutral_permit_packet_binding",
+    )
+    require(
+        retirement
+        == {
+            "schema": "vela.stage-a-neutral-permit-retirement.v1",
+            "provider_adapter": adapter,
+            "run_id": retired["run_id"],
+            "original_permit_root": retired["permit_root"],
+            "original_producer_commit": "9da1c79425c79af632197a719ca45ca07ab22a6c",
+            "original_state": "held_unconsumed",
+            "retirement_reason": "packet_root_preimage_is_plaintext_not_runner_loadable_canonical_json",
+            "successor_permit_root": expected["participant_permit_root"],
+            "status": "retired_non_releasable",
+            "consumed": False,
+            "releasable": False,
+            "authority_effect": "none",
+        },
+        "retired_permit_binding",
+    )
     expected_events = {
         "raw_bytes_retained_before_normalization": True,
         "terminal_and_teardown_receipts_required": True,
@@ -262,7 +331,23 @@ def validate_launchable_runtime(
                 "write": False,
             },
         ]
-        and contract.get("events") == expected_events,
+        and contract.get("events") == expected_events
+        and contract.get("packet_input")
+        == {
+            "mount_path": "/input/packet.json",
+            "regular_file_only": True,
+            "single_link_only": True,
+            "no_follow": True,
+            "canonical_json_object": True,
+            "inline_reconstruction": False,
+            "permit_byte_root_required": True,
+            "request_byte_root_receipt_required": True,
+            "injection": (
+                "input[0].content[1].text_exact_packet_bytes"
+                if adapter == "openai-responses-v1"
+                else "messages[0].content_exact_prompt_newline_packet_bytes"
+            ),
+        },
         "provider_contract_tool_custody",
     )
     require(
@@ -556,7 +641,8 @@ def validate_registration(
     require(type(permits) is list and len(permits) == 2, "neutral_permit_count")
     for permit in permits:
         require(
-            permit.get("status") == "held" and permit.get("consumed") is False,
+            permit.get("status") == "held_non_releasable_pending_independent_review"
+            and permit.get("consumed") is False,
             "neutral_permit_released",
         )
         expected = EXPECTED_PROVIDER.get(permit.get("provider_adapter"))
@@ -570,6 +656,46 @@ def validate_registration(
             permit.get("permit_root") == expected["participant_permit_root"],
             "neutral_permit_root",
         )
+    retired_permits = value.get("retired_neutral_calibration_permits")
+    require(
+        type(retired_permits) is list and len(retired_permits) == 2,
+        "retired_neutral_permit_count",
+    )
+    for retirement in retired_permits:
+        adapter = retirement.get("provider_adapter")
+        expected = EXPECTED_PROVIDER.get(adapter)
+        retired = EXPECTED_RETIRED_PERMITS.get(adapter)
+        require(expected is not None and retired is not None, "retired_permit_adapter")
+        require(
+            retirement.get("run_id") == retired["run_id"]
+            and retirement.get("original_permit_root") == retired["permit_root"]
+            and retirement.get("successor_permit_root")
+            == expected["participant_permit_root"]
+            and retirement.get("original_state") == "held_unconsumed"
+            and retirement.get("status") == "retired_non_releasable"
+            and retirement.get("consumed") is False
+            and retirement.get("releasable") is False,
+            "retired_permit_state",
+        )
+    content = value.get("neutral_calibration_content")
+    require(
+        content
+        == {
+            **EXPECTED_NEUTRAL_CONTENT,
+            "packet_bytes": len(
+                (PACKAGE / EXPECTED_NEUTRAL_CONTENT["packet_path"]).read_bytes()
+            ),
+            "prompt_bytes": len(
+                (PACKAGE / EXPECTED_NEUTRAL_CONTENT["prompt_path"]).read_bytes()
+            ),
+            "runner_packet_mount_path": "/input/packet.json",
+            "inline_packet_allowed": False,
+            "request_binding": "exact request.raw.json SHA-256 bound in packet custody and terminal receipts",
+        }
+        and load_json(PACKAGE / "neutral-calibration/content-equivalence.json")
+        == EXPECTED_NEUTRAL_CONTENT,
+        "neutral_content_equivalence",
+    )
     configurations = value.get("participant_configurations")
     require(
         type(configurations) is list and len(configurations) == 2, "configuration_count"

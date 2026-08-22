@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 // providerAdapter is injected by the reproducible build. The participant
@@ -59,9 +60,24 @@ type runInput struct {
 	RunID          string          `json:"run_id"`
 	Model          string          `json:"model"`
 	Prompt         string          `json:"prompt"`
-	Packet         json.RawMessage `json:"packet"`
+	PacketPath     string          `json:"packet_path"`
+	PacketBytes    int             `json:"packet_bytes"`
+	PacketSHA256   string          `json:"packet_sha256"`
 	ProviderSchema json.RawMessage `json:"provider_schema"`
 	OutputDir      string          `json:"output_dir"`
+}
+
+type packetCustodyReceipt struct {
+	Schema               string `json:"schema"`
+	Path                 string `json:"path"`
+	Bytes                int    `json:"bytes"`
+	SHA256               string `json:"sha256"`
+	OpenMode             string `json:"open_mode"`
+	LinkCount            int    `json:"link_count"`
+	CanonicalJSONObject  bool   `json:"canonical_json_object"`
+	InlineReconstruction bool   `json:"inline_reconstruction"`
+	Injection            string `json:"injection"`
+	RequestSHA256        string `json:"request_sha256"`
 }
 
 type stageAResponse struct {
@@ -106,7 +122,7 @@ func canonical(value any) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func requestBody(input runInput) ([]byte, error) {
+func requestBody(input runInput, packet json.RawMessage) ([]byte, error) {
 	toolSpecs := []map[string]any{
 		map[string]any{
 			"name":        "shell",
@@ -148,7 +164,7 @@ func requestBody(input runInput) ([]byte, error) {
 			"reasoning": map[string]any{"effort": "high"}, "service_tier": "default",
 			"input": []any{map[string]any{"role": "user", "content": []any{
 				map[string]any{"type": "input_text", "text": input.Prompt},
-				map[string]any{"type": "input_text", "text": string(input.Packet)},
+				map[string]any{"type": "input_text", "text": string(packet)},
 			}}},
 			"tools": tools,
 			"text": map[string]any{"format": map[string]any{
@@ -168,9 +184,130 @@ func requestBody(input runInput) ([]byte, error) {
 			"effort": "high",
 			"format": map[string]any{"type": "json_schema", "schema": input.ProviderSchema},
 		},
-		"messages": []any{map[string]any{"role": "user", "content": input.Prompt + "\n" + string(input.Packet)}},
+		"messages": []any{map[string]any{"role": "user", "content": input.Prompt + "\n" + string(packet)}},
 		"tools":    tools,
 	})
+}
+
+func readBoundPacket(path string, expectedBytes int, expectedSHA256 string) (json.RawMessage, error) {
+	if path != "/input/packet.json" || expectedBytes <= 0 || expectedBytes > 16*1024*1024 {
+		return nil, errors.New("packet path or size binding invalid")
+	}
+	return readPacketFile(path, expectedBytes, expectedSHA256)
+}
+
+func readPacketFile(path string, expectedBytes int, expectedSHA256 string) (json.RawMessage, error) {
+	return readPacketFileWithHook(path, expectedBytes, expectedSHA256, nil)
+}
+
+func readPacketFileWithHook(path string, expectedBytes int, expectedSHA256 string, afterOpen func()) (json.RawMessage, error) {
+	before, err := os.Lstat(path)
+	if err != nil || !before.Mode().IsRegular() || before.Mode()&os.ModeSymlink != 0 || before.Sys().(*syscall.Stat_t).Nlink != 1 {
+		return nil, errors.New("packet must be one regular non-symlink link")
+	}
+	fd, err := syscall.Open(path, syscall.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, errors.New("packet no-follow open failed")
+	}
+	file := os.NewFile(uintptr(fd), "neutral-calibration-packet")
+	defer file.Close()
+	opened, err := file.Stat()
+	if err != nil || !os.SameFile(before, opened) {
+		return nil, errors.New("packet open binding changed")
+	}
+	if afterOpen != nil {
+		afterOpen()
+	}
+	raw, err := io.ReadAll(io.LimitReader(file, int64(expectedBytes)+1))
+	if err != nil || len(raw) != expectedBytes || digestBytes(raw) != expectedSHA256 {
+		return nil, errors.New("packet byte/root binding invalid")
+	}
+	after, err := os.Lstat(path)
+	if err != nil || !os.SameFile(opened, after) || after.Mode()&os.ModeSymlink != 0 || after.Sys().(*syscall.Stat_t).Nlink != 1 {
+		return nil, errors.New("packet path changed during read")
+	}
+	value, err := decodeExactJSONObject(raw)
+	if err != nil {
+		return nil, errors.New("packet is not one closed JSON object")
+	}
+	canonicalRaw, err := canonical(value)
+	if err != nil || !bytes.Equal(canonicalRaw, raw) {
+		return nil, errors.New("packet bytes are not exact canonical JSON")
+	}
+	return json.RawMessage(raw), nil
+}
+
+func packetInjection(adapter string) (string, error) {
+	switch adapter {
+	case "openai-responses-v1":
+		return "input[0].content[1].text_exact_packet_bytes", nil
+	case "anthropic-messages-v1":
+		return "messages[0].content_exact_prompt_newline_packet_bytes", nil
+	default:
+		return "", errors.New("unsupported packet injection adapter")
+	}
+}
+
+func makePacketCustody(input runInput, packet, body []byte) (packetCustodyReceipt, error) {
+	injection, err := packetInjection(providerAdapter)
+	if err != nil {
+		return packetCustodyReceipt{}, err
+	}
+	receipt := packetCustodyReceipt{
+		Schema: "vela.stage-a-neutral-packet-custody.v1", Path: input.PacketPath,
+		Bytes: input.PacketBytes, SHA256: input.PacketSHA256,
+		OpenMode: "read_only_no_follow", LinkCount: 1,
+		CanonicalJSONObject: true, InlineReconstruction: false,
+		Injection: injection, RequestSHA256: digestBytes(body),
+	}
+	if err := validatePacketRequestBinding(input, packet, body, receipt); err != nil {
+		return packetCustodyReceipt{}, err
+	}
+	return receipt, nil
+}
+
+func validatePacketRequestBinding(input runInput, packet, body []byte, receipt packetCustodyReceipt) error {
+	expectedInjection, err := packetInjection(providerAdapter)
+	if err != nil || receipt.Schema != "vela.stage-a-neutral-packet-custody.v1" ||
+		receipt.Path != input.PacketPath || receipt.Bytes != len(packet) ||
+		receipt.Bytes != input.PacketBytes || receipt.SHA256 != digestBytes(packet) ||
+		receipt.SHA256 != input.PacketSHA256 || receipt.OpenMode != "read_only_no_follow" ||
+		receipt.LinkCount != 1 || !receipt.CanonicalJSONObject || receipt.InlineReconstruction ||
+		receipt.Injection != expectedInjection || receipt.RequestSHA256 != digestBytes(body) {
+		return errors.New("packet custody or request root binding invalid")
+	}
+	var request map[string]any
+	if err := json.Unmarshal(body, &request); err != nil {
+		return errors.New("packet request is not JSON")
+	}
+	if providerAdapter == "openai-responses-v1" {
+		inputItems, ok := request["input"].([]any)
+		if !ok || len(inputItems) != 1 {
+			return errors.New("OpenAI packet request input drift")
+		}
+		message, ok := inputItems[0].(map[string]any)
+		if !ok {
+			return errors.New("OpenAI packet request message drift")
+		}
+		content, ok := message["content"].([]any)
+		if !ok || len(content) != 2 {
+			return errors.New("OpenAI packet request content drift")
+		}
+		packetPart, ok := content[1].(map[string]any)
+		if !ok || packetPart["type"] != "input_text" || packetPart["text"] != string(packet) {
+			return errors.New("OpenAI packet bytes not transmitted exactly")
+		}
+		return nil
+	}
+	messages, ok := request["messages"].([]any)
+	if !ok || len(messages) != 1 {
+		return errors.New("Anthropic packet request message drift")
+	}
+	message, ok := messages[0].(map[string]any)
+	if !ok || message["content"] != input.Prompt+"\n"+string(packet) {
+		return errors.New("Anthropic packet bytes not transmitted exactly")
+	}
+	return nil
 }
 
 func exactKeys(object map[string]json.RawMessage, expected ...string) bool {
@@ -367,7 +504,7 @@ func selfTest() error {
 			return errors.New("path adversary accepted")
 		}
 	}
-	body, err := requestBody(runInput{Model: "held-model", Prompt: "neutral", Packet: json.RawMessage(`{}`), ProviderSchema: json.RawMessage(`{"type":"object"}`)})
+	body, err := requestBody(runInput{Model: "held-model", Prompt: "neutral", ProviderSchema: json.RawMessage(`{"type":"object"}`)}, json.RawMessage("{}\n"))
 	if err != nil || len(body) == 0 {
 		return errors.New("request construction failed")
 	}
@@ -405,11 +542,26 @@ func run() error {
 	if err != nil || !bytes.Equal(bytes.TrimSpace(providerSchema), bytes.TrimSpace(input.ProviderSchema)) {
 		return errors.New("provider schema mount binding invalid")
 	}
-	body, err := requestBody(input)
+	packet, err := readBoundPacket(input.PacketPath, input.PacketBytes, input.PacketSHA256)
+	if err != nil {
+		return err
+	}
+	body, err := requestBody(input, packet)
 	if err != nil {
 		return err
 	}
 	if err := appendCustody(input.OutputDir, "request.raw.json", body); err != nil {
+		return err
+	}
+	packetCustody, err := makePacketCustody(input, packet, body)
+	if err != nil {
+		return err
+	}
+	packetReceipt, err := canonical(packetCustody)
+	if err != nil {
+		return err
+	}
+	if err := appendCustody(input.OutputDir, "packet-custody.json", packetReceipt); err != nil {
 		return err
 	}
 	bridge := os.NewFile(3, "vela-provider-bridge")
@@ -503,6 +655,8 @@ func run() error {
 		"schema": "vela.stage-a-runner-terminal.v1", "status": "completed",
 		"adapter": providerAdapter, "run_id": input.RunID,
 		"response_sha256":     "sha256:" + hex.EncodeToString(sum[:]),
+		"packet_sha256":       input.PacketSHA256,
+		"request_sha256":      digestBytes(body),
 		"credential_retained": false,
 	})
 	if providerAdapter == "openai-responses-v1" {

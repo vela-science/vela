@@ -1,0 +1,15 @@
+{
+  "content_equivalence_root": "sha256:1818fb5da3c0b3c57f24083eaa54acb448ce9cd14f59cbd0bd0d2aaef2dac8b8",
+  "expected_response_schema_root": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
+  "information_equivalent": true,
+  "packet_path": "neutral-calibration/packet.json",
+  "packet_root": "sha256:a38b18fb6284288f352e234aa32cffb79af880a03d8faf7c1e3492e6d8eba267",
+  "prompt_path": "neutral-calibration/prompt.txt",
+  "prompt_root": "sha256:3443fa942b90f84718cc4e6918ebf6d121ebc40cf58f5b3c610f4e983c4d4ed9",
+  "provider_adapters": [
+    "openai-responses-v1",
+    "anthropic-messages-v1"
+  ],
+  "schema": "vela.stage-a-neutral-content-equivalence.v1",
+  "semantic_atoms_root": "sha256:a19a614c3ef81d7f78fa9952af05535dccaa8d3d41cb0c2bafed6aafb9b1a9d8"
+}

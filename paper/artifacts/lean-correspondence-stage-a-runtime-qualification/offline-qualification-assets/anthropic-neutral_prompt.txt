@@ -1,0 +1,1 @@
+Return exactly one JSON object conforming to the supplied Stage A response schema. Review only the synthetic neutral packet. Do not infer scientific acceptance, repository authority, a Decision, Standing, execution authorization, or any claim beyond the packet. The exact assignment_id is lc-neutral-calibration.

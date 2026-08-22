@@ -156,15 +156,62 @@ class RuntimeQualificationCandidateTests(unittest.TestCase):
 
     def test_neutral_permit_cross_provider_binding_fails(self) -> None:
         candidate = copy.deepcopy(self.registration)
-        candidate["neutral_calibration_permits"][1]["run_id"] = (
-            "neutral-calibration-openai"
-        )
+        candidate["neutral_calibration_permits"][1]["run_id"] = candidate[
+            "neutral_calibration_permits"
+        ][0]["run_id"]
         self.assert_registration_blocked(candidate, "neutral_permit_cross_binding")
         candidate = copy.deepcopy(self.registration)
         candidate["neutral_calibration_permits"][1]["permit_root"] = candidate[
             "neutral_calibration_permits"
         ][0]["permit_root"]
         self.assert_registration_blocked(candidate, "neutral_permit_root")
+
+    def test_neutral_packet_equivalence_and_request_binding_drift_fails(self) -> None:
+        for key, value in (
+            ("packet_root", "sha256:" + "0" * 64),
+            ("packet_path", "neutral-calibration/prompt.txt"),
+            ("information_equivalent", False),
+            ("inline_packet_allowed", True),
+            ("runner_packet_mount_path", "/input/reconstructed.json"),
+            ("request_binding", "decoded object accepted"),
+        ):
+            with self.subTest(key=key):
+                candidate = copy.deepcopy(self.registration)
+                candidate["neutral_calibration_content"][key] = value
+                self.assert_registration_blocked(
+                    candidate, "neutral_content_equivalence"
+                )
+
+    def test_retired_neutral_permit_cannot_be_released_reused_or_cross_bound(
+        self,
+    ) -> None:
+        for key, value in (
+            ("status", "held"),
+            ("releasable", True),
+            ("consumed", True),
+            ("original_state", "consumed"),
+        ):
+            with self.subTest(key=key):
+                candidate = copy.deepcopy(self.registration)
+                candidate["retired_neutral_calibration_permits"][0][key] = value
+                self.assert_registration_blocked(candidate, "retired_permit_state")
+        candidate = copy.deepcopy(self.registration)
+        candidate["retired_neutral_calibration_permits"][1]["successor_permit_root"] = (
+            candidate["retired_neutral_calibration_permits"][0]["successor_permit_root"]
+        )
+        self.assert_registration_blocked(candidate, "retired_permit_state")
+
+    def test_retained_packet_path_or_provider_swap_fails_after_reseal(self) -> None:
+        candidate = copy.deepcopy(self.offline)
+        candidate["provider_records"][0]["retained"]["neutral_packet"] = copy.deepcopy(
+            candidate["provider_records"][0]["retained"]["neutral_prompt"]
+        )
+        self.assert_offline_blocked(candidate, "neutral_content_retained_binding")
+        candidate = copy.deepcopy(self.offline)
+        candidate["provider_records"][1]["retained"]["retired_permit"] = copy.deepcopy(
+            candidate["provider_records"][0]["retained"]["retired_permit"]
+        )
+        self.assert_offline_blocked(candidate, "retired_permit_binding")
 
     def test_launchable_runtime_cross_binding_or_boundary_inflation_fails(self) -> None:
         candidate = copy.deepcopy(self.registration)

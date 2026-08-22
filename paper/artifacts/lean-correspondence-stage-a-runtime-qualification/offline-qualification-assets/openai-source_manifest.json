@@ -1,5 +1,15 @@
 [
   {
+    "bytes": 35,
+    "path": ".ruff_cache/.gitignore",
+    "sha256": "sha256:9e3a60f1e6ec4ae60215c11d54b171392745ec25e9dded433d5bd921363af316"
+  },
+  {
+    "bytes": 43,
+    "path": ".ruff_cache/CACHEDIR.TAG",
+    "sha256": "sha256:5953156d7e0c564a427251316eaf26f8870e6483ae2197f916b630e4f93e31ae"
+  },
+  {
     "bytes": 398,
     "path": "Dockerfile",
     "sha256": "sha256:841c19858b06db1c0f33964b74f7f95275b6074f241c5839c93e2e4a7719a8d6"
@@ -30,24 +40,24 @@
     "sha256": "sha256:92779b1c6d6a7154d7f183403bb87fa65682677549927d5e5f2758955dd2073a"
   },
   {
-    "bytes": 19043,
+    "bytes": 25173,
     "path": "main.go",
-    "sha256": "sha256:e4d70d6775554e392bbe07df3fe2dc2bf7615ad2dc0407f50c83f594707c2d01"
+    "sha256": "sha256:0334045b204fba13c2622140578c771571d48401ca4e4134ee257531238167b1"
   },
   {
-    "bytes": 4459,
+    "bytes": 8695,
     "path": "main_test.go",
-    "sha256": "sha256:f54e509fddd552a53ba8c2a8dd0a162c6d12ef49859f77c8949408ff87962cfa"
+    "sha256": "sha256:491ea8b4d79f8519770a095798888f97f89620e57287f7eb1863b2d84de788cb"
   },
   {
-    "bytes": 1675,
+    "bytes": 2045,
     "path": "provider-contract.json",
-    "sha256": "sha256:d6f2e135fce4208de18d06466c2e7c60115d8ef8be6e66096965e41adaee93a8"
+    "sha256": "sha256:15824fd525323372014fba6801766f56d981ce42bc896563d43a84d5d54e1956"
   },
   {
     "bytes": 2293886,
     "path": "runner",
-    "sha256": "sha256:2321118acfdc5f62d256cabe3c6c9d67ff9d82d844f2d635614033cf11b66ebe"
+    "sha256": "sha256:61701ac19f96a906e378fd56490241bd512dab2c09ac85afbe84075904ea4097"
   },
   {
     "bytes": 333483,

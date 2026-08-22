@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -12,6 +14,120 @@ func withAdapter(t *testing.T, adapter string) {
 	previous := providerAdapter
 	providerAdapter = adapter
 	t.Cleanup(func() { providerAdapter = previous })
+}
+
+func TestPacketFileBindingRejectsRepresentationPathAndFilesystemAdversaries(t *testing.T) {
+	directory := t.TempDir()
+	valid := []byte("{\"a\":1,\"b\":2}\n")
+	path := filepath.Join(directory, "packet.json")
+	if err := os.WriteFile(path, valid, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if observed, err := readPacketFile(path, len(valid), digestBytes(valid)); err != nil || !bytes.Equal(observed, valid) {
+		t.Fatalf("valid canonical packet failed: %s %v", observed, err)
+	}
+	for name, raw := range map[string][]byte{
+		"plaintext":   []byte("neutral packet\n"),
+		"json_string": []byte("\"neutral packet\"\n"),
+		"whitespace":  []byte("{ \"a\":1,\"b\":2}\n"),
+		"key_order":   []byte("{\"b\":2,\"a\":1}\n"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			candidate := filepath.Join(directory, name+".json")
+			if err := os.WriteFile(candidate, raw, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := readPacketFile(candidate, len(raw), digestBytes(raw)); err == nil {
+				t.Fatal("accepted noncanonical packet representation")
+			}
+		})
+	}
+	if _, err := readPacketFile(path, len(valid), digestBytes([]byte("drift"))); err == nil {
+		t.Fatal("accepted packet root drift")
+	}
+	if _, err := readBoundPacket(path, len(valid), digestBytes(valid)); err == nil {
+		t.Fatal("accepted wrong logical packet path")
+	}
+	symlink := filepath.Join(directory, "symlink.json")
+	if err := os.Symlink(path, symlink); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readPacketFile(symlink, len(valid), digestBytes(valid)); err == nil {
+		t.Fatal("accepted symlink packet")
+	}
+	hardlink := filepath.Join(directory, "hardlink.json")
+	if err := os.Link(path, hardlink); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readPacketFile(path, len(valid), digestBytes(valid)); err == nil {
+		t.Fatal("accepted multiply linked packet")
+	}
+}
+
+func TestPacketFileBindingRejectsPathReplacementRace(t *testing.T) {
+	directory := t.TempDir()
+	valid := []byte("{\"a\":1}\n")
+	path := filepath.Join(directory, "packet.json")
+	replacement := filepath.Join(directory, "replacement.json")
+	if err := os.WriteFile(path, valid, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(replacement, valid, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := readPacketFileWithHook(path, len(valid), digestBytes(valid), func() {
+		if renameErr := os.Rename(replacement, path); renameErr != nil {
+			t.Fatal(renameErr)
+		}
+	})
+	if err == nil {
+		t.Fatal("accepted packet path replacement during read")
+	}
+}
+
+func TestRunInputRejectsInlinePacketReconstruction(t *testing.T) {
+	raw := []byte(`{"run_id":"neutral","model":"held","prompt":"p","packet":{},"packet_path":"/input/packet.json","packet_bytes":3,"packet_sha256":"sha256:drift","provider_schema":{},"output_dir":"/evidence"}`)
+	var input runInput
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&input) == nil {
+		t.Fatal("accepted inline reconstructed packet")
+	}
+}
+
+func TestPacketRequestCustodyRejectsRawAndReceiptDrift(t *testing.T) {
+	packet := []byte("{\"a\":1}\n")
+	for _, adapter := range []string{"openai-responses-v1", "anthropic-messages-v1"} {
+		t.Run(adapter, func(t *testing.T) {
+			withAdapter(t, adapter)
+			input := runInput{
+				Model: "held-model", Prompt: "neutral prompt", PacketPath: "/input/packet.json",
+				PacketBytes: len(packet), PacketSHA256: digestBytes(packet),
+				ProviderSchema: json.RawMessage(`{"type":"object"}`),
+			}
+			body, err := requestBody(input, packet)
+			if err != nil {
+				t.Fatal(err)
+			}
+			receipt, err := makePacketCustody(input, packet, body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			mutatedBody := bytes.Replace(body, []byte("held-model"), []byte("other-model"), 1)
+			if validatePacketRequestBinding(input, packet, mutatedBody, receipt) == nil {
+				t.Fatal("accepted request byte drift")
+			}
+			mutatedPacket := []byte("{\"a\":2}\n")
+			if validatePacketRequestBinding(input, mutatedPacket, body, receipt) == nil {
+				t.Fatal("accepted packet byte drift")
+			}
+			mutatedReceipt := receipt
+			mutatedReceipt.Injection = "inline_reconstruction"
+			if validatePacketRequestBinding(input, packet, body, mutatedReceipt) == nil {
+				t.Fatal("accepted injection custody drift")
+			}
+		})
+	}
 }
 
 func TestOpenAIArgumentCustodyBinding(t *testing.T) {
@@ -58,7 +174,7 @@ func TestProviderSpecificRequestClosure(t *testing.T) {
 	for _, adapter := range []string{"openai-responses-v1", "anthropic-messages-v1"} {
 		t.Run(adapter, func(t *testing.T) {
 			withAdapter(t, adapter)
-			raw, err := requestBody(runInput{Model: "held-model", Prompt: "p", Packet: json.RawMessage(`{}`), ProviderSchema: json.RawMessage(`{"type":"object"}`)})
+			raw, err := requestBody(runInput{Model: "held-model", Prompt: "p", ProviderSchema: json.RawMessage(`{"type":"object"}`)}, json.RawMessage("{}\n"))
 			if err != nil {
 				t.Fatal(err)
 			}

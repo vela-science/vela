@@ -22,7 +22,13 @@ Both bundles use the maintained exact four-rule provider-schema registry for
 the frozen Stage A response schema. Both pass the maintained qualifier fully
 offline with the same read-only `git status` and regular-file information
 boundary, raw event/tool/result custody, canonical read-only mounts, retained
-CA trust, and distinct held neutral-calibration permits. The qualifier consumes
+CA trust, and distinct held neutral-calibration permits. The shared neutral
+content is one committed canonical JSON object plus one committed prompt; an
+equivalence receipt binds the same semantic atoms and expected response
+contract for both providers. The runner loads the packet only from the exact
+read-only `/input/packet.json` mount using no-follow, single-link, pre/post-open
+identity and exact byte-root checks, then binds its exact provider request
+bytes in custody. Inline reconstruction is rejected. The qualifier consumes
 only its synthetic no-science self-test fixture; neither campaign neutral
 permit is consumed and no provider is contacted.
 
@@ -39,8 +45,12 @@ value or consumer OAuth surface was requested, used, or inspected. Independent
 exact review and a separate execution authorization remain prerequisites even
 after appropriate Platform credentials become available.
 
-Consequently all twelve participant permits remain held and non-releasable,
-both neutral-calibration permits remain held, and the ledgers remain at zero
+The two predecessor neutral permits whose packet-root preimages were plaintext
+rather than runner-loadable JSON are retained as unconsumed,
+retired-non-releasable records. Their two canonical-JSON successors are fresh,
+distinct, held, and independently review-gated. Consequently all twelve
+participant permits remain held and non-releasable, both fresh neutral permits
+remain held, and the ledgers remain at zero
 participant calls, provider calls, calibrations, responses, scoring, protected
 keys, and Stage B selection. The package has no Protocol, Core, authority,
 Decision, or Standing effect.

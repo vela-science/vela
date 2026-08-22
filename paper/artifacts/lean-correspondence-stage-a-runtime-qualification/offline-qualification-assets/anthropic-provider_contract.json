@@ -7,6 +7,17 @@
     "tool_results_retained": true,
     "usage_retained_as_telemetry_only": true
   },
+  "packet_input": {
+    "canonical_json_object": true,
+    "injection": "messages[0].content_exact_prompt_newline_packet_bytes",
+    "inline_reconstruction": false,
+    "mount_path": "/input/packet.json",
+    "no_follow": true,
+    "permit_byte_root_required": true,
+    "regular_file_only": true,
+    "request_byte_root_receipt_required": true,
+    "single_link_only": true
+  },
   "provider_adapter": "anthropic-messages-v1",
   "request": {
     "anthropic_version": "2023-06-01",
