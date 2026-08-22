@@ -1,0 +1,110 @@
+{
+  "schema": "vela.independent-evidence-infrastructure-final-rereview-verdict.v1",
+  "review_id": "evidence-harness-consolidation-5fcb5567-2026-08-22",
+  "reviewed_at": "2026-08-22T04:11:35Z",
+  "verdict": "PASS",
+  "authority_effect": "none",
+  "standing_effect": "none",
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/evidence-harness-consolidation",
+    "parent_commit": "5e01d3e07951d9d231dd28f31bad1af785da2837",
+    "producer_commit": "5fcb5567a329728a6c9e813546a3c97638b42e75",
+    "producer_tree": "46620b21fd9c980e33ee3c5257c121ccbae479af",
+    "prior_blocked_review": "acc8d9945a91a81d478f8b6f89b705175d5f0faa",
+    "changed_path_count": 3,
+    "insertions": 174,
+    "deletions": 35
+  },
+  "corrective_files": {
+    "tools/evidence_qualification/README.md": "sha256:5a78f54adfbb6e0c3dc4bb5d81edd72cb54dafde23025778a6be08db6dce0c34",
+    "tools/evidence_qualification/qualification.py": "sha256:628ac203a48ef19c649dd64dedc010d104d728eb0edbb66392e93955fab872b9",
+    "tools/evidence_qualification/test_qualification.py": "sha256:1259108e184571351f01a66fdc46f370b3b2077bb9ea481bbe83a65ab5327184"
+  },
+  "review_scope": [
+    "EQ-R1 hardlink alias rejection",
+    "EQ-R2 validated descriptor inode and byte custody through permit consumption",
+    "concurrent single-winner behavior",
+    "exact three-file scope",
+    "locked Python 3.11 through 3.14 matrix",
+    "formatting and diff hygiene",
+    "Protocol 1 byte identity",
+    "historical evidence byte identity"
+  ],
+  "findings": [],
+  "verified": {
+    "eq_r1": {
+      "status": "pass",
+      "every_regular_bundle_file_requires_single_link": true,
+      "out_of_bundle_hardlink_rejected": true,
+      "error": "bundle_file_link_count_invalid",
+      "link_count_rechecked_on_open_descriptor": true,
+      "link_count_rechecked_after_read": true
+    },
+    "eq_r2": {
+      "status": "pass",
+      "validated_descriptor_retained_through_completion": true,
+      "device_inode_and_bytes_checked_after_link": true,
+      "source_name_rechecked_before_unlink": true,
+      "final_consumed_single_link_state_checked": true,
+      "deterministic_source_replacement_rejected": true,
+      "replacement_error": "permit_consumed_inode_or_bytes_mismatch",
+      "failed_replacement_consumed_file_absent": true,
+      "concurrent_attempts": 8,
+      "concurrent_winners": 1,
+      "winner_retains_original_inode_and_bytes": true,
+      "winner_final_link_count": 1
+    },
+    "python_matrix": {
+      "3.11.15": "39 passed",
+      "3.12.10": "39 passed",
+      "3.13.3": "39 passed",
+      "3.14.4": "39 passed"
+    },
+    "protocol": {
+      "changed": false,
+      "normative_files": 77,
+      "informative_files": 39,
+      "protocol_1_root": "sha256:6ca327d6ec6f56c051e236be9eee42629e1f67dce393c1518e051ff8c14b279e"
+    },
+    "historical_evidence_changed": false
+  },
+  "checks": [
+    {"id": "exact_remote_commit_tree_parent", "status": "pass"},
+    {"id": "exact_three_file_scope", "status": "pass"},
+    {"id": "external_hardlink_adversary", "status": "pass"},
+    {"id": "deterministic_source_replacement_adversary", "status": "pass"},
+    {"id": "eight_thread_single_winner", "status": "pass"},
+    {"id": "locked_python_3_11_to_3_14", "status": "pass", "tests_per_minor": 39},
+    {"id": "ruff_check_locked", "status": "pass"},
+    {"id": "ruff_format_check_locked", "status": "pass"},
+    {"id": "git_diff_check", "status": "pass"},
+    {"id": "protocol_1_verification_and_byte_identity", "status": "pass"},
+    {"id": "historical_paper_evidence_byte_identity", "status": "pass"},
+    {"id": "clean_detached_checkout", "status": "pass"}
+  ],
+  "minimal_corrections": [],
+  "claim_ceiling": {
+    "supported": [
+      "Every referenced regular bundle file is single-link at its validated read boundary, including rejection of aliases outside the bundle.",
+      "Successful permit consumption preserves the validated descriptor, inode, and bytes through final single-link state.",
+      "The maintained qualifier passes its focused suite on locked Python 3.11 through 3.14."
+    ],
+    "not_supported": [
+      "Any Protocol 1 semantic change.",
+      "Any reinterpretation or mutation of historical evidence.",
+      "Provider execution, scientific acceptance, authority, Decision, Event, or Standing."
+    ]
+  },
+  "reviewer_actions": {
+    "external_service_calls": 0,
+    "provider_calls": 0,
+    "credentials_handled": 0,
+    "producer_mutations": 0,
+    "permit_releases": 0,
+    "authority_mutations": 0,
+    "standing_mutations": 0,
+    "merge_actions": 0,
+    "release_actions": 0
+  }
+}
