@@ -1,0 +1,127 @@
+{
+  "schema": "vela.real-correction-study-independent-review.v1",
+  "verdict": "BLOCKED",
+  "reviewed_at": "2026-08-22T03:14:36Z",
+  "review_branch": "codex/review-real-correction-fixtures",
+  "bindings": {
+    "producer_ref": "origin/codex/real-correction-fixtures",
+    "producer_commit": "4bebbe23f60fa2edd5cb683dc01e6344f9810878",
+    "producer_tree": "e98e984cd0dad06d577173afeedde9b5e7b5b50f",
+    "packet_tree": "9ee7a6ba4d30a0347cdaee9f408b42c8ed70346c",
+    "base_ref": "origin/main",
+    "base_commit": "4685462c44b1f073870f31025ae73d1d8770ce73",
+    "base_tree": "13c5e0cf2e64be907cee4c0fd740ab0027118e13",
+    "qualification_root": "sha256:4f2fee9dbb0f62550873daab4911564c4968ad9b84fe40ef3af83c6355b7832c",
+    "qualification_result_sha256": "sha256:8bdb9ab292f4070809ff45c2300993e4a875f2318937e0dbd49a3f7f09ac5624",
+    "reviewed_historical_result_commit": "4524c8f776943a267e04e03e9a237ecaed14bc2c",
+    "reviewed_historical_result_tree": "4d5650a999ac0be59e71d5bd664e885cad5192c7"
+  },
+  "finding_ids": [
+    "unsupported-causal-language",
+    "erdos-264-authority-chain-not-bound",
+    "erdos-264-downstream-records-not-retained",
+    "erdos-1055-finite-change-action-unsubstantiated",
+    "qualification-root-incomplete",
+    "semantic-mutations-not-rejected",
+    "python-format-gate-failed"
+  ],
+  "verified": {
+    "failure_runtime_seconds": 16.511676507,
+    "failure_tool_calls": 0,
+    "failure_process_exit_code": 0,
+    "failure_timed_out": false,
+    "failure_validation_error": null,
+    "failure_stderr_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "failure_all_source_consequence_action_and_evidence_atoms_exact": true,
+    "failure_authority_pair": {
+      "effect": "authorized_status_change",
+      "observed_action": "record_no_status_change",
+      "registered_action": "accept_authorized_status_change"
+    },
+    "source_corrections_exact": true,
+    "source_bindings": {
+      "erdos-264-integer-perturbation": {
+        "predecessor": {"commit": "593e6b76702c5dbffaaa91b59f4faaed705d04ce", "tree": "5e79f7198c3891bdbb3fc6ec10c2b2a804cc56cb", "blob": "8490f7dc0575480c7729acd5713433fc0af9c71b", "sha256": "sha256:98386d8f28112c5e952ec40c4ee439c27f3ff7560a4e767b493ccebc628fb29f"},
+        "successor": {"commit": "0598b8f281060a18416d60753fd75621d659bb07", "tree": "e040cfc1cd6e5d1a79cf156047f452c2268c1920", "blob": "3ff5ce70001355549571a07eee77960939323b57", "sha256": "sha256:5a3a0fb7063ed77d644a5c1cab503851e68d87b02c0882db8fa52e801aba1166"},
+        "full_index_diff_sha256": "sha256:a1935f112f5e086cac55d0933f6aa5588893aa7452512d5a0319e12fba4a472f"
+      },
+      "snake-induced-path": {
+        "predecessor": {"commit": "5dd9f04d6c53be13cdec8ba8792e242582a7f5c7", "tree": "d2f3e0b42fb191c12ea62ea7f402496d412a98f8", "blob": "d1f8c21775ed62d222a0441a325b1b6209942d64", "sha256": "sha256:1f9d6e1cbd8a7d40717d97abfe3b618c88e32f6f4f2c2ad35fb17ee1069ab9fa"},
+        "successor": {"commit": "89091814b683af5e580251762b8c5633bf53c6f2", "tree": "2d573d1b3b082ea5de8b6f6a375d67788b019184", "blob": "9682d8124dc617b7dc823afaf309ddd893279031", "sha256": "sha256:1781f117a71066c6d1e74c5fb04059889169ceb80d1e9d04cb0f48a706977bd3"},
+        "full_index_diff_sha256": "sha256:c85fc2e5a4e3f3044d4cf9c96e909d51ec97cc3ef99813dce80475e097962772"
+      },
+      "erdos-1055-exclusive-prime-class": {
+        "predecessor": {"commit": "38d5a036c5005ff3e6c5fd91a5bd0e472565ee61", "tree": "5b38f60870b297c7c17b057ebfd660114458bcd3", "blob": "4835f12e96d618c7e9014f31a85f7549baf2ab79", "sha256": "sha256:ac988afdb5ab32d9dbfda77a94bc2859e0d873c9c09790a68acb85d4b1e959f9"},
+        "successor": {"commit": "ab7989605ff82ae5680812b2a70bfbf52c33fa87", "tree": "6a82a3ab09f5f7a1f729a2fdb8211b344cab0816", "blob": "4348f2fe3b7f212801fb6f6be94400a29936c044", "sha256": "sha256:d3270825487fd25edb928565035455ca7ffa6b03a0dfaf44ba58d86abbd8e6d5"},
+        "full_index_diff_sha256": "sha256:3c2c03eb84a3662379108418710dff0733b2c49000f7ed2fd584daca464d5c50"
+      }
+    },
+    "source_fixture_counts": {
+      "erdos-264-integer-perturbation": 8,
+      "snake-induced-path": 9,
+      "erdos-1055-exclusive-prime-class": 7
+    },
+    "discrimination": {
+      "fact_only_exact": 1,
+      "authority_aware_exact": 3,
+      "cases": 3,
+      "interpretation": "authority irreducibility by construction only"
+    },
+    "confirmatory_freeze_allowed": false,
+    "fresh_held_out_families_required": true,
+    "git_documents_non_ceiling_open_pilot_required": true,
+    "equality_counts_as_governance_lift": false,
+    "authority_effect_of_review": "none"
+  },
+  "checks": [
+    {"id": "readme-verifier-result-diff", "status": "pass"},
+    {"id": "committed-unit-tests", "status": "pass", "count": 4},
+    {"id": "python-compile", "status": "pass"},
+    {"id": "ruff-check", "status": "pass"},
+    {"id": "ruff-format-check", "status": "fail", "files": ["verify.py", "test_verify.py"]},
+    {"id": "git-diff-check", "status": "pass"},
+    {"id": "fresh-source-object-reconstruction", "status": "pass", "fixtures": 3},
+    {"id": "historical-erdos-264-source-first-verifier", "status": "pass"},
+    {"id": "committed-adversarial-tests", "status": "pass", "count": 3},
+    {"id": "discrimination-mutations", "status": "pass", "count": 3},
+    {"id": "discrimination-source-root-mutation", "status": "unexpected_pass_same_root"},
+    {"id": "arm-contract-semantic-mutation", "status": "unexpected_pass_same_root"},
+    {"id": "consequence-classification-mutation", "status": "unexpected_qualification_changed_root"},
+    {"id": "fixture-safe-action-mutation", "status": "unexpected_qualification_changed_root"}
+  ],
+  "claim_ceiling": {
+    "supported": [
+      "Three exact open real source corrections with bounded source-level inventories.",
+      "A public authority-discrimination mapping proving irreducibility by construction.",
+      "A design-only stop line forbidding confirmatory freeze and positive lift."
+    ],
+    "not_supported": [
+      "A causal explanation of the taxonomy-remap miss.",
+      "An exact authority-chain-bound Erdős 264 packet.",
+      "Complete retained downstream scientific-record evidence for Erdős 264.",
+      "A finite-change basis for the two Erdős 1055 asymptotic safe actions.",
+      "Non-ceiling Git/documents participant performance.",
+      "Structure, governance/inheritance, or total lift.",
+      "Confirmatory readiness, scientific acceptance, or a Protocol/Core change."
+    ]
+  },
+  "minimal_corrective_actions": [
+    "Remove causal language unsupported by the sealed one-response audit.",
+    "Bind and verify the exact first-party evidence repository commit, independent trust root, complete authority chain, referenced policy and Repository objects, and derived Standing.",
+    "Retain and root the exact Erdős 264 local Claim and hosted-proof bytes and verify every consequence classification, action, and evidence binding; remove the unsubstantiated Erdős 1055 finite-change action or bind its proof.",
+    "Add an exact whole-packet manifest/root and make README verification fail on any result/root drift.",
+    "Add semantic and provenance adversarial tests and apply the repository Python formatter."
+  ],
+  "prohibited_actions_observed_in_reviewed_branch": [],
+  "review_actions": {
+    "provider_calls": 0,
+    "participant_calls": 0,
+    "scores": 0,
+    "protected_keys_created_or_opened": 0,
+    "authority_actions": 0,
+    "standing_actions": 0,
+    "producer_bytes_modified": 0,
+    "pilot_launched": false,
+    "merged": false
+  }
+}
