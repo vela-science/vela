@@ -188,6 +188,8 @@ def validate_bundle_tree(root: Path) -> None:
             if stat.S_ISLNK(metadata.st_mode):
                 raise QualificationError("bundle_symlink_forbidden")
             if stat.S_ISREG(metadata.st_mode):
+                if metadata.st_nlink != 1:
+                    raise QualificationError("bundle_file_link_count_invalid")
                 identity = (metadata.st_dev, metadata.st_ino)
                 relative = path.relative_to(root).as_posix()
                 prior = identities.setdefault(identity, relative)
@@ -231,11 +233,22 @@ def read_regular(path: Path, label: str) -> bytes:
     except OSError as error:
         raise QualificationError(f"{label}_missing_or_unsafe") from error
     try:
-        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode):
             raise QualificationError(f"{label}_not_regular")
+        if metadata.st_nlink != 1:
+            raise QualificationError(f"{label}_link_count_invalid")
         with os.fdopen(descriptor, "rb") as handle:
             descriptor = -1
-            return handle.read()
+            raw = handle.read()
+            final_metadata = os.fstat(handle.fileno())
+            if (
+                final_metadata.st_dev != metadata.st_dev
+                or final_metadata.st_ino != metadata.st_ino
+                or final_metadata.st_nlink != 1
+            ):
+                raise QualificationError(f"{label}_custody_changed_during_read")
+            return raw
     finally:
         if descriptor >= 0:
             os.close(descriptor)
@@ -261,11 +274,22 @@ def _read_bundle_regular(root: Path, relative: Path, label: str) -> bytes:
         descriptor = os.open(
             relative.parts[-1], os.O_RDONLY | nofollow, dir_fd=directory
         )
-        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode):
             raise QualificationError(f"{label}_not_regular")
+        if metadata.st_nlink != 1:
+            raise QualificationError(f"{label}_link_count_invalid")
         with os.fdopen(descriptor, "rb") as handle:
             descriptor = -1
-            return handle.read()
+            raw = handle.read()
+            final_metadata = os.fstat(handle.fileno())
+            if (
+                final_metadata.st_dev != metadata.st_dev
+                or final_metadata.st_ino != metadata.st_ino
+                or final_metadata.st_nlink != 1
+            ):
+                raise QualificationError(f"{label}_custody_changed_during_read")
+            return raw
     except OSError as error:
         raise QualificationError(f"{label}_missing_or_unsafe") from error
     finally:
@@ -500,26 +524,30 @@ def consume_permit(directory: Path, run_id: str, expected: dict[str, Any]) -> Pa
         directory,
         os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
     )
+    source_descriptor = -1
+    consumed_descriptor = -1
+    linked = False
     try:
-        source_descriptor = os.open(
-            source_name,
-            os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
-            dir_fd=directory_descriptor,
-        )
         try:
-            if not stat.S_ISREG(os.fstat(source_descriptor).st_mode):
+            source_descriptor = os.open(
+                source_name,
+                os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
+                dir_fd=directory_descriptor,
+            )
+            validated_metadata = os.fstat(source_descriptor)
+            if not stat.S_ISREG(validated_metadata.st_mode):
                 raise QualificationError("permit_source_not_regular")
-            with os.fdopen(source_descriptor, "rb") as handle:
-                source_descriptor = -1
-                raw = handle.read()
-        finally:
-            if source_descriptor >= 0:
-                os.close(source_descriptor)
-    except OSError as error:
-        os.close(directory_descriptor)
-        raise QualificationError("permit_source_missing_or_unsafe") from error
-    try:
-        try:
+            if validated_metadata.st_nlink != 1:
+                raise QualificationError("permit_source_link_count_invalid")
+            raw = _read_open_descriptor(source_descriptor)
+            after_read = os.fstat(source_descriptor)
+            if (
+                (after_read.st_dev, after_read.st_ino)
+                != (validated_metadata.st_dev, validated_metadata.st_ino)
+                or after_read.st_nlink != 1
+                or after_read.st_size != len(raw)
+            ):
+                raise QualificationError("permit_source_changed_during_validation")
             permit = parse_json(raw, "permit_source")
             validate_permit(permit, expected, status="held")
             os.link(
@@ -529,21 +557,81 @@ def consume_permit(directory: Path, run_id: str, expected: dict[str, Any]) -> Pa
                 dst_dir_fd=directory_descriptor,
                 follow_symlinks=False,
             )
+            linked = True
+            consumed_descriptor = os.open(
+                consumed_name,
+                os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
+                dir_fd=directory_descriptor,
+            )
+            consumed_metadata = os.fstat(consumed_descriptor)
+            source_after_link = os.fstat(source_descriptor)
+            expected_inode = (validated_metadata.st_dev, validated_metadata.st_ino)
+            if (
+                (consumed_metadata.st_dev, consumed_metadata.st_ino) != expected_inode
+                or (source_after_link.st_dev, source_after_link.st_ino)
+                != expected_inode
+                or consumed_metadata.st_nlink != 2
+                or source_after_link.st_nlink != 2
+                or _read_open_descriptor(consumed_descriptor) != raw
+                or _read_open_descriptor(source_descriptor) != raw
+            ):
+                raise QualificationError("permit_consumed_inode_or_bytes_mismatch")
+            named_source_descriptor = os.open(
+                source_name,
+                os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
+                dir_fd=directory_descriptor,
+            )
+            try:
+                named_source_metadata = os.fstat(named_source_descriptor)
+                if (
+                    named_source_metadata.st_dev,
+                    named_source_metadata.st_ino,
+                ) != expected_inode or _read_open_descriptor(
+                    named_source_descriptor
+                ) != raw:
+                    raise QualificationError("permit_source_replaced_before_unlink")
+            finally:
+                os.close(named_source_descriptor)
+            os.unlink(source_name, dir_fd=directory_descriptor)
+            linked = False
+            final_metadata = os.fstat(consumed_descriptor)
+            if (
+                (final_metadata.st_dev, final_metadata.st_ino) != expected_inode
+                or final_metadata.st_nlink != 1
+                or _read_open_descriptor(consumed_descriptor) != raw
+            ):
+                raise QualificationError("permit_consumed_custody_invalid")
         except FileExistsError as error:
             raise QualificationError("permit_already_consumed") from error
         except OSError as error:
             raise QualificationError("permit_atomic_consume_failed") from error
-        try:
-            os.unlink(source_name, dir_fd=directory_descriptor)
-        except OSError as error:
-            try:
-                os.unlink(consumed_name, dir_fd=directory_descriptor)
-            except FileNotFoundError:
-                pass
-            raise QualificationError("permit_atomic_consume_failed") from error
+        except QualificationError:
+            if linked:
+                try:
+                    os.unlink(consumed_name, dir_fd=directory_descriptor)
+                except FileNotFoundError:
+                    pass
+            raise
     finally:
+        if consumed_descriptor >= 0:
+            os.close(consumed_descriptor)
+        if source_descriptor >= 0:
+            os.close(source_descriptor)
         os.close(directory_descriptor)
     return consumed
+
+
+def _read_open_descriptor(descriptor: int) -> bytes:
+    try:
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        chunks = []
+        while True:
+            chunk = os.read(descriptor, 1024 * 64)
+            if not chunk:
+                return b"".join(chunks)
+            chunks.append(chunk)
+    except OSError as error:
+        raise QualificationError("permit_descriptor_read_failed") from error
 
 
 def permit_identity(value: dict[str, Any]) -> dict[str, Any]:

@@ -10,6 +10,7 @@ import threading
 import unittest
 from decimal import Decimal
 from pathlib import Path
+from unittest.mock import patch
 
 from tools.evidence_qualification.qualification import (
     EVENT_SCHEMA,
@@ -799,7 +800,10 @@ class EvidenceQualificationTests(unittest.TestCase):
             "consumed_at": None,
         }
         expected["run_id"] = "race-01"
-        (directory / "race-01.permit.json").write_bytes(encoded(permit))
+        source_path = directory / "race-01.permit.json"
+        source_raw = encoded(permit)
+        source_path.write_bytes(source_raw)
+        source_metadata = source_path.stat()
         outcomes = []
         lock = threading.Lock()
 
@@ -818,8 +822,16 @@ class EvidenceQualificationTests(unittest.TestCase):
         for thread in threads:
             thread.join()
         self.assertEqual(outcomes.count("won"), 1)
-        self.assertFalse((directory / "race-01.permit.json").exists())
-        self.assertTrue((directory / "race-01.permit.consumed.json").is_file())
+        self.assertFalse(source_path.exists())
+        consumed_path = directory / "race-01.permit.consumed.json"
+        self.assertTrue(consumed_path.is_file())
+        consumed_metadata = consumed_path.stat()
+        self.assertEqual(
+            (consumed_metadata.st_dev, consumed_metadata.st_ino),
+            (source_metadata.st_dev, source_metadata.st_ino),
+        )
+        self.assertEqual(consumed_metadata.st_nlink, 1)
+        self.assertEqual(consumed_path.read_bytes(), source_raw)
 
     def test_capture_bridge_requires_raw_event_response_terminal_and_teardown_bytes(
         self,
@@ -1141,7 +1153,14 @@ class EvidenceQualificationTests(unittest.TestCase):
     def test_bundle_rejects_hardlink_alias_between_distinct_roles(self) -> None:
         alias = self.root / "schemas/registered-alias.json"
         alias.hardlink_to(self.root / "schemas/registered.json")
-        self.assertBlocked("bundle_file_alias_forbidden")
+        self.assertBlocked("bundle_file_link_count_invalid")
+
+    def test_bundle_rejects_hardlink_alias_outside_declared_root(self) -> None:
+        with tempfile.TemporaryDirectory() as outside_directory:
+            alias = Path(outside_directory) / "registered-alias.json"
+            alias.hardlink_to(self.root / "schemas/registered.json")
+            self.assertEqual((self.root / "schemas/registered.json").stat().st_nlink, 2)
+            self.assertBlocked("bundle_file_link_count_invalid")
 
     def test_closed_participant_permit_rejects_review_adversaries(self) -> None:
         path = "permit/participant-run-01.permit.json"
@@ -1175,6 +1194,38 @@ class EvidenceQualificationTests(unittest.TestCase):
         consumed = self.root / "permit/participant-run-01.permit.consumed.json"
         consumed.write_bytes(source.read_bytes())
         self.assertBlocked("already_consumed")
+
+    def test_permit_replacement_between_validation_and_link_fails_closed(self) -> None:
+        directory = self.root / "permit"
+        source = directory / "participant-run-01.permit.json"
+        consumed = directory / "participant-run-01.permit.consumed.json"
+        retained = directory / "validated-permit-retained.json"
+        permit = self.fixture.load("permit/participant-run-01.permit.json")
+        expected = {
+            key: value
+            for key, value in permit.items()
+            if key not in {"schema", "status", "issued_at", "consumed_at"}
+        }
+        original_link = __import__("os").link
+
+        def replace_then_link(*args, **kwargs) -> None:
+            source.replace(retained)
+            source.write_bytes(b'{"forged":true}\n')
+            original_link(*args, **kwargs)
+
+        with (
+            patch(
+                "tools.evidence_qualification.qualification.os.link",
+                side_effect=replace_then_link,
+            ),
+            self.assertRaisesRegex(
+                QualificationError, "permit_consumed_inode_or_bytes_mismatch"
+            ),
+        ):
+            consume_permit(directory, "participant-run-01", expected)
+        self.assertFalse(consumed.exists())
+        self.assertEqual(source.read_bytes(), b'{"forged":true}\n')
+        self.assertEqual(retained.read_bytes(), encoded(permit))
 
     def test_closed_lifecycle_rejects_forged_schemas_and_reversed_order(self) -> None:
         self.fixture.update(
