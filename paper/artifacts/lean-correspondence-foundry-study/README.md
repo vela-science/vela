@@ -60,8 +60,9 @@ uv run --project conformance --locked python -m unittest discover \
 
 The verifier checks the complete material inventory, exact Git bindings that
 are locally available, closed schemas, fixed denominator arithmetic, selection
-and custody stop lines, Decimal-only scoring fixtures, equality-as-failure,
-and the absence of selected held-out families or protected material.
+and custody stop lines, fixed-margin score feasibility, Decimal-only scoring
+fixtures, equality-as-failure, and the absence of selected held-out families or
+protected material.
 
 Before any future pilot or confirmatory permit is released, a separate
 prelaunch artifact must bind the exact runner, participant configurations,

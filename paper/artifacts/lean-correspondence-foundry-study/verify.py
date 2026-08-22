@@ -78,6 +78,166 @@ def strict_lift(assisted: int, control: int, minimum: int) -> bool:
     return assisted > control and assisted - control >= minimum
 
 
+COUNT_METRICS = (
+    "relation_correct",
+    "change_classification_correct",
+    "impact_complete",
+    "composite_exact",
+    "false_inference",
+)
+CORRECTNESS_METRICS = (
+    "relation_correct",
+    "change_classification_correct",
+    "impact_complete",
+)
+SCORE_ROW_FIELDS = ("denominator", *COUNT_METRICS)
+
+
+def expand_score_fixture_case(item: dict[str, Any]) -> dict[str, Any]:
+    rows = item["summary_rows"]
+    require(
+        set(rows)
+        == {
+            "partition_counts",
+            "family_assisted",
+            "family_raw",
+            "configuration_assisted",
+            "configuration_raw",
+            "aggregate_assisted",
+            "aggregate_raw",
+            "restricted_time_ratio",
+        },
+        f"score_fixture_fields:{item['name']}",
+    )
+
+    def arm(row: list[Any]) -> dict[str, Any]:
+        require(len(row) == len(SCORE_ROW_FIELDS), f"score_fixture_row:{item['name']}")
+        return dict(zip(SCORE_ROW_FIELDS, row, strict=True))
+
+    family_assisted = rows["family_assisted"]
+    family_raw = rows["family_raw"]
+    configuration_assisted = rows["configuration_assisted"]
+    configuration_raw = rows["configuration_raw"]
+    require(
+        len(family_assisted) == len(family_raw),
+        f"score_fixture_family_rows:{item['name']}",
+    )
+    require(
+        len(configuration_assisted) == len(configuration_raw),
+        f"score_fixture_configuration_rows:{item['name']}",
+    )
+    return {
+        "partition_counts": rows["partition_counts"],
+        "families": [
+            {"assisted": arm(assisted), "raw": arm(raw)}
+            for assisted, raw in zip(family_assisted, family_raw, strict=True)
+        ],
+        "configurations": [
+            {"assisted": arm(assisted), "raw": arm(raw)}
+            for assisted, raw in zip(
+                configuration_assisted, configuration_raw, strict=True
+            )
+        ],
+        "aggregate": {
+            "assisted": arm(rows["aggregate_assisted"]),
+            "raw": arm(rows["aggregate_raw"]),
+            "restricted_time_ratio": rows["restricted_time_ratio"],
+        },
+    }
+
+
+def verify_score_summary_feasibility(
+    summary: dict[str, Any], contract: dict[str, Any]
+) -> None:
+    invariants = contract["score_summary_invariants"]
+    family_count = invariants["family_rows"]
+    configuration_count = invariants["configuration_rows"]
+    family_denominator = invariants["family_cells_per_arm"]
+    configuration_denominator = invariants["configuration_cells_per_arm"]
+    aggregate_denominator = invariants["aggregate_cells_per_arm"]
+    require(
+        set(summary) == {"partition_counts", "families", "configurations", "aggregate"},
+        "score_summary_fields",
+    )
+    require(
+        summary["partition_counts"]
+        == {
+            "assisted": aggregate_denominator,
+            "raw": aggregate_denominator,
+            "total": invariants["primary_total_cells"],
+        },
+        "score_partition_counts",
+    )
+    require(len(summary["families"]) == family_count, "score_family_count")
+    require(
+        len(summary["configurations"]) == configuration_count,
+        "score_configuration_count",
+    )
+
+    expected_arm_fields = {"denominator", *COUNT_METRICS}
+
+    def verify_arm(arm: dict[str, Any], denominator: int, scope: str) -> None:
+        require(set(arm) == expected_arm_fields, f"score_arm_fields:{scope}")
+        require(arm["denominator"] == denominator, f"score_denominator:{scope}")
+        for metric in COUNT_METRICS:
+            count = arm[metric]
+            require(
+                isinstance(count, int)
+                and not isinstance(count, bool)
+                and 0 <= count <= denominator,
+                f"score_count:{scope}:{metric}",
+            )
+        require(
+            all(
+                arm["composite_exact"] <= arm[metric] for metric in CORRECTNESS_METRICS
+            ),
+            f"score_composite_component_feasibility:{scope}",
+        )
+
+    for index, family in enumerate(summary["families"]):
+        require(set(family) == {"assisted", "raw"}, f"score_family_fields:{index}")
+        for arm_name in ("assisted", "raw"):
+            verify_arm(
+                family[arm_name], family_denominator, f"family:{index}:{arm_name}"
+            )
+    for index, configuration in enumerate(summary["configurations"]):
+        require(
+            set(configuration) == {"assisted", "raw"},
+            f"score_configuration_fields:{index}",
+        )
+        for arm_name in ("assisted", "raw"):
+            verify_arm(
+                configuration[arm_name],
+                configuration_denominator,
+                f"configuration:{index}:{arm_name}",
+            )
+    aggregate = summary["aggregate"]
+    require(
+        set(aggregate) == {"assisted", "raw", "restricted_time_ratio"},
+        "score_aggregate_fields",
+    )
+    require(
+        Decimal(aggregate["restricted_time_ratio"]) >= Decimal(0),
+        "score_time_ratio",
+    )
+    for arm_name in ("assisted", "raw"):
+        verify_arm(aggregate[arm_name], aggregate_denominator, f"aggregate:{arm_name}")
+        for metric in ("denominator", *COUNT_METRICS):
+            aggregate_value = aggregate[arm_name][metric]
+            family_sum = sum(item[arm_name][metric] for item in summary["families"])
+            configuration_sum = sum(
+                item[arm_name][metric] for item in summary["configurations"]
+            )
+            require(
+                family_sum == aggregate_value,
+                f"score_family_aggregate_sum:{arm_name}:{metric}",
+            )
+            require(
+                configuration_sum == aggregate_value,
+                f"score_configuration_aggregate_sum:{arm_name}:{metric}",
+            )
+
+
 def aggregate_flagship_gates_pass(
     summary: dict[str, Any], contract: dict[str, Any]
 ) -> bool:
@@ -162,17 +322,29 @@ def configuration_flagship_gates_pass(
             assisted["composite_exact"] > raw["composite_exact"]
         ):
             return False
-        relation_reversal = assisted["relation_correct"] < raw["relation_correct"]
-        if (
-            gates["relation_noninferiority_required_per_configuration"]
-            and relation_reversal
-        ):
-            return False
-        if (
-            not gates["relation_reversals_allowed_per_configuration"]
-            and relation_reversal
-        ):
-            return False
+        predicates = (
+            (
+                "relation_correct",
+                "relation_noninferiority_required_per_configuration",
+                "relation_reversals_allowed_per_configuration",
+            ),
+            (
+                "change_classification_correct",
+                "change_classification_noninferiority_required_per_configuration",
+                "change_classification_reversals_allowed_per_configuration",
+            ),
+            (
+                "impact_complete",
+                "impact_noninferiority_required_per_configuration",
+                "impact_reversals_allowed_per_configuration",
+            ),
+        )
+        for metric, noninferiority_key, reversals_key in predicates:
+            reversal = assisted[metric] < raw[metric]
+            if gates[noninferiority_key] and reversal:
+                return False
+            if not gates[reversals_key] and reversal:
+                return False
         if assisted["false_inference"] > gates["assisted_false_inference_maximum"]:
             return False
         if assisted["false_inference"] > raw["false_inference"]:
@@ -181,6 +353,7 @@ def configuration_flagship_gates_pass(
 
 
 def flagship_pass(summary: dict[str, Any], contract: dict[str, Any]) -> bool:
+    verify_score_summary_feasibility(summary, contract)
     return (
         family_flagship_gates_pass(summary["families"], contract)
         and aggregate_flagship_gates_pass(summary["aggregate"], contract)
@@ -337,6 +510,28 @@ def verify_contract(contract: dict[str, Any]) -> None:
         "configuration_relation_flagship",
     )
     require(
+        aggregate["change_classification_noninferiority_required_per_configuration"]
+        is True,
+        "configuration_change_noninferiority",
+    )
+    require(
+        aggregate["change_classification_reversals_allowed_per_configuration"] is False,
+        "configuration_change_reversal",
+    )
+    require(
+        aggregate["impact_noninferiority_required_per_configuration"] is True,
+        "configuration_impact_noninferiority",
+    )
+    require(
+        aggregate["impact_reversals_allowed_per_configuration"] is False,
+        "configuration_impact_reversal",
+    )
+    require(
+        aggregate["flagship_requires_every_configuration_correctness_and_safety_gate"]
+        is True,
+        "configuration_correctness_safety_flagship",
+    )
+    require(
         Decimal(aggregate["restricted_time_ratio_maximum"]) == Decimal("0.8"),
         "time_ratio",
     )
@@ -346,6 +541,21 @@ def verify_contract(contract: dict[str, Any]) -> None:
         family["assisted_composite_strict_increment_minimum"] > 0, "family_strict_lift"
     )
     require(family["assisted_false_inference_maximum"] == 0, "family_safety")
+    require(
+        contract["score_summary_invariants"]
+        == {
+            "family_rows": 6,
+            "configuration_rows": 2,
+            "family_cells_per_arm": 6,
+            "configuration_cells_per_arm": 18,
+            "aggregate_cells_per_arm": 36,
+            "primary_total_cells": 72,
+            "composite_bounded_by_each_correctness_component": True,
+            "family_and_configuration_margins_equal_aggregate": True,
+            "arm_partition_counts_exact": True,
+        },
+        "score_summary_invariants",
+    )
     require(
         contract["custody"]["copied_harness_code_forbidden"] is True, "copied_harness"
     )
@@ -504,30 +714,40 @@ def verify_prelaunch_state(state: dict[str, Any], machine: dict[str, Any]) -> No
             "method_frozen",
             "stage_a_passed",
             "stage_a_independent_exact_pass",
+            "must_remain_null",
         ),
         (
             "stage_a_passed",
             "selection_frozen_pending_independent_review",
             "six_eligible_families_three_repositories_and_complete_assignment_prelaunch_binding_frozen",
+            "must_remain_null",
         ),
         (
             "selection_frozen_pending_independent_review",
             "selected_binding_independent_review_passed",
             "independent_exact_pass_review_root_equals_family_assignment_prelaunch_binding_root",
+            "must_remain_null",
         ),
         (
             "selected_binding_independent_review_passed",
             "runtime_qualified",
             "maintained_evidence_qualifier_exact_pass_on_same_binding",
+            "create_from_maintained_qualifier_exact_pass",
         ),
         (
             "runtime_qualified",
             "ready_for_stage_b_permit_creation",
             "selected_binding_review_and_qualification_current_and_all_other_prelaunch_gates_pass",
+            "must_remain_bound_and_current",
         ),
     }
     actual_transitions = {
-        (item.get("from"), item.get("to"), item.get("guard"))
+        (
+            item.get("from"),
+            item.get("to"),
+            item.get("guard"),
+            item.get("qualification_receipt_effect"),
+        )
         for item in machine.get("transitions", [])
     }
     require(
@@ -558,14 +778,28 @@ def verify_prelaunch_state(state: dict[str, Any], machine: dict[str, Any]) -> No
         "permit_qualification_order_gate",
     )
     require(
+        closed.get("qualification_receipt_root_null_before_runtime_transition") is True,
+        "pre_runtime_qualification_receipt_gate",
+    )
+    require(
         any(
             item.get("event")
             == "family_assignment_or_prelaunch_binding_changes_after_review"
             and item.get("to") == "selection_frozen_pending_independent_review"
             and "selected_binding_review" in item.get("clears", [])
+            and "qualification_receipt_root" in item.get("clears", [])
             for item in machine.get("invalidations", [])
         ),
         "selected_binding_review_invalidation_transition",
+    )
+    require(
+        machine.get("invalidations")
+        and all(
+            "qualification_receipt_root" in item.get("clears", [])
+            and "qualification_receipt" not in item.get("clears", [])
+            for item in machine["invalidations"]
+        ),
+        "qualification_receipt_invalidation_transition",
     )
 
     current_state = state["state"]
@@ -573,6 +807,17 @@ def verify_prelaunch_state(state: dict[str, Any], machine: dict[str, Any]) -> No
     require(state["authority_effect"] == "none", "prelaunch_authority")
     binding_root = state["family_assignment_prelaunch_binding_root"]
     review = state["selected_binding_review"]
+    pre_runtime = {
+        "method_frozen",
+        "stage_a_passed",
+        "selection_frozen_pending_independent_review",
+        "selected_binding_independent_review_passed",
+    }
+    if current_state in pre_runtime:
+        require(
+            state["qualification_receipt_root"] is None,
+            "pre_runtime_qualification_receipt",
+        )
     if current_state == "method_frozen":
         require(state["selected_family_count"] == 0, "frozen_selected_family_count")
         require(binding_root is None, "frozen_binding_root")
@@ -586,8 +831,6 @@ def verify_prelaunch_state(state: dict[str, Any], machine: dict[str, Any]) -> No
             },
             "frozen_selected_binding_review",
         )
-        require(state["qualification_receipt_root"] is None, "frozen_qualification")
-
     post_selection = {
         "selection_frozen_pending_independent_review",
         "selected_binding_independent_review_passed",
@@ -671,7 +914,12 @@ def verify_schemas() -> tuple[dict[str, Any], dict[str, Any]]:
 
 def verify_scoring_fixtures() -> None:
     fixture = load_json(ROOT / "scoring-fixtures.json")
+    contract = load_json(ROOT / "study-contract.json")
     require(fixture["no_scientific_data"] is True, "scoring_data")
+    require(
+        tuple(fixture["score_row_fields"]) == SCORE_ROW_FIELDS,
+        "score_fixture_row_fields",
+    )
     restricted, mean = restricted_mean(
         fixture["elapsed_seconds"], fixture["time_cap_seconds"]
     )
@@ -691,10 +939,23 @@ def verify_scoring_fixtures() -> None:
             is item["expected_positive"],
             "strict_lift_fixture",
         )
+    expected_cases = {
+        "realizable_registered_positive",
+        "realizable_configuration_null_with_aggregate_lift",
+        "aggregate_passes_but_configuration_relation_reverses",
+        "aggregate_passes_but_configuration_change_reverses",
+        "aggregate_passes_but_configuration_impact_reverses",
+        "realizable_overall_null",
+    }
+    require(
+        {item["name"] for item in fixture["flagship_cases"]} == expected_cases
+        and len(fixture["flagship_cases"]) == len(expected_cases),
+        "flagship_fixture_cases",
+    )
     for item in fixture["flagship_cases"]:
+        summary = expand_score_fixture_case(item)
         require(
-            flagship_pass(item["summary"], load_json(ROOT / "study-contract.json"))
-            is item["expected_pass"],
+            flagship_pass(summary, contract) is item["expected_pass"],
             f"flagship_fixture:{item['name']}",
         )
 

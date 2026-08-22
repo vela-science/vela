@@ -245,6 +245,15 @@ is assisted/raw. Actual elapsed distributions remain visible; restricted time
 is never called actual runtime. Time is interpreted only after correctness and
 safety.
 
+Every score summary must first pass fixed-margin feasibility. Each arm has
+exactly 6 cells per family, 18 per participant configuration, and 36 aggregate;
+the assisted/raw partitions are exactly 36/36 and total 72. For every family,
+configuration, aggregate, and arm, composite exact cannot exceed relation,
+change-classification, or impact-correct counts. Family and configuration
+margins must each sum exactly to the aggregate counts for every component,
+composite, safety, and denominator field. An infeasible or inconsistent summary
+is a scoring failure, not a study result.
+
 If the diagnostic control exists, its sole positive estimand is witness/
 inheritance lift: assisted minus structured-unwitnessed on composite exact,
 relation accuracy, and impact completeness, plus error reduction. Equality is
@@ -273,6 +282,10 @@ Aggregate flagship success requires every family gate plus:
 - assisted composite exact strictly exceeds raw within each participant
   configuration; and
 - assisted relation accuracy is not below raw within either participant
+  configuration;
+- assisted change-classification accuracy is not below raw within either
+  participant configuration;
+- assisted impact completeness is not below raw within either participant
   configuration; and
 - restricted-time ratio at most 0.80.
 
@@ -280,9 +293,10 @@ Equality never passes a lift gate. A faster arm that misses any correctness or
 safety gate is `not_supported`. Correctness/safety gates passing with a slower
 ratio supports only bounded accuracy/safety lift, not restricted-time lift or
 the flagship combined claim. Every family and configuration remains visible;
-no aggregate can hide a relation, composite, or safety reversal. An aggregate
-relation increment cannot pass while either participant configuration has fewer
-assisted relation-correct responses than raw.
+no aggregate can hide a relation, change-classification, impact, composite, or
+safety reversal. An aggregate correctness increment cannot pass while either
+participant configuration has fewer assisted correct responses than raw on any
+required correctness component.
 
 The optional witness/inheritance gate additionally requires assisted composite
 exact to exceed structured-unwitnessed by at least 6 aggregate responses, zero

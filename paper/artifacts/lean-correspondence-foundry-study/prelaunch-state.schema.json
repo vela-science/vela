@@ -116,6 +116,30 @@
         "properties": {
           "state": {
             "enum": [
+              "method_frozen",
+              "stage_a_passed",
+              "selection_frozen_pending_independent_review",
+              "selected_binding_independent_review_passed"
+            ]
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "qualification_receipt_root": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
               "selection_frozen_pending_independent_review",
               "selected_binding_independent_review_passed",
               "runtime_qualified",

@@ -106,6 +106,42 @@ class ProtocolVerificationTests(unittest.TestCase):
         ):
             VERIFY.verify_prelaunch_state(state, machine)
 
+    def test_pre_runtime_qualification_receipt_is_rejected(self) -> None:
+        initial = json.loads((ROOT / "prelaunch-state.json").read_text())
+        machine = json.loads((ROOT / "prelaunch-state-machine.json").read_text())
+        schema = json.loads((ROOT / "prelaunch-state.schema.json").read_text())
+        binding_root = "sha256:" + "1" * 64
+        review = {
+            "status": "PASS",
+            "reviewed_binding_root": binding_root,
+            "review_commit": "2" * 40,
+            "independent": True,
+        }
+        mutations = {
+            "method_frozen": {},
+            "stage_a_passed": {},
+            "selection_frozen_pending_independent_review": {
+                "selected_family_count": 6,
+                "family_assignment_prelaunch_binding_root": binding_root,
+            },
+            "selected_binding_independent_review_passed": {
+                "selected_family_count": 6,
+                "family_assignment_prelaunch_binding_root": binding_root,
+                "selected_binding_review": review,
+            },
+        }
+        for state_name, fields in mutations.items():
+            with self.subTest(state=state_name):
+                state = copy.deepcopy(initial)
+                state.update(fields)
+                state["state"] = state_name
+                state["qualification_receipt_root"] = "sha256:" + "3" * 64
+                self.assertTrue(list(Draft202012Validator(schema).iter_errors(state)))
+                with self.assertRaisesRegex(
+                    VERIFY.VerificationError, "pre_runtime_qualification_receipt"
+                ):
+                    VERIFY.verify_prelaunch_state(state, machine)
+
     def test_configuration_relation_reversal_blocks_flagship(self) -> None:
         fixture = json.loads((ROOT / "scoring-fixtures.json").read_text())
         case = next(
@@ -113,22 +149,98 @@ class ProtocolVerificationTests(unittest.TestCase):
             for item in fixture["flagship_cases"]
             if item["name"] == "aggregate_passes_but_configuration_relation_reverses"
         )
+        summary = VERIFY.expand_score_fixture_case(case)
         self.assertTrue(
-            VERIFY.aggregate_flagship_gates_pass(
-                case["summary"]["aggregate"], self.contract
-            )
+            VERIFY.aggregate_flagship_gates_pass(summary["aggregate"], self.contract)
         )
         self.assertTrue(
-            VERIFY.family_flagship_gates_pass(
-                case["summary"]["families"], self.contract
-            )
+            VERIFY.family_flagship_gates_pass(summary["families"], self.contract)
         )
         self.assertFalse(
             VERIFY.configuration_flagship_gates_pass(
-                case["summary"]["configurations"], self.contract
+                summary["configurations"], self.contract
             )
         )
-        self.assertFalse(VERIFY.flagship_pass(case["summary"], self.contract))
+        self.assertFalse(VERIFY.flagship_pass(summary, self.contract))
+
+    def test_configuration_change_and_impact_reversals_block_flagship(self) -> None:
+        fixture = json.loads((ROOT / "scoring-fixtures.json").read_text())
+        cases = {item["name"]: item for item in fixture["flagship_cases"]}
+        for name in (
+            "aggregate_passes_but_configuration_change_reverses",
+            "aggregate_passes_but_configuration_impact_reverses",
+        ):
+            with self.subTest(case=name):
+                case = cases[name]
+                summary = VERIFY.expand_score_fixture_case(case)
+                VERIFY.verify_score_summary_feasibility(summary, self.contract)
+                self.assertTrue(
+                    VERIFY.aggregate_flagship_gates_pass(
+                        summary["aggregate"], self.contract
+                    )
+                )
+                self.assertTrue(
+                    VERIFY.family_flagship_gates_pass(
+                        summary["families"], self.contract
+                    )
+                )
+                self.assertFalse(
+                    VERIFY.configuration_flagship_gates_pass(
+                        summary["configurations"], self.contract
+                    )
+                )
+                self.assertFalse(VERIFY.flagship_pass(summary, self.contract))
+
+    def test_realizable_positive_configuration_null_and_overall_null(self) -> None:
+        fixture = json.loads((ROOT / "scoring-fixtures.json").read_text())
+        cases = {item["name"]: item for item in fixture["flagship_cases"]}
+        expected = {
+            "realizable_registered_positive": True,
+            "realizable_configuration_null_with_aggregate_lift": True,
+            "realizable_overall_null": False,
+        }
+        for name, expected_pass in expected.items():
+            with self.subTest(case=name):
+                summary = VERIFY.expand_score_fixture_case(cases[name])
+                VERIFY.verify_score_summary_feasibility(summary, self.contract)
+                self.assertIs(
+                    VERIFY.flagship_pass(summary, self.contract), expected_pass
+                )
+
+    def test_score_summary_feasibility_mutations_are_rejected(self) -> None:
+        fixture = json.loads((ROOT / "scoring-fixtures.json").read_text())
+        positive = next(
+            item
+            for item in fixture["flagship_cases"]
+            if item["name"] == "realizable_registered_positive"
+        )
+        positive = VERIFY.expand_score_fixture_case(positive)
+        mutations = []
+
+        impossible_composite = copy.deepcopy(positive)
+        impossible_composite["families"][0]["assisted"]["relation_correct"] = 4
+        mutations.append(
+            (impossible_composite, "score_composite_component_feasibility")
+        )
+
+        inconsistent_total = copy.deepcopy(positive)
+        inconsistent_total["aggregate"]["raw"]["relation_correct"] = 25
+        mutations.append((inconsistent_total, "score_family_aggregate_sum"))
+
+        wrong_partition = copy.deepcopy(positive)
+        wrong_partition["partition_counts"]["assisted"] = 35
+        mutations.append((wrong_partition, "score_partition_counts"))
+
+        wrong_denominator = copy.deepcopy(positive)
+        wrong_denominator["configurations"][0]["assisted"]["denominator"] = 17
+        mutations.append((wrong_denominator, "score_denominator"))
+
+        for summary, error in mutations:
+            with (
+                self.subTest(error=error),
+                self.assertRaisesRegex(VERIFY.VerificationError, error),
+            ):
+                VERIFY.verify_score_summary_feasibility(summary, self.contract)
 
 
 if __name__ == "__main__":

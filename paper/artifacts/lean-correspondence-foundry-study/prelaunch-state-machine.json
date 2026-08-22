@@ -15,27 +15,32 @@
     {
       "from": "method_frozen",
       "to": "stage_a_passed",
-      "guard": "stage_a_independent_exact_pass"
+      "guard": "stage_a_independent_exact_pass",
+      "qualification_receipt_effect": "must_remain_null"
     },
     {
       "from": "stage_a_passed",
       "to": "selection_frozen_pending_independent_review",
-      "guard": "six_eligible_families_three_repositories_and_complete_assignment_prelaunch_binding_frozen"
+      "guard": "six_eligible_families_three_repositories_and_complete_assignment_prelaunch_binding_frozen",
+      "qualification_receipt_effect": "must_remain_null"
     },
     {
       "from": "selection_frozen_pending_independent_review",
       "to": "selected_binding_independent_review_passed",
-      "guard": "independent_exact_pass_review_root_equals_family_assignment_prelaunch_binding_root"
+      "guard": "independent_exact_pass_review_root_equals_family_assignment_prelaunch_binding_root",
+      "qualification_receipt_effect": "must_remain_null"
     },
     {
       "from": "selected_binding_independent_review_passed",
       "to": "runtime_qualified",
-      "guard": "maintained_evidence_qualifier_exact_pass_on_same_binding"
+      "guard": "maintained_evidence_qualifier_exact_pass_on_same_binding",
+      "qualification_receipt_effect": "create_from_maintained_qualifier_exact_pass"
     },
     {
       "from": "runtime_qualified",
       "to": "ready_for_stage_b_permit_creation",
-      "guard": "selected_binding_review_and_qualification_current_and_all_other_prelaunch_gates_pass"
+      "guard": "selected_binding_review_and_qualification_current_and_all_other_prelaunch_gates_pass",
+      "qualification_receipt_effect": "must_remain_bound_and_current"
     }
   ],
   "invalidations": [
@@ -44,7 +49,7 @@
       "to": "selection_frozen_pending_independent_review",
       "clears": [
         "selected_binding_review",
-        "qualification_receipt",
+        "qualification_receipt_root",
         "stage_b_permits_releasable"
       ]
     },
@@ -52,7 +57,7 @@
       "event": "selected_binding_review_missing_pending_blocked_stale_or_root_mismatched",
       "to": "selection_frozen_pending_independent_review",
       "clears": [
-        "qualification_receipt",
+        "qualification_receipt_root",
         "stage_b_permits_releasable"
       ]
     }
@@ -62,6 +67,7 @@
     "required_selected_binding_review_status": "PASS",
     "reviewed_root_must_equal_binding_root": true,
     "review_must_follow_binding_freeze": true,
-    "runtime_qualification_must_follow_review": true
+    "runtime_qualification_must_follow_review": true,
+    "qualification_receipt_root_null_before_runtime_transition": true
   }
 }

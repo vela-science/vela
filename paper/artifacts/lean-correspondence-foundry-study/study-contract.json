@@ -97,6 +97,11 @@
     "relation_noninferiority_required_per_configuration": true,
     "relation_reversals_allowed_per_configuration": false,
     "flagship_requires_every_configuration_relation_gate": true,
+    "change_classification_noninferiority_required_per_configuration": true,
+    "change_classification_reversals_allowed_per_configuration": false,
+    "impact_noninferiority_required_per_configuration": true,
+    "impact_reversals_allowed_per_configuration": false,
+    "flagship_requires_every_configuration_correctness_and_safety_gate": true,
     "restricted_time_ratio_maximum": "0.800000000000",
     "equality_counts_as_positive_lift": false,
     "speed_alone_can_pass": false
@@ -107,6 +112,17 @@
     "assisted_composite_strict_increment_minimum": 1,
     "component_reversals_allowed": false,
     "assisted_false_inference_maximum": 0
+  },
+  "score_summary_invariants": {
+    "family_rows": 6,
+    "configuration_rows": 2,
+    "family_cells_per_arm": 6,
+    "configuration_cells_per_arm": 18,
+    "aggregate_cells_per_arm": 36,
+    "primary_total_cells": 72,
+    "composite_bounded_by_each_correctness_component": true,
+    "family_and_configuration_margins_equal_aggregate": true,
+    "arm_partition_counts_exact": true
   },
   "custody": {
     "maintained_qualifier_required": "tools/evidence_qualification/qualification.py",
