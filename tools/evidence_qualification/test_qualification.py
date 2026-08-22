@@ -16,6 +16,7 @@ from unittest.mock import patch
 from tools.evidence_qualification.qualification import (
     EVENT_SCHEMA,
     LAUNCH_SCHEMA,
+    NEUTRAL_REGISTERED_SCHEMA_SHA256,
     PERMIT_SCHEMA,
     PROVIDER_ADAPTERS,
     PROVIDER_EQUIVALENCE_SCHEMA,
@@ -23,6 +24,7 @@ from tools.evidence_qualification.qualification import (
     QUALIFIER,
     RAW_PROVIDER_EVENT_SCHEMA,
     RUNNER_VERSION,
+    STAGE_A_REGISTERED_SCHEMA_SHA256,
     TEARDOWN_SCHEMA,
     TERMINAL_SCHEMA,
     TOOL_BOUNDARY_SCHEMA,
@@ -53,6 +55,137 @@ from tools.evidence_qualification.qualification import (
 
 def encoded(value: object) -> bytes:
     return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
+
+
+STAGE_A_REGISTERED_SCHEMA_BYTES = b"""{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.science/schemas/lean-correspondence-review-response.v1.json",
+  "title": "Lean Correspondence review response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "assignment_id",
+    "relation_validation",
+    "change_classification",
+    "impact_closure",
+    "authority_scientific_inference",
+    "uncertainty"
+  ],
+  "properties": {
+    "schema": {
+      "const": "lean-correspondence.review-response.v1"
+    },
+    "assignment_id": {
+      "type": "string",
+      "pattern": "^lc-[a-z0-9-]+$"
+    },
+    "relation_validation": {
+      "enum": [
+        "valid",
+        "invalid",
+        "cannot_determine"
+      ]
+    },
+    "change_classification": {
+      "enum": [
+        "semantic_change",
+        "environment_drift",
+        "both",
+        "neither",
+        "unprovable"
+      ]
+    },
+    "impact_closure": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "item_id",
+          "disposition",
+          "evidence_ids"
+        ],
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "disposition": {
+            "enum": [
+              "recheck",
+              "invalidate_relation",
+              "remains_valid",
+              "blocked_unprovable"
+            ]
+          },
+          "evidence_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "authority_scientific_inference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository_authority_effect",
+        "scientific_status"
+      ],
+      "properties": {
+        "repository_authority_effect": {
+          "enum": [
+            "none",
+            "repository_local_decision_evidenced",
+            "unprovable"
+          ]
+        },
+        "scientific_status": {
+          "enum": [
+            "not_established",
+            "bounded_source_claim_only",
+            "unprovable"
+          ]
+        }
+      }
+    },
+    "uncertainty": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}
+"""
+
+STAGE_A_VALID_RESPONSE = {
+    "schema": "lean-correspondence.review-response.v1",
+    "assignment_id": "lc-a-01-fc0bf9967908",
+    "relation_validation": "valid",
+    "change_classification": "neither",
+    "impact_closure": [
+        {
+            "item_id": "downstream-item-1",
+            "disposition": "recheck",
+            "evidence_ids": ["evidence-1"],
+        }
+    ],
+    "authority_scientific_inference": {
+        "repository_authority_effect": "none",
+        "scientific_status": "not_established",
+    },
+    "uncertainty": ["bounded fixture only"],
+}
 
 
 class BundleFixture:
@@ -838,15 +971,23 @@ def upgrade_to_tool_bundle(fixture: BundleFixture, adapter: str) -> None:
     root = fixture.root
     config = fixture.load("qualification.json")
     schema_config = config["schemas"]
+    registered_schema_sha256 = digest((root / "schemas/registered.json").read_bytes())
     schema_config["deletions"] = [
         {"pointer": pointer, "keyword": keyword, "expected_value": expected}
-        for pointer, keyword, expected in PROVIDER_SCHEMA_RULES[adapter]
+        for pointer, keyword, expected in PROVIDER_SCHEMA_RULES[
+            registered_schema_sha256
+        ][adapter]
     ]
     schema_config["provider_adapter"] = adapter
     schema_config.pop("deleted_pointers")
     fixture.write_json(
         "schemas/provider.json",
-        provider_derivative(fixture.registered, schema_config["deletions"], adapter),
+        provider_derivative(
+            fixture.registered,
+            schema_config["deletions"],
+            adapter,
+            registered_schema_sha256,
+        ),
     )
     boundary_value = tool_boundary(root, adapter)
     fixture.write_json("config/tool-boundary.json", boundary_value)
@@ -891,6 +1032,7 @@ def upgrade_to_tool_bundle(fixture: BundleFixture, adapter: str) -> None:
     ):
         permit = fixture.load(relative)
         permit["configuration_root"] = configuration_root
+        permit["registered_schema_bytes"] = registered_schema_sha256
         permit["provider_schema_bytes"] = digest(
             (root / "schemas/provider.json").read_bytes()
         )
@@ -1011,8 +1153,17 @@ def upgrade_to_tool_bundle(fixture: BundleFixture, adapter: str) -> None:
             "provider_stderr_bytes": digest(stderr.read_bytes()),
             "raw_response_bytes": digest(response.read_bytes()),
             "teardown_receipt_bytes": digest(teardown_path.read_bytes()),
+            "registered_schema_bytes": registered_schema_sha256,
             "provider_schema_bytes": digest(
                 (root / "schemas/provider.json").read_bytes()
+            ),
+            "canonical_response_root": canonical_root(
+                normalize_closed_set(
+                    fixture.response,
+                    schema_config["closed_set"]["field"],
+                    schema_config["closed_set"]["key"],
+                    schema_config["closed_set"]["expected"],
+                )
             ),
             "configuration_root": configuration_root,
             "raw_provider_events_bytes": digest(raw_path.read_bytes()),
@@ -1094,6 +1245,140 @@ def upgrade_to_tool_bundle(fixture: BundleFixture, adapter: str) -> None:
     fixture.write_json("fixture/capture-manifest.json", capture)
 
 
+def upgrade_to_stage_a_tool_bundle(fixture: BundleFixture, adapter: str) -> None:
+    fixture.registered = parse_json(
+        STAGE_A_REGISTERED_SCHEMA_BYTES, "stage_a_registered_schema"
+    )
+    fixture.response = deepcopy(STAGE_A_VALID_RESPONSE)
+    fixture.write(
+        "schemas/registered.json",
+        STAGE_A_REGISTERED_SCHEMA_BYTES,
+    )
+    fixture.write_json("schemas/valid-response.json", fixture.response)
+    configuration = fixture.load("qualification.json")
+    configuration["schemas"]["closed_set"] = {
+        "field": "impact_closure",
+        "key": "item_id",
+        "expected": ["downstream-item-1"],
+    }
+    fixture.write_json("qualification.json", configuration)
+    response_path = fixture.write_json(
+        "fixture/evidence/response.raw.json", fixture.response
+    )
+    snapshot = fixture.load("fixture/scoring-snapshot.json")
+    snapshot_body = {
+        key: value for key, value in snapshot.items() if key != "snapshot_root"
+    }
+    for entry in snapshot_body["entries"]:
+        if entry["path"] == "fixture/evidence/response.raw.json":
+            entry["bytes"] = response_path.stat().st_size
+            entry["sha256"] = digest(response_path.read_bytes())
+    snapshot_body["entries"].sort(key=lambda entry: entry["path"])
+    snapshot_body["snapshot_root"] = canonical_root(snapshot_body)
+    fixture.write_json("fixture/scoring-snapshot.json", snapshot_body)
+    upgrade_to_tool_bundle(fixture, adapter)
+
+
+def replace_stage_a_tool_schema_with_legacy_fallback(fixture: BundleFixture) -> None:
+    root = fixture.root
+    configuration = fixture.load("qualification.json")
+    adapter = configuration["configuration"]["provider_adapter"]
+    schemas = configuration["schemas"]
+    schemas["deleted_pointers"] = ["/properties/impact_closure/uniqueItems"]
+    schemas.pop("deletions")
+    schemas.pop("provider_adapter")
+    fixture.write_json("qualification.json", configuration)
+    fixture.write_json(
+        "schemas/provider.json",
+        provider_derivative(fixture.registered, schemas["deleted_pointers"]),
+    )
+    provider_schema_sha256 = digest((root / "schemas/provider.json").read_bytes())
+    boundary_value = tool_boundary(root, adapter)
+    fixture.write_json("config/tool-boundary.json", boundary_value)
+    boundary = validate_tool_boundary(boundary_value)
+    configuration_root = canonical_root(
+        {
+            "configuration": configuration["configuration"],
+            "tool_boundary_root": boundary["tool_boundary_root"],
+        }
+    )
+    compatibility = fixture.load("config/compatibility.json")
+    compatibility["configuration_root"] = configuration_root
+    compatibility["tool_boundary_root"] = boundary["tool_boundary_root"]
+    fixture.write_json("config/compatibility.json", compatibility)
+    permit_paths = (
+        "permit/participant-run-01.permit.json",
+        "fixture/permit/neutral-qualification-01.permit.template.json",
+        "fixture/permit/neutral-qualification-01.permit.consumed.json",
+    )
+    for relative in permit_paths:
+        permit = fixture.load(relative)
+        permit["configuration_root"] = configuration_root
+        permit["provider_schema_bytes"] = provider_schema_sha256
+        fixture.write_json(relative, permit)
+    consumed = root / "fixture/permit/neutral-qualification-01.permit.consumed.json"
+    launch_path = root / "fixture/evidence/launch.json"
+    launch = fixture.load("fixture/evidence/launch.json")
+    launch["permit_bytes"] = digest(consumed.read_bytes())
+    launch["configuration_root"] = configuration_root
+    launch["tool_boundary_root"] = boundary["tool_boundary_root"]
+    fixture.write_json("fixture/evidence/launch.json", launch)
+    teardown_path = root / "fixture/evidence/teardown.json"
+    teardown = fixture.load("fixture/evidence/teardown.json")
+    teardown["permit_bytes"] = digest(consumed.read_bytes())
+    teardown["launch_bytes"] = digest(launch_path.read_bytes())
+    teardown["tool_boundary_root"] = boundary["tool_boundary_root"]
+    fixture.write_json("fixture/evidence/teardown.json", teardown)
+    terminal_path = root / "fixture/evidence/terminal-receipt.json"
+    terminal = fixture.load("fixture/evidence/terminal-receipt.json")
+    terminal["permit_bytes"] = digest(consumed.read_bytes())
+    terminal["launch_bytes"] = digest(launch_path.read_bytes())
+    terminal["teardown_receipt_bytes"] = digest(teardown_path.read_bytes())
+    terminal["provider_schema_bytes"] = provider_schema_sha256
+    terminal["configuration_root"] = configuration_root
+    terminal["tool_boundary_root"] = boundary["tool_boundary_root"]
+    fixture.write_json("fixture/evidence/terminal-receipt.json", terminal)
+    equivalence = fixture.load("fixture/provider-equivalence.json")
+    current = [
+        item for item in equivalence["providers"] if item["provider_adapter"] == adapter
+    ]
+    assert len(current) == 1
+    current[0]["provider_schema_bytes"] = provider_schema_sha256
+    for item in equivalence["providers"]:
+        item["tool_boundary_root"] = validate_tool_boundary(
+            tool_boundary(root, item["provider_adapter"])
+        )["tool_boundary_root"]
+    fixture.write_json("fixture/provider-equivalence.json", equivalence)
+    evidence_paths = [
+        consumed,
+        launch_path,
+        root / "fixture/evidence/provider-events.jsonl",
+        root / "fixture/evidence/provider-stderr.txt",
+        root / "fixture/evidence/response.raw.json",
+        terminal_path,
+        teardown_path,
+        root / "fixture/evidence/provider-events.raw.jsonl",
+        root / "fixture/evidence/tool-receipts.json",
+        root / "fixture/evidence/tool.stdout",
+        root / "fixture/evidence/tool.stderr",
+    ]
+    entries = [
+        {
+            "path": path.relative_to(root / "fixture").as_posix(),
+            "bytes": path.stat().st_size,
+            "sha256": digest(path.read_bytes()),
+        }
+        for path in evidence_paths
+    ]
+    entries.sort(key=lambda item: item["path"])
+    capture = {
+        "schema": "vela.tooling.neutral-capture-manifest.v1",
+        "entries": entries,
+    }
+    capture["capture_root"] = canonical_root(capture)
+    fixture.write_json("fixture/capture-manifest.json", capture)
+
+
 class EvidenceQualificationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
@@ -1117,7 +1402,7 @@ class EvidenceQualificationTests(unittest.TestCase):
         self.assertEqual(receipt["participant_permits_consumed"], 0)
         self.assertTrue(all(receipt["gates"].values()))
 
-    def test_closed_provider_schema_rules_cover_exact_stage_a_keyword_surfaces(
+    def test_closed_provider_schema_rules_cover_exact_neutral_surfaces(
         self,
     ) -> None:
         for adapter in PROVIDER_ADAPTERS:
@@ -1128,16 +1413,262 @@ class EvidenceQualificationTests(unittest.TestCase):
                         "keyword": keyword,
                         "expected_value": expected,
                     }
-                    for pointer, keyword, expected in PROVIDER_SCHEMA_RULES[adapter]
+                    for pointer, keyword, expected in PROVIDER_SCHEMA_RULES[
+                        NEUTRAL_REGISTERED_SCHEMA_SHA256
+                    ][adapter]
                 ]
-                provider = provider_derivative(self.fixture.registered, rules, adapter)
+                provider = provider_derivative(
+                    self.fixture.registered,
+                    rules,
+                    adapter,
+                    NEUTRAL_REGISTERED_SCHEMA_SHA256,
+                )
                 validate_schema_boundary(
                     self.fixture.registered,
                     provider,
                     rules,
                     self.fixture.response,
                     adapter,
+                    NEUTRAL_REGISTERED_SCHEMA_SHA256,
                 )
+
+    def test_frozen_stage_a_schema_derives_for_both_adapters_and_validates_locally(
+        self,
+    ) -> None:
+        self.assertEqual(
+            digest(STAGE_A_REGISTERED_SCHEMA_BYTES),
+            STAGE_A_REGISTERED_SCHEMA_SHA256,
+        )
+        registered = parse_json(
+            STAGE_A_REGISTERED_SCHEMA_BYTES, "stage_a_registered_schema"
+        )
+        for adapter in PROVIDER_ADAPTERS:
+            with self.subTest(adapter=adapter):
+                rules = [
+                    {
+                        "pointer": pointer,
+                        "keyword": keyword,
+                        "expected_value": expected,
+                    }
+                    for pointer, keyword, expected in PROVIDER_SCHEMA_RULES[
+                        STAGE_A_REGISTERED_SCHEMA_SHA256
+                    ][adapter]
+                ]
+                provider = provider_derivative(
+                    registered,
+                    rules,
+                    adapter,
+                    STAGE_A_REGISTERED_SCHEMA_SHA256,
+                )
+                validate_schema_boundary(
+                    registered,
+                    provider,
+                    rules,
+                    STAGE_A_VALID_RESPONSE,
+                    adapter,
+                    STAGE_A_REGISTERED_SCHEMA_SHA256,
+                )
+                properties = provider["properties"]
+                self.assertEqual(
+                    properties["assignment_id"]["pattern"], "^lc-[a-z0-9-]+$"
+                )
+                impact_properties = properties["impact_closure"]["items"]["properties"]
+                self.assertEqual(impact_properties["item_id"]["minLength"], 1)
+                self.assertEqual(
+                    impact_properties["evidence_ids"]["items"]["minLength"], 1
+                )
+                self.assertEqual(properties["uncertainty"]["items"]["minLength"], 1)
+                normalized = normalize_closed_set(
+                    STAGE_A_VALID_RESPONSE,
+                    "impact_closure",
+                    "item_id",
+                    ["downstream-item-1"],
+                )
+                self.assertEqual(
+                    normalized["impact_closure"][0]["item_id"],
+                    "downstream-item-1",
+                )
+                invalid_assignment = deepcopy(STAGE_A_VALID_RESPONSE)
+                invalid_assignment["assignment_id"] = "INVALID"
+                with self.assertRaisesRegex(
+                    QualificationError, "response_full_schema_invalid"
+                ):
+                    validate_schema_boundary(
+                        registered,
+                        provider,
+                        rules,
+                        invalid_assignment,
+                        adapter,
+                        STAGE_A_REGISTERED_SCHEMA_SHA256,
+                    )
+                empty_evidence = deepcopy(STAGE_A_VALID_RESPONSE)
+                empty_evidence["impact_closure"][0]["evidence_ids"] = []
+                with self.assertRaisesRegex(
+                    QualificationError, "response_full_schema_invalid"
+                ):
+                    validate_schema_boundary(
+                        registered,
+                        provider,
+                        rules,
+                        empty_evidence,
+                        adapter,
+                        STAGE_A_REGISTERED_SCHEMA_SHA256,
+                    )
+
+    def test_stage_a_registry_rejects_path_value_order_count_adapter_hash_and_extra_deletion(
+        self,
+    ) -> None:
+        registered = parse_json(
+            STAGE_A_REGISTERED_SCHEMA_BYTES, "stage_a_registered_schema"
+        )
+        adapter = "openai-responses-v1"
+        rules = [
+            {"pointer": pointer, "keyword": keyword, "expected_value": expected}
+            for pointer, keyword, expected in PROVIDER_SCHEMA_RULES[
+                STAGE_A_REGISTERED_SCHEMA_SHA256
+            ][adapter]
+        ]
+        wrong_path = deepcopy(rules)
+        wrong_path[1]["pointer"] = (
+            "/properties/impact_closure/items/properties/item_id/minLength"
+        )
+        wrong_path[1]["keyword"] = "minLength"
+        wrong_value = deepcopy(rules)
+        wrong_value[1]["expected_value"] = 2
+        extra_deletion = rules + [
+            {
+                "pointer": "/properties/assignment_id/pattern",
+                "keyword": "pattern",
+                "expected_value": "^lc-[a-z0-9-]+$",
+            }
+        ]
+        for candidate in (
+            wrong_path,
+            wrong_value,
+            list(reversed(rules)),
+            rules[:-1],
+            rules + [rules[0]],
+            extra_deletion,
+        ):
+            with (
+                self.subTest(candidate=candidate),
+                self.assertRaises(QualificationError),
+            ):
+                provider_derivative(
+                    registered,
+                    candidate,
+                    adapter,
+                    STAGE_A_REGISTERED_SCHEMA_SHA256,
+                )
+        with self.assertRaisesRegex(QualificationError, "provider_adapter_unknown"):
+            provider_derivative(
+                registered,
+                rules,
+                "openai-responses-v2",
+                STAGE_A_REGISTERED_SCHEMA_SHA256,
+            )
+        with self.assertRaisesRegex(
+            QualificationError, "provider_deletion_rule_not_registered"
+        ):
+            provider_derivative(
+                registered,
+                rules,
+                adapter,
+                NEUTRAL_REGISTERED_SCHEMA_SHA256,
+            )
+
+    def test_stage_a_tool_bundle_receipts_are_deterministic_for_both_adapters(
+        self,
+    ) -> None:
+        for adapter in PROVIDER_ADAPTERS:
+            with (
+                self.subTest(adapter=adapter),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                fixture = BundleFixture(Path(directory).resolve())
+                upgrade_to_stage_a_tool_bundle(fixture, adapter)
+                first = qualify_bundle(fixture.root)
+                second = qualify_bundle(fixture.root)
+                self.assertEqual(
+                    canonical_json_bytes(first), canonical_json_bytes(second)
+                )
+                self.assertEqual(
+                    first["registered_schema_bytes"], STAGE_A_REGISTERED_SCHEMA_SHA256
+                )
+                self.assertEqual(first["provider_adapter"], adapter)
+                self.assertEqual(first["provider_calls"], 0)
+
+    def test_stage_a_tool_bundle_rejects_fully_rebound_legacy_fallback(self) -> None:
+        for adapter in PROVIDER_ADAPTERS:
+            with (
+                self.subTest(adapter=adapter),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                fixture = BundleFixture(Path(directory).resolve())
+                upgrade_to_stage_a_tool_bundle(fixture, adapter)
+                replace_stage_a_tool_schema_with_legacy_fallback(fixture)
+                with self.assertRaisesRegex(
+                    QualificationError, "provider_legacy_schema_binding_invalid"
+                ):
+                    qualify_bundle(fixture.root)
+
+    def test_legacy_schema_requires_exact_neutral_hash_and_exact_fields(self) -> None:
+        mutated_registered = b" " + (self.root / "schemas/registered.json").read_bytes()
+        self.fixture.write("schemas/registered.json", mutated_registered)
+        mutated_registered_sha256 = digest(mutated_registered)
+        self.assertNotEqual(mutated_registered_sha256, NEUTRAL_REGISTERED_SCHEMA_SHA256)
+        for relative in (
+            "permit/participant-run-01.permit.json",
+            "fixture/permit/neutral-qualification-01.permit.template.json",
+            "fixture/permit/neutral-qualification-01.permit.consumed.json",
+        ):
+            permit = self.fixture.load(relative)
+            permit["registered_schema_bytes"] = mutated_registered_sha256
+            self.fixture.write_json(relative, permit)
+        consumed = (
+            self.root / "fixture/permit/neutral-qualification-01.permit.consumed.json"
+        )
+        launch = self.fixture.load("fixture/evidence/launch.json")
+        launch["permit_bytes"] = digest(consumed.read_bytes())
+        self.fixture.write_json("fixture/evidence/launch.json", launch)
+        teardown = self.fixture.load("fixture/evidence/teardown.json")
+        teardown["permit_bytes"] = digest(consumed.read_bytes())
+        teardown["launch_bytes"] = digest(
+            (self.root / "fixture/evidence/launch.json").read_bytes()
+        )
+        self.fixture.write_json("fixture/evidence/teardown.json", teardown)
+        terminal = self.fixture.load("fixture/evidence/terminal-receipt.json")
+        terminal["registered_schema_bytes"] = mutated_registered_sha256
+        terminal["permit_bytes"] = digest(consumed.read_bytes())
+        terminal["launch_bytes"] = digest(
+            (self.root / "fixture/evidence/launch.json").read_bytes()
+        )
+        terminal["teardown_receipt_bytes"] = digest(
+            (self.root / "fixture/evidence/teardown.json").read_bytes()
+        )
+        self.fixture.write_json("fixture/evidence/terminal-receipt.json", terminal)
+        self.fixture.refresh_capture_bindings()
+        self.assertBlocked("provider_legacy_schema_binding_invalid")
+
+        for mutation in (
+            lambda schemas: schemas.__setitem__(
+                "provider_adapter", "openai-responses-v1"
+            ),
+            lambda schemas: schemas.pop("deleted_pointers"),
+        ):
+            with tempfile.TemporaryDirectory() as directory:
+                fixture = BundleFixture(Path(directory).resolve())
+                config = fixture.load("qualification.json")
+                mutation(config["schemas"])
+                fixture.write_json("qualification.json", config)
+                with self.assertRaisesRegex(
+                    QualificationError, "schemas_fields_invalid"
+                ):
+                    qualify_bundle(fixture.root)
+
+    def test_tool_mode_rejects_modern_neutral_schema_hash(self) -> None:
+        upgrade_to_tool_bundle(self.fixture, "openai-responses-v1")
+        self.assertBlocked("provider_tool_schema_binding_invalid")
 
     def test_provider_schema_registry_rejects_pointer_value_provider_order_and_count_drift(
         self,
@@ -1145,7 +1676,9 @@ class EvidenceQualificationTests(unittest.TestCase):
         adapter = "openai-responses-v1"
         rules = [
             {"pointer": pointer, "keyword": keyword, "expected_value": expected}
-            for pointer, keyword, expected in PROVIDER_SCHEMA_RULES[adapter]
+            for pointer, keyword, expected in PROVIDER_SCHEMA_RULES[
+                NEUTRAL_REGISTERED_SCHEMA_SHA256
+            ][adapter]
         ]
         alternate_pointer = deepcopy(rules)
         alternate_pointer[1] = {
@@ -1165,9 +1698,19 @@ class EvidenceQualificationTests(unittest.TestCase):
                 self.subTest(candidate=candidate),
                 self.assertRaises(QualificationError),
             ):
-                provider_derivative(self.fixture.registered, candidate, adapter)
+                provider_derivative(
+                    self.fixture.registered,
+                    candidate,
+                    adapter,
+                    NEUTRAL_REGISTERED_SCHEMA_SHA256,
+                )
         with self.assertRaisesRegex(QualificationError, "provider_adapter_unknown"):
-            provider_derivative(self.fixture.registered, rules, "openai-responses-v2")
+            provider_derivative(
+                self.fixture.registered,
+                rules,
+                "openai-responses-v2",
+                NEUTRAL_REGISTERED_SCHEMA_SHA256,
+            )
 
     def test_provider_schema_rules_reject_unallowlisted_or_substituted_edits(
         self,
@@ -1188,21 +1731,26 @@ class EvidenceQualificationTests(unittest.TestCase):
                     }
                 ],
                 "openai-responses-v1",
+                NEUTRAL_REGISTERED_SCHEMA_SHA256,
             )
         with self.assertRaisesRegex(QualificationError, "not_registered"):
             provider_derivative(
                 self.fixture.registered,
                 [{**rule, "expected_value": False}],
                 "openai-responses-v1",
+                NEUTRAL_REGISTERED_SCHEMA_SHA256,
             )
         rules = [
             {"pointer": pointer, "keyword": keyword, "expected_value": expected}
             for pointer, keyword, expected in PROVIDER_SCHEMA_RULES[
-                "openai-responses-v1"
-            ]
+                NEUTRAL_REGISTERED_SCHEMA_SHA256
+            ]["openai-responses-v1"]
         ]
         derived = provider_derivative(
-            self.fixture.registered, rules, "openai-responses-v1"
+            self.fixture.registered,
+            rules,
+            "openai-responses-v1",
+            NEUTRAL_REGISTERED_SCHEMA_SHA256,
         )
         derived["properties"]["items"].pop("maxItems")
         with self.assertRaisesRegex(QualificationError, "not_exact_derivative"):
@@ -1212,6 +1760,7 @@ class EvidenceQualificationTests(unittest.TestCase):
                 rules,
                 self.fixture.response,
                 "openai-responses-v1",
+                NEUTRAL_REGISTERED_SCHEMA_SHA256,
             )
 
     def test_both_provider_tool_boundaries_are_valid_and_semantically_equal(
@@ -1240,7 +1789,7 @@ class EvidenceQualificationTests(unittest.TestCase):
                 tempfile.TemporaryDirectory() as directory,
             ):
                 fixture = BundleFixture(Path(directory).resolve())
-                upgrade_to_tool_bundle(fixture, adapter)
+                upgrade_to_stage_a_tool_bundle(fixture, adapter)
                 first = qualify_bundle(fixture.root)
                 second = qualify_bundle(fixture.root)
                 self.assertEqual(

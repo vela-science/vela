@@ -43,18 +43,56 @@ PROVIDER_ADAPTERS = {
     "openai-responses-v1": ("openai", "responses/v1"),
     "anthropic-messages-v1": ("anthropic", "messages/v1"),
 }
-# The current Stage A response schema has exactly these provider-incompatible
-# surfaces.  Adapter derivation is a versioned, closed ordered transformation,
-# not permission to delete a keyword with the same spelling elsewhere.
+# Provider derivation is selected by the exact registered-schema bytes and
+# adapter. Each entry is a closed ordered transformation, not permission to
+# delete a keyword with the same spelling elsewhere.
+NEUTRAL_REGISTERED_SCHEMA_SHA256 = (
+    "sha256:d25a5b53c3e715806b38b7d63511ce5ac118137b5a42a3a3e2a81792218082ad"
+)
+STAGE_A_REGISTERED_SCHEMA_SHA256 = (
+    "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268"
+)
 PROVIDER_SCHEMA_RULES = {
-    "openai-responses-v1": (
-        ("/properties/items/uniqueItems", "uniqueItems", True),
-        ("/properties/items/minItems", "minItems", 3),
-    ),
-    "anthropic-messages-v1": (
-        ("/properties/items/uniqueItems", "uniqueItems", True),
-        ("/properties/items/minItems", "minItems", 3),
-    ),
+    NEUTRAL_REGISTERED_SCHEMA_SHA256: {
+        "openai-responses-v1": (
+            ("/properties/items/uniqueItems", "uniqueItems", True),
+            ("/properties/items/minItems", "minItems", 3),
+        ),
+        "anthropic-messages-v1": (
+            ("/properties/items/uniqueItems", "uniqueItems", True),
+            ("/properties/items/minItems", "minItems", 3),
+        ),
+    },
+    STAGE_A_REGISTERED_SCHEMA_SHA256: {
+        "openai-responses-v1": (
+            ("/properties/impact_closure/uniqueItems", "uniqueItems", True),
+            (
+                "/properties/impact_closure/items/properties/evidence_ids/minItems",
+                "minItems",
+                1,
+            ),
+            (
+                "/properties/impact_closure/items/properties/evidence_ids/uniqueItems",
+                "uniqueItems",
+                True,
+            ),
+            ("/properties/uncertainty/uniqueItems", "uniqueItems", True),
+        ),
+        "anthropic-messages-v1": (
+            ("/properties/impact_closure/uniqueItems", "uniqueItems", True),
+            (
+                "/properties/impact_closure/items/properties/evidence_ids/minItems",
+                "minItems",
+                1,
+            ),
+            (
+                "/properties/impact_closure/items/properties/evidence_ids/uniqueItems",
+                "uniqueItems",
+                True,
+            ),
+            ("/properties/uncertainty/uniqueItems", "uniqueItems", True),
+        ),
+    },
 }
 TOOL_BOUNDARY_SCHEMA = "vela.tooling.read-only-offline-tool-boundary.v1"
 TOOL_RECEIPT_SCHEMA = "vela.tooling.read-only-tool-receipt.v1"
@@ -390,7 +428,9 @@ def _same_json_value(left: Any, right: Any) -> bool:
     return type(left) is type(right) and left == right
 
 
-def _deletion_rule(rule: Any, adapter: str | None) -> tuple[str, str, Any]:
+def _deletion_rule(
+    rule: Any, adapter: str | None, registered_schema_sha256: str | None
+) -> tuple[str, str, Any]:
     if isinstance(rule, str):
         if adapter is not None:
             raise QualificationError("provider_legacy_deletion_forbidden")
@@ -399,8 +439,11 @@ def _deletion_rule(rule: Any, adapter: str | None) -> tuple[str, str, Any]:
             raise QualificationError("provider_deleted_keyword_not_proven")
         return rule, parent_keyword, LEGACY_PROVIDER_DELETIONS[parent_keyword]
     exact_keys(rule, {"pointer", "keyword", "expected_value"}, "provider_deletion")
-    if adapter not in PROVIDER_SCHEMA_RULES:
+    if adapter not in PROVIDER_ADAPTERS:
         raise QualificationError("provider_adapter_unknown")
+    registry = PROVIDER_SCHEMA_RULES.get(registered_schema_sha256)
+    if registry is None or adapter not in registry:
+        raise QualificationError("provider_registered_schema_not_registered")
     pointer = rule["pointer"]
     keyword = rule["keyword"]
     expected = rule["expected_value"]
@@ -413,7 +456,7 @@ def _deletion_rule(rule: Any, adapter: str | None) -> tuple[str, str, Any]:
             and keyword == registered_keyword
             and _same_json_value(expected, registered_expected)
             for registered_pointer, registered_keyword, registered_expected in (
-                PROVIDER_SCHEMA_RULES[adapter]
+                registry[adapter]
             )
         )
     ):
@@ -421,8 +464,13 @@ def _deletion_rule(rule: Any, adapter: str | None) -> tuple[str, str, Any]:
     return pointer, keyword, expected
 
 
-def _delete_pointer(value: Any, rule: Any, adapter: str | None) -> None:
-    pointer, keyword, expected = _deletion_rule(rule, adapter)
+def _delete_pointer(
+    value: Any,
+    rule: Any,
+    adapter: str | None,
+    registered_schema_sha256: str | None,
+) -> None:
+    pointer, keyword, expected = _deletion_rule(rule, adapter, registered_schema_sha256)
     parent, observed_keyword = _pointer_parent(value, pointer)
     if observed_keyword != keyword or not _same_json_value(parent[keyword], expected):
         raise QualificationError("provider_deleted_expected_value_drift")
@@ -430,12 +478,19 @@ def _delete_pointer(value: Any, rule: Any, adapter: str | None) -> None:
 
 
 def provider_derivative(
-    registered: dict[str, Any], deletions: list[Any], adapter: str | None = None
+    registered: dict[str, Any],
+    deletions: list[Any],
+    adapter: str | None = None,
+    registered_schema_sha256: str | None = None,
 ) -> dict[str, Any]:
     if not isinstance(deletions, list) or (not deletions and adapter is None):
         raise QualificationError("provider_deleted_pointers_invalid")
-    identities = tuple(_deletion_rule(deletion, adapter) for deletion in deletions)
-    if adapter is not None and identities != PROVIDER_SCHEMA_RULES[adapter]:
+    identities = tuple(
+        _deletion_rule(deletion, adapter, registered_schema_sha256)
+        for deletion in deletions
+    )
+    registry = PROVIDER_SCHEMA_RULES.get(registered_schema_sha256, {})
+    if adapter is not None and identities != registry.get(adapter):
         raise QualificationError("provider_deletion_sequence_not_registered")
     if len({canonical_json_bytes(identity) for identity in identities}) != len(
         identities
@@ -443,7 +498,7 @@ def provider_derivative(
         raise QualificationError("provider_deleted_pointers_invalid")
     derived = parse_json(canonical_json_bytes(registered), "registered_schema_copy")
     for deletion in deletions:
-        _delete_pointer(derived, deletion, adapter)
+        _delete_pointer(derived, deletion, adapter, registered_schema_sha256)
     return derived
 
 
@@ -453,6 +508,7 @@ def validate_schema_boundary(
     deleted_pointers: Any,
     response: Any,
     adapter: str | None = None,
+    registered_schema_sha256: str | None = None,
 ) -> None:
     if not isinstance(registered, dict) or not isinstance(provider, dict):
         raise QualificationError("response_schema_not_object")
@@ -464,7 +520,7 @@ def validate_schema_boundary(
     except Exception as error:
         raise QualificationError("response_schema_invalid") from error
     if not isinstance(deleted_pointers, list) or provider != provider_derivative(
-        registered, deleted_pointers, adapter
+        registered, deleted_pointers, adapter, registered_schema_sha256
     ):
         raise QualificationError("provider_schema_not_exact_derivative")
     errors = sorted(
@@ -2250,6 +2306,7 @@ def _validate_capture_fixture(
         schemas["deleted_pointers"],
         response,
         schemas["provider_adapter"],
+        schemas["registered_bytes"],
     )
     normalized = normalize_closed_set(
         response,
@@ -2618,12 +2675,32 @@ def _qualify_root(root: Path) -> dict[str, Any]:
     valid_response = parse_json(valid_raw, "valid_response")
     closed = schema_config["closed_set"]
     exact_keys(closed, {"field", "key", "expected"}, "closed_set")
+    registered_schema_sha256 = digest(registered_raw)
+    declared_tools = (
+        config["configuration"].get("tools")
+        if isinstance(config["configuration"], dict)
+        else None
+    )
+    declared_tool_mode = (
+        "no_tools" if declared_tools in {"none", "no_tools"} else declared_tools
+    )
+    if not modern_schema and (
+        declared_tool_mode != "no_tools"
+        or registered_schema_sha256 != NEUTRAL_REGISTERED_SCHEMA_SHA256
+    ):
+        raise QualificationError("provider_legacy_schema_binding_invalid")
+    if declared_tool_mode == "read_only_offline_shell_files" and (
+        not modern_schema
+        or registered_schema_sha256 != STAGE_A_REGISTERED_SCHEMA_SHA256
+    ):
+        raise QualificationError("provider_tool_schema_binding_invalid")
     validate_schema_boundary(
         registered,
         provider,
         schema_config["deletions" if modern_schema else "deleted_pointers"],
         valid_response,
         schema_config["provider_adapter"] if modern_schema else None,
+        registered_schema_sha256 if modern_schema else None,
     )
     canonical_valid = normalize_closed_set(
         valid_response, closed["field"], closed["key"], closed["expected"]
@@ -2637,7 +2714,7 @@ def _qualify_root(root: Path) -> dict[str, Any]:
         "provider_adapter": schema_config["provider_adapter"]
         if modern_schema
         else None,
-        "registered_bytes": digest(registered_raw),
+        "registered_bytes": registered_schema_sha256,
         "provider_bytes": digest(provider_raw),
         "closed_set_field": closed["field"],
         "closed_set_key": closed["key"],

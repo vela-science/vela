@@ -48,13 +48,25 @@ normalized event, and tool-receipt roots remain distinct and retained.
 
 Provider-facing schema derivation uses an ordered list of exact removal rules:
 each rule names one JSON Pointer, its terminal keyword, and the exact expected
-value. Each adapter has one checked-in ordered registry for the current Stage A
-schema: `/properties/items/uniqueItems = true`, followed by
-`/properties/items/minItems = 3`. Any alternate pointer, value, adapter,
-ordering, multiplicity, omission, or additional provider-schema edit fails
-closed. The registered Draft 2020-12 schema remains byte-exact and validates
-the final response locally. The legacy unique-items pointer list remains
-available only to the historical no-tool format.
+value. Registry selection binds both the adapter and the exact registered-schema
+bytes. The neutral fixture at
+`sha256:d25a5b53c3e715806b38b7d63511ce5ac118137b5a42a3a3e2a81792218082ad`
+retains its exact `items.uniqueItems`, then `items.minItems`, sequence. The
+frozen Stage A participant schema at
+`sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268`
+has a separate exact four-rule sequence: `impact_closure.uniqueItems`, nested
+`evidence_ids.minItems`, nested `evidence_ids.uniqueItems`, then
+`uncertainty.uniqueItems`. Its `assignment_id.pattern` and every `minLength`
+constraint remain in the provider derivative. Any alternate schema hash,
+pointer, value, adapter, ordering, multiplicity, omission, or additional edit
+fails closed. The full registered Draft 2020-12 schema remains byte-exact and
+authoritative for local response validation. The legacy unique-items pointer
+list remains available only when the tool mode is exactly `no_tools` and the
+registered schema bytes match the historical neutral hash above. Every
+`read_only_offline_shell_files` bundle must instead bind the frozen Stage A
+schema hash, one of the two exact provider adapters, and that adapter's complete
+ordered four-rule registry; the legacy shape and the neutral modern registry
+both fail closed in tool mode.
 
 The `shell/1` and `read_file/1` input schemas are checked-in canonical Draft
 2020-12 schemas bound by tool name, version, and schema root. The complete
