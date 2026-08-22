@@ -1,30 +1,35 @@
 {
-  "artifact_root": "sha256:485da3789f2a20a278868587e97d4d38b20c92b751a281776145e1458d2d9c9c",
+  "artifact_root": "sha256:5fa67640f76816a69e01e29e5a8a4055398ad3a2e1cd3114cea42ecadcb9ebfd",
   "entries": [
     {
-      "bytes": 2853,
+      "bytes": 3551,
       "path": "README.md",
-      "sha256": "sha256:594700d8be60c5e137d0f1fbf17c6768775240f45cc5c363a81fdcc57a05e212"
+      "sha256": "sha256:6381770989f8acaae58881760d677774b144a9375e0b6d58f7eae12da44fbe26"
     },
     {
-      "bytes": 9045,
+      "bytes": 2275,
+      "path": "generate.py",
+      "sha256": "sha256:85b4030a09d3f4b847332f537c024f7a45e9481ad9a661457563d73ed470cd79"
+    },
+    {
+      "bytes": 9905,
       "path": "registration.json",
-      "sha256": "sha256:d8bfe4762393af30d6f0632450f2b315ccd89707f0eb53cfcac6a62a9ce06a0a"
+      "sha256": "sha256:49113ef6caca8ff24ca88c568b4d99219e822fbdd2b58ad19efbb50b5492255d"
     },
     {
-      "bytes": 5322,
+      "bytes": 13189,
       "path": "test_verify.py",
-      "sha256": "sha256:7c2f51efe77efb35ebcd2acaea099e501cb991cb389b0f484bd0b8aaf80a0a76"
+      "sha256": "sha256:e96180abc5c5f4dcfa7f117309bba98cab046c704096f796cc07b8b23ad89ef7"
     },
     {
-      "bytes": 2178,
+      "bytes": 3106,
       "path": "tool-policy.json",
-      "sha256": "sha256:d13ff1ff61645e83e96ff48393bc2490547df276d2d6b056361e1b8e16be84a3"
+      "sha256": "sha256:9d0a4ec7886d43575541a1456657a95078a3e9744ac5e214fc0dec00de11d829"
     },
     {
-      "bytes": 14863,
+      "bytes": 19058,
       "path": "verify.py",
-      "sha256": "sha256:a5558382492bfd835733fc65dc117dc2037b89c26400f513eede53e9ad3a6b48"
+      "sha256": "sha256:7f02daf86e0d491596684ea9af3d3fd8c0b663f9b4bb1de9129c5ba51e474bc3"
     }
   ],
   "schema": "vela.lean-correspondence-stage-a-runtime-qualification-artifact-root.v1"

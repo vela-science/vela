@@ -11,6 +11,24 @@
   },
   "network": {
     "participant_tool_network": "none",
+    "redirects": "forbidden",
+    "runner_allowed_endpoints": [
+      {
+        "host": "api.openai.com",
+        "path": "/v1/responses",
+        "port": 443,
+        "provider_organization": "OpenAI",
+        "scheme": "https"
+      },
+      {
+        "host": "api.anthropic.com",
+        "path": "/v1/messages",
+        "port": 443,
+        "provider_organization": "Anthropic",
+        "scheme": "https"
+      }
+    ],
+    "runner_dns": "selected_provider_hostname_only",
     "runner_egress": "exact_selected_provider_endpoint_only",
     "server_hosted_tools": "forbidden"
   },
@@ -75,7 +93,18 @@
       "PATH=/runtime/bin"
     ],
     "executables_byte_bound_in_image": true,
+    "forbidden_capabilities": [
+      "filesystem_write",
+      "network_client",
+      "path_escape",
+      "shell_interpolation",
+      "symlink_escape"
+    ],
+    "invocation": "direct_execve_argv_no_shell_alias_function_builtin_or_path_search",
+    "network_tools": "curl_wget_nc_ssh_and_all_other_network_clients_absent",
+    "output_capture": "exact_stdout_stderr_exit_status_and_truncation_flag",
     "process_limit": 16,
-    "wall_seconds_per_call": 30
+    "wall_seconds_per_call": 30,
+    "working_directory": "/stage-a/assignment"
   }
 }

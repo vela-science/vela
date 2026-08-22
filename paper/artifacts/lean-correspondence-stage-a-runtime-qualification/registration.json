@@ -9,18 +9,18 @@
   "blockers": [
     {
       "id": "maintained_qualifier_tools_contract_incompatible",
-      "required": "tool-using cold runtime with exact tool-call event and usage custody",
-      "observed": "exact main qualifier requires configuration.tools=none, tool_call_count=0, and rejects tool event types"
+      "observed": "exact main qualifier requires configuration.tools=none, tool_call_count=0, and rejects tool event types",
+      "required": "tool-using cold runtime with exact tool-call event and usage custody"
     },
     {
       "id": "provider_schema_derivation_not_proved",
-      "required": "fail-closed exact derivative of the registered Stage A response schema for each provider",
-      "observed": "exact main qualifier permits deletion only of uniqueItems while the registered schema also uses pattern, minLength, and minItems whose provider support is not established by the frozen offline evidence"
+      "observed": "exact main qualifier permits deletion only of uniqueItems while the registered schema also uses pattern, minLength, and minItems whose provider support is not established by the frozen offline evidence",
+      "required": "fail-closed exact derivative of the registered Stage A response schema for each provider"
     },
     {
       "id": "platform_api_credentials_absent",
-      "required": "ephemeral OpenAI Platform API key and Anthropic Console API key, supplied only at an authorized execution boundary",
-      "observed": "consumer subscription OAuth sessions are present but OPENAI_API_KEY and ANTHROPIC_API_KEY are absent and are not interchangeable"
+      "observed": "consumer subscription OAuth sessions are present but OPENAI_API_KEY and ANTHROPIC_API_KEY are absent and are not interchangeable",
+      "required": "ephemeral OpenAI Platform API key and Anthropic Console API key, supplied only at an authorized execution boundary"
     }
   ],
   "calls": {
@@ -33,21 +33,25 @@
     {
       "accepted_credential_class": "openai_platform_api_key",
       "available_non_substitutable_class": "chatgpt_subscription_oauth",
+      "credential_reference_class": "environment_name_only_no_value",
       "environment_name": "OPENAI_API_KEY",
       "injection": "anonymous_inherited_descriptor_read_once_then_zeroed",
       "presence": "absent",
       "provider_organization": "OpenAI",
       "retained": false,
+      "subscription_oauth_admissible": false,
       "value_observed": false
     },
     {
       "accepted_credential_class": "anthropic_console_api_key",
       "available_non_substitutable_class": "claude_ai_max_subscription_oauth",
+      "credential_reference_class": "environment_name_only_no_value",
       "environment_name": "ANTHROPIC_API_KEY",
       "injection": "anonymous_inherited_descriptor_read_once_then_zeroed",
       "presence": "absent",
       "provider_organization": "Anthropic",
       "retained": false,
+      "subscription_oauth_admissible": false,
       "value_observed": false
     }
   ],
@@ -102,8 +106,8 @@
         "provider_cli": "none",
         "sdk": "none_raw_https"
       },
-      "configuration_root": "sha256:3240e20d4f7481942e73283d37871cf4e89f6012a93778e89acbb7e40a60b8d4",
-      "information_boundary_root": "sha256:498b8b583105807a701a480c6ebc93ca8b855f723c19d27a335271c5a79ffbdc",
+      "configuration_root": "sha256:5a8f097d3f97395e4361117d5c2c19b09bd33cc9149274545fb3107bebedbab1",
+      "information_boundary_root": "sha256:3e2881994186915d2c20c16e78ada3e3de7ee41324924758314c41e6971b84cc",
       "model": "gpt-5.6-sol",
       "model_snapshot_semantics": "canonical_pinned_model_id_not_gpt-5.6_alias",
       "parameters": {
@@ -121,7 +125,7 @@
       "provider_organization": "OpenAI",
       "slot_id": "configuration-a",
       "status": "selected_held_unqualified",
-      "tool_policy_sha256": "sha256:d13ff1ff61645e83e96ff48393bc2490547df276d2d6b056361e1b8e16be84a3"
+      "tool_policy_sha256": "sha256:9d0a4ec7886d43575541a1456657a95078a3e9744ac5e214fc0dec00de11d829"
     },
     {
       "api": {
@@ -132,8 +136,8 @@
         "provider_cli": "none",
         "sdk": "none_raw_https"
       },
-      "configuration_root": "sha256:da8bb5fdcac74bd0227814da814da0d310e2f5672d74dc865579adaafcb091b9",
-      "information_boundary_root": "sha256:498b8b583105807a701a480c6ebc93ca8b855f723c19d27a335271c5a79ffbdc",
+      "configuration_root": "sha256:70a2a97ce55ce146066ed849bb7564fc7e26930336f360da83c85c6143f220a4",
+      "information_boundary_root": "sha256:3e2881994186915d2c20c16e78ada3e3de7ee41324924758314c41e6971b84cc",
       "model": "claude-opus-5",
       "model_snapshot_semantics": "canonical_pinned_model_id_not_pre-4.6_alias",
       "parameters": {
@@ -148,7 +152,7 @@
       "provider_organization": "Anthropic",
       "slot_id": "configuration-b",
       "status": "selected_held_unqualified",
-      "tool_policy_sha256": "sha256:d13ff1ff61645e83e96ff48393bc2490547df276d2d6b056361e1b8e16be84a3"
+      "tool_policy_sha256": "sha256:9d0a4ec7886d43575541a1456657a95078a3e9744ac5e214fc0dec00de11d829"
     }
   ],
   "permits": {
@@ -165,28 +169,40 @@
       "uniqueItems=true"
     ],
     "provider_derivatives": [],
-    "unproved_keywords_present": [
-      "minItems",
-      "minLength",
-      "pattern"
-    ],
     "unique_items_pointers": [
       "/properties/impact_closure/uniqueItems",
       "/properties/impact_closure/items/properties/evidence_ids/uniqueItems",
       "/properties/uncertainty/uniqueItems"
+    ],
+    "unproved_keywords_present": [
+      "minItems",
+      "minLength",
+      "pattern"
     ]
   },
   "runtime_contract": {
     "capture": [
-      "exact_request_bytes",
-      "exact_provider_response_bytes_per_turn",
-      "normalized_provider_events_jsonl",
-      "tool_call_arguments_and_results",
-      "usage",
-      "stderr",
-      "terminal_receipt",
-      "teardown_receipt"
+      "raw_request_bytes_per_turn",
+      "raw_provider_event_bytes_in_arrival_order",
+      "raw_tool_call_argument_bytes_in_execution_order",
+      "raw_tool_result_bytes_in_execution_order",
+      "raw_provider_response_bytes_per_turn",
+      "raw_usage_bytes_per_turn",
+      "raw_stderr_bytes",
+      "raw_terminal_receipt_bytes",
+      "raw_teardown_receipt_bytes"
     ],
+    "capture_custody": {
+      "empty_capture_forbidden": true,
+      "every_capture_has_sha256": true,
+      "ordered_manifest_root_required": true,
+      "partial_and_failure_bytes_retained": true,
+      "request_precedes_provider_events": true,
+      "teardown_receipt_exactly_once_after_terminal_receipt": true,
+      "terminal_receipt_exactly_once_after_terminal_response": true,
+      "tool_call_precedes_matching_result": true,
+      "tool_result_precedes_next_provider_request": true
+    },
     "fresh_context": true,
     "fresh_process": true,
     "no_hidden_answer_access": true,

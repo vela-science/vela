@@ -24,6 +24,15 @@ runner requires those Platform API-key classes through ephemeral descriptor
 injection. Subscription credentials are not copied, mounted, persisted, baked,
 or treated as API keys.
 
+The verifier binds the complete provider configuration objects, runtime capture
+and lifecycle contract, credential classes, schema and qualifier references,
+Stage A and method bindings, and the full tool policy to immutable expected
+roots. Recomputing candidate-owned configuration, custody, or artifact roots
+after a weakening therefore remains blocked. The capture contract requires raw
+bytes and per-capture hashes for requests, provider events, tool calls and
+results, responses, usage, stderr, terminal receipt, and teardown receipt in
+their exact lifecycle order.
+
 Because the offline qualifier and schema gates fail, deterministic image builds,
 trust-store materialization, absolute assignment mounts, and the two distinct
 neutral-calibration permits are deliberately not fabricated. Their roots remain
@@ -39,6 +48,9 @@ Verify the frozen candidate without provider contact:
 
 ```bash
 uv run --project conformance --locked python \
+  paper/artifacts/lean-correspondence-stage-a-runtime-qualification/generate.py
+
+uv run --project conformance --locked python \
   paper/artifacts/lean-correspondence-stage-a-runtime-qualification/verify.py
 
 uv run --project conformance --locked python -m unittest discover \
@@ -50,4 +62,3 @@ Passing these checks establishes only that the held blocker is exact and that no
 unauthorized substitution or early permit exists. It is not runtime
 qualification, calibration authorization, pilot launch, a result, acceptance,
 Decision, Standing, release, or deployment.
-

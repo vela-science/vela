@@ -19,6 +19,64 @@ REGISTRATION = PACKAGE / "registration.json"
 TOOL_POLICY = PACKAGE / "tool-policy.json"
 ARTIFACT_ROOT = PACKAGE / "artifact-root.json"
 SHA256 = re.compile(r"sha256:[0-9a-f]{64}\Z")
+EXPECTED_REGISTRATION_ROOT = (
+    "sha256:ebd6cd512b3024de346c762b8dba188084f3d4c00e4dff22ae0edb61888548c4"
+)
+EXPECTED_TOOL_POLICY_ROOT = (
+    "sha256:9d0a4ec7886d43575541a1456657a95078a3e9744ac5e214fc0dec00de11d829"
+)
+EXPECTED_TOOL_POLICY_CONTRACT_ROOT = (
+    "sha256:c4d5ed3d33eed95eb035ff44834dc5efee80804f4030ffd9b39f96a81701d9fa"
+)
+EXPECTED_RUNTIME_CONTRACT_ROOT = (
+    "sha256:3aea7a8639bd5178d04150851b598647c701c514f9522bff1634c67b6b918c66"
+)
+EXPECTED_CREDENTIALS_ROOT = (
+    "sha256:6698c7f4f2e33d982f47385057dd7cfd8f660b1ce490847a3e7715bba62fb4ef"
+)
+EXPECTED_PROVIDER_SCHEMA_ROOT = (
+    "sha256:6aee0912bfb27a75b24d6478ab9d512da05a63425aeeba70f745af00475cc293"
+)
+EXPECTED_QUALIFIER_ROOT = (
+    "sha256:e9b22302825374cc94c9acefa4c604d8e8eb10803005cb6d146040639203edd1"
+)
+EXPECTED_STAGE_A_BINDING_ROOT = (
+    "sha256:0f737b38b1b05375053b4d5c65a8dbb14b231c52ba698709d8fcc4e58ec62110"
+)
+EXPECTED_METHOD_BINDING_ROOT = (
+    "sha256:3a32f3f45f6ec347729f19b17e3172a4f694bfe1b64cf96c3f510c089fc3a5f3"
+)
+EXPECTED_IMAGE_BOUNDARY_ROOT = (
+    "sha256:b6fda9afe69f316ee425a332db5b37cddd614dcf226ff1f2e9eeabf672dbe1dd"
+)
+EXPECTED_AUTHORIZATION_ROOT = (
+    "sha256:4678a00ea08babdbac8f2d342d68f55517aeb9402846257e6cf52b55b9e5732f"
+)
+EXPECTED_PERMITS_ROOT = (
+    "sha256:22a8f6e786f9aa41fabc3a3fe3a1f2d67c64a081cfbecb89c624d5eb52e25079"
+)
+EXPECTED_INFORMATION_BOUNDARY_ROOT = (
+    "sha256:3e2881994186915d2c20c16e78ada3e3de7ee41324924758314c41e6971b84cc"
+)
+EXPECTED_CONFIGURATION_ROOTS = {
+    "configuration-a": (
+        "sha256:5a8f097d3f97395e4361117d5c2c19b09bd33cc9149274545fb3107bebedbab1"
+    ),
+    "configuration-b": (
+        "sha256:70a2a97ce55ce146066ed849bb7564fc7e26930336f360da83c85c6143f220a4"
+    ),
+}
+EXPECTED_CAPTURE = [
+    "raw_request_bytes_per_turn",
+    "raw_provider_event_bytes_in_arrival_order",
+    "raw_tool_call_argument_bytes_in_execution_order",
+    "raw_tool_result_bytes_in_execution_order",
+    "raw_provider_response_bytes_per_turn",
+    "raw_usage_bytes_per_turn",
+    "raw_stderr_bytes",
+    "raw_terminal_receipt_bytes",
+    "raw_teardown_receipt_bytes",
+]
 
 
 class CandidateError(ValueError):
@@ -116,6 +174,7 @@ def validate_candidate(
     require(permits.get("pilot_permits_released") == 0, "early_pilot_release")
     require(permits.get("pilot_permits_consumed") == 0, "early_pilot_consume")
     require(permits.get("pilot_permits_touched") is False, "pilot_permits_touched")
+    require(canonical_root(permits) == EXPECTED_PERMITS_ROOT, "permit_contract_drift")
 
     runtime = registration.get("runtime_contract", {})
     for key in (
@@ -132,6 +191,13 @@ def validate_candidate(
     require(
         runtime.get("provider_specific_adapter_source_roots") == [],
         "unqualified_adapter_root",
+    )
+    require(
+        runtime.get("capture") == EXPECTED_CAPTURE, "runtime_capture_contract_drift"
+    )
+    require(
+        canonical_root(runtime) == EXPECTED_RUNTIME_CONTRACT_ROOT,
+        "runtime_contract_drift",
     )
 
     require(
@@ -160,8 +226,17 @@ def validate_candidate(
         is True,
         "mutable_shell_executable_boundary",
     )
+    require(
+        canonical_root(tool_policy) == EXPECTED_TOOL_POLICY_CONTRACT_ROOT,
+        "tool_policy_contract_drift",
+    )
     tool_root = digest(TOOL_POLICY.read_bytes()) if TOOL_POLICY.exists() else ""
+    require(tool_root == EXPECTED_TOOL_POLICY_ROOT, "tool_policy_bytes_drift")
     boundary_root = information_boundary_root(registration, tool_root)
+    require(
+        boundary_root == EXPECTED_INFORMATION_BOUNDARY_ROOT,
+        "information_boundary_contract_drift",
+    )
 
     configurations = registration.get("participant_configurations", [])
     require(len(configurations) == 2, "participant_configuration_count")
@@ -202,6 +277,10 @@ def validate_candidate(
         body = copy.deepcopy(configuration)
         observed_root = body.pop("configuration_root", None)
         require(observed_root == canonical_root(body), "configuration_root_drift")
+        require(
+            observed_root == EXPECTED_CONFIGURATION_ROOTS[slot],
+            "configuration_contract_drift",
+        )
     require(len(organizations) == 2, "same_provider_organization_substitution")
     require(
         configurations[0]["information_boundary_root"]
@@ -235,6 +314,10 @@ def validate_candidate(
         schema.get("exact_qualifier_allowed_deletions") == ["uniqueItems=true"],
         "qualifier_schema_allowlist_drift",
     )
+    require(
+        canonical_root(schema) == EXPECTED_PROVIDER_SCHEMA_ROOT,
+        "provider_schema_contract_drift",
+    )
 
     qualifier = registration.get("maintained_qualifier", {})
     require(qualifier.get("copied") is False, "qualifier_copy_forbidden")
@@ -251,6 +334,10 @@ def validate_candidate(
         and qualifier.get("sha256")
         == "sha256:628ac203a48ef19c649dd64dedc010d104d728eb0edbb66392e93955fab872b9",
         "qualifier_root_drift",
+    )
+    require(
+        canonical_root(qualifier) == EXPECTED_QUALIFIER_ROOT,
+        "maintained_qualifier_contract_drift",
     )
 
     credentials = registration.get("credentials", [])
@@ -272,6 +359,15 @@ def validate_candidate(
             == "anonymous_inherited_descriptor_read_once_then_zeroed",
             "credential_injection_boundary",
         )
+        require(
+            item.get("credential_reference_class") == "environment_name_only_no_value"
+            and item.get("subscription_oauth_admissible") is False,
+            "credential_admissibility_drift",
+        )
+    require(
+        canonical_root(credentials) == EXPECTED_CREDENTIALS_ROOT,
+        "credential_contract_drift",
+    )
 
     image = registration.get("image_boundary", {})
     require(
@@ -280,6 +376,10 @@ def validate_candidate(
         and image.get("absolute_read_only_mounts") == []
         and image.get("trust_bundle_root") is None,
         "missing_or_drifted_trust_runtime_image_roots_not_held",
+    )
+    require(
+        canonical_root(image) == EXPECTED_IMAGE_BOUNDARY_ROOT,
+        "image_boundary_contract_drift",
     )
 
     gates = registration.get("offline_gates", {})
@@ -295,6 +395,10 @@ def validate_candidate(
         is False
         and registration["authorization"].get("pilot_execution_authorized") is False,
         "early_authorization",
+    )
+    require(
+        canonical_root(registration["authorization"]) == EXPECTED_AUTHORIZATION_ROOT,
+        "authorization_contract_drift",
     )
 
     raw_artifact = b"".join(
@@ -338,6 +442,20 @@ def validate_candidate(
             digest(response_path.read_bytes()) == schema["authoritative_schema_sha256"],
             "registered_response_schema_drift",
         )
+
+    require(
+        canonical_root(registration["stage_a_binding"])
+        == EXPECTED_STAGE_A_BINDING_ROOT,
+        "stage_a_binding_contract_drift",
+    )
+    require(
+        canonical_root(registration["method_binding"]) == EXPECTED_METHOD_BINDING_ROOT,
+        "method_binding_contract_drift",
+    )
+    require(
+        canonical_root(registration) == EXPECTED_REGISTRATION_ROOT,
+        "registration_contract_drift",
+    )
 
     return {
         "schema": "vela.lean-correspondence-stage-a-runtime-qualification-verification.v1",
