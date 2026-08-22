@@ -23,6 +23,34 @@ def write_json(path: Path, value: Any) -> None:
     )
 
 
+def refresh_manifest(root: Path) -> None:
+    entries = []
+    for path in sorted(root.rglob("*")):
+        if (
+            not path.is_file()
+            or path.name == "artifact-manifest.json"
+            or "__pycache__" in path.parts
+        ):
+            continue
+        raw = path.read_bytes()
+        entries.append(
+            {
+                "path": path.relative_to(root).as_posix(),
+                "bytes": len(raw),
+                "sha256": VERIFY.raw_root(raw),
+            }
+        )
+    write_json(
+        root / "artifact-manifest.json",
+        {
+            "schema": "vela.lean-correspondence-stage-a-artifact-manifest.v1",
+            "entries": entries,
+            "artifact_root": VERIFY.generate.canonical_root(entries),
+            "authority_effect": "none",
+        },
+    )
+
+
 @contextmanager
 def mutated_root() -> Iterator[Path]:
     with tempfile.TemporaryDirectory(prefix="lc-stage-a-test-") as temporary:
@@ -37,6 +65,10 @@ def mutated_root() -> Iterator[Path]:
 
 
 class StageAPrelaunchTests(unittest.TestCase):
+    def assert_full_verification_blocked(self, code: str) -> None:
+        with self.assertRaisesRegex(VERIFY.VerificationError, code):
+            VERIFY.run(VELA, IMPLEMENTATION, CANDIDATES, check_lean=False)
+
     def test_current_artifact_passes_but_is_not_launch_ready(self) -> None:
         result = VERIFY.run(VELA, IMPLEMENTATION, CANDIDATES, check_lean=False)
         self.assertEqual(result["status"], "PASS")
@@ -162,6 +194,127 @@ class StageAPrelaunchTests(unittest.TestCase):
             schedule = json.loads((root / "assignment-schedule.json").read_text())
             with self.assertRaisesRegex(VERIFY.VerificationError, "permit_not_held"):
                 VERIFY.verify_registration_permits_state(schedule)
+
+    def test_outer_manifest_refresh_cannot_reduce_distinct_provider_requirement(
+        self,
+    ) -> None:
+        with mutated_root() as root:
+            runtime = json.loads((root / "runtime-binding.json").read_text())
+            runtime["required_distinct_provider_organizations"] = 1
+            write_json(root / "runtime-binding.json", runtime)
+            refresh_manifest(root)
+            self.assert_full_verification_blocked("runtime_distinct_provider_count")
+
+    def test_outer_manifest_refresh_cannot_remove_offline_tool_capability(self) -> None:
+        with mutated_root() as root:
+            runtime = json.loads((root / "runtime-binding.json").read_text())
+            runtime["required_capabilities"].remove(
+                "read_only_offline_shell_and_file_tools"
+            )
+            write_json(root / "runtime-binding.json", runtime)
+            refresh_manifest(root)
+            self.assert_full_verification_blocked("runtime_capabilities")
+
+    def test_outer_manifest_refresh_cannot_enable_participant_network(self) -> None:
+        with mutated_root() as root:
+            configurations = json.loads(
+                (root / "participant-configurations.json").read_text()
+            )
+            configurations["information_boundary"]["network_from_participant"] = True
+            write_json(root / "participant-configurations.json", configurations)
+            refresh_manifest(root)
+            self.assert_full_verification_blocked("configuration_information_boundary")
+
+    def test_outer_manifest_refresh_cannot_partially_bind_configuration(self) -> None:
+        with mutated_root() as root:
+            configurations = json.loads(
+                (root / "participant-configurations.json").read_text()
+            )
+            configurations["slots"][0]["provider_organization"] = "provider-a"
+            write_json(root / "participant-configurations.json", configurations)
+            runtime = json.loads((root / "runtime-binding.json").read_text())
+            runtime["configuration_slots"] = configurations["slots"]
+            write_json(root / "runtime-binding.json", runtime)
+            schedule = json.loads((root / "assignment-schedule.json").read_text())
+            slot_root = VERIFY.generate.canonical_root(configurations["slots"][0])
+            for row in schedule["rows"]:
+                if row["configuration_slot"] == "configuration-a":
+                    row["configuration_slot_root"] = slot_root
+            body = {
+                key: value
+                for key, value in schedule.items()
+                if key != "assignment_root"
+            }
+            schedule["assignment_root"] = VERIFY.generate.canonical_root(body)
+            write_json(root / "assignment-schedule.json", schedule)
+            refresh_manifest(root)
+            self.assert_full_verification_blocked("configuration_partial_binding")
+
+    def test_outer_manifest_refresh_cannot_inflate_erdos_730_claim(self) -> None:
+        with mutated_root() as root:
+            selection = json.loads((root / "case-selection.json").read_text())
+            selection["cases"][0]["claim_ceiling"] = (
+                "full theorem and scientific acceptance"
+            )
+            write_json(root / "case-selection.json", selection)
+            refresh_manifest(root)
+            self.assert_full_verification_blocked(
+                "claim_ceiling:erdos-730-affirmative-rhs"
+            )
+
+    def test_outer_manifest_refresh_cannot_hide_stale_registered_runtime_root(
+        self,
+    ) -> None:
+        with mutated_root() as root:
+            runtime = json.loads((root / "runtime-binding.json").read_text())
+            runtime["rejected_runtime_evidence"]["reason"] += " mutated"
+            write_json(root / "runtime-binding.json", runtime)
+            refresh_manifest(root)
+            self.assert_full_verification_blocked("registration_runtime_binding_root")
+
+    def test_outer_manifest_refresh_cannot_cross_bind_configuration_slot(self) -> None:
+        with mutated_root() as root:
+            schedule = json.loads((root / "assignment-schedule.json").read_text())
+            schedule["rows"][0]["configuration_slot_root"] = schedule["rows"][1][
+                "configuration_slot_root"
+            ]
+            body = {
+                key: value
+                for key, value in schedule.items()
+                if key != "assignment_root"
+            }
+            schedule["assignment_root"] = VERIFY.generate.canonical_root(body)
+            write_json(root / "assignment-schedule.json", schedule)
+            refresh_manifest(root)
+            self.assert_full_verification_blocked("assignment_configuration_root")
+
+    def test_outer_manifest_refresh_cannot_cross_bind_permit_packet(self) -> None:
+        with mutated_root() as root:
+            schedule = json.loads((root / "assignment-schedule.json").read_text())
+            permit = json.loads(
+                (
+                    root
+                    / "permits"
+                    / f"{schedule['rows'][0]['assignment_id']}.permit.json"
+                ).read_text()
+            )
+            permit["packet_root"] = schedule["rows"][1]["packet_root"]
+            write_json(
+                root
+                / "permits"
+                / f"{schedule['rows'][0]['assignment_id']}.permit.json",
+                permit,
+            )
+            refresh_manifest(root)
+            self.assert_full_verification_blocked("permit_packet_cross_binding")
+
+    def test_outer_manifest_refresh_cannot_hide_stale_custody_root(self) -> None:
+        with mutated_root() as root:
+            state = json.loads((root / "prelaunch-state.json").read_text())
+            state["custody_contract_root"] = "sha256:" + "0" * 64
+            write_json(root / "prelaunch-state.json", state)
+            refresh_manifest(root)
+            self.assert_full_verification_blocked("state_custody_contract_root")
 
 
 if __name__ == "__main__":

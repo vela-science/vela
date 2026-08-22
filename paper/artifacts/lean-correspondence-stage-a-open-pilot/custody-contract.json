@@ -12,7 +12,7 @@
   "protected_stage_b_key_created": false,
   "provider_calls": 0,
   "raw_response_preserved": true,
-  "registration_root": "sha256:6595e757dfda4261ee97d7842a8b32e078b70274b0415cf2638a351eb94e713f",
+  "registration_root": "sha256:e81364536f46675c623b8d6952561324e82b375511e53fa9e94f8256f23732ee",
   "required_terminal_files": [
     "consumed-permit.json",
     "launch.json",

@@ -1,11 +1,11 @@
 {
-  "artifact_root": "sha256:b0acaa526de98c94a5daa64769f93f1abb0a0a0cc0aea0f7b78a511a0b18334f",
+  "artifact_root": "sha256:744cd258bc661d7806146b8336578f3cb4c93e4d8cb9dfa15ba2362b0aaec2cd",
   "authority_effect": "none",
   "entries": [
     {
-      "bytes": 3936,
+      "bytes": 4692,
       "path": "README.md",
-      "sha256": "sha256:ff2c90ab0e74a16729fdd2d4578d0fb4f8e5a7ee4ab6162ebd7fb74db8f110f3"
+      "sha256": "sha256:e1da40b911b612ff0d5c3f04c46fc472187ac3749545f34f379da588febdc624"
     },
     {
       "bytes": 8166,
@@ -18,14 +18,14 @@
       "sha256": "sha256:211b871a67ddeae74f09ccddf603148cff5b68a7e2b0b70a9702d0d93383b736"
     },
     {
-      "bytes": 10221,
+      "bytes": 10493,
       "path": "case-selection.json",
-      "sha256": "sha256:ac25996835089bfc4d95944cf86f618f846c3702a856e70d39634f58b2b7f1a4"
+      "sha256": "sha256:fe57578532a02c93b811059a97b1ccd133ee291f27aa2d4865763005b80126b3"
     },
     {
       "bytes": 1876,
       "path": "custody-contract.json",
-      "sha256": "sha256:c1e875a0543b2cd41fcab15ac4733b4474485d61181d6f1c7b54d4f63aae1662"
+      "sha256": "sha256:e6b5851dfd5a97326074aa7effd3eeed4306971236cc45e1f905721ea31b1bf5"
     },
     {
       "bytes": 1462,
@@ -33,14 +33,14 @@
       "sha256": "sha256:dcf9414c491dfe9a437f967bca53067ebb4ff65907b462783e10d93ba136a867"
     },
     {
-      "bytes": 35457,
+      "bytes": 35844,
       "path": "generate.py",
-      "sha256": "sha256:b9dba6fdb6bdd432ac97cf3faccae24bfdbf2800b7285aad82acdca0e2797c9d"
+      "sha256": "sha256:28a3dc9f67b8cc9cc351a22228572e29a9dfe44d28a8bcc297509e21d78fa593"
     },
     {
       "bytes": 2722,
       "path": "hold-state.json",
-      "sha256": "sha256:e3e504ddaae202f151c1726eec7b2aaaa3e2e8a0fddf6c72fb40083bc97989ed"
+      "sha256": "sha256:c32e24efff784eb11e39b0cea21cd71204e195398dc74f9c44d3d920bfe0c7cf"
     },
     {
       "bytes": 2572,
@@ -170,67 +170,67 @@
     {
       "bytes": 886,
       "path": "permits/lc-a-01-fc0bf9967908.permit.json",
-      "sha256": "sha256:5b577f4668fb25c1568a86792110581a5c93f5349bb43102e341a45c209a4612"
+      "sha256": "sha256:84b4d1cbadd9688b3629f56fdc09e3255e80f4e1625712b88583066d18b122e1"
     },
     {
       "bytes": 886,
       "path": "permits/lc-a-02-9a7f3df519ce.permit.json",
-      "sha256": "sha256:7b31f12902e57db88e85fa2013e660423720a0ec611fd6ff2ddbb9b63f1c1457"
+      "sha256": "sha256:eef7bf3e654135102e2833fe063db78cb5f7d7998a393c5ffb306740b382b15a"
     },
     {
       "bytes": 886,
       "path": "permits/lc-a-03-8a1be64f7e1d.permit.json",
-      "sha256": "sha256:5a1339ecedd2390e362cf7407e77a263673875e6f58ee9c4e9cae1a480c40c1b"
+      "sha256": "sha256:45aaf53230f34c672a085004a9cb1ea02bbcc023863da43ca95c8c76420d580e"
     },
     {
       "bytes": 886,
       "path": "permits/lc-a-04-c5b30fe7508a.permit.json",
-      "sha256": "sha256:d64930d24a947cf562584bde602bafea1cf78f0f90bfc052ba9c3b88fd734c1a"
+      "sha256": "sha256:27ac4deeeac6b830b79b523647a604a2785cca9f4b9ba54b6f18919aa72f1435"
     },
     {
       "bytes": 886,
       "path": "permits/lc-a-05-33811bf4a8b5.permit.json",
-      "sha256": "sha256:460c4512fa1fa827ea25bec95c22cb9ed7322be2eca7abeddf0c668e91513164"
+      "sha256": "sha256:a8d57b0b9eca8c506566c86183792fe1666f19fa163634f533a7e155dfd0e5eb"
     },
     {
       "bytes": 886,
       "path": "permits/lc-a-06-08d458a94d1f.permit.json",
-      "sha256": "sha256:66da50fcb4dd7e152c7b7dbce63cbcc12bdf746de76c7cbeedd2b29d335eabf3"
+      "sha256": "sha256:2b86488cdfb62c49ae32cc6f27f5a7381387a4de8775277e927d88ef1c4d69c3"
     },
     {
       "bytes": 886,
       "path": "permits/lc-a-07-376a146ca138.permit.json",
-      "sha256": "sha256:3d7da3395cd3b8e99815ce2506d08df1b07ae1a9b61dfc687aaf28faee8c8a7e"
+      "sha256": "sha256:bc592f34c3dfce7f12dea16846b7ea57535c74fbf74b5aa6dc12c82bc5ae0c64"
     },
     {
       "bytes": 886,
       "path": "permits/lc-a-08-f948f6ada044.permit.json",
-      "sha256": "sha256:f47702ac74920f61278d26e45a922371429477ba6a594e65d120ae9dd275c081"
+      "sha256": "sha256:756eb6c972f03ac398365ae423a9fed5ad0c36a0c33d9fd82481d7574b5cc3c2"
     },
     {
       "bytes": 886,
       "path": "permits/lc-a-09-d068b7b99349.permit.json",
-      "sha256": "sha256:a48965494d068c91e47a22f35d25a14383027697ac8bad5135c9784b81965565"
+      "sha256": "sha256:659892761de0bd952a1e9112b71408ccc184ab1eab9ec835806d01c074798ae5"
     },
     {
       "bytes": 886,
       "path": "permits/lc-a-10-3abef0f4c151.permit.json",
-      "sha256": "sha256:bb6b80e228883cbf848be27b4d4772efa07f756044e28a76199399a7d921bedf"
+      "sha256": "sha256:9e47f37dc7403d4255ec7037a47821161578d2c9c977e760785792bb5b7f0f65"
     },
     {
       "bytes": 886,
       "path": "permits/lc-a-11-a2f10ee0acd2.permit.json",
-      "sha256": "sha256:01e63a375b1f8e47561a272908b3a11e8f4dbfd5fef35ab6118a8ad1f019b1e9"
+      "sha256": "sha256:bccfd074a35a233ac7853192a5438ce69003253070de92ae718f49ec7510dd9c"
     },
     {
       "bytes": 886,
       "path": "permits/lc-a-12-5860f79941fb.permit.json",
-      "sha256": "sha256:5fd156afbaed3c2adc95c1c6e1a84cac5a629d12e05a9773bb49ee934eb0fc20"
+      "sha256": "sha256:a31c882d57e7f99c2041eee46d8df2058a51375ad1f395af9ed9e6e1995ec307"
     },
     {
-      "bytes": 912,
+      "bytes": 1014,
       "path": "prelaunch-state.json",
-      "sha256": "sha256:362efbc211c5e452f4d0d9d50cc571e63451969984511b57d7bcfc4420c1d126"
+      "sha256": "sha256:cd22064ebe1f373c0b4f7b5dbf6d0b9708f3d865df55d789f99e77a9d8a0acd0"
     },
     {
       "bytes": 1694,
@@ -295,7 +295,7 @@
     {
       "bytes": 1772,
       "path": "registration.json",
-      "sha256": "sha256:dc084e273137b279313545b0cc4456fada0bcd0b5cc50aa42ccec671971e8659"
+      "sha256": "sha256:af1ecb667ac6f6002ecf62495e324c762562ccced6dd725ce563baba2e507801"
     },
     {
       "bytes": 2498,
@@ -303,19 +303,19 @@
       "sha256": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268"
     },
     {
-      "bytes": 1491,
+      "bytes": 1542,
       "path": "runtime-binding.json",
-      "sha256": "sha256:9a2111db12ecad8b3fc51b442722dd82e2cba7ca6119328394ebb5a7404d1cba"
+      "sha256": "sha256:6e4714b89b784dd0e637369b7494cc175ce7c5c3f39cdbf959964b9cdfbf973d"
     },
     {
-      "bytes": 7618,
+      "bytes": 14582,
       "path": "test_verify.py",
-      "sha256": "sha256:a4dcde846b84286dba038f5c75b2202c7a18fc9500e161f488e71c4b163cec71"
+      "sha256": "sha256:3186f038b3f3bf738658a37d903ed355c931c7a9a34a22ca3419ff6cfb530dde"
     },
     {
-      "bytes": 27380,
+      "bytes": 48465,
       "path": "verify.py",
-      "sha256": "sha256:7eb9998f140bbd5d61335372414ba656c181c589be9666c00e7d27df406e4d7c"
+      "sha256": "sha256:6bcec77ae6fd91d4e1231ef89e39af416d064b743e07c90a8b1a2cc6493c9338"
     }
   ],
   "schema": "vela.lean-correspondence-stage-a-artifact-manifest.v1"
