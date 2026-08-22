@@ -1,0 +1,8 @@
+{
+  "schema": "vela.inherited-correction-launch.v1",
+  "run_id": "neutral-schemafix-calibration-01",
+  "participant_instance_id": "neutral-schemafix-sol-01",
+  "condition": "neutral-calibration",
+  "permit_bytes": "sha256:67cf3e74b1f7bfe4abaee741bc872577899dad0bebdfaf1a8baa73ea3ef6b85c",
+  "consumed_at": "2026-08-22T00:55:14.542Z"
+}
