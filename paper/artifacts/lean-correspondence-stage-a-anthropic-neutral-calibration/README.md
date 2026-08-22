@@ -7,3 +7,17 @@ The raw controller receipt incorrectly hardcoded `provider_calls: 1`; it is reta
 The smallest prospective correction is a reviewed run-input materializer that inserts the exact mounted provider-schema bytes as a raw JSON value, followed by an offline runner input-validation and pre-request gate before permit consumption. The controller must also remove its hardcoded provider-call counter: a call may increment only from a successful endpoint-write/request-attempt receipt, with exact consistency required across controller, bridge, runner, and custody records. This evidence does not implement that successor and does not authorize a retry.
 
 All twelve participant permits and the OpenAI neutral permit remain held. There was no scoring, key disclosure, Stage B selection, Protocol/Core action, authority effect, Decision, or Standing.
+
+The artifact is closed to exactly the regular single-link files listed in `artifact-root.json`, plus the manifest itself, and to the four directories derived from those paths. Symlinks, hardlinks, special files, undeclared directories, Python caches, manifest omissions, and manifest additions fail verification. No transient path is allowed or silently ignored.
+
+Run verification and tests with bytecode disabled before any test module import:
+
+```bash
+uv run --project conformance --locked python -B \
+  paper/artifacts/lean-correspondence-stage-a-anthropic-neutral-calibration/verify.py
+uv run --project conformance --locked python -B -m unittest discover \
+  -s paper/artifacts/lean-correspondence-stage-a-anthropic-neutral-calibration \
+  -p 'test_*.py' -v
+```
+
+`seal.py` shares the verifier's exact file and directory inventory and sets `sys.dont_write_bytecode` before importing it. It refuses to reseal if any undeclared transient or other path exists.

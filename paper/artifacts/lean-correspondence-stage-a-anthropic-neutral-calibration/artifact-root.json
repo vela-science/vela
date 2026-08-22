@@ -1,10 +1,10 @@
 {
-  "artifact_root": "sha256:49b03a8ba5b6e2dfc56a8fdb2d981e3b56b50696bbe13cad4ead736d2ecc2c75",
+  "artifact_root": "sha256:b72c5d8c5bdf66e528524719773dfc37dda98b7b219c841349a9c6e4874abb1b",
   "files": [
     {
-      "bytes": 1509,
+      "bytes": 2471,
       "path": "README.md",
-      "sha256": "sha256:8331593ac841c84d56d6a4818a2a2d276d58541a7f71afd5edb172af09a3d684"
+      "sha256": "sha256:0f347947deb50ad78df205d697f930eec27455b5dca62fb4242754cd41641ddd"
     },
     {
       "bytes": 631,
@@ -17,9 +17,9 @@
       "sha256": "sha256:f1af5c6efe75c8cdd0d53f9960aeb39714945fed8c7c76f6e6077612c222c45f"
     },
     {
-      "bytes": 12507,
+      "bytes": 13342,
       "path": "execution-sources/controller.py",
-      "sha256": "sha256:a453479b6f2db5c0fa382d504a969ca0736e6ca7db7316c36f29237e2f35421e"
+      "sha256": "sha256:0217bf10b4b8981a419349081751522b7edec853fda422e3ca148dbdcb98b436"
     },
     {
       "bytes": 5472,
@@ -92,19 +92,24 @@
       "sha256": "sha256:aaecbe84ee3464b8ffd7b670eb4859b35174a68d64e96e959ff0c266945fa503"
     },
     {
+      "bytes": 767,
+      "path": "seal.py",
+      "sha256": "sha256:d32df1e7711c20003356c757e634dc777e37b984b6eb60d2298d984bf336017a"
+    },
+    {
       "bytes": 4879,
       "path": "terminal-outcome.json",
       "sha256": "sha256:e833554dc16a90aff61510ca416cbaf3c8227c6d41623806c80267090de1f688"
     },
     {
-      "bytes": 3161,
+      "bytes": 5609,
       "path": "test_verify.py",
-      "sha256": "sha256:47807e0853f8a102ebd642a1c4077b8ab2b5c7e2bc0d3a76b59c10ba639eae88"
+      "sha256": "sha256:c855748bbe4d14b3d5a04c1c0736fe71e4bb55e194fcaf353b9e5458f1bb8c32"
     },
     {
-      "bytes": 16833,
+      "bytes": 20276,
       "path": "verify.py",
-      "sha256": "sha256:8992b5ba762fe260fa3d76e2b5f52f51d88093dd5ec8e5dc3444ba3891ca875b"
+      "sha256": "sha256:4aeec3743e6bfa1bd7b8725d644aeb282fcb268a3a48bbe841c35b5236fc01b6"
     }
   ],
   "schema": "vela.stage-a-anthropic-neutral-terminal-artifact.v1"

@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
+import stat
 import subprocess
 from pathlib import Path, PurePosixPath
 
@@ -13,12 +15,41 @@ RUNTIME = PACKAGE.parent / "lean-correspondence-stage-a-runtime-qualification"
 STAGE_A = PACKAGE.parent / "lean-correspondence-stage-a-open-pilot"
 PRODUCER = "404adad5f03ccf22f0bcf46770dec59b868acc64"
 PRODUCER_TREE = "ec90f9b6d51bcd48d78be7657e47a99764ffd9af"
+EVIDENCE_PREDECESSOR = "157393175a5ca1085a8a83470ded3c2431465388"
+EVIDENCE_PREDECESSOR_TREE = "20439ce60be3a25c4666445d4aadf4014fa887f1"
 QUALIFIER = "cc3b88d8bfcfd7b4f720a023f049d5c365be9423"
 QUALIFIER_TREE = "341e0d22fa570b1b5e8dd9f70b219c11308ba45f"
 QUALIFIER_SHA256 = (
     "sha256:61591eec3304e299a9344888bc2a6f08cd32785b647ef5b0107da490dbf18013"
 )
 SHA256 = re.compile(r"sha256:[0-9a-f]{64}")
+EXPECTED_FILES = frozenset(
+    {
+        "README.md",
+        "endpoint-contact-receipt.json",
+        "execution-build.json",
+        "execution-sources/controller.py",
+        "execution-sources/orchestrator.go",
+        "execution-sources/runner_relay.go",
+        "inputs/packet.json",
+        "inputs/provider-schema.json",
+        "inputs/run.json",
+        "permit/neutral-calibration-anthropic-json-v2.permit.consumed.json",
+        "raw/bridge.stderr",
+        "raw/bridge.stdout",
+        "raw/container.stderr",
+        "raw/controller-attempt-terminal.json",
+        "raw/docker.stderr",
+        "raw/docker.stdout",
+        "raw/permit-release.json",
+        "raw/process-teardown.json",
+        "seal.py",
+        "terminal-outcome.json",
+        "test_verify.py",
+        "verify.py",
+    }
+)
+EXPECTED_DIRECTORIES = frozenset({"execution-sources", "inputs", "permit", "raw"})
 
 
 class VerificationError(RuntimeError):
@@ -53,7 +84,59 @@ def git(*args: str) -> str:
     ).stdout.strip()
 
 
+def filesystem_inventory(root: Path) -> tuple[set[str], set[str]]:
+    root_metadata = os.lstat(root)
+    require(
+        stat.S_ISDIR(root_metadata.st_mode) and not stat.S_ISLNK(root_metadata.st_mode),
+        "artifact_root_type",
+    )
+    files: set[str] = set()
+    directories: set[str] = set()
+    pending = [root]
+    while pending:
+        directory = pending.pop()
+        with os.scandir(directory) as entries:
+            for entry in entries:
+                target = Path(entry.path)
+                relative = target.relative_to(root).as_posix()
+                metadata = entry.stat(follow_symlinks=False)
+                require(not stat.S_ISLNK(metadata.st_mode), "undeclared_symbolic_path")
+                if stat.S_ISDIR(metadata.st_mode):
+                    directories.add(relative)
+                    pending.append(target)
+                elif stat.S_ISREG(metadata.st_mode):
+                    require(metadata.st_nlink == 1, "artifact_file_link_count")
+                    files.add(relative)
+                else:
+                    raise VerificationError("undeclared_special_path")
+    return files, directories
+
+
+def seal_manifest(root: Path) -> dict[str, object]:
+    files, directories = filesystem_inventory(root)
+    require(
+        files == EXPECTED_FILES | {"artifact-root.json"},
+        "artifact_file_set",
+    )
+    require(directories == EXPECTED_DIRECTORIES, "artifact_directory_set")
+    entries = []
+    for path_value in sorted(EXPECTED_FILES):
+        raw = (root / path_value).read_bytes()
+        entries.append({"path": path_value, "bytes": len(raw), "sha256": digest(raw)})
+    return {
+        "schema": "vela.stage-a-anthropic-neutral-terminal-artifact.v1",
+        "files": entries,
+        "artifact_root": digest(canonical(entries)),
+    }
+
+
 def verify() -> dict[str, object]:
+    files, directories = filesystem_inventory(PACKAGE)
+    require(
+        files == EXPECTED_FILES | {"artifact-root.json"},
+        "artifact_file_set",
+    )
+    require(directories == EXPECTED_DIRECTORIES, "artifact_directory_set")
     manifest = exact(
         load(PACKAGE / "artifact-root.json"),
         {"schema", "files", "artifact_root"},
@@ -91,7 +174,9 @@ def verify() -> dict[str, object]:
         seen.add(path_value)
         normalized.append(entry)
     require([entry["path"] for entry in entries] == sorted(seen), "manifest_order")
+    require(seen == EXPECTED_FILES, "manifest_file_set")
     require(manifest["artifact_root"] == digest(canonical(normalized)), "artifact_root")
+    require(manifest == seal_manifest(PACKAGE), "manifest_reseal")
 
     outcome = exact(
         load(PACKAGE / "terminal-outcome.json"),
@@ -139,9 +224,17 @@ def verify() -> dict[str, object]:
     require(
         git("rev-parse", f"{PRODUCER}^{{tree}}") == PRODUCER_TREE, "producer_git_tree"
     )
-    head = git("rev-parse", "HEAD^{commit}")
-    if head != PRODUCER:
-        require(git("rev-parse", "HEAD^") == PRODUCER, "successor_direct_parent")
+    require(
+        git("rev-parse", f"{EVIDENCE_PREDECESSOR}^{{tree}}")
+        == EVIDENCE_PREDECESSOR_TREE,
+        "evidence_predecessor_tree",
+    )
+    ancestry = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", EVIDENCE_PREDECESSOR, "HEAD"],
+        cwd=REPO,
+        check=False,
+    )
+    require(ancestry.returncode == 0, "evidence_predecessor_ancestry")
     qualifier = exact(
         outcome["qualifier"], {"commit", "tree", "sha256"}, "qualifier_shape"
     )

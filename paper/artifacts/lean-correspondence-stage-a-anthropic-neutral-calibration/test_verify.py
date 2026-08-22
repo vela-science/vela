@@ -3,7 +3,9 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -27,28 +29,43 @@ def canonical(value: object) -> bytes:
 
 
 def reseal(package: Path) -> None:
-    files = []
-    for path in sorted(package.rglob("*")):
-        if path.is_file() and path.name != "artifact-root.json":
-            raw = path.read_bytes()
-            files.append(
-                {
-                    "path": path.relative_to(package).as_posix(),
-                    "bytes": len(raw),
-                    "sha256": digest(raw),
-                }
-            )
-    value = {
-        "schema": "vela.stage-a-anthropic-neutral-terminal-artifact.v1",
-        "files": files,
-        "artifact_root": digest(canonical(files)),
-    }
+    value = VERIFY.seal_manifest(package)
     (package / "artifact-root.json").write_bytes(
         (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
     )
 
 
 class TerminalEvidenceTests(unittest.TestCase):
+    def assert_extra_rejected(self, create) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            candidate = Path(temporary) / "artifact"
+            shutil.copytree(PACKAGE, candidate)
+            create(candidate)
+            with self.assertRaises(VERIFY.VerificationError):
+                VERIFY.seal_manifest(candidate)
+            with (
+                mock.patch.object(VERIFY, "PACKAGE", candidate),
+                self.assertRaises(VERIFY.VerificationError),
+            ):
+                VERIFY.verify()
+
+    def mutate_manifest(self, edit) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            candidate = Path(temporary) / "artifact"
+            shutil.copytree(PACKAGE, candidate)
+            path = candidate / "artifact-root.json"
+            value = json.loads(path.read_bytes())
+            edit(value["files"])
+            value["artifact_root"] = digest(canonical(value["files"]))
+            path.write_bytes(
+                (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
+            )
+            with (
+                mock.patch.object(VERIFY, "PACKAGE", candidate),
+                self.assertRaises(VERIFY.VerificationError),
+            ):
+                VERIFY.verify()
+
     def mutate(self, relative: str, edit) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             candidate = Path(temporary) / "artifact"
@@ -67,7 +84,53 @@ class TerminalEvidenceTests(unittest.TestCase):
                 VERIFY.verify()
 
     def test_valid_terminal_evidence(self) -> None:
+        self.assertTrue(sys.dont_write_bytecode)
+        before = VERIFY.filesystem_inventory(PACKAGE)
         self.assertEqual(VERIFY.verify()["provider_calls"], 0)
+        self.assertEqual(VERIFY.verify()["provider_calls"], 0)
+        self.assertEqual(VERIFY.filesystem_inventory(PACKAGE), before)
+
+    def test_undeclared_harmless_file_fails(self) -> None:
+        self.assert_extra_rejected(
+            lambda candidate: (candidate / "harmless.txt").write_text("harmless\n")
+        )
+
+    def test_python_bytecode_cache_fails(self) -> None:
+        def create(candidate: Path) -> None:
+            cache = candidate / "__pycache__"
+            cache.mkdir()
+            (cache / "test_verify.cpython-313.pyc").write_bytes(b"not bytecode\n")
+
+        self.assert_extra_rejected(create)
+
+    def test_symlink_extra_fails(self) -> None:
+        self.assert_extra_rejected(
+            lambda candidate: os.symlink("README.md", candidate / "readme-link")
+        )
+
+    def test_hardlink_extra_fails(self) -> None:
+        self.assert_extra_rejected(
+            lambda candidate: os.link(
+                candidate / "README.md", candidate / "readme-hardlink"
+            )
+        )
+
+    def test_directory_extra_fails(self) -> None:
+        self.assert_extra_rejected(lambda candidate: (candidate / "cache").mkdir())
+
+    def test_manifest_omission_fails(self) -> None:
+        self.mutate_manifest(lambda files: files.pop())
+
+    def test_manifest_extra_fails(self) -> None:
+        self.mutate_manifest(
+            lambda files: files.append(
+                {
+                    "path": "undeclared.txt",
+                    "bytes": 0,
+                    "sha256": digest(b""),
+                }
+            )
+        )
 
     def test_endpoint_call_inflation_fails_after_reseal(self) -> None:
         self.mutate(
