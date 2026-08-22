@@ -1,0 +1,31 @@
+{
+  "artifact_root": "sha256:485da3789f2a20a278868587e97d4d38b20c92b751a281776145e1458d2d9c9c",
+  "entries": [
+    {
+      "bytes": 2853,
+      "path": "README.md",
+      "sha256": "sha256:594700d8be60c5e137d0f1fbf17c6768775240f45cc5c363a81fdcc57a05e212"
+    },
+    {
+      "bytes": 9045,
+      "path": "registration.json",
+      "sha256": "sha256:d8bfe4762393af30d6f0632450f2b315ccd89707f0eb53cfcac6a62a9ce06a0a"
+    },
+    {
+      "bytes": 5322,
+      "path": "test_verify.py",
+      "sha256": "sha256:7c2f51efe77efb35ebcd2acaea099e501cb991cb389b0f484bd0b8aaf80a0a76"
+    },
+    {
+      "bytes": 2178,
+      "path": "tool-policy.json",
+      "sha256": "sha256:d13ff1ff61645e83e96ff48393bc2490547df276d2d6b056361e1b8e16be84a3"
+    },
+    {
+      "bytes": 14863,
+      "path": "verify.py",
+      "sha256": "sha256:a5558382492bfd835733fc65dc117dc2037b89c26400f513eede53e9ad3a6b48"
+    }
+  ],
+  "schema": "vela.lean-correspondence-stage-a-runtime-qualification-artifact-root.v1"
+}
