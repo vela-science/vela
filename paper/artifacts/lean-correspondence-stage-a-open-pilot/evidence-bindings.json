@@ -1,0 +1,29 @@
+{
+  "authority_effect": "none",
+  "candidate_packets": {
+    "commit": "148e18cce542f397ccb60b21a896ba063f6d6cca",
+    "independent_review": "PASS_GO_FOR_IMPORT",
+    "repository": "https://github.com/williamjblair/lean-proofs.git",
+    "subtree": "lean-correspondence-v0",
+    "tree": "0d2e5533f41d2e54575a2d4b6e1ec9feabf998e7"
+  },
+  "invalid_fixture_root": "sha256:2c25edeb24c34d90c50ec68134b78103bf4be8ba3188868cff1abf4f5d28a70f",
+  "maintained_qualifier": {
+    "blob": "be1982fc09c8d859b7da131c242de243e6f989b8",
+    "copied": false,
+    "path": "tools/evidence_qualification/qualification.py",
+    "sha256": "sha256:628ac203a48ef19c649dd64dedc010d104d728eb0edbb66392e93955fab872b9"
+  },
+  "neutral_implementation": {
+    "cases_manifest_sha256": "sha256:446df2e7eb32e109bbfeed5853ef543166f656331e27bb580d98abf785ff030a",
+    "cases_root_file_sha256": "sha256:bd57c551f82810bba7e94560d50fc226bee454f679390badcb8fbefdb2eb991c",
+    "commit": "01d0b3253227bc41d2edc13e5cb318bdae53fc88",
+    "publication_branch": "main",
+    "publication_import_independent_review": "PASS",
+    "repository": "https://github.com/vela-science/lean-correspondence.git",
+    "reviewed_import_blob": "b2aff34cbbdd8e56ff47ac4dc4b14fd09edf0388",
+    "reviewed_import_sha256": "sha256:52a854e2d55c8db716e79ed6031fd4a768d4aeb2457ec6ab689872d312ba0ad1",
+    "tree": "b91c967537126404011e9a628f98e9d0378f73e5"
+  },
+  "schema": "vela.lean-correspondence-stage-a-evidence-bindings.v1"
+}

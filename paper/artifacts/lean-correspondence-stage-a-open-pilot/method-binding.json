@@ -1,0 +1,11 @@
+{
+  "authority_effect": "none",
+  "method_artifact_path": "paper/artifacts/lean-correspondence-foundry-study",
+  "method_artifact_root": "sha256:2d909b874eedc765546010e799d6fde709c88f3fcc623b45ab46130c3dfa68e4",
+  "method_commit": "8a999f5e8ca543531f5e1241fbdef391c78d068a",
+  "method_tree": "85b43ec7023d16cac404a6f8b6c8d8117584027a",
+  "prompt_source_sha256": "sha256:111f9eb8c03a18d2c08f692591da2f27f2c13a1f098486f6aeb8d40e4f5fd6db",
+  "response_schema_sha256": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
+  "schema": "vela.lean-correspondence-stage-a-method-binding.v1",
+  "vela_repository": "https://github.com/vela-science/vela.git"
+}

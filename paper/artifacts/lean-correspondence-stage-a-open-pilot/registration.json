@@ -1,0 +1,32 @@
+{
+  "arms": [
+    "raw-source",
+    "correspondence-assisted"
+  ],
+  "assignment_root": "sha256:11fbe1785066cdc4183028cb71b26e2eedf9cb5fb35163440237f83470930b48",
+  "atom_equivalence_root": "sha256:b682ea86d0793346eda5ae623b35ca5ffddb87ddb1b3417d8f302fe3aef74c0c",
+  "authority_effect": "none",
+  "case_selection_root": "sha256:3c14a71114597c151476d9be18606aad1b1960a19eaf4756eb7bd2f2a949227e",
+  "cases": 3,
+  "evidence_binding_root": "sha256:701f7a948ade24bf429ed30a8f269cbc03d45686bee798f1bc97b7704db7c1ed",
+  "fixed_denominator": 12,
+  "fresh_sessions_per_cell": 1,
+  "hold_state_root": "sha256:3e082a115e4fc75ac5f7dd5c7df8ca3ab505be085f849e5790038c14460e25b6",
+  "method_binding_root": "sha256:4930fdddae3cf2a90ff6de8b4f3bd59eb1175988f7817590b3fdcf63447e4d5a",
+  "participant_configuration_slots": 2,
+  "participant_configurations_root": "sha256:d2dadcfa18c3ffd7887602afa1af66cdb23dc3a68f4a3d909edb41e82049ce23",
+  "permit_set_root": "sha256:55e288cb9b001a172be6a817ad6f0fdac208fabb4ed3803bd028558f97f58732",
+  "protected_stage_b_material_created": false,
+  "provider_calls_authorized": false,
+  "registration_contract_root": "sha256:4cd65d7541a1ff7d8ed5e0f8334fd8e2e61c6202d692e356648aea9c63f8db79",
+  "registration_root": "sha256:6595e757dfda4261ee97d7842a8b32e078b70274b0415cf2638a351eb94e713f",
+  "response_schema_sha256": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
+  "runtime_binding_root": "sha256:8f34ab928988dc002acbcfd68f5d1079d42ea3d2c98cc2c8c7ab5d5d471fb5e0",
+  "schema": "vela.lean-correspondence-stage-a-registration-contract.v1",
+  "scoring_authorized": false,
+  "stage": "A_open_non_ceiling",
+  "status": "blocked_prelaunch_review_only",
+  "timeout_seconds": 1200,
+  "zero_retries": true,
+  "zero_substitutions": true
+}

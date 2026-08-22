@@ -1,0 +1,5 @@
+name = "stage_a_invalid_target"
+version = "0.1.0"
+
+[[lean_lib]]
+name = "Basic"
