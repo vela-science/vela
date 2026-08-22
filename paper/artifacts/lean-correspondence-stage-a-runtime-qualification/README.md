@@ -40,6 +40,14 @@ inode checks, source bytes/root, inserted byte range/root, run root, and exact
 structured-output request schema bytes. Each exact run input passes the same
 participant validation and request-construction path in a network-none
 container with a fixed non-secret dummy credential descriptor. The prospective
+runner frames the finished request as strict canonical RFC 4648 base64 with
+closed content-type, length, request-root, and provider-schema occurrence
+metadata. The bridge decodes that payload exactly once, verifies every binding,
+and prepares the unchanged decoded byte slice for the endpoint write without
+JSON parsing or re-serialization. A retained transport-custody receipt binds
+the pre-frame request, frame payload, bridge-decoded body, and future endpoint
+write to one exact root and length. RawMessage transport and semantic-only
+equality are rejected. The prospective
 controller derives provider calls only from sequential endpoint-attempt
 receipts and requires exact agreement across bridge, runner, terminal, and
 custody. The qualifier still consumes only its synthetic no-science fixture.
@@ -62,11 +70,16 @@ distinct, held, and independently review-gated. The earlier Anthropic v2
 canonical permit is separately and permanently retained as a consumed non-call
 in the independently passed stopped-evidence artifact, whose authoritative
 endpoint-contact receipt is zero. Its new v3 replacement is distinct,
-offline-validated, held, and non-releasable. Consequently all twelve
-participant permits and the OpenAI neutral permit remain held, and the ledgers remain at zero
-participant calls, provider calls, calibrations, responses, scoring, protected
-keys, and Stage B selection. The package has no Protocol, Core, authority,
-Decision, or Standing effect.
+was consumed in one endpoint-contact attempt whose provider response completed,
+but the calibration is permanently retained as a failed exact-request
+non-result because the old RawMessage outer frame compacted the body. The fresh
+Anthropic v4 lossless replacement is distinct, offline-validated, held, and
+non-releasable. Consequently all twelve participant permits and both fresh
+neutral permits remain held. This prospective successor made zero provider or
+participant calls and performed no calibration, response scoring, protected-key
+access, or Stage B selection; its lineage separately preserves the immutable
+v2 zero-contact denominator and v3 one-contact failed-exact-request denominator.
+The package has no Protocol, Core, authority, Decision, or Standing effect.
 
 The corrective ancestry is explicit: the reviewed predecessor `b333186c` has
 direct parent `5be82cb3`; the invalid-permit origin `9da1c794` is an ancestor,

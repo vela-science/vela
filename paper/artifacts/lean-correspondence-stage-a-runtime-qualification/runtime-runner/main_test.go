@@ -261,6 +261,43 @@ func TestProviderRequestPreservesExactSchemaBytes(t *testing.T) {
 	}
 }
 
+func TestLosslessRequestPayloadAndCustodyBinding(t *testing.T) {
+	schema := []byte("{\n  \"type\": \"object\"\n}\n")
+	body := append([]byte("{\"schema\":"), schema...)
+	body = append(body, []byte(",\"value\":1}\n")...)
+	payload, err := makeRequestPayload(body, schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if payload.Encoding != "base64-rfc4648-canonical" || payload.Bytes != len(body) || payload.SHA256 != digestBytes(body) || payload.ProviderSchemaOccurrences != 1 {
+		t.Fatal("lossless payload metadata drift")
+	}
+	receipt := expectedRequestCustody(body, schema)
+	if err := validateRequestCustody(&receipt, body, schema); err != nil {
+		t.Fatal(err)
+	}
+	for name, mutate := range map[string]func(*requestCustody){
+		"boolean_semantics": func(value *requestCustody) { value.EndpointWritePrepared = false },
+		"decode_count":      func(value *requestCustody) { value.DecodeCount = 2 },
+		"length":            func(value *requestCustody) { value.Bytes++ },
+		"root":              func(value *requestCustody) { value.SHA256 = digestBytes([]byte("drift")) },
+		"schema_count":      func(value *requestCustody) { value.ProviderSchemaOccurrences = 0 },
+	} {
+		t.Run(name, func(t *testing.T) {
+			candidate := receipt
+			mutate(&candidate)
+			if validateRequestCustody(&candidate, body, schema) == nil {
+				t.Fatal("accepted request custody drift")
+			}
+		})
+	}
+	compact := bytes.ReplaceAll(body, []byte(" "), nil)
+	compactReceipt := expectedRequestCustody(compact, schema)
+	if validateRequestCustody(&compactReceipt, body, schema) == nil {
+		t.Fatal("accepted semantic-only reformatted request")
+	}
+}
+
 func TestStrictRunInputRejectsUnknownAndBooleanNumericFields(t *testing.T) {
 	base := `{"run_id":"r","model":"m","prompt":"p","packet_path":"/input/packet.json","packet_bytes":3,"packet_sha256":"sha256:x","provider_schema":{},"provider_schema_path":"/input/provider-schema.json","provider_schema_bytes":3,"provider_schema_sha256":"sha256:y","materialization_receipt_path":"/input/materialization-receipt.json","output_dir":"/evidence"}`
 	if _, err := strictRunInput([]byte(base)); err != nil {

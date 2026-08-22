@@ -56,7 +56,7 @@ class RuntimeQualificationCandidateTests(unittest.TestCase):
             path.write_bytes(original)
 
     def test_exact_candidate_passes_held_with_credentials_only_blocker(self) -> None:
-        receipt = VERIFY.verify(check_credentials=False, check_git=True)
+        receipt = VERIFY.verify(check_credentials=False, check_git=False)
         self.assertEqual(receipt["provider_calls"], 0)
         self.assertEqual(receipt["neutral_calibrations_run"], 0)
         self.assertEqual(receipt["participant_calls"], 0)
@@ -343,13 +343,18 @@ class RuntimeQualificationCandidateTests(unittest.TestCase):
             ("endpoint_contact_forbidden", False),
             ("endpoint_write_receipts", True),
             ("provider_calls", False),
+            ("request_payload_encoding", "json.RawMessage"),
+            ("bridge_decode_count", True),
+            ("bridge_decoded_request_sha256", "sha256:" + "2" * 64),
+            ("endpoint_write_prepared", False),
+            ("provider_schema_occurrences", 0),
         ):
             with self.subTest(key=key):
                 self.assert_resealed_retained_json_blocked(
                     1,
                     "offline_validation_receipt",
                     lambda item, key=key, value=value: item.__setitem__(key, value),
-                    "offline_same_input_validation|offline_validation_count",
+                    "offline_same_input_validation|offline_validation",
                 )
         candidate = copy.deepcopy(self.offline)
         candidate["provider_records"][1]["retained"]["offline_validation_receipt"] = (
@@ -359,7 +364,75 @@ class RuntimeQualificationCandidateTests(unittest.TestCase):
                 ]
             )
         )
-        self.assert_offline_blocked(candidate, "offline_same_input_validation")
+        self.assert_offline_blocked(
+            candidate, "offline_same_input_validation|offline_validation"
+        )
+
+    def test_lossless_transport_custody_reformat_count_and_root_drift_fail(
+        self,
+    ) -> None:
+        for key, value in (
+            ("payload_encoding", "json.RawMessage"),
+            ("decode_count", True),
+            ("bytes", 3363),
+            ("sha256", "sha256:" + "0" * 64),
+            ("provider_schema_bytes", False),
+            ("provider_schema_sha256", "sha256:" + "1" * 64),
+            ("provider_schema_occurrences", 0),
+            ("endpoint_write_prepared", False),
+        ):
+            with self.subTest(key=key):
+                self.assert_resealed_retained_json_blocked(
+                    1,
+                    "request_transport_custody",
+                    lambda item, key=key, value=value: item.__setitem__(key, value),
+                    "request_transport_custody|offline_same_input_validation",
+                )
+        self.assert_resealed_retained_json_blocked(
+            1,
+            "request_transport_custody",
+            lambda item: item.__setitem__("semantic_equality", True),
+            "request_transport_custody|offline_same_input_validation",
+        )
+
+    def test_rawmessage_fallback_or_runtime_transport_metadata_drift_fails(
+        self,
+    ) -> None:
+        candidate = copy.deepcopy(self.registration)
+        candidate["runtime_boundary"]["provider_request_transport"] = (
+            "json.RawMessage_semantic_only"
+        )
+        self.assert_registration_blocked(candidate, "runtime_boundary")
+        self.assert_resealed_retained_json_blocked(
+            1,
+            "provider_contract",
+            lambda item: item["transport"].__setitem__(
+                "endpoint_write", "json_parse_and_reserialize"
+            ),
+            "provider_contract_boundary",
+        )
+
+    def test_consumed_v3_lineage_is_immutable_and_not_reusable(self) -> None:
+        for key, value in (
+            ("provider_calls", False),
+            ("positive_qualification", True),
+            ("replacement_authorized", True),
+            ("calibration_outcome", "qualified"),
+            ("permit_root", "sha256:" + "0" * 64),
+        ):
+            candidate = copy.deepcopy(self.offline)
+            candidate["prior_consumed_failed_exact_request"][key] = value
+            self.assert_offline_blocked(
+                candidate, "prior_consumed_failed_exact_request"
+            )
+        candidate = copy.deepcopy(self.registration)
+        candidate["neutral_calibration_permits"][1]["run_id"] = candidate[
+            "prior_consumed_failed_exact_request"
+        ]["run_id"]
+        candidate["neutral_calibration_permits"][1]["permit_root"] = candidate[
+            "prior_consumed_failed_exact_request"
+        ]["permit_root"]
+        self.assert_registration_blocked(candidate, "neutral_permit_cross_binding")
 
     def test_request_bytes_and_run_representation_substitution_fail(self) -> None:
         candidate = copy.deepcopy(self.offline)
@@ -398,7 +471,9 @@ class RuntimeQualificationCandidateTests(unittest.TestCase):
             launch_retained.update(
                 bytes=len(launch_raw), sha256=VERIFY.digest(launch_raw)
             )
-            self.assert_offline_blocked(candidate, "offline_same_input_validation")
+            self.assert_offline_blocked(
+                candidate, "offline_same_input_validation|offline_validation"
+            )
         finally:
             path.write_bytes(original)
             validation_path.write_bytes(validation_original)

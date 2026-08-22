@@ -24,12 +24,16 @@ STOPPED = (
     REPOSITORY
     / "paper/artifacts/lean-correspondence-stage-a-anthropic-neutral-calibration"
 )
+STOPPED_V3 = (
+    REPOSITORY
+    / "paper/artifacts/lean-correspondence-stage-a-anthropic-neutral-calibration-v3"
+)
 SHA256 = re.compile(r"sha256:[0-9a-f]{64}\Z")
 EXPECTED_REGISTRATION_ROOT = (
-    "sha256:e0903af7d0e5d9c120601bdd786e8d9b3ca0c7532bac1a4a60e718690f32091e"
+    "sha256:2ddcd97a0dfff125ac88a6c102e58a0f380c929c6bc243a8e8298eb742dc6ef3"
 )
 EXPECTED_OFFLINE_RECORD_ROOT = (
-    "sha256:2314d77a6e0fb8f85a88ad398b84725eb75deb43c8c6062e3418affd5d893004"
+    "sha256:7a89479a46e004317cc69b78ffa1ea0c5fe7130a65c257de1dd43c9e31d6578e"
 )
 EXPECTED_QUALIFIER = {
     "git_commit": "cc3b88d8bfcfd7b4f720a023f049d5c365be9423",
@@ -45,7 +49,7 @@ EXPECTED_CORRECTIVE_ANCESTRY = {
     "successor_direct_parent_commit": "b333186cae1274ebb48353ba72e1ab3be42adcc0",
     "stopped_evidence_commit": "30210517f3b1bee420bc61e9a4484ecff8b68ae7",
     "stopped_evidence_tree": "a2c878542e92442134f56b79501448ba14e16e28",
-    "prospective_successor_direct_parent_commit": "30210517f3b1bee420bc61e9a4484ecff8b68ae7",
+    "prospective_successor_direct_parent_commit": "37a5a92c314b4f0345eb2d8aadf1890b4e59682d",
 }
 EXPECTED_STAGE_A = {
     "artifact_root": "sha256:f89d335912adbbd0e3b3f1cb98ec3f4fa78a27f3742652ac7244eaa86ed6aca8",
@@ -64,26 +68,26 @@ EXPECTED_PROVIDER = {
         "model": "gpt-5.6-sol",
         "run_id": "neutral-calibration-openai-json-v2",
         "configuration_root": "sha256:96555c45c33ed2a106cfb261025b752a4eeb1514aa180985ecd5ea0551a6616d",
-        "qualification_root": "sha256:295ed850de980d6d37505274b1ecf1f7670db278ba0001aa12f897b13ca74468",
-        "image_digest": "sha256:a9b67182ae941262b9a9eb7483e11b57a2b4cc52112980a2deb63039b0353e18",
+        "qualification_root": "sha256:e23aa963b3b0eb305e2ef3a0bcb773c666263b49ce58b8d92cf711f3a6193f69",
+        "image_digest": "sha256:50410f6185ec3c2777062597df16af38913ef35be374e685c772925fb950a31c",
         "tool_boundary_root": "sha256:0b2e1fb701f70b02f9cc7ad79201f84374dfeb904299b59a6667d36eb4e59c69",
-        "runtime_source_root": "sha256:e49bf74c6333d44e02f7834e5807fd21f0932a8f11e82ca5c6a72d210cf23bec",
-        "participant_permit_root": "sha256:78cd091bfcf6888dbaa01598221fdb95e803d7be3849fa3074a754bb7b7f8c8a",
+        "runtime_source_root": "sha256:f63196d42a85b839984c1abfd663b293f911fd0792c43cdf26e56ec9c7f4f4e8",
+        "participant_permit_root": "sha256:f51169112d3be0ec092abf833131b5cd24acdf5772cebb3ea6a7dc0211cf5eed",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
-        "launchability_sha256": "sha256:6e280337443b087c9cfd9bff63576d78d91a1ec555d43d647df0c22e7f4d02cc",
+        "launchability_sha256": "sha256:b6b9c73de349565f2f8619ce6378bdf44d037ec4eccd67f4e356040c85ab2bdd",
     },
     "anthropic-messages-v1": {
         "organization": "Anthropic",
         "model": "claude-opus-5",
-        "run_id": "neutral-calibration-anthropic-json-v3-replacement",
+        "run_id": "neutral-calibration-anthropic-json-v4-lossless",
         "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
-        "qualification_root": "sha256:f1221c6ff4f5beb0604b73c744c4289e89c95b3f041814836d3d782414b13a96",
-        "image_digest": "sha256:d314adbd8b3765d9aada03bd5bd87ec77826cd81fdc8c8aab3982dce3165385d",
+        "qualification_root": "sha256:27fb9ab360e0e0f29b9c33e6e5efe364a107c4bf0d00d0206b2e12349ecef045",
+        "image_digest": "sha256:a95b75cfc449afc2ecb87a5808542339b1776ced9b15d91a27e795993acdbba0",
         "tool_boundary_root": "sha256:01dfbda69c1c7760423fdba41eaac18687a73d9fe683a8a5f207fdc8abe2a7d9",
-        "runtime_source_root": "sha256:27502e951b7c924738d9edbee7bcbf8044e371731076726ca5408425caef7e4a",
-        "participant_permit_root": "sha256:7ddf24c9dbeac2cdce1a4ca1972a0984287dbcf528881ae01cbfe297217e2f32",
+        "runtime_source_root": "sha256:345b150207668e98a2a061c328e3552697b5370c50fb50dfbd96f598aaa65e30",
+        "participant_permit_root": "sha256:dfc9f20e029b7ea51eb28c6b3d81f70eace063c681d56d2c9ce7356b3dbe8b63",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
-        "launchability_sha256": "sha256:e653f3068205d73138b1f664617ed539636fe34a571d2fcc2e87c081cedffdc2",
+        "launchability_sha256": "sha256:ec5c90a7b8e885d7a7e679ae2ea8c1989b772a218ce7074a7418acd8709cae3b",
     },
 }
 EXPECTED_FROZEN_CONFIGURATION = {
@@ -170,11 +174,32 @@ EXPECTED_PRIOR_CONSUMED_NON_CALL = {
     "denominator_disposition": "permanent_consumed_non_call",
     "authority_effect": "none",
 }
+EXPECTED_PRIOR_CONSUMED_FAILED_EXACT_REQUEST = {
+    "schema": "vela.stage-a-consumed-neutral-failed-exact-request-lineage.v1",
+    "producer_commit": "37a5a92c314b4f0345eb2d8aadf1890b4e59682d",
+    "producer_tree": "e5c1449b626c62db5215ea260a5f6ede6942d9fa",
+    "artifact_root": "sha256:63cbbdf6ae6c7e906268b31f33198d06b8db0757e6db48b6187286cacd08dcb9",
+    "provider_adapter": "anthropic-messages-v1",
+    "run_id": "neutral-calibration-anthropic-json-v3-replacement",
+    "permit_root": "sha256:7ddf24c9dbeac2cdce1a4ca1972a0984287dbcf528881ae01cbfe297217e2f32",
+    "consumed_permit_bytes": "sha256:92bb69095536f0d7be026baed085b530ced623d2408d8e0c63fc2175a4b1a6f3",
+    "endpoint_contact_receipt_bytes": "sha256:e0615bd59e62a73694e9d48ae02b650b7d699d6d4bf6edd7058874fe4c5623a7",
+    "permit_consumed": True,
+    "provider_calls": 1,
+    "endpoint_contacted": True,
+    "provider_response": "terminal_success",
+    "calibration_outcome": "non_result_failed_exact_request",
+    "positive_qualification": False,
+    "retryable": False,
+    "replacement_authorized": False,
+    "denominator_disposition": "permanent_consumed_failed_exact_request",
+    "authority_effect": "none",
+}
 EXPECTED_CALL_DERIVATION = {
     "schema": "vela.stage-a-provider-call-derivation.v1",
     "source": "successful_endpoint_write_request_attempt_receipts_only",
     "controller_source_path": "neutral_controller.py",
-    "controller_source_sha256": "sha256:27e604324c4e0c2b06eb1a8cb0c5dd0cfb9b71780ce27583b52674ad230c0706",
+    "controller_source_sha256": "sha256:a3f17f8f6006caf02ce0928051170b6b07f08d1ed37ad273f50de7ebe82d7b9a",
     "controller": 0,
     "bridge": 0,
     "runner": 0,
@@ -320,6 +345,21 @@ def expected_request_bytes(
     return template.replace(needle, schema, 1)
 
 
+def expected_request_custody(request: bytes, provider_schema: bytes) -> dict[str, Any]:
+    return {
+        "schema": "vela.lossless-provider-request-custody.v1",
+        "content_type": "application/json",
+        "bytes": len(request),
+        "sha256": digest(request),
+        "payload_encoding": "base64-rfc4648-canonical",
+        "decode_count": 1,
+        "provider_schema_bytes": len(provider_schema),
+        "provider_schema_sha256": digest(provider_schema),
+        "provider_schema_occurrences": 1,
+        "endpoint_write_prepared": True,
+    }
+
+
 def validate_launchable_runtime(
     record: dict[str, Any], expected: dict[str, Any], adapter: str
 ) -> None:
@@ -345,6 +385,7 @@ def validate_launchable_runtime(
         "materialization_receipt",
         "offline_validation_receipt",
         "request_bytes",
+        "request_transport_custody",
     }
     require(type(retained) is dict and set(retained) == required, "retained_set")
     image_raw = (PACKAGE / retained["image"]["path"]).read_bytes()
@@ -369,6 +410,9 @@ def validate_launchable_runtime(
     materialization = load_json(PACKAGE / retained["materialization_receipt"]["path"])
     validation = load_json(PACKAGE / retained["offline_validation_receipt"]["path"])
     request_raw = (PACKAGE / retained["request_bytes"]["path"]).read_bytes()
+    request_transport_custody = load_json(
+        PACKAGE / retained["request_transport_custody"]["path"]
+    )
     provider_schema_raw = (PACKAGE / retained["provider_schema"]["path"]).read_bytes()
     start = materialization.get("raw_inserted_start")
     end = materialization.get("raw_inserted_end")
@@ -382,6 +426,24 @@ def validate_launchable_runtime(
             exact_int(materialization.get(key), expected_number, "materialized_size")
     exact_int(validation.get("endpoint_write_receipts"), 0, "offline_validation_count")
     exact_int(validation.get("provider_calls"), 0, "offline_validation_count")
+    for key, expected_number in (
+        ("request_bytes", len(request_raw)),
+        ("bridge_decoded_request_bytes", len(request_raw)),
+        ("bridge_decode_count", 1),
+        ("provider_schema_occurrences", 1),
+    ):
+        exact_int(validation.get(key), expected_number, f"offline_validation:{key}")
+    for key, expected_number in (
+        ("bytes", len(request_raw)),
+        ("decode_count", 1),
+        ("provider_schema_bytes", len(provider_schema_raw)),
+        ("provider_schema_occurrences", 1),
+    ):
+        exact_int(
+            request_transport_custody.get(key),
+            expected_number,
+            f"request_transport_custody:{key}",
+        )
     require(
         materialization
         == {
@@ -428,7 +490,15 @@ def validate_launchable_runtime(
             "mounted_schema_root": digest(provider_schema_raw),
             "request_schema_sha256": digest(provider_schema_raw),
             "request_sha256": digest(request_raw),
-            "participant_validation_path": "exact_runner_prepare_and_request_construction",
+            "request_bytes": len(request_raw),
+            "request_payload_sha256": digest(request_raw),
+            "request_payload_encoding": "base64-rfc4648-canonical",
+            "bridge_decoded_request_sha256": digest(request_raw),
+            "bridge_decoded_request_bytes": len(request_raw),
+            "bridge_decode_count": 1,
+            "provider_schema_occurrences": 1,
+            "endpoint_write_prepared": True,
+            "participant_validation_path": "exact_runner_prepare_lossless_frame_bridge_decode_and_write_preparation",
             "dummy_credential_fd": True,
             "credential_secret": False,
             "endpoint_contact_forbidden": True,
@@ -436,6 +506,8 @@ def validate_launchable_runtime(
             "provider_calls": 0,
         }
         and request_raw.count(provider_schema_raw) == 1
+        and request_transport_custody
+        == expected_request_custody(request_raw, provider_schema_raw)
         and request_raw
         == expected_request_bytes(
             adapter, run_input, neutral_packet, provider_schema_raw
@@ -545,6 +617,12 @@ def validate_launchable_runtime(
             "proxy_environment": "ignored",
             "redirects": "rejected",
             "unrestricted_clients": False,
+            "provider_request_frame": "lossless_canonical_base64_exact_bytes",
+            "provider_request_payload_schema": "vela.lossless-provider-request-payload.v1",
+            "provider_request_custody_schema": "vela.lossless-provider-request-custody.v1",
+            "payload_encoding": "base64-rfc4648-canonical",
+            "payload_decode_count": 1,
+            "endpoint_write": "decoded_payload_bytes_without_json_reserialization",
         },
         "provider_contract_boundary",
     )
@@ -695,6 +773,26 @@ def git_value(*arguments: str) -> str:
 
 
 def validate_offline(value: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    require(
+        type(value) is dict
+        and set(value)
+        == {
+            "schema",
+            "status",
+            "qualifier",
+            "trust_bundle_sha256",
+            "prior_consumed_non_call",
+            "prior_consumed_failed_exact_request",
+            "provider_records",
+            "provider_call_derivation",
+            "provider_calls",
+            "neutral_calibrations_run",
+            "participant_calls",
+            "authority_effect",
+            "record_root",
+        },
+        "offline_record_not_closed",
+    )
     exact_int(
         value.get("prior_consumed_non_call", {}).get("provider_calls"),
         0,
@@ -726,6 +824,16 @@ def validate_offline(value: dict[str, Any]) -> dict[str, dict[str, Any]]:
         value.get("prior_consumed_non_call") == EXPECTED_PRIOR_CONSUMED_NON_CALL,
         "prior_consumed_non_call",
     )
+    exact_int(
+        value.get("prior_consumed_failed_exact_request", {}).get("provider_calls"),
+        1,
+        "prior_consumed_failed_exact_request_provider_calls",
+    )
+    require(
+        value.get("prior_consumed_failed_exact_request")
+        == EXPECTED_PRIOR_CONSUMED_FAILED_EXACT_REQUEST,
+        "prior_consumed_failed_exact_request",
+    )
     require(
         value.get("provider_call_derivation") == EXPECTED_CALL_DERIVATION,
         "provider_call_derivation",
@@ -750,6 +858,22 @@ def validate_offline(value: dict[str, Any]) -> dict[str, dict[str, Any]]:
         )
         == EXPECTED_PRIOR_CONSUMED_NON_CALL["consumed_permit_bytes"],
         "prior_consumed_non_call_bytes",
+    )
+    require(
+        load_json(STOPPED_V3 / "artifact-root.json").get("artifact_root")
+        == EXPECTED_PRIOR_CONSUMED_FAILED_EXACT_REQUEST["artifact_root"]
+        and digest((STOPPED_V3 / "raw/endpoint-contact-receipt.json").read_bytes())
+        == EXPECTED_PRIOR_CONSUMED_FAILED_EXACT_REQUEST[
+            "endpoint_contact_receipt_bytes"
+        ]
+        and digest(
+            (
+                STOPPED_V3
+                / "permit/neutral-calibration-anthropic-json-v3-replacement.permit.consumed.json"
+            ).read_bytes()
+        )
+        == EXPECTED_PRIOR_CONSUMED_FAILED_EXACT_REQUEST["consumed_permit_bytes"],
+        "prior_consumed_failed_exact_request_bytes",
     )
     body = dict(value)
     observed_root = body.pop("record_root", None)
@@ -880,7 +1004,7 @@ def validate_registration(
 ) -> None:
     require(
         value.get("schema")
-        == "vela.lean-correspondence-stage-a-runtime-qualification-candidate.v4",
+        == "vela.lean-correspondence-stage-a-runtime-qualification-candidate.v5",
         "registration_schema",
     )
     require(
@@ -908,6 +1032,11 @@ def validate_registration(
     require(
         value.get("prior_consumed_non_call") == EXPECTED_PRIOR_CONSUMED_NON_CALL,
         "registration_prior_consumed_non_call",
+    )
+    require(
+        value.get("prior_consumed_failed_exact_request")
+        == EXPECTED_PRIOR_CONSUMED_FAILED_EXACT_REQUEST,
+        "registration_prior_consumed_failed_exact_request",
     )
     require(
         value.get("provider_call_derivation") == EXPECTED_CALL_DERIVATION,
@@ -1102,7 +1231,13 @@ def validate_registration(
         == "exact_raw_schema_file_byte_splice_no_parse_reserialization"
         and runtime.get("offline_same_input_pre_request_validation") is True
         and runtime.get("provider_calls_derived_from_endpoint_write_receipts_only")
-        is True,
+        is True
+        and runtime.get("provider_request_transport")
+        == "canonical_base64_lossless_single_decode_exact_endpoint_write"
+        and runtime.get("provider_request_payload_schema")
+        == "vela.lossless-provider-request-payload.v1"
+        and runtime.get("provider_request_custody_schema")
+        == "vela.lossless-provider-request-custody.v1",
         "runtime_boundary",
     )
     runtime_images = runtime.get("runtime_images")
@@ -1128,6 +1263,9 @@ def validate_registration(
                 "request_bytes_sha256": records[adapter]["retained"]["request_bytes"][
                     "sha256"
                 ],
+                "request_transport_custody_sha256": records[adapter]["retained"][
+                    "request_transport_custody"
+                ]["sha256"],
             },
             "runtime_image_binding",
         )
@@ -1207,6 +1345,21 @@ def validate_registration(
         require(
             digest(qualifier) == EXPECTED_QUALIFIER["sha256"],
             "qualifier_bytes",
+        )
+        require(
+            git_value(
+                "rev-parse",
+                f"{EXPECTED_PRIOR_CONSUMED_FAILED_EXACT_REQUEST['producer_commit']}^{{tree}}",
+            )
+            == EXPECTED_PRIOR_CONSUMED_FAILED_EXACT_REQUEST["producer_tree"],
+            "prior_failed_exact_request_tree",
+        )
+        require(
+            git_value("rev-parse", "HEAD^")
+            == EXPECTED_CORRECTIVE_ANCESTRY[
+                "prospective_successor_direct_parent_commit"
+            ],
+            "prospective_successor_direct_parent",
         )
     require(canonical_root(value) == EXPECTED_REGISTRATION_ROOT, "registration_root")
 

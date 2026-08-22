@@ -2,9 +2,68 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"testing"
 )
+
+func validLosslessFrame(t *testing.T) ([]byte, []byte, []byte) {
+	t.Helper()
+	schema := []byte("{\n  \"type\": \"object\"\n}\n")
+	body := append([]byte("{\"schema\":"), schema...)
+	body = append(body, []byte(",\"value\":1}\n")...)
+	payload := requestPayload{
+		Schema: "vela.lossless-provider-request-payload.v1", Encoding: "base64-rfc4648-canonical", ContentType: "application/json",
+		Bytes: len(body), SHA256: digestBytes(body), Base64: base64.StdEncoding.EncodeToString(body),
+		ProviderSchemaBytes: len(schema), ProviderSchemaSHA256: digestBytes(schema), ProviderSchemaBase64: base64.StdEncoding.EncodeToString(schema), ProviderSchemaOccurrences: 1,
+	}
+	frame, err := json.Marshal(map[string]any{"type": "provider_request", "adapter": "anthropic-messages-v1", "endpoint": "https://api.anthropic.com/v1/messages", "payload": payload})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return frame, body, schema
+}
+
+func TestLosslessProviderRequestDecodeAndAdversaries(t *testing.T) {
+	frame, body, schema := validLosslessFrame(t)
+	adapter, endpointValue, decoded, decodedSchema, custody, err := decodeProviderRequestFrame(frame)
+	if err != nil || adapter != "anthropic-messages-v1" || endpointValue != "https://api.anthropic.com/v1/messages" || !bytes.Equal(decoded, body) || !bytes.Equal(decodedSchema, schema) || custody.DecodeCount != 1 || !custody.EndpointWritePrepared {
+		t.Fatalf("valid lossless frame failed: %v", err)
+	}
+	mutations := map[string]func(map[string]any){
+		"noncanonical_base64": func(item map[string]any) { item["base64"] = item["base64"].(string) + "\n" },
+		"double_encoded": func(item map[string]any) {
+			item["base64"] = base64.StdEncoding.EncodeToString([]byte(item["base64"].(string)))
+		},
+		"padding_drift":     func(item map[string]any) { item["base64"] = item["base64"].(string) + "=" },
+		"length":            func(item map[string]any) { item["bytes"] = item["bytes"].(float64) + 1 },
+		"root":              func(item map[string]any) { item["sha256"] = digestBytes([]byte("drift")) },
+		"schema_occurrence": func(item map[string]any) { item["provider_schema_occurrences"] = 0 },
+		"boolean_length":    func(item map[string]any) { item["bytes"] = false },
+		"unknown":           func(item map[string]any) { item["raw_body"] = map[string]any{} },
+	}
+	for name, mutate := range mutations {
+		t.Run(name, func(t *testing.T) {
+			var candidate map[string]any
+			if err := json.Unmarshal(frame, &candidate); err != nil {
+				t.Fatal(err)
+			}
+			mutate(candidate["payload"].(map[string]any))
+			raw, _ := json.Marshal(candidate)
+			if _, _, _, _, _, err := decodeProviderRequestFrame(raw); err == nil {
+				t.Fatal("accepted lossless payload adversary")
+			}
+		})
+	}
+	var fallback map[string]any
+	_ = json.Unmarshal(frame, &fallback)
+	delete(fallback, "payload")
+	fallback["body"] = json.RawMessage(body)
+	rawFallback, _ := json.Marshal(fallback)
+	if _, _, _, _, _, err := decodeProviderRequestFrame(rawFallback); err == nil {
+		t.Fatal("accepted RawMessage semantic-only fallback")
+	}
+}
 
 func useAdapter(t *testing.T, adapter string) {
 	t.Helper()

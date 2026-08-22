@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -27,6 +28,8 @@ type frame struct {
 	Adapter         string           `json:"adapter,omitempty"`
 	Endpoint        string           `json:"endpoint,omitempty"`
 	Body            json.RawMessage  `json:"body,omitempty"`
+	Payload         *requestPayload  `json:"payload,omitempty"`
+	RequestCustody  *requestCustody  `json:"request_custody,omitempty"`
 	Raw             string           `json:"raw,omitempty"`
 	Name            string           `json:"name,omitempty"`
 	CallID          string           `json:"call_id,omitempty"`
@@ -35,6 +38,32 @@ type frame struct {
 	Result          json.RawMessage  `json:"result,omitempty"`
 	Error           string           `json:"error,omitempty"`
 	ProviderCalls   int              `json:"provider_calls,omitempty"`
+}
+
+type requestPayload struct {
+	Schema                    string `json:"schema"`
+	Encoding                  string `json:"encoding"`
+	ContentType               string `json:"content_type"`
+	Bytes                     int    `json:"bytes"`
+	SHA256                    string `json:"sha256"`
+	Base64                    string `json:"base64"`
+	ProviderSchemaBytes       int    `json:"provider_schema_bytes"`
+	ProviderSchemaSHA256      string `json:"provider_schema_sha256"`
+	ProviderSchemaBase64      string `json:"provider_schema_base64"`
+	ProviderSchemaOccurrences int    `json:"provider_schema_occurrences"`
+}
+
+type requestCustody struct {
+	Schema                    string `json:"schema"`
+	ContentType               string `json:"content_type"`
+	Bytes                     int    `json:"bytes"`
+	SHA256                    string `json:"sha256"`
+	PayloadEncoding           string `json:"payload_encoding"`
+	DecodeCount               int    `json:"decode_count"`
+	ProviderSchemaBytes       int    `json:"provider_schema_bytes"`
+	ProviderSchemaSHA256      string `json:"provider_schema_sha256"`
+	ProviderSchemaOccurrences int    `json:"provider_schema_occurrences"`
+	EndpointWritePrepared     bool   `json:"endpoint_write_prepared"`
 }
 
 type argumentCustody struct {
@@ -717,6 +746,46 @@ func digestBytes(raw []byte) string {
 	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
+func makeRequestPayload(body, schema []byte) (requestPayload, error) {
+	if len(body) == 0 || len(schema) == 0 || !json.Valid(body) || bytes.Count(body, schema) != 1 {
+		return requestPayload{}, errors.New("lossless request payload inputs invalid")
+	}
+	return requestPayload{
+		Schema:                    "vela.lossless-provider-request-payload.v1",
+		Encoding:                  "base64-rfc4648-canonical",
+		ContentType:               "application/json",
+		Bytes:                     len(body),
+		SHA256:                    digestBytes(body),
+		Base64:                    base64.StdEncoding.EncodeToString(body),
+		ProviderSchemaBytes:       len(schema),
+		ProviderSchemaSHA256:      digestBytes(schema),
+		ProviderSchemaBase64:      base64.StdEncoding.EncodeToString(schema),
+		ProviderSchemaOccurrences: 1,
+	}, nil
+}
+
+func expectedRequestCustody(body, schema []byte) requestCustody {
+	return requestCustody{
+		Schema:                    "vela.lossless-provider-request-custody.v1",
+		ContentType:               "application/json",
+		Bytes:                     len(body),
+		SHA256:                    digestBytes(body),
+		PayloadEncoding:           "base64-rfc4648-canonical",
+		DecodeCount:               1,
+		ProviderSchemaBytes:       len(schema),
+		ProviderSchemaSHA256:      digestBytes(schema),
+		ProviderSchemaOccurrences: 1,
+		EndpointWritePrepared:     true,
+	}
+}
+
+func validateRequestCustody(observed *requestCustody, body, schema []byte) error {
+	if observed == nil || *observed != expectedRequestCustody(body, schema) {
+		return errors.New("bridge lossless request custody mismatch")
+	}
+	return nil
+}
+
 func decodeExactJSONObject(raw []byte) (map[string]json.RawMessage, error) {
 	trimmed := bytes.TrimSpace(raw)
 	if len(trimmed) < 2 || trimmed[0] != '{' || trimmed[len(trimmed)-1] != '}' {
@@ -880,8 +949,12 @@ func run() error {
 	}
 	defer bridge.Close()
 	url, _ := endpoint(providerAdapter)
+	payload, err := makeRequestPayload(body, prepared.schema)
+	if err != nil {
+		return err
+	}
 	encoder := json.NewEncoder(bridge)
-	if err := encoder.Encode(frame{Type: "provider_request", Adapter: providerAdapter, Endpoint: url, Body: body}); err != nil {
+	if err := encoder.Encode(frame{Type: "provider_request", Adapter: providerAdapter, Endpoint: url, Payload: &payload}); err != nil {
 		return err
 	}
 	scanner := bufio.NewScanner(bridge)
@@ -890,6 +963,7 @@ func run() error {
 	var argumentCustodyBytes bytes.Buffer
 	argumentCustodyCount := 0
 	providerCalls := 0
+	transportReceiptWritten := false
 	var finalResponse []byte
 	for scanner.Scan() {
 		line := append([]byte(nil), scanner.Bytes()...)
@@ -903,6 +977,21 @@ func run() error {
 		case "endpoint_attempt":
 			if event.ProviderCalls != providerCalls+1 {
 				return errors.New("provider call receipt count drift")
+			}
+			if providerCalls == 0 {
+				if err := validateRequestCustody(event.RequestCustody, body, prepared.schema); err != nil {
+					return err
+				}
+				receipt, err := canonical(event.RequestCustody)
+				if err != nil {
+					return err
+				}
+				if err := appendCustody(input.OutputDir, "request-transport-custody.json", receipt); err != nil {
+					return err
+				}
+				transportReceiptWritten = true
+			} else if event.RequestCustody == nil || event.RequestCustody.DecodeCount != 1 || !event.RequestCustody.EndpointWritePrepared {
+				return errors.New("continuation request custody absent")
 			}
 			providerCalls++
 		case "provider_event":
@@ -959,6 +1048,9 @@ func run() error {
 	}
 	if err := scanner.Err(); err != nil {
 		return err
+	}
+	if !transportReceiptWritten {
+		return errors.New("initial lossless request custody absent")
 	}
 	if err := appendCustody(input.OutputDir, "provider-events.raw.jsonl", rawEvents.Bytes()); err != nil {
 		return err
@@ -1023,21 +1115,65 @@ func validateInputOffline() error {
 	if err := appendCustody(prepared.input.OutputDir, "packet-custody.json", packetReceipt); err != nil {
 		return err
 	}
+	bridge := os.NewFile(3, "offline-validation-bridge")
+	if bridge == nil {
+		return errors.New("offline validation bridge descriptor absent")
+	}
+	defer bridge.Close()
+	payload, err := makeRequestPayload(prepared.body, prepared.schema)
+	if err != nil {
+		return err
+	}
+	url, _ := endpoint(providerAdapter)
+	encoder := json.NewEncoder(bridge)
+	if err := encoder.Encode(frame{Type: "provider_request", Adapter: providerAdapter, Endpoint: url, Payload: &payload}); err != nil {
+		return err
+	}
+	scanner := bufio.NewScanner(bridge)
+	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
+	if !scanner.Scan() {
+		return errors.New("offline bridge write-preparation receipt absent")
+	}
+	var bridgeReceipt frame
+	if err := json.Unmarshal(scanner.Bytes(), &bridgeReceipt); err != nil || bridgeReceipt.Type != "write_preparation" {
+		return errors.New("offline bridge write-preparation receipt invalid")
+	}
+	if err := validateRequestCustody(bridgeReceipt.RequestCustody, prepared.body, prepared.schema); err != nil {
+		return err
+	}
+	if scanner.Scan() || scanner.Err() != nil {
+		return errors.New("offline bridge emitted unexpected frame")
+	}
+	transportReceipt, err := canonical(bridgeReceipt.RequestCustody)
+	if err != nil {
+		return err
+	}
+	if err := appendCustody(prepared.input.OutputDir, "request-transport-custody.json", transportReceipt); err != nil {
+		return err
+	}
 	receipt, err := canonical(map[string]any{
-		"schema":                      "vela.stage-a-offline-pre-request-validation.v1",
-		"status":                      "pass",
-		"adapter":                     providerAdapter,
-		"run_id":                      prepared.input.RunID,
-		"run_json_sha256":             digestFile("/input/run.json"),
-		"mounted_schema_root":         digestBytes(prepared.schema),
-		"request_schema_sha256":       digestBytes(prepared.schema),
-		"request_sha256":              digestBytes(prepared.body),
-		"participant_validation_path": "exact_runner_prepare_and_request_construction",
-		"dummy_credential_fd":         true,
-		"credential_secret":           false,
-		"endpoint_contact_forbidden":  true,
-		"endpoint_write_receipts":     0,
-		"provider_calls":              0,
+		"schema":                        "vela.stage-a-offline-pre-request-validation.v1",
+		"status":                        "pass",
+		"adapter":                       providerAdapter,
+		"run_id":                        prepared.input.RunID,
+		"run_json_sha256":               digestFile("/input/run.json"),
+		"mounted_schema_root":           digestBytes(prepared.schema),
+		"request_schema_sha256":         digestBytes(prepared.schema),
+		"request_sha256":                digestBytes(prepared.body),
+		"request_bytes":                 len(prepared.body),
+		"request_payload_encoding":      payload.Encoding,
+		"request_payload_sha256":        payload.SHA256,
+		"bridge_decoded_request_sha256": bridgeReceipt.RequestCustody.SHA256,
+		"bridge_decoded_request_bytes":  bridgeReceipt.RequestCustody.Bytes,
+		"bridge_decode_count":           bridgeReceipt.RequestCustody.DecodeCount,
+		"provider_schema_occurrences":   bridgeReceipt.RequestCustody.ProviderSchemaOccurrences,
+		"endpoint_write_prepared":       bridgeReceipt.RequestCustody.EndpointWritePrepared,
+		"participant_validation_path":   "exact_runner_prepare_lossless_frame_bridge_decode_and_write_preparation",
+		"dummy_credential_fd":           true,
+		"credential_secret":             false,
+		"endpoint_contact_forbidden":    true,
+		"endpoint_write_receipts":       0,
+		"provider_calls":                0,
 	})
 	if err != nil {
 		return err

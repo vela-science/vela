@@ -44,6 +44,20 @@ CONSUMED_NON_CALL_PERMIT_BYTES = (
 ENDPOINT_ZERO_RECEIPT_BYTES = (
     "sha256:798a8733f655c0e5aa4e16ddec6dc8471d3fb2897b6c3eeb5940907e0f58ac4f"
 )
+FAILED_EXACT_REQUEST_COMMIT = "37a5a92c314b4f0345eb2d8aadf1890b4e59682d"
+FAILED_EXACT_REQUEST_TREE = "e5c1449b626c62db5215ea260a5f6ede6942d9fa"
+FAILED_EXACT_REQUEST_ARTIFACT_ROOT = (
+    "sha256:63cbbdf6ae6c7e906268b31f33198d06b8db0757e6db48b6187286cacd08dcb9"
+)
+FAILED_EXACT_REQUEST_PERMIT_ROOT = (
+    "sha256:7ddf24c9dbeac2cdce1a4ca1972a0984287dbcf528881ae01cbfe297217e2f32"
+)
+FAILED_EXACT_REQUEST_PERMIT_BYTES = (
+    "sha256:92bb69095536f0d7be026baed085b530ced623d2408d8e0c63fc2175a4b1a6f3"
+)
+FAILED_EXACT_ENDPOINT_RECEIPT_BYTES = (
+    "sha256:e0615bd59e62a73694e9d48ae02b650b7d699d6d4bf6edd7058874fe4c5623a7"
+)
 SOURCE_DATE_EPOCH = 1_757_289_600
 RUNNER_SOURCE = Path(__file__).resolve().parent / "runtime-runner"
 NEUTRAL_INPUTS = Path(__file__).resolve().parent / "neutral-calibration"
@@ -64,7 +78,7 @@ PROVIDERS = {
     "anthropic-messages-v1": (
         "Anthropic",
         "claude-opus-5",
-        "neutral-calibration-anthropic-json-v3-replacement",
+        "neutral-calibration-anthropic-json-v4-lossless",
     ),
 }
 RETIRED_PERMITS = {
@@ -249,6 +263,12 @@ def provider_contract(adapter: str) -> dict[str, Any]:
             "unrestricted_clients": False,
             "credential_fd": 4,
             "credential_retained": False,
+            "provider_request_frame": "lossless_canonical_base64_exact_bytes",
+            "provider_request_payload_schema": "vela.lossless-provider-request-payload.v1",
+            "provider_request_custody_schema": "vela.lossless-provider-request-custody.v1",
+            "payload_encoding": "base64-rfc4648-canonical",
+            "payload_decode_count": 1,
+            "endpoint_write": "decoded_payload_bytes_without_json_reserialization",
         },
         "packet_input": {
             "mount_path": "/input/packet.json",
@@ -897,6 +917,30 @@ def prior_consumed_non_call() -> dict[str, Any]:
     }
 
 
+def prior_consumed_failed_exact_request() -> dict[str, Any]:
+    return {
+        "schema": "vela.stage-a-consumed-neutral-failed-exact-request-lineage.v1",
+        "producer_commit": FAILED_EXACT_REQUEST_COMMIT,
+        "producer_tree": FAILED_EXACT_REQUEST_TREE,
+        "artifact_root": FAILED_EXACT_REQUEST_ARTIFACT_ROOT,
+        "provider_adapter": "anthropic-messages-v1",
+        "run_id": "neutral-calibration-anthropic-json-v3-replacement",
+        "permit_root": FAILED_EXACT_REQUEST_PERMIT_ROOT,
+        "consumed_permit_bytes": FAILED_EXACT_REQUEST_PERMIT_BYTES,
+        "endpoint_contact_receipt_bytes": FAILED_EXACT_ENDPOINT_RECEIPT_BYTES,
+        "permit_consumed": True,
+        "provider_calls": 1,
+        "endpoint_contacted": True,
+        "provider_response": "terminal_success",
+        "calibration_outcome": "non_result_failed_exact_request",
+        "positive_qualification": False,
+        "retryable": False,
+        "replacement_authorized": False,
+        "denominator_disposition": "permanent_consumed_failed_exact_request",
+        "authority_effect": "none",
+    }
+
+
 def provider_call_derivation() -> dict[str, Any]:
     controller = RUNNER_SOURCE.parent / "neutral_controller.py"
     return {
@@ -1091,6 +1135,10 @@ def run(repository: Path, workspace: Path, output: Path, trust_bundle: Path) -> 
                 "runtime/preflight-evidence/offline-pre-request-validation.json",
             ),
             ("request_bytes", "runtime/preflight-evidence/request.raw.json"),
+            (
+                "request_transport_custody",
+                "runtime/preflight-evidence/request-transport-custody.json",
+            ),
         ):
             raw = (bundle / relative).read_bytes()
             suffix = Path(relative).suffix or ".bin"
@@ -1147,6 +1195,7 @@ def run(repository: Path, workspace: Path, output: Path, trust_bundle: Path) -> 
         },
         "trust_bundle_sha256": digest(trust_raw),
         "prior_consumed_non_call": prior_consumed_non_call(),
+        "prior_consumed_failed_exact_request": prior_consumed_failed_exact_request(),
         "provider_records": records,
         "provider_call_derivation": provider_call_derivation(),
         "provider_calls": 0,
@@ -1249,6 +1298,10 @@ def main() -> int:
                     "runtime/preflight-evidence/offline-pre-request-validation.json",
                 ),
                 ("request_bytes", "runtime/preflight-evidence/request.raw.json"),
+                (
+                    "request_transport_custody",
+                    "runtime/preflight-evidence/request-transport-custody.json",
+                ),
             ):
                 raw = (bundle / relative).read_bytes()
                 target = (
@@ -1312,6 +1365,7 @@ def main() -> int:
             },
             "trust_bundle_sha256": digest(trust_raw),
             "prior_consumed_non_call": prior_consumed_non_call(),
+            "prior_consumed_failed_exact_request": prior_consumed_failed_exact_request(),
             "provider_records": records,
             "provider_call_derivation": provider_call_derivation(),
             "provider_calls": 0,

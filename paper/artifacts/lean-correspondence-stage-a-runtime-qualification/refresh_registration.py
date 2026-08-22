@@ -19,7 +19,7 @@ def main() -> None:
     offline = json.loads((PACKAGE / "offline-qualification.json").read_bytes())
     records = {item["provider_adapter"]: item for item in offline["provider_records"]}
     registration["schema"] = (
-        "vela.lean-correspondence-stage-a-runtime-qualification-candidate.v4"
+        "vela.lean-correspondence-stage-a-runtime-qualification-candidate.v5"
     )
     registration["status"] = "held_offline_validated_pending_independent_review"
     registration["authorization"].update(
@@ -81,6 +81,9 @@ def main() -> None:
                     "offline_validation_receipt"
                 ]["sha256"],
                 "request_bytes_sha256": record["retained"]["request_bytes"]["sha256"],
+                "request_transport_custody_sha256": record["retained"][
+                    "request_transport_custody"
+                ]["sha256"],
             }
         )
     registration["runtime_boundary"].update(
@@ -88,6 +91,9 @@ def main() -> None:
             "run_input_materialization": "exact_raw_schema_file_byte_splice_no_parse_reserialization",
             "offline_same_input_pre_request_validation": True,
             "provider_calls_derived_from_endpoint_write_receipts_only": True,
+            "provider_request_transport": "canonical_base64_lossless_single_decode_exact_endpoint_write",
+            "provider_request_payload_schema": "vela.lossless-provider-request-payload.v1",
+            "provider_request_custody_schema": "vela.lossless-provider-request-custody.v1",
         }
     )
     for retirement in registration["retired_neutral_calibration_permits"]:
@@ -95,6 +101,9 @@ def main() -> None:
             "qualification_receipt"
         ]["participant_permit_root"]
     registration["prior_consumed_non_call"] = offline["prior_consumed_non_call"]
+    registration["prior_consumed_failed_exact_request"] = offline[
+        "prior_consumed_failed_exact_request"
+    ]
     registration["provider_call_derivation"] = offline["provider_call_derivation"]
     registration["offline_qualification"].update(
         {
@@ -111,7 +120,7 @@ def main() -> None:
                 "producer_tree"
             ],
             "prospective_successor_direct_parent_commit": offline[
-                "prior_consumed_non_call"
+                "prior_consumed_failed_exact_request"
             ]["producer_commit"],
         }
     )

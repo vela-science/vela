@@ -103,4 +103,4 @@
   "title": "Lean Correspondence review response",
   "type": "object"
 }
-,"provider_schema_bytes":2384,"provider_schema_path":"/input/provider-schema.json","provider_schema_sha256":"sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7","run_id":"neutral-calibration-anthropic-json-v3-replacement"}
+,"provider_schema_bytes":2384,"provider_schema_path":"/input/provider-schema.json","provider_schema_sha256":"sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7","run_id":"neutral-calibration-anthropic-json-v4-lossless"}

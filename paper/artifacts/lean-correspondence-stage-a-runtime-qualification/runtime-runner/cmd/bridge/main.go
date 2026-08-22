@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -26,6 +27,8 @@ type frame struct {
 	Adapter         string           `json:"adapter,omitempty"`
 	Endpoint        string           `json:"endpoint,omitempty"`
 	Body            json.RawMessage  `json:"body,omitempty"`
+	Payload         *requestPayload  `json:"payload,omitempty"`
+	RequestCustody  *requestCustody  `json:"request_custody,omitempty"`
 	Raw             string           `json:"raw,omitempty"`
 	Name            string           `json:"name,omitempty"`
 	CallID          string           `json:"call_id,omitempty"`
@@ -34,6 +37,32 @@ type frame struct {
 	Result          json.RawMessage  `json:"result,omitempty"`
 	Error           string           `json:"error,omitempty"`
 	ProviderCalls   int              `json:"provider_calls,omitempty"`
+}
+
+type requestPayload struct {
+	Schema                    string `json:"schema"`
+	Encoding                  string `json:"encoding"`
+	ContentType               string `json:"content_type"`
+	Bytes                     int    `json:"bytes"`
+	SHA256                    string `json:"sha256"`
+	Base64                    string `json:"base64"`
+	ProviderSchemaBytes       int    `json:"provider_schema_bytes"`
+	ProviderSchemaSHA256      string `json:"provider_schema_sha256"`
+	ProviderSchemaBase64      string `json:"provider_schema_base64"`
+	ProviderSchemaOccurrences int    `json:"provider_schema_occurrences"`
+}
+
+type requestCustody struct {
+	Schema                    string `json:"schema"`
+	ContentType               string `json:"content_type"`
+	Bytes                     int    `json:"bytes"`
+	SHA256                    string `json:"sha256"`
+	PayloadEncoding           string `json:"payload_encoding"`
+	DecodeCount               int    `json:"decode_count"`
+	ProviderSchemaBytes       int    `json:"provider_schema_bytes"`
+	ProviderSchemaSHA256      string `json:"provider_schema_sha256"`
+	ProviderSchemaOccurrences int    `json:"provider_schema_occurrences"`
+	EndpointWritePrepared     bool   `json:"endpoint_write_prepared"`
 }
 
 type argumentCustody struct {
@@ -47,6 +76,86 @@ type argumentCustody struct {
 func digestBytes(raw []byte) string {
 	sum := sha256.Sum256(raw)
 	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+func decodeCanonicalBase64(encoded string) ([]byte, error) {
+	if encoded == "" || strings.TrimSpace(encoded) != encoded {
+		return nil, errors.New("lossless payload base64 is empty or padded by whitespace")
+	}
+	decoded, err := base64.StdEncoding.Strict().DecodeString(encoded)
+	if err != nil || base64.StdEncoding.EncodeToString(decoded) != encoded {
+		return nil, errors.New("lossless payload base64 is not canonical RFC 4648")
+	}
+	return decoded, nil
+}
+
+func custodyForBody(body, schema []byte) (*requestCustody, error) {
+	if len(body) == 0 || len(schema) == 0 || !json.Valid(body) || bytes.Count(body, schema) != 1 {
+		return nil, errors.New("endpoint write bytes lost exact schema binding")
+	}
+	return &requestCustody{
+		Schema:                    "vela.lossless-provider-request-custody.v1",
+		ContentType:               "application/json",
+		Bytes:                     len(body),
+		SHA256:                    digestBytes(body),
+		PayloadEncoding:           "base64-rfc4648-canonical",
+		DecodeCount:               1,
+		ProviderSchemaBytes:       len(schema),
+		ProviderSchemaSHA256:      digestBytes(schema),
+		ProviderSchemaOccurrences: bytes.Count(body, schema),
+		EndpointWritePrepared:     true,
+	}, nil
+}
+
+func decodeRequestPayload(raw json.RawMessage) ([]byte, []byte, *requestCustody, error) {
+	object, err := decodeExactJSONObject(raw)
+	if err != nil || len(object) != 10 {
+		return nil, nil, nil, errors.New("lossless request payload is not closed")
+	}
+	for _, key := range []string{"schema", "encoding", "content_type", "bytes", "sha256", "base64", "provider_schema_bytes", "provider_schema_sha256", "provider_schema_base64", "provider_schema_occurrences"} {
+		if object[key] == nil {
+			return nil, nil, nil, errors.New("lossless request payload field absent")
+		}
+	}
+	var payload requestPayload
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&payload); err != nil {
+		return nil, nil, nil, errors.New("lossless request payload types invalid")
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return nil, nil, nil, errors.New("lossless request payload trailing JSON")
+	}
+	body, err := decodeCanonicalBase64(payload.Base64)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	schema, err := decodeCanonicalBase64(payload.ProviderSchemaBase64)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if payload.Schema != "vela.lossless-provider-request-payload.v1" || payload.Encoding != "base64-rfc4648-canonical" || payload.ContentType != "application/json" || payload.Bytes <= 0 || payload.Bytes != len(body) || payload.SHA256 != digestBytes(body) || payload.ProviderSchemaBytes <= 0 || payload.ProviderSchemaBytes != len(schema) || payload.ProviderSchemaSHA256 != digestBytes(schema) || payload.ProviderSchemaOccurrences != 1 || bytes.Count(body, schema) != 1 || !json.Valid(body) || len(bytes.TrimSpace(body)) < 2 || bytes.TrimSpace(body)[0] != '{' {
+		return nil, nil, nil, errors.New("lossless request payload binding mismatch")
+	}
+	receipt, err := custodyForBody(body, schema)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return body, schema, receipt, nil
+}
+
+func decodeProviderRequestFrame(raw []byte) (string, string, []byte, []byte, *requestCustody, error) {
+	object, err := decodeExactJSONObject(raw)
+	if err != nil || len(object) != 4 || object["type"] == nil || object["adapter"] == nil || object["endpoint"] == nil || object["payload"] == nil || object["body"] != nil {
+		return "", "", nil, nil, nil, errors.New("provider request frame is not closed lossless transport")
+	}
+	var frameType, adapter, requestEndpoint string
+	if json.Unmarshal(object["type"], &frameType) != nil || json.Unmarshal(object["adapter"], &adapter) != nil || json.Unmarshal(object["endpoint"], &requestEndpoint) != nil || frameType != "provider_request" {
+		return "", "", nil, nil, nil, errors.New("provider request frame identity invalid")
+	}
+	body, schema, custody, err := decodeRequestPayload(object["payload"])
+	return adapter, requestEndpoint, body, schema, custody, err
 }
 
 func decodeExactJSONObject(raw []byte) (map[string]json.RawMessage, error) {
@@ -452,19 +561,25 @@ func serve(workspace string) error {
 	if !scanner.Scan() {
 		return errors.New("provider request frame absent")
 	}
-	var requestFrame frame
-	if err := json.Unmarshal(scanner.Bytes(), &requestFrame); err != nil {
+	requestAdapter, requestEndpoint, body, schema, initialCustody, err := decodeProviderRequestFrame(scanner.Bytes())
+	if err != nil {
 		return err
 	}
 	exactEndpoint, _ := endpoint()
-	if requestFrame.Type != "provider_request" || requestFrame.Adapter != providerAdapter || requestFrame.Endpoint != exactEndpoint {
+	if requestAdapter != providerAdapter || requestEndpoint != exactEndpoint {
 		return errors.New("provider request escaped exact endpoint")
 	}
-	body := requestFrame.Body
 	providerCalls := 0
 	for turn := 0; turn < 64; turn++ {
 		providerCalls++
-		if err := encoder.Encode(frame{Type: "endpoint_attempt", ProviderCalls: providerCalls}); err != nil {
+		writeCustody, err := custodyForBody(body, schema)
+		if err != nil {
+			return err
+		}
+		if providerCalls == 1 && *writeCustody != *initialCustody {
+			return errors.New("initial endpoint write custody drift")
+		}
+		if err := encoder.Encode(frame{Type: "endpoint_attempt", ProviderCalls: providerCalls, RequestCustody: writeCustody}); err != nil {
 			return err
 		}
 		raw, err := contact(context.Background(), exactEndpoint, credential, body)
@@ -527,15 +642,46 @@ func selfTest() error {
 	return nil
 }
 
+func validatePayloadOffline() error {
+	bridge := os.NewFile(3, "offline-participant-bridge")
+	credentialFile := os.NewFile(4, "offline-dummy-credential")
+	if bridge == nil || credentialFile == nil {
+		return errors.New("offline validation descriptors absent")
+	}
+	defer bridge.Close()
+	rawCredential, err := io.ReadAll(io.LimitReader(credentialFile, 128))
+	_ = credentialFile.Close()
+	defer clear(rawCredential)
+	if err != nil || !bytes.Equal(rawCredential, []byte("offline-validation-dummy-no-secret\n")) {
+		return errors.New("offline validation dummy credential invalid")
+	}
+	scanner := bufio.NewScanner(bridge)
+	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
+	if !scanner.Scan() {
+		return errors.New("offline lossless provider request frame absent")
+	}
+	adapter, requestEndpoint, _, _, custody, err := decodeProviderRequestFrame(scanner.Bytes())
+	if err != nil {
+		return err
+	}
+	exactEndpoint, _ := endpoint()
+	if adapter != providerAdapter || requestEndpoint != exactEndpoint {
+		return errors.New("offline provider request endpoint drift")
+	}
+	return json.NewEncoder(bridge).Encode(frame{Type: "write_preparation", RequestCustody: custody})
+}
+
 func main() {
 	var err error
 	switch {
 	case len(os.Args) == 2 && os.Args[1] == "--self-test":
 		err = selfTest()
+	case len(os.Args) == 2 && os.Args[1] == "--validate-payload":
+		err = validatePayloadOffline()
 	case len(os.Args) == 3 && os.Args[1] == "--serve":
 		err = serve(os.Args[2])
 	default:
-		err = errors.New("accepted arguments are exactly --self-test or --serve CANONICAL_WORKSPACE")
+		err = errors.New("accepted arguments are exactly --self-test, --validate-payload, or --serve CANONICAL_WORKSPACE")
 	}
 	if err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, err)

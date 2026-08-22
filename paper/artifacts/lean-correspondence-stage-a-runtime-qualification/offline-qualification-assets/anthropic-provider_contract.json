@@ -62,9 +62,15 @@
   "transport": {
     "credential_fd": 4,
     "credential_retained": false,
+    "endpoint_write": "decoded_payload_bytes_without_json_reserialization",
     "host_bridge_fd": 3,
     "host_bridge_single_endpoint": "https://api.anthropic.com/v1/messages",
     "participant_network": false,
+    "payload_decode_count": 1,
+    "payload_encoding": "base64-rfc4648-canonical",
+    "provider_request_custody_schema": "vela.lossless-provider-request-custody.v1",
+    "provider_request_frame": "lossless_canonical_base64_exact_bytes",
+    "provider_request_payload_schema": "vela.lossless-provider-request-payload.v1",
     "proxy_environment": "ignored",
     "redirects": "rejected",
     "unrestricted_clients": false
