@@ -1,0 +1,1 @@
+{"acceptance_action_present":true,"authorization_verified":true,"evidence_path":"evidence/scope-tr-08.json","family_id":"taxonomy-remap","instruction":"An independently authorized acceptance action is present; authoritative status changes only through that separate action.","regime":"independently_authorized_acceptance_action","schema":"structured-state-scope.v1"}

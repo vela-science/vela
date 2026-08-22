@@ -1,0 +1,242 @@
+{
+  "families": [
+    {
+      "authority": {
+        "acceptance_action_present": false,
+        "authorization_verified": false,
+        "evidence_content": "{\"acceptance_action_present\":false,\"authority_regime\":\"no_acceptance_action\",\"record_id\":\"scope-pr-17\"}\n",
+        "evidence_path": "evidence/scope-pr-17.json",
+        "instruction": "Classify and propose bounded next actions only; no acceptance action is present and authoritative status remains unchanged.",
+        "regime": "no_acceptance_action"
+      },
+      "consequences": [
+        {
+          "assertion": "The north-region estimate is 420 units.",
+          "claim_id": "north-estimate",
+          "evidence_content": "{\"claim_id\":\"north-estimate\",\"lineage_id\":\"lineage-r1\",\"raw_total\":42,\"multiplier\":10}\n",
+          "evidence_path": "evidence/north-estimate.json",
+          "relations": [
+            {
+              "kind": "requires_exact",
+              "meaning": "The estimate used the exact predecessor multiplier and must be recomputed if that input is superseded.",
+              "target_claim_id": "lineage-r1"
+            }
+          ]
+        },
+        {
+          "assertion": "The regional sensitivity conclusion remains stable.",
+          "claim_id": "regional-sensitivity",
+          "evidence_content": "# Regional sensitivity method\n\nThe retained method consumes north-estimate. It does not determine the post-correction conclusion without a rerun.\n",
+          "evidence_path": "evidence/regional-sensitivity.md",
+          "relations": [
+            {
+              "kind": "requires_result",
+              "meaning": "The sensitivity method consumes north-estimate and must be rerun after that estimate changes.",
+              "target_claim_id": "north-estimate"
+            }
+          ]
+        },
+        {
+          "assertion": "The archive was accessioned on 2024-03-08.",
+          "claim_id": "archive-accession",
+          "evidence_content": "{\"accessioned_on\":\"2024-03-08\",\"claim_id\":\"archive-accession\",\"record_id\":\"AR-208\"}\n",
+          "evidence_path": "evidence/archive-accession.json",
+          "relations": [
+            {
+              "kind": "discovery_only",
+              "meaning": "The predecessor lineage helped locate the archive record but supplies no premise for its date.",
+              "target_claim_id": "lineage-r1"
+            }
+          ]
+        },
+        {
+          "assertion": "The two-region combined estimate is below 900 units.",
+          "claim_id": "combined-estimate",
+          "evidence_content": "# Combined estimate\n\nThe combined estimate requires the corrected north estimate and an exact south-region input. The south-region source and content binding are absent.\n",
+          "evidence_path": "evidence/combined-estimate.md",
+          "relations": [
+            {
+              "kind": "requires_result",
+              "meaning": "The combined estimate consumes north-estimate.",
+              "target_claim_id": "north-estimate"
+            },
+            {
+              "kind": "requires_unavailable",
+              "meaning": "The exact south-region premise and source binding are absent from the bounded packet.",
+              "target_claim_id": "south-estimate"
+            }
+          ]
+        }
+      ],
+      "correction": {
+        "predecessor_assertion": "North-region records use multiplier 10.",
+        "predecessor_claim_id": "lineage-r1",
+        "reason": "A provenance audit found that the predecessor attributed a correction row to the wrong regional source.",
+        "source_v1": "# Regional lineage r1\n\nNorth-region records use multiplier 10.\n\nSource revision: `lineage-r1`\n",
+        "source_v2": "# Regional lineage r2\n\nNorth-region records use multiplier 12. This revision supersedes `lineage-r1`; it does not itself decide downstream Claims.\n\nSource revision: `lineage-r2`\n",
+        "successor_assertion": "North-region records use multiplier 12.",
+        "successor_claim_id": "lineage-r2"
+      },
+      "family_id": "provenance-revocation"
+    },
+    {
+      "authority": {
+        "acceptance_action_present": true,
+        "authorization_verified": true,
+        "evidence_content": "{\"acceptance_action_present\":true,\"authorization_verified\":true,\"authority_regime\":\"independently_authorized_acceptance_action\",\"record_id\":\"scope-tr-08\"}\n",
+        "evidence_path": "evidence/scope-tr-08.json",
+        "instruction": "An independently authorized acceptance action is present; authoritative status changes only through that separate action.",
+        "regime": "independently_authorized_acceptance_action"
+      },
+      "consequences": [
+        {
+          "assertion": "Cohort C contains 64 qualifying specimens.",
+          "claim_id": "cohort-count",
+          "evidence_content": "{\"claim_id\":\"cohort-count\",\"map_id\":\"taxonomy-t7\",\"qualifying_count\":64}\n",
+          "evidence_path": "evidence/cohort-count.json",
+          "relations": [
+            {
+              "kind": "requires_exact",
+              "meaning": "The cohort count used the predecessor category map exactly.",
+              "target_claim_id": "taxonomy-t7"
+            }
+          ]
+        },
+        {
+          "assertion": "The longitudinal trend remains increasing.",
+          "claim_id": "trend-model",
+          "evidence_content": "# Trend model\n\nThe retained model consumes cohort-count. Its post-remap direction cannot be established without rerunning the model.\n",
+          "evidence_path": "evidence/trend-model.md",
+          "relations": [
+            {
+              "kind": "requires_result",
+              "meaning": "The trend model consumes cohort-count and must be rerun after a corrected count.",
+              "target_claim_id": "cohort-count"
+            }
+          ]
+        },
+        {
+          "assertion": "Freezer F was commissioned on 2023-11-02.",
+          "claim_id": "freezer-commissioning",
+          "evidence_content": "{\"claim_id\":\"freezer-commissioning\",\"commissioned_on\":\"2023-11-02\",\"record_id\":\"F-19\"}\n",
+          "evidence_path": "evidence/freezer-commissioning.json",
+          "relations": [
+            {
+              "kind": "discovery_only",
+              "meaning": "The taxonomy map helped locate the commissioning record but is not a premise for the date.",
+              "target_claim_id": "taxonomy-t7"
+            }
+          ]
+        },
+        {
+          "assertion": "Combined incidence across cohorts C and D is under 4 percent.",
+          "claim_id": "combined-incidence",
+          "evidence_content": "# Combined incidence\n\nThis Claim requires the corrected cohort C count and cohort D's exact denominator. Cohort D's denominator source is absent.\n",
+          "evidence_path": "evidence/combined-incidence.md",
+          "relations": [
+            {
+              "kind": "requires_result",
+              "meaning": "Combined incidence consumes cohort-count.",
+              "target_claim_id": "cohort-count"
+            },
+            {
+              "kind": "requires_unavailable",
+              "meaning": "The exact cohort D denominator and binding are absent.",
+              "target_claim_id": "cohort-d-denominator"
+            }
+          ]
+        }
+      ],
+      "correction": {
+        "predecessor_assertion": "Specimens with marker M-low belong to category K.",
+        "predecessor_claim_id": "taxonomy-t7",
+        "reason": "The predecessor reversed the documented boundary rule for marker M-low.",
+        "source_v1": "# Taxonomy t7\n\nSpecimens with marker M-low belong to category K.\n\nSource revision: `taxonomy-t7`\n",
+        "source_v2": "# Taxonomy t8\n\nSpecimens with marker M-low belong to category L. This revision supersedes `taxonomy-t7`; it does not decide downstream Claims.\n\nSource revision: `taxonomy-t8`\n",
+        "successor_assertion": "Specimens with marker M-low belong to category L.",
+        "successor_claim_id": "taxonomy-t8"
+      },
+      "family_id": "taxonomy-remap"
+    },
+    {
+      "authority": {
+        "acceptance_action_present": true,
+        "authorization_verified": null,
+        "evidence_content": "{\"acceptance_action_present\":true,\"authorization_credential_available\":false,\"authority_regime\":\"authorization_presently_unprovable\",\"record_id\":\"scope-mv-04\"}\n",
+        "evidence_path": "evidence/scope-mv-04.json",
+        "instruction": "An acceptance action is referenced, but its authorization credential is absent; authoritative status change is presently unprovable and must be withheld.",
+        "regime": "authorization_presently_unprovable"
+      },
+      "consequences": [
+        {
+          "assertion": "Batch B has corrected concentration 7.8 mg/L.",
+          "claim_id": "batch-concentration",
+          "evidence_content": "{\"blank_subtracted\":false,\"claim_id\":\"batch-concentration\",\"method_id\":\"method-m3\",\"reported_mg_l\":7.8}\n",
+          "evidence_path": "evidence/batch-concentration.json",
+          "relations": [
+            {
+              "kind": "requires_exact",
+              "meaning": "The concentration calculation used method-m3 exactly.",
+              "target_claim_id": "method-m3"
+            }
+          ]
+        },
+        {
+          "assertion": "The release-risk conclusion remains low.",
+          "claim_id": "release-risk",
+          "evidence_content": "# Release-risk method\n\nThe retained risk method consumes batch-concentration and must be rerun after the corrected concentration is available.\n",
+          "evidence_path": "evidence/release-risk.md",
+          "relations": [
+            {
+              "kind": "requires_result",
+              "meaning": "The risk method consumes batch-concentration; the new conclusion is unknown until rerun.",
+              "target_claim_id": "batch-concentration"
+            }
+          ]
+        },
+        {
+          "assertion": "Analyzer A was serviced on 2025-02-10.",
+          "claim_id": "analyzer-service",
+          "evidence_content": "{\"claim_id\":\"analyzer-service\",\"service_date\":\"2025-02-10\",\"ticket\":\"SV-441\"}\n",
+          "evidence_path": "evidence/analyzer-service.json",
+          "relations": [
+            {
+              "kind": "discovery_only",
+              "meaning": "The method file helped locate the service ticket but supplies no premise for its date.",
+              "target_claim_id": "method-m3"
+            }
+          ]
+        },
+        {
+          "assertion": "The blended release concentration is below 9 mg/L.",
+          "claim_id": "blended-release",
+          "evidence_content": "# Blended release\n\nThe blend requires corrected Batch B concentration and an exact Batch C volume. Batch C's volume source and binding are unavailable.\n",
+          "evidence_path": "evidence/blended-release.md",
+          "relations": [
+            {
+              "kind": "requires_result",
+              "meaning": "The blend consumes batch-concentration.",
+              "target_claim_id": "batch-concentration"
+            },
+            {
+              "kind": "requires_unavailable",
+              "meaning": "The exact Batch C volume and source binding are unavailable.",
+              "target_claim_id": "batch-c-volume"
+            }
+          ]
+        }
+      ],
+      "correction": {
+        "predecessor_assertion": "Method m3 requires no blank subtraction.",
+        "predecessor_claim_id": "method-m3",
+        "reason": "The method transcription omitted the mandatory blank-subtraction step.",
+        "source_v1": "# Method m3\n\nMethod m3 requires no blank subtraction.\n\nSource revision: `method-m3`\n",
+        "source_v2": "# Method m4\n\nMethod m4 requires subtracting the measured blank before concentration conversion. This revision supersedes `method-m3`; it does not decide downstream Claims.\n\nSource revision: `method-m4`\n",
+        "successor_assertion": "Method m4 requires blank subtraction before concentration conversion.",
+        "successor_claim_id": "method-m4"
+      },
+      "family_id": "method-version-correction"
+    }
+  ],
+  "schema": "inherited-correction-held-out-families-source.v1"
+}

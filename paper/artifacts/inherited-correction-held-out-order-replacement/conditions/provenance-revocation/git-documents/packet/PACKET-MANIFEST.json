@@ -1,0 +1,43 @@
+{
+  "atomic_facts_root": "sha256:4899dc378920816e01b2ca1efaf89b91565097d14f50565c335f90be2e7f4e21",
+  "condition": "git-documents",
+  "family_id": "provenance-revocation",
+  "schema": "inherited-correction-held-out-packet-manifest.v1",
+  "source_and_evidence": [
+    {
+      "bytes": 84,
+      "path": "evidence/archive-accession.json",
+      "sha256": "sha256:b9d3244bce77d58d00f5b3b808a5523a847a7138237ebd754532a5a6f4a2c4df"
+    },
+    {
+      "bytes": 170,
+      "path": "evidence/combined-estimate.md",
+      "sha256": "sha256:ea69539d6413d38850db8025a47f45d8ffb8f052ea7f22d5f27ebd1c98ab11c2"
+    },
+    {
+      "bytes": 87,
+      "path": "evidence/north-estimate.json",
+      "sha256": "sha256:a614c946424861baf64a24dcf2b5ec05fee08fb86985cb122ffa53a1decb8be7"
+    },
+    {
+      "bytes": 146,
+      "path": "evidence/regional-sensitivity.md",
+      "sha256": "sha256:860aec94f08cc691bde1cc2d816dd7396dafc56c80d1c82281eda9b21a2a01fe"
+    },
+    {
+      "bytes": 104,
+      "path": "evidence/scope-pr-17.json",
+      "sha256": "sha256:25009ffb0a6462208a4c9af5fed2ae373b1bb6551962f5cdf324ad68ba630ce6"
+    },
+    {
+      "bytes": 94,
+      "path": "source/lineage-r1.md",
+      "sha256": "sha256:fe4373ed9ea0dce174c8ed33f45e7428eedf1118295874474ced76d65442079f"
+    },
+    {
+      "bytes": 178,
+      "path": "source/lineage-r2.md",
+      "sha256": "sha256:9f72690ba776e7976a7a70ef47aa2bd011834ebb5d1a5a78fa1e723d267cf9a9"
+    }
+  ]
+}

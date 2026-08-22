@@ -1,0 +1,79 @@
+{
+  "schema": "vela.inherited-correction-held-out-order-contract-amendment.v1",
+  "status": "authorized_held_pending_independent_order_review",
+  "frozen_at": "2026-08-22T01:12:54Z",
+  "authorization": {
+    "basis": "Explicit user authorization relayed by the coordinator after the terminal schemafix-run-01 custody failure.",
+    "scope": "Prospective order-invariant response validation, a fresh held 36-cell registration, deterministic qualification, and independent review before any new provider call."
+  },
+  "stopped_registration": {
+    "producer_commit": "53d3015f3a8e705ecffa610e60ea748963c80995",
+    "stop_evidence_commit": "f14616e341929e7ad74927a846cba12e5889154e",
+    "registration_root": "sha256:820b725d04cd3780e4bbdb6a89f3ee980a5bf993259c1f089984a3e7f7407f2b",
+    "assignment_root": "sha256:cf69793d6ed3489b17690088e8f004d95b04859ec60d5aa5cf7e558cbb012b80",
+    "run_id": "schemafix-run-01",
+    "runtime_capture_root": "sha256:d3b484af62b5c3b5f69b2547fbf305d604d451ac2d5c96eeefeb8d7fbd62e230",
+    "disposition": "One terminal non-result; no retry, replacement credit, score, or continuation through schemafix-run-02..schemafix-run-36."
+  },
+  "defect": {
+    "runtime_contract": "The registered response schema accepts four closed consequence objects in any array order.",
+    "prompt_contract": "The participant task requires every listed consequence but prescribes no array order.",
+    "custody_contract": "The prior validator required claim IDs in alphabetically sorted order and rejected an otherwise schema-valid packet-order response.",
+    "failure": "response_claim_order_invalid"
+  },
+  "repair": {
+    "response_order_semantically_relevant": false,
+    "raw_response_bytes_retained_exactly": true,
+    "expected_claim_id_set_closed": true,
+    "expected_claim_id_count": 4,
+    "missing_claim_ids_rejected": true,
+    "duplicate_claim_ids_rejected": true,
+    "unknown_claim_ids_rejected": true,
+    "per_claim_fields_closed": true,
+    "per_claim_evidence_bindings_exact": true,
+    "derived_consequences_canonicalized_by_claim_id": true,
+    "derived_evidence_bindings_canonicalized_by_claim_id": true
+  },
+  "fresh_identity_requirements": {
+    "fresh_registration": true,
+    "fresh_assignment_seed": true,
+    "fresh_assignment_root": true,
+    "fresh_participant_instance_ids": true,
+    "fresh_run_ids": true,
+    "fresh_single_use_permits": 36,
+    "reason": "The stopped registration consumed one assigned cell and exposed one participant response; it cannot be resumed or credited."
+  },
+  "neutral_calibration": {
+    "required": true,
+    "status": "held_pending_independent_order_review",
+    "reason": "The prior neutral calibration binds the stopped registration and prior benchmark/custody bytes; a new non-scientific calibration must bind the fresh registration after independent review."
+  },
+  "successor_execution_state": {
+    "sessions_completed": 0,
+    "fixed_denominator": 36,
+    "participant_permits_held": 36,
+    "participant_permits_consumed": 0,
+    "provider_calls": 0,
+    "protected_key_accesses": 0,
+    "scoring_runs": 0
+  },
+  "invariants": {
+    "participant_packets_unchanged": true,
+    "participant_prompts_unchanged": true,
+    "registered_response_schema_unchanged": true,
+    "provider_response_schema_unchanged": true,
+    "scientific_facts_unchanged": true,
+    "model_runtime_and_gates_unchanged": true,
+    "protected_commitment_unchanged": true,
+    "stopped_evidence_immutable": true,
+    "core_protocol_standing_authority_unchanged": true
+  },
+  "actions_during_repair": {
+    "provider_calls": 0,
+    "participant_permits_released": 0,
+    "calibration_permits_released": 0,
+    "protected_key_accesses": 0,
+    "scoring_runs": 0,
+    "authority_effect": "none"
+  }
+}
