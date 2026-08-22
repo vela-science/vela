@@ -48,12 +48,21 @@ normalized event, and tool-receipt roots remain distinct and retained.
 
 Provider-facing schema derivation uses an ordered list of exact removal rules:
 each rule names one JSON Pointer, its terminal keyword, and the exact expected
-value. The maintained adapter policy recognizes only `uniqueItems`, `pattern`,
-`minLength`, and `minItems`; any other keyword, pointer/value mismatch,
-duplicate rule, or additional provider-schema edit fails closed. The registered
-Draft 2020-12 schema remains byte-exact and validates the final response
-locally. The legacy unique-items pointer list remains available only to the
-historical no-tool format.
+value. Each adapter has one checked-in ordered registry for the current Stage A
+schema: `/properties/items/uniqueItems = true`, followed by
+`/properties/items/minItems = 3`. Any alternate pointer, value, adapter,
+ordering, multiplicity, omission, or additional provider-schema edit fails
+closed. The registered Draft 2020-12 schema remains byte-exact and validates
+the final response locally. The legacy unique-items pointer list remains
+available only to the historical no-tool format.
+
+The `shell/1` and `read_file/1` input schemas are checked-in canonical Draft
+2020-12 schemas bound by tool name, version, and schema root. The complete
+`shell/1` argv vocabulary is the single Stage A inspection command
+`git --no-optional-locks status --short`. Shells, interpreters, configurable
+runners, alternate executable paths, extra flags or operands, path traversal,
+metacharacters, write-capable commands, and network clients are therefore
+outside the vocabulary rather than filtered by a blacklist.
 
 ## Owned boundary
 
