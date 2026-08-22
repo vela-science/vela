@@ -32,17 +32,18 @@ case is removed:
 | Provider rejection of `uniqueItems` and other unsupported schema surface | Exact, allowlisted provider derivative; the full registered schema remains byte-bound and authoritative for local validation. |
 | Draft mismatch | `Draft202012Validator.check_schema` and validation of the neutral response under the full registered schema. |
 | Hidden response ordering | Exact unique closed-set comparison followed by a derived canonical order; raw response bytes are retained unchanged. |
-| Permit reuse or implicit release | Default hold plus same-directory, no-overwrite atomic link/unlink consumption; any partial state fails closed. |
-| Runtime evidence not reaching the benchmark | A complete neutral bridge binds consumed permit, launch, events, stderr, raw response, terminal receipt, and teardown receipt. |
+| Permit reuse or implicit release | Closed permits bind registration, assignment, participant/run, condition, attempt, runner/runtime/config/image/schema/prompt/packet roots, timeout, issuance, and consumption. Default hold plus descriptor-relative, no-overwrite atomic link/unlink consumption makes replay or cross-assignment use fail closed. |
+| Runtime evidence not reaching the benchmark | Closed launch, event, usage, terminal, and teardown records bind one monotone thread/turn/response lifecycle plus exact consumed-permit, configuration, runtime, stderr, raw-response, and teardown bytes. |
 | Mutable scoring inputs and reread races | No-follow, read-once pre-key buffers whose byte digests and snapshot root are checked before a protected boundary may open. |
 | Cross-Python numeric drift | Decimal-only half-even quantization and a serializer that never converts through binary float. |
-| Stale or permissive runner configuration | Closed configuration fields plus an offline strict-parse receipt binding the exact accepted arguments and zero provider contact. |
+| Stale or permissive runner configuration | Closed configuration fields plus an offline strict-parse receipt binding the exact recognized runner version, configuration root, runtime source, Dockerfile, image, accepted arguments, and zero provider contact. |
 | Relative or aliased container mounts | Absolute, canonical, unique, read-only source mounts and absolute targets. |
 | Missing TLS roots | A nonempty PEM bundle, exact digest, and equality between the pinned container path and `SSL_CERT_FILE`. |
-| Cache-dependent OCI identity | Two distinct empty-cache builder receipts, byte-identical OCI archives, exact manifest/config/archive digests, frozen source epoch, no pull, no provenance, and timestamp rewrite. |
-| UTC-day account drift or malformed account records | Two cross-day fixtures must normalize to the same byte digest; duplicate, nonnumeric, wrong-lock, and wrong-field-count records fail closed. |
-| Mutable package metadata or incomplete vendored inputs | Network package-manager operations are rejected; each vendored input binds bytes, source digest/URL, and retained license bytes. |
-| Self-check of a predecessor artifact | The self-verification command must name the current interpreter, current qualifier bytes, and current canonical bundle path exactly. |
+| Cache-dependent OCI identity | Two distinct empty-cache builder receipts, byte-identical complete OCI archives, and exact index/manifest/config/ordered-layer/layout/archive custody, frozen source epoch, no pull, no provenance, and timestamp rewrite. Missing, duplicate, reordered, extra, or substituted graph bytes fail closed. |
+| UTC-day account drift or malformed account records | Exactly two byte-distinct, path-distinct, date-distinct fixtures with closed account metadata must normalize to one expected digest; duplicates, malformed dates, wrong accounts, and metadata drift fail closed. |
+| Mutable package metadata or incomplete vendored inputs | Effective Dockerfile instructions are parsed (comments do not count), network package-manager operations are rejected, and each vendored input binds bytes, source digest/URL, and retained license bytes. |
+| Self-check of a predecessor artifact | The self-verification command must retain the locked virtual-environment interpreter without resolving its symlink, and bind its environment prefix, environment-owned `jsonschema`, current qualifier bytes, and current canonical bundle path exactly. |
+| Bundle aliases and traversal | The exact bundle tree rejects every symlink and hardlink alias; descriptor-relative no-follow reads reject traversal and component replacement before any role-specific bytes are trusted. |
 | Cumulative token telemetry mistaken for a validity limit | Nonnegative token telemetry is retained; only the configured output-token ceiling is a validity gate. |
 | Partial preflight before the first participant | One command covers configuration, schemas, runtime/source/build custody, trust, mounts, permit semantics, complete capture, canonical response handling, pre-key snapshot, decimal bytes, and the self-check target. |
 
@@ -50,6 +51,11 @@ The source-owned runner still owns provider invocation, process lifecycle, OCI
 construction, and production of the receipts consumed here. Controllers,
 schedulers, attempts, runs, assignments, campaign policy, and scientific
 scoring stay outside Vela Core.
+
+Builder independence remains an exact two-receipt attestation checked by this
+qualifier; the qualifier does not build images. It also deliberately performs
+no provider call. A future provider incompatibility therefore requires a new
+maintained allowlist entry and regression, never an artifact-local patch.
 
 The Math Result Runner already owns Lean-specific runtime, compiler,
 elaborator, evaluator, source-verification, and campaign-permit behavior under

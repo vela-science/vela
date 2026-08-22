@@ -12,7 +12,13 @@ from decimal import Decimal
 from pathlib import Path
 
 from tools.evidence_qualification.qualification import (
+    EVENT_SCHEMA,
+    LAUNCH_SCHEMA,
+    PERMIT_SCHEMA,
     QUALIFIER,
+    RUNNER_VERSION,
+    TEARDOWN_SCHEMA,
+    TERMINAL_SCHEMA,
     QualificationError,
     canonical_json_bytes,
     canonical_root,
@@ -92,9 +98,83 @@ class BundleFixture:
         mutate(value)
         self.write_json(relative, value)
 
-    def _oci(self) -> tuple[bytes, str, str]:
+    def refresh_capture_bindings(self) -> None:
+        evidence = self.root / "fixture/evidence"
+        terminal_path = evidence / "terminal-receipt.json"
+        terminal = self.load("fixture/evidence/terminal-receipt.json")
+        terminal.update(
+            {
+                "permit_bytes": digest(
+                    (
+                        self.root
+                        / "fixture/permit/neutral-qualification-01.permit.consumed.json"
+                    ).read_bytes()
+                ),
+                "launch_bytes": digest((evidence / "launch.json").read_bytes()),
+                "provider_events_bytes": digest(
+                    (evidence / "provider-events.jsonl").read_bytes()
+                ),
+                "provider_stderr_bytes": digest(
+                    (evidence / "provider-stderr.txt").read_bytes()
+                ),
+                "raw_response_bytes": digest(
+                    (evidence / "response.raw.json").read_bytes()
+                ),
+                "teardown_receipt_bytes": digest(
+                    (evidence / "teardown.json").read_bytes()
+                ),
+            }
+        )
+        self.write_json("fixture/evidence/terminal-receipt.json", terminal)
+        paths = [
+            self.root / "fixture/permit/neutral-qualification-01.permit.consumed.json",
+            evidence / "launch.json",
+            evidence / "provider-events.jsonl",
+            evidence / "provider-stderr.txt",
+            evidence / "response.raw.json",
+            terminal_path,
+            evidence / "teardown.json",
+        ]
+        entries = [
+            {
+                "path": path.relative_to(self.root / "fixture").as_posix(),
+                "bytes": path.stat().st_size,
+                "sha256": digest(path.read_bytes()),
+            }
+            for path in paths
+        ]
+        entries.sort(key=lambda entry: entry["path"])
+        capture = {
+            "schema": "vela.tooling.neutral-capture-manifest.v1",
+            "entries": entries,
+        }
+        capture["capture_root"] = canonical_root(capture)
+        self.write_json("fixture/capture-manifest.json", capture)
+
+    def rewrite_oci(self, mutate) -> None:
+        source = self.root / "runtime/a.oci.tar"
+        with tarfile.open(source, mode="r") as archive:
+            files = [
+                (member.name, archive.extractfile(member).read())
+                for member in archive.getmembers()
+            ]
+        mutate(files)
+        buffer = io.BytesIO()
+        with tarfile.open(fileobj=buffer, mode="w") as archive:
+            for name, raw in files:
+                info = tarfile.TarInfo(name)
+                info.size = len(raw)
+                info.mtime = 1_757_289_600
+                info.mode = 0o644
+                archive.addfile(info, io.BytesIO(raw))
+        self.write("runtime/a.oci.tar", buffer.getvalue())
+        self.write("runtime/b.oci.tar", buffer.getvalue())
+
+    def _oci(self) -> tuple[bytes, str, str, list[str], str]:
         config_raw = b'{"architecture":"arm64","os":"linux"}\n'
         config_digest = digest(config_raw)
+        layer_raws = [b"first deterministic layer\n", b"second deterministic layer\n"]
+        layer_digests = [digest(raw) for raw in layer_raws]
         manifest = {
             "schemaVersion": 2,
             "config": {
@@ -102,7 +182,16 @@ class BundleFixture:
                 "digest": config_digest,
                 "size": len(config_raw),
             },
-            "layers": [],
+            "layers": [
+                {
+                    "mediaType": "application/vnd.oci.image.layer.v1.tar",
+                    "digest": layer_digest,
+                    "size": len(layer_raw),
+                }
+                for layer_raw, layer_digest in zip(
+                    layer_raws, layer_digests, strict=True
+                )
+            ],
         }
         manifest_raw = canonical_json_bytes(manifest)
         manifest_digest = digest(manifest_raw)
@@ -116,12 +205,15 @@ class BundleFixture:
                 }
             ],
         }
+        layout_raw = b'{"imageLayoutVersion":"1.0.0"}\n'
         files = {
             "index.json": canonical_json_bytes(index),
-            "oci-layout": b'{"imageLayoutVersion":"1.0.0"}\n',
+            "oci-layout": layout_raw,
             "blobs/sha256/" + manifest_digest.removeprefix("sha256:"): manifest_raw,
             "blobs/sha256/" + config_digest.removeprefix("sha256:"): config_raw,
         }
+        for layer_raw, layer_digest in zip(layer_raws, layer_digests, strict=True):
+            files["blobs/sha256/" + layer_digest.removeprefix("sha256:")] = layer_raw
         buffer = io.BytesIO()
         with tarfile.open(fileobj=buffer, mode="w") as archive:
             for name, raw in sorted(files.items()):
@@ -130,7 +222,13 @@ class BundleFixture:
                 info.mtime = 1_757_289_600
                 info.mode = 0o644
                 archive.addfile(info, io.BytesIO(raw))
-        return buffer.getvalue(), manifest_digest, config_digest
+        return (
+            buffer.getvalue(),
+            manifest_digest,
+            config_digest,
+            layer_digests,
+            digest(layout_raw),
+        )
 
     def _build(self) -> None:
         self.write_json("schemas/registered.json", self.registered)
@@ -181,7 +279,7 @@ RUN --network=none test -s /inputs/ca-certificates.deb
         self.write_json("runtime/build-inputs.json", build_inputs)
         source_root = canonical_root(manifest)
         build_inputs_root = canonical_root(build_inputs)
-        oci_raw, image_digest, config_digest = self._oci()
+        oci_raw, image_digest, config_digest, layer_digests, layout_digest = self._oci()
         self.write("runtime/a.oci.tar", oci_raw)
         self.write("runtime/b.oci.tar", oci_raw)
         controls = {
@@ -205,6 +303,8 @@ RUN --network=none test -s /inputs/ca-certificates.deb
                     "controls": controls,
                     "image_digest": image_digest,
                     "config_digest": config_digest,
+                    "layer_digests": layer_digests,
+                    "oci_layout_bytes": layout_digest,
                     "oci_tar_bytes": digest(oci_raw),
                 },
             )
@@ -214,6 +314,7 @@ RUN --network=none test -s /inputs/ca-certificates.deb
             "tools=none",
         ]
         configuration = {
+            "runner_version": RUNNER_VERSION,
             "model": "neutral-model",
             "reasoning_effort": "high",
             "service_tier": "default",
@@ -235,30 +336,81 @@ RUN --network=none test -s /inputs/ca-certificates.deb
                 "accepted_arguments": strict_arguments,
                 "stderr_sha256": digest(b""),
                 "image_digest": image_digest,
+                "configuration_root": canonical_root(configuration),
+                "runtime_source_root": source_root,
+                "dockerfile_bytes": digest(dockerfile),
             },
         )
-        participant_permit = {
-            "schema": "neutral-launch-permit.v1",
-            "run_id": "participant-01",
-            "status": "held",
-            "expires_at": "not_authorized",
+        self.update(
+            "config/compatibility.json",
+            lambda value: value.update({"runner_version": RUNNER_VERSION}),
+        )
+        permit_bindings = {
             "attempt": 1,
+            "runner_version": RUNNER_VERSION,
+            "runtime_source_root": source_root,
+            "configuration_root": canonical_root(configuration),
             "image_digest": image_digest,
+            "registered_schema_bytes": digest(
+                (self.root / "schemas/registered.json").read_bytes()
+            ),
+            "provider_schema_bytes": digest(
+                (self.root / "schemas/provider.json").read_bytes()
+            ),
+            "timeout_seconds": 600,
+        }
+        participant_identity = {
+            "registration_id": "registration-01",
+            "assignment_id": "assignment-01",
+            "participant_id": "participant-01",
+            "run_id": "participant-run-01",
+            "condition": "participant",
+            "prompt_root": digest(b"participant prompt\n"),
+            "packet_root": digest(b"participant packet\n"),
+        }
+        participant_permit = {
+            "schema": PERMIT_SCHEMA,
+            **participant_identity,
+            **permit_bindings,
+            "status": "held",
+            "issued_at": "2026-08-21T00:00:00Z",
+            "consumed_at": None,
         }
         self.write_json(
             "permit/hold-state.json",
-            {"schema": "neutral-hold.v1", "status": "hold", "reason": "qualification"},
+            {
+                "schema": "vela.tooling.participant-hold.v1",
+                "status": "hold",
+                "reason": "qualification_incomplete",
+                "registration_id": participant_identity["registration_id"],
+                "assignment_id": participant_identity["assignment_id"],
+            },
         )
-        self.write_json("permit/participant-01.permit.json", participant_permit)
-        fixture_template = dict(participant_permit)
-        fixture_template["run_id"] = "neutral-qualification-01"
+        self.write_json("permit/participant-run-01.permit.json", participant_permit)
+        fixture_identity = {
+            "registration_id": "qualification-registration",
+            "assignment_id": "neutral-assignment",
+            "participant_id": "neutral-fixture",
+            "run_id": "neutral-qualification-01",
+            "condition": "neutral-no-science",
+            "prompt_root": digest(b"neutral prompt\n"),
+            "packet_root": digest(b"neutral packet\n"),
+        }
+        fixture_template = {
+            "schema": PERMIT_SCHEMA,
+            **fixture_identity,
+            **permit_bindings,
+            "status": "held",
+            "issued_at": "2026-08-21T00:00:00Z",
+            "consumed_at": None,
+        }
         self.write_json(
             "fixture/permit/neutral-qualification-01.permit.template.json",
             fixture_template,
         )
         fixture_consumed = dict(fixture_template)
-        fixture_consumed["status"] = "authorized"
-        fixture_consumed["expires_at"] = "2027-01-01T00:00:00Z"
+        fixture_consumed["status"] = "consumed"
+        fixture_consumed["consumed_at"] = "2026-08-21T00:00:00Z"
         consumed_path = self.write_json(
             "fixture/permit/neutral-qualification-01.permit.consumed.json",
             fixture_consumed,
@@ -266,9 +418,15 @@ RUN --network=none test -s /inputs/ca-certificates.deb
         launch_path = self.write_json(
             "fixture/evidence/launch.json",
             {
-                "schema": "neutral-launch.v1",
+                "schema": LAUNCH_SCHEMA,
                 "run_id": "neutral-qualification-01",
+                "attempt": 1,
+                "runner_version": RUNNER_VERSION,
                 "permit_bytes": digest(consumed_path.read_bytes()),
+                "configuration_root": canonical_root(configuration),
+                "runtime_source_root": source_root,
+                "image_digest": image_digest,
+                "started_at": "2026-08-21T00:00:00Z",
             },
         )
         response_path = self.write_json(
@@ -276,13 +434,36 @@ RUN --network=none test -s /inputs/ca-certificates.deb
         )
         response_text = response_path.read_text().strip()
         events = (
-            json.dumps({"type": "thread.started", "thread_id": "neutral"})
+            json.dumps(
+                {
+                    "schema": EVENT_SCHEMA,
+                    "type": "thread.started",
+                    "run_id": "neutral-qualification-01",
+                    "thread_id": "thread-01",
+                    "at": "2026-08-21T00:00:00.100000Z",
+                }
+            )
             + "\n"
-            + json.dumps({"type": "turn.started"})
+            + json.dumps(
+                {
+                    "schema": EVENT_SCHEMA,
+                    "type": "turn.started",
+                    "run_id": "neutral-qualification-01",
+                    "thread_id": "thread-01",
+                    "turn_id": "turn-01",
+                    "at": "2026-08-21T00:00:00.200000Z",
+                }
+            )
             + "\n"
             + json.dumps(
                 {
                     "type": "item.completed",
+                    "schema": EVENT_SCHEMA,
+                    "run_id": "neutral-qualification-01",
+                    "thread_id": "thread-01",
+                    "turn_id": "turn-01",
+                    "response_id": "response-01",
+                    "at": "2026-08-21T00:00:00.500000Z",
                     "item": {"type": "agent_message", "text": response_text},
                 }
             )
@@ -290,10 +471,17 @@ RUN --network=none test -s /inputs/ca-certificates.deb
             + json.dumps(
                 {
                     "type": "turn.completed",
+                    "schema": EVENT_SCHEMA,
+                    "run_id": "neutral-qualification-01",
+                    "thread_id": "thread-01",
+                    "turn_id": "turn-01",
+                    "response_id": "response-01",
+                    "at": "2026-08-21T00:00:00.800000Z",
                     "usage": {
                         "input_tokens": 900_000,
                         "cached_input_tokens": 899_000,
                         "output_tokens": 100,
+                        "tool_call_count": 0,
                     },
                 }
             )
@@ -304,11 +492,20 @@ RUN --network=none test -s /inputs/ca-certificates.deb
         teardown_path = self.write_json(
             "fixture/evidence/teardown.json",
             {
-                "schema": "neutral-teardown.v1",
+                "schema": TEARDOWN_SCHEMA,
+                "run_id": "neutral-qualification-01",
+                "attempt": 1,
+                "status": "completed",
+                "exit_code": 0,
+                "started_at": "2026-08-21T00:00:00.900000Z",
                 "process_reaped": True,
                 "network_disabled": True,
                 "mounts_detached": True,
                 "completed_at": "2026-08-21T00:00:01Z",
+                "duration_seconds": 0.1,
+                "permit_bytes": digest(consumed_path.read_bytes()),
+                "launch_bytes": digest(launch_path.read_bytes()),
+                "provider_stderr_bytes": digest(stderr_path.read_bytes()),
             },
         )
         canonical_response = normalize_closed_set(
@@ -317,8 +514,16 @@ RUN --network=none test -s /inputs/ca-certificates.deb
         terminal_path = self.write_json(
             "fixture/evidence/terminal-receipt.json",
             {
-                "schema": "neutral-terminal-receipt.v1",
+                "schema": TERMINAL_SCHEMA,
                 "status": "completed",
+                "run_id": "neutral-qualification-01",
+                "attempt": 1,
+                "runner_version": RUNNER_VERSION,
+                "runtime_source_root": source_root,
+                "started_at": "2026-08-21T00:00:00Z",
+                "completed_at": "2026-08-21T00:00:00.900000Z",
+                "duration_seconds": 0.9,
+                "exit_code": 0,
                 "permit_bytes": digest(consumed_path.read_bytes()),
                 "launch_bytes": digest(launch_path.read_bytes()),
                 "provider_events_bytes": digest(events_path.read_bytes()),
@@ -429,18 +634,28 @@ RUN --network=none test -s /inputs/ca-certificates.deb
                 ],
                 "account_database": {
                     "account": "participant",
+                    "expected_accounts": ["root", "participant"],
                     "fixed_day": 20339,
                     "fixtures": [
-                        shadow_a.relative_to(self.root).as_posix(),
-                        shadow_b.relative_to(self.root).as_posix(),
+                        {
+                            "path": shadow_a.relative_to(self.root).as_posix(),
+                            "source_day": 20001,
+                            "sha256": digest(shadow_a.read_bytes()),
+                        },
+                        {
+                            "path": shadow_b.relative_to(self.root).as_posix(),
+                            "source_day": 20002,
+                            "sha256": digest(shadow_b.read_bytes()),
+                        },
                     ],
                     "normalized_sha256": digest(normalized),
                 },
             },
             "participant_permit": {
                 "hold": "permit/hold-state.json",
-                "permit": "permit/participant-01.permit.json",
-                "consumed_permit": "permit/participant-01.permit.consumed.json",
+                "permit": "permit/participant-run-01.permit.json",
+                "consumed_permit": "permit/participant-run-01.permit.consumed.json",
+                "identity": participant_identity,
             },
             "neutral_fixture": {
                 "directory": "fixture",
@@ -453,16 +668,19 @@ RUN --network=none test -s /inputs/ca-certificates.deb
                 "terminal_receipt": "fixture/evidence/terminal-receipt.json",
                 "teardown_receipt": "fixture/evidence/teardown.json",
                 "capture_manifest": "fixture/capture-manifest.json",
+                "identity": fixture_identity,
             },
             "scoring_snapshot": "fixture/scoring-snapshot.json",
             "self_verification": {
                 "command": [
-                    str(Path(sys.executable).resolve()),
+                    sys.executable,
                     str(QUALIFIER),
                     "--bundle",
                     str(self.root.resolve()),
                 ],
                 "qualifier_sha256": digest(QUALIFIER.read_bytes()),
+                "environment_prefix": sys.prefix,
+                "jsonschema_module": __import__("jsonschema").__file__,
             },
         }
         self.write_json("qualification.json", config)
@@ -490,6 +708,11 @@ class EvidenceQualificationTests(unittest.TestCase):
         self.assertEqual(receipt["scientific_sessions"], 0)
         self.assertEqual(receipt["participant_permits_consumed"], 0)
         self.assertTrue(all(receipt["gates"].values()))
+
+    def test_deterministic_regeneration_is_byte_identical(self) -> None:
+        first = canonical_json_bytes(qualify_bundle(self.root))
+        second = canonical_json_bytes(qualify_bundle(self.root))
+        self.assertEqual(first, second)
 
     def test_provider_derivative_is_exact_and_full_schema_is_draft_2020_12(
         self,
@@ -543,13 +766,46 @@ class EvidenceQualificationTests(unittest.TestCase):
     def test_atomic_single_use_permit_has_one_winner(self) -> None:
         directory = self.root / "race"
         directory.mkdir()
-        (directory / "race-01.permit.json").write_text("{}\n")
+        expected = dict(
+            self.fixture.load("qualification.json")["participant_permit"]["identity"]
+        )
+        configuration = self.fixture.load("qualification.json")["configuration"]
+        expected.update(
+            {
+                "attempt": 1,
+                "runner_version": RUNNER_VERSION,
+                "runtime_source_root": canonical_root(
+                    self.fixture.load("runtime/source-manifest.json")
+                ),
+                "configuration_root": canonical_root(configuration),
+                "image_digest": self.fixture.load("config/compatibility.json")[
+                    "image_digest"
+                ],
+                "registered_schema_bytes": digest(
+                    (self.root / "schemas/registered.json").read_bytes()
+                ),
+                "provider_schema_bytes": digest(
+                    (self.root / "schemas/provider.json").read_bytes()
+                ),
+                "timeout_seconds": 600,
+            }
+        )
+        permit = {
+            "schema": PERMIT_SCHEMA,
+            **expected,
+            "run_id": "race-01",
+            "status": "held",
+            "issued_at": "2026-08-21T00:00:00Z",
+            "consumed_at": None,
+        }
+        expected["run_id"] = "race-01"
+        (directory / "race-01.permit.json").write_bytes(encoded(permit))
         outcomes = []
         lock = threading.Lock()
 
         def attempt() -> None:
             try:
-                consume_permit(directory, "race-01")
+                consume_permit(directory, "race-01", expected)
                 outcome = "won"
             except QualificationError:
                 outcome = "blocked"
@@ -603,7 +859,7 @@ class EvidenceQualificationTests(unittest.TestCase):
             "config/compatibility.json",
             lambda value: value.update({"image_digest": "sha256:" + "0" * 64}),
         )
-        self.assertBlocked("configuration_compatibility_image_drift")
+        self.assertBlocked("configuration_compatibility_invalid")
 
     def test_relative_or_noncanonical_mounts_fail_closed(self) -> None:
         self.fixture.update(
@@ -714,10 +970,261 @@ class EvidenceQualificationTests(unittest.TestCase):
         )
         self.assertBlocked("participant_permit_not_held")
 
+    def test_locked_interpreter_stays_inside_environment_without_user_packages(
+        self,
+    ) -> None:
+        executable = Path(sys.executable)
+        self.assertIn(Path(sys.prefix), executable.parents)
+        environment = {
+            "PATH": str(executable.parent),
+            "PYTHONNOUSERSITE": "1",
+        }
+        result = subprocess.run(
+            [sys.executable, "-I", str(QUALIFIER), "--bundle", str(self.root)],
+            check=False,
+            capture_output=True,
+            env=environment,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        resolved = str(executable.resolve())
+        if resolved != sys.executable:
+            self.fixture.update(
+                "qualification.json",
+                lambda value: value["self_verification"]["command"].__setitem__(
+                    0, resolved
+                ),
+            )
+            self.assertBlocked("targets_predecessor")
+
+    def test_runner_version_is_closed_exact_and_bound_to_all_runtime_roots(
+        self,
+    ) -> None:
+        original = self.fixture.load("config/compatibility.json")
+        variants = [
+            {**original, "runner_version": False},
+            {key: value for key, value in original.items() if key != "runner_version"},
+            {**original, "runner_version": "neutral-runner/0"},
+            {**original, "runtime_source_root": digest(b"stale")},
+            {**original, "configuration_root": digest(b"stale")},
+            {**original, "dockerfile_bytes": digest(b"stale")},
+        ]
+        for variant in variants:
+            with self.subTest(variant=variant):
+                self.fixture.write_json("config/compatibility.json", variant)
+                self.assertBlocked("configuration_compatibility")
+        self.fixture.write_json("config/compatibility.json", original)
+        config = self.fixture.load("qualification.json")
+        config["configuration"]["runner_version"] = False
+        self.fixture.write_json("qualification.json", config)
+        self.assertBlocked("configuration_contract_invalid")
+
+    def test_cross_day_account_fixtures_are_distinct_and_closed(self) -> None:
+        qualification = self.fixture.load("qualification.json")
+        original = qualification["runtime"]["account_database"]
+        first = original["fixtures"][0]
+        adversaries = []
+        duplicate = json.loads(json.dumps(original))
+        duplicate["fixtures"] = [first, dict(first)]
+        adversaries.append(duplicate)
+        same_day = json.loads(json.dumps(original))
+        same_day["fixtures"][1]["source_day"] = 20001
+        adversaries.append(same_day)
+        malformed_day = json.loads(json.dumps(original))
+        malformed_day["fixtures"][1]["source_day"] = "20002"
+        adversaries.append(malformed_day)
+        wrong_accounts = json.loads(json.dumps(original))
+        wrong_accounts["expected_accounts"] = ["root", "intruder"]
+        adversaries.append(wrong_accounts)
+        for account in adversaries:
+            with self.subTest(account=account):
+                qualification["runtime"]["account_database"] = account
+                self.fixture.write_json("qualification.json", qualification)
+                self.assertBlocked("account_")
+
+    def test_cross_day_account_unexpected_metadata_fails(self) -> None:
+        shadow = self.root / "runtime/shadow-day-b"
+        shadow.write_bytes(
+            b"root:!:20000:0:99999:7:::\nparticipant:!:20002:1:99999:7:::\n"
+        )
+        config = self.fixture.load("qualification.json")
+        fixture = config["runtime"]["account_database"]["fixtures"][1]
+        fixture["sha256"] = digest(shadow.read_bytes())
+        self.fixture.write_json("qualification.json", config)
+        self.assertBlocked("account_fixture_metadata_drift")
+
+    def test_comment_only_dockerfile_controls_fail_as_non_executable(self) -> None:
+        dockerfile = self.root / "runtime/source/Dockerfile"
+        dockerfile.write_text(
+            "FROM scratch\n# ARG SOURCE_DATE_EPOCH\n"
+            "# RUN --network=none true\nCOPY vendor/ca-certificates.deb /inputs/x\n"
+            "RUN true\n"
+        )
+        self.fixture.write_json(
+            "runtime/source-manifest.json",
+            tree_manifest(self.root / "runtime/source"),
+        )
+        self.assertBlocked("dockerfile_not_reproducible")
+
+    def test_oci_custody_rejects_missing_duplicate_extra_or_substituted_blobs(
+        self,
+    ) -> None:
+        original = (self.root / "runtime/a.oci.tar").read_bytes()
+
+        def layer_indexes(files):
+            return [
+                index
+                for index, (name, _) in enumerate(files)
+                if name.startswith("blobs/sha256/")
+            ][-2:]
+
+        mutations = {
+            "missing": lambda files: files.pop(layer_indexes(files)[0]),
+            "duplicate": lambda files: files.append(files[layer_indexes(files)[0]]),
+            "extra": lambda files: files.append(("unexpected", b"extra")),
+            "substituted": lambda files: files.__setitem__(
+                layer_indexes(files)[0],
+                (files[layer_indexes(files)[0]][0], b"substituted"),
+            ),
+        }
+        for name, mutate in mutations.items():
+            with self.subTest(name=name):
+                self.write_oci_pair(original)
+                self.fixture.rewrite_oci(mutate)
+                self.assertBlocked("oci_")
+
+    def write_oci_pair(self, raw: bytes) -> None:
+        self.fixture.write("runtime/a.oci.tar", raw)
+        self.fixture.write("runtime/b.oci.tar", raw)
+
+    def test_oci_reordered_layers_or_manifest_descriptor_fails(self) -> None:
+        original = (self.root / "runtime/a.oci.tar").read_bytes()
+
+        def reorder_layers(files) -> None:
+            manifest_index = next(
+                index
+                for index, (name, raw) in enumerate(files)
+                if name.startswith("blobs/sha256/") and b'"layers"' in raw
+            )
+            name, raw = files[manifest_index]
+            manifest = json.loads(raw)
+            manifest["layers"].reverse()
+            files[manifest_index] = (name, canonical_json_bytes(manifest))
+
+        self.fixture.rewrite_oci(reorder_layers)
+        self.assertBlocked("oci_manifest_bytes_drift")
+        self.write_oci_pair(original)
+
+        def reorder_index(files) -> None:
+            index = next(i for i, (name, _) in enumerate(files) if name == "index.json")
+            name, raw = files[index]
+            value = json.loads(raw)
+            value["manifests"].append(dict(value["manifests"][0]))
+            value["manifests"].reverse()
+            files[index] = (name, canonical_json_bytes(value))
+
+        self.fixture.rewrite_oci(reorder_index)
+        self.assertBlocked("oci_manifest_count_invalid")
+
+    def test_bundle_rejects_internal_symlink_traversal_and_file_aliases(self) -> None:
+        alias = self.root / "schema-alias"
+        alias.symlink_to(self.root / "schemas", target_is_directory=True)
+        self.assertBlocked("bundle_symlink_forbidden")
+        alias.unlink()
+        self.fixture.update(
+            "qualification.json",
+            lambda value: value["schemas"].update(
+                {"registered": "schemas/../schemas/registered.json"}
+            ),
+        )
+        self.assertBlocked("path_unsafe")
+
+    def test_bundle_rejects_hardlink_alias_between_distinct_roles(self) -> None:
+        alias = self.root / "schemas/registered-alias.json"
+        alias.hardlink_to(self.root / "schemas/registered.json")
+        self.assertBlocked("bundle_file_alias_forbidden")
+
+    def test_closed_participant_permit_rejects_review_adversaries(self) -> None:
+        path = "permit/participant-run-01.permit.json"
+        original = self.fixture.load(path)
+        variants = []
+        extra = dict(original)
+        extra["forged"] = True
+        variants.append(extra)
+        missing = dict(original)
+        missing.pop("packet_root")
+        variants.append(missing)
+        boolean_attempt = dict(original)
+        boolean_attempt["attempt"] = True
+        variants.append(boolean_attempt)
+        wrong_run = dict(original)
+        wrong_run["run_id"] = "other-run"
+        variants.append(wrong_run)
+        cross_assignment = dict(original)
+        cross_assignment["assignment_id"] = "assignment-02"
+        variants.append(cross_assignment)
+        wrong_schema = dict(original)
+        wrong_schema["schema"] = "forged"
+        variants.append(wrong_schema)
+        for permit in variants:
+            with self.subTest(permit=permit):
+                self.fixture.write_json(path, permit)
+                self.assertBlocked("permit_")
+
+    def test_preexisting_consumed_participant_permit_is_replay(self) -> None:
+        source = self.root / "permit/participant-run-01.permit.json"
+        consumed = self.root / "permit/participant-run-01.permit.consumed.json"
+        consumed.write_bytes(source.read_bytes())
+        self.assertBlocked("already_consumed")
+
+    def test_closed_lifecycle_rejects_forged_schemas_and_reversed_order(self) -> None:
+        self.fixture.update(
+            "fixture/evidence/launch.json",
+            lambda value: value.update({"schema": "forged-launch"}),
+        )
+        self.fixture.refresh_capture_bindings()
+        self.assertBlocked("launch_binding_invalid")
+
+    def test_closed_events_reject_reversed_lifecycle_and_boolean_usage(self) -> None:
+        events_path = self.root / "fixture/evidence/provider-events.jsonl"
+        original = events_path.read_bytes()
+        lines = original.splitlines()
+        events_path.write_bytes(b"\n".join([lines[3], *lines[:3]]) + b"\n")
+        self.fixture.refresh_capture_bindings()
+        self.assertBlocked("event_sequence_invalid")
+        events_path.write_bytes(
+            original.replace(b'"tool_call_count": 0', b'"tool_call_count": true')
+        )
+        self.fixture.refresh_capture_bindings()
+        self.assertBlocked("provider_usage_invalid")
+
+    def test_closed_teardown_rejects_negative_or_reversed_time(self) -> None:
+        self.fixture.update(
+            "fixture/evidence/teardown.json",
+            lambda value: value.update({"duration_seconds": -1}),
+        )
+        self.fixture.refresh_capture_bindings()
+        self.assertBlocked("teardown_duration_invalid")
+
+    def test_terminal_and_teardown_bind_exact_roots_and_schema_labels(self) -> None:
+        self.fixture.update(
+            "fixture/evidence/terminal-receipt.json",
+            lambda value: value.update({"schema": "forged-terminal"}),
+        )
+        self.fixture.refresh_capture_bindings()
+        self.assertBlocked("terminal_receipt_drift")
+
+    def test_stale_launch_root_and_forged_event_schema_fail(self) -> None:
+        self.fixture.update(
+            "fixture/evidence/launch.json",
+            lambda value: value.update({"configuration_root": digest(b"stale")}),
+        )
+        self.fixture.refresh_capture_bindings()
+        self.assertBlocked("launch_binding_invalid")
+
     def test_cli_self_check_targets_current_bundle_and_qualifier(self) -> None:
         result = subprocess.run(
             [
-                str(Path(sys.executable).resolve()),
+                sys.executable,
                 str(QUALIFIER),
                 "--bundle",
                 str(self.root),
