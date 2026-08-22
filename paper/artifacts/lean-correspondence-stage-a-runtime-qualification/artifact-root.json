@@ -1,36 +1,91 @@
 {
-  "artifact_root": "sha256:5fa67640f76816a69e01e29e5a8a4055398ad3a2e1cd3114cea42ecadcb9ebfd",
+  "artifact_root": "sha256:0d817cc9e118dd25ec518792ce850a6a76165ee15f28052769a135018196b08f",
   "entries": [
     {
-      "bytes": 3551,
+      "bytes": 2892,
       "path": "README.md",
-      "sha256": "sha256:6381770989f8acaae58881760d677774b144a9375e0b6d58f7eae12da44fbe26"
+      "sha256": "sha256:26503ab78fea686e8df922b5d820ee534a7ed1e0e29902bd5d427f7da97c45c7"
     },
     {
-      "bytes": 2275,
+      "bytes": 1521,
       "path": "generate.py",
-      "sha256": "sha256:85b4030a09d3f4b847332f537c024f7a45e9481ad9a661457563d73ed470cd79"
+      "sha256": "sha256:2bf62ae3b0d823f898c61413b5de91518a9c32bfd6c4107a674d9572d4819f1a"
     },
     {
-      "bytes": 9905,
+      "bytes": 1158,
+      "path": "offline-qualification-assets/anthropic-held_permit.json",
+      "sha256": "sha256:f2d7151e1d5432d81d2ef3c6f28043fb86d3690e322000252554204b852f0090"
+    },
+    {
+      "bytes": 227,
+      "path": "offline-qualification-assets/anthropic-hold_state.json",
+      "sha256": "sha256:6b18dbe9374e2d14c1f729331a0eff952833366f85392b99bf865d63bf4fd10f"
+    },
+    {
+      "bytes": 10240,
+      "path": "offline-qualification-assets/anthropic-image.tar",
+      "sha256": "sha256:22304001d219c1158cce7ac69415de0eca38e55fb3657b4f5a4fca6de3e883a8"
+    },
+    {
+      "bytes": 689,
+      "path": "offline-qualification-assets/anthropic-provider_schema.json",
+      "sha256": "sha256:4ced02daeba1b347bd8943a698793d258b423a5ea8cafcdde00679ce67d95c99"
+    },
+    {
+      "bytes": 2514,
+      "path": "offline-qualification-assets/anthropic-tool_boundary.json",
+      "sha256": "sha256:ca9e016dcdfbd43120505fda2035998e1270e999ec9932a678cbc1d173f92a0b"
+    },
+    {
+      "bytes": 1149,
+      "path": "offline-qualification-assets/openai-held_permit.json",
+      "sha256": "sha256:e3924b3f54f8cd162809b1fb9dbf3952a72ea4d98e2a4e3f1619c8c969b8fd68"
+    },
+    {
+      "bytes": 224,
+      "path": "offline-qualification-assets/openai-hold_state.json",
+      "sha256": "sha256:0c576e3a9cffde14908279ec47d3f7e76b0af4de7396c49f7d5e010f595832b4"
+    },
+    {
+      "bytes": 10240,
+      "path": "offline-qualification-assets/openai-image.tar",
+      "sha256": "sha256:0071fee72a4a0678941f27de23e2e8285abee9eb1c60ce6bb6f7f84a23c9fb73"
+    },
+    {
+      "bytes": 689,
+      "path": "offline-qualification-assets/openai-provider_schema.json",
+      "sha256": "sha256:4ced02daeba1b347bd8943a698793d258b423a5ea8cafcdde00679ce67d95c99"
+    },
+    {
+      "bytes": 2510,
+      "path": "offline-qualification-assets/openai-tool_boundary.json",
+      "sha256": "sha256:146204a717befd51b609c8fc94c3fefb6766c5297c5db7f4e50e1b3718136a39"
+    },
+    {
+      "bytes": 13828,
+      "path": "offline-qualification.json",
+      "sha256": "sha256:678530774e8329fc087fb1a0c456f2f1be0af2c62951e010b45c76b9c2bb44bb"
+    },
+    {
+      "bytes": 25008,
+      "path": "offline_qualify.py",
+      "sha256": "sha256:27d851d93d409fcc56ef984e14be5623c020d3f23083fcd77e8d84ba588bf2d7"
+    },
+    {
+      "bytes": 8126,
       "path": "registration.json",
-      "sha256": "sha256:49113ef6caca8ff24ca88c568b4d99219e822fbdd2b58ad19efbb50b5492255d"
+      "sha256": "sha256:7350711c4e4bdbff1b21b898a9fab40d07f6eb0e2f6cfc2ff494cc3e2e2aed4a"
     },
     {
-      "bytes": 13189,
+      "bytes": 8794,
       "path": "test_verify.py",
-      "sha256": "sha256:e96180abc5c5f4dcfa7f117309bba98cab046c704096f796cc07b8b23ad89ef7"
+      "sha256": "sha256:8b2c815228913f942fd8768a98430a8d65109050f24496212f7b7047088757f5"
     },
     {
-      "bytes": 3106,
-      "path": "tool-policy.json",
-      "sha256": "sha256:9d0a4ec7886d43575541a1456657a95078a3e9744ac5e214fc0dec00de11d829"
-    },
-    {
-      "bytes": 19058,
+      "bytes": 18793,
       "path": "verify.py",
-      "sha256": "sha256:7f02daf86e0d491596684ea9af3d3fd8c0b663f9b4bb1de9129c5ba51e474bc3"
+      "sha256": "sha256:821f7e1ff167fc0f0cd62b0ed0687b7cf055f4727382a281a8da3aefc5d1a302"
     }
   ],
-  "schema": "vela.lean-correspondence-stage-a-runtime-qualification-artifact-root.v1"
+  "schema": "vela.lean-correspondence-stage-a-runtime-qualification-artifact-root.v2"
 }

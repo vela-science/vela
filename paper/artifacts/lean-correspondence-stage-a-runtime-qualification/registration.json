@@ -1,101 +1,82 @@
 {
   "authority_effect": "none",
   "authorization": {
-    "neutral_calibration_separately_authorizable": false,
-    "pilot_execution_authorized": false,
-    "reason": "offline maintained-qualifier and provider-schema gates fail; required Platform API-key classes are absent",
+    "neutral_calibration_execution_authorized": false,
+    "participant_execution_authorized": false,
+    "reason": "the exact merged qualifier's closed provider-schema registry does not cover the frozen Stage A participant response schema, the retained OCI archives are qualification fixtures rather than launchable provider runners, and both Platform API-key classes are absent",
     "requires_new_independent_review_after_repair": true
   },
   "blockers": [
     {
-      "id": "maintained_qualifier_tools_contract_incompatible",
-      "observed": "exact main qualifier requires configuration.tools=none, tool_call_count=0, and rejects tool event types",
-      "required": "tool-using cold runtime with exact tool-call event and usage custody"
+      "id": "stage_a_participant_schema_not_registered_by_qualifier",
+      "observed": "the exact merged qualifier accepts only the ordered /properties/items/uniqueItems and /properties/items/minItems provider derivation, while the frozen Stage A response schema uses impact_closure, nested evidence_ids, and uncertainty",
+      "required": "a maintained independently reviewed qualifier registry entry for the exact frozen Stage A participant schema; no artifact-local deletion or wrapper substitution is admissible"
     },
     {
-      "id": "provider_schema_derivation_not_proved",
-      "observed": "exact main qualifier permits deletion only of uniqueItems while the registered schema also uses pattern, minLength, and minItems whose provider support is not established by the frozen offline evidence",
-      "required": "fail-closed exact derivative of the registered Stage A response schema for each provider"
+      "id": "provider_runtime_execution_images_not_materialized",
+      "observed": "the retained provider-distinct OCI archives exercise the maintained qualifier's deterministic custody template but contain no source-owned OpenAI or Anthropic invocation runner",
+      "required": "reproducible provider-specific source-owned execution images built only after the exact participant-schema qualifier extension is independently accepted"
     },
     {
       "id": "platform_api_credentials_absent",
-      "observed": "consumer subscription OAuth sessions are present but OPENAI_API_KEY and ANTHROPIC_API_KEY are absent and are not interchangeable",
-      "required": "ephemeral OpenAI Platform API key and Anthropic Console API key, supplied only at an authorized execution boundary"
+      "observed": "OPENAI_API_KEY and ANTHROPIC_API_KEY are absent; names only were checked and no value was requested or observed",
+      "required": "ephemeral OpenAI Platform API and Anthropic Console API credentials supplied only after exact independent runtime review and a separate authorization"
     }
   ],
   "calls": {
     "authentication_requests": 0,
     "model_requests": 0,
+    "participant_calls": 0,
     "provider_calls": 0,
     "schema_compilation_requests": 0
   },
   "credentials": [
     {
       "accepted_credential_class": "openai_platform_api_key",
-      "available_non_substitutable_class": "chatgpt_subscription_oauth",
-      "credential_reference_class": "environment_name_only_no_value",
       "environment_name": "OPENAI_API_KEY",
-      "injection": "anonymous_inherited_descriptor_read_once_then_zeroed",
       "presence": "absent",
       "provider_organization": "OpenAI",
       "retained": false,
-      "subscription_oauth_admissible": false,
       "value_observed": false
     },
     {
       "accepted_credential_class": "anthropic_console_api_key",
-      "available_non_substitutable_class": "claude_ai_max_subscription_oauth",
-      "credential_reference_class": "environment_name_only_no_value",
       "environment_name": "ANTHROPIC_API_KEY",
-      "injection": "anonymous_inherited_descriptor_read_once_then_zeroed",
       "presence": "absent",
       "provider_organization": "Anthropic",
       "retained": false,
-      "subscription_oauth_admissible": false,
       "value_observed": false
     }
   ],
-  "image_boundary": {
-    "absolute_read_only_mounts": [],
-    "build_controls": {
-      "empty_cache_builds_required": 2,
-      "network_during_build": false,
-      "no_pull": true,
-      "oci_archive_byte_identity_required": true,
-      "provenance_disabled_for_reproducible_archive": true,
-      "source_date_epoch": 1787270400,
-      "timestamp_rewrite": true
-    },
-    "images": [],
-    "reason": "not built because earlier mandatory offline gates fail",
-    "status": "withheld_not_materialized",
-    "trust_bundle_root": null
-  },
   "maintained_qualifier": {
-    "blob": "be1982fc09c8d859b7da131c242de243e6f989b8",
-    "copied": false,
-    "git_commit": "212573c3a20fc0598ad2dcb20f572cfdb89dc67f",
-    "git_tree": "85b43ec7023d16cac404a6f8b6c8d8117584027a",
+    "git_commit": "586c305915f9f192822a720df7fd5abf416d9439",
+    "git_tree": "59c1847e8b4a8f57ba515febc487b0ce0e68c37f",
     "path": "tools/evidence_qualification/qualification.py",
-    "qualification_receipt_root": null,
-    "reuse_mode": "invoke_repository_path_at_exact_blob",
-    "sha256": "sha256:628ac203a48ef19c649dd64dedc010d104d728eb0edbb66392e93955fab872b9"
+    "sha256": "sha256:6db638f5cec4df9eac53fe8edc2376fcc4db89afe3f08b977d47873669c41ddc"
   },
-  "method_binding": {
-    "merged_main_commit": "212573c3a20fc0598ad2dcb20f572cfdb89dc67f",
-    "producer_commit": "8a999f5e8ca543531f5e1241fbdef391c78d068a",
-    "reviewed_method_directory_tree": "3896803d2e3a5940c63a1fe2a555b3b676f21e3b"
-  },
-  "offline_gates": {
-    "credentials_checked_without_values": "pass",
-    "different_provider_organizations": "pass",
-    "exact_configuration_bindings": "pass",
-    "maintained_qualifier_blob_exact": "pass",
-    "maintained_qualifier_tool_surface": "fail",
-    "provider_schema_derivation": "fail",
-    "stage_a_participant_bytes_unchanged": "pass",
-    "tool_boundary_information_equivalent": "pass_design_only",
-    "zero_provider_calls": "pass"
+  "neutral_calibration_permits": [
+    {
+      "consumed": false,
+      "provider_adapter": "openai-responses-v1",
+      "provider_organization": "OpenAI",
+      "run_id": "neutral-calibration-openai",
+      "status": "held"
+    },
+    {
+      "consumed": false,
+      "provider_adapter": "anthropic-messages-v1",
+      "provider_organization": "Anthropic",
+      "run_id": "neutral-calibration-anthropic",
+      "status": "held"
+    }
+  ],
+  "offline_qualification": {
+    "authority_effect": "none",
+    "neutral_calibrations_run": 0,
+    "path": "offline-qualification.json",
+    "provider_calls": 0,
+    "record_root": "sha256:74d2e5d47fc5f5165444cf1908bc2408829e2642ea6a01948aea793b763e559a",
+    "status": "qualified_hold_for_no_science_fixture_only"
   },
   "participant_configurations": [
     {
@@ -106,8 +87,8 @@
         "provider_cli": "none",
         "sdk": "none_raw_https"
       },
-      "configuration_root": "sha256:5a8f097d3f97395e4361117d5c2c19b09bd33cc9149274545fb3107bebedbab1",
-      "information_boundary_root": "sha256:3e2881994186915d2c20c16e78ada3e3de7ee41324924758314c41e6971b84cc",
+      "configuration_root": "sha256:62cb5930870d03623d5428fd207fa215ffa6805d985f2e829f500301c87567c7",
+      "image_digest": "sha256:cefa48877aedfd755e5b53aa402b52f0b6176c14931e8a6cdf30562381101ef3",
       "model": "gpt-5.6-sol",
       "model_snapshot_semantics": "canonical_pinned_model_id_not_gpt-5.6_alias",
       "parameters": {
@@ -122,10 +103,12 @@
         "temperature": "omitted",
         "timeout_seconds": 1200
       },
+      "provider_adapter": "openai-responses-v1",
       "provider_organization": "OpenAI",
+      "qualification_root": "sha256:9425cb0b8d01745a736d218d00149ac1debd7569040bfb97dc60ab5e95069a0c",
       "slot_id": "configuration-a",
-      "status": "selected_held_unqualified",
-      "tool_policy_sha256": "sha256:9d0a4ec7886d43575541a1456657a95078a3e9744ac5e214fc0dec00de11d829"
+      "status": "candidate_configuration_offline_fixture_qualified_held",
+      "tool_boundary_root": "sha256:fe029f490165b034571b516ffed1a6af63f1873a1fc890203060b7a81daf4b74"
     },
     {
       "api": {
@@ -136,8 +119,8 @@
         "provider_cli": "none",
         "sdk": "none_raw_https"
       },
-      "configuration_root": "sha256:70a2a97ce55ce146066ed849bb7564fc7e26930336f360da83c85c6143f220a4",
-      "information_boundary_root": "sha256:3e2881994186915d2c20c16e78ada3e3de7ee41324924758314c41e6971b84cc",
+      "configuration_root": "sha256:437f303c5df25118f70869cebe5179e61459f7518cf0229442a144ffbc2f7e23",
+      "image_digest": "sha256:fc5dc5837c1c6e43e174d206371291454cf6fe0431b7b99b99df8cfa3e63dd5f",
       "model": "claude-opus-5",
       "model_snapshot_semantics": "canonical_pinned_model_id_not_pre-4.6_alias",
       "parameters": {
@@ -149,93 +132,43 @@
         "thinking": "adaptive_default",
         "timeout_seconds": 1200
       },
+      "provider_adapter": "anthropic-messages-v1",
       "provider_organization": "Anthropic",
+      "qualification_root": "sha256:2048cfabbb4b4d8a2c865c38055b61ea3c9af7dcc395d02ad13c8cf82755e2bd",
       "slot_id": "configuration-b",
-      "status": "selected_held_unqualified",
-      "tool_policy_sha256": "sha256:9d0a4ec7886d43575541a1456657a95078a3e9744ac5e214fc0dec00de11d829"
+      "status": "candidate_configuration_offline_fixture_qualified_held",
+      "tool_boundary_root": "sha256:5b10101846b4408b59cd5eb6482c23469d363bf73ebf08363915339585986af2"
     }
   ],
-  "permits": {
-    "neutral_calibration": [],
-    "neutral_calibration_status": "withheld_not_created",
-    "pilot_permits_consumed": 0,
-    "pilot_permits_released": 0,
-    "pilot_permits_touched": false
-  },
-  "provider_schema_derivation": {
+  "provider_schema_boundary": {
     "authoritative_registered_schema": "paper/artifacts/lean-correspondence-stage-a-open-pilot/response.schema.json",
     "authoritative_schema_sha256": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
-    "exact_qualifier_allowed_deletions": [
-      "uniqueItems=true"
-    ],
-    "provider_derivatives": [],
-    "unique_items_pointers": [
-      "/properties/impact_closure/uniqueItems",
-      "/properties/impact_closure/items/properties/evidence_ids/uniqueItems",
-      "/properties/uncertainty/uniqueItems"
-    ],
-    "unproved_keywords_present": [
-      "minItems",
-      "minLength",
-      "pattern"
-    ]
+    "neutral_qualifier_registered_schema_sha256": "sha256:d25a5b53c3e715806b38b7d63511ce5ac118137b5a42a3a3e2a81792218082ad",
+    "participant_provider_derivatives": [],
+    "status": "held_exact_registry_mismatch"
   },
-  "runtime_contract": {
-    "capture": [
-      "raw_request_bytes_per_turn",
-      "raw_provider_event_bytes_in_arrival_order",
-      "raw_tool_call_argument_bytes_in_execution_order",
-      "raw_tool_result_bytes_in_execution_order",
-      "raw_provider_response_bytes_per_turn",
-      "raw_usage_bytes_per_turn",
-      "raw_stderr_bytes",
-      "raw_terminal_receipt_bytes",
-      "raw_teardown_receipt_bytes"
-    ],
-    "capture_custody": {
-      "empty_capture_forbidden": true,
-      "every_capture_has_sha256": true,
-      "ordered_manifest_root_required": true,
-      "partial_and_failure_bytes_retained": true,
-      "request_precedes_provider_events": true,
-      "teardown_receipt_exactly_once_after_terminal_receipt": true,
-      "terminal_receipt_exactly_once_after_terminal_response": true,
-      "tool_call_precedes_matching_result": true,
-      "tool_result_precedes_next_provider_request": true
-    },
-    "fresh_context": true,
-    "fresh_process": true,
-    "no_hidden_answer_access": true,
-    "no_persistent_memory": true,
-    "no_repo_mutation": true,
-    "no_scheduler": true,
-    "provider_specific_adapter_source_roots": [],
-    "retry_paths": "absent",
-    "runner_source_root": null,
-    "shared_tool_policy": "tool-policy.json"
+  "runtime_boundary": {
+    "image_role": "qualifier_custody_fixture_not_launchable_provider_runtime",
+    "mounts_read_only": true,
+    "network_during_offline_qualification": false,
+    "participant_network_until_authorized": false,
+    "provider_equivalence_root": "sha256:01cf28522f67ebc8091112119c192a377d1098741bec8be156ab9952d20cefe5",
+    "runtime_source_root": "sha256:d687e3835c9efce5557651877fdbe5fca5ee39c1685c6ad48f5b1747f4781087",
+    "tool_mode": "read_only_offline_shell_files",
+    "trust_bundle_sha256": "sha256:9dae8d76e55cb08991f2b672d58999ea15560d910759c16b544f843bdffbb994",
+    "writes": false
   },
-  "schema": "vela.lean-correspondence-stage-a-runtime-qualification-candidate.v1",
-  "source_references": [
-    {
-      "claim": "OpenAI model id, Responses API, tools, structured outputs, and effort support",
-      "url": "https://developers.openai.com/api/docs/models/gpt-5.6-sol"
-    },
-    {
-      "claim": "Anthropic canonical pinned model ids and current model list",
-      "url": "https://platform.claude.com/docs/en/about-claude/models/model-ids-and-versions"
-    },
-    {
-      "claim": "Anthropic structured outputs, strict tool use, and schema transformations",
-      "url": "https://platform.claude.com/docs/en/build-with-claude/structured-outputs"
-    }
-  ],
+  "schema": "vela.lean-correspondence-stage-a-runtime-qualification-candidate.v2",
   "stage_a_binding": {
+    "artifact_root": "sha256:f89d335912adbbd0e3b3f1cb98ec3f4fa78a27f3742652ac7244eaa86ed6aca8",
     "participant_calls": 0,
-    "pilot_commit": "6e818ecaa8886d3d83856ddb01c4865acdd8b310",
-    "pilot_directory_tree": "9152475b00b72f57d61f09d8f7e137e4a26e234d",
-    "pilot_tree": "6980a999c40484b1138a99ef934c2f8bd99d81a2",
+    "participant_permits_consumed": 0,
+    "participant_permits_released": 0,
+    "pilot_commit": "c4a90b63d2f35c16876ff8b36f48742ae2c6ea7d",
+    "pilot_directory_tree": "2a5dfdb5f82f3c3540efe89f6752a441fdfa9dd3",
+    "pilot_tree": "af0cd1e65bf0efb1ca60897f47bab1cbc6e69232",
     "qualification_receipt_root": null,
-    "status": "zero_of_twelve_all_permits_held"
+    "status": "zero_of_twelve_all_participant_permits_held"
   },
-  "status": "held_blocked_exact_qualifier_and_credentials"
+  "status": "held_offline_qualified_schema_registry_and_credentials_blocked"
 }

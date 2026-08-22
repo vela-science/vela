@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministically regenerate the held candidate's dependent roots."""
+"""Recompute the recursive artifact manifest for the held runtime candidate."""
 
 from __future__ import annotations
 
@@ -9,8 +9,6 @@ from pathlib import Path
 from typing import Any
 
 PACKAGE = Path(__file__).resolve().parent
-REGISTRATION = PACKAGE / "registration.json"
-TOOL_POLICY = PACKAGE / "tool-policy.json"
 ARTIFACT_ROOT = PACKAGE / "artifact-root.json"
 
 
@@ -31,36 +29,25 @@ def pretty_bytes(value: Any) -> bytes:
 
 
 def main() -> None:
-    registration = json.loads(REGISTRATION.read_bytes())
-    tool_root = digest(TOOL_POLICY.read_bytes())
-    boundary_root = canonical_root(
-        {
-            "stage_a_directory_tree": registration["stage_a_binding"][
-                "pilot_directory_tree"
-            ],
-            "response_schema_sha256": registration["provider_schema_derivation"][
-                "authoritative_schema_sha256"
-            ],
-            "tool_policy_sha256": tool_root,
-        }
-    )
-    for configuration in registration["participant_configurations"]:
-        configuration["tool_policy_sha256"] = tool_root
-        configuration["information_boundary_root"] = boundary_root
-        body = dict(configuration)
-        body.pop("configuration_root", None)
-        configuration["configuration_root"] = canonical_root(body)
-    REGISTRATION.write_bytes(pretty_bytes(registration))
-
     entries = []
-    for path in sorted(PACKAGE.iterdir()):
-        if path.is_file() and path.name != ARTIFACT_ROOT.name:
-            raw = path.read_bytes()
-            entries.append(
-                {"path": path.name, "bytes": len(raw), "sha256": digest(raw)}
-            )
+    for path in sorted(PACKAGE.rglob("*")):
+        if (
+            not path.is_file()
+            or path == ARTIFACT_ROOT
+            or "__pycache__" in path.parts
+            or path.suffix == ".pyc"
+        ):
+            continue
+        raw = path.read_bytes()
+        entries.append(
+            {
+                "path": path.relative_to(PACKAGE).as_posix(),
+                "bytes": len(raw),
+                "sha256": digest(raw),
+            }
+        )
     artifact = {
-        "schema": "vela.lean-correspondence-stage-a-runtime-qualification-artifact-root.v1",
+        "schema": "vela.lean-correspondence-stage-a-runtime-qualification-artifact-root.v2",
         "entries": entries,
     }
     artifact["artifact_root"] = canonical_root(artifact)

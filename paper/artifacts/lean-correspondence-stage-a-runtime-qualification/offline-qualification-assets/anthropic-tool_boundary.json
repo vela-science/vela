@@ -1,0 +1,110 @@
+{
+  "api_version": "messages/v1",
+  "lifecycle": [
+    "thread.started",
+    "turn.started",
+    "tool.call",
+    "tool.result",
+    "item.completed",
+    "turn.completed"
+  ],
+  "max_output_bytes": 4096,
+  "mode": "read_only_offline_shell_files",
+  "mounts": [
+    {
+      "content_root": "sha256:9186728c46464cf4749ea9ffe47f991dbe1f18f288a5e95c40430c87679a0d4b",
+      "read_only": true,
+      "source": "/private/tmp/vela-stage-a-runtime-qualification/stage-a-runtime-qualification-bundle/schemas",
+      "target": "/workspace"
+    }
+  ],
+  "network": false,
+  "per_call_timeout_seconds": 30,
+  "provider_adapter": "anthropic-messages-v1",
+  "provider_organization": "anthropic",
+  "schema": "vela.tooling.read-only-offline-tool-boundary.v1",
+  "shell_interpolation": false,
+  "tool_protocol_version": "offline-shell-files/1",
+  "tools": [
+    {
+      "allowed_argv": [
+        [
+          "git",
+          "--no-optional-locks",
+          "status",
+          "--short"
+        ]
+      ],
+      "file_roots": [
+        "/workspace"
+      ],
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "argv": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "cwd": {
+            "minLength": 1,
+            "pattern": "^/",
+            "type": "string"
+          }
+        },
+        "required": [
+          "argv",
+          "cwd"
+        ],
+        "type": "object"
+      },
+      "name": "shell",
+      "operations": [
+        "execute"
+      ],
+      "version": "1"
+    },
+    {
+      "allowed_argv": [],
+      "file_roots": [
+        "/workspace"
+      ],
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "operation": {
+            "enum": [
+              "read",
+              "list",
+              "stat"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "minLength": 1,
+            "pattern": "^/",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation",
+          "path"
+        ],
+        "type": "object"
+      },
+      "name": "read_file",
+      "operations": [
+        "read",
+        "list",
+        "stat"
+      ],
+      "version": "1"
+    }
+  ],
+  "writes": false
+}

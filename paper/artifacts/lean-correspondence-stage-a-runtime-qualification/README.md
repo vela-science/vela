@@ -1,64 +1,53 @@
-# Stage A two-provider runtime qualification candidate
+# Stage A held two-provider runtime candidate
 
-Status: **held and blocked; zero provider calls; no permit exists**.
+This package prospectively binds the independently passed Stage A `0/12`
+package to the maintained evidence qualifier merged on Vela main at
+`586c305915f9f192822a720df7fd5abf416d9439`, tree
+`59c1847e8b4a8f57ba515febc487b0ce0e68c37f`.  The exact qualifier executable
+has SHA-256
+`6db638f5cec4df9eac53fe8edc2376fcc4db89afe3f08b977d47873669c41ddc`.
 
-This is a prospective, no-call amendment candidate for the frozen Lean
-Correspondence Stage A open pilot. It does not edit the 12 participant packets,
-prompts, assignments, or held permits at producer commit
-`6e818ecaa8886d3d83856ddb01c4865acdd8b310`. It selects two independently
-released model snapshots from different provider organizations and freezes the
-common participant-visible tool and custody contracts needed by a later runtime.
+The exact OpenAI Responses and Anthropic Messages candidate configurations now
+have distinct deterministic OCI **qualification-fixture** identities, closed
+offline tool boundaries, retained CA trust, canonical read-only mounts, exact
+neutral provider-adapter schemas, and distinct neutral-calibration permits.
+Both bundles pass the maintained qualifier fully offline.  These small OCI
+archives exercise image graph and custody semantics; they are not presented as
+launchable provider runners.  The qualifier consumes only its synthetic
+no-science self-test fixture; neither held neutral-calibration permit is
+consumed, and no provider is contacted.
 
-The candidate cannot honestly produce the method-required maintained-qualifier
-receipt. The exact qualifier blob on reviewed Vela main accepts only
-`tools = "none"`, rejects provider event streams containing tool calls, and can
-derive a provider schema only by deleting `uniqueItems`. Stage A requires tools,
-and its registered response schema also contains `pattern`, `minLength`, and
-`minItems` constraints whose provider support is not established by the bound
-offline evidence. Claiming qualification would therefore weaken both the tool
-boundary and the fail-closed schema boundary.
+The candidate remains blocked.  The maintained qualifier's closed schema
+registry accepts `/properties/items/uniqueItems` and
+`/properties/items/minItems` for its neutral fixture.  The frozen Stage A
+participant response schema instead contains `impact_closure`, nested
+`evidence_ids`, and `uncertainty`.  This package does not invent an
+artifact-local transformation or mislabel the neutral schema as the
+participant schema.  A maintained, independently reviewed exact registry entry
+is required before source-owned provider execution images are built.  The two
+Platform API-key classes are also absent; only their environment names and
+absence were checked, and no credential value or consumer OAuth surface was
+requested, used, or inspected.
 
-The local credential check found consumer subscription OAuth sessions for both
-providers, but no `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`. The planned raw-HTTP
-runner requires those Platform API-key classes through ephemeral descriptor
-injection. Subscription credentials are not copied, mounted, persisted, baked,
-or treated as API keys.
+Consequently all twelve participant permits remain held and non-releasable,
+both neutral-calibration permits remain held, and the ledgers remain at zero
+participant calls, provider calls, calibrations, responses, scoring, protected
+keys, and Stage B selection.  The package has no Protocol, Core, authority,
+Decision, or Standing effect.
 
-The verifier binds the complete provider configuration objects, runtime capture
-and lifecycle contract, credential classes, schema and qualifier references,
-Stage A and method bindings, and the full tool policy to immutable expected
-roots. Recomputing candidate-owned configuration, custody, or artifact roots
-after a weakening therefore remains blocked. The capture contract requires raw
-bytes and per-capture hashes for requests, provider events, tool calls and
-results, responses, usage, stderr, terminal receipt, and teardown receipt in
-their exact lifecycle order.
-
-Because the offline qualifier and schema gates fail, deterministic image builds,
-trust-store materialization, absolute assignment mounts, and the two distinct
-neutral-calibration permits are deliberately not fabricated. Their roots remain
-null and the permit list remains empty. A separately reviewed amendment to the
-maintained qualifier must first add a generic tool-using capture contract and a
-proved provider-schema transformation vocabulary. After that, a fresh candidate
-must build each image twice from empty cache, bind a real trust bundle and
-canonical absolute read-only mounts, re-check credential class presence without
-revealing values, and obtain a new exact independent PASS before calibration can
-be authorized.
-
-Verify the frozen candidate without provider contact:
+Run the committed stopped-state verifier and regressions with:
 
 ```bash
 uv run --project conformance --locked python \
-  paper/artifacts/lean-correspondence-stage-a-runtime-qualification/generate.py
-
-uv run --project conformance --locked python \
   paper/artifacts/lean-correspondence-stage-a-runtime-qualification/verify.py
 
-uv run --project conformance --locked python -m unittest discover \
-  -s paper/artifacts/lean-correspondence-stage-a-runtime-qualification \
-  -p 'test_*.py' -v
+uv run --project conformance --locked python -m unittest \
+  paper.artifacts.lean-correspondence-stage-a-runtime-qualification.test_verify -v
 ```
 
-Passing these checks establishes only that the held blocker is exact and that no
-unauthorized substitution or early permit exists. It is not runtime
-qualification, calibration authorization, pilot launch, a result, acceptance,
-Decision, Standing, release, or deployment.
+`offline_qualify.py` regenerates the two bundles at one caller-supplied,
+explicitly scoped canonical workspace, invokes the exact qualifier in a fixed
+locked environment, and retains only the immutable images, provider schemas,
+tool boundaries, held permits, hold states, and canonical qualification record.
+It requires an explicit trust-bundle path and never reads credential values or
+opens provider network access.

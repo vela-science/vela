@@ -19,273 +19,179 @@ SPEC.loader.exec_module(VERIFY)
 class RuntimeQualificationCandidateTests(unittest.TestCase):
     def setUp(self) -> None:
         self.registration = VERIFY.load_json(VERIFY.REGISTRATION)
-        self.tool_policy = VERIFY.load_json(VERIFY.TOOL_POLICY)
+        self.offline = VERIFY.load_json(VERIFY.OFFLINE)
 
-    def assert_blocked(self, registration, message, tool_policy=None) -> None:
+    def offline_records(self, value=None):
+        return VERIFY.validate_offline(self.offline if value is None else value)
+
+    def assert_offline_blocked(self, candidate, message: str) -> None:
+        body = dict(candidate)
+        body.pop("record_root", None)
+        candidate["record_root"] = VERIFY.canonical_root(body)
         with self.assertRaisesRegex(VERIFY.CandidateError, message):
-            VERIFY.validate_candidate(
-                registration,
-                self.tool_policy if tool_policy is None else tool_policy,
-                check_git=False,
+            VERIFY.validate_offline(candidate)
+
+    def assert_registration_blocked(self, candidate, message: str) -> None:
+        with self.assertRaisesRegex(VERIFY.CandidateError, message):
+            VERIFY.validate_registration(
+                candidate, self.offline_records(), check_git=False
             )
 
-    @staticmethod
-    def reroot_configuration(registration, index) -> None:
-        configuration = registration["participant_configurations"][index]
-        body = copy.deepcopy(configuration)
-        body.pop("configuration_root", None)
-        configuration["configuration_root"] = VERIFY.canonical_root(body)
-
-    def test_exact_held_candidate_passes_without_provider_or_permit(self) -> None:
-        receipt = VERIFY.validate_candidate(
-            self.registration, self.tool_policy, check_git=True
-        )
-        self.assertEqual(receipt["status"], "pass_exact_held_blocker")
+    def test_exact_candidate_passes_held_with_two_truthful_blockers(self) -> None:
+        receipt = VERIFY.verify(check_credentials=False, check_git=True)
         self.assertEqual(receipt["provider_calls"], 0)
-        self.assertEqual(receipt["neutral_calibration_permits"], 0)
-        self.assertIsNone(receipt["qualification_receipt_root"])
-        self.assertFalse(receipt["neutral_calibration_separately_authorizable"])
+        self.assertEqual(receipt["neutral_calibrations_run"], 0)
+        self.assertEqual(receipt["participant_calls"], 0)
+        self.assertEqual(receipt["participant_permits_released"], 0)
+        self.assertEqual(receipt["authority_effect"], "none")
 
-    def test_provider_or_model_substitution_fails(self) -> None:
-        for field, value in (
-            ("provider_organization", "OpenAI"),
-            ("model", "gpt-5.6-terra"),
+    def test_boolean_cannot_replace_any_zero_counter_after_reseal(self) -> None:
+        for path in (
+            ("provider_calls",),
+            ("neutral_calibrations_run",),
+            ("participant_calls",),
+            ("provider_records", 0, "provider_calls"),
+            ("provider_records", 0, "qualification_receipt", "provider_calls"),
+            ("provider_records", 1, "qualification_receipt", "scientific_sessions"),
+            (
+                "provider_records",
+                1,
+                "qualification_receipt",
+                "participant_permits_consumed",
+            ),
         ):
-            with self.subTest(field=field):
-                candidate = copy.deepcopy(self.registration)
-                candidate["participant_configurations"][1][field] = value
-                self.assert_blocked(candidate, "provider_or_model_substitution")
+            with self.subTest(path=path):
+                candidate = copy.deepcopy(self.offline)
+                target = candidate
+                for component in path[:-1]:
+                    target = target[component]
+                target[path[-1]] = False
+                self.assert_offline_blocked(candidate, "counter|provider_calls")
 
-    def test_cross_provider_atom_or_tool_mismatch_fails(self) -> None:
-        candidate = copy.deepcopy(self.registration)
-        candidate["participant_configurations"][1]["information_boundary_root"] = (
-            "sha256:" + "0" * 64
-        )
-        self.assert_blocked(candidate, "cross_provider_atom_or_tool_mismatch")
+    def test_provider_call_or_scientific_session_inflation_fails_after_reseal(
+        self,
+    ) -> None:
+        for key in (
+            "provider_calls",
+            "scientific_sessions",
+            "participant_permits_consumed",
+        ):
+            candidate = copy.deepcopy(self.offline)
+            candidate["provider_records"][0]["qualification_receipt"][key] = 1
+            self.assert_offline_blocked(candidate, "qualifier_counter")
 
-    def test_mutable_tool_boundary_fails(self) -> None:
-        policy = copy.deepcopy(self.tool_policy)
-        policy["filesystem"]["assignment_mount"] = "read_write"
-        self.assert_blocked(self.registration, "mutable_tool_boundary", policy)
+    def test_early_neutral_permit_consumption_fails_after_reseal(self) -> None:
+        candidate = copy.deepcopy(self.offline)
+        candidate["provider_records"][0]["consumed_neutral_permit_exists"] = True
+        self.assert_offline_blocked(candidate, "early_permit_consume")
 
-    def test_unsupported_response_schema_cannot_be_claimed(self) -> None:
-        candidate = copy.deepcopy(self.registration)
-        candidate["provider_schema_derivation"]["provider_derivatives"] = [
-            {"provider": "OpenAI", "root": "sha256:" + "1" * 64}
-        ]
-        self.assert_blocked(candidate, "unsupported_schema_claimed")
-
-    def test_missing_or_drifted_trust_runtime_image_roots_fail(self) -> None:
-        for key, value in (
-            ("trust_bundle_root", "sha256:" + "2" * 64),
-            ("images", [{"digest": "sha256:" + "3" * 64}]),
-            ("absolute_read_only_mounts", [{"source": "/tmp", "read_only": True}]),
+    def test_image_configuration_tool_and_qualification_cross_binding_fail(
+        self,
+    ) -> None:
+        for key in (
+            "image_digest",
+            "configuration_root",
+            "tool_boundary_root",
+            "qualification_root",
         ):
             with self.subTest(key=key):
-                candidate = copy.deepcopy(self.registration)
-                candidate["image_boundary"][key] = value
-                self.assert_blocked(
-                    candidate, "missing_or_drifted_trust_runtime_image_roots_not_held"
+                candidate = copy.deepcopy(self.offline)
+                candidate["provider_records"][0]["qualification_receipt"][key] = (
+                    candidate["provider_records"][1]["qualification_receipt"][key]
                 )
+                self.assert_offline_blocked(candidate, f"qualifier_binding:{key}")
 
-    def test_stale_qualifier_receipt_fails(self) -> None:
-        candidate = copy.deepcopy(self.registration)
-        candidate["maintained_qualifier"]["qualification_receipt_root"] = (
-            "sha256:" + "4" * 64
+    def test_same_image_substitution_fails_after_reseal(self) -> None:
+        candidate = copy.deepcopy(self.offline)
+        candidate["provider_records"][1]["qualification_receipt"]["image_digest"] = (
+            candidate["provider_records"][0]["qualification_receipt"]["image_digest"]
         )
-        self.assert_blocked(candidate, "stale_or_early_qualifier_receipt")
+        self.assert_offline_blocked(candidate, "qualifier_binding:image_digest")
 
-    def test_credential_retention_fails(self) -> None:
-        candidate = copy.deepcopy(self.registration)
-        candidate["credentials"][0]["retained"] = True
-        self.assert_blocked(candidate, "credential_retention_or_status_drift")
+    def test_provider_equivalence_drift_fails_after_reseal(self) -> None:
+        candidate = copy.deepcopy(self.offline)
+        candidate["provider_records"][1]["qualification_receipt"][
+            "provider_equivalence_root"
+        ] = "sha256:" + "0" * 64
+        self.assert_offline_blocked(candidate, "provider_equivalence_drift")
 
-    def test_early_permit_release_fails(self) -> None:
+    def test_false_qualifier_gate_fails_after_reseal(self) -> None:
+        candidate = copy.deepcopy(self.offline)
+        candidate["provider_records"][0]["qualification_receipt"]["gates"][
+            "trust_and_mounts"
+        ] = False
+        self.assert_offline_blocked(candidate, "qualifier_gate")
+
+    def test_qualifier_commit_tree_or_bytes_substitution_fails(self) -> None:
+        for key in ("git_commit", "git_tree", "sha256"):
+            with self.subTest(key=key):
+                candidate = copy.deepcopy(self.registration)
+                candidate["maintained_qualifier"][key] = (
+                    "sha256:" + "0" * 64 if key == "sha256" else "0" * 40
+                )
+                self.assert_registration_blocked(candidate, "qualifier_binding")
+
+    def test_participant_schema_blocker_cannot_be_erased_or_locally_derived(
+        self,
+    ) -> None:
         candidate = copy.deepcopy(self.registration)
-        candidate["permits"]["neutral_calibration"] = [
-            {"id": "neutral-a", "status": "held"}
+        candidate["blockers"] = candidate["blockers"][1:]
+        self.assert_registration_blocked(candidate, "blockers_drift")
+        candidate = copy.deepcopy(self.registration)
+        candidate["provider_schema_boundary"]["participant_provider_derivatives"] = [
+            {"provider": "OpenAI", "root": "sha256:" + "1" * 64}
         ]
-        self.assert_blocked(candidate, "early_permit_creation")
+        self.assert_registration_blocked(candidate, "participant_schema_not_held")
 
-    def test_scheduler_and_retry_paths_fail(self) -> None:
+    def test_early_authorization_or_neutral_release_fails(self) -> None:
         candidate = copy.deepcopy(self.registration)
-        candidate["runtime_contract"]["no_scheduler"] = False
-        self.assert_blocked(candidate, "runtime_boundary_mutable:no_scheduler")
+        candidate["authorization"]["neutral_calibration_execution_authorized"] = True
+        self.assert_registration_blocked(candidate, "early_authorization")
         candidate = copy.deepcopy(self.registration)
-        candidate["participant_configurations"][0]["parameters"]["retries"] = 1
-        self.assert_blocked(candidate, "runtime_parameter_drift")
+        candidate["neutral_calibration_permits"][0]["status"] = "released"
+        self.assert_registration_blocked(candidate, "neutral_permit_released")
 
-    def test_qualifier_or_registered_schema_root_drift_fails(self) -> None:
+    def test_neutral_permit_cross_provider_binding_fails(self) -> None:
         candidate = copy.deepcopy(self.registration)
-        candidate["maintained_qualifier"]["blob"] = "0" * 40
-        self.assert_blocked(candidate, "qualifier_root_drift")
-        candidate = copy.deepcopy(self.registration)
-        candidate["provider_schema_derivation"]["unproved_keywords_present"] = []
-        self.assert_blocked(candidate, "unsupported_response_schema_not_held")
-
-    def test_reviewer_configuration_weakenings_fail_after_reroot(self) -> None:
-        mutations = (
-            ("openai_store", 0, "store", True),
-            ("openai_effort", 0, "reasoning_effort", "low"),
-            ("openai_one_token", 0, "max_output_tokens", 1),
-            ("anthropic_thinking", 1, "thinking", "disabled"),
-            ("anthropic_tier", 1, "service_tier", "auto"),
+        candidate["neutral_calibration_permits"][1]["run_id"] = (
+            "neutral-calibration-openai"
         )
-        for label, index, key, value in mutations:
-            with self.subTest(label=label):
-                candidate = copy.deepcopy(self.registration)
-                candidate["participant_configurations"][index]["parameters"][key] = (
-                    value
-                )
-                self.reroot_configuration(candidate, index)
-                self.assert_blocked(candidate, "configuration_contract_drift")
+        self.assert_registration_blocked(candidate, "neutral_permit_cross_binding")
 
-    def test_api_version_model_and_omission_substitutions_fail(self) -> None:
+    def test_frozen_provider_parameters_cannot_drift(self) -> None:
         candidate = copy.deepcopy(self.registration)
-        candidate["participant_configurations"][0]["api"]["provider_api_version"] = (
-            "chat-completions-v1"
-        )
-        self.reroot_configuration(candidate, 0)
-        self.assert_blocked(candidate, "configuration_contract_drift")
-
+        candidate["participant_configurations"][0]["parameters"][
+            "max_output_tokens"
+        ] = 1
+        self.assert_registration_blocked(candidate, "frozen_configuration_drift")
         candidate = copy.deepcopy(self.registration)
         candidate["participant_configurations"][1]["api"][
             "anthropic_version_header"
         ] = "2024-01-01"
-        self.reroot_configuration(candidate, 1)
-        self.assert_blocked(candidate, "configuration_contract_drift")
+        self.assert_registration_blocked(candidate, "frozen_configuration_drift")
 
+    def test_stage_a_binding_or_participant_release_fails(self) -> None:
         candidate = copy.deepcopy(self.registration)
-        candidate["participant_configurations"][0]["model"] = "gpt-5.6"
-        self.reroot_configuration(candidate, 0)
-        self.assert_blocked(candidate, "provider_or_model_substitution")
-
-        candidate = copy.deepcopy(self.registration)
-        del candidate["participant_configurations"][0]["parameters"]["temperature"]
-        self.reroot_configuration(candidate, 0)
-        self.assert_blocked(candidate, "runtime_parameter_drift")
-
-        candidate = copy.deepcopy(self.registration)
-        candidate["participant_configurations"][1]["parameters"][
-            "temperature_was_omitted"
-        ] = True
-        self.reroot_configuration(candidate, 1)
-        self.assert_blocked(candidate, "configuration_contract_drift")
-
-    def test_runtime_capture_empty_reordered_or_custody_weakened_fails(self) -> None:
-        candidate = copy.deepcopy(self.registration)
-        candidate["runtime_contract"]["capture"] = []
-        self.assert_blocked(candidate, "runtime_capture_contract_drift")
-
-        candidate = copy.deepcopy(self.registration)
-        candidate["runtime_contract"]["capture"] = list(
-            reversed(candidate["runtime_contract"]["capture"])
-        )
-        self.assert_blocked(candidate, "runtime_capture_contract_drift")
-
-        candidate = copy.deepcopy(self.registration)
-        candidate["runtime_contract"]["capture_custody"][
-            "ordered_manifest_root_required"
-        ] = False
-        self.assert_blocked(candidate, "runtime_contract_drift")
-
-        candidate = copy.deepcopy(self.registration)
-        candidate["runtime_contract"]["capture_custody"][
-            "tool_call_precedes_matching_result"
-        ] = False
-        self.assert_blocked(candidate, "runtime_contract_drift")
-
-    def test_subscription_oauth_and_credential_substitutions_fail(self) -> None:
-        candidate = copy.deepcopy(self.registration)
-        credential = candidate["credentials"][0]
-        credential["accepted_credential_class"] = credential[
-            "available_non_substitutable_class"
-        ]
-        credential["subscription_oauth_admissible"] = True
-        self.assert_blocked(candidate, "credential_admissibility_drift")
-
-        candidate = copy.deepcopy(self.registration)
-        candidate["credentials"][1]["provider_organization"] = "OpenAI"
-        self.assert_blocked(candidate, "credential_contract_drift")
-
-        candidate = copy.deepcopy(self.registration)
-        candidate["credentials"][0]["credential_reference_class"] = (
-            "inline_secret_value"
-        )
-        self.assert_blocked(candidate, "credential_admissibility_drift")
-
-    def test_network_shell_filesystem_and_hidden_answer_weakenings_fail(self) -> None:
-        mutations = (
-            ("unrestricted_egress", ("network", "runner_egress"), "unrestricted"),
-            (
-                "hidden_answers",
-                ("filesystem", "hidden_answer_paths"),
-                "mounted_read_only",
-            ),
-            (
-                "shell_interpolation",
-                ("read_only_shell", "invocation"),
-                "shell_string_with_interpolation",
-            ),
-            (
-                "path_escape",
-                ("tools", 1, "arguments", "path"),
-                "arbitrary_absolute_or_relative_path",
-            ),
-        )
-        for label, path, value in mutations:
-            with self.subTest(label=label):
-                policy = copy.deepcopy(self.tool_policy)
-                target = policy
-                for component in path[:-1]:
-                    target = target[component]
-                target[path[-1]] = value
-                self.assert_blocked(
-                    self.registration, "tool_policy_contract_drift", policy
-                )
-
-        policy = copy.deepcopy(self.tool_policy)
-        policy["read_only_shell"]["allowed_commands"].append("curl")
-        self.assert_blocked(self.registration, "tool_policy_contract_drift", policy)
-
-        policy = copy.deepcopy(self.tool_policy)
-        policy["filesystem"]["root_filesystem"] = "read_write"
-        self.assert_blocked(self.registration, "mutable_tool_boundary", policy)
-
-    def test_schema_and_custody_substitutions_fail_after_dependent_reroot(self) -> None:
-        candidate = copy.deepcopy(self.registration)
-        candidate["provider_schema_derivation"]["authoritative_schema_sha256"] = (
-            "sha256:" + "5" * 64
-        )
-        boundary_root = VERIFY.information_boundary_root(
-            candidate, candidate["participant_configurations"][0]["tool_policy_sha256"]
-        )
-        for index, configuration in enumerate(candidate["participant_configurations"]):
-            configuration["information_boundary_root"] = boundary_root
-            self.reroot_configuration(candidate, index)
-        self.assert_blocked(candidate, "information_boundary_contract_drift")
-
-        candidate = copy.deepcopy(self.registration)
-        candidate["participant_configurations"][1]["information_boundary_root"] = (
-            "sha256:" + "6" * 64
-        )
-        self.reroot_configuration(candidate, 1)
-        self.assert_blocked(candidate, "cross_provider_atom_or_tool_mismatch")
-
-    def test_outer_reroot_cannot_replace_stage_method_or_unchecked_fields(self) -> None:
+        candidate["stage_a_binding"]["participant_permits_released"] = 1
+        self.assert_registration_blocked(candidate, "stage_a_binding")
         candidate = copy.deepcopy(self.registration)
         candidate["stage_a_binding"]["pilot_commit"] = "0" * 40
-        candidate["stage_a_binding"]["pilot_tree"] = "1" * 40
-        self.assert_blocked(candidate, "stage_a_binding_contract_drift")
+        self.assert_registration_blocked(candidate, "stage_a_binding")
 
-        candidate = copy.deepcopy(self.registration)
-        candidate["method_binding"]["producer_commit"] = "3" * 40
-        candidate["method_binding"]["reviewed_method_directory_tree"] = "4" * 40
-        self.assert_blocked(candidate, "method_binding_contract_drift")
+    def test_credential_presence_retention_or_value_observation_fails(self) -> None:
+        for key, value in (
+            ("presence", "present"),
+            ("retained", True),
+            ("value_observed", True),
+        ):
+            candidate = copy.deepcopy(self.registration)
+            candidate["credentials"][0][key] = value
+            self.assert_registration_blocked(candidate, "credential_state")
 
+    def test_unknown_outer_field_fails_even_after_semantic_checks(self) -> None:
         candidate = copy.deepcopy(self.registration)
-        candidate["source_references"][0]["claim"] = "rerooted outer claim"
-        self.assert_blocked(candidate, "registration_contract_drift")
+        candidate["execution_authorized"] = True
+        self.assert_registration_blocked(candidate, "registration_root")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,227 @@
+{
+  "authority_effect": "none",
+  "neutral_calibrations_run": 0,
+  "participant_calls": 0,
+  "provider_calls": 0,
+  "provider_records": [
+    {
+      "consumed_neutral_permit_exists": false,
+      "held_neutral_run_id": "neutral-calibration-openai",
+      "model": "gpt-5.6-sol",
+      "provider_adapter": "openai-responses-v1",
+      "provider_calls": 0,
+      "provider_organization": "OpenAI",
+      "qualification_receipt": {
+        "authority_effect": "none",
+        "build_inputs_root": "sha256:31d365dfdd50a555178b5f291ab54af617da76696ab8f8c7f069d34a4d46371d",
+        "canonical_response_root": "sha256:3dd7aea753bb83adf1732f7a0187c78c9362230d660f1a302054aee7967b43b3",
+        "canonical_valid_response_root": "sha256:3dd7aea753bb83adf1732f7a0187c78c9362230d660f1a302054aee7967b43b3",
+        "configuration_root": "sha256:62cb5930870d03623d5428fd207fa215ffa6805d985f2e829f500301c87567c7",
+        "dockerfile_bytes": "sha256:648f1bd4f025723e753a8dc16013b168ba2878a44bec7718c32d1fabad46637b",
+        "gates": {
+          "canonical_decimal_serialization": true,
+          "configuration": true,
+          "draft_2020_12_local_validation": true,
+          "neutral_capture_bridge": true,
+          "order_independent_closed_set": true,
+          "pre_key_snapshot": true,
+          "provider_equivalence": true,
+          "provider_schema_derivative": true,
+          "raw_provider_event_normalization": true,
+          "read_only_offline_tool_boundary": true,
+          "runtime_reproducibility": true,
+          "self_verification_target": true,
+          "single_use_permit_hold": true,
+          "trust_and_mounts": true
+        },
+        "image_config_digest": "sha256:c53dbdcb30f6c7febc8e7933c288e8cdec2ffddf83d214c757bd8496e7651c17",
+        "image_digest": "sha256:cefa48877aedfd755e5b53aa402b52f0b6176c14931e8a6cdf30562381101ef3",
+        "input_tokens_telemetry": 100,
+        "neutral_capture_root": "sha256:39d34cb7cdd5b5a54076e3607ac14830520f8ea39608ee04461e79bd59b22b11",
+        "normalized_events_bytes": "sha256:555be941b0a22294168be2bdd3517f797390c461c081ea2608653c85e5870733",
+        "normalized_tool_semantics_root": "sha256:6f858cdfb3c2ca19bdd00b89a1fe98e42615a5ef08d4f5f2dfea560be65c25c9",
+        "participant_hold_root": "sha256:a88467323c3cfcc290eafa9f1285966db4c9c09bfe980434ffcf711bb03db412",
+        "participant_permit_expected": {
+          "assignment_id": "neutral-calibration-assignment-openai",
+          "attempt": 1,
+          "condition": "neutral-no-science-held",
+          "configuration_root": "sha256:62cb5930870d03623d5428fd207fa215ffa6805d985f2e829f500301c87567c7",
+          "image_digest": "sha256:cefa48877aedfd755e5b53aa402b52f0b6176c14931e8a6cdf30562381101ef3",
+          "packet_root": "sha256:121535562a8cd7a7b7ade4d02dbbf82d811567fc9c2df274bc801b681d8e54f3",
+          "participant_id": "neutral-calibration-openai",
+          "prompt_root": "sha256:bce464b9e5456f1c8930365f12d7c4e3c50ce08ea373f1477a8844ace0123fcd",
+          "provider_schema_bytes": "sha256:4ced02daeba1b347bd8943a698793d258b423a5ea8cafcdde00679ce67d95c99",
+          "registered_schema_bytes": "sha256:d25a5b53c3e715806b38b7d63511ce5ac118137b5a42a3a3e2a81792218082ad",
+          "registration_id": "stage-a-runtime-registration",
+          "run_id": "neutral-calibration-openai",
+          "runner_version": "neutral-runner/1",
+          "runtime_source_root": "sha256:d687e3835c9efce5557651877fdbe5fca5ee39c1685c6ad48f5b1747f4781087",
+          "timeout_seconds": 1200
+        },
+        "participant_permit_root": "sha256:e8da11a2c0c0f9d5b0a863c3d0b78cc8fbeedc597e9697ee5020ed974ab1c978",
+        "participant_permits_consumed": 0,
+        "participant_visible_atoms_root": "sha256:3814a08354123311f292c2673ec2e7c5cf0308762dd23ec6ef76398c7d3166df",
+        "pre_key_snapshot_root": "sha256:1563000f0cce3765cc500d42f363ea1508fdf206482935f496313dbf2e085361",
+        "provider_adapter": "openai-responses-v1",
+        "provider_calls": 0,
+        "provider_equivalence_root": "sha256:01cf28522f67ebc8091112119c192a377d1098741bec8be156ab9952d20cefe5",
+        "provider_schema_bytes": "sha256:4ced02daeba1b347bd8943a698793d258b423a5ea8cafcdde00679ce67d95c99",
+        "qualification_root": "sha256:9425cb0b8d01745a736d218d00149ac1debd7569040bfb97dc60ab5e95069a0c",
+        "raw_provider_events_bytes": "sha256:6acdc794d6f5c09364a2e5853823a4837c5960f57a8e29fe55d9aa01eabd5152",
+        "raw_provider_events_root": "sha256:9b3b60e90f1a7793db7a51865fc3d359e3537e12531c95bd73c3b5b3f002a6db",
+        "raw_response_bytes": "sha256:cb3a6b5aceea1d1248018eba01f3f1c8ebe2abf48e960a395026d20d8e52c4fa",
+        "registered_schema_bytes": "sha256:d25a5b53c3e715806b38b7d63511ce5ac118137b5a42a3a3e2a81792218082ad",
+        "runtime_source_root": "sha256:d687e3835c9efce5557651877fdbe5fca5ee39c1685c6ad48f5b1747f4781087",
+        "schema": "vela.tooling.evidence-qualification-receipt.v1",
+        "scientific_sessions": 0,
+        "self_verification_root": "sha256:586a6a7d59e11b1ed5c7f2a6f18ca329e97ca6121e9dedf8e23a5bec330bd348",
+        "status": "qualified_hold",
+        "tool_boundary_root": "sha256:fe029f490165b034571b516ffed1a6af63f1873a1fc890203060b7a81daf4b74",
+        "tool_receipts_root": "sha256:f50cbe743da37550a9ace6128c6e6a07284b79f9053cb666349c600ef5f637b7",
+        "tool_semantics_root": "sha256:2065d8e4524c34cc6845fd08d439002e194e5f788f3b28e09d2776b431286bb3",
+        "trust_bundle_sha256": "sha256:9dae8d76e55cb08991f2b672d58999ea15560d910759c16b544f843bdffbb994"
+      },
+      "retained": {
+        "held_permit": {
+          "bytes": 1149,
+          "path": "offline-qualification-assets/openai-held_permit.json",
+          "sha256": "sha256:e3924b3f54f8cd162809b1fb9dbf3952a72ea4d98e2a4e3f1619c8c969b8fd68"
+        },
+        "hold_state": {
+          "bytes": 224,
+          "path": "offline-qualification-assets/openai-hold_state.json",
+          "sha256": "sha256:0c576e3a9cffde14908279ec47d3f7e76b0af4de7396c49f7d5e010f595832b4"
+        },
+        "image": {
+          "bytes": 10240,
+          "path": "offline-qualification-assets/openai-image.tar",
+          "sha256": "sha256:0071fee72a4a0678941f27de23e2e8285abee9eb1c60ce6bb6f7f84a23c9fb73"
+        },
+        "provider_schema": {
+          "bytes": 689,
+          "path": "offline-qualification-assets/openai-provider_schema.json",
+          "sha256": "sha256:4ced02daeba1b347bd8943a698793d258b423a5ea8cafcdde00679ce67d95c99"
+        },
+        "tool_boundary": {
+          "bytes": 2510,
+          "path": "offline-qualification-assets/openai-tool_boundary.json",
+          "sha256": "sha256:146204a717befd51b609c8fc94c3fefb6766c5297c5db7f4e50e1b3718136a39"
+        }
+      }
+    },
+    {
+      "consumed_neutral_permit_exists": false,
+      "held_neutral_run_id": "neutral-calibration-anthropic",
+      "model": "claude-opus-5",
+      "provider_adapter": "anthropic-messages-v1",
+      "provider_calls": 0,
+      "provider_organization": "Anthropic",
+      "qualification_receipt": {
+        "authority_effect": "none",
+        "build_inputs_root": "sha256:31d365dfdd50a555178b5f291ab54af617da76696ab8f8c7f069d34a4d46371d",
+        "canonical_response_root": "sha256:3dd7aea753bb83adf1732f7a0187c78c9362230d660f1a302054aee7967b43b3",
+        "canonical_valid_response_root": "sha256:3dd7aea753bb83adf1732f7a0187c78c9362230d660f1a302054aee7967b43b3",
+        "configuration_root": "sha256:437f303c5df25118f70869cebe5179e61459f7518cf0229442a144ffbc2f7e23",
+        "dockerfile_bytes": "sha256:648f1bd4f025723e753a8dc16013b168ba2878a44bec7718c32d1fabad46637b",
+        "gates": {
+          "canonical_decimal_serialization": true,
+          "configuration": true,
+          "draft_2020_12_local_validation": true,
+          "neutral_capture_bridge": true,
+          "order_independent_closed_set": true,
+          "pre_key_snapshot": true,
+          "provider_equivalence": true,
+          "provider_schema_derivative": true,
+          "raw_provider_event_normalization": true,
+          "read_only_offline_tool_boundary": true,
+          "runtime_reproducibility": true,
+          "self_verification_target": true,
+          "single_use_permit_hold": true,
+          "trust_and_mounts": true
+        },
+        "image_config_digest": "sha256:4b52b5b12e58e819ff5ee4ee07163fad0d814d9efb261bdb856dc3b0c8bb7a5a",
+        "image_digest": "sha256:fc5dc5837c1c6e43e174d206371291454cf6fe0431b7b99b99df8cfa3e63dd5f",
+        "input_tokens_telemetry": 100,
+        "neutral_capture_root": "sha256:7bbaccbcba6506c4b62de08d8b53a1f08e011ae5b2c17ee6bbbf1f52b55259af",
+        "normalized_events_bytes": "sha256:555be941b0a22294168be2bdd3517f797390c461c081ea2608653c85e5870733",
+        "normalized_tool_semantics_root": "sha256:6f858cdfb3c2ca19bdd00b89a1fe98e42615a5ef08d4f5f2dfea560be65c25c9",
+        "participant_hold_root": "sha256:f2668374338222843f05958a04bfb73310f468111abca2e4234a1fa1ffa9565f",
+        "participant_permit_expected": {
+          "assignment_id": "neutral-calibration-assignment-anthropic",
+          "attempt": 1,
+          "condition": "neutral-no-science-held",
+          "configuration_root": "sha256:437f303c5df25118f70869cebe5179e61459f7518cf0229442a144ffbc2f7e23",
+          "image_digest": "sha256:fc5dc5837c1c6e43e174d206371291454cf6fe0431b7b99b99df8cfa3e63dd5f",
+          "packet_root": "sha256:10e442e8135b7aa2a8379169f455292c14eedcf574c08de713fe273b5df88aff",
+          "participant_id": "neutral-calibration-anthropic",
+          "prompt_root": "sha256:4e5f1f54ece0ea64713db5e163ee31600b304c3f39b70edcdfa60fdbabc5fae4",
+          "provider_schema_bytes": "sha256:4ced02daeba1b347bd8943a698793d258b423a5ea8cafcdde00679ce67d95c99",
+          "registered_schema_bytes": "sha256:d25a5b53c3e715806b38b7d63511ce5ac118137b5a42a3a3e2a81792218082ad",
+          "registration_id": "stage-a-runtime-registration",
+          "run_id": "neutral-calibration-anthropic",
+          "runner_version": "neutral-runner/1",
+          "runtime_source_root": "sha256:d687e3835c9efce5557651877fdbe5fca5ee39c1685c6ad48f5b1747f4781087",
+          "timeout_seconds": 1200
+        },
+        "participant_permit_root": "sha256:c4d947528053057bab04b29faed7d0c2747567892c82395a3620ff061cbad9e2",
+        "participant_permits_consumed": 0,
+        "participant_visible_atoms_root": "sha256:3814a08354123311f292c2673ec2e7c5cf0308762dd23ec6ef76398c7d3166df",
+        "pre_key_snapshot_root": "sha256:1563000f0cce3765cc500d42f363ea1508fdf206482935f496313dbf2e085361",
+        "provider_adapter": "anthropic-messages-v1",
+        "provider_calls": 0,
+        "provider_equivalence_root": "sha256:01cf28522f67ebc8091112119c192a377d1098741bec8be156ab9952d20cefe5",
+        "provider_schema_bytes": "sha256:4ced02daeba1b347bd8943a698793d258b423a5ea8cafcdde00679ce67d95c99",
+        "qualification_root": "sha256:2048cfabbb4b4d8a2c865c38055b61ea3c9af7dcc395d02ad13c8cf82755e2bd",
+        "raw_provider_events_bytes": "sha256:d793a4c893435b2c97caf06a30255d44abfc8fc72a787a2ba99389f652d74120",
+        "raw_provider_events_root": "sha256:1f04867a20f0a6d1ca8ea699981725956820c59e3dc3f1f435ec4be732384678",
+        "raw_response_bytes": "sha256:cb3a6b5aceea1d1248018eba01f3f1c8ebe2abf48e960a395026d20d8e52c4fa",
+        "registered_schema_bytes": "sha256:d25a5b53c3e715806b38b7d63511ce5ac118137b5a42a3a3e2a81792218082ad",
+        "runtime_source_root": "sha256:d687e3835c9efce5557651877fdbe5fca5ee39c1685c6ad48f5b1747f4781087",
+        "schema": "vela.tooling.evidence-qualification-receipt.v1",
+        "scientific_sessions": 0,
+        "self_verification_root": "sha256:586a6a7d59e11b1ed5c7f2a6f18ca329e97ca6121e9dedf8e23a5bec330bd348",
+        "status": "qualified_hold",
+        "tool_boundary_root": "sha256:5b10101846b4408b59cd5eb6482c23469d363bf73ebf08363915339585986af2",
+        "tool_receipts_root": "sha256:f50cbe743da37550a9ace6128c6e6a07284b79f9053cb666349c600ef5f637b7",
+        "tool_semantics_root": "sha256:2065d8e4524c34cc6845fd08d439002e194e5f788f3b28e09d2776b431286bb3",
+        "trust_bundle_sha256": "sha256:9dae8d76e55cb08991f2b672d58999ea15560d910759c16b544f843bdffbb994"
+      },
+      "retained": {
+        "held_permit": {
+          "bytes": 1158,
+          "path": "offline-qualification-assets/anthropic-held_permit.json",
+          "sha256": "sha256:f2d7151e1d5432d81d2ef3c6f28043fb86d3690e322000252554204b852f0090"
+        },
+        "hold_state": {
+          "bytes": 227,
+          "path": "offline-qualification-assets/anthropic-hold_state.json",
+          "sha256": "sha256:6b18dbe9374e2d14c1f729331a0eff952833366f85392b99bf865d63bf4fd10f"
+        },
+        "image": {
+          "bytes": 10240,
+          "path": "offline-qualification-assets/anthropic-image.tar",
+          "sha256": "sha256:22304001d219c1158cce7ac69415de0eca38e55fb3657b4f5a4fca6de3e883a8"
+        },
+        "provider_schema": {
+          "bytes": 689,
+          "path": "offline-qualification-assets/anthropic-provider_schema.json",
+          "sha256": "sha256:4ced02daeba1b347bd8943a698793d258b423a5ea8cafcdde00679ce67d95c99"
+        },
+        "tool_boundary": {
+          "bytes": 2514,
+          "path": "offline-qualification-assets/anthropic-tool_boundary.json",
+          "sha256": "sha256:ca9e016dcdfbd43120505fda2035998e1270e999ec9932a678cbc1d173f92a0b"
+        }
+      }
+    }
+  ],
+  "qualifier": {
+    "commit": "586c305915f9f192822a720df7fd5abf416d9439",
+    "sha256": "sha256:6db638f5cec4df9eac53fe8edc2376fcc4db89afe3f08b977d47873669c41ddc",
+    "tree": "59c1847e8b4a8f57ba515febc487b0ce0e68c37f"
+  },
+  "record_root": "sha256:74d2e5d47fc5f5165444cf1908bc2408829e2642ea6a01948aea793b763e559a",
+  "schema": "vela.lean-correspondence-stage-a-offline-runtime-qualification.v1",
+  "status": "offline_qualified_hold",
+  "trust_bundle_sha256": "sha256:9dae8d76e55cb08991f2b672d58999ea15560d910759c16b544f843bdffbb994"
+}

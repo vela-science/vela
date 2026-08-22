@@ -1,0 +1,7 @@
+{
+  "assignment_id": "neutral-calibration-assignment-anthropic",
+  "reason": "qualification_incomplete",
+  "registration_id": "stage-a-runtime-registration",
+  "schema": "vela.tooling.participant-hold.v1",
+  "status": "hold"
+}
