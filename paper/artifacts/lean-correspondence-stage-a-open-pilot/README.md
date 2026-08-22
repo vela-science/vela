@@ -72,10 +72,16 @@ material. Every root is re-derived at the boundary that consumes it: method and
 evidence bindings, case selection and atom ledger, runtime and participant
 configurations, assignment rows, prompt and packet bytes, permits and hold state,
 registration, custody/scoring, prelaunch state, and the outer artifact manifest.
+Every contributing object is also closed recursively: nested case inventories,
+claim ceilings, relation endpoints, runtime prerequisites, configuration slots,
+packet atoms, assignment and permit rows, qualifier bindings, scoring semantics,
+and prelaunch counters reject unknown keys, type substitutions, and values outside
+the frozen contract even when every dependent root is regenerated.
 The adversarial suite refreshes the outer manifest after the reviewed provider,
 tool, network, partial-binding, and claim-inflation mutations and still requires
 failure. It also rejects stale registered roots, cross-bound configuration or
-packet roots, case substitution, answer leakage, arm atom mismatch,
+packet roots, fully resealed nested semantic inflation, case substitution, answer
+leakage, arm atom mismatch,
 duplicate/reused ids, denominator drift, early qualification, and early permit
 release.
 
