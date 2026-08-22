@@ -1,7 +1,7 @@
 {
-  "schema": "vela.inherited-correction-held-out-runtime-reproducibility-amendment.v1",
+  "schema": "vela.inherited-correction-held-out-runtime-reproducibility-amendment.v2",
   "status": "held_pending_independent_f08_review",
-  "frozen_at": "2026-08-21T23:16:21Z",
+  "frozen_at": "2026-08-22T00:15:36Z",
   "blocked_prelaunch": {
     "producer_commit": "3f4d61c248a43a94d09e0d848693101dd1841aa0",
     "producer_tree": "3553ff7270b479e93a99515aec7cfc54cf30f15f",
@@ -10,12 +10,35 @@
     "registered_cache_derived_image": "sha256:bc37c2759cb75acc54d998c22c17b542097019e892262be9b30a8d6c68396efe",
     "independent_clean_build_image": "sha256:c50b70faf41008ed3519a5d87baded3bbbd806462ef5514a47b2c7ad171317a1"
   },
+  "second_blocked_prelaunch": {
+    "producer_commit": "51131fd07d44b52c0bd550110d39d06891adaa54",
+    "producer_tree": "8c500ae3c6c04b3459079eda6e38314247a25a9a",
+    "prior_f08_pass_review_commit": "d7aa45b50101f1d756afe1ebb3038e05a5f4fccc",
+    "neutral_calibration_pass_review_commit": "5cebb299cf87d3a2ee7fccdee8ceaf995a8273ad",
+    "finding": "F09",
+    "reviewed_image": "sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb",
+    "fresh_builder_a_image": "sha256:3134fd03c742ddb2e04a8bd7b086972fa4eac23ef6dbf2a227d2be7034795626",
+    "fresh_builder_b_image": "sha256:3134fd03c742ddb2e04a8bd7b086972fa4eac23ef6dbf2a227d2be7034795626",
+    "fresh_oci_tar_bytes": "sha256:f11fcfb0a7ac8af1a80244aaf74002e28ef5b765af4af3ab048abcc5cc91a6df",
+    "sessions_completed": 0,
+    "participant_permits_released": 0,
+    "participant_permits_consumed": 0,
+    "participant_provider_calls": 0,
+    "protected_key_accesses": 0,
+    "scoring_runs": 0
+  },
   "diagnosis": {
     "base_layers_matched": true,
     "custom_layers_initially_matched": false,
+    "second_prelaunch_first_twelve_layers_matched": true,
+    "second_prelaunch_only_differing_file": "/etc/shadow",
+    "second_prelaunch_only_differing_byte_offset": 519,
+    "reviewed_participant_shadow_entry": "participant:!:20686:0:99999:7:::",
+    "fresh_participant_shadow_entry": "participant:!:20687:0:99999:7:::",
     "causes": [
       "Build-time timestamps were retained in image config and custom layer tar headers.",
-      "npm and Node compile caches retained time-dependent build-only bytes."
+      "npm and Node compile caches retained time-dependent build-only bytes.",
+      "useradd wrote the current UTC day into the participant last-password-change field in /etc/shadow; OCI timestamp rewriting cannot normalize file content."
     ]
   },
   "repair": {
@@ -29,11 +52,18 @@
       "/root/.npm",
       "/tmp/node-compile-cache"
     ],
+    "account_database_normalization": "Set the participant /etc/shadow last-password-change field to SOURCE_DATE_EPOCH / 86400 after validating the complete closed participant record.",
+    "fixed_participant_shadow_entry": "participant:!:20339:0:99999:7:::",
+    "normalization_contract": "paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/normalize-account-database.sh",
+    "normalization_contract_bytes": "sha256:fe5ba3d56396ad14a5767840ff43030e684b103d0ecbfb1234bb5c268062b187",
+    "cross_day_fixture_a_bytes": "sha256:03f0af76ed8a57e89b3722c9a421d1eee3aa04c96830c611cb4c2e04f84eb4af",
+    "cross_day_fixture_b_bytes": "sha256:7a1b1da007bf7472d65a9df1737bacb0b95873fbf177f9f07b4ac0bfbc91a537",
+    "fixed_fixture_bytes": "sha256:6bc39c3ea0db88078228448e6fe94f0c282f306394de121a175f3496ea6a24d7",
     "build_contract": "paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/build-reproducible-oci.sh",
     "build_contract_bytes": "sha256:3fb073e2eab020edc2de54bbb2f519de14d08d9c468d0ad61e7ad26d43f80886",
     "verification_contract": "paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/verify-reproducible-oci.sh",
     "verification_contract_bytes": "sha256:ba5a4f35a97de112f3eb5c1948534c62a2235d12f5278df41685d07357bf5d62",
-    "dockerfile_bytes": "sha256:caf07b85591a3c436e69088697348e74b7a65a6ceef535f021367f408881a142"
+    "dockerfile_bytes": "sha256:85e667cf2cdd54d438f9362727e80d5f52ee6da74279ce7cabc76a05d9d2478c"
   },
   "clean_build_evidence": {
     "independent_builder_count": 2,
@@ -42,21 +72,33 @@
     "builder_receipts": [
       {
         "builder": "independent-a",
-        "image_digest": "sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb",
-        "image_config_digest": "sha256:c0868b563acbd5dd6c80d9512cc1bf019598d3579026fc7fed465cef2d60e56c",
-        "oci_tar_bytes": "sha256:b48f80b60ad1407824e8cd9e1fd3c60abcfd486ed672f8d31ddc9918a28b0b74"
+        "image_digest": "sha256:71bceb9885958619b129d7567b56277422f4c1d17c85a7076fb0d60c07633dea",
+        "image_config_digest": "sha256:a3af3c330d18683d7a6e9f183a0aac1b1fb579faec26b9cd091e58730dfb975e",
+        "oci_tar_bytes": "sha256:deb413a3e695d6e3591a0429afd2883573a0d348ea5ef800755ef6a6cddd5f2d"
       },
       {
         "builder": "independent-b",
-        "image_digest": "sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb",
-        "image_config_digest": "sha256:c0868b563acbd5dd6c80d9512cc1bf019598d3579026fc7fed465cef2d60e56c",
-        "oci_tar_bytes": "sha256:b48f80b60ad1407824e8cd9e1fd3c60abcfd486ed672f8d31ddc9918a28b0b74"
+        "image_digest": "sha256:71bceb9885958619b129d7567b56277422f4c1d17c85a7076fb0d60c07633dea",
+        "image_config_digest": "sha256:a3af3c330d18683d7a6e9f183a0aac1b1fb579faec26b9cd091e58730dfb975e",
+        "oci_tar_bytes": "sha256:deb413a3e695d6e3591a0429afd2883573a0d348ea5ef800755ef6a6cddd5f2d"
       }
     ],
     "byte_identical_oci_layouts": true,
-    "image_digest": "sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb",
-    "image_config_digest": "sha256:c0868b563acbd5dd6c80d9512cc1bf019598d3579026fc7fed465cef2d60e56c",
-    "oci_tar_bytes": "sha256:b48f80b60ad1407824e8cd9e1fd3c60abcfd486ed672f8d31ddc9918a28b0b74"
+    "image_digest": "sha256:71bceb9885958619b129d7567b56277422f4c1d17c85a7076fb0d60c07633dea",
+    "image_config_digest": "sha256:a3af3c330d18683d7a6e9f183a0aac1b1fb579faec26b9cd091e58730dfb975e",
+    "oci_tar_bytes": "sha256:deb413a3e695d6e3591a0429afd2883573a0d348ea5ef800755ef6a6cddd5f2d"
+  },
+  "offline_validation": {
+    "loaded_image": "sha256:71bceb9885958619b129d7567b56277422f4c1d17c85a7076fb0d60c07633dea",
+    "container_network": "none",
+    "provider_contact_possible": false,
+    "provider_schema_checks_passed": true,
+    "provider_events_bytes": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr_bytes": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "participant_uid": 10001,
+    "participant_gid": 10001,
+    "participant_home": "/home/participant",
+    "account_database_fixed": true
   },
   "execution_state": {
     "sessions_completed": 0,

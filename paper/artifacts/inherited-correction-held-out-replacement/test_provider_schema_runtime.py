@@ -5,6 +5,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -73,6 +76,11 @@ class ProviderSchemaRuntimeTests(unittest.TestCase):
     def test_reproducible_oci_build_contract_is_exact_and_held(self) -> None:
         dockerfile = (RUNTIME / "Dockerfile").read_text()
         self.assertIn("ARG SOURCE_DATE_EPOCH=1757289600", dockerfile)
+        self.assertIn("fixed_last_change_days=$((SOURCE_DATE_EPOCH / 86400))", dockerfile)
+        self.assertIn(
+            "./normalize-account-database.sh /etc/shadow \"$fixed_last_change_days\"",
+            dockerfile,
+        )
         self.assertEqual(
             dockerfile.count("rm -rf /root/.npm /tmp/node-compile-cache"), 2
         )
@@ -147,6 +155,50 @@ class ProviderSchemaRuntimeTests(unittest.TestCase):
                 "scoring_runs": 0,
             },
         )
+
+    def test_account_database_normalization_removes_utc_day_dependency(self) -> None:
+        fixtures = RUNTIME / "account-database-fixtures"
+        normalizer = RUNTIME / "normalize-account-database.sh"
+        expected = (fixtures / "shadow-fixed.txt").read_bytes()
+        with tempfile.TemporaryDirectory() as temporary:
+            temporary_path = Path(temporary)
+            outputs = []
+            for name in ("shadow-day-a.txt", "shadow-day-b.txt"):
+                shadow = temporary_path / name
+                shutil.copyfile(fixtures / name, shadow)
+                subprocess.run(
+                    [str(normalizer), str(shadow), "20339"],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                outputs.append(shadow.read_bytes())
+            self.assertEqual(outputs, [expected, expected])
+
+    def test_account_database_normalization_fails_closed_on_shape_drift(self) -> None:
+        fixtures = RUNTIME / "account-database-fixtures"
+        normalizer = RUNTIME / "normalize-account-database.sh"
+        with tempfile.TemporaryDirectory() as temporary:
+            shadow = Path(temporary) / "shadow"
+            shadow.write_text(
+                (fixtures / "shadow-day-a.txt")
+                .read_text()
+                .replace("participant:!:", "participant:*:")
+            )
+            result = subprocess.run(
+                [str(normalizer), str(shadow), "20339"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(
+                shadow.read_bytes(),
+                (fixtures / "shadow-day-a.txt")
+                .read_text()
+                .replace("participant:!:", "participant:*:")
+                .encode(),
+            )
 
     def test_frozen_offline_provider_surface_receipt_is_closed(self) -> None:
         base = ROOT / "offline-preflight/provider-schema"

@@ -7,7 +7,7 @@
       "run_id": "neutral-schemafix-calibration-01"
     }
   ],
-  "image_digest": "sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb",
-  "registration_root": "sha256:4d078776f41ffd1df18768791de58014117319f19727c3b9671b606e527c1276",
+  "image_digest": "sha256:71bceb9885958619b129d7567b56277422f4c1d17c85a7076fb0d60c07633dea",
+  "registration_root": "sha256:2e566d435f4ef55b85e5b60a94b7d9913185982246460a440e13b205659b8dcf",
   "schema": "vela.inherited-correction-neutral-schema-calibration-assignment.v1"
 }

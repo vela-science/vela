@@ -73,6 +73,17 @@ changes only the runtime image and identities derived from it; participant
 packets, prompts, schemas, facts, assignments, gates, and the stopped evidence
 are unchanged.
 
+A second prelaunch reproduction, performed after the neutral calibration PASS,
+found one remaining UTC-day dependency before any participant permit was
+released. File-level comparison isolated exactly one differing byte: `useradd`
+wrote the current day into the participant entry in `/etc/shadow`. The second
+prospective repair validates the complete participant shadow record and fixes
+its last-change field to `SOURCE_DATE_EPOCH / 86400`. Cross-day fixtures now
+converge byte-for-byte, malformed account records fail closed, and two fresh
+empty-cache builders again produce byte-identical complete OCI archives. The
+study remains held at 0/36 pending fresh independent F08/G08 review; the neutral
+calibration is not rerun.
+
 ## Deterministic checks
 
 From the repository root:
@@ -85,10 +96,10 @@ second_oci=/ABSOLUTE/TEMP/PATH/schemafix-b.oci.tar
 "$runtime/build-reproducible-oci.sh" INDEPENDENT_EMPTY_BUILDER_B "$second_oci"
 "$runtime/verify-reproducible-oci.sh" \
   "$first_oci" "$second_oci" \
-  sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb
+  sha256:71bceb9885958619b129d7567b56277422f4c1d17c85a7076fb0d60c07633dea
 docker load --input "$first_oci"
 paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/preflight-provider-schema.sh \
-  sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb \
+  sha256:71bceb9885958619b129d7567b56277422f4c1d17c85a7076fb0d60c07633dea \
   "$PWD/paper/artifacts/inherited-correction-held-out-replacement/calibration/input" \
   EMPTY_OUTPUT_DIRECTORY
 python3 paper/artifacts/inherited-correction-held-out-replacement/benchmark.py verify

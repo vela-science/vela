@@ -27,10 +27,14 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts \
     && npm cache clean --force \
     && rm -rf /root/.npm /tmp/node-compile-cache
-COPY run-once.mjs provider-schema-preflight.mjs schema-preflight.mjs strict-config.mjs strict-preflight.mjs trust-preflight.mjs ./
+COPY normalize-account-database.sh run-once.mjs provider-schema-preflight.mjs schema-preflight.mjs strict-config.mjs strict-preflight.mjs trust-preflight.mjs ./
 COPY schema-fixtures ./schema-fixtures
 
+ARG SOURCE_DATE_EPOCH
 RUN useradd --create-home --uid 10001 participant \
+    && fixed_last_change_days=$((SOURCE_DATE_EPOCH / 86400)) \
+    && test "$((fixed_last_change_days * 86400))" -eq "$SOURCE_DATE_EPOCH" \
+    && ./normalize-account-database.sh /etc/shadow "$fixed_last_change_days" \
     && mkdir -p /work /input /permit /evidence /codex-home \
     && chown -R participant:participant /work /input /permit /evidence /codex-home
 

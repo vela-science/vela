@@ -91,7 +91,7 @@
         "vela": "sha256:7bef1b55dc0c32934dfa1f08ab5765d56de8f96ca7088b20df32956f8f1f18ba"
       }
     },
-    "participant_configuration_root": "sha256:1ea86cdbf2c9c02154c0ba7dde449b0050fefb51492898b09c1c9b2a28b1f777",
+    "participant_configuration_root": "sha256:989c00eb5f420b8661e18e0a96765773c1293c04af42d381c0d64c18bd13aee0",
     "prompt_roots": {
       "method-version-correction": {
         "git-documents": "sha256:0cdb1987b360859a756ae60dfeec363b5e13cd1f5bf217e903d07c4f692e8033",
@@ -126,31 +126,37 @@
         "builder_receipts": [
           {
             "builder": "independent-a",
-            "image_config_digest": "sha256:c0868b563acbd5dd6c80d9512cc1bf019598d3579026fc7fed465cef2d60e56c",
-            "image_digest": "sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb",
-            "oci_tar_bytes": "sha256:b48f80b60ad1407824e8cd9e1fd3c60abcfd486ed672f8d31ddc9918a28b0b74"
+            "image_config_digest": "sha256:a3af3c330d18683d7a6e9f183a0aac1b1fb579faec26b9cd091e58730dfb975e",
+            "image_digest": "sha256:71bceb9885958619b129d7567b56277422f4c1d17c85a7076fb0d60c07633dea",
+            "oci_tar_bytes": "sha256:deb413a3e695d6e3591a0429afd2883573a0d348ea5ef800755ef6a6cddd5f2d"
           },
           {
             "builder": "independent-b",
-            "image_config_digest": "sha256:c0868b563acbd5dd6c80d9512cc1bf019598d3579026fc7fed465cef2d60e56c",
-            "image_digest": "sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb",
-            "oci_tar_bytes": "sha256:b48f80b60ad1407824e8cd9e1fd3c60abcfd486ed672f8d31ddc9918a28b0b74"
+            "image_config_digest": "sha256:a3af3c330d18683d7a6e9f183a0aac1b1fb579faec26b9cd091e58730dfb975e",
+            "image_digest": "sha256:71bceb9885958619b129d7567b56277422f4c1d17c85a7076fb0d60c07633dea",
+            "oci_tar_bytes": "sha256:deb413a3e695d6e3591a0429afd2883573a0d348ea5ef800755ef6a6cddd5f2d"
           }
         ],
         "buildkit_version": "v0.32.2",
         "byte_identical_oci_layouts": true,
-        "image_config_digest": "sha256:c0868b563acbd5dd6c80d9512cc1bf019598d3579026fc7fed465cef2d60e56c",
-        "image_digest": "sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb",
+        "image_config_digest": "sha256:a3af3c330d18683d7a6e9f183a0aac1b1fb579faec26b9cd091e58730dfb975e",
+        "image_digest": "sha256:71bceb9885958619b129d7567b56277422f4c1d17c85a7076fb0d60c07633dea",
         "independent_builder_count": 2,
-        "oci_tar_bytes": "sha256:b48f80b60ad1407824e8cd9e1fd3c60abcfd486ed672f8d31ddc9918a28b0b74"
+        "oci_tar_bytes": "sha256:deb413a3e695d6e3591a0429afd2883573a0d348ea5ef800755ef6a6cddd5f2d"
       },
       "diagnosis": {
         "base_layers_matched": true,
         "causes": [
           "Build-time timestamps were retained in image config and custom layer tar headers.",
-          "npm and Node compile caches retained time-dependent build-only bytes."
+          "npm and Node compile caches retained time-dependent build-only bytes.",
+          "useradd wrote the current UTC day into the participant last-password-change field in /etc/shadow; OCI timestamp rewriting cannot normalize file content."
         ],
-        "custom_layers_initially_matched": false
+        "custom_layers_initially_matched": false,
+        "fresh_participant_shadow_entry": "participant:!:20687:0:99999:7:::",
+        "reviewed_participant_shadow_entry": "participant:!:20686:0:99999:7:::",
+        "second_prelaunch_first_twelve_layers_matched": true,
+        "second_prelaunch_only_differing_byte_offset": 519,
+        "second_prelaunch_only_differing_file": "/etc/shadow"
       },
       "execution_state": {
         "calibration_permits_consumed": 0,
@@ -163,7 +169,7 @@
         "scoring_runs": 0,
         "sessions_completed": 0
       },
-      "frozen_at": "2026-08-21T23:16:21Z",
+      "frozen_at": "2026-08-22T00:15:36Z",
       "invariants": {
         "dual_schemas_unchanged": true,
         "gates_unchanged": true,
@@ -175,7 +181,20 @@
         "stopped_original_evidence_unchanged": true,
         "study_design_unchanged": true
       },
+      "offline_validation": {
+        "account_database_fixed": true,
+        "container_network": "none",
+        "loaded_image": "sha256:71bceb9885958619b129d7567b56277422f4c1d17c85a7076fb0d60c07633dea",
+        "participant_gid": 10001,
+        "participant_home": "/home/participant",
+        "participant_uid": 10001,
+        "provider_contact_possible": false,
+        "provider_events_bytes": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "provider_schema_checks_passed": true,
+        "stderr_bytes": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
       "repair": {
+        "account_database_normalization": "Set the participant /etc/shadow last-password-change field to SOURCE_DATE_EPOCH / 86400 after validating the complete closed participant record.",
         "build_cache": "disabled",
         "build_contract": "paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/build-reproducible-oci.sh",
         "build_contract_bytes": "sha256:3fb073e2eab020edc2de54bbb2f519de14d08d9c468d0ad61e7ad26d43f80886",
@@ -183,7 +202,13 @@
           "/root/.npm",
           "/tmp/node-compile-cache"
         ],
-        "dockerfile_bytes": "sha256:caf07b85591a3c436e69088697348e74b7a65a6ceef535f021367f408881a142",
+        "cross_day_fixture_a_bytes": "sha256:03f0af76ed8a57e89b3722c9a421d1eee3aa04c96830c611cb4c2e04f84eb4af",
+        "cross_day_fixture_b_bytes": "sha256:7a1b1da007bf7472d65a9df1737bacb0b95873fbf177f9f07b4ac0bfbc91a537",
+        "dockerfile_bytes": "sha256:85e667cf2cdd54d438f9362727e80d5f52ee6da74279ce7cabc76a05d9d2478c",
+        "fixed_fixture_bytes": "sha256:6bc39c3ea0db88078228448e6fe94f0c282f306394de121a175f3496ea6a24d7",
+        "fixed_participant_shadow_entry": "participant:!:20339:0:99999:7:::",
+        "normalization_contract": "paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/normalize-account-database.sh",
+        "normalization_contract_bytes": "sha256:fe5ba3d56396ad14a5767840ff43030e684b103d0ecbfb1234bb5c268062b187",
         "oci_export_rewrite_timestamp": true,
         "platform": "linux/arm64",
         "provenance": false,
@@ -192,11 +217,28 @@
         "verification_contract": "paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2/verify-reproducible-oci.sh",
         "verification_contract_bytes": "sha256:ba5a4f35a97de112f3eb5c1948534c62a2235d12f5278df41685d07357bf5d62"
       },
-      "schema": "vela.inherited-correction-held-out-runtime-reproducibility-amendment.v1",
+      "schema": "vela.inherited-correction-held-out-runtime-reproducibility-amendment.v2",
+      "second_blocked_prelaunch": {
+        "finding": "F09",
+        "fresh_builder_a_image": "sha256:3134fd03c742ddb2e04a8bd7b086972fa4eac23ef6dbf2a227d2be7034795626",
+        "fresh_builder_b_image": "sha256:3134fd03c742ddb2e04a8bd7b086972fa4eac23ef6dbf2a227d2be7034795626",
+        "fresh_oci_tar_bytes": "sha256:f11fcfb0a7ac8af1a80244aaf74002e28ef5b765af4af3ab048abcc5cc91a6df",
+        "neutral_calibration_pass_review_commit": "5cebb299cf87d3a2ee7fccdee8ceaf995a8273ad",
+        "participant_permits_consumed": 0,
+        "participant_permits_released": 0,
+        "participant_provider_calls": 0,
+        "prior_f08_pass_review_commit": "d7aa45b50101f1d756afe1ebb3038e05a5f4fccc",
+        "producer_commit": "51131fd07d44b52c0bd550110d39d06891adaa54",
+        "producer_tree": "8c500ae3c6c04b3459079eda6e38314247a25a9a",
+        "protected_key_accesses": 0,
+        "reviewed_image": "sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb",
+        "scoring_runs": 0,
+        "sessions_completed": 0
+      },
       "status": "held_pending_independent_f08_review"
     },
-    "runtime_root": "sha256:4ec67f446c98848eed59f3a3597a395962c14f3fe2fadcda70a367e9738772ab",
-    "runtime_test_bytes": "sha256:7c265f9a8153ed9a5777720679557108d20789018e2da94395b7ec18a19954d7",
+    "runtime_root": "sha256:3037bfbfc413b9d165342add228b458567ea423623fa706c5fed3cca00894409",
+    "runtime_test_bytes": "sha256:5c96454fab5e76d67acef8a4828a65539b5ca887a1673350ef8997469b202668",
     "task_bytes": "sha256:df1d1aab35634b5cc732cfe098530336cbb234a85388817d0d323dc5fe7eef1b",
     "test_bytes": "sha256:2afa1538300118ed869b5e99fc648fbdb3fe97f2a0d6d044a8fae580c8295d10"
   },
@@ -219,7 +261,7 @@
     "taxonomy-remap"
   ],
   "purpose": "Test continuation and reassessment cost across three unseen consequential-correction families without assuming lift.",
-  "registration_root": "sha256:4d078776f41ffd1df18768791de58014117319f19727c3b9671b606e527c1276",
+  "registration_root": "sha256:2e566d435f4ef55b85e5b60a94b7d9913185982246460a440e13b205659b8dcf",
   "schema": "vela.inherited-correction-held-out-preregistration.v1",
   "scoring": {
     "aggregate_gates": {
