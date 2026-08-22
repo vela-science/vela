@@ -1,0 +1,76 @@
+{
+  "schema": "vela.independent-inherited-correction-crossday-account-review.v1",
+  "reviewed_at": "2026-08-22T00:29:31Z",
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/inherited-correction-study",
+    "producer_commit": "bd3d7ec837490b67801848b3180e3d244290c9ad",
+    "producer_tree": "277aba87a753bee3864096f8297e65cec770b8cd",
+    "parent_commit": "51131fd07d44b52c0bd550110d39d06891adaa54"
+  },
+  "verdict": "BLOCKED",
+  "failed_gates": [
+    {
+      "gate": "fresh_empty_cache_build_reproducibility",
+      "finding": "Two newly created isolated builders both fail before repaired layers because apt rejects the signed Debian indexes, so exact OCI archive, manifest, and config reproduction is not established."
+    },
+    {
+      "gate": "closed_participant_shadow_validation",
+      "finding": "A nonnumeric existing participant last-change field is accepted and rewritten instead of failing closed."
+    }
+  ],
+  "prior_cross_day_failure": {
+    "layer_count_each": 13,
+    "matching_prefix_layers": 12,
+    "only_differing_path": "/etc/shadow",
+    "only_differing_byte_offset": 519,
+    "reviewed_entry": "participant:!:20686:0:99999:7:::",
+    "fresh_entry": "participant:!:20687:0:99999:7:::",
+    "byte_difference_count": 1
+  },
+  "retained_repaired_outputs": {
+    "archives_byte_identical": true,
+    "oci_tar_bytes": "sha256:deb413a3e695d6e3591a0429afd2883573a0d348ea5ef800755ef6a6cddd5f2d",
+    "image_manifest_digest": "sha256:71bceb9885958619b129d7567b56277422f4c1d17c85a7076fb0d60c07633dea",
+    "image_config_digest": "sha256:a3af3c330d18683d7a6e9f183a0aac1b1fb579faec26b9cd091e58730dfb975e",
+    "fresh_reproduction_by_reviewer": false
+  },
+  "passing_gates": {
+    "cross_day_fixtures_converge": true,
+    "duplicate_participant_rejected": true,
+    "extra_shadow_field_rejected": true,
+    "changed_password_marker_rejected": true,
+    "uid_gid_home_and_permissions_preserved": true,
+    "offline_provider_schema_preflight": true,
+    "provider_events_empty": true,
+    "provider_stderr_empty": true,
+    "all_held_roots_recompute": true,
+    "participant_packets_prompts_and_schemas_unchanged": true,
+    "study_design_model_gates_and_science_unchanged": true,
+    "stopped_evidence_unchanged": true,
+    "calibration_evidence_unchanged": true,
+    "core_protocol_standing_authority_unchanged": true
+  },
+  "study_state": {
+    "required_participant_sessions": 36,
+    "executed_participant_sessions": 0,
+    "result": "not_run",
+    "participant_permits_held": 36,
+    "participant_permits_consumed": 0,
+    "participant_run_evidence_present": false,
+    "participant_provider_calls": 0,
+    "protected_key_accesses": 0,
+    "scoring_runs": 0,
+    "authority_effect": "none"
+  },
+  "reviewer_actions": {
+    "provider_calls": 0,
+    "calibration_runs": 0,
+    "permits_released": 0,
+    "protected_key_accesses": 0,
+    "scoring_runs": 0,
+    "authority_effect": "none"
+  },
+  "participant_permit_release_authorized_by_review": false,
+  "participant_launch_authorized_by_review": false
+}
