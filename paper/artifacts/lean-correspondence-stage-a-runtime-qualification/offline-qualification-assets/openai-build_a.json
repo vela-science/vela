@@ -19,5 +19,5 @@
   "platform": "linux/arm64",
   "schema": "vela.tooling.oci-build-receipt.v1",
   "source_date_epoch": 1757289600,
-  "source_root": "sha256:b8789db2379c46587638e5657ec75f02babb7d278afb58a67fdf48986e88704c"
+  "source_root": "sha256:b9aeef41db9c97ae5783d5a249ae3bb5ef005e7f245971284d055e6a7a74ee0d"
 }

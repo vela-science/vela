@@ -1,15 +1,5 @@
 [
   {
-    "bytes": 35,
-    "path": ".ruff_cache/.gitignore",
-    "sha256": "sha256:9e3a60f1e6ec4ae60215c11d54b171392745ec25e9dded433d5bd921363af316"
-  },
-  {
-    "bytes": 43,
-    "path": ".ruff_cache/CACHEDIR.TAG",
-    "sha256": "sha256:5953156d7e0c564a427251316eaf26f8870e6483ae2197f916b630e4f93e31ae"
-  },
-  {
     "bytes": 398,
     "path": "Dockerfile",
     "sha256": "sha256:841c19858b06db1c0f33964b74f7f95275b6074f241c5839c93e2e4a7719a8d6"

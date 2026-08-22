@@ -271,7 +271,11 @@ def provider_contract(adapter: str) -> dict[str, Any]:
 
 
 def build_runner(adapter: str, target: Path, cache: Path) -> tuple[bytes, bytes]:
-    shutil.copytree(RUNNER_SOURCE, target)
+    shutil.copytree(
+        RUNNER_SOURCE,
+        target,
+        ignore=shutil.ignore_patterns(".ruff_cache", "__pycache__", "*.pyc"),
+    )
     env = {
         **os.environ,
         "CGO_ENABLED": "0",

@@ -37,7 +37,7 @@
         "image_config_digest": "sha256:4a1a15cd3edb4307539d07b1788babba0544eda4b83c1cc10d928f0623931c5d",
         "image_digest": "sha256:062563014758785282108b8a46eed4c02797850a8cc388997b224929b95c9f08",
         "input_tokens_telemetry": 100,
-        "neutral_capture_root": "sha256:e5f61c3c233cc9ccb2781160bcd832cab2dda6e7f350bc827de246935a852afc",
+        "neutral_capture_root": "sha256:d9690dc6431d3120e6203e841d536d3a9c37b6f47d48e95c3ca17de2439d0239",
         "normalized_events_bytes": "sha256:9a885be7ca6a8b6ecbe0033a256709f353de7882a5c61b0f520bb4061d90e3a5",
         "normalized_tool_semantics_root": "sha256:6f858cdfb3c2ca19bdd00b89a1fe98e42615a5ef08d4f5f2dfea560be65c25c9",
         "participant_hold_root": "sha256:a88467323c3cfcc290eafa9f1285966db4c9c09bfe980434ffcf711bb03db412",
@@ -55,10 +55,10 @@
           "registration_id": "stage-a-runtime-registration",
           "run_id": "neutral-calibration-openai-json-v2",
           "runner_version": "neutral-runner/1",
-          "runtime_source_root": "sha256:b8789db2379c46587638e5657ec75f02babb7d278afb58a67fdf48986e88704c",
+          "runtime_source_root": "sha256:b9aeef41db9c97ae5783d5a249ae3bb5ef005e7f245971284d055e6a7a74ee0d",
           "timeout_seconds": 1200
         },
-        "participant_permit_root": "sha256:3b03a49a026302bb44fe3e581f003faaa4216724c0750cccff4e08bee19a37c4",
+        "participant_permit_root": "sha256:bc3e431a4307a370b873368b6d25298fa73a83268a751898fac641d69445bfa5",
         "participant_permits_consumed": 0,
         "participant_visible_atoms_root": "sha256:3814a08354123311f292c2673ec2e7c5cf0308762dd23ec6ef76398c7d3166df",
         "pre_key_snapshot_root": "sha256:469f4ebd7ae669239ee01d54f89f4d084ef8c633fde40e520ab526fc2192e641",
@@ -66,12 +66,12 @@
         "provider_calls": 0,
         "provider_equivalence_root": "sha256:bc40341349f6f771be5eef2481fcef3bf72d278b2df65d5df05d01e62e271720",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
-        "qualification_root": "sha256:4125faf3edcad47a3991822a90bec65975afc0b512005b31bcac8d6484245597",
+        "qualification_root": "sha256:5658c76c2db92a2770066178c8aeb87cc40e9ee25fc7ff15ae0b15f06001c83a",
         "raw_provider_events_bytes": "sha256:cc71fcd9c05055ca93b96a9bce2d193a2c4a639032205de89fa2e6cf946c3712",
         "raw_provider_events_root": "sha256:bd28099252d4509901e2337636254921d2a20de5482ba25b15be4f9af529d661",
         "raw_response_bytes": "sha256:6e87719bca647b009b3f9e49105478b9690a14d83a637d5bfbbc72ebc30f47a3",
         "registered_schema_bytes": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
-        "runtime_source_root": "sha256:b8789db2379c46587638e5657ec75f02babb7d278afb58a67fdf48986e88704c",
+        "runtime_source_root": "sha256:b9aeef41db9c97ae5783d5a249ae3bb5ef005e7f245971284d055e6a7a74ee0d",
         "schema": "vela.tooling.evidence-qualification-receipt.v1",
         "scientific_sessions": 0,
         "self_verification_root": "sha256:dd9830b8745a4ba6d98d4090eb889c56e8d769ebf4c2cffdbd53a5771c4c3103",
@@ -90,17 +90,17 @@
         "build_a": {
           "bytes": 991,
           "path": "offline-qualification-assets/openai-build_a.json",
-          "sha256": "sha256:8578c4f23479d206c378aaf45d5dfcad037f3f8df9cadbbcdcbeb63e29e42985"
+          "sha256": "sha256:22d7fb8eab6e877d22a9e40b3e4dfa1e340b3800b21a3fff54401ce19d768c91"
         },
         "build_b": {
           "bytes": 991,
           "path": "offline-qualification-assets/openai-build_b.json",
-          "sha256": "sha256:674bcf3092140d69effbfb5548017b79c4d0e7b568e037dbddaa96770b1631b5"
+          "sha256": "sha256:81fdf1106729e2f45fd7f2042fe9c78cbdf2cddca384745d14e9ad1ea14b767a"
         },
         "held_permit": {
           "bytes": 1157,
           "path": "offline-qualification-assets/openai-held_permit.json",
-          "sha256": "sha256:f69563d0c408dc69508bf0b2959e6e69228e90871bf8b5173ab089c5ea6317ac"
+          "sha256": "sha256:abf2e3ce54e76246a511f0d64caefb3884fd296b7cdc7d16ae65355aea04498f"
         },
         "hold_state": {
           "bytes": 224,
@@ -140,7 +140,7 @@
         "retired_permit": {
           "bytes": 670,
           "path": "offline-qualification-assets/openai-retired_permit.json",
-          "sha256": "sha256:11e1b13c4ed342d82fce44e0fcaf3b5fe35525992eb5f3cf334d4b71292f405a"
+          "sha256": "sha256:90019ed74f044284bf6ca7de4a63ba5d47b83e8155c58ac1bab29b2553867e0c"
         },
         "runner": {
           "bytes": 2293886,
@@ -148,9 +148,9 @@
           "sha256": "sha256:61701ac19f96a906e378fd56490241bd512dab2c09ac85afbe84075904ea4097"
         },
         "source_manifest": {
-          "bytes": 2059,
+          "bytes": 1753,
           "path": "offline-qualification-assets/openai-source_manifest.json",
-          "sha256": "sha256:27c6df6fc542395b7792ef1cdaa066ff060b5eabd3382338694c947644ea0924"
+          "sha256": "sha256:5b8d1184f9d69c06587ac21b018e488828cbe2c893e818431ef321a0b230b7f3"
         },
         "tool_boundary": {
           "bytes": 2483,
@@ -192,7 +192,7 @@
         "image_config_digest": "sha256:feeea24275fe9689224f62e97dc51bd2ed76874ddcea27ecac6bcb75eac98f09",
         "image_digest": "sha256:e0ff53d70522134cb30067920faed5997c6b2f01e1c4a92053dd5756317ae063",
         "input_tokens_telemetry": 100,
-        "neutral_capture_root": "sha256:9b1562d06868d7f4d8b83713fcba414128493b22ee276c2f13042d8c39f64ab2",
+        "neutral_capture_root": "sha256:3f48377ca9adac7583e0442e45e591a7f5d56a6c84d58c4489b2231de22821ac",
         "normalized_events_bytes": "sha256:9a885be7ca6a8b6ecbe0033a256709f353de7882a5c61b0f520bb4061d90e3a5",
         "normalized_tool_semantics_root": "sha256:6f858cdfb3c2ca19bdd00b89a1fe98e42615a5ef08d4f5f2dfea560be65c25c9",
         "participant_hold_root": "sha256:f2668374338222843f05958a04bfb73310f468111abca2e4234a1fa1ffa9565f",
@@ -210,10 +210,10 @@
           "registration_id": "stage-a-runtime-registration",
           "run_id": "neutral-calibration-anthropic-json-v2",
           "runner_version": "neutral-runner/1",
-          "runtime_source_root": "sha256:c3be56e47ec578d6d27fbb540c700c647e73831cc67879f9604eeab49537a7e7",
+          "runtime_source_root": "sha256:4c40b482c9e423eb46925000fc676c04461f5b5a10ac0605c358056b37451598",
           "timeout_seconds": 1200
         },
-        "participant_permit_root": "sha256:14551f44cc3d3ba947bf737391b33e675cb499334e3b9360eb3bea20c51a26e5",
+        "participant_permit_root": "sha256:a19d55e54f2d123f97fea5fab32f7285ca3c08b99db962f0b5b547d623c7be57",
         "participant_permits_consumed": 0,
         "participant_visible_atoms_root": "sha256:3814a08354123311f292c2673ec2e7c5cf0308762dd23ec6ef76398c7d3166df",
         "pre_key_snapshot_root": "sha256:469f4ebd7ae669239ee01d54f89f4d084ef8c633fde40e520ab526fc2192e641",
@@ -221,12 +221,12 @@
         "provider_calls": 0,
         "provider_equivalence_root": "sha256:bc40341349f6f771be5eef2481fcef3bf72d278b2df65d5df05d01e62e271720",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
-        "qualification_root": "sha256:d42fdf3eb248e709eb72f0f0bb11a4b318db5e4af1887fafde9d602e759a684a",
+        "qualification_root": "sha256:2f306360116e5269d9110010c9dcde2c8c354a260b72d5d47f7c279dec3c9e99",
         "raw_provider_events_bytes": "sha256:887b76771bbf16fde341c1f5963303255f910bc30e5129e5cd5ceea8249ec031",
         "raw_provider_events_root": "sha256:4106dc00b8120a9175441ef41e731f2858dcb99e7500232b8594103e35f9a953",
         "raw_response_bytes": "sha256:6e87719bca647b009b3f9e49105478b9690a14d83a637d5bfbbc72ebc30f47a3",
         "registered_schema_bytes": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
-        "runtime_source_root": "sha256:c3be56e47ec578d6d27fbb540c700c647e73831cc67879f9604eeab49537a7e7",
+        "runtime_source_root": "sha256:4c40b482c9e423eb46925000fc676c04461f5b5a10ac0605c358056b37451598",
         "schema": "vela.tooling.evidence-qualification-receipt.v1",
         "scientific_sessions": 0,
         "self_verification_root": "sha256:dd9830b8745a4ba6d98d4090eb889c56e8d769ebf4c2cffdbd53a5771c4c3103",
@@ -245,17 +245,17 @@
         "build_a": {
           "bytes": 991,
           "path": "offline-qualification-assets/anthropic-build_a.json",
-          "sha256": "sha256:b28699d2a23308da77c848ff80ea09e5b7c3bc6ebb7e5df7a4ef99b412c79183"
+          "sha256": "sha256:84cdf14d021d888020c76d638831c8a52c8b84ebe48fe247ffc54334df7eaa55"
         },
         "build_b": {
           "bytes": 991,
           "path": "offline-qualification-assets/anthropic-build_b.json",
-          "sha256": "sha256:bc328642ae79d271e5b44c6f5c8f16a38faa2c782d073c1b1e1bb947d4d2bce5"
+          "sha256": "sha256:d8f604b6cd3af13fd2c844d84c9558b167075bf397b971c1bb7c8e5290bfb85a"
         },
         "held_permit": {
           "bytes": 1166,
           "path": "offline-qualification-assets/anthropic-held_permit.json",
-          "sha256": "sha256:aa92a9ada441bef13392cacf476a0bc3cb7f78078d47dd1777372594b7ce4780"
+          "sha256": "sha256:e76a199034dab88ff132d7e03a6bfc6c8178d7dddc159fffef960c1ddef8617b"
         },
         "hold_state": {
           "bytes": 227,
@@ -295,7 +295,7 @@
         "retired_permit": {
           "bytes": 675,
           "path": "offline-qualification-assets/anthropic-retired_permit.json",
-          "sha256": "sha256:a91d3ddf3b3bbacf43c25c4efa9e913a623ab7dd5ee47951071e0bfb6b9bff85"
+          "sha256": "sha256:e59749f510a82faaec91c2d52a306763c3f03cc4fda79a9fb201754b7801d777"
         },
         "runner": {
           "bytes": 2293886,
@@ -303,9 +303,9 @@
           "sha256": "sha256:66cb6b75d1e73064e106bf6c9f9ac65d607a228afaa2ad881ecdfd2ef8d8df75"
         },
         "source_manifest": {
-          "bytes": 2059,
+          "bytes": 1753,
           "path": "offline-qualification-assets/anthropic-source_manifest.json",
-          "sha256": "sha256:f337bb179f877fa0af406329ac1a5c85f8b229b3146d5f1cb2a70b08b9686b32"
+          "sha256": "sha256:fa2292f7e616bd1b7f9bd2fa85c786339f4575a5a47005c108c7fd46675e3c1a"
         },
         "tool_boundary": {
           "bytes": 2487,
@@ -320,7 +320,7 @@
     "sha256": "sha256:61591eec3304e299a9344888bc2a6f08cd32785b647ef5b0107da490dbf18013",
     "tree": "341e0d22fa570b1b5e8dd9f70b219c11308ba45f"
   },
-  "record_root": "sha256:84da94c9b9d248ea89f952b5b324e8c5ca877a578ff4c10bbb241c8cd32bfc9a",
+  "record_root": "sha256:f5b9f0975e6f1575bc5dbd2ed3987c68cd7240797ca062aab78cd1885dcf8a01",
   "schema": "vela.lean-correspondence-stage-a-offline-runtime-qualification.v1",
   "status": "offline_qualified_hold",
   "trust_bundle_sha256": "sha256:9dae8d76e55cb08991f2b672d58999ea15560d910759c16b544f843bdffbb994"

@@ -67,7 +67,7 @@
   "neutral_calibration_permits": [
     {
       "consumed": false,
-      "permit_root": "sha256:3b03a49a026302bb44fe3e581f003faaa4216724c0750cccff4e08bee19a37c4",
+      "permit_root": "sha256:bc3e431a4307a370b873368b6d25298fa73a83268a751898fac641d69445bfa5",
       "provider_adapter": "openai-responses-v1",
       "provider_organization": "OpenAI",
       "run_id": "neutral-calibration-openai-json-v2",
@@ -75,7 +75,7 @@
     },
     {
       "consumed": false,
-      "permit_root": "sha256:14551f44cc3d3ba947bf737391b33e675cb499334e3b9360eb3bea20c51a26e5",
+      "permit_root": "sha256:a19d55e54f2d123f97fea5fab32f7285ca3c08b99db962f0b5b547d623c7be57",
       "provider_adapter": "anthropic-messages-v1",
       "provider_organization": "Anthropic",
       "run_id": "neutral-calibration-anthropic-json-v2",
@@ -87,7 +87,7 @@
     "neutral_calibrations_run": 0,
     "path": "offline-qualification.json",
     "provider_calls": 0,
-    "record_root": "sha256:84da94c9b9d248ea89f952b5b324e8c5ca877a578ff4c10bbb241c8cd32bfc9a",
+    "record_root": "sha256:f5b9f0975e6f1575bc5dbd2ed3987c68cd7240797ca062aab78cd1885dcf8a01",
     "status": "qualified_hold_exact_stage_a_schema_and_launchable_runtimes"
   },
   "participant_configurations": [
@@ -117,7 +117,7 @@
       },
       "provider_adapter": "openai-responses-v1",
       "provider_organization": "OpenAI",
-      "qualification_root": "sha256:4125faf3edcad47a3991822a90bec65975afc0b512005b31bcac8d6484245597",
+      "qualification_root": "sha256:5658c76c2db92a2770066178c8aeb87cc40e9ee25fc7ff15ae0b15f06001c83a",
       "slot_id": "configuration-a",
       "status": "candidate_configuration_stage_a_schema_launchable_runtime_qualified_held",
       "tool_boundary_root": "sha256:0b2e1fb701f70b02f9cc7ad79201f84374dfeb904299b59a6667d36eb4e59c69"
@@ -146,7 +146,7 @@
       },
       "provider_adapter": "anthropic-messages-v1",
       "provider_organization": "Anthropic",
-      "qualification_root": "sha256:d42fdf3eb248e709eb72f0f0bb11a4b318db5e4af1887fafde9d602e759a684a",
+      "qualification_root": "sha256:2f306360116e5269d9110010c9dcde2c8c354a260b72d5d47f7c279dec3c9e99",
       "slot_id": "configuration-b",
       "status": "candidate_configuration_stage_a_schema_launchable_runtime_qualified_held",
       "tool_boundary_root": "sha256:01dfbda69c1c7760423fdba41eaac18687a73d9fe683a8a5f207fdc8abe2a7d9"
@@ -202,7 +202,7 @@
       "run_id": "neutral-calibration-openai",
       "schema": "vela.stage-a-neutral-permit-retirement.v1",
       "status": "retired_non_releasable",
-      "successor_permit_root": "sha256:3b03a49a026302bb44fe3e581f003faaa4216724c0750cccff4e08bee19a37c4"
+      "successor_permit_root": "sha256:bc3e431a4307a370b873368b6d25298fa73a83268a751898fac641d69445bfa5"
     },
     {
       "authority_effect": "none",
@@ -216,7 +216,7 @@
       "run_id": "neutral-calibration-anthropic",
       "schema": "vela.stage-a-neutral-permit-retirement.v1",
       "status": "retired_non_releasable",
-      "successor_permit_root": "sha256:14551f44cc3d3ba947bf737391b33e675cb499334e3b9360eb3bea20c51a26e5"
+      "successor_permit_root": "sha256:a19d55e54f2d123f97fea5fab32f7285ca3c08b99db962f0b5b547d623c7be57"
     }
   ],
   "runtime_boundary": {
@@ -231,13 +231,13 @@
         "image_digest": "sha256:062563014758785282108b8a46eed4c02797850a8cc388997b224929b95c9f08",
         "launchability_receipt_sha256": "sha256:3e354d53908a9fe8cdf5197f207746c33f852f16bab1d4eee7c996e048a8bc01",
         "provider_adapter": "openai-responses-v1",
-        "runtime_source_root": "sha256:b8789db2379c46587638e5657ec75f02babb7d278afb58a67fdf48986e88704c"
+        "runtime_source_root": "sha256:b9aeef41db9c97ae5783d5a249ae3bb5ef005e7f245971284d055e6a7a74ee0d"
       },
       {
         "image_digest": "sha256:e0ff53d70522134cb30067920faed5997c6b2f01e1c4a92053dd5756317ae063",
         "launchability_receipt_sha256": "sha256:803a592c24985315a732572286ed11501f5bbcba034dcea5868d4dc5a8b22db4",
         "provider_adapter": "anthropic-messages-v1",
-        "runtime_source_root": "sha256:c3be56e47ec578d6d27fbb540c700c647e73831cc67879f9604eeab49537a7e7"
+        "runtime_source_root": "sha256:4c40b482c9e423eb46925000fc676c04461f5b5a10ac0605c358056b37451598"
       }
     ],
     "tool_mode": "read_only_offline_shell_files",

@@ -14,7 +14,7 @@
   "registration_id": "stage-a-runtime-registration",
   "run_id": "neutral-calibration-openai-json-v2",
   "runner_version": "neutral-runner/1",
-  "runtime_source_root": "sha256:b8789db2379c46587638e5657ec75f02babb7d278afb58a67fdf48986e88704c",
+  "runtime_source_root": "sha256:b9aeef41db9c97ae5783d5a249ae3bb5ef005e7f245971284d055e6a7a74ee0d",
   "schema": "vela.tooling.closed-launch-permit.v1",
   "status": "held",
   "timeout_seconds": 1200

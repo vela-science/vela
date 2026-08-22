@@ -14,7 +14,7 @@
   "registration_id": "stage-a-runtime-registration",
   "run_id": "neutral-calibration-anthropic-json-v2",
   "runner_version": "neutral-runner/1",
-  "runtime_source_root": "sha256:c3be56e47ec578d6d27fbb540c700c647e73831cc67879f9604eeab49537a7e7",
+  "runtime_source_root": "sha256:4c40b482c9e423eb46925000fc676c04461f5b5a10ac0605c358056b37451598",
   "schema": "vela.tooling.closed-launch-permit.v1",
   "status": "held",
   "timeout_seconds": 1200

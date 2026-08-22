@@ -22,10 +22,10 @@ ARTIFACT_ROOT = PACKAGE / "artifact-root.json"
 STAGE_A = REPOSITORY / "paper/artifacts/lean-correspondence-stage-a-open-pilot"
 SHA256 = re.compile(r"sha256:[0-9a-f]{64}\Z")
 EXPECTED_REGISTRATION_ROOT = (
-    "sha256:9760302aea92428c894c380118bb95fd091f669a3b64da78a6f92650e6987844"
+    "sha256:5e5fbcd20e1926a92c24e31cf861107368fc4db1ad11932d88b44da5847e45d9"
 )
 EXPECTED_OFFLINE_RECORD_ROOT = (
-    "sha256:84da94c9b9d248ea89f952b5b324e8c5ca877a578ff4c10bbb241c8cd32bfc9a"
+    "sha256:f5b9f0975e6f1575bc5dbd2ed3987c68cd7240797ca062aab78cd1885dcf8a01"
 )
 EXPECTED_QUALIFIER = {
     "git_commit": "cc3b88d8bfcfd7b4f720a023f049d5c365be9423",
@@ -50,11 +50,11 @@ EXPECTED_PROVIDER = {
         "model": "gpt-5.6-sol",
         "run_id": "neutral-calibration-openai-json-v2",
         "configuration_root": "sha256:96555c45c33ed2a106cfb261025b752a4eeb1514aa180985ecd5ea0551a6616d",
-        "qualification_root": "sha256:4125faf3edcad47a3991822a90bec65975afc0b512005b31bcac8d6484245597",
+        "qualification_root": "sha256:5658c76c2db92a2770066178c8aeb87cc40e9ee25fc7ff15ae0b15f06001c83a",
         "image_digest": "sha256:062563014758785282108b8a46eed4c02797850a8cc388997b224929b95c9f08",
         "tool_boundary_root": "sha256:0b2e1fb701f70b02f9cc7ad79201f84374dfeb904299b59a6667d36eb4e59c69",
-        "runtime_source_root": "sha256:b8789db2379c46587638e5657ec75f02babb7d278afb58a67fdf48986e88704c",
-        "participant_permit_root": "sha256:3b03a49a026302bb44fe3e581f003faaa4216724c0750cccff4e08bee19a37c4",
+        "runtime_source_root": "sha256:b9aeef41db9c97ae5783d5a249ae3bb5ef005e7f245971284d055e6a7a74ee0d",
+        "participant_permit_root": "sha256:bc3e431a4307a370b873368b6d25298fa73a83268a751898fac641d69445bfa5",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
         "launchability_sha256": "sha256:3e354d53908a9fe8cdf5197f207746c33f852f16bab1d4eee7c996e048a8bc01",
     },
@@ -63,11 +63,11 @@ EXPECTED_PROVIDER = {
         "model": "claude-opus-5",
         "run_id": "neutral-calibration-anthropic-json-v2",
         "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
-        "qualification_root": "sha256:d42fdf3eb248e709eb72f0f0bb11a4b318db5e4af1887fafde9d602e759a684a",
+        "qualification_root": "sha256:2f306360116e5269d9110010c9dcde2c8c354a260b72d5d47f7c279dec3c9e99",
         "image_digest": "sha256:e0ff53d70522134cb30067920faed5997c6b2f01e1c4a92053dd5756317ae063",
         "tool_boundary_root": "sha256:01dfbda69c1c7760423fdba41eaac18687a73d9fe683a8a5f207fdc8abe2a7d9",
-        "runtime_source_root": "sha256:c3be56e47ec578d6d27fbb540c700c647e73831cc67879f9604eeab49537a7e7",
-        "participant_permit_root": "sha256:14551f44cc3d3ba947bf737391b33e675cb499334e3b9360eb3bea20c51a26e5",
+        "runtime_source_root": "sha256:4c40b482c9e423eb46925000fc676c04461f5b5a10ac0605c358056b37451598",
+        "participant_permit_root": "sha256:a19d55e54f2d123f97fea5fab32f7285ca3c08b99db962f0b5b547d623c7be57",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
         "launchability_sha256": "sha256:803a592c24985315a732572286ed11501f5bbcba034dcea5868d4dc5a8b22db4",
     },
@@ -842,6 +842,7 @@ def validate_artifact_root(value: dict[str, Any]) -> str:
             not path.is_file()
             or path == ARTIFACT_ROOT
             or "__pycache__" in path.parts
+            or ".ruff_cache" in path.parts
             or path.suffix == ".pyc"
         ):
             continue

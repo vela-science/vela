@@ -35,6 +35,7 @@ def main() -> None:
             not path.is_file()
             or path == ARTIFACT_ROOT
             or "__pycache__" in path.parts
+            or ".ruff_cache" in path.parts
             or path.suffix == ".pyc"
         ):
             continue
