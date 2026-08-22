@@ -1,0 +1,86 @@
+{
+  "binaries": {
+    "anthropic_host_bridge": {
+      "bytes": 5918210,
+      "sha256": "sha256:c6a8cb2f256eea8654a82333fd59c9b8aa0c086c0fec3629c56bd4bef2794eb4"
+    },
+    "orchestrator": {
+      "bytes": 2097266,
+      "sha256": "sha256:5edb0cf20823e902c2ab96f9b2232d6755df81a78a02ee9089fbcf155d4b10cc"
+    },
+    "runner_relay": {
+      "bytes": 1704062,
+      "sha256": "sha256:2386d25cb23367b011684e863bbda680eee19f589b6b88cc4395910178a0ce4f"
+    }
+  },
+  "build_parameters": {
+    "anthropic_host_bridge": {
+      "build_id": "",
+      "cgo_enabled": "0",
+      "goarch": "arm64",
+      "goos": "darwin",
+      "provider_adapter": "anthropic-messages-v1",
+      "strip_debug": true,
+      "trimpath": true
+    },
+    "orchestrator": {
+      "build_id": "",
+      "cgo_enabled": "0",
+      "goarch": "arm64",
+      "goos": "darwin",
+      "strip_debug": true,
+      "trimpath": true
+    },
+    "runner_relay": {
+      "build_id": "",
+      "cgo_enabled": "0",
+      "goarch": "arm64",
+      "goos": "linux",
+      "strip_debug": true,
+      "trimpath": true
+    }
+  },
+  "prior_denominator": {
+    "v2": {
+      "artifact_root": "sha256:b72c5d8c5bdf66e528524719773dfc37dda98b7b219c841349a9c6e4874abb1b",
+      "disposition": "permanent_consumed_non_call",
+      "provider_calls": 0
+    },
+    "v3": {
+      "artifact_root": "sha256:63cbbdf6ae6c7e906268b31f33198d06b8db0757e6db48b6187286cacd08dcb9",
+      "disposition": "permanent_consumed_failed_exact_request",
+      "provider_calls": 1
+    }
+  },
+  "producer": {
+    "artifact_root": "sha256:57d49f290bcecb665b004ec54399361142b83590ed40d7291b8aabe00c8c0a2e",
+    "branch": "codex/stage-a-two-provider-runtime-qualification",
+    "commit": "0aee2129f2f7824f328d9576f72e42f240e08932",
+    "offline_qualification_root": "sha256:7a89479a46e004317cc69b78ffa1ea0c5fe7130a65c257de1dd43c9e31d6578e",
+    "registration_root": "sha256:2ddcd97a0dfff125ac88a6c102e58a0f380c929c6bc243a8e8298eb742dc6ef3",
+    "tree": "e8929efa3559e6abd552a66bbd5e023d9461fad6"
+  },
+  "runtime": {
+    "image_digest": "sha256:a95b75cfc449afc2ecb87a5808542339b1776ced9b15d91a27e795993acdbba0",
+    "oci_archive_sha256": "sha256:646128f39c03260bdc72c191d91d3f96cc403a5f63ef3b3399c7dc3a6089d279",
+    "qualifier_commit": "cc3b88d8bfcfd7b4f720a023f049d5c365be9423",
+    "qualifier_sha256": "sha256:61591eec3304e299a9344888bc2a6f08cd32785b647ef5b0107da490dbf18013",
+    "qualifier_tree": "341e0d22fa570b1b5e8dd9f70b219c11308ba45f",
+    "runtime_source_root": "sha256:345b150207668e98a2a061c328e3552697b5370c50fb50dfbd96f598aaa65e30",
+    "transport_custody_root": "sha256:d1813ba1ad996442e38efe92ec8556210ddc11ffc8037a23ebb0c5b007157fb6"
+  },
+  "schema": "vela.stage-a-anthropic-neutral-v4-execution-build.v1",
+  "sources": {
+    "controller.py": "sha256:0cd70e76736061ad2d1f8cf609be7a8b8eedf3090eafbe2493ce8c7be580265e",
+    "orchestrator.go": "sha256:5daf77799bddc0103212c8727128f8b84801bf8d974d08d86c857c8e3e9d8c9f",
+    "runner_relay.go": "sha256:8a3b9b23a8f036735162dae7cdd0ac009ab87352cff1bc2fae1deed2babf9834"
+  },
+  "stopped_state": {
+    "authority_effect": "none",
+    "openai_neutral_permit_released": false,
+    "participant_calls": 0,
+    "participant_permits_released": 0,
+    "scoring_attempts": 0,
+    "stage_b_families_selected": 0
+  }
+}

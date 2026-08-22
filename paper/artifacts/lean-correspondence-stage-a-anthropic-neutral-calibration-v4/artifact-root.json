@@ -1,0 +1,206 @@
+{
+  "artifact_root": "sha256:58f2995e8993045d9f9653371c1b49a770e23c59ca85d79cc26ff536a1537a0a",
+  "files": [
+    {
+      "bytes": 2677,
+      "path": "README.md",
+      "sha256": "sha256:b2551b6116f7b75c75ecebea2067c32cbe47ef1238492fdd82326cb283a2e9d8"
+    },
+    {
+      "bytes": 3278,
+      "path": "execution-build.json",
+      "sha256": "sha256:91f9326d859a5ed69ab7a1b9f956c64d693a4fe9138ea2f372882f48aa42378e"
+    },
+    {
+      "bytes": 35877,
+      "path": "execution-sources/controller.py",
+      "sha256": "sha256:0cd70e76736061ad2d1f8cf609be7a8b8eedf3090eafbe2493ce8c7be580265e"
+    },
+    {
+      "bytes": 6234,
+      "path": "execution-sources/orchestrator.go",
+      "sha256": "sha256:5daf77799bddc0103212c8727128f8b84801bf8d974d08d86c857c8e3e9d8c9f"
+    },
+    {
+      "bytes": 892,
+      "path": "execution-sources/runner_relay.go",
+      "sha256": "sha256:8a3b9b23a8f036735162dae7cdd0ac009ab87352cff1bc2fae1deed2babf9834"
+    },
+    {
+      "bytes": 4278,
+      "path": "inputs/expected-request.json",
+      "sha256": "sha256:cf67944d1872244c9d89ed3f7ad9cc27c3a37a4deba665f47a939985e2c62e8c"
+    },
+    {
+      "bytes": 781,
+      "path": "inputs/materialization-receipt.json",
+      "sha256": "sha256:328dace8aee7d4cea3c2532e4e0012b01ad07b73ca6ce9b528d774fa62306028"
+    },
+    {
+      "bytes": 1186,
+      "path": "inputs/offline-validation-receipt.json",
+      "sha256": "sha256:1f857493dbecf40001dbc3a9e1b5be17ac46dd166096b48e7906a1da7451fddd"
+    },
+    {
+      "bytes": 657,
+      "path": "inputs/packet.json",
+      "sha256": "sha256:a38b18fb6284288f352e234aa32cffb79af880a03d8faf7c1e3492e6d8eba267"
+    },
+    {
+      "bytes": 2384,
+      "path": "inputs/provider-schema.json",
+      "sha256": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7"
+    },
+    {
+      "bytes": 439,
+      "path": "inputs/request-transport-custody.json",
+      "sha256": "sha256:d1813ba1ad996442e38efe92ec8556210ddc11ffc8037a23ebb0c5b007157fb6"
+    },
+    {
+      "bytes": 3232,
+      "path": "inputs/run.json",
+      "sha256": "sha256:ab8b5541536e3c5c88df7783150973cee1d3ba7dd75ebd79efa389973e2813bd"
+    },
+    {
+      "bytes": 1175,
+      "path": "permit/neutral-calibration-anthropic-json-v4-lossless.permit.consumed.json",
+      "sha256": "sha256:d9c270cca0418a029a7514cb76c57a8e8751c9029ce35ab5275f92fa8d22ccd7"
+    },
+    {
+      "bytes": 4278,
+      "path": "raw/actual-network-body-0001.raw.json",
+      "sha256": "sha256:cf67944d1872244c9d89ed3f7ad9cc27c3a37a4deba665f47a939985e2c62e8c"
+    },
+    {
+      "bytes": 2741,
+      "path": "raw/attempt-terminal.json",
+      "sha256": "sha256:54fc7e8b51b32379eb688440ede8fc58baf26670c63415a09da7c4a9e24f9325"
+    },
+    {
+      "bytes": 4220,
+      "path": "raw/bridge-to-runner.raw.jsonl",
+      "sha256": "sha256:3ba339db731a9b58cce33f3a7e26f63382ca1daa35c070a3dec31d976a7205a5"
+    },
+    {
+      "bytes": 0,
+      "path": "raw/bridge.stderr",
+      "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "raw/bridge.stdout",
+      "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "raw/container.stderr",
+      "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 328,
+      "path": "raw/credential-nonretention.json",
+      "sha256": "sha256:db7ed3d2496565f2618d7c9948559a4bdf3690f381ad5ecf49f1c5b043b8f754"
+    },
+    {
+      "bytes": 1558,
+      "path": "raw/endpoint-contact-receipt.json",
+      "sha256": "sha256:a7487df5e3c9fbfc3a345f5f768f4d3143b6b7c812ce351b15abbb0e1a4a26bb"
+    },
+    {
+      "bytes": 894,
+      "path": "raw/lossless-network-request-custody.json",
+      "sha256": "sha256:7af9cf6f73a3f85bf549eb988600133bd4b5df8fa681078c57c6f11a7152307b"
+    },
+    {
+      "bytes": 0,
+      "path": "raw/orchestrator.stderr",
+      "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "raw/orchestrator.stdout",
+      "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 568,
+      "path": "raw/packet-custody.json",
+      "sha256": "sha256:addd9b8641a13227d387bbc4590b7b5e2a5df7be1e3691a1f4184d2b686bf124"
+    },
+    {
+      "bytes": 392,
+      "path": "raw/permit-release.json",
+      "sha256": "sha256:3f698ad69a48d8690e844c2af7d8bc693eff52a4184b476327c53474e14972b5"
+    },
+    {
+      "bytes": 308,
+      "path": "raw/process-teardown.json",
+      "sha256": "sha256:fab9f127ee884b25201bfff670d7e1bd3f8a2706d1ebbb134cf6e107aa9b6006"
+    },
+    {
+      "bytes": 4220,
+      "path": "raw/provider-events.raw.jsonl",
+      "sha256": "sha256:3ba339db731a9b58cce33f3a7e26f63382ca1daa35c070a3dec31d976a7205a5"
+    },
+    {
+      "bytes": 9430,
+      "path": "raw/provider-request-frame.raw.jsonl",
+      "sha256": "sha256:6ba0a6cd840dc28d8dbba2f9b019d0e37cee109924593a328c173f38000cf074"
+    },
+    {
+      "bytes": 2456,
+      "path": "raw/provider-response-0001.raw.json",
+      "sha256": "sha256:4b90af7d3453c95f8b59a49d6bf7761593cc2ef9ccbfee96fbff7abc8934c50e"
+    },
+    {
+      "bytes": 463,
+      "path": "raw/provider-usage-0001.json",
+      "sha256": "sha256:cbb0e798b65edf194288728d2d5240ba273233a6312379ad90d71e64c14d30e0"
+    },
+    {
+      "bytes": 439,
+      "path": "raw/request-transport-custody.json",
+      "sha256": "sha256:d1813ba1ad996442e38efe92ec8556210ddc11ffc8037a23ebb0c5b007157fb6"
+    },
+    {
+      "bytes": 4278,
+      "path": "raw/request.raw.json",
+      "sha256": "sha256:cf67944d1872244c9d89ed3f7ad9cc27c3a37a4deba665f47a939985e2c62e8c"
+    },
+    {
+      "bytes": 1028,
+      "path": "raw/response.raw.json",
+      "sha256": "sha256:95bf0c205c10167f57d769a0f77daef57ede2db3a6061464957c496e50eddc46"
+    },
+    {
+      "bytes": 9430,
+      "path": "raw/runner-to-bridge.raw.jsonl",
+      "sha256": "sha256:6ba0a6cd840dc28d8dbba2f9b019d0e37cee109924593a328c173f38000cf074"
+    },
+    {
+      "bytes": 478,
+      "path": "raw/terminal.json",
+      "sha256": "sha256:b76551891d5104f8bf0e5fa8b2055eb50bf66dee37c003a566911847db1231ad"
+    },
+    {
+      "bytes": 368,
+      "path": "seal.py",
+      "sha256": "sha256:f357151da5f2968a5922d3ae11a320770ed3437af31212005b68e19c363ab96c"
+    },
+    {
+      "bytes": 2545,
+      "path": "terminal-outcome.json",
+      "sha256": "sha256:d53bb34acec5f4495f4cca71e26e592f2875c7e123ef077cb4c488d3a6646a7c"
+    },
+    {
+      "bytes": 10540,
+      "path": "test_verify.py",
+      "sha256": "sha256:2b8ef95091399251e368da9b0327051934e5904ab00803e84dbf514e4cf17904"
+    },
+    {
+      "bytes": 39989,
+      "path": "verify.py",
+      "sha256": "sha256:0575c04296573bbce450b1abda39e21809f7dbc5b51906e8d43b6fc7bf504186"
+    }
+  ],
+  "schema": "vela.stage-a-anthropic-neutral-v4-artifact.v1"
+}
