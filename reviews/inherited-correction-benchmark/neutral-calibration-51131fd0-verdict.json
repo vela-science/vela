@@ -1,0 +1,99 @@
+{
+  "schema": "vela.independent-inherited-correction-neutral-schema-calibration-verdict.v1",
+  "review_id": "inherited-correction-neutral-schema-calibration-2026-08-21",
+  "reviewed_at": "2026-08-21T23:59:11Z",
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/inherited-correction-study",
+    "producer_commit": "51131fd07d44b52c0bd550110d39d06891adaa54",
+    "producer_tree": "8c500ae3c6c04b3459079eda6e38314247a25a9a",
+    "parent_commit": "bccae8ff047d20797347361725b8510c08e56960",
+    "f08_pass_review_commit": "d7aa45b50101f1d756afe1ebb3038e05a5f4fccc"
+  },
+  "verdict": "PASS",
+  "failed_gates": [],
+  "calibration": {
+    "run_id": "neutral-schemafix-calibration-01",
+    "participant_instance_id": "neutral-schemafix-sol-01",
+    "condition": "neutral-calibration",
+    "attempt": 1,
+    "status": "completed_calibration_contract_pass",
+    "non_scientific": true,
+    "denominator_credit": false,
+    "provider_calls": 1,
+    "provider_events": 4,
+    "turns": 1,
+    "responses": 1,
+    "tool_calls": 0,
+    "compactions": 0,
+    "retries": 0,
+    "substitutions": 0,
+    "process_exit_code": 0,
+    "process_timed_out": false,
+    "expected_response_matched": true,
+    "container_teardown": "clean",
+    "credential_retained": false
+  },
+  "usage": {
+    "input_tokens": 6765,
+    "cached_input_tokens": 0,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 374,
+    "reasoning_output_tokens": 0
+  },
+  "custody": {
+    "custody_root": "sha256:b641951f31d1625fcd842bf290a07e3aeca0fab15396d545989da913bb4ecef8",
+    "issued_permit_root": "sha256:28ed87c4d17455d781871b38e632b999760cb67617bb3ac34e9131fcd2107a65",
+    "consumed_permit_bytes": "sha256:475b061ef7c7c52112517b56441bcffc582ee22814c3598eadeb500b598477ba",
+    "provider_events_bytes": "sha256:3893f57e0a3f63dca65a2f64d6574e3cf72481d0b3df0250595d39763e2a8f88",
+    "provider_stderr_bytes": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "response_bytes": "sha256:9748c08fee1cc90f44c8c50bfd28e8911edd1ca819a0f0a224e209cb04158372",
+    "terminal_receipt_bytes": "sha256:1e592dd1ccfc375c3dca812eda0d3c321b45aa458b60ad2e374c82ddc56aada5",
+    "atomic_consume_precedes_provider": true,
+    "exactly_one_consumed_calibration_permit": true,
+    "unconsumed_calibration_permit_in_execution_evidence": false
+  },
+  "bindings": {
+    "registration_root": "sha256:4d078776f41ffd1df18768791de58014117319f19727c3b9671b606e527c1276",
+    "calibration_assignment_root": "sha256:10b8ecc0822312d495ce56af2f5653e0538ec5a413c9e0c9acf51732317b6770",
+    "calibration_configuration_root": "sha256:0879e099f9a48ef07be3139933a61c2782b86e9fe95bfec543ae896eaaaee446",
+    "prompt_root": "sha256:eed8ad5804e999b60457ae959b316a5047c1b310661dcb59a4a7460b1292396e",
+    "packet_root": "sha256:4c94831df6a848e1685b47d8d59714064a377d7feb4fdb366450feb5a4491f1c",
+    "expected_response_root": "sha256:9748c08fee1cc90f44c8c50bfd28e8911edd1ca819a0f0a224e209cb04158372",
+    "registered_response_schema_bytes": "sha256:ac96be686e749792956dfa1dfe9560f85c53d55c27fe2e8fd32bcc2a96a634ba",
+    "provider_response_schema_bytes": "sha256:896f242086805d3b51e81ed04e6d50f33eb2b7deb71b7a1689e9abeba3b67eaf",
+    "image_manifest_digest": "sha256:4799bee82c708fb68006b9c558a0fc345a0e7d1f2936fcad298a3d775e0d08bb",
+    "image_config_digest": "sha256:c0868b563acbd5dd6c80d9512cc1bf019598d3579026fc7fed465cef2d60e56c",
+    "image_oci_tar_bytes": "sha256:b48f80b60ad1407824e8cd9e1fd3c60abcfd486ed672f8d31ddc9918a28b0b74",
+    "runtime_root": "sha256:4ec67f446c98848eed59f3a3597a395962c14f3fe2fadcda70a367e9738772ab",
+    "runtime_source_root": "sha256:57ef9fda64b3f9cc0fd253d3ea807075e1adb466c42621cd4109bed6e774eafb"
+  },
+  "study_state": {
+    "required_participant_sessions": 36,
+    "executed_participant_sessions": 0,
+    "result": "not_run",
+    "participant_permits_held": 36,
+    "participant_permits_consumed": 0,
+    "participant_run_evidence_present": false,
+    "protected_adjudication_accesses": 0,
+    "scoring_runs": 0,
+    "authority_effect": "none"
+  },
+  "reviewer_actions": {
+    "provider_calls": 0,
+    "permits_released": 0,
+    "protected_key_accesses": 0,
+    "scoring_runs": 0,
+    "authority_effect": "none"
+  },
+  "unchanged_invariants": [
+    "all pre-existing producer bytes are identical to the F08-passed parent",
+    "participant packets, prompts, schemas, participant permits, study design, scoring gates, scientific facts, stopped evidence, Core, Protocol, Standing, and Repository authority"
+  ],
+  "participant_permit_release_authorized_by_review": false,
+  "participant_launch_authorized_by_review": false,
+  "nonclaims": [
+    "This verdict confirms only the terminal neutral schema calibration evidence.",
+    "This verdict does not release or authorize a participant permit, provider call, protected-key access, scoring action, merge, scientific claim, Protocol or Core change, Repository authority, Standing, or Decision effect."
+  ]
+}
