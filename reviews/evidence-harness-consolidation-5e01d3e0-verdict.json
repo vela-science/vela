@@ -1,0 +1,104 @@
+{
+  "schema": "vela.independent-evidence-infrastructure-rereview-verdict.v1",
+  "review_id": "evidence-harness-consolidation-5e01d3e0-2026-08-22",
+  "reviewed_at": "2026-08-22T04:02:43Z",
+  "verdict": "BLOCKED",
+  "authority_effect": "none",
+  "standing_effect": "none",
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/evidence-harness-consolidation",
+    "parent_commit": "27d368e6fbb111c1c65a51850e6da43596eabd50",
+    "producer_commit": "5e01d3e07951d9d231dd28f31bad1af785da2837",
+    "producer_tree": "f6db284ac94777d88774e52e1a306b750da4da14",
+    "changed_path_count": 3,
+    "insertions": 1324,
+    "deletions": 166
+  },
+  "corrective_files": {
+    "tools/evidence_qualification/README.md": "sha256:2a82a17183beeee3b8ebcebf178643b5248a3958bb4cdef20f03faba9184d6b6",
+    "tools/evidence_qualification/qualification.py": "sha256:96f1ba1e994b0f17766c0eab591f1a006b4fed7da92dc49ab61fbfdacb9157e1",
+    "tools/evidence_qualification/test_qualification.py": "sha256:38e684d631516bc4b41b1daae652803690147c9a0640d7a0da471481d498b69d"
+  },
+  "protocol": {
+    "changed": false,
+    "normative_files": 77,
+    "informative_files": 39,
+    "protocol_1_root": "sha256:6ca327d6ec6f56c051e236be9eee42629e1f67dce393c1518e051ff8c14b279e"
+  },
+  "passing_corrections": [
+    "locked virtual-environment interpreter and environment-owned jsonschema binding",
+    "isolated user-site-disabled Python 3.11 through 3.14 execution",
+    "closed exact runner configuration and compatibility receipt",
+    "distinct closed cross-day account fixtures",
+    "effective Dockerfile controls and complete OCI graph custody",
+    "internal symlink and in-bundle hardlink-role alias rejection",
+    "closed permit schemas, types, and cross-assignment bindings",
+    "closed launch, event, terminal, and teardown lifecycle"
+  ],
+  "python_matrix": {
+    "3.11.15": "37 passed",
+    "3.12.10": "37 passed",
+    "3.13.3": "37 passed",
+    "3.14.4": "37 passed"
+  },
+  "valid_fixture": {
+    "status": "qualified_hold",
+    "qualification_root": "sha256:1035af2e60f15b1af25bf9a91d24ee866c01cf2770bb0ce0430e08fc70d2ae64",
+    "gates_true": 11,
+    "provider_calls": 0,
+    "scientific_sessions": 0,
+    "participant_permits_consumed": 0
+  },
+  "failed_gates": [
+    {
+      "id": "EQ-R1",
+      "category": "bundle_hardlink_custody",
+      "summary": "A referenced file with a second hardlink outside the bundle receives qualified_hold because only duplicate in-bundle inode identities are rejected.",
+      "qualified_root": "sha256:55b386a693f073d22840d098d4f4a78970042320e94cbb26370b60bbcbaece96"
+    },
+    {
+      "id": "EQ-R2",
+      "category": "permit_consumption_toctou",
+      "summary": "consume_permit can validate one inode and then link and return forged replacement bytes installed at the source name before os.link."
+    }
+  ],
+  "passing_checks": [
+    "exact remote commit tree parent and three-file scope",
+    "documented locked Python 3.13 suite: 37 passed",
+    "isolated locked Python 3.11 through 3.14: 37 passed per minor with user site disabled",
+    "documented valid BundleFixture CLI execution",
+    "locked Ruff check",
+    "locked Ruff format check",
+    "producer-range git diff check",
+    "Protocol 1 verification and corrective-range byte identity",
+    "clean detached producer checkout"
+  ],
+  "minimal_corrections": [
+    "Reject every regular bundle file whose link count is not one and add an out-of-bundle hardlink regression.",
+    "Keep the validated permit descriptor live through linking; verify the consumed name has the same device, inode, and bytes before unlinking the source; add a source-replacement race regression."
+  ],
+  "claim_ceiling": {
+    "supported": [
+      "The prior virtual-environment, malformed-record, and lifecycle findings represented by the 37 regressions are corrected.",
+      "The valid neutral fixture is deterministic within its exact environment and canonical path across supported Python minors.",
+      "Protocol 1 is byte-identical and the qualifier has no authority effect."
+    ],
+    "not_supported": [
+      "Complete hardlink-alias rejection.",
+      "Immutable one-inode-bound permit validation and consumption.",
+      "Provider execution, scientific acceptance, authority, Decision, Event, or Standing."
+    ]
+  },
+  "reviewer_actions": {
+    "external_service_calls": 0,
+    "provider_calls": 0,
+    "credentials_handled": 0,
+    "producer_mutations": 0,
+    "permit_releases": 0,
+    "authority_mutations": 0,
+    "standing_mutations": 0,
+    "merge_actions": 0,
+    "release_actions": 0
+  }
+}
