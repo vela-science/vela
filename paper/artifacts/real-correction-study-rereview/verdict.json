@@ -1,0 +1,120 @@
+{
+  "schema": "vela.real-correction-study-independent-rereview.v1",
+  "verdict": "PASS",
+  "reviewed_at": "2026-08-22T03:54:44Z",
+  "review_branch": "codex/review-real-correction-fixtures",
+  "bindings": {
+    "producer_ref": "origin/codex/real-correction-fixtures",
+    "producer_commit": "9b7a3448d9b9925624a7f73fb0b712dfd14f8d34",
+    "producer_tree": "efc28aec19efdccd4f436c3001f78378f5869450",
+    "packet_tree": "cff690d5155092e54d1fbc0d6d32b8e0696fb5e4",
+    "producer_predecessor": "4bebbe23f60fa2edd5cb683dc01e6344f9810878",
+    "predecessor_review": "2ff39cea36311bab5a36d5c85350fed4d9da1361",
+    "base_commit": "4685462c44b1f073870f31025ae73d1d8770ce73",
+    "base_tree": "13c5e0cf2e64be907cee4c0fd740ab0027118e13",
+    "source_manifest_root": "sha256:d8987513e4860eaf5bf65f8ec9bd2be9a75691dbcc35de2c05b01fe400c66a17",
+    "source_manifest_sha256": "sha256:e9cf24a5330f6cdf8a01e8798ce50bb16596a1057d2427bea740784abcb1bef5",
+    "qualification_root": "sha256:b08e1872be57e37857c740f82ae96df56ad023d91a345a8b73ebf25cba854165",
+    "qualification_result_sha256": "sha256:a0a3ce16135712c49e2d9886abeca713558ebb9a4bac22bfb593a8b7fa4384e5",
+    "packet_root": "sha256:d2b9f5bc3cf95005c1964643fcb870133cc9e952bedc2a0d9ad6fc909579d71e",
+    "packet_manifest_sha256": "sha256:1e788494282093d99ede48cc6e2c6a62a0db763156e47e3c9eb61313b7a70ae5",
+    "historical_result_commit": "4524c8f776943a267e04e03e9a237ecaed14bc2c"
+  },
+  "verified": {
+    "sealed_miss": {
+      "actual_duration_seconds": 16.511676507,
+      "restricted_penalty_seconds": 600,
+      "tool_calls": 0,
+      "process_exit_code": 0,
+      "timed_out": false,
+      "validation_error": null,
+      "stderr_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "all_source_consequence_action_and_evidence_atoms_exact": true,
+      "authority_effect": "authorized_status_change",
+      "observed_action": "record_no_status_change",
+      "registered_historical_action": "accept_authorized_status_change",
+      "causal_attribution_established": false,
+      "core_protocol_repository_defect_established": false
+    },
+    "fixture_counts": {
+      "erdos-264-integer-perturbation": 8,
+      "snake-induced-path": 9,
+      "erdos-1055-exclusive-prime-class": 7
+    },
+    "erdos_264_evidence": {
+      "repository_commit": "12fdb0ad09c710469e50a60e8a6e2c81c9d18c3f",
+      "repository_tree": "8b57c21c6c2a1ae279a3171cbad47291ab7af44c",
+      "repository_manifest_root": "sha256:f03be3a76ce43be0c2f9ca63ff731b9a5ff5c010b768e95b46a35f3a067eed96",
+      "packet_declared_trust_root": "sha256:c4a88730dead6074cce49cce6649b23874dfed41c598815852f62ca65741f328",
+      "authority_sequences": 5,
+      "signatures": 5,
+      "authorization_requests": 5,
+      "repository_transitions": 5,
+      "local_downstream_records": 3,
+      "correction_standing": "accepted_at_bound_historical_root",
+      "dependent_repair_standing": "accepted_at_bound_historical_root"
+    },
+    "authority_regimes": {
+      "erdos_264": "independently_authorized_acceptance",
+      "snake_in_the_box": "no_authorized_acceptance_action",
+      "erdos_1055": "authorization_presently_unprovable",
+      "git_is_authority": false
+    },
+    "discrimination": {
+      "cases": 3,
+      "fact_only_exact": 1,
+      "authority_aware_exact": 3,
+      "interpretation": "authority_irreducible_by_construction_only",
+      "participant_evidence": false
+    },
+    "research_boundaries": {
+      "confirmatory_freeze_allowed": false,
+      "positive_lift_claim_allowed": false,
+      "protected_final_key_created": false,
+      "open_pilot_authorized": false,
+      "fresh_held_out_families_required": true,
+      "independent_non_ceiling_open_pilot_required": true,
+      "equality_counts_as_governance_lift": false
+    }
+  },
+  "checks": [
+    {"id": "readme-verifier", "status": "pass"},
+    {"id": "readme-adversarial-tests", "status": "pass", "count": 13},
+    {"id": "readme-external-git-reconstruction", "status": "pass", "repositories": 3},
+    {"id": "byte_exact_generated_layer_regeneration", "status": "pass"},
+    {"id": "json_parse", "status": "pass"},
+    {"id": "ruff_check_locked", "status": "pass"},
+    {"id": "ruff_format_check_locked", "status": "pass"},
+    {"id": "git_diff_check", "status": "pass"},
+    {"id": "clean_detached_checkout", "status": "pass"}
+  ],
+  "claim_ceiling": {
+    "supported": [
+      "Three exact open real source corrections with bounded complete inventories.",
+      "Exact historical Repository-local authorization and Standing evidence for Erdős 264 at the bound roots.",
+      "A public authority-discrimination mapping proving irreducibility by construction only.",
+      "A gated three-arm design eligible only for a separately authorized open pilot."
+    ],
+    "not_supported": [
+      "A causal explanation of the taxonomy-remap miss.",
+      "A Protocol, Core, or Repository-authority defect.",
+      "Non-ceiling Git/documents participant performance.",
+      "Structure, governance/inheritance, total, productivity, adoption, or scientific lift.",
+      "Confirmatory readiness or present authority outside the cited historical Repository roots."
+    ]
+  },
+  "minimal_corrective_actions": [],
+  "review_actions": {
+    "provider_calls": 0,
+    "participant_calls": 0,
+    "scores": 0,
+    "protected_keys_created_or_opened": 0,
+    "authority_actions": 0,
+    "standing_actions": 0,
+    "producer_bytes_modified": 0,
+    "pilot_launched": false,
+    "merged": false,
+    "released": false,
+    "outreach": false
+  }
+}
