@@ -1,0 +1,89 @@
+{
+  "schema": "vela.inherited-correction-orderfix-failure-audit.v1",
+  "status": "read_only_forensic_audit",
+  "reviewed_result": {
+    "branch": "origin/codex/inherited-correction-study",
+    "commit": "4524c8f776943a267e04e03e9a237ecaed14bc2c",
+    "result_path": "paper/artifacts/inherited-correction-held-out-order-replacement-result/scored-result.json",
+    "result_blob": "8d559b949b29e121aa3d105333c054d258e5aa29",
+    "result_bytes": 11145,
+    "result_sha256": "sha256:ae0c980a18633832a83b73e0c715ee11e702aeb56660c4e027d5ece03425f372",
+    "fixed_denominator": 36,
+    "positive_gate": "not_supported",
+    "gates": {
+      "structure": false,
+      "governance_inheritance": false,
+      "total": false
+    },
+    "aggregate": {
+      "git-documents": {"exact": 12, "sessions": 12, "authority_errors": 0, "impact_complete": 12},
+      "state-wrapper": {"exact": 12, "sessions": 12, "authority_errors": 0, "impact_complete": 12},
+      "vela": {"exact": 11, "sessions": 12, "authority_errors": 1, "impact_complete": 12}
+    }
+  },
+  "miss": {
+    "run_id": "orderfix-run-25",
+    "family": "taxonomy-remap",
+    "arm": "vela",
+    "actual_duration_seconds": 16.511676507,
+    "restricted_duration_seconds": 600,
+    "tool_calls": 0,
+    "timed_out": false,
+    "process_exit_code": 0,
+    "validation_error": null,
+    "provider_stderr_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "response": {
+      "authority_effect_code": "authorized_status_change",
+      "authority_action_code": "record_no_status_change",
+      "predecessor_successor_exact": true,
+      "all_consequences_exact": true,
+      "all_consequence_actions_exact": true,
+      "all_evidence_bindings_exact": true
+    },
+    "sealed_bindings": [
+      {"path": "paper/artifacts/inherited-correction-held-out-order-replacement-execution/runs/orderfix-run-25/response.json", "blob": "a4e2ef15f224facd2a5c4f52bbe7cf58c2ece0bc", "bytes": 1210, "sha256": "sha256:d6d31225ea2156ec04a8c356fccb344aaa1281f1460828f62a8f0604e89c8723"},
+      {"path": "paper/artifacts/inherited-correction-held-out-order-replacement-execution/runs/orderfix-run-25/run.json", "blob": "5c9fa916eb881afad4a301fadda0b39b317fd7a8", "bytes": 1497, "sha256": "sha256:ffb87744a4a29027d0d0e8eb2a8c7e2ab934093a8a482e9bfbc9940d3878d0b0"},
+      {"path": "paper/artifacts/inherited-correction-held-out-order-replacement-execution/runs/orderfix-run-25/runtime/terminal-receipt.json", "blob": "9577a7a40e12d2bf56d83cf31f5d0da45e5322cc", "bytes": 2072, "sha256": "sha256:fa04438359dcc702751e9191947c8a768cd40c480ad2a140ad88c9e6c1c1c2aa"},
+      {"path": "paper/artifacts/inherited-correction-held-out/conditions/taxonomy-remap/vela/input/prompt.txt", "blob": "93a8738a96cba24224950b216a27c3431d94a2b8", "bytes": 10821, "sha256": "sha256:de4aaa6b139d4401bab048fa4f551b910eea7143356fd97919893539820cdd7f"},
+      {"path": "paper/artifacts/inherited-correction-held-out/conditions/taxonomy-remap/vela/packet/repository-projection.json", "blob": "12b4c16fbd4c92ee2c1b8676a932331ae2851817", "bytes": 3088, "sha256": "sha256:94d6f81b2cf5cb50ca4a65c31612902f466cf171f71d4d0b0b9750d8a0f8356b"},
+      {"path": "paper/artifacts/inherited-correction-held-out/conditions/taxonomy-remap/vela/packet/TASK.md", "blob": "b56df90752a9e04ef0ceadb971be6ea28dc38eca", "bytes": 706, "sha256": "sha256:df1d1aab35634b5cc732cfe098530336cbb234a85388817d0d323dc5fe7eef1b"},
+      {"path": "paper/artifacts/inherited-correction-held-out/conditions/taxonomy-remap/vela/packet/response-schema.json", "blob": "e046653442675d3ca22cbf6d960231424e6ea528", "bytes": 2564, "sha256": "sha256:ac96be686e749792956dfa1dfe9560f85c53d55c27fe2e8fd32bcc2a96a634ba"}
+    ]
+  },
+  "facts": [
+    "The Vela projection states that a Decision is present, its authorization is verified, and Standing changed by that authorized Decision.",
+    "The task also forbids the participant from issuing an acceptance action or altering authoritative status.",
+    "The response schema permits every authority-effect and authority-action enum combination and defines no temporal axis or cross-field invariant.",
+    "Three other taxonomy-remap Vela sessions returned the authorized effect and accept-authorized action pair exactly.",
+    "The failed session completed normally in 16.511676507 seconds; 600 seconds is the preregistered penalty assigned after exact failure."
+  ],
+  "classification": {
+    "representation_complexity": "secondary_hypothesis_not_established",
+    "current_versus_historical_ambiguity": "observed_contract_ambiguity_and_plausible_mechanism_not_causal_finding",
+    "authority_semantics": "no_general_misunderstanding_evidenced",
+    "response_contract": "contract_defect_observed_response_consistent_with_defect_cause_unestablished",
+    "runtime_behavior": "normal_completion_observed_no_runtime_failure_observed",
+    "genuine_product_weakness": "not_established"
+  },
+  "hypotheses": [
+    "The response treated authority_effect_code as the observed historical Decision effect and authority_action_code as the participant's currently safe action under the no-mutation instruction.",
+    "The compact Vela authority block may have made both temporal readings salient.",
+    "The mismatch may instead reflect representation complexity or one-sample output variance; the sealed evidence cannot distinguish among these mechanisms."
+  ],
+  "generalizable_changes": [
+    "Separate observed_decision_effect from prospective_safe_next_action in every arm.",
+    "Define closed temporal semantics for authority fields and reject impossible cross-field combinations before launch.",
+    "Report actual runtime separately from correctness and censoring; do not describe a penalty-imputed value as runtime.",
+    "Keep the same structured response contract across arms and score explanations separately from closed codes.",
+    "Test whether live Vela read surfaces create the same ambiguity before proposing any product change."
+  ],
+  "mutations": {
+    "responses": 0,
+    "scores": 0,
+    "gates": 0,
+    "protected_key_accesses": 0,
+    "provider_calls": 0,
+    "authority_actions": 0
+  },
+  "authority_effect": "none"
+}

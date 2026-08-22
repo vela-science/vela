@@ -1,0 +1,86 @@
+{
+  "artifact_root": "sha256:4443284e9856a2df1902dd81fb443f4042fb28b510278bfa2fe23ef935be3173",
+  "checks": {
+    "all_direct_consumers_proof_unresolved": true,
+    "corrected_definition_retained_at_current_head": true,
+    "direct_consumer_set_complete": true,
+    "frontier_claim_bytes_exact": true,
+    "full_index_diff_exact": true,
+    "partial_proof_source_exact": true,
+    "partial_proof_uses_corrected_definition": false,
+    "source_objects_exact": true
+  },
+  "direct_consumers": [
+    {
+      "declaration_status": "present",
+      "proof_status": "unresolved",
+      "semantic_impact": "affected",
+      "symbol": "Erdos264.erdos_264.parts.i"
+    },
+    {
+      "declaration_status": "present",
+      "proof_status": "unresolved",
+      "semantic_impact": "affected",
+      "symbol": "Erdos264.erdos_264.parts.ii"
+    },
+    {
+      "declaration_status": "present",
+      "proof_status": "unresolved",
+      "semantic_impact": "affected",
+      "symbol": "Erdos264.erdos_264.variants.example"
+    },
+    {
+      "declaration_status": "present",
+      "proof_status": "unresolved",
+      "semantic_impact": "affected",
+      "symbol": "Erdos264.erdos_264.variants.ko_tao_neg"
+    },
+    {
+      "declaration_status": "present",
+      "proof_status": "unresolved",
+      "semantic_impact": "affected",
+      "symbol": "Erdos264.erdos_264.variants.ko_tao_pos"
+    }
+  ],
+  "frontier_claims": {
+    "audit": {
+      "claim_id": "vcl_4386c93709bd09fc4c531108c633731e341862247309b5aa02aa1792111983f4",
+      "claim_root": "sha256:62dd229a78539a2c74747b0b0ee859f326b18b9bfc13395eea0168a6c7d734ac"
+    },
+    "supersede": {
+      "claim_id": "vcl_6b7736bc99918aee6ef5c3870861e3585cb1d07f4eaf199e4f4755b0375b9327",
+      "claim_root": "sha256:7b12517e7ba9c077e00f18d8db3c0430950e1b05f1e2acf05593c2218a85d7be"
+    },
+    "survives": {
+      "claim_id": "vcl_a9601802c65da247739eec2247cfcc5ae3016961673d346227af4e469f36fe82",
+      "claim_root": "sha256:254621848ba12e76bff9970be183532499be6d86e4ee50e6bed341dc6739f00d"
+    }
+  },
+  "limits": [
+    "This verifies exact source identity, semantic definition bytes, and the direct consumer inventory.",
+    "It does not prove Erdos problem 264 or any direct consumer theorem.",
+    "The hosted proof remains evidence about its own retained natural-perturbation definition; this source comparison does not prove or disprove it under that definition.",
+    "It is scoped Verification evidence, not scientific acceptance or Standing."
+  ],
+  "outcome": "pass",
+  "partial_proof_binding": {
+    "commit": "68da20b96673899166e94638f5a7fffeb7231d35",
+    "compatibility": "not_rebound_to_corrected_definition",
+    "corrected_definition_root": "sha256:6d8f5197e916b28724e586c8a79bd5e0607748a4bb9c50fccb2625bdc41ff986",
+    "file_root": "sha256:10c61b6082a51a85d7b0e41bffc7ee0799d46183b6a3848a9816cf9e943fedf2",
+    "local_definition_root": "sha256:c26a30b29fa4c6bf261bb298d6e4d104e07cb19cd79e4093f286a9817ab06d04",
+    "next_obligation": "Rework or recheck the retained proof against the corrected integer-perturbation definition before using it as support for the corrected statement.",
+    "path": "src/v4.29.1/ErdosProblems/Erdos264.lean",
+    "repository": "https://github.com/plby/lean-proofs"
+  },
+  "schema": "vela.erdos-264-source-verification.v1",
+  "source": {
+    "current_commit": "bad4420aa9f946f58940e631a7873e6d406d2c60",
+    "current_definition_root": "sha256:6d8f5197e916b28724e586c8a79bd5e0607748a4bb9c50fccb2625bdc41ff986",
+    "full_index_diff_root": "sha256:a1935f112f5e086cac55d0933f6aa5588893aa7452512d5a0319e12fba4a472f",
+    "path": "FormalConjectures/ErdosProblems/264.lean",
+    "predecessor_commit": "593e6b76702c5dbffaaa91b59f4faaed705d04ce",
+    "repository": "https://github.com/google-deepmind/formal-conjectures",
+    "successor_commit": "0598b8f281060a18416d60753fd75621d659bb07"
+  }
+}

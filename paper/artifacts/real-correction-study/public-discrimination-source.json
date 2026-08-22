@@ -1,0 +1,22 @@
+{
+  "schema": "vela.real-correction-public-source-atoms.v1",
+  "status": "open_non_confirmatory",
+  "source_transition": {
+    "repository": "https://github.com/google-deepmind/formal-conjectures.git",
+    "path": "FormalConjectures/ErdosProblems/264.lean",
+    "predecessor_commit": "593e6b76702c5dbffaaa91b59f4faaed705d04ce",
+    "predecessor_root": "sha256:98386d8f28112c5e952ec40c4ee439c27f3ff7560a4e767b493ccebc628fb29f",
+    "successor_commit": "0598b8f281060a18416d60753fd75621d659bb07",
+    "successor_root": "sha256:5a3a0fb7063ed77d644a5c1cab503851e68d87b02c0882db8fa52e801aba1166",
+    "full_index_diff_root": "sha256:a1935f112f5e086cac55d0933f6aa5588893aa7452512d5a0319e12fba4a472f"
+  },
+  "bounded_source_consequences": [
+    "Erdos264.erdos_264.parts.i",
+    "Erdos264.erdos_264.parts.ii",
+    "Erdos264.erdos_264.variants.example",
+    "Erdos264.erdos_264.variants.ko_tao_neg",
+    "Erdos264.erdos_264.variants.ko_tao_pos"
+  ],
+  "held_constant": "Every case receives these exact source atoms; only the prospective local authority context varies.",
+  "nonclaim": "This public source is not a protected key, participant result, Git/documents difficulty result, or confirmatory fixture."
+}

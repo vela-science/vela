@@ -1,0 +1,18 @@
+{
+  "authority_effect": "none",
+  "confirmatory_freeze_allowed": false,
+  "packet_root": "sha256:d2b9f5bc3cf95005c1964643fcb870133cc9e952bedc2a0d9ad6fc909579d71e",
+  "qualification_result": {
+    "bytes": 2903,
+    "path": "qualification-result.json",
+    "qualification_root": "sha256:b08e1872be57e37857c740f82ae96df56ad023d91a345a8b73ebf25cba854165",
+    "sha256": "sha256:a0a3ce16135712c49e2d9886abeca713558ebb9a4bac22bfb593a8b7fa4384e5"
+  },
+  "schema": "vela.real-correction-packet-manifest.v1",
+  "source_manifest": {
+    "bytes": 18202,
+    "content_root": "sha256:d8987513e4860eaf5bf65f8ec9bd2be9a75691dbcc35de2c05b01fe400c66a17",
+    "path": "source-manifest.json",
+    "sha256": "sha256:e9cf24a5330f6cdf8a01e8798ce50bb16596a1057d2427bea740784abcb1bef5"
+  }
+}

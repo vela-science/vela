@@ -1,0 +1,34 @@
+{
+  "schema": "vela.real-correction-public-discrimination.v1",
+  "status": "non_confirmatory_public_qualification",
+  "source_atoms_path": "public-discrimination-source.json",
+  "source_atoms_root": "sha256:7b9005dd10c3dc959be485a29a369cc41280d77069e91d3878275c7198f34297",
+  "cases": [
+    {
+      "id": "no-action",
+      "authority_regime": "no_authorized_acceptance_action",
+      "safe_next_action": "prepare_submission_no_status_change"
+    },
+    {
+      "id": "authorized",
+      "authority_regime": "independently_authorized_acceptance",
+      "safe_next_action": "reassess_dependents_without_new_decision"
+    },
+    {
+      "id": "unprovable",
+      "authority_regime": "authorization_presently_unprovable",
+      "safe_next_action": "withhold_status_change_request_authority_chain"
+    }
+  ],
+  "fact_only_baseline": {
+    "visible_fields": ["source_atoms_root"],
+    "constant_action": "reassess_dependents_without_new_decision",
+    "purpose": "Prove that source-transition extraction alone cannot determine the authority-sensitive safe action."
+  },
+  "nonclaims": [
+    "This is a participant result.",
+    "This establishes Git/documents arm difficulty.",
+    "This authorizes a confirmatory freeze.",
+    "The public action labels are a protected final adjudication key."
+  ]
+}

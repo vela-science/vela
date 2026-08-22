@@ -1,0 +1,66 @@
+{
+  "authority_effect": "none",
+  "authority_regimes": [
+    "authorization_presently_unprovable",
+    "independently_authorized_acceptance",
+    "no_authorized_acceptance_action"
+  ],
+  "comparison_arms": [
+    "git-documents",
+    "structured-state",
+    "vela"
+  ],
+  "confirmatory_blockers": [
+    "Git/documents arm non-ceiling has not been demonstrated with separately authorized independent open-pilot observations.",
+    "Fresh held-out real correction families have not been selected.",
+    "Independent methodological and custody review has not returned exact PASS."
+  ],
+  "confirmatory_freeze_allowed": false,
+  "discrimination": {
+    "authority_aware_exact": 3,
+    "authority_aware_output_root": "sha256:4674de537f8e1b911db2500283f6f591ca287dcdfb0871e9c352c025038525f4",
+    "case_contract_root": "sha256:e588db44ce10e6bc78ff2dfca1a013a1e7d09248c7ecc89fee9fcb838687437f",
+    "cases": 3,
+    "fact_only_exact": 1,
+    "fact_only_output_root": "sha256:28c2f5544bb7e934fa1b9313f26a2f7c43723be5139363d14b9e28e0a05b7f44",
+    "participant_evidence": false,
+    "schema": "vela.real-correction-public-discrimination-result.v1",
+    "source_atoms_root": "sha256:7b9005dd10c3dc959be485a29a369cc41280d77069e91d3878275c7198f34297",
+    "source_fact_extraction_is_sufficient": false,
+    "status": "authority_irreducible_by_construction_only"
+  },
+  "erdos_264_evidence": {
+    "authority_sequences_verified": 5,
+    "authority_signatures_verified": 5,
+    "authorization_requests_reconstructed": 5,
+    "correction_standing": "accepted",
+    "dependent_repair_standing": "accepted",
+    "evidence_repository_commit": "12fdb0ad09c710469e50a60e8a6e2c81c9d18c3f",
+    "evidence_repository_root": "sha256:f03be3a76ce43be0c2f9ca63ff731b9a5ff5c010b768e95b46a35f3a067eed96",
+    "evidence_repository_tree": "8b57c21c6c2a1ae279a3171cbad47291ab7af44c",
+    "local_downstream_records_verified": 3,
+    "repository_transitions_replayed": 5
+  },
+  "fixture_count": 3,
+  "fixtures": [
+    {
+      "atomic_facts_root": "sha256:4bac9b5985d9cf0a4b4973241cbbeff7ced55aa2e71e3a59c25981f219a5e115",
+      "id": "erdos-264-integer-perturbation"
+    },
+    {
+      "atomic_facts_root": "sha256:dc78c629c131b31a4f6287d5bde91e617d05b93b7c25b8915129280e3ace280c",
+      "id": "snake-induced-path"
+    },
+    {
+      "atomic_facts_root": "sha256:0b338a4b382eb88f45f2aa2ee0deb1a920ce103496b5c9deee1660f7c475013e",
+      "id": "erdos-1055-exclusive-prime-class"
+    }
+  ],
+  "identical_semantic_atoms_required": true,
+  "positive_lift_claim_allowed": false,
+  "protected_final_key_created": false,
+  "qualification_root": "sha256:b08e1872be57e37857c740f82ae96df56ad023d91a345a8b73ebf25cba854165",
+  "schema": "vela.real-correction-qualification-result.v2",
+  "source_manifest_root": "sha256:d8987513e4860eaf5bf65f8ec9bd2be9a75691dbcc35de2c05b01fe400c66a17",
+  "status": "corrective_packet_ready_for_independent_re_review"
+}

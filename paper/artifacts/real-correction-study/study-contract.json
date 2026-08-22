@@ -1,0 +1,89 @@
+{
+  "schema": "vela.real-correction-open-method-contract.v1",
+  "status": "design_only_not_preregistered",
+  "temporal_response_semantics": {
+    "observed_decision_effect": {
+      "time_axis": "historical_state_at_bound_repository_root",
+      "question": "What locally authorized Standing effect is evidenced at the bound root?",
+      "codes": [
+        "no_authorized_status_change",
+        "authorized_status_change",
+        "authorization_unprovable"
+      ]
+    },
+    "prospective_safe_next_action": {
+      "time_axis": "first_safe_action_after_read_only_assessment",
+      "question": "What action may the successor safely take next without claiming or causing unsupported local acceptance?",
+      "codes": [
+        "prepare_submission_no_status_change",
+        "reassess_dependents_without_new_decision",
+        "withhold_status_change_request_authority_chain"
+      ]
+    },
+    "cross_field_rule": "Historical effect and prospective action are scored separately; no field named only authority_action is permitted."
+  },
+  "required_response": [
+    "exact predecessor and successor",
+    "bounded changed, reassess, and remains-valid dispositions",
+    "evidence root for every disposition",
+    "repository-local accepted state at each bound root",
+    "observed historical Decision effect",
+    "prospective safe next action"
+  ],
+  "candidate_program": {
+    "fixed_denominator": 36,
+    "families": 3,
+    "arms": 3,
+    "independent_instances_per_family_arm": 4,
+    "zero_retries": true,
+    "zero_substitutions": true,
+    "open_fixtures_excluded_from_confirmatory_scoring": true,
+    "fresh_held_out_families_required": true,
+    "protected_adjudication_required_but_not_created": true
+  },
+  "component_outcomes": [
+    "transition_exact",
+    "correction_impact_complete",
+    "local_status_exact",
+    "safe_next_action_exact",
+    "authority_error",
+    "exact_success"
+  ],
+  "estimands": {
+    "structure_lift": "structured-state minus git-documents",
+    "governance_inheritance_lift": "vela minus structured-state",
+    "total_lift": "vela minus git-documents",
+    "family_results_visible": true,
+    "equality_counts_as_governance_lift": false
+  },
+  "entry_gates": [
+    "deterministic fixture, custody, semantic, and packet checks pass",
+    "public discrimination check remains authority-irreducible by construction",
+    "separately authorized independent open pilot observes at least 2 of 12 Git/documents failures and at least 6 of 12 Git/documents exact passes",
+    "open pilot exposes no response-schema or runtime defect",
+    "fresh held-out real correction families are selected and source-bound after the open pilot",
+    "independent methodology and custody review returns exact PASS"
+  ],
+  "candidate_positive_gate": {
+    "all_component_gates_required": true,
+    "strict_count_increase_required_for_each_lift": true,
+    "equality_is_failure": true,
+    "authority_errors_must_not_increase": true,
+    "family_reversals_must_be_reported": true
+  },
+  "stop_lines": [
+    "confirmatory_freeze_allowed=false until every entry gate passes",
+    "no participant or provider call without separate authorization",
+    "no scoring or protected-key creation or opening during open qualification",
+    "no positive structure, governance/inheritance, or total-lift claim from public fixtures",
+    "no Protocol, Core, Repository-authority, Decision, or Standing change without an independently demonstrated semantic defect",
+    "no merge before independent exact PASS"
+  ],
+  "current_state": {
+    "confirmatory_freeze_allowed": false,
+    "positive_lift_claim_allowed": false,
+    "protected_final_key_created": false,
+    "open_pilot_authorized": false,
+    "independent_methodological_review_status": "blocked_pending_corrective_re_review"
+  }
+}

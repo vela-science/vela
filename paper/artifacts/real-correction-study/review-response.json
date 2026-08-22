@@ -1,0 +1,50 @@
+{
+  "schema": "vela.real-correction-independent-review-response.v1",
+  "status": "ready_for_exact_re_review_not_self_accepted",
+  "review_binding": {
+    "review_commit": "2ff39cea36311bab5a36d5c85350fed4d9da1361",
+    "review_tree": "819d2b4355290c534d31a312c972b95d321d1905",
+    "review_artifact_tree": "899a7c64d104e6048402164aa23263527dde1412",
+    "reviewed_producer_commit": "4bebbe23f60fa2edd5cb683dc01e6344f9810878",
+    "reviewed_qualification_root": "sha256:4f2fee9dbb0f62550873daab4911564c4968ad9b84fe40ef3af83c6355b7832c",
+    "verdict": "BLOCKED"
+  },
+  "repairs": [
+    {
+      "finding": "unsupported-causal-language",
+      "resolution": "The audit now records the contract defect and response consistency but explicitly leaves cause unestablished, with representation complexity and one-sample variance unresolved."
+    },
+    {
+      "finding": "erdos-264-authority-chain-not-bound",
+      "resolution": "The packet retains and verifies the evidence repository commit/tree/root, independently packet-bound trust root, authority sequences 1-5, Cedar bundle/material, reconstructed request/entity commitments, signatures, event-log roots, and before/after Repository manifests."
+    },
+    {
+      "finding": "erdos-264-downstream-records-not-retained",
+      "resolution": "The three exact local Claim records, historical hosted proof bytes, correction objects, accepted repair objects, repaired proof bytes, and derived local Standing are retained and verified."
+    },
+    {
+      "finding": "erdos-1055-finite-change-action-unsubstantiated",
+      "resolution": "Both asymptotic actions now require generic rederivation and reverification under the successor and assume no finite-change theorem."
+    },
+    {
+      "finding": "qualification-root-incomplete",
+      "resolution": "A source manifest commits every material byte and mode; the qualification result commits that manifest and public outputs; a packet manifest commits both generated layers."
+    },
+    {
+      "finding": "semantic-mutations-not-rejected",
+      "resolution": "Thirteen adversarial tests cover source bytes/roots, arm semantics, regimes, actions, downstream semantics, trust and chain mutations, external bindings, discrimination input/code/output, and generated-result drift."
+    },
+    {
+      "finding": "python-format-gate-failed",
+      "resolution": "Both Python files pass locked Ruff check and Ruff format check."
+    }
+  ],
+  "unchanged_stop_lines": {
+    "confirmatory_freeze_allowed": false,
+    "positive_lift_claim_allowed": false,
+    "open_pilot_authorized": false,
+    "protected_final_key_created": false,
+    "merge_before_exact_pass": false
+  },
+  "authority_effect": "none"
+}

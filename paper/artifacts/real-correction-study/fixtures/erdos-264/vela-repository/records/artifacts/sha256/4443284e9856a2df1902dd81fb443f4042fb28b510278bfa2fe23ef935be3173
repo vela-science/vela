@@ -1,0 +1,101 @@
+{
+  "schema": "vela.source-statement-diff.v1",
+  "subject": {
+    "problem": "Erdos 264",
+    "repository": "https://github.com/google-deepmind/formal-conjectures",
+    "path": "FormalConjectures/ErdosProblems/264.lean",
+    "changed_symbol": "Erdos264.IsIrrationalitySequence"
+  },
+  "predecessor": {
+    "commit": "593e6b76702c5dbffaaa91b59f4faaed705d04ce",
+    "tree": "5e79f7198c3891bdbb3fc6ec10c2b2a804cc56cb",
+    "blob": "8490f7dc0575480c7729acd5713433fc0af9c71b",
+    "file_sha256": "sha256:98386d8f28112c5e952ec40c4ee439c27f3ff7560a4e767b493ccebc628fb29f",
+    "definition_sha256": "sha256:c01f8742a00360a2a36cab0ce0c3be1e62d9539ca88df2d935607ea8492448cb"
+  },
+  "successor": {
+    "commit": "0598b8f281060a18416d60753fd75621d659bb07",
+    "tree": "e040cfc1cd6e5d1a79cf156047f452c2268c1920",
+    "blob": "3ff5ce70001355549571a07eee77960939323b57",
+    "file_sha256": "sha256:5a3a0fb7063ed77d644a5c1cab503851e68d87b02c0882db8fa52e801aba1166",
+    "definition_sha256": "sha256:6d8f5197e916b28724e586c8a79bd5e0607748a4bb9c50fccb2625bdc41ff986"
+  },
+  "transition": {
+    "kind": "exact_source_statement_supersession",
+    "full_index_diff_sha256": "sha256:a1935f112f5e086cac55d0933f6aa5588893aa7452512d5a0319e12fba4a472f",
+    "semantic_delta": [
+      "The bounded perturbation changes from b : Nat -> Nat to b : Nat -> Int.",
+      "The corrected definition requires both an upper and a lower bound.",
+      "The corrected definition admits negative perturbations and makes the two nonzero premises independent."
+    ]
+  },
+  "direct_consumer_scope": {
+    "method": "All theorem declarations in the exact successor file that directly reference IsIrrationalitySequence.",
+    "complete": true,
+    "consumers": [
+      {
+        "symbol": "Erdos264.erdos_264.parts.i",
+        "semantic_impact": "affected",
+        "declaration_status": "present",
+        "proof_status": "unresolved"
+      },
+      {
+        "symbol": "Erdos264.erdos_264.parts.ii",
+        "semantic_impact": "affected",
+        "declaration_status": "present",
+        "proof_status": "unresolved"
+      },
+      {
+        "symbol": "Erdos264.erdos_264.variants.example",
+        "semantic_impact": "affected",
+        "declaration_status": "present",
+        "proof_status": "unresolved"
+      },
+      {
+        "symbol": "Erdos264.erdos_264.variants.ko_tao_neg",
+        "semantic_impact": "affected",
+        "declaration_status": "present",
+        "proof_status": "unresolved"
+      },
+      {
+        "symbol": "Erdos264.erdos_264.variants.ko_tao_pos",
+        "semantic_impact": "affected",
+        "declaration_status": "present",
+        "proof_status": "unresolved"
+      }
+    ]
+  },
+  "frontier_claims": {
+    "survives": {
+      "claim_id": "vcl_a9601802c65da247739eec2247cfcc5ae3016961673d346227af4e469f36fe82",
+      "claim_root": "sha256:254621848ba12e76bff9970be183532499be6d86e4ee50e6bed341dc6739f00d",
+      "reason": "The independent problem statement does not depend on the mutable Formal Conjectures locator."
+    },
+    "supersede": {
+      "claim_id": "vcl_6b7736bc99918aee6ef5c3870861e3585cb1d07f4eaf199e4f4755b0375b9327",
+      "claim_root": "sha256:7b12517e7ba9c077e00f18d8db3c0430950e1b05f1e2acf05593c2218a85d7be",
+      "reason": "The accepted Claim names a mutable theorem page rather than the exact corrected source revision."
+    },
+    "audit": {
+      "claim_id": "vcl_4386c93709bd09fc4c531108c633731e341862247309b5aa02aa1792111983f4",
+      "claim_root": "sha256:62dd229a78539a2c74747b0b0ee859f326b18b9bfc13395eea0168a6c7d734ac",
+      "reason": "The retained hosted partial proof must be checked against the corrected definition before compatibility is asserted."
+    }
+  },
+  "next_obligation": {
+    "action": "Audit and rebind the retained partial proof and the five exact downstream theorem consumers against the corrected integer-perturbation definition.",
+    "discharged_when": "Each retained proof or declaration is bound to exact corrected source and independently reported as verified, incompatible, or unresolved without conflating elaboration with proof."
+  },
+  "limits": [
+    "This artifact binds an exact merged source correction and its direct same-file consumer inventory.",
+    "It does not prove Erdos problem 264 or any downstream theorem.",
+    "A surviving declaration with a sorry body is unresolved, not verified.",
+    "It does not establish compatibility of the retained hosted partial proof.",
+    "It does not change scientific Standing without an authorized human Decision."
+  ],
+  "replay": {
+    "predecessor_file": "git show 593e6b76702c5dbffaaa91b59f4faaed705d04ce:FormalConjectures/ErdosProblems/264.lean",
+    "successor_file": "git show 0598b8f281060a18416d60753fd75621d659bb07:FormalConjectures/ErdosProblems/264.lean",
+    "diff": "git diff --no-ext-diff --no-textconv --no-color --full-index 593e6b76702c5dbffaaa91b59f4faaed705d04ce 0598b8f281060a18416d60753fd75621d659bb07 -- FormalConjectures/ErdosProblems/264.lean"
+  }
+}

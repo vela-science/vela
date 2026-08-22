@@ -1,0 +1,141 @@
+{
+  "schema": "vela.real-correction-evidence-binding.v1",
+  "authority": "non_authoritative_research_evidence",
+  "evidence_repository": {
+    "repository": "https://github.com/vela-science/erdos-frontier.git",
+    "commit": "12fdb0ad09c710469e50a60e8a6e2c81c9d18c3f",
+    "tree": "8b57c21c6c2a1ae279a3171cbad47291ab7af44c",
+    "repository_manifest_root": "sha256:f03be3a76ce43be0c2f9ca63ff731b9a5ff5c010b768e95b46a35f3a067eed96",
+    "retained_prefix": "vela-repository"
+  },
+  "trust_anchor": {
+    "kind": "review_packet_declared_public_keyset_root",
+    "root": "sha256:c4a88730dead6074cce49cce6649b23874dfed41c598815852f62ca65741f328",
+    "path": "vela-repository/.vela/authority/keysets/c4a88730dead6074cce49cce6649b23874dfed41c598815852f62ca65741f328.json",
+    "boundary": "The verifier receives this root from the independently rooted packet binding, not from a signed envelope. This binds the historical public key; it does not create new authority."
+  },
+  "authorization_material": {
+    "policy_bundle_root": "sha256:3c0743077d051b5a84e932dcfe6fc4e764fe39738a3040aebdc11276f53ee83f",
+    "policy_bundle_path": "vela-repository/.vela/authority/policies/3c0743077d051b5a84e932dcfe6fc4e764fe39738a3040aebdc11276f53ee83f.json",
+    "schema_root": "sha256:2563eb2848122e4bf366be8101abff7b17dfc6d49e1aab7541db1ac73df86ad7",
+    "policies_root": "sha256:c997e39a024934e7355f73422ac10f401398e2ff593dc89de6ffe25c97d452ec",
+    "entities_root": "sha256:d2ee11de37fb6025d7fb072a6787fc92c8939461eb41215b8b9e76801b72e6cb",
+    "entity_snapshot_root": "sha256:68e534baba599a16986db595f3c409f0b0a6f5b484418a7015cf6da5ca53bdcc",
+    "reconstruction_profile": "Vela 0.963.0 Cedar restricted-profile request and entity commitments"
+  },
+  "authority_chain": [
+    {
+      "sequence": 1,
+      "record_id": "var_7f7700bbca5a556d",
+      "path": "vela-repository/.vela/authority/records/var_7f7700bbca5a556d.dsse.json",
+      "file_root": "sha256:fb6b99c49229f80fb35340cb27ff383b0f8ed6b4c50231bbf249ce1e194cc55c",
+      "payload_root": "sha256:006ddcf5f56e82d90dbfd92d941f85ebf01aa22c047627e261260c02aaba9833",
+      "previous_payload_root": null,
+      "event_ids": ["vev_0697e43b72ca9f36"]
+    },
+    {
+      "sequence": 2,
+      "record_id": "var_f8ca9ec260786748",
+      "path": "vela-repository/.vela/authority/records/var_f8ca9ec260786748.dsse.json",
+      "file_root": "sha256:d8e9731dbcca7a7c94c2db6df47573bc6dcb5aeafad6a786e0589eea2948a23e",
+      "payload_root": "sha256:9896736f53262d14ff7d5f5dcdd752ef6c36250e64bf672f68101dad38682940",
+      "previous_payload_root": "sha256:006ddcf5f56e82d90dbfd92d941f85ebf01aa22c047627e261260c02aaba9833",
+      "event_ids": ["vev_37fa3d9f9be64e58", "vev_53e2221142bf8400"]
+    },
+    {
+      "sequence": 3,
+      "record_id": "var_ffa42dd829022312",
+      "path": "vela-repository/.vela/authority/records/var_ffa42dd829022312.dsse.json",
+      "file_root": "sha256:a099e4dae3e303ea1bf0107e8bc7c49c9dd9434caa803368036971d99f0d9c89",
+      "payload_root": "sha256:f8aeb1a4e4ee35756afa63643ba692fb325daf842a1c50cb2b7262a51e0f6777",
+      "previous_payload_root": "sha256:9896736f53262d14ff7d5f5dcdd752ef6c36250e64bf672f68101dad38682940",
+      "event_ids": ["vev_4176b1a0700b2256", "vev_670c0f9318e2332f"]
+    },
+    {
+      "sequence": 4,
+      "record_id": "var_862a88c79456a6a5",
+      "path": "vela-repository/.vela/authority/records/var_862a88c79456a6a5.dsse.json",
+      "file_root": "sha256:e60bdf2c05f60deca8330f85bb4bd9aa41aced83d3de895709c8dfe13b8b1a7e",
+      "payload_root": "sha256:54159e84ec950163d1e298f11f4313eea2215e93083b128083b6a60f55daa328",
+      "previous_payload_root": "sha256:f8aeb1a4e4ee35756afa63643ba692fb325daf842a1c50cb2b7262a51e0f6777",
+      "event_ids": ["vev_0325f467077ed92e", "vev_2e265868d5a76496"]
+    },
+    {
+      "sequence": 5,
+      "record_id": "var_39e6894a8f9021d0",
+      "path": "vela-repository/.vela/authority/records/var_39e6894a8f9021d0.dsse.json",
+      "file_root": "sha256:f93c63e3957d3561d5ea789d94b6095de941388a18a6d8996ea1178b019d0a96",
+      "payload_root": "sha256:8cc7b9f31b4efcac27f747bd4371cb870870d063b8bbd17418bc51068026b3b3",
+      "previous_payload_root": "sha256:54159e84ec950163d1e298f11f4313eea2215e93083b128083b6a60f55daa328",
+      "event_ids": ["vev_1eb5a0cf93129351", "vev_7abd13c53ee521f6"]
+    }
+  ],
+  "repository_history": [
+    {
+      "sequence": 1,
+      "before": {"commit": "fc7b922e54e4a0a61ab590482135b54508b11e1e", "tree": "0036ac90dde0f2cf0ac7bbeb41334cffd8682f70", "path": "repository-history/sequence-01/before.json", "root": "sha256:8a95f5d495233708790e4ee1e911339a4c040defd63e09ec687d99f73e6701c9"},
+      "after": {"commit": "54f140e0e62d01fac3f608f33f031c14a43e6ac4", "tree": "33b3e1bcad93846566a3821308212783456821b6", "path": "repository-history/sequence-01/after.json", "root": "sha256:89cacf7d7665aa5942d7d6e5fc221b53b5f5794ce76077782f3b2c0820cd0b18"}
+    },
+    {
+      "sequence": 2,
+      "before": {"commit": "41e1fc3120dc91836a06eacd0799f7ce103553a2", "tree": "62ac2922140aa677d59b44828e39ad5a75188791", "path": "repository-history/sequence-02/before.json", "root": "sha256:5a7f78b70777096665b968c70ce652406973310087cd2d69f3cd92a4f3362bb2"},
+      "after": {"commit": "1d191a3f65bae4b85aa5db58eb4f43cb5e6b94b2", "tree": "97e644460d8422f2956197d2b9bd37dff0f65664", "path": "repository-history/sequence-02/after.json", "root": "sha256:e9b67253e139e2fd365aa0f7dce0949f898174895f1602c59fd6c5b0d862c443"}
+    },
+    {
+      "sequence": 3,
+      "before": {"commit": "4e863be985bf0153fd9b911fbc7a31e96c8b15bd", "tree": "d1373c508543be698f17d879ee9934a2e3d3afdb", "path": "repository-history/sequence-03/before.json", "root": "sha256:65c678a89fceba4e44500a6743a23f7d3adf6c189133e417838dd2d28ea6009d"},
+      "after": {"commit": "9e47f2114454e3577fe4fd9021a310f20872b8da", "tree": "054b6a622167a3f6fb7dc076d2855b6278431e47", "path": "repository-history/sequence-03/after.json", "root": "sha256:d07477153b4f3fedff624537fafdb66a24290df14ebdf559687a954b70db3090"}
+    },
+    {
+      "sequence": 4,
+      "before": {"commit": "4509a731317b040a8e4031a704c16a03076ae89f", "tree": "a341c72b2140ed857846c99aafb23928239adcef", "path": "repository-history/sequence-04/before.json", "root": "sha256:60c2a1393147d5264f909f4d023b35d7a81e1c6e9eda31bcfea3140d313b1466"},
+      "after": {"commit": "0a6df29ead2ae22e8c3bc2816d953eee81e0d0e2", "tree": "72fdf3f6916e59dc608f3b35a6ab87aff42a348b", "path": "repository-history/sequence-04/after.json", "root": "sha256:7b4f3c057bd97f9f04d7dea67d3ea77d13c4156fa5abb78c6a4288278ceb7094"}
+    },
+    {
+      "sequence": 5,
+      "before": {"commit": "384d6350170bf056f5c8e73450282a523ad3c21a", "tree": "cc505a97c2b2c0ea839ad5eb6fc9a82bd3b7d757", "path": "repository-history/sequence-05/before.json", "root": "sha256:c140453eaa36a314fdbbc524aea84a7bb6e91f89eeface403487fe3c3bfad574"},
+      "after": {"commit": "ea44055f33ec04509385454228fd6cba8fcfe562", "tree": "77a4a11d6b3109d42e6e0668400d8d2659819ee9", "path": "repository-history/sequence-05/after.json", "root": "sha256:f53da541680e2317cd96d64237fa0ced9eb6e4776b03023d5675d0e76b35bc2c"}
+    }
+  ],
+  "correction_objects": {
+    "artifact_root": "sha256:4443284e9856a2df1902dd81fb443f4042fb28b510278bfa2fe23ef935be3173",
+    "submission_root": "sha256:d1d8268c3965d6de989281783fb7d1671146fac89a50c86ab4aa52e7b5f3fef8",
+    "verification_root": "sha256:7916115d50fc14cb5def642a7e98546f5ae0bffd348b6bfd2fb2936c0e68799d",
+    "claim_root": "sha256:4d3f546331886ba10891c1ceb46267993d41b99ed746a19b74d91ccb9448b16e",
+    "proposal_root": "sha256:e39bffa8b082252788ac39d56879ccbfe83e9684775ef648bb9cdb18ec22c981",
+    "decision_sequence": 4
+  },
+  "accepted_repair_objects": {
+    "source_repository": "https://github.com/google-deepmind/formal-conjectures.git",
+    "source_commit": "e6d6b867dc85eec2f88bc47496b4314c623f9f92",
+    "source_tree": "1e24e996a9fee330dc885ec2b314f60bfd508985",
+    "source_blob": "2f3a187a7f1a429b78c888eefb86548d80edecc3",
+    "source_root": "sha256:c59caaa2524e3edd52944e63f5d9bb0614f1bc36d7fb8a0fec7029c14c266b46",
+    "artifact_root": "sha256:9ba4b0c8aa144985aac8df40ee070c0ffe4ab7b59915d9b44eb90b42f96935e8",
+    "submission_root": "sha256:5bd82ea117c726b12ad8c1b9cf6549044f04447cf24371aaab09548363b423d0",
+    "verification_root": "sha256:9f39c297721c4fee479ac8ecb4b649806a2d3bdd928305e485b8cef0637c1b8c",
+    "claim_root": "sha256:f10be036e34c291bfb4c58a61e1c2e91696b717e5bd7b4f50d27bd85bf0e3051",
+    "proposal_root": "sha256:93167fec1c8172bfbec5f7e624d0901ddf09e59e1935d1497cd44f43bac7453c",
+    "decision_sequence": 5
+  },
+  "local_downstream_records": {
+    "independent_problem_claim": {"claim_id": "vcl_a9601802c65da247739eec2247cfcc5ae3016961673d346227af4e469f36fe82", "root": "sha256:254621848ba12e76bff9970be183532499be6d86e4ee50e6bed341dc6739f00d", "sequence_4_disposition": "accepted_before_and_after"},
+    "mutable_source_locator_claim": {"claim_id": "vcl_6b7736bc99918aee6ef5c3870861e3585cb1d07f4eaf199e4f4755b0375b9327", "root": "sha256:7b12517e7ba9c077e00f18d8db3c0430950e1b05f1e2acf05593c2218a85d7be", "sequence_4_disposition": "accepted_before_absent_after_and_superseded_by_correction_event"},
+    "hosted_parts_i_proof_claim": {"claim_id": "vcl_4386c93709bd09fc4c531108c633731e341862247309b5aa02aa1792111983f4", "root": "sha256:62dd229a78539a2c74747b0b0ee859f326b18b9bfc13395eea0168a6c7d734ac", "safe_action": "rebind_and_reverify"}
+  },
+  "hosted_proof": {
+    "repository": "https://github.com/plby/lean-proofs.git",
+    "commit": "68da20b96673899166e94638f5a7fffeb7231d35",
+    "tree": "1d42e6d9d0fecef7de0c6c2a6e3cf7d58283bab8",
+    "path": "src/v4.29.1/ErdosProblems/Erdos264.lean",
+    "blob": "30b1d357d90888a38a3703d7503c6ec34ae7dc7f",
+    "root": "sha256:10c61b6082a51a85d7b0e41bffc7ee0799d46183b6a3848a9816cf9e943fedf2",
+    "retained_path": "hosted-proof/src/v4.29.1/ErdosProblems/Erdos264.lean"
+  },
+  "claim_ceiling": [
+    "The retained chain establishes Repository-local Decisions and Standing only at the bound historical roots.",
+    "The hosted proof bytes are evidence requiring reassessment; this packet does not assert that they prove the corrected theorem.",
+    "One accepted dependent repair does not establish complete correction propagation, general scientific lift, or external adoption.",
+    "This research packet creates no authority or Standing effect."
+  ]
+}
