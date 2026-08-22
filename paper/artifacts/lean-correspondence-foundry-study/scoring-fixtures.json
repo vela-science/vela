@@ -1,0 +1,221 @@
+{
+  "schema": "vela.lean-correspondence-scoring-fixtures.v1",
+  "no_scientific_data": true,
+  "time_cap_seconds": "1200.000000000",
+  "elapsed_seconds": ["10.000000000", "20.000000000", "1300.000000000", null],
+  "expected_restricted_seconds": ["10.000000000", "20.000000000", "1200.000000000", "1200.000000000"],
+  "expected_restricted_mean": "607.500000000",
+  "rate_fixture": {"numerator": 5, "denominator": 6, "expected": "0.833333333333"},
+  "lift_fixtures": [
+    {"assisted": 5, "control": 4, "minimum_strict_increment": 1, "expected_positive": true},
+    {"assisted": 5, "control": 5, "minimum_strict_increment": 1, "expected_positive": false},
+    {"assisted": 4, "control": 5, "minimum_strict_increment": 1, "expected_positive": false}
+  ],
+  "score_row_fields": ["denominator", "relation_correct", "change_classification_correct", "impact_complete", "composite_exact", "false_inference"],
+  "flagship_cases": [
+    {
+      "name": "realizable_registered_positive",
+      "expected_pass": true,
+      "summary_rows": {
+        "partition_counts": {"assisted":36,"raw":36,"total":72},
+        "family_assisted": [
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0]
+        ],
+        "family_raw": [
+          [6,4,4,4,4,0],
+          [6,4,4,4,4,0],
+          [6,4,4,4,4,0],
+          [6,4,4,4,4,0],
+          [6,4,4,4,4,0],
+          [6,4,4,4,4,0]
+        ],
+        "configuration_assisted": [
+          [18,15,15,15,15,0],
+          [18,15,15,15,15,0]
+        ],
+        "configuration_raw": [
+          [18,12,12,12,12,0],
+          [18,12,12,12,12,0]
+        ],
+        "aggregate_assisted": [36,30,30,30,30,0],
+        "aggregate_raw": [36,24,24,24,24,0],
+        "restricted_time_ratio": "0.800000000000"
+      }
+    },
+    {
+      "name": "realizable_configuration_null_with_aggregate_lift",
+      "expected_pass": true,
+      "summary_rows": {
+        "partition_counts": {"assisted":36,"raw":36,"total":72},
+        "family_assisted": [
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0]
+        ],
+        "family_raw": [
+          [6,3,3,3,3,0],
+          [6,3,3,3,3,0],
+          [6,4,4,4,3,0],
+          [6,4,4,4,3,0],
+          [6,4,4,4,4,0],
+          [6,4,4,4,4,0]
+        ],
+        "configuration_assisted": [
+          [18,18,18,18,18,0],
+          [18,12,12,12,12,0]
+        ],
+        "configuration_raw": [
+          [18,10,10,10,9,0],
+          [18,12,12,12,11,0]
+        ],
+        "aggregate_assisted": [36,30,30,30,30,0],
+        "aggregate_raw": [36,22,22,22,20,0],
+        "restricted_time_ratio": "0.800000000000"
+      }
+    },
+    {
+      "name": "aggregate_passes_but_configuration_relation_reverses",
+      "expected_pass": false,
+      "summary_rows": {
+        "partition_counts": {"assisted":36,"raw":36,"total":72},
+        "family_assisted": [
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0]
+        ],
+        "family_raw": [
+          [6,3,3,3,3,0],
+          [6,3,3,3,3,0],
+          [6,4,4,4,3,0],
+          [6,4,4,4,3,0],
+          [6,4,4,4,4,0],
+          [6,4,4,4,4,0]
+        ],
+        "configuration_assisted": [
+          [18,18,18,18,18,0],
+          [18,12,12,12,12,0]
+        ],
+        "configuration_raw": [
+          [18,9,10,10,9,0],
+          [18,13,12,12,11,0]
+        ],
+        "aggregate_assisted": [36,30,30,30,30,0],
+        "aggregate_raw": [36,22,22,22,20,0],
+        "restricted_time_ratio": "0.800000000000"
+      }
+    },
+    {
+      "name": "aggregate_passes_but_configuration_change_reverses",
+      "expected_pass": false,
+      "summary_rows": {
+        "partition_counts": {"assisted":36,"raw":36,"total":72},
+        "family_assisted": [
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0]
+        ],
+        "family_raw": [
+          [6,3,3,3,3,0],
+          [6,3,3,3,3,0],
+          [6,4,4,4,3,0],
+          [6,4,4,4,3,0],
+          [6,4,4,4,4,0],
+          [6,4,4,4,4,0]
+        ],
+        "configuration_assisted": [
+          [18,18,18,18,18,0],
+          [18,12,12,12,12,0]
+        ],
+        "configuration_raw": [
+          [18,10,9,10,9,0],
+          [18,12,13,12,11,0]
+        ],
+        "aggregate_assisted": [36,30,30,30,30,0],
+        "aggregate_raw": [36,22,22,22,20,0],
+        "restricted_time_ratio": "0.800000000000"
+      }
+    },
+    {
+      "name": "aggregate_passes_but_configuration_impact_reverses",
+      "expected_pass": false,
+      "summary_rows": {
+        "partition_counts": {"assisted":36,"raw":36,"total":72},
+        "family_assisted": [
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0],
+          [6,5,5,5,5,0]
+        ],
+        "family_raw": [
+          [6,3,3,3,3,0],
+          [6,3,3,3,3,0],
+          [6,4,4,4,3,0],
+          [6,4,4,4,3,0],
+          [6,4,4,4,4,0],
+          [6,4,4,4,4,0]
+        ],
+        "configuration_assisted": [
+          [18,18,18,18,18,0],
+          [18,12,12,12,12,0]
+        ],
+        "configuration_raw": [
+          [18,10,10,9,9,0],
+          [18,12,12,13,11,0]
+        ],
+        "aggregate_assisted": [36,30,30,30,30,0],
+        "aggregate_raw": [36,22,22,22,20,0],
+        "restricted_time_ratio": "0.800000000000"
+      }
+    },
+    {
+      "name": "realizable_overall_null",
+      "expected_pass": false,
+      "summary_rows": {
+        "partition_counts": {"assisted":36,"raw":36,"total":72},
+        "family_assisted": [
+          [6,4,4,4,4,0],
+          [6,4,4,4,4,0],
+          [6,4,4,4,4,0],
+          [6,4,4,4,4,0],
+          [6,4,4,4,4,0],
+          [6,4,4,4,4,0]
+        ],
+        "family_raw": [
+          [6,4,4,4,4,0],
+          [6,4,4,4,4,0],
+          [6,4,4,4,4,0],
+          [6,4,4,4,4,0],
+          [6,4,4,4,4,0],
+          [6,4,4,4,4,0]
+        ],
+        "configuration_assisted": [
+          [18,12,12,12,12,0],
+          [18,12,12,12,12,0]
+        ],
+        "configuration_raw": [
+          [18,12,12,12,12,0],
+          [18,12,12,12,12,0]
+        ],
+        "aggregate_assisted": [36,24,24,24,24,0],
+        "aggregate_raw": [36,24,24,24,24,0],
+        "restricted_time_ratio": "0.800000000000"
+      }
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "schema": "vela.lean-correspondence-foundry-artifact-manifest.v1",
+  "artifact_root": "sha256:2d909b874eedc765546010e799d6fde709c88f3fcc623b45ab46130c3dfa68e4",
+  "entries": [
+    {
+      "path": "PAPER_PLAN.md",
+      "bytes": 7303,
+      "sha256": "bba3acac1dc786ff20b234789d73d3203aa26d0f768c238266bba4a27192cc27"
+    },
+    {
+      "path": "PROMPT.md",
+      "bytes": 3439,
+      "sha256": "111f9eb8c03a18d2c08f692591da2f27f2c13a1f098486f6aeb8d40e4f5fd6db"
+    },
+    {
+      "path": "PROTOCOL.md",
+      "bytes": 18234,
+      "sha256": "f596e097178854850098b675aa451c4d7089c4693351377cb3f58c131049c3ab"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3906,
+      "sha256": "e475a8abdb97e1cf6a45e78ba070288d746d60177e44d97fd2ebc8aa0f95b40c"
+    },
+    {
+      "path": "evidence-bindings.json",
+      "bytes": 6123,
+      "sha256": "a9abe6625e68a2c45865bf1b04a023d718bb8d21f478bb6398dc5db846435d5f"
+    },
+    {
+      "path": "foundry-packet.schema.json",
+      "bytes": 6029,
+      "sha256": "b9953c621101cac688c37cb4fd8284312dbec218f2555909e9b875406635c25d"
+    },
+    {
+      "path": "prelaunch-state-machine.json",
+      "bytes": 2645,
+      "sha256": "16b4a08591a320e9cb044a3205c9f4122fc2979aa980235c67ae1ef5a3c5d169"
+    },
+    {
+      "path": "prelaunch-state.json",
+      "bytes": 477,
+      "sha256": "23cfdc5897609b3204a20b0e192133d5a7643437e87f3c446d2ed266fc59bc5e"
+    },
+    {
+      "path": "prelaunch-state.schema.json",
+      "bytes": 6143,
+      "sha256": "5a89ef1ab24e2f2eca962c6940a9531bc6a32fb785fd0aa977a0414476818e6b"
+    },
+    {
+      "path": "response.schema.json",
+      "bytes": 2498,
+      "sha256": "b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268"
+    },
+    {
+      "path": "scoring-fixtures.json",
+      "bytes": 6470,
+      "sha256": "db6bb5a7dc6a5528ea84563af79d5ae7728ccb65da77120ea3dd0544310cfdb1"
+    },
+    {
+      "path": "study-contract.json",
+      "bytes": 6516,
+      "sha256": "2cf64a1838fbc6fbbf25234639d2ec027d76e9f20e900f36b45902c89c5234ee"
+    },
+    {
+      "path": "test_verify.py",
+      "bytes": 10476,
+      "sha256": "fc9ed5eed8c623048445df21be8590b9148d3265188a8a2a191fdf33f11bf2e2"
+    },
+    {
+      "path": "verify.py",
+      "bytes": 35586,
+      "sha256": "a0e8140afc71b9273b9c1c7c41786d2bf5bfe8942d9c9d148b6b7f7d48b87040"
+    }
+  ]
+}

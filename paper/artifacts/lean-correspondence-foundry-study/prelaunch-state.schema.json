@@ -1,0 +1,285 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.science/schemas/lean-correspondence-stage-b-prelaunch-state.v1.json",
+  "title": "Lean Correspondence Stage B prelaunch state",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "state",
+    "authority_effect",
+    "selected_family_count",
+    "family_assignment_prelaunch_binding_root",
+    "selected_binding_review",
+    "qualification_receipt_root",
+    "stage_b_permits_created",
+    "stage_b_permits_releasable"
+  ],
+  "properties": {
+    "schema": {
+      "const": "vela.lean-correspondence-stage-b-prelaunch-state.v1"
+    },
+    "state": {
+      "enum": [
+        "method_frozen",
+        "stage_a_passed",
+        "selection_frozen_pending_independent_review",
+        "selected_binding_independent_review_passed",
+        "runtime_qualified",
+        "ready_for_stage_b_permit_creation",
+        "stopped"
+      ]
+    },
+    "authority_effect": {
+      "const": "none"
+    },
+    "selected_family_count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 6
+    },
+    "family_assignment_prelaunch_binding_root": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/root"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "selected_binding_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reviewed_binding_root",
+        "review_commit",
+        "independent"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "not_requested",
+            "pending",
+            "PASS",
+            "BLOCKED",
+            "stale"
+          ]
+        },
+        "reviewed_binding_root": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/root"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "review_commit": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "independent": {
+          "type": "boolean"
+        }
+      }
+    },
+    "qualification_receipt_root": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/root"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "stage_b_permits_created": {
+      "type": "boolean"
+    },
+    "stage_b_permits_releasable": {
+      "type": "boolean"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "method_frozen",
+              "stage_a_passed",
+              "selection_frozen_pending_independent_review",
+              "selected_binding_independent_review_passed"
+            ]
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "qualification_receipt_root": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "selection_frozen_pending_independent_review",
+              "selected_binding_independent_review_passed",
+              "runtime_qualified",
+              "ready_for_stage_b_permit_creation"
+            ]
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "selected_family_count": {
+            "const": 6
+          },
+          "family_assignment_prelaunch_binding_root": {
+            "$ref": "#/$defs/root"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "selected_binding_independent_review_passed",
+              "runtime_qualified",
+              "ready_for_stage_b_permit_creation"
+            ]
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/reviewPassed"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "runtime_qualified",
+              "ready_for_stage_b_permit_creation"
+            ]
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "qualification_receipt_root": {
+            "$ref": "#/$defs/root"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "stage_b_permits_created": {
+            "const": true
+          }
+        },
+        "required": [
+          "stage_b_permits_created"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/permitReady"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "stage_b_permits_releasable": {
+            "const": true
+          }
+        },
+        "required": [
+          "stage_b_permits_releasable"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/permitReady"
+      }
+    }
+  ],
+  "$defs": {
+    "permitReady": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/reviewPassed"
+        }
+      ],
+      "properties": {
+        "state": {
+          "const": "ready_for_stage_b_permit_creation"
+        },
+        "selected_family_count": {
+          "const": 6
+        },
+        "family_assignment_prelaunch_binding_root": {
+          "$ref": "#/$defs/root"
+        },
+        "qualification_receipt_root": {
+          "$ref": "#/$defs/root"
+        }
+      }
+    },
+    "reviewPassed": {
+      "properties": {
+        "selected_binding_review": {
+          "properties": {
+            "status": {
+              "const": "PASS"
+            },
+            "reviewed_binding_root": {
+              "$ref": "#/$defs/root"
+            },
+            "review_commit": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            "independent": {
+              "const": true
+            }
+          }
+        }
+      }
+    },
+    "root": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  }
+}

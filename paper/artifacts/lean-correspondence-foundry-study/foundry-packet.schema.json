@@ -1,0 +1,275 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.science/schemas/foundry-lean-correspondence-packet.v1.json",
+  "title": "Derived read-only Lean Correspondence packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "authority_effect",
+    "derived_packet_root",
+    "source",
+    "target",
+    "relation",
+    "witness",
+    "current_validity",
+    "change_classification",
+    "impact_closure",
+    "uncertainty",
+    "repository_authority_contexts",
+    "does_not_establish"
+  ],
+  "properties": {
+    "schema": {
+      "const": "foundry.lean-correspondence-packet.v1"
+    },
+    "authority_effect": {
+      "const": "none"
+    },
+    "derived_packet_root": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "source": {
+      "$ref": "#/$defs/endpoint"
+    },
+    "target": {
+      "$ref": "#/$defs/endpoint"
+    },
+    "relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "relation_id",
+        "relation_type",
+        "record_root"
+      ],
+      "properties": {
+        "relation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "relation_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "record_root": {
+          "$ref": "#/$defs/root"
+        }
+      }
+    },
+    "witness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "outcome",
+        "evidence_root",
+        "limitations"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "outcome": {
+          "enum": [
+            "passed",
+            "failed",
+            "unavailable",
+            "not_run"
+          ]
+        },
+        "evidence_root": {
+          "$ref": "#/$defs/root"
+        },
+        "limitations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "current_validity": {
+      "enum": [
+        "valid",
+        "invalid",
+        "stale",
+        "candidate_unverified",
+        "unprovable"
+      ]
+    },
+    "change_classification": {
+      "enum": [
+        "semantic_change",
+        "environment_drift",
+        "both",
+        "neither",
+        "unprovable"
+      ]
+    },
+    "impact_closure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_complete",
+        "items",
+        "impact_root"
+      ],
+      "properties": {
+        "scope_complete": {
+          "type": "boolean"
+        },
+        "items": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "item_id",
+              "disposition",
+              "evidence_root"
+            ],
+            "properties": {
+              "item_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "disposition": {
+                "enum": [
+                  "recheck",
+                  "invalidate_relation",
+                  "remains_valid",
+                  "blocked_unprovable"
+                ]
+              },
+              "evidence_root": {
+                "$ref": "#/$defs/root"
+              }
+            }
+          }
+        },
+        "impact_root": {
+          "$ref": "#/$defs/root"
+        }
+      }
+    },
+    "uncertainty": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "repository_authority_contexts": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "repository_id",
+          "repository_root",
+          "local_standing",
+          "decision_root",
+          "scope_note"
+        ],
+        "properties": {
+          "repository_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "repository_root": {
+            "$ref": "#/$defs/root"
+          },
+          "local_standing": {
+            "enum": [
+              "accepted",
+              "rejected",
+              "unassessed",
+              "not_available"
+            ]
+          },
+          "decision_root": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/root"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scope_note": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "does_not_establish": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "$defs": {
+    "root": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "commit",
+        "tree",
+        "path",
+        "blob",
+        "declaration",
+        "environment_root"
+      ],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "tree": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "blob": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "declaration": {
+          "type": "string",
+          "minLength": 1
+        },
+        "environment_root": {
+          "$ref": "#/$defs/root"
+        }
+      }
+    }
+  }
+}
