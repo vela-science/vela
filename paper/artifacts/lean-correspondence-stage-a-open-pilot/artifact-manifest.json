@@ -1,11 +1,11 @@
 {
-  "artifact_root": "sha256:9265ecb3627b3a446468746342d4666d194456f9f080b8bb0461edf2b7ebbe38",
+  "artifact_root": "sha256:92d5a8234530be8ba19f994ce0ef429fa06a63b124a368a279561137b15bf735",
   "authority_effect": "none",
   "entries": [
     {
-      "bytes": 4842,
+      "bytes": 5274,
       "path": "README.md",
-      "sha256": "sha256:1af7f82293a26baa4779124d5f50e68fd7f77a5c32fc406bd6cf94c5527b3651"
+      "sha256": "sha256:43b711876f6cd912efecd2d833bef76449c4c2918f92c711052da764e18e643a"
     },
     {
       "bytes": 8166,
@@ -308,14 +308,14 @@
       "sha256": "sha256:6e4714b89b784dd0e637369b7494cc175ce7c5c3f39cdbf959964b9cdfbf973d"
     },
     {
-      "bytes": 14779,
+      "bytes": 30864,
       "path": "test_verify.py",
-      "sha256": "sha256:8fb9f0d28e74d05647f7b82911266140b9f932103dec7bde031f13beb65a054f"
+      "sha256": "sha256:b1ba05263f8225b177879f67c57211fec0e71f1a8b95bfb3ae46ccae5296a35c"
     },
     {
-      "bytes": 48465,
+      "bytes": 82557,
       "path": "verify.py",
-      "sha256": "sha256:6bcec77ae6fd91d4e1231ef89e39af416d064b743e07c90a8b1a2cc6493c9338"
+      "sha256": "sha256:f1e1e7949036bf801d2e949473f7541473d1222087c267a64b30e62a91e960da"
     }
   ],
   "schema": "vela.lean-correspondence-stage-a-artifact-manifest.v1"
