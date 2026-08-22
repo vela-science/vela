@@ -1,0 +1,21 @@
+{
+  "assignment_id": "neutral-calibration-assignment-anthropic",
+  "attempt": 1,
+  "condition": "neutral-no-science-held",
+  "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
+  "consumed_at": null,
+  "image_digest": "sha256:d314adbd8b3765d9aada03bd5bd87ec77826cd81fdc8c8aab3982dce3165385d",
+  "issued_at": "2026-08-21T00:00:00Z",
+  "packet_root": "sha256:a38b18fb6284288f352e234aa32cffb79af880a03d8faf7c1e3492e6d8eba267",
+  "participant_id": "neutral-calibration-anthropic",
+  "prompt_root": "sha256:3443fa942b90f84718cc4e6918ebf6d121ebc40cf58f5b3c610f4e983c4d4ed9",
+  "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
+  "registered_schema_bytes": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
+  "registration_id": "stage-a-runtime-registration",
+  "run_id": "neutral-calibration-anthropic-json-v3-replacement",
+  "runner_version": "neutral-runner/1",
+  "runtime_source_root": "sha256:27502e951b7c924738d9edbee7bcbf8044e371731076726ca5408425caef7e4a",
+  "schema": "vela.tooling.closed-launch-permit.v1",
+  "status": "held",
+  "timeout_seconds": 1200
+}

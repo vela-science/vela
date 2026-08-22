@@ -1,0 +1,1 @@
+{"bridge_fd_closed":true,"children":[{"name":"participant_runner_container","exit_code":0},{"name":"anthropic_host_bridge","exit_code":0}],"credential_fd_closed":true,"credential_retained":false,"participant_network":"none","schema":"vela.stage-a-anthropic-neutral-process-teardown.v2","status":"completed"}

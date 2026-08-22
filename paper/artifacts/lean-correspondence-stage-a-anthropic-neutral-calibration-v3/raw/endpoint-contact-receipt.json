@@ -1,0 +1,1 @@
+{"endpoint":"https://api.anthropic.com/v1/messages","endpoint_attempt_receipts":[{"provider_calls":1,"type":"endpoint_attempt"}],"provider":"Anthropic","provider_calls":1,"run_id":"neutral-calibration-anthropic-json-v3-replacement","schema":"vela.stage-a-endpoint-contact-receipt.v2","source":"host-tee-of-bridge-to-runner-frame-stream"}
