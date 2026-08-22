@@ -76,7 +76,10 @@ Every contributing object is also closed recursively: nested case inventories,
 claim ceilings, relation endpoints, runtime prerequisites, configuration slots,
 packet atoms, assignment and permit rows, qualifier bindings, scoring semantics,
 and prelaunch counters reject unknown keys, type substitutions, and values outside
-the frozen contract even when every dependent root is regenerated.
+the frozen contract even when every dependent root is regenerated. Integer fields
+use exact `int` checks before value or range comparisons, so Python booleans cannot
+stand in for zero or one; canonical Decimal-like scoring controls remain exact
+strings and reject integer or boolean substitutions.
 The adversarial suite refreshes the outer manifest after the reviewed provider,
 tool, network, partial-binding, and claim-inflation mutations and still requires
 failure. It also rejects stale registered roots, cross-bound configuration or

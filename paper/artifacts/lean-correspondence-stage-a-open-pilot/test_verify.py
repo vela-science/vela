@@ -268,6 +268,17 @@ class StageAPrelaunchTests(unittest.TestCase):
         self.assertEqual(result["released_permits"], 0)
         self.assertFalse(result["execution_authorized"])
         self.assertEqual(result["authority_effect"], "none")
+        for field in (
+            "fixed_denominator",
+            "held_permits",
+            "released_permits",
+            "provider_calls",
+            "participant_responses",
+            "scoring_attempts",
+            "key_accesses",
+            "stage_b_families_selected",
+        ):
+            self.assertIs(type(result[field]), int, field)
 
     def test_rejects_stale_assignment_root(self) -> None:
         with mutated_root() as root:
@@ -558,6 +569,14 @@ class StageAPrelaunchTests(unittest.TestCase):
                 "runtime_type:required_participant_configuration_count"
             )
 
+    def test_fully_resealed_runtime_boolean_counter_fails_closed(self) -> None:
+        with mutated_root() as root:
+            runtime = json.loads((root / "runtime-binding.json").read_text())
+            runtime["provider_calls"] = False
+            write_json(root / "runtime-binding.json", runtime)
+            reseal_all_dependent_roots(root)
+            self.assert_full_verification_blocked("runtime_type:provider_calls")
+
     def test_fully_resealed_relation_endpoint_unknown_field_fails_closed(self) -> None:
         with mutated_root() as root:
             path = root / "invalid-fixture/candidate-relation.json"
@@ -585,6 +604,14 @@ class StageAPrelaunchTests(unittest.TestCase):
             reseal_all_dependent_roots(root)
             self.assert_full_verification_blocked("assignment_row_type:ordinal")
 
+    def test_fully_resealed_assignment_boolean_attempt_fails_closed(self) -> None:
+        with mutated_root() as root:
+            schedule = json.loads((root / "assignment-schedule.json").read_text())
+            schedule["rows"][0]["attempt"] = True
+            write_json(root / "assignment-schedule.json", schedule)
+            reseal_all_dependent_roots(root)
+            self.assert_full_verification_blocked("assignment_row_type:attempt")
+
     def test_fully_resealed_configuration_unknown_field_fails_closed(self) -> None:
         with mutated_root() as root:
             configurations = json.loads(
@@ -605,6 +632,16 @@ class StageAPrelaunchTests(unittest.TestCase):
             reseal_all_dependent_roots(root)
             self.assert_full_verification_blocked("configuration_slot_fields")
 
+    def test_fully_resealed_configuration_boolean_counter_fails_closed(self) -> None:
+        with mutated_root() as root:
+            configurations = json.loads(
+                (root / "participant-configurations.json").read_text()
+            )
+            configurations["provider_calls"] = False
+            write_json(root / "participant-configurations.json", configurations)
+            reseal_all_dependent_roots(root)
+            self.assert_full_verification_blocked("configuration_provider_calls_type")
+
     def test_fully_resealed_packet_nested_unknown_field_fails_closed(self) -> None:
         with mutated_root() as root:
             schedule = json.loads((root / "assignment-schedule.json").read_text())
@@ -615,7 +652,19 @@ class StageAPrelaunchTests(unittest.TestCase):
             packet["base_semantic_atoms"][0]["scientific_acceptance"] = "claimed"
             write_json(packet_path, packet)
             reseal_all_dependent_roots(root)
-            self.assert_full_verification_blocked("packet_base_atoms")
+            self.assert_full_verification_blocked("packet_base_atom_fields")
+
+    def test_fully_resealed_packet_boolean_byte_count_fails_closed(self) -> None:
+        with mutated_root() as root:
+            schedule = json.loads((root / "assignment-schedule.json").read_text())
+            packet_path = (
+                root / "packets" / f"{schedule['rows'][0]['assignment_id']}.json"
+            )
+            packet = json.loads(packet_path.read_text())
+            packet["base_semantic_atoms"][0]["bytes"] = False
+            write_json(packet_path, packet)
+            reseal_all_dependent_roots(root)
+            self.assert_full_verification_blocked("packet_base_atom_fields")
 
     def test_fully_resealed_permit_type_inflation_fails_closed(self) -> None:
         with mutated_root() as root:
@@ -634,10 +683,34 @@ class StageAPrelaunchTests(unittest.TestCase):
             reseal_all_dependent_roots(root)
             self.assert_full_verification_blocked("hold_permit_fields")
 
+    def test_fully_resealed_hold_boolean_counter_fails_closed(self) -> None:
+        with mutated_root() as root:
+            hold = json.loads((root / "hold-state.json").read_text())
+            hold["provider_calls"] = False
+            write_json(root / "hold-state.json", hold)
+            reseal_all_dependent_roots(root)
+            self.assert_full_verification_blocked("hold_closed_values")
+
     def test_fully_resealed_custody_type_inflation_fails_closed(self) -> None:
         with mutated_root() as root:
             custody = json.loads((root / "custody-contract.json").read_text())
             custody["scoring_semantics"]["one_scoring_attempt"] = 1
+            write_json(root / "custody-contract.json", custody)
+            reseal_all_dependent_roots(root)
+            self.assert_full_verification_blocked("custody_scoring_semantics")
+
+    def test_fully_resealed_custody_boolean_counter_fails_closed(self) -> None:
+        with mutated_root() as root:
+            custody = json.loads((root / "custody-contract.json").read_text())
+            custody["provider_calls"] = False
+            write_json(root / "custody-contract.json", custody)
+            reseal_all_dependent_roots(root)
+            self.assert_full_verification_blocked("custody_provider_calls_type")
+
+    def test_fully_resealed_custody_decimal_string_type_fails_closed(self) -> None:
+        with mutated_root() as root:
+            custody = json.loads((root / "custody-contract.json").read_text())
+            custody["scoring_semantics"]["decimal_rounding"] = 1
             write_json(root / "custody-contract.json", custody)
             reseal_all_dependent_roots(root)
             self.assert_full_verification_blocked("custody_scoring_semantics")
@@ -660,6 +733,31 @@ class StageAPrelaunchTests(unittest.TestCase):
             write_json(root / "prelaunch-state.json", state)
             reseal_all_dependent_roots(root)
             self.assert_full_verification_blocked("state_closed_values")
+
+    def test_fully_resealed_registration_boolean_count_fails_closed(self) -> None:
+        with mutated_root() as root:
+            registration = json.loads((root / "registration.json").read_text())
+            registration["fresh_sessions_per_cell"] = True
+            write_json(root / "registration.json", registration)
+            reseal_all_dependent_roots(root)
+            self.assert_full_verification_blocked("registration_closed_design")
+
+    def test_fully_resealed_case_boolean_count_fails_closed(self) -> None:
+        with mutated_root() as root:
+            selection = json.loads((root / "case-selection.json").read_text())
+            selection["fixed_case_count"] = True
+            write_json(root / "case-selection.json", selection)
+            reseal_all_dependent_roots(root)
+            self.assert_full_verification_blocked("case_count_type")
+
+    def test_fully_resealed_review_receipt_boolean_exit_fails_closed(self) -> None:
+        with mutated_root() as root:
+            path = root / "invalid-fixture/witness-failure-receipt.json"
+            receipt = json.loads(path.read_text())
+            receipt["observed_exit"] = True
+            write_json(path, receipt)
+            reseal_invalid_fixture_chain(root)
+            self.assert_full_verification_blocked("fixture_receipt_closed_values")
 
 
 if __name__ == "__main__":

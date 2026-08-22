@@ -1016,6 +1016,7 @@ def verify_cases_and_atoms() -> dict[str, dict[str, Any]]:
         "atom_ledger_schema",
     )
     require(ledger["authority_effect"] == "none", "atom_ledger_authority")
+    require_int(selection["fixed_case_count"], "case_count_type")
     require(selection["fixed_case_count"] == 3, "case_count")
     require(
         selection["stage_b_eligibility"] == "permanently_excluded",
@@ -1261,6 +1262,7 @@ def verify_schedule_packets_prompts(cases: dict[str, dict[str, Any]]) -> dict[st
         "assignment_retry_substitution",
     )
     require(schedule["authority_effect"] == "none", "assignment_authority")
+    require_int(schedule["fixed_denominator"], "assignment_denominator_type")
     body = {key: value for key, value in schedule.items() if key != "assignment_root"}
     require(
         generate.canonical_root(body) == schedule["assignment_root"], "assignment_root"
@@ -1406,6 +1408,14 @@ def verify_schedule_packets_prompts(cases: dict[str, dict[str, Any]]) -> dict[st
         require(type(packet["base_semantic_atoms"]) is list, "packet_type:base_atoms")
         require(
             type(packet["derived_mechanism_atoms"]) is list, "packet_type:derived_atoms"
+        )
+        require_file_entries(
+            packet["base_semantic_atoms"],
+            f"packet_base_atom_fields:{row['assignment_id']}",
+        )
+        require_file_entries(
+            packet["derived_mechanism_atoms"],
+            f"packet_derived_atom_fields:{row['assignment_id']}",
         )
         require(
             generate.canonical_root(packet) == row["packet_root"],
@@ -2110,6 +2120,7 @@ def verify_registration_permits_state(schedule: dict[str, Any]) -> tuple[str, st
         custody["scoring_semantics"], expected_scoring, "custody_scoring_semantics"
     )
     require(custody["protected_stage_b_key_created"] is False, "custody_stage_b_key")
+    require_int(custody["provider_calls"], "custody_provider_calls_type")
     require(custody["provider_calls"] == 0, "custody_provider_calls")
     require(custody["authority_effect"] == "none", "custody_authority")
     require(
