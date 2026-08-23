@@ -4,7 +4,7 @@
 accounting cannot say, and a census of the flagship AI-conjecture corpus.**
 
 Draft. All numbers are computed from committed artifacts and reproduce from
-scratch; Section 10 gives exact commands. Nothing here has been reviewed by
+scratch; Section 11 gives exact commands. Nothing here has been reviewed by
 the maintainers of any corpus or registry it discusses.
 
 ---
@@ -253,7 +253,7 @@ with prebuilt artifacts in the census environment; the 29 without — all under
 `FormalConjectures/Arxiv/` — were not imported directly, though sampled
 members compile cleanly, so the exclusion reflects the build configuration of
 the environment, not build failures, and several of the 29 enter the
-environment anyway through transitive imports (§8.5). For each
+environment anyway through transitive imports (§9.5). For each
 declaration originating in a FormalConjectures module, record the axiom
 closure, the direct and transitive statement-hole flags, and compiler trust.
 9,894 declarations.
@@ -351,30 +351,92 @@ profile the effective closure exists to capture.
 
 ---
 
-## 8. Threats to validity
+## 8. The live differential: one bump, measured the day it landed
 
-**8.1 Generated-declaration inflation.** Addressed by the semantic
+Section 7 predicted, from recorded closures, that an environment move has
+per-declaration consequences no single status can express. The move then
+happened: #4428 merged at 22:24 UTC on 2026-08-23. We rebuilt the corpus at
+the new pins (upstream `a3bc3141`, Lean 4.32.2) the same night, reran the
+identical census, and joined the two on declaration name — to our knowledge
+the first same-day, corpus-scale trust differential across a real toolchain
+bump.
+
+| Measure | Value |
+|---|---:|
+| Declarations before / after | 9,894 / 10,620 |
+| Common declarations | 8,463 |
+| Axiom closures changed | 451 — of which 282 in modules whose source is byte-identical |
+| Statement meaning changed | **600 — of which 485 in byte-identical modules** |
+| Compiler-trust vocabulary migrated | 236 common declarations (890 → 0 under the old name) |
+| Conjectures proved in the interval | 1 (`OeisA113019.conjecture`) |
+| Newly covered modules | 121 (1,342 of 2,157 appeared declarations) |
+
+Three of these rows are findings in their own right.
+
+**The trust vocabulary itself moved.** At 4.27 a `native_decide` proof
+carries `Lean.ofReduceBool` and `Lean.trustCompiler`. At 4.32.2 the same
+proof carries per-computation axioms of the form
+`<decl>._native.native_decide.ax_1_1` — and **zero** declarations in the
+rebuilt corpus carry `Lean.trustCompiler` at all (a corrected detector finds
+1,188 carrying the new form). Every fixed-name policy over the axiom set
+silently changed meaning: an allowlist still fails closed, but any tooling
+that *detects* compiler trust by the old names — including this paper's own
+census field, which we then corrected — reports zero. The accounting's
+vocabulary is itself environment-relative, and nothing records the
+migration.
+
+**Statement identity did not survive the move.** 600 declarations flipped
+from statement-hole to no-statement-hole — every one in the same direction.
+The mechanism, verified directly: at 4.27 the corpus's `answer(sorry)` idiom
+elaborates `erdos_942` to `sorry ↔ ∃ c > 0, …`; at 4.32.2 the **same
+source line, through the same byte-identical macro,** elaborates to
+`True ↔ ∃ c > 0, …`. The host language changed what the macro means, so the
+same file states a different proposition under each toolchain — for 485
+declarations whose modules are byte-identical across the pins. The standard
+accounting flags none of it: the proofs carry `sorryAx` either way. This is
+the paper's thesis in its sharpest form: not merely that trust facts are
+invisible, but that *what is being claimed* is a function of the
+environment, and only an accounting that pins the environment can say so.
+
+**The differential also reads progress.** One conjecture
+(`OeisA113019.conjecture`) lost its `sorryAx` in the interval — somebody
+proved it — and 121 modules of new problems entered. A correction-aware
+record derives the week's mathematical news mechanically, from the same
+join.
+
+The consequence table of §7 was hypothesis; this section is the event. The
+five per-authority consequences it predicted are now concrete: kernel proofs
+rebuilt silently, compiler-trusting proofs changed their trust *names*,
+environment-pinned records went stale, and 600 statements changed meaning —
+all invisible to any consumer of the per-declaration axiom set, all computed
+here from two pinned censuses and a join.
+
+---
+
+## 9. Threats to validity
+
+**9.1 Generated-declaration inflation.** Addressed by the semantic
 authored/generated split (§6.2), validated adversarially in both directions,
 with both views reported, all flags committed in the raw rows, and boundary
 cases disclosed. The headline ratio is identical under three independent
 classifications.
 
-**8.2 "The statement holes are deliberate."** They are, mostly, and §6.3
+**9.2 "The statement holes are deliberate."** They are, mostly, and §6.3
 says so. The claim is representational: the distinction the authors
 deliberately encode is invisible to the reporting their consumers use. The
 hidden class (§3) additionally defeats source inspection.
 
-**8.3 "Known mathematics, not unknown."** Several sorried existence lemmas
+**9.3 "Known mathematics, not unknown."** Several sorried existence lemmas
 are tagged `research solved`: formalization debt, not epistemic uncertainty.
 The effective closure does not claim to distinguish those; it claims — and
 this is the point — that today's reporting distinguishes *neither*.
 
-**8.4 Single toolchain.** All measurements are at Lean 4.27.0 under the
+**9.4 Single toolchain.** All measurements are at Lean 4.27.0 under the
 corpus's own pin, with the environment recorded as part of the closure. The
 lean4#8840 fix status and the lean4#7463 reproduction are toolchain-specific
 facts and stated as such.
 
-**8.5 Coverage.** 29 of 1,090 modules (2.7%), all under
+**9.5 Coverage.** 29 of 1,090 modules (2.7%), all under
 `FormalConjectures/Arxiv/`, lacked prebuilt artifacts in the census
 environment and were not imported directly. Sampled members compile cleanly,
 so this is an artifact of the environment's build configuration, not of the
@@ -383,7 +445,7 @@ transitive imports. The absence of the remainder cannot create the reported
 classes, only hide additional instances; every ratio's denominator is the
 censused population, stated explicitly.
 
-**8.6 Self-verification.** The census and the demonstration repository were
+**9.6 Self-verification.** The census and the demonstration repository were
 produced and machine-verified by one producer plus a fresh-session verifier
 sharing a model family. The acceptance record says exactly that
 (`does_not_establish: full independence …`). The mitigations are mechanical:
@@ -391,7 +453,7 @@ every number re-derives from committed scripts against a public corpus at a
 pinned commit, and the discriminator was validated against positive and
 negative controls before use.
 
-**8.7 Frequency versus structure.** This paper measures representational
+**9.7 Frequency versus structure.** This paper measures representational
 incompleteness, not exploitation. The one known smuggling vector is untripped
 in Mathlib's 193 registered replacements. The institutional contradiction of
 §7, however, is not hypothetical: the records carrying the two positions both
@@ -399,7 +461,7 @@ exist today.
 
 ---
 
-## 9. The closure as scientific state
+## 10. The closure as scientific state
 
 A fact about trust is useful only if it survives as state: attributable,
 bounded, environment-pinned, and correction-aware. We recorded the §7 case as
@@ -432,7 +494,7 @@ property that separates a trust *record* from a trust *scanner*.
 
 ---
 
-## 10. Reproducing
+## 11. Reproducing
 
 Corpus: `williamjblair/formal-conjectures` @
 `e51535ae2caeab6c7493450a5d86a5a8651fa82d` (Lean sources byte-identical to
@@ -469,7 +531,7 @@ inspected with `vela status` / `vela why` (v0.977.4, binary digest
 
 ---
 
-## 11. What this does not establish
+## 12. What this does not establish
 
 - That Formal Conjectures, Palomar, Mathlib, or Lean are defective. Every
   behavior reported is by design or documented upstream; the claim is about
