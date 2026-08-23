@@ -1,0 +1,44 @@
+{
+  "artifact_root": "sha256:648cb5c2707e3e59921b27f29b9d91de585ef31dbd1fa680def514d99a1b0ee3",
+  "authority_effect": "none",
+  "claim_ceiling": "anthropic_reviewer_agent_feasibility_only",
+  "custody_root": "sha256:835e81f4933d27118c12cede7dc5336d53a25cd2bec0601e971b4bd933d3fb44",
+  "execution_authorized": false,
+  "findings": [
+    {
+      "gate": "AD-F1",
+      "outcome": "PASS",
+      "summary": "actual runtime capture, lifecycle, terminal retention, compiled scoring input, and fixed denominator reproduced"
+    },
+    {
+      "gate": "AD-F2",
+      "minimal_fix": "bind complete absolute path identity from a trusted descriptor root and route every scorer-owned registered input through the shared reader with in-descriptor root validation",
+      "outcome": "BLOCKED",
+      "summary": "complete-path identity and scorer supporting-input reader coverage remain incomplete"
+    },
+    {
+      "gate": "SQ-F1",
+      "outcome": "PASS",
+      "summary": "locked authored-surface lint and format pass"
+    }
+  ],
+  "no_call_state": {
+    "credential_content_accesses": 0,
+    "diagnostic_permits_held": 6,
+    "diagnostic_permits_released": 0,
+    "original_stage_a_permits_held": 12,
+    "participant_responses": 0,
+    "provider_calls": 0,
+    "scoring_attempts": 0,
+    "terminal_captures": 0
+  },
+  "offline_record_root": "sha256:c8b0126bb69c69d48836d3c36652dd64608f4596347577a1b6b0c91657e01db2",
+  "permit_set_root": "sha256:2197f871508416c8acafba676b57686ce79b9c1a50657a645943ec9aff72220a",
+  "producer_commit": "5dddab01f1555ab4ef6f44176f06cad03b89fa25",
+  "producer_parent": "6f2bdc6007c1cc1bde60b433da947dbcb7935368",
+  "producer_tree": "3aeabaf39f48a44821381448115812c7b898315d",
+  "registration_root": "sha256:287261e48ad6ecc7566e23d0bc0212662d53ea79c9c2ad730c9f8e985f81fb4a",
+  "runtime_artifact_root": "sha256:ff310cd5c3bcefa5ece6589df441b1c0c2f115333013b1c42fa92629853f4a64",
+  "schema": "vela.independent-review-verdict.v1",
+  "verdict": "BLOCKED"
+}
