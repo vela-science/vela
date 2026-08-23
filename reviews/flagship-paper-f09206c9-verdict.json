@@ -1,0 +1,49 @@
+{
+  "authority_effect": "none",
+  "blocking_findings": [],
+  "execution": {
+    "attempt": 1,
+    "conditions": {
+      "git-documents": 12,
+      "state-wrapper": 12,
+      "vela": 12
+    },
+    "fixed_denominator": 36,
+    "retries": 0,
+    "strictly_sequential": true,
+    "substitutions": 0,
+    "timeouts": 0,
+    "tool_calls": 0
+  },
+  "gates": {
+    "governance_inheritance": false,
+    "positive_gate": "not_supported",
+    "structure": false,
+    "total": false
+  },
+  "held_out_result": {
+    "capture_root": "sha256:4a592d88b43dc02d5495d7679834535d6fa97f20759600400253677a946f87fd",
+    "complete_custody_root": "sha256:ccf69e70a3887c8a9f9ddffa2d62051e114a8974b2d2ae83c72366a1eb98dcef",
+    "result_bytes": "sha256:ae0c980a18633832a83b73e0c715ee11e702aeb56660c4e027d5ece03425f372",
+    "result_canonical_root": "sha256:92eed5bcb9e6b647d52a53282563077d3829b28c426e0dd9898a073f2590b8a5",
+    "result_commit": "4524c8f776943a267e04e03e9a237ecaed14bc2c",
+    "result_review": "e6d8348bea3a57e88c5f9426d44a480b7a026fbd",
+    "result_tree": "4d5650a999ac0be59e71d5bd664e885cad5192c7",
+    "score_capture_root": "sha256:f74229b3346cf56e2128d78b366f5fb99380872c27285d196c13862738bc8e98",
+    "sealed_parent": "5694bebac03b062d6acdce5a2a900551850e6a1c",
+    "sealed_parent_tree": "feec0ff21b9b13be8cbb97083f441ef66bdd48f2"
+  },
+  "paper_pdf": {
+    "bytes": 263743,
+    "pages": 7,
+    "root": "sha256:77f6ff1d855468bf2b755ad0e7124075fc0ea38f02cea5926f76f7431028cd94",
+    "source_root": "sha256:5aafa03cb8178d946c41712ee663b2138e2199dad5e47fbcbbfd859ff6590051"
+  },
+  "producer_commit": "f09206c9946ce96f4b8d417df8f9ef4ae36dc968",
+  "producer_parent": "85077212ed1a1465b803fcc904f1a15bc224ca50",
+  "producer_tree": "d6d70f15db1c19f8d9bd8f4e0fe71ef1871b59ea",
+  "schema": "vela.flagship-paper-negative-result-reconciliation-review-verdict.v1",
+  "sealed_16_session_positive_gate": "not_supported",
+  "standing_effect": "none",
+  "verdict": "PASS"
+}
