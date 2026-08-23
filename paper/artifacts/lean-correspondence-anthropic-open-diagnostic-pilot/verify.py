@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
 """Fail-closed verifier for the held Anthropic-only diagnostic package."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -13,10 +13,18 @@ from typing import Any
 
 sys.dont_write_bytecode = True
 
-import generate  # noqa: E402
-import scorer  # noqa: E402
+import generate
+import scorer
 
 ROOT = Path(__file__).resolve().parent
+QUALIFIER_ROOT = Path("/private/tmp/vela-anthropic-open-diagnostic-held-v2")
+QUALIFIER = Path(
+    "/private/tmp/vela-stage-a-runtime-qualification-maintained-v1/"
+    "tools/evidence_qualification/qualification.py"
+)
+QUALIFIER_PYTHON = Path(
+    "/private/tmp/vela-stage-a-runtime-qualification-python-v1/.venv/bin/python"
+)
 
 
 class VerificationError(ValueError):
@@ -319,6 +327,7 @@ def verify_package(root: Path = ROOT, *, check_external: bool = True) -> str:
     ):
         raise VerificationError("case-arm balance or configuration mismatch")
     packet_pairs: dict[str, dict[str, Any]] = {}
+    permit_roots = {}
     for row in rows:
         packet = load_json(root / row["packet_path"])
         if (
@@ -338,6 +347,76 @@ def verify_package(root: Path = ROOT, *, check_external: bool = True) -> str:
             != row["packet_root"]
         ):
             raise VerificationError("packet root mismatch")
+        execution_raw = (root / row["execution_packet_path"]).read_bytes()
+        derived = (
+            generate.packet_derivation.canonical(
+                generate.packet_derivation.parse(
+                    (root / row["packet_path"]).read_bytes()
+                )
+            )
+            + b"\n"
+        )
+        receipt = load_json(root / row["packet_derivation_receipt_path"])
+        if (
+            execution_raw != derived
+            or generate.raw_root(execution_raw) != row["execution_packet_root"]
+            or generate.raw_root(
+                (root / row["packet_derivation_receipt_path"]).read_bytes()
+            )
+            != row["packet_derivation_receipt_root"]
+            or receipt["source_packet_sha256"] != row["packet_root"]
+            or receipt["execution_packet_sha256"] != row["execution_packet_root"]
+            or receipt["parsed_semantic_equality"] is not True
+        ):
+            raise VerificationError("source-to-execution packet derivation drift")
+        permit = load_json(root / "permits" / f"{row['cell_id']}.permit.json")
+        expected_permit_fields = {
+            "schema",
+            "registration_id",
+            "assignment_id",
+            "participant_id",
+            "run_id",
+            "condition",
+            "attempt",
+            "runner_version",
+            "runtime_source_root",
+            "configuration_root",
+            "image_digest",
+            "registered_schema_bytes",
+            "provider_schema_bytes",
+            "prompt_root",
+            "packet_root",
+            "timeout_seconds",
+            "status",
+            "issued_at",
+            "consumed_at",
+        }
+        if (
+            type(permit) is not dict
+            or set(permit) != expected_permit_fields
+            or permit["schema"] != "vela.tooling.closed-launch-permit.v1"
+            or permit["registration_id"] != "anthropic-open-diagnostic-registration-v2"
+            or permit["assignment_id"] != row["cell_id"]
+            or permit["participant_id"] != row["participant_id"]
+            or permit["run_id"] != row["cell_id"]
+            or permit["condition"] != row["arm"]
+            or type(permit["attempt"]) is not int
+            or permit["attempt"] != 1
+            or permit["runner_version"] != "neutral-runner/1"
+            or permit["runtime_source_root"] != generate.RUNTIME_SOURCE_ROOT
+            or permit["configuration_root"] != generate.ANTHROPIC_CONFIGURATION_ROOT
+            or permit["image_digest"] != generate.ANTHROPIC_IMAGE_DIGEST
+            or permit["registered_schema_bytes"] != generate.SCHEMA_ROOT
+            or permit["provider_schema_bytes"] != generate.ANTHROPIC_PROVIDER_SCHEMA
+            or permit["prompt_root"] != row["prompt_root"]
+            or permit["packet_root"] != row["execution_packet_root"]
+            or type(permit["timeout_seconds"]) is not int
+            or permit["timeout_seconds"] != 1200
+            or permit["status"] != "held"
+            or permit["consumed_at"] is not None
+        ):
+            raise VerificationError("maintained held permit drift")
+        permit_roots[row["cell_id"]] = generate.maintained_root(permit)
         packet_pairs.setdefault(row["case_id"], {})[row["arm"]] = packet
     for case_id, arms in packet_pairs.items():
         raw = arms["raw-source"]
@@ -351,6 +430,37 @@ def verify_package(root: Path = ROOT, *, check_external: bool = True) -> str:
             or not assisted["derived_mechanism_atoms"]
         ):
             raise VerificationError(f"arm atom-information contract drift: {case_id}")
+
+    registry = load_json(root / "execution-bundle-registry.json")
+    if (
+        registry["fixed_denominator"] != 6
+        or registry["provider_calls"] != 0
+        or registry["status"] != "held_offline_qualified"
+        or len(registry["bundles"]) != 6
+    ):
+        raise VerificationError("execution bundle registry state drift")
+    for item in registry["bundles"]:
+        cell_id = item["cell_id"]
+        bundle = root / item["bundle_path"]
+        observed_root, entries = generate.inventory_root(bundle)
+        receipt = load_json(bundle / "execution/qualification-receipt.json")
+        offline = load_json(
+            bundle / "execution/offline-evidence/offline-pre-request-validation.json"
+        )
+        if (
+            cell_id not in permit_roots
+            or item["bundle_root"] != observed_root
+            or item["entry_count"] != len(entries)
+            or item["participant_permit_root"] != permit_roots[cell_id]
+            or receipt["participant_permit_root"] != permit_roots[cell_id]
+            or receipt["qualification_root"] != item["qualification_root"]
+            or receipt["status"] != "qualified_hold"
+            or receipt["provider_calls"] != 0
+            or offline["status"] != "pass"
+            or offline["provider_calls"] != 0
+            or offline["endpoint_write_receipts"] != 0
+        ):
+            raise VerificationError("execution bundle or offline qualification drift")
 
     hold = load_json(root / "hold-state.json")
     state = load_json(root / "prelaunch-state.json")
@@ -395,13 +505,40 @@ def verify_package(root: Path = ROOT, *, check_external: bool = True) -> str:
     return manifest["artifact_root"]
 
 
+def verify_maintained_qualifier(root: Path = ROOT) -> None:
+    if not QUALIFIER.is_file() or not QUALIFIER_PYTHON.is_file():
+        raise VerificationError("fixed maintained qualifier environment missing")
+    if QUALIFIER_ROOT.exists():
+        shutil.rmtree(QUALIFIER_ROOT)
+    shutil.copytree(root / "execution-bundles", QUALIFIER_ROOT)
+    try:
+        registry = load_json(root / "execution-bundle-registry.json")
+        for item in registry["bundles"]:
+            bundle = QUALIFIER_ROOT / item["cell_id"]
+            result = subprocess.run(
+                [str(QUALIFIER_PYTHON), str(QUALIFIER), "--bundle", str(bundle)],
+                check=True,
+                capture_output=True,
+            )
+            observed = json.loads(result.stdout, object_pairs_hook=_pairs)
+            frozen = load_json(
+                root / item["bundle_path"] / "execution/qualification-receipt.json"
+            )
+            typed_equal(observed, frozen, f"maintained qualifier {item['cell_id']}")
+    finally:
+        shutil.rmtree(QUALIFIER_ROOT)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--skip-external", action="store_true")
+    parser.add_argument("--maintained-qualifier", action="store_true")
     args = parser.parse_args()
     try:
         root = verify_package(args.root, check_external=not args.skip_external)
+        if args.maintained_qualifier:
+            verify_maintained_qualifier(args.root.resolve())
     except (
         VerificationError,
         ValueError,

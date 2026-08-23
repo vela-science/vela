@@ -1,0 +1,32 @@
+{
+  "credential_values_observed": false,
+  "endpoint_write_receipts": 0,
+  "entrypoint": [
+    "/opt/vela/runner"
+  ],
+  "image_digest": "sha256:a95b75cfc449afc2ecb87a5808542339b1776ced9b15d91a27e795993acdbba0",
+  "layer_digest": "sha256:87bc17d93843784cb68242e24a0220909e347a0b30d03407f016d1702a5b8129",
+  "oci_archive_sha256": "sha256:646128f39c03260bdc72c191d91d3f96cc403a5f63ef3b3399c7dc3a6089d279",
+  "offline_pre_request_validation": {
+    "dummy_non_secret_credential_fd": true,
+    "network": "none",
+    "receipt_sha256": "sha256:506f002532559ebc0ee8e331b3c5ed7befbd0f94e3b04ae2cfd3791b91666b89",
+    "same_run_input": true,
+    "status": "pass"
+  },
+  "platform": "linux/arm64",
+  "provider_adapter": "anthropic-messages-v1",
+  "provider_calls": 0,
+  "schema": "vela.stage-a-runtime-launchability.v1",
+  "self_test": {
+    "capabilities": "all_dropped",
+    "exit_code": 0,
+    "host_bridge_self_test": true,
+    "network": "none",
+    "no_new_privileges": true,
+    "root_filesystem": "read_only",
+    "runner_version": "neutral-runner/1",
+    "stderr_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

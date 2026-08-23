@@ -1,0 +1,16 @@
+{
+  "entries": [
+    {
+      "bytes": 514,
+      "path": "fixture/evidence/response.raw.json",
+      "sha256": "sha256:6e87719bca647b009b3f9e49105478b9690a14d83a637d5bfbbc72ebc30f47a3"
+    },
+    {
+      "bytes": 73,
+      "path": "fixture/scoring/run.json",
+      "sha256": "sha256:455a8417546cf04e37743fc9b61e0960ded39fb97076e3551ca7d0ecdf6f008d"
+    }
+  ],
+  "schema": "vela.tooling.pre-key-snapshot.v1",
+  "snapshot_root": "sha256:469f4ebd7ae669239ee01d54f89f4d084ef8c633fde40e520ab526fc2192e641"
+}

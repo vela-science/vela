@@ -1,0 +1,66 @@
+{
+  "bindings": [
+    {
+      "cell_id": "anthropic-diag-2f719af4c655ef77",
+      "execution_packet_path": "execution-packets/anthropic-diag-2f719af4c655ef77.json",
+      "execution_packet_root": "sha256:2af228c32b46206ae90fe4ee51534dc3086ba3fbf1809b08b897bf4caff681f6",
+      "parsed_semantic_equality": true,
+      "receipt_path": "packet-derivations/anthropic-diag-2f719af4c655ef77.receipt.json",
+      "receipt_root": "sha256:f6d0924293a3401121ba8a427c65e748ab88e9bdc8dbbdceeeef124c4bcb55cb",
+      "source_packet_path": "packets/anthropic-diag-2f719af4c655ef77.json",
+      "source_packet_root": "sha256:6f4e2cad5ee4be0ae3ecd00765b8e830f52c2d2b43eb825d0269eea9221cfc00"
+    },
+    {
+      "cell_id": "anthropic-diag-395839ae5418ff4d",
+      "execution_packet_path": "execution-packets/anthropic-diag-395839ae5418ff4d.json",
+      "execution_packet_root": "sha256:94912db3cfc7172b4fea1c7666ad565347e3d0ba475a0ef86260a19ae44d8164",
+      "parsed_semantic_equality": true,
+      "receipt_path": "packet-derivations/anthropic-diag-395839ae5418ff4d.receipt.json",
+      "receipt_root": "sha256:c2ba6781867871a08d1ecaace4d53a8785b3f23d9103c9375f276f4cf004a715",
+      "source_packet_path": "packets/anthropic-diag-395839ae5418ff4d.json",
+      "source_packet_root": "sha256:cab08a1448a9b6456b6eacf752f98b51061774fbca5084373294f52c06dea392"
+    },
+    {
+      "cell_id": "anthropic-diag-563bdd90a8c7df7a",
+      "execution_packet_path": "execution-packets/anthropic-diag-563bdd90a8c7df7a.json",
+      "execution_packet_root": "sha256:8cd07b45830778e6aa076224a587189b304887fc131913e45b8a5a8742f5d3a8",
+      "parsed_semantic_equality": true,
+      "receipt_path": "packet-derivations/anthropic-diag-563bdd90a8c7df7a.receipt.json",
+      "receipt_root": "sha256:676f3e3f2c7bb763f4c86182602332f96ae2cfe751df250fc3a562af41b44259",
+      "source_packet_path": "packets/anthropic-diag-563bdd90a8c7df7a.json",
+      "source_packet_root": "sha256:4a88d4ee49cbdce22a5d82bbaf2e82519d849f747d7cc787d98d4c8949f017fd"
+    },
+    {
+      "cell_id": "anthropic-diag-6cccc41b01c2e998",
+      "execution_packet_path": "execution-packets/anthropic-diag-6cccc41b01c2e998.json",
+      "execution_packet_root": "sha256:33df3ab58642d622d9592b7b92ac26c82b44dc4dade6950658c7428998b3377e",
+      "parsed_semantic_equality": true,
+      "receipt_path": "packet-derivations/anthropic-diag-6cccc41b01c2e998.receipt.json",
+      "receipt_root": "sha256:484187640a104d3eff4207e9e56866f699ea6286b5b865f187180e39c296db26",
+      "source_packet_path": "packets/anthropic-diag-6cccc41b01c2e998.json",
+      "source_packet_root": "sha256:1241489bffb879cf66fbd952a7e47f4607a68706de20cd6416f01a4d54f00bf6"
+    },
+    {
+      "cell_id": "anthropic-diag-7981a902f25c4abe",
+      "execution_packet_path": "execution-packets/anthropic-diag-7981a902f25c4abe.json",
+      "execution_packet_root": "sha256:43c41f0c0083f7b402ba6e4bdfd33212604bb98b52f7e368b757b541a62a43d0",
+      "parsed_semantic_equality": true,
+      "receipt_path": "packet-derivations/anthropic-diag-7981a902f25c4abe.receipt.json",
+      "receipt_root": "sha256:7fd94c5dad0c063f1da7f15f5b018f3fa17e4475b3407eb449f663df76c2e64d",
+      "source_packet_path": "packets/anthropic-diag-7981a902f25c4abe.json",
+      "source_packet_root": "sha256:cafb6e4bb20c93fbfdd3c4135abedb34e9185b20287f30f03d544c07b288eac0"
+    },
+    {
+      "cell_id": "anthropic-diag-fa6a2181a9a7b010",
+      "execution_packet_path": "execution-packets/anthropic-diag-fa6a2181a9a7b010.json",
+      "execution_packet_root": "sha256:ef1bf1a9dfadcf9c31ec643638eca9595c76c6042688bb44da4f5e82e923bbf2",
+      "parsed_semantic_equality": true,
+      "receipt_path": "packet-derivations/anthropic-diag-fa6a2181a9a7b010.receipt.json",
+      "receipt_root": "sha256:a7169a7ac968c64043d2a790581b99019bc6f1821488442a889b8b57f80550ab",
+      "source_packet_path": "packets/anthropic-diag-fa6a2181a9a7b010.json",
+      "source_packet_root": "sha256:c41dbe9353981b90c8e96aee7ab8f4e8f809e1e50dd5bd8dd87f4e36e6187bdb"
+    }
+  ],
+  "runner_canonical_requirement_weakened": false,
+  "schema": "vela.lean-correspondence-anthropic-open-diagnostic-packet-derivations.v1"
+}

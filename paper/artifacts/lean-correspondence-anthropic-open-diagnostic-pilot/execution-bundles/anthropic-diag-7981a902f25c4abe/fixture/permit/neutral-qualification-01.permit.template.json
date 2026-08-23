@@ -1,0 +1,21 @@
+{
+  "assignment_id": "neutral-assignment",
+  "attempt": 1,
+  "condition": "neutral-no-science",
+  "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
+  "consumed_at": null,
+  "image_digest": "sha256:a95b75cfc449afc2ecb87a5808542339b1776ced9b15d91a27e795993acdbba0",
+  "issued_at": "2026-08-21T00:00:00Z",
+  "packet_root": "sha256:3814a08354123311f292c2673ec2e7c5cf0308762dd23ec6ef76398c7d3166df",
+  "participant_id": "neutral-fixture",
+  "prompt_root": "sha256:d51f3d42ecd8e0755d1ef759fca460f7dcbb82a25a84e3f1da16b9bc0b34548f",
+  "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
+  "registered_schema_bytes": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
+  "registration_id": "qualification-registration",
+  "run_id": "neutral-qualification-01",
+  "runner_version": "neutral-runner/1",
+  "runtime_source_root": "sha256:345b150207668e98a2a061c328e3552697b5370c50fb50dfbd96f598aaa65e30",
+  "schema": "vela.tooling.closed-launch-permit.v1",
+  "status": "held",
+  "timeout_seconds": 1200
+}

@@ -10,11 +10,30 @@ frozen `source_assignment_id`; the new `cell_id` and `participant_id` are the
 distinct diagnostic execution and custody identities. The verifier binds this
 one-to-one mapping and rejects substitution or cross-binding.
 
+The source packet manifests remain byte-for-byte unchanged. Because the
+reviewed runner accepts only recursively canonical JSON packet bytes, the
+package also freezes one deterministic execution-packet derivative per cell
+and a duplicate-aware source-to-execution semantic-equivalence receipt. Each
+maintained permit binds the exact execution bytes the runner loads; custody
+binds both source and execution roots. The runner's canonical-byte requirement
+is not weakened.
+
 The design has one exact independently qualified Anthropic configuration, one
 fresh one-shot participant per case/arm cell, a fixed denominator of six, zero
 retries, and zero substitutions. Every new permit is held and non-releasable
 until a separate independent exact prelaunch review passes and a later explicit
 execution authorization exists. No credential contents are present here.
+All six permits use the maintained closed-launch schema. Each is packaged with
+its exact run input, raw-schema materialization receipt, request bytes,
+lossless transport custody, network-none same-input validation, production
+runtime/image/schema bindings, and maintained `qualified_hold` receipt.
+
+The scorer accepts no correctness or safety booleans. It reads a complete
+six-cell capture set, checks the raw response, terminal, usage, permit/run, and
+custody roots, and derives every registered component against the frozen open
+adjudication. Missing, failed, timed-out, and malformed outcomes stay in the
+denominator. Restricted-time differences use canonical Decimal strings and
+tool-count differences use exact integers.
 
 A future diagnostic PASS could qualify only the feasibility of this exact
 Anthropic reviewer-agent configuration on these three open cases. It cannot
@@ -33,6 +52,7 @@ Generate and verify without creating bytecode:
 ```console
 PYTHONDONTWRITEBYTECODE=1 python3 paper/artifacts/lean-correspondence-anthropic-open-diagnostic-pilot/generate.py
 PYTHONDONTWRITEBYTECODE=1 python3 paper/artifacts/lean-correspondence-anthropic-open-diagnostic-pilot/verify.py
+PYTHONDONTWRITEBYTECODE=1 python3 paper/artifacts/lean-correspondence-anthropic-open-diagnostic-pilot/verify.py --maintained-qualifier
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest paper/artifacts/lean-correspondence-anthropic-open-diagnostic-pilot/test_verify.py
 ```
 

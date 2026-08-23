@@ -1,0 +1,13 @@
+{
+  "attempt": 1,
+  "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
+  "image_digest": "sha256:a95b75cfc449afc2ecb87a5808542339b1776ced9b15d91a27e795993acdbba0",
+  "permit_bytes": "sha256:a80de795d864a7ed08369226fb0be9edf2e4b9c3cd9e44407f84ef7863e418a7",
+  "provider_adapter": "anthropic-messages-v1",
+  "run_id": "neutral-qualification-01",
+  "runner_version": "neutral-runner/1",
+  "runtime_source_root": "sha256:345b150207668e98a2a061c328e3552697b5370c50fb50dfbd96f598aaa65e30",
+  "schema": "vela.tooling.neutral-launch.v1",
+  "started_at": "2026-08-21T00:00:00Z",
+  "tool_boundary_root": "sha256:01dfbda69c1c7760423fdba41eaac18687a73d9fe683a8a5f207fdc8abe2a7d9"
+}

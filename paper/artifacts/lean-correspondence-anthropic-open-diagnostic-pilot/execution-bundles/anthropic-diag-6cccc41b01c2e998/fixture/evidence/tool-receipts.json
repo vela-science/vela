@@ -1,0 +1,29 @@
+[
+  {
+    "arguments": {
+      "argv": [
+        "git",
+        "--no-optional-locks",
+        "status",
+        "--short"
+      ],
+      "cwd": "/workspace"
+    },
+    "arguments_root": "sha256:5c7de8c48cb5122b4a64f5bb2c87dd9411055fbc1a4c788c1655eda4ec098f3f",
+    "call_id": "call-01",
+    "completed_at": "2026-08-21T00:00:00.500000Z",
+    "exit_code": 0,
+    "network_disabled": true,
+    "schema": "vela.tooling.read-only-tool-receipt.v1",
+    "started_at": "2026-08-21T00:00:00.300000Z",
+    "stderr": "fixture/evidence/tool.stderr",
+    "stderr_bytes": 0,
+    "stderr_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout": "fixture/evidence/tool.stdout",
+    "stdout_bytes": 6,
+    "stdout_sha256": "sha256:2e22da2ab13713309ac75219e525b8e06ed02f3f1963b8feef203fa25827f93d",
+    "timeout_seconds": 30,
+    "tool_name": "shell",
+    "writes_disabled": true
+  }
+]

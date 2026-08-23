@@ -1,0 +1,13 @@
+{
+  "inputs": [
+    {
+      "bytes": 1453,
+      "license_path": "runtime/source/LICENSE",
+      "path": "runtime/source/vendor/go-LICENSE",
+      "sha256": "sha256:911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad",
+      "source_sha256": "sha256:911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad",
+      "source_url": "https://go.googlesource.com/go/+/refs/tags/go1.26.2/LICENSE"
+    }
+  ],
+  "schema": "vela.tooling.vendored-build-inputs.v1"
+}

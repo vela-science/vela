@@ -1,0 +1,18 @@
+{
+  "attempt": 1,
+  "completed_at": "2026-08-21T00:00:01Z",
+  "duration_seconds": 0.1,
+  "exit_code": 0,
+  "launch_bytes": "sha256:93b562096bbdbb1910ca50390b8e93d72f7359a22c6243d7b34b20c8015da39a",
+  "mounts_detached": true,
+  "network_disabled": true,
+  "permit_bytes": "sha256:a80de795d864a7ed08369226fb0be9edf2e4b9c3cd9e44407f84ef7863e418a7",
+  "process_reaped": true,
+  "provider_adapter": "anthropic-messages-v1",
+  "provider_stderr_bytes": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "run_id": "neutral-qualification-01",
+  "schema": "vela.tooling.neutral-teardown.v1",
+  "started_at": "2026-08-21T00:00:00.900000Z",
+  "status": "completed",
+  "tool_boundary_root": "sha256:01dfbda69c1c7760423fdba41eaac18687a73d9fe683a8a5f207fdc8abe2a7d9"
+}

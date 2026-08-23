@@ -1,0 +1,106 @@
+{"materialization_receipt_path":"/input/materialization-receipt.json","model":"claude-opus-5","output_dir":"/evidence","packet_bytes":2567,"packet_path":"/input/packet.json","packet_sha256":"sha256:8cd07b45830778e6aa076224a587189b304887fc131913e45b8a5a8742f5d3a8","prompt":"The assignment contains the exact source and target repositories, bounded Git\nhistory, environment files, witness source, evidence inventory, and closed\nimpact-item vocabulary. No correspondence record or derived current-validity,\nchange, or impact answer is supplied.\n\nYou are reviewing one proposed correspondence between exact Lean source and\ntarget states. Work only in the read-only assignment directory. Network access,\nexternal memory, other assignments, and authority actions are unavailable.\n\nAssignment: lc-a-06-08d458a94d1f\nFamily: open-calibration-02\nTime limit: 1200 seconds\n\nDetermine, at the supplied commits and environments:\n\n1. Is the claimed source-target relation valid, invalid, or unprovable from the\n   supplied evidence?\n2. Does the observed state represent semantic change, environment drift, both,\n   neither, or an unprovable state?\n3. What is the complete in-scope downstream impact closure? For every allowed\n   item id, select exactly one disposition and cite one or more supplied\n   evidence ids. Include no item outside the supplied closed scope.\n4. What, if anything, is evidenced about Repository-local authority and about\n   scientific status? Keep a Lean build, witness, Git commit, signature,\n   Verification, packet, foreign Decision, local Decision, Standing, and\n   scientific truth distinct.\n5. List material uncertainty that prevents a stronger conclusion.\n\nUse local shell/file tools as needed. Do not write to a source repository,\ncontact a provider or person, create a key, sign, submit, verify, accept, reject,\nor change Standing. Return exactly one JSON object conforming to the supplied\nresponse schema. Do not add prose outside the JSON object.\n","provider_schema":{
+  "$id": "https://vela.science/schemas/lean-correspondence-review-response.v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assignment_id": {
+      "pattern": "^lc-[a-z0-9-]+$",
+      "type": "string"
+    },
+    "authority_scientific_inference": {
+      "additionalProperties": false,
+      "properties": {
+        "repository_authority_effect": {
+          "enum": [
+            "none",
+            "repository_local_decision_evidenced",
+            "unprovable"
+          ]
+        },
+        "scientific_status": {
+          "enum": [
+            "not_established",
+            "bounded_source_claim_only",
+            "unprovable"
+          ]
+        }
+      },
+      "required": [
+        "repository_authority_effect",
+        "scientific_status"
+      ],
+      "type": "object"
+    },
+    "change_classification": {
+      "enum": [
+        "semantic_change",
+        "environment_drift",
+        "both",
+        "neither",
+        "unprovable"
+      ]
+    },
+    "impact_closure": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "disposition": {
+            "enum": [
+              "recheck",
+              "invalidate_relation",
+              "remains_valid",
+              "blocked_unprovable"
+            ]
+          },
+          "evidence_ids": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "item_id": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_id",
+          "disposition",
+          "evidence_ids"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "relation_validation": {
+      "enum": [
+        "valid",
+        "invalid",
+        "cannot_determine"
+      ]
+    },
+    "schema": {
+      "const": "lean-correspondence.review-response.v1"
+    },
+    "uncertainty": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "assignment_id",
+    "relation_validation",
+    "change_classification",
+    "impact_closure",
+    "authority_scientific_inference",
+    "uncertainty"
+  ],
+  "title": "Lean Correspondence review response",
+  "type": "object"
+}
+,"provider_schema_bytes":2384,"provider_schema_path":"/input/provider-schema.json","provider_schema_sha256":"sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7","run_id":"anthropic-diag-563bdd90a8c7df7a"}

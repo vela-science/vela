@@ -1,0 +1,78 @@
+{
+  "answer_key_exposed_to_future_participants": false,
+  "case_selection_bytes": "sha256:fe57578532a02c93b811059a97b1ccd133ee291f27aa2d4865763005b80126b3",
+  "cases": [
+    {
+      "authority_scientific_inference": {
+        "repository_authority_effect": "none",
+        "scientific_status": "bounded_source_claim_only"
+      },
+      "case_id": "erdos-730-affirmative-rhs",
+      "change_classification": "neither",
+      "claim_ceiling": "affirmative S.Infinite RHS relation only; excludes the full Formal Conjectures biconditional, mathematical truth, scientific acceptance, authority, Decision, and Standing",
+      "impact_closure": [
+        {
+          "disposition": "remains_valid",
+          "item_id": "erdos-730.affirmative-rhs-defeq",
+          "required_evidence_ids": [
+            "sha256:4a13ff3e935cf64e54f63164e2ef39b3bf85c122dd84d3c32c5ab9440f7efc2c"
+          ]
+        }
+      ],
+      "relation_validation": "valid",
+      "semantic_atom_root": "sha256:f28bd220c5614804d1899db2ffb647b0ea57a85f27106963200b4e0fe14b0719"
+    },
+    {
+      "authority_scientific_inference": {
+        "repository_authority_effect": "none",
+        "scientific_status": "bounded_source_claim_only"
+      },
+      "case_id": "fc-leaneval-oeis-303656",
+      "change_classification": "environment_drift",
+      "claim_ceiling": "deterministic generated-byte lineage and bounded drift calibration only; excludes mathematical truth, solution, general semantic equivalence, scientific acceptance, authority, Decision, and Standing",
+      "impact_closure": [
+        {
+          "disposition": "remains_valid",
+          "item_id": "oeis-303656.fc-to-leaneval-generated-lineage",
+          "required_evidence_ids": [
+            "sha256:dfdbba45d7226a0773b6b855b3cd897824a89eaf65dbb3f2b944f145df2af987",
+            "sha256:964e18f829bbcf6c25d0c6204e8d79bce8e3c919de714a364dadab0ea3e1261d"
+          ]
+        },
+        {
+          "disposition": "remains_valid",
+          "item_id": "oeis-303656.historical-helper-rename-defeq",
+          "required_evidence_ids": [
+            "sha256:62bf6f59d69c01027863404aeeae0b8604a33a0b331a8c49ee6e9cde959e6ea6"
+          ]
+        }
+      ],
+      "relation_validation": "valid",
+      "semantic_atom_root": "sha256:7d8f4b981f26ab02545f7d363e9e70efb74e674b90de6a2413b93ccf0d3ee8f7"
+    },
+    {
+      "authority_scientific_inference": {
+        "repository_authority_effect": "none",
+        "scientific_status": "not_established"
+      },
+      "case_id": "deliberately-invalid-byte-identity",
+      "change_classification": "semantic_change",
+      "claim_ceiling": "semantic invalidity of one fixed distinct-numeral calibration relation only; excludes general semantic claims, scientific acceptance, authority, Decision, and Standing",
+      "impact_closure": [
+        {
+          "disposition": "invalidate_relation",
+          "item_id": "stage-a-open-calibration.distinct-numerals-byte-identity",
+          "required_evidence_ids": [
+            "sha256:0a0c06095d3c434b28c98de8fb651907083df13e34d457eba11dd9f8fcf214f9",
+            "sha256:9a9971567a72494e3d8d95a1df556c2c6a7c04250a514043849a41dcbc30789c"
+          ]
+        }
+      ],
+      "relation_validation": "invalid",
+      "semantic_atom_root": "sha256:b036d5d21f3d1ebe0b5d4b27ff3c3d6b26bb95d23caa41d9b466a365d71ae192"
+    }
+  ],
+  "fixed_case_count": 3,
+  "schema": "vela.lean-correspondence-anthropic-open-diagnostic-adjudication.v1",
+  "source_stage_a_artifact_root": "sha256:f89d335912adbbd0e3b3f1cb98ec3f4fa78a27f3742652ac7244eaa86ed6aca8"
+}

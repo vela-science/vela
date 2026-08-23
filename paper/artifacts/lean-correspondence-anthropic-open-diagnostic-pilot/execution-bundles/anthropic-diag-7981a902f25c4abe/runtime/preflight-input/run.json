@@ -1,0 +1,106 @@
+{"materialization_receipt_path":"/input/materialization-receipt.json","model":"claude-opus-5","output_dir":"/evidence","packet_bytes":657,"packet_path":"/input/packet.json","packet_sha256":"sha256:a38b18fb6284288f352e234aa32cffb79af880a03d8faf7c1e3492e6d8eba267","prompt":"Return exactly one JSON object conforming to the supplied Stage A response schema. Review only the synthetic neutral packet. Do not infer scientific acceptance, repository authority, a Decision, Standing, execution authorization, or any claim beyond the packet. The exact assignment_id is lc-neutral-calibration.\n","provider_schema":{
+  "$id": "https://vela.science/schemas/lean-correspondence-review-response.v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assignment_id": {
+      "pattern": "^lc-[a-z0-9-]+$",
+      "type": "string"
+    },
+    "authority_scientific_inference": {
+      "additionalProperties": false,
+      "properties": {
+        "repository_authority_effect": {
+          "enum": [
+            "none",
+            "repository_local_decision_evidenced",
+            "unprovable"
+          ]
+        },
+        "scientific_status": {
+          "enum": [
+            "not_established",
+            "bounded_source_claim_only",
+            "unprovable"
+          ]
+        }
+      },
+      "required": [
+        "repository_authority_effect",
+        "scientific_status"
+      ],
+      "type": "object"
+    },
+    "change_classification": {
+      "enum": [
+        "semantic_change",
+        "environment_drift",
+        "both",
+        "neither",
+        "unprovable"
+      ]
+    },
+    "impact_closure": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "disposition": {
+            "enum": [
+              "recheck",
+              "invalidate_relation",
+              "remains_valid",
+              "blocked_unprovable"
+            ]
+          },
+          "evidence_ids": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "item_id": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_id",
+          "disposition",
+          "evidence_ids"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "relation_validation": {
+      "enum": [
+        "valid",
+        "invalid",
+        "cannot_determine"
+      ]
+    },
+    "schema": {
+      "const": "lean-correspondence.review-response.v1"
+    },
+    "uncertainty": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "assignment_id",
+    "relation_validation",
+    "change_classification",
+    "impact_closure",
+    "authority_scientific_inference",
+    "uncertainty"
+  ],
+  "title": "Lean Correspondence review response",
+  "type": "object"
+}
+,"provider_schema_bytes":2384,"provider_schema_path":"/input/provider-schema.json","provider_schema_sha256":"sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7","run_id":"neutral-calibration-anthropic-json-v4-lossless"}

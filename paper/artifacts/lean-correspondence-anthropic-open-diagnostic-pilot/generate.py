@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Generate the deterministic held Anthropic-only diagnostic package."""
 
 from __future__ import annotations
@@ -10,6 +9,8 @@ import shutil
 import sys
 from pathlib import Path
 from typing import Any
+
+import derive_execution_packet as packet_derivation
 
 sys.dont_write_bytecode = True
 
@@ -147,7 +148,15 @@ V3_ROOT = "sha256:63cbbdf6ae6c7e906268b31f33198d06b8db0757e6db48b6187286cacd08dc
 SEED = b"vela-anthropic-open-diagnostic-pilot-v1\n"
 CREDENTIAL_PATH = "/Users/williamblair/episteme/atlas-platform/apps/radar/.env.local"
 
-STATIC_FILES = ["README.md", "generate.py", "scorer.py", "test_verify.py", "verify.py"]
+STATIC_FILES = [
+    "README.md",
+    "build_execution_bundles.py",
+    "derive_execution_packet.py",
+    "generate.py",
+    "scorer.py",
+    "test_verify.py",
+    "verify.py",
+]
 SOURCE_ASSIGNMENTS = [
     (
         "erdos-730-affirmative-rhs",
@@ -202,6 +211,10 @@ def canonical_root(value: Any) -> str:
     return raw_root(canonical_bytes(value))
 
 
+def maintained_root(value: Any) -> str:
+    return raw_root(canonical_bytes(value) + b"\n")
+
+
 def raw_root(raw: bytes) -> str:
     return "sha256:" + hashlib.sha256(raw).hexdigest()
 
@@ -221,6 +234,25 @@ def read_json(path: Path) -> Any:
 def raw_binding(path: Path, relative: str) -> dict[str, Any]:
     raw = path.read_bytes()
     return {"path": relative, "bytes": len(raw), "sha256": raw_root(raw)}
+
+
+def inventory_root(directory: Path) -> tuple[str, list[dict[str, Any]]]:
+    entries = []
+    for path in sorted(
+        directory.rglob("*"), key=lambda item: item.relative_to(directory).as_posix()
+    ):
+        if path.is_symlink():
+            raise ValueError("execution bundle symlink forbidden")
+        if path.is_file():
+            raw = path.read_bytes()
+            entries.append(
+                {
+                    "bytes": len(raw),
+                    "path": path.relative_to(directory).as_posix(),
+                    "sha256": raw_root(raw),
+                }
+            )
+    return canonical_root(entries), entries
 
 
 def expected_source_rows() -> list[dict[str, Any]]:
@@ -261,10 +293,12 @@ def build_records(destination: Path) -> dict[str, Any]:
         raise ValueError("frozen case or schema bytes drift")
     (destination / "case-selection.json").write_bytes(case_raw)
     (destination / "response.schema.json").write_bytes(schema_raw)
+    case_selection = json.loads(case_raw)
 
     source_rows = expected_source_rows()
     schedule_rows = []
     prompt_bindings = []
+    packet_derivations = []
     for source_row in source_rows:
         token = hashlib.sha256(SEED + source_row["assignment_id"].encode()).hexdigest()
         cell_id = f"anthropic-diag-{token[:16]}"
@@ -284,15 +318,28 @@ def build_records(destination: Path) -> dict[str, Any]:
         packet = json.loads(packet_raw)
         if canonical_root(packet) != source_row["packet_root"]:
             raise ValueError("source packet root drift")
+        execution_packet_rel = f"execution-packets/{cell_id}.json"
+        packet_receipt_rel = f"packet-derivations/{cell_id}.receipt.json"
+        packet_receipt = packet_derivation.derive(
+            destination / packet_rel,
+            destination / execution_packet_rel,
+            destination / packet_receipt_rel,
+        )
         row = {
             "arm": source_row["arm"],
             "attempt": 1,
             "case_id": source_row["case_id"],
             "cell_id": cell_id,
             "configuration_root": ANTHROPIC_CONFIGURATION_ROOT,
+            "execution_packet_path": execution_packet_rel,
+            "execution_packet_root": packet_receipt["execution_packet_sha256"],
             "fresh_session": True,
             "packet_path": packet_rel,
             "packet_root": raw_root(packet_raw),
+            "packet_derivation_receipt_path": packet_receipt_rel,
+            "packet_derivation_receipt_root": raw_root(
+                (destination / packet_receipt_rel).read_bytes()
+            ),
             "participant_id": participant_id,
             "participant_visible_case_id": source_row["participant_visible_case_id"],
             "prompt_path": prompt_rel,
@@ -301,6 +348,18 @@ def build_records(destination: Path) -> dict[str, Any]:
             "timeout_seconds": 1200,
         }
         schedule_rows.append(row)
+        packet_derivations.append(
+            {
+                "cell_id": cell_id,
+                "execution_packet_path": execution_packet_rel,
+                "execution_packet_root": row["execution_packet_root"],
+                "parsed_semantic_equality": True,
+                "receipt_path": packet_receipt_rel,
+                "receipt_root": row["packet_derivation_receipt_root"],
+                "source_packet_path": packet_rel,
+                "source_packet_root": row["packet_root"],
+            }
+        )
         prompt_bindings.append(
             {
                 "arm": row["arm"],
@@ -354,6 +413,90 @@ def build_records(destination: Path) -> dict[str, Any]:
         "bindings": prompt_bindings,
         "participant_atoms_changed": False,
         "schema": "vela.lean-correspondence-anthropic-open-diagnostic-prompt-bindings.v1",
+    }
+    packet_derivations.sort(key=lambda item: item["cell_id"])
+    packet_derivation_record = {
+        "bindings": packet_derivations,
+        "runner_canonical_requirement_weakened": False,
+        "schema": "vela.lean-correspondence-anthropic-open-diagnostic-packet-derivations.v1",
+    }
+
+    bundle_index = read_json(destination / "execution-bundles/bundle-index.json")
+    indexed = {item["cell_id"]: item for item in bundle_index["cells"]}
+    if set(indexed) != {row["cell_id"] for row in schedule_rows}:
+        raise ValueError("execution bundle denominator drift")
+    bundle_records = []
+    for row in sorted(schedule_rows, key=lambda item: item["cell_id"]):
+        cell_id = row["cell_id"]
+        bundle = destination / "execution-bundles" / cell_id
+        bundle_root, entries = inventory_root(bundle)
+        qualifier_receipt = read_json(bundle / "execution/qualification-receipt.json")
+        permit = read_json(bundle / f"permit/{cell_id}.permit.json")
+        if (
+            qualifier_receipt["status"] != "qualified_hold"
+            or qualifier_receipt["participant_permit_root"]
+            != indexed[cell_id]["participant_permit_root"]
+            or maintained_root(permit) != indexed[cell_id]["participant_permit_root"]
+            or permit["packet_root"] != row["execution_packet_root"]
+            or permit["prompt_root"] != row["prompt_root"]
+        ):
+            raise ValueError(
+                f"execution bundle permit or qualification drift: {cell_id}"
+            )
+        relative = f"execution-bundles/{cell_id}"
+        bundle_records.append(
+            {
+                "bundle_path": relative,
+                "bundle_root": bundle_root,
+                "canonical_qualification_path": (
+                    "/private/tmp/vela-anthropic-open-diagnostic-held-v2/" + cell_id
+                ),
+                "cell_id": cell_id,
+                "entry_count": len(entries),
+                "materialization_receipt_root": raw_root(
+                    (
+                        bundle / "execution/input/materialization-receipt.json"
+                    ).read_bytes()
+                ),
+                "offline_pre_request_receipt_root": raw_root(
+                    (
+                        bundle
+                        / "execution/offline-evidence/offline-pre-request-validation.json"
+                    ).read_bytes()
+                ),
+                "participant_permit_root": indexed[cell_id]["participant_permit_root"],
+                "provider_request_root": raw_root(
+                    (
+                        bundle / "execution/offline-evidence/request.raw.json"
+                    ).read_bytes()
+                ),
+                "qualification_receipt_root": raw_root(
+                    (bundle / "execution/qualification-receipt.json").read_bytes()
+                ),
+                "qualification_root": indexed[cell_id]["qualification_root"],
+                "run_input_root": raw_root(
+                    (bundle / "execution/input/run.json").read_bytes()
+                ),
+                "status": "held_offline_qualified",
+                "transport_custody_root": raw_root(
+                    (
+                        bundle
+                        / "execution/offline-evidence/request-transport-custody.json"
+                    ).read_bytes()
+                ),
+            }
+        )
+    execution_bundle_registry = {
+        "bundles": bundle_records,
+        "fixed_denominator": 6,
+        "maintained_qualifier_commit": "cc3b88d8bfcfd7b4f720a023f049d5c365be9423",
+        "maintained_qualifier_sha256": (
+            "sha256:61591eec3304e299a9344888bc2a6f08cd32785b647ef5b0107da490dbf18013"
+        ),
+        "no_post_review_materialization_required": True,
+        "provider_calls": 0,
+        "schema": "vela.lean-correspondence-anthropic-open-diagnostic-execution-bundles.v2",
+        "status": "held_offline_qualified",
     }
 
     source_bindings = {
@@ -511,6 +654,97 @@ def build_records(destination: Path) -> dict[str, Any]:
         "superseded_directional_16_cell_result": "not_current_headline_and_not_evidence_for_this_diagnostic",
     }
 
+    selected_cases = {item["case_id"]: item for item in case_selection["cases"]}
+    adjudication_cases = [
+        {
+            "authority_scientific_inference": {
+                "repository_authority_effect": "none",
+                "scientific_status": "bounded_source_claim_only",
+            },
+            "case_id": "erdos-730-affirmative-rhs",
+            "change_classification": "neither",
+            "claim_ceiling": selected_cases["erdos-730-affirmative-rhs"][
+                "claim_ceiling"
+            ],
+            "impact_closure": [
+                {
+                    "disposition": "remains_valid",
+                    "item_id": "erdos-730.affirmative-rhs-defeq",
+                    "required_evidence_ids": [
+                        "sha256:4a13ff3e935cf64e54f63164e2ef39b3bf85c122dd84d3c32c5ab9440f7efc2c"
+                    ],
+                }
+            ],
+            "relation_validation": "valid",
+            "semantic_atom_root": selected_cases["erdos-730-affirmative-rhs"][
+                "semantic_atom_root"
+            ],
+        },
+        {
+            "authority_scientific_inference": {
+                "repository_authority_effect": "none",
+                "scientific_status": "bounded_source_claim_only",
+            },
+            "case_id": "fc-leaneval-oeis-303656",
+            "change_classification": "environment_drift",
+            "claim_ceiling": selected_cases["fc-leaneval-oeis-303656"]["claim_ceiling"],
+            "impact_closure": [
+                {
+                    "disposition": "remains_valid",
+                    "item_id": "oeis-303656.fc-to-leaneval-generated-lineage",
+                    "required_evidence_ids": [
+                        "sha256:dfdbba45d7226a0773b6b855b3cd897824a89eaf65dbb3f2b944f145df2af987",
+                        "sha256:964e18f829bbcf6c25d0c6204e8d79bce8e3c919de714a364dadab0ea3e1261d",
+                    ],
+                },
+                {
+                    "disposition": "remains_valid",
+                    "item_id": "oeis-303656.historical-helper-rename-defeq",
+                    "required_evidence_ids": [
+                        "sha256:62bf6f59d69c01027863404aeeae0b8604a33a0b331a8c49ee6e9cde959e6ea6"
+                    ],
+                },
+            ],
+            "relation_validation": "valid",
+            "semantic_atom_root": selected_cases["fc-leaneval-oeis-303656"][
+                "semantic_atom_root"
+            ],
+        },
+        {
+            "authority_scientific_inference": {
+                "repository_authority_effect": "none",
+                "scientific_status": "not_established",
+            },
+            "case_id": "deliberately-invalid-byte-identity",
+            "change_classification": "semantic_change",
+            "claim_ceiling": selected_cases["deliberately-invalid-byte-identity"][
+                "claim_ceiling"
+            ],
+            "impact_closure": [
+                {
+                    "disposition": "invalidate_relation",
+                    "item_id": "stage-a-open-calibration.distinct-numerals-byte-identity",
+                    "required_evidence_ids": [
+                        "sha256:0a0c06095d3c434b28c98de8fb651907083df13e34d457eba11dd9f8fcf214f9",
+                        "sha256:9a9971567a72494e3d8d95a1df556c2c6a7c04250a514043849a41dcbc30789c",
+                    ],
+                }
+            ],
+            "relation_validation": "invalid",
+            "semantic_atom_root": selected_cases["deliberately-invalid-byte-identity"][
+                "semantic_atom_root"
+            ],
+        },
+    ]
+    open_adjudication = {
+        "answer_key_exposed_to_future_participants": False,
+        "cases": adjudication_cases,
+        "case_selection_bytes": STAGE_A_CASE_SELECTION_BYTES,
+        "fixed_case_count": 3,
+        "schema": "vela.lean-correspondence-anthropic-open-diagnostic-adjudication.v1",
+        "source_stage_a_artifact_root": STAGE_A_ARTIFACT_ROOT,
+    }
+
     scoring_semantics = read_json(STAGE_A / "custody-contract.json")[
         "scoring_semantics"
     ]
@@ -536,6 +770,7 @@ def build_records(destination: Path) -> dict[str, Any]:
         ],
         "fixed_denominator": 6,
         "one_scoring_attempt": True,
+        "open_adjudication_root": canonical_root(open_adjudication),
         "primary_estimands": [
             "per_case_component_difference_assisted_minus_raw",
             "aggregate_component_point_difference",
@@ -601,7 +836,10 @@ def build_records(destination: Path) -> dict[str, Any]:
         "assignment_root": assignment_root,
         "case_selection_bytes": raw_root(case_raw),
         "credential_metadata_root": canonical_root(credential),
+        "execution_bundle_registry_root": canonical_root(execution_bundle_registry),
+        "packet_derivations_root": canonical_root(packet_derivation_record),
         "participant_configuration_root": canonical_root(configuration),
+        "open_adjudication_root": canonical_root(open_adjudication),
         "preregistration_root": canonical_root(preregistration),
         "prompt_bindings_root": canonical_root(prompt_record),
         "response_schema_sha256": raw_root(schema_raw),
@@ -627,39 +865,43 @@ def build_records(destination: Path) -> dict[str, Any]:
     permits = []
     permit_summaries = []
     for row in schedule_rows:
-        permit_token = hashlib.sha256(
-            SEED + b"permit|" + row["cell_id"].encode()
-        ).hexdigest()
-        permit = {
-            "assignment_root": assignment_root,
-            "attempt": 1,
-            "authority_effect": "none",
-            "cell_id": row["cell_id"],
-            "configuration_root": ANTHROPIC_CONFIGURATION_ROOT,
-            "consumed": False,
-            "participant_id": row["participant_id"],
-            "permit_id": f"anthropic-diagnostic-permit-{permit_token[:20]}",
-            "permit_release_authorized": False,
-            "permit_release_gate": "new_independent_exact_prelaunch_PASS_and_later_explicit_execution_authorization",
-            "registration_contract_root": registration_contract_root,
-            "response_schema_sha256": SCHEMA_ROOT,
-            "runtime_binding_root": roots["runtime_binding_root"],
-            "schema": "vela.lean-correspondence-anthropic-open-diagnostic-permit.v1",
-            "source_assignment_id": row["source_assignment_id"],
-            "source_packet_root": row["packet_root"],
-            "source_prompt_root": row["prompt_root"],
-            "status": "held_non_releasable_pending_independent_exact_prelaunch_review",
-            "zero_retries": True,
-            "zero_substitutions": True,
-        }
-        permit_root = canonical_root(permit)
-        permits.append((row["cell_id"], permit))
+        cell_id = row["cell_id"]
+        permit = read_json(
+            destination
+            / "execution-bundles"
+            / cell_id
+            / "permit"
+            / f"{cell_id}.permit.json"
+        )
+        permit_root = maintained_root(permit)
+        if (
+            permit["schema"] != "vela.tooling.closed-launch-permit.v1"
+            or permit["registration_id"] != "anthropic-open-diagnostic-registration-v2"
+            or permit["assignment_id"] != cell_id
+            or permit["participant_id"] != row["participant_id"]
+            or permit["run_id"] != cell_id
+            or permit["condition"] != row["arm"]
+            or permit["attempt"] != 1
+            or permit["configuration_root"] != ANTHROPIC_CONFIGURATION_ROOT
+            or permit["runtime_source_root"] != RUNTIME_SOURCE_ROOT
+            or permit["image_digest"] != ANTHROPIC_IMAGE_DIGEST
+            or permit["registered_schema_bytes"] != SCHEMA_ROOT
+            or permit["provider_schema_bytes"] != ANTHROPIC_PROVIDER_SCHEMA
+            or permit["prompt_root"] != row["prompt_root"]
+            or permit["packet_root"] != row["execution_packet_root"]
+            or permit["timeout_seconds"] != 1200
+            or permit["status"] != "held"
+            or permit["consumed_at"] is not None
+        ):
+            raise ValueError(f"maintained permit drift: {cell_id}")
+        permits.append((cell_id, permit))
         permit_summaries.append(
             {
-                "cell_id": row["cell_id"],
-                "permit_id": permit["permit_id"],
+                "cell_id": cell_id,
                 "permit_root": permit_root,
-                "status": "held_non_releasable",
+                "run_id": permit["run_id"],
+                "schema": permit["schema"],
+                "status": "held",
             }
         )
     permit_summaries.sort(key=lambda item: item["cell_id"])
@@ -718,6 +960,7 @@ def build_records(destination: Path) -> dict[str, Any]:
         "response_schema_sha256": SCHEMA_ROOT,
         "schema": "vela.lean-correspondence-anthropic-open-diagnostic-custody.v1",
         "scoring_contract_root": roots["scoring_contract_root"],
+        "source_and_execution_packet_roots_bound": True,
         "zero_retries": True,
         "zero_substitutions": True,
     }
@@ -748,6 +991,9 @@ def build_records(destination: Path) -> dict[str, Any]:
         "credential-metadata.json": credential,
         "custody-contract.json": custody,
         "hold-state.json": hold,
+        "open-adjudication.json": open_adjudication,
+        "execution-bundle-registry.json": execution_bundle_registry,
+        "packet-derivations.json": packet_derivation_record,
         "participant-configuration.json": configuration,
         "prelaunch-state.json": prelaunch,
         "preregistration.json": preregistration,
@@ -767,7 +1013,10 @@ def build_records(destination: Path) -> dict[str, Any]:
 
 def write_manifest(destination: Path) -> dict[str, Any]:
     entries = []
-    for path in sorted(destination.rglob("*")):
+    for path in sorted(
+        destination.rglob("*"),
+        key=lambda item: item.relative_to(destination).as_posix(),
+    ):
         if path.is_file() and path.name != "artifact-manifest.json":
             raw = path.read_bytes()
             entries.append(
@@ -792,6 +1041,7 @@ def generate(destination: Path) -> dict[str, Any]:
     if destination.resolve() != ROOT:
         for name in STATIC_FILES:
             shutil.copyfile(ROOT / name, destination / name)
+        shutil.copytree(ROOT / "execution-bundles", destination / "execution-bundles")
     build_records(destination)
     return write_manifest(destination)
 

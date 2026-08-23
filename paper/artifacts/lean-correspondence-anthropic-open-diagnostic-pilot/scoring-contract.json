@@ -20,6 +20,7 @@
   ],
   "fixed_denominator": 6,
   "one_scoring_attempt": true,
+  "open_adjudication_root": "sha256:83211274aa587f56daaa7e7c5b35756400eac041a36f7ce602e96879202719ed",
   "primary_estimands": [
     "per_case_component_difference_assisted_minus_raw",
     "aggregate_component_point_difference",

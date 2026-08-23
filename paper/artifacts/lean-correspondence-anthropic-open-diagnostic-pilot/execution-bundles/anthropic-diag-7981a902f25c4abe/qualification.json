@@ -1,0 +1,160 @@
+{
+  "configuration": {
+    "attempt": 1,
+    "compatibility_receipt": "config/compatibility.json",
+    "model": "claude-opus-5",
+    "output_token_ceiling": 32768,
+    "provider_adapter": "anthropic-messages-v1",
+    "reasoning_effort": "high",
+    "retries": 0,
+    "runner_version": "neutral-runner/1",
+    "service_tier": "default",
+    "strict_arguments": [
+      "approval_policy=never",
+      "web_search=disabled",
+      "tools=read_only_offline_shell_files"
+    ],
+    "timeout_seconds": 1200,
+    "tool_boundary": "config/tool-boundary.json",
+    "tools": "read_only_offline_shell_files"
+  },
+  "neutral_fixture": {
+    "capture_manifest": "fixture/capture-manifest.json",
+    "consumed_permit": "fixture/permit/neutral-qualification-01.permit.consumed.json",
+    "directory": "fixture",
+    "events": "fixture/evidence/provider-events.jsonl",
+    "identity": {
+      "assignment_id": "neutral-assignment",
+      "condition": "neutral-no-science",
+      "packet_root": "sha256:3814a08354123311f292c2673ec2e7c5cf0308762dd23ec6ef76398c7d3166df",
+      "participant_id": "neutral-fixture",
+      "prompt_root": "sha256:d51f3d42ecd8e0755d1ef759fca460f7dcbb82a25a84e3f1da16b9bc0b34548f",
+      "registration_id": "qualification-registration",
+      "run_id": "neutral-qualification-01"
+    },
+    "launch": "fixture/evidence/launch.json",
+    "permit_template": "fixture/permit/neutral-qualification-01.permit.template.json",
+    "raw_provider_events": "fixture/evidence/provider-events.raw.jsonl",
+    "raw_response": "fixture/evidence/response.raw.json",
+    "stderr": "fixture/evidence/provider-stderr.txt",
+    "teardown_receipt": "fixture/evidence/teardown.json",
+    "terminal_receipt": "fixture/evidence/terminal-receipt.json",
+    "tool_receipts": "fixture/evidence/tool-receipts.json"
+  },
+  "participant_permit": {
+    "consumed_permit": "permit/anthropic-diag-7981a902f25c4abe.permit.consumed.json",
+    "hold": "permit/hold-state.json",
+    "identity": {
+      "assignment_id": "anthropic-diag-7981a902f25c4abe",
+      "condition": "correspondence-assisted",
+      "packet_root": "sha256:43c41f0c0083f7b402ba6e4bdfd33212604bb98b52f7e368b757b541a62a43d0",
+      "participant_id": "anthropic-participant-f658196f3fa022a9",
+      "prompt_root": "sha256:de47263d31b832237bb8a20e6ed0ccfc608dda2c40f451bf49326c0a62e5ebe0",
+      "registration_id": "anthropic-open-diagnostic-registration-v2",
+      "run_id": "anthropic-diag-7981a902f25c4abe"
+    },
+    "permit": "permit/anthropic-diag-7981a902f25c4abe.permit.json"
+  },
+  "provider_equivalence": "fixture/provider-equivalence.json",
+  "runtime": {
+    "account_database": {
+      "account": "participant",
+      "expected_accounts": [
+        "root",
+        "participant"
+      ],
+      "fixed_day": 20339,
+      "fixtures": [
+        {
+          "path": "runtime/shadow-day-a",
+          "sha256": "sha256:ec8520aadc287d5491569700df7f710eb8a97884f8e2153c0977cd46716160f2",
+          "source_day": 20001
+        },
+        {
+          "path": "runtime/shadow-day-b",
+          "sha256": "sha256:541f1ba02181456e8f467205fd7bd58a6f89402a982f2be773f191b66b171c88",
+          "source_day": 20002
+        }
+      ],
+      "normalized_sha256": "sha256:b8a86d052bd73640a31aa505ede396ecd39ab1918c0cf1e45fb8400ac59ea0cb"
+    },
+    "build_inputs": "runtime/build-inputs.json",
+    "mounts": [
+      {
+        "read_only": true,
+        "source": "/private/tmp/vela-anthropic-open-diagnostic-held-v2/anthropic-diag-7981a902f25c4abe/schemas",
+        "target": "/input"
+      },
+      {
+        "read_only": true,
+        "source": "/private/tmp/vela-anthropic-open-diagnostic-held-v2/anthropic-diag-7981a902f25c4abe/runtime/source/vendor/ca-certificates.crt",
+        "target": "/etc/ssl/certs/ca-certificates.crt"
+      }
+    ],
+    "oci_archives": [
+      "runtime/a.oci.tar",
+      "runtime/b.oci.tar"
+    ],
+    "oci_receipts": [
+      "runtime/independent-a.json",
+      "runtime/independent-b.json"
+    ],
+    "platform": "linux/arm64",
+    "source_date_epoch": 1757289600,
+    "source_dir": "runtime/source",
+    "source_manifest": "runtime/source-manifest.json",
+    "ssl_cert_file": "/etc/ssl/certs/ca-certificates.crt",
+    "trust_bundle": "runtime/source/vendor/ca-certificates.crt",
+    "trust_bundle_container_path": "/etc/ssl/certs/ca-certificates.crt",
+    "trust_bundle_sha256": "sha256:9dae8d76e55cb08991f2b672d58999ea15560d910759c16b544f843bdffbb994"
+  },
+  "schema": "vela.tooling.evidence-qualification.v1",
+  "schemas": {
+    "closed_set": {
+      "expected": [
+        "downstream-item-1"
+      ],
+      "field": "impact_closure",
+      "key": "item_id"
+    },
+    "deletions": [
+      {
+        "expected_value": true,
+        "keyword": "uniqueItems",
+        "pointer": "/properties/impact_closure/uniqueItems"
+      },
+      {
+        "expected_value": 1,
+        "keyword": "minItems",
+        "pointer": "/properties/impact_closure/items/properties/evidence_ids/minItems"
+      },
+      {
+        "expected_value": true,
+        "keyword": "uniqueItems",
+        "pointer": "/properties/impact_closure/items/properties/evidence_ids/uniqueItems"
+      },
+      {
+        "expected_value": true,
+        "keyword": "uniqueItems",
+        "pointer": "/properties/uncertainty/uniqueItems"
+      }
+    ],
+    "provider": "schemas/provider.json",
+    "provider_adapter": "anthropic-messages-v1",
+    "registered": "schemas/registered.json",
+    "valid_response": "schemas/valid-response.json"
+  },
+  "scoring_snapshot": "fixture/scoring-snapshot.json",
+  "self_verification": {
+    "command": [
+      "/private/tmp/vela-stage-a-runtime-qualification-python-v1/.venv/bin/python",
+      "/private/tmp/vela-stage-a-runtime-qualification-maintained-v1/tools/evidence_qualification/qualification.py",
+      "--bundle",
+      "/private/tmp/vela-anthropic-open-diagnostic-held-v2/anthropic-diag-7981a902f25c4abe"
+    ],
+    "environment_prefix": "/private/tmp/vela-stage-a-runtime-qualification-python-v1/.venv",
+    "jsonschema_module": "/private/tmp/vela-stage-a-runtime-qualification-python-v1/.venv/lib/python3.13/site-packages/jsonschema/__init__.py",
+    "qualifier_sha256": "sha256:61591eec3304e299a9344888bc2a6f08cd32785b647ef5b0107da490dbf18013"
+  },
+  "status": "hold"
+}

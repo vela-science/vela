@@ -1,0 +1,13 @@
+{
+  "canonicalization": "recursive_sorted_object_keys_compact_utf8_newline",
+  "duplicate_keys_rejected_at_every_depth": true,
+  "execution_bytes": 1621,
+  "execution_packet_path": "anthropic-diag-2f719af4c655ef77.json",
+  "execution_packet_sha256": "sha256:2af228c32b46206ae90fe4ee51534dc3086ba3fbf1809b08b897bf4caff681f6",
+  "number_lexemes": "preserved_only_if_runner_canonical_no_exponent_no_negative_zero_no_trailing_fraction_zero",
+  "parsed_semantic_equality": true,
+  "schema": "vela.lean-correspondence-anthropic-open-diagnostic-packet-derivation.v1",
+  "source_bytes": 1919,
+  "source_packet_path": "anthropic-diag-2f719af4c655ef77.json",
+  "source_packet_sha256": "sha256:6f4e2cad5ee4be0ae3ecd00765b8e830f52c2d2b43eb825d0269eea9221cfc00"
+}

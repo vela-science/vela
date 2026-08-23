@@ -1,0 +1,18 @@
+{
+  "accepted_arguments": [
+    "approval_policy=never",
+    "web_search=disabled",
+    "tools=read_only_offline_shell_files"
+  ],
+  "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
+  "dockerfile_bytes": "sha256:e6f29f21f153e5f9129e13d74630b6183691e28aa68347d5904d5f0d7f1884e3",
+  "image_digest": "sha256:a95b75cfc449afc2ecb87a5808542339b1776ced9b15d91a27e795993acdbba0",
+  "provider_adapter": "anthropic-messages-v1",
+  "provider_contact_possible": false,
+  "runner_version": "neutral-runner/1",
+  "runtime_source_root": "sha256:345b150207668e98a2a061c328e3552697b5370c50fb50dfbd96f598aaa65e30",
+  "schema": "vela.tooling.strict-config-compatibility.v1",
+  "stderr_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "strict_parse_passed": true,
+  "tool_boundary_root": "sha256:01dfbda69c1c7760423fdba41eaac18687a73d9fe683a8a5f207fdc8abe2a7d9"
+}

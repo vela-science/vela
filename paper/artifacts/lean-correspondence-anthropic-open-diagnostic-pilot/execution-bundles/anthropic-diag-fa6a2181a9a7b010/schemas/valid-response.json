@@ -1,0 +1,22 @@
+{
+  "assignment_id": "lc-a-01-fc0bf9967908",
+  "authority_scientific_inference": {
+    "repository_authority_effect": "none",
+    "scientific_status": "not_established"
+  },
+  "change_classification": "neither",
+  "impact_closure": [
+    {
+      "disposition": "recheck",
+      "evidence_ids": [
+        "evidence-1"
+      ],
+      "item_id": "downstream-item-1"
+    }
+  ],
+  "relation_validation": "valid",
+  "schema": "lean-correspondence.review-response.v1",
+  "uncertainty": [
+    "bounded fixture only"
+  ]
+}

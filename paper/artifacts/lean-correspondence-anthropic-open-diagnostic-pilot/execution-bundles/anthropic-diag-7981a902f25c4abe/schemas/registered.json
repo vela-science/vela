@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.science/schemas/lean-correspondence-review-response.v1.json",
+  "title": "Lean Correspondence review response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "assignment_id",
+    "relation_validation",
+    "change_classification",
+    "impact_closure",
+    "authority_scientific_inference",
+    "uncertainty"
+  ],
+  "properties": {
+    "schema": {
+      "const": "lean-correspondence.review-response.v1"
+    },
+    "assignment_id": {
+      "type": "string",
+      "pattern": "^lc-[a-z0-9-]+$"
+    },
+    "relation_validation": {
+      "enum": [
+        "valid",
+        "invalid",
+        "cannot_determine"
+      ]
+    },
+    "change_classification": {
+      "enum": [
+        "semantic_change",
+        "environment_drift",
+        "both",
+        "neither",
+        "unprovable"
+      ]
+    },
+    "impact_closure": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "item_id",
+          "disposition",
+          "evidence_ids"
+        ],
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "disposition": {
+            "enum": [
+              "recheck",
+              "invalidate_relation",
+              "remains_valid",
+              "blocked_unprovable"
+            ]
+          },
+          "evidence_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "authority_scientific_inference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository_authority_effect",
+        "scientific_status"
+      ],
+      "properties": {
+        "repository_authority_effect": {
+          "enum": [
+            "none",
+            "repository_local_decision_evidenced",
+            "unprovable"
+          ]
+        },
+        "scientific_status": {
+          "enum": [
+            "not_established",
+            "bounded_source_claim_only",
+            "unprovable"
+          ]
+        }
+      }
+    },
+    "uncertainty": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

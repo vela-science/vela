@@ -1,0 +1,61 @@
+{
+  "capture_root": "sha256:31ad7fd57d0d393b92a46b191ca17da909bc98f5c1d5d7d663c57f955f26de88",
+  "entries": [
+    {
+      "bytes": 716,
+      "path": "evidence/launch.json",
+      "sha256": "sha256:93b562096bbdbb1910ca50390b8e93d72f7359a22c6243d7b34b20c8015da39a"
+    },
+    {
+      "bytes": 2556,
+      "path": "evidence/provider-events.jsonl",
+      "sha256": "sha256:9a885be7ca6a8b6ecbe0033a256709f353de7882a5c61b0f520bb4061d90e3a5"
+    },
+    {
+      "bytes": 1846,
+      "path": "evidence/provider-events.raw.jsonl",
+      "sha256": "sha256:887b76771bbf16fde341c1f5963303255f910bc30e5129e5cd5ceea8249ec031"
+    },
+    {
+      "bytes": 0,
+      "path": "evidence/provider-stderr.txt",
+      "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 514,
+      "path": "evidence/response.raw.json",
+      "sha256": "sha256:6e87719bca647b009b3f9e49105478b9690a14d83a637d5bfbbc72ebc30f47a3"
+    },
+    {
+      "bytes": 781,
+      "path": "evidence/teardown.json",
+      "sha256": "sha256:bfe5eef4bf5c45cf368064f4a89704799218214e2674827f15e122612383a754"
+    },
+    {
+      "bytes": 2251,
+      "path": "evidence/terminal-receipt.json",
+      "sha256": "sha256:afc85e9ecdbdacc702201bcdfc7dfe65eea6077904871422baf16e3ca7e5d041"
+    },
+    {
+      "bytes": 911,
+      "path": "evidence/tool-receipts.json",
+      "sha256": "sha256:166c37eb2e65bdfd66cbd6825c02d08a29a506fe4b39fc97cc2d9be8cc80c97b"
+    },
+    {
+      "bytes": 0,
+      "path": "evidence/tool.stderr",
+      "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 6,
+      "path": "evidence/tool.stdout",
+      "sha256": "sha256:2e22da2ab13713309ac75219e525b8e06ed02f3f1963b8feef203fa25827f93d"
+    },
+    {
+      "bytes": 1132,
+      "path": "permit/neutral-qualification-01.permit.consumed.json",
+      "sha256": "sha256:a80de795d864a7ed08369226fb0be9edf2e4b9c3cd9e44407f84ef7863e418a7"
+    }
+  ],
+  "schema": "vela.tooling.neutral-capture-manifest.v1"
+}
