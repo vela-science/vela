@@ -18,7 +18,11 @@ We show this accounting conflates at least four distinct trust states, each
 demonstrated concretely on Lean 4.27.0, and we define the **Effective Trust
 Closure** that separates them.
 
-A census of google-deepmind/formal-conjectures at commit `e51535ae` — 9,894
+A census of the Formal Conjectures corpus — measured on a fork whose Lean
+source directories are byte-identical to upstream
+google-deepmind/formal-conjectures at `9f5ee773` (checkout commit
+`e51535ae` on `williamjblair/formal-conjectures`, branch
+`comparator-workspaces`) — 9,894
 built declarations, of which 6,248 are authored and 3,646 compiler-generated —
 finds that among the 2,863 authored declarations whose closure contains
 `sorryAx`, **851 (29.7%) are statement holes**: the statement itself, not
@@ -31,10 +35,13 @@ compiler trust, and 3 combine both: concrete numerical facts, proved by
 native evaluation, about a sequence whose defining existence proof is
 `sorry`.
 
-No existing tool distinguishes any of these classes. We show the conflation
-already has an institutional consequence: two live registries hold
-policy-contradictory positions on the same theorem, both correct under their
-own rules, with no record anywhere relating them. Finally, we demonstrate the
+No consumer of the trust reporting can see these distinctions — even where,
+as with the corpus's deliberate `answer(sorry)` idiom, the authors encode
+them in source. We show the conflation
+already has an institutional consequence: one registry's record and a second
+registry's published admission policy take contradictory positions on the
+same proof, both correct under their own rules, with no record anywhere
+relating them. Finally, we demonstrate the
 closure operating as durable scientific state: recorded as a bounded claim in
 a signed repository whose acceptance gate refused the producer's own passing
 verification until an independent recomputation existed.
@@ -59,9 +66,14 @@ Sections 2–5 show, with named artifacts, that it cannot answer any of them
 reliably — not because the implementation is wrong, but because the set has
 no vocabulary for the distinctions.
 
-Throughout, "the corpus" is google-deepmind/formal-conjectures at commit
-`e51535ae2caeab6c7493450a5d86a5a8651fa82d`, elaborated under its pinned
-toolchain `leanprover/lean4:v4.27.0`.
+Throughout, "the corpus" is Formal Conjectures as checked out at commit
+`e51535ae2caeab6c7493450a5d86a5a8651fa82d` of
+`williamjblair/formal-conjectures` (branch `comparator-workspaces`), whose
+`FormalConjectures/` source directories are byte-identical (`git diff` empty)
+to upstream google-deepmind/formal-conjectures at merge-base `9f5ee773`;
+everything is elaborated under the corpus's pinned toolchain
+`leanprover/lean4:v4.27.0`. External reviewers should reproduce against
+upstream `9f5ee773` or the fork commit; upstream cannot resolve `e51535ae`.
 
 ---
 
@@ -85,8 +97,9 @@ theorem erdos_23.variants.n1 :
 Here `sorryAx` enters only through the **value**. `#print axioms` reports the
 two identically. The difference is material to every consumer: an unproved
 statement can be proved; a statement hole cannot — it must first be
-*instantiated*. A prover benchmarked against the corpus is, for roughly 30%
-of its sorry-bearing targets, handed a hole presented as a statement.
+*instantiated*. For roughly 30% of the corpus's sorry-bearing targets, the standard trust
+accounting cannot tell a consumer that the target is a hole rather than a
+statement — the source makes it visible, the closure does not.
 
 Detection is mechanical once the distinction is named: check whether the
 declaration's **type** — directly, or transitively through the constants it
@@ -115,7 +128,7 @@ Source-verified instances, one per family:
 |---|---|---|---|
 | `ErdosProblems/697` | `density_exists (m) (α) : ∃ δ, HasDensity … := by sorry` | `def δ (m) (α) : ℝ := (density_exists m α).choose` | `erdos_697.parts.i/ii`, `variants.delta_lt` |
 | `ErdosProblems/295` | `exists_k (N) : ∃ k n, … := by sorry` | `Nat.find (exists_k N)` | `variants.erdos_straus` |
-| `ErdosProblems/961` | `variants.well_defined := by sorry` | `Nat.find (… well_defined k hk)` | `variants.erdos_upper_bound`, `variants.jutila_ramachandra_shorey_upper_bound` |
+| `ErdosProblems/961` | `erdos_961.sylvester_schur := by sorry` (well-definedness is then proved *from* it) | `Nat.find (… well_defined k hk)` | `variants.erdos_upper_bound`, `variants.jutila_ramachandra_shorey_upper_bound` |
 | `ErdosProblems/1055` | `exists_p (r) : ∃ p, p.Prime ∧ IsOfClass r p := by sorry` | `Nat.find (exists_p r)` | `variants.erdos_limit`, `variants.selfridge_limit` |
 | `OEIS/87719` | `a_exists (n) := by sorry` | `def a (n) : ℕ := Nat.find (a_exists n)` | `a_1`, `a_2`, `a_3`, `a_formula` |
 | `Wikipedia/MovingSofa` | `ABφθSpec.existsUnique := sorry` | `def A : ℝ := ABφθSpec.existsUnique.choose.1` (Gerver's constants) | `sofaConstant_eq`, `sofaConstant_eq_volume_gerversSofa`, `volume_eq_sofaConstant_iff_congruent_gerversSofa` |
@@ -141,9 +154,9 @@ analogue of a transitive dependency no grep can find.
 890 declarations in the full corpus (234 authored) carry `Lean.ofReduceBool`
 and `Lean.trustCompiler`; the two counts are exactly equal corpus-wide, which
 corroborates at scale that the historical under-reporting bug in
-`collectAxioms` (lean4#8840: axioms referenced by the types of other axioms
-were dropped, so `native_decide` could show `ofReduceBool` without
-`trustCompiler`) is fixed at this toolchain — we also reran the issue's
+`collectAxioms` (lean4#8840, now closed upstream: axioms referenced by the
+types of other axioms were dropped, so `native_decide` could show
+`ofReduceBool` without `trustCompiler`) is fixed at this toolchain — we also reran the issue's
 minimal example and observed the complete set.
 
 These are legitimate proofs under a larger trusted base. The failure is
@@ -154,11 +167,16 @@ field
 "permitted_axioms": ["propext", "Quot.sound", "Classical.choice"]
 ```
 
-under which every one of the 890 is inadmissible — while Formal Conjectures
-records some of them, such as `erdos_730.variants.explicit_pairs` (proved by
+as carried in a registered record's `formalization` block (read from a
+published Palomar record; the registry's public material states the same
+three-axiom policy), under which every one of the 890 is inadmissible — while
+Formal Conjectures records some of them, such as `erdos_730.variants.explicit_pairs` (proved by
 `exact ⟨by decide, by native_decide⟩`), as proved textbook theorems. Both
 positions are correct under their own policy. Neither system's records can
-express the other's position. Section 7 develops the consequence.
+express the other's position. Section 7 develops the consequence. (Palomar holds no record of this
+particular theorem; the contradiction is between Formal Conjectures' record
+and Palomar's published policy, which is exactly how the repository's own
+verification caveats state it.)
 
 ### 4.2 The closure can be silently wrong
 
@@ -211,8 +229,10 @@ Trust Closure is the tuple:
 5. **environment** — the toolchain and dependency pins under which 1–4 were
    computed, without which none of them is a stable fact.
 
-Components 1, 2, 3 and 5 are implemented and ran over the full corpus.
-Component 4 is implemented at corpus level (the registered replacement set
+Components 1, 2, and 5, and the compiler arm of component 3, are implemented
+and ran over the full corpus; the `kernel_reduction_at_scale` value is
+presently assessed per case, not detected corpus-wide. Component 4 is
+implemented at corpus level (the registered replacement set
 and its closures); per-declaration reachability is future work, and we say
 so. The implementation is a few hundred lines over `Lean.collectAxioms` and
 `Expr.getUsedConstants`. The contribution is not the code. It is the
@@ -226,8 +246,12 @@ benchmarks, and successors already needed and could not see.
 ### 6.1 Method
 
 Enumerate the environment after importing every FC module that builds in the
-pinned environment: 1,061 of 1,090 modules (97.3%; the 29 others fail to
-build at these pins and are excluded — a threat discussed in §8.5). For each
+pinned environment. The import list is the 1,061 of 1,090 modules (97.3%)
+with prebuilt artifacts in the census environment; the 29 without — all under
+`FormalConjectures/Arxiv/` — were not imported directly, though sampled
+members compile cleanly, so the exclusion reflects the build configuration of
+the environment, not build failures, and several of the 29 enter the
+environment anyway through transitive imports (§8.5). For each
 declaration originating in a FormalConjectures module, record the axiom
 closure, the direct and transitive statement-hole flags, and compiler trust.
 9,894 declarations.
@@ -271,9 +295,9 @@ sits behind a definition in another part of the file or corpus.
 
 ---
 
-## 7. The institutional consequence: one theorem, two registries, silent contradiction
+## 7. The institutional consequence: one proof, a record and a policy in silent contradiction
 
-At commit `e51535ae`, the three `Erdos730` declarations:
+At the pinned corpus commit, the three `Erdos730` declarations:
 
 | Declaration | FC category | Statement | Computation trust | Admissible under Palomar's policy |
 |---|---|---|---|---|
@@ -287,8 +311,10 @@ under their own rules; neither is aware of the other's position; nothing
 anywhere relates them. This is not a defect in either registry. It is a fact
 the shared accounting they both consume has no vocabulary for.
 
-The consequence is live because environments move. Formal Conjectures stages
-a toolchain bump to Lean 4.33 (#4428). Computed from the effective closure —
+The consequence is live because environments move — including while this
+paper was being written: Formal Conjectures' toolchain bump #4428 (to
+v4.32.2, staging toward the 4.33 target its LeanEval export pins) merged on
+2026-08-23, the day of this census. Computed from the effective closure —
 not from anyone's memory of which proofs used `native_decide` — one event
 yields five different correct consequences:
 
@@ -297,7 +323,7 @@ yields five different correct consequences:
 | erdosproblems.com | none | the mathematics did not change |
 | FC / `delta_ne_one` | rebuild only | kernel proof; trust basis unaffected |
 | FC / `explicit_pairs` | **re-verify the trust claim** | the proof trusts the compiler and the compiler changed |
-| Palomar record | environment-stale | its mechanical report pins toolchain and Mathlib revision |
+| A registry record pinning this environment (Palomar-style mechanical report) | environment-stale | such records pin toolchain and Mathlib revision |
 | Vela repository | scoped recheck; Standing unchanged until an authorized Decision | only an attributed Decision changes Standing |
 
 A single status column cannot represent this. A dependency graph without
@@ -305,8 +331,9 @@ trust vocabulary computes the wrong blast radius: rebuilding `delta_ne_one`
 is sufficient; rebuilding `explicit_pairs` is not.
 
 Independent supporting measurement: a two-stage audit of the corpus's live
-export seam (FC → LeanEval, 100 declarations, independently pinned toolchains
-4.27 → 4.33) found 100/100 survive import and generation and 98/100 compile
+export seam (FC → LeanEval, 100 declarations, independently pinned toolchains:
+source at 4.27, target workspaces carrying `lean-toolchain` v4.33.0 and
+Mathlib `6f1ef4e5`) found 100/100 survive import and generation and 98/100 compile
 at the target pins — with both failures being *faithful copies invalidated by
 environment divergence*, exactly matching the seam's recorded known-failure
 list. Handoff loss at a well-maintained boundary is rare, environmental in
@@ -336,10 +363,14 @@ corpus's own pin, with the environment recorded as part of the closure. The
 lean4#8840 fix status and the lean4#7463 reproduction are toolchain-specific
 facts and stated as such.
 
-**8.5 Coverage.** 29 of 1,090 modules (2.7%) do not build at the pinned
-environment and are excluded. Their absence cannot create the reported
+**8.5 Coverage.** 29 of 1,090 modules (2.7%), all under
+`FormalConjectures/Arxiv/`, lacked prebuilt artifacts in the census
+environment and were not imported directly. Sampled members compile cleanly,
+so this is an artifact of the environment's build configuration, not of the
+modules; several of the 29 nonetheless appear in the census through
+transitive imports. The absence of the remainder cannot create the reported
 classes, only hide additional instances; every ratio's denominator is the
-built population, stated explicitly.
+censused population, stated explicitly.
 
 **8.6 Self-verification.** The census and the demonstration repository were
 produced and machine-verified by one producer plus a fresh-session verifier
@@ -364,9 +395,10 @@ bounded, environment-pinned, and correction-aware. We recorded the §7 case as
 a bounded claim in a signed Vela repository and ran its full lifecycle:
 
 - The claim binds the exact source commit, file digest, toolchain, and
-  per-declaration closures, with explicit caveats (`does not establish that
-  Erdős 730 is solved`; `… that either authority is wrong`; `… endorsement by
-  any named system`).
+  per-declaration closures, with explicit caveats, verbatim: "Does not establish that Erdos 730 is
+  solved; the problem is open"; "… that either authority is wrong; both are
+  correct under their own policy"; "Does not establish acceptance or
+  endorsement by Formal Conjectures, Palomar, or erdosproblems.com."
 - The producer's own verification — same actor, same script — was retained
   with `independent_of_producer: false`, and the acceptance gate **refused
   it**: `protocol_gate: blocked`, blocker
@@ -382,16 +414,18 @@ a bounded claim in a signed Vela repository and ran its full lifecycle:
 Two of this paper's observations (§4.3's kernel-reduction case and the
 statement-hole reading of `erdos_730`) were surfaced by the independent
 verifier, not the producer, and entered as retained verification artifacts.
-The system's refusal of the producer's green check, and the recorded reason,
-are themselves part of the state — which is the property that separates a
-trust *record* from a trust *scanner*.
+What is durable is the producer verification's declared non-independence and
+scope, from which the gate's refusal re-derives on replay; the refusal is
+recomputed policy over retained state, not a stored flag — which is the
+property that separates a trust *record* from a trust *scanner*.
 
 ---
 
 ## 10. Reproducing
 
-Corpus: `google-deepmind/formal-conjectures` @
-`e51535ae2caeab6c7493450a5d86a5a8651fa82d`, toolchain
+Corpus: `williamjblair/formal-conjectures` @
+`e51535ae2caeab6c7493450a5d86a5a8651fa82d` (Lean sources byte-identical to
+upstream google-deepmind/formal-conjectures @ `9f5ee773`), toolchain
 `leanprover/lean4:v4.27.0`, prebuilt; every script below runs with
 `lake env lean <file>` from the checkout root, no `lake build` required.
 
