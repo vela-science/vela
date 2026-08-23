@@ -14,14 +14,33 @@ MAIN_COMMIT="4685462c44b1f073870f31025ae73d1d8770ce73"
 RESULT_COMMIT="7641d775911f6026a9c36649d6cf1354dd1f70c0"
 AUDIT_COMMIT="de13073ff8f3a9f2958f8c93c848205c533ddb1e"
 ERDOS_COMMIT="b6e554513346f515090e013a3484548261b7b93d"
+HELDOUT_CAPTURE_COMMIT="5694bebac03b062d6acdce5a2a900551850e6a1c"
+HELDOUT_RESULT_COMMIT="4524c8f776943a267e04e03e9a237ecaed14bc2c"
+HELDOUT_REVIEW_COMMIT="e6d8348bea3a57e88c5f9426d44a480b7a026fbd"
 
-for commit in "$MAIN_COMMIT" "$RESULT_COMMIT" "$AUDIT_COMMIT" "$ERDOS_COMMIT"; do
+for commit in \
+  "$MAIN_COMMIT" \
+  "$RESULT_COMMIT" \
+  "$AUDIT_COMMIT" \
+  "$ERDOS_COMMIT" \
+  "$HELDOUT_CAPTURE_COMMIT" \
+  "$HELDOUT_RESULT_COMMIT" \
+  "$HELDOUT_REVIEW_COMMIT"; do
   git -C "$ROOT" cat-file -e "${commit}^{commit}"
 done
 
-python3 - "$ROOT" "$MAIN_COMMIT" "$RESULT_COMMIT" "$AUDIT_COMMIT" "$ERDOS_COMMIT" <<'PY'
+python3 - \
+  "$ROOT" \
+  "$MAIN_COMMIT" \
+  "$RESULT_COMMIT" \
+  "$AUDIT_COMMIT" \
+  "$ERDOS_COMMIT" \
+  "$HELDOUT_CAPTURE_COMMIT" \
+  "$HELDOUT_RESULT_COMMIT" \
+  "$HELDOUT_REVIEW_COMMIT" <<'PY'
 from __future__ import annotations
 
+from decimal import Decimal
 import hashlib
 import json
 from pathlib import Path
@@ -29,7 +48,15 @@ import subprocess
 import sys
 
 root = Path(sys.argv[1])
-main_commit, result_commit, audit_commit, erdos_commit = sys.argv[2:]
+(
+    main_commit,
+    result_commit,
+    audit_commit,
+    erdos_commit,
+    heldout_capture_commit,
+    heldout_result_commit,
+    heldout_review_commit,
+) = sys.argv[2:]
 
 
 def show(commit: str, path: str) -> bytes:
@@ -55,6 +82,14 @@ expected_files = {
         "sha256:b29e8cbb50aff3cc81a4ac6f4cf261b9a3ca9d80dbe69614d9a771116d80151c",
     (result_commit, "paper/artifacts/inherited-correction-benchmark-execution/confirmatory-replacement-execution/runs/scored-result.json"):
         "sha256:48c3ab674e1ef707a207c2a5cf8addab16d7209e8229def76f0f1568a466f83f",
+    (heldout_capture_commit, "paper/artifacts/inherited-correction-held-out-order-replacement-execution/capture-manifest.json"):
+        "sha256:767a14d5a6c7b6d980348ca2c7b0ed2eb254f045ee9d4f271984f64312678fdf",
+    (heldout_capture_commit, "paper/artifacts/inherited-correction-held-out-order-replacement-execution/capture-summary.json"):
+        "sha256:1ed258dc57d6581b30bbeb073b22dc50612dc959a500d1d9e4dd72b3683f5dcd",
+    (heldout_capture_commit, "paper/artifacts/inherited-correction-held-out-order-replacement-execution/complete-custody.json"):
+        "sha256:b72431055872f713a82598f538946953525663bf3738dd597c1c461be2b8ad0a",
+    (heldout_result_commit, "paper/artifacts/inherited-correction-held-out-order-replacement-result/scored-result.json"):
+        "sha256:ae0c980a18633832a83b73e0c715ee11e702aeb56660c4e027d5ece03425f372",
 }
 for key, expected in expected_files.items():
     actual = digest(show(*key))
@@ -75,6 +110,62 @@ assert result["conditions"]["git-documents"]["sessions"] == 8
 assert result["conditions"]["vela"]["sessions"] == 8
 assert result["conditions"]["git-documents"]["exact_successes"] == 0
 assert result["conditions"]["vela"]["exact_successes"] == 5
+
+capture_summary = json.loads(show(
+    heldout_capture_commit,
+    "paper/artifacts/inherited-correction-held-out-order-replacement-execution/capture-summary.json",
+))
+assert capture_summary["fixed_denominator"] == 36
+assert capture_summary["terminal_runs"] == 36
+assert capture_summary["condition_counts"] == {
+    "git-documents": 12,
+    "state-wrapper": 12,
+    "vela": 12,
+}
+assert capture_summary["retries"] == 0
+assert capture_summary["substitutions"] == 0
+assert capture_summary["outcome_counts"] == {"completed": 36}
+assert capture_summary["complete_custody_root"] == "sha256:ccf69e70a3887c8a9f9ddffa2d62051e114a8974b2d2ae83c72366a1eb98dcef"
+
+heldout = json.loads(
+    show(
+        heldout_result_commit,
+        "paper/artifacts/inherited-correction-held-out-order-replacement-result/scored-result.json",
+    ),
+    parse_float=Decimal,
+)
+assert heldout["fixed_denominator"] == 36
+assert heldout["capture_root"] == "sha256:f74229b3346cf56e2128d78b366f5fb99380872c27285d196c13862738bc8e98"
+assert heldout["positive_gate"] == "not_supported"
+assert heldout["authority_effect"] == "none"
+assert heldout["gates"] == {
+    "governance_inheritance": False,
+    "structure": False,
+    "total": False,
+}
+expected_heldout = {
+    "git-documents": (12, 12, 0, Decimal("12.800895867")),
+    "state-wrapper": (12, 12, 0, Decimal("13.98268798558333")),
+    "vela": (11, 12, 1, Decimal("63.252235329")),
+}
+for condition, expected in expected_heldout.items():
+    actual = heldout["aggregate"][condition]
+    assert (
+        actual["exact_successes"],
+        actual["correction_impact_complete_sessions"],
+        actual["authority_errors"],
+        actual["restricted_mean_seconds"],
+    ) == expected
+
+review = json.loads(show(
+    heldout_review_commit,
+    "reviews/inherited-correction-benchmark/order-result-4524c8f7-verdict.json",
+))
+assert review["verdict"] == "PASS"
+assert review["subject"]["result_commit"] == heldout_result_commit
+assert review["subject"]["sealed_capture_parent"] == heldout_capture_commit
+assert review["roots"]["result_canonical_root"] == "sha256:92eed5bcb9e6b647d52a53282563077d3829b28c426e0dd9898a073f2590b8a5"
+assert review["gates"]["positive_gate"] == "not_supported"
 
 manifest = json.loads(show(audit_commit, "paper/artifacts/inherited-correction-post-result-audit/manifest.json"))
 for member in manifest["files"]:
@@ -98,7 +189,9 @@ print(json.dumps({
     "erdos_commit": erdos_commit,
     "positive_gate": result["positive_gate"],
     "authority_effect": result["authority_effect"],
-    "held_out_status": "not_run",
+    "held_out_result_commit": heldout_result_commit,
+    "held_out_positive_gate": heldout["positive_gate"],
+    "held_out_authority_effect": heldout["authority_effect"],
 }, sort_keys=True, separators=(",", ":")))
 PY
 
@@ -110,6 +203,7 @@ TMP_ROOT="$(mktemp -d)"
 cleanup() {
   git -C "$ROOT" worktree remove --force "$TMP_ROOT/main" >/dev/null 2>&1 || true
   git -C "$ROOT" worktree remove --force "$TMP_ROOT/result" >/dev/null 2>&1 || true
+  git -C "$ROOT" worktree remove --force "$TMP_ROOT/heldout" >/dev/null 2>&1 || true
   git -C "$ROOT" worktree remove --force "$TMP_ROOT/erdos" >/dev/null 2>&1 || true
   rmdir "$TMP_ROOT" >/dev/null 2>&1 || true
 }
@@ -117,12 +211,21 @@ trap cleanup EXIT
 
 git -C "$ROOT" worktree add --detach "$TMP_ROOT/main" "$MAIN_COMMIT" >/dev/null
 git -C "$ROOT" worktree add --detach "$TMP_ROOT/result" "$RESULT_COMMIT" >/dev/null
+git -C "$ROOT" worktree add --detach "$TMP_ROOT/heldout" "$HELDOUT_RESULT_COMMIT" >/dev/null
 git -C "$ROOT" worktree add --detach "$TMP_ROOT/erdos" "$ERDOS_COMMIT" >/dev/null
 
 (
   cd "$TMP_ROOT/main"
   uv run --project conformance --locked python conformance/verify.py
   cargo test --locked -p vela-cli --features test-support --test portable_divergence
+)
+
+(
+  cd "$TMP_ROOT/heldout"
+  PYTHONDONTWRITEBYTECODE=1 python3 paper/artifacts/inherited-correction-held-out-order-replacement/benchmark.py verify
+  PYTHONDONTWRITEBYTECODE=1 python3 paper/artifacts/inherited-correction-held-out-order-replacement/custody.py verify-prelaunch
+  PYTHONDONTWRITEBYTECODE=1 python3 paper/artifacts/inherited-correction-held-out-order-replacement/test_benchmark.py
+  PYTHONDONTWRITEBYTECODE=1 python3 paper/artifacts/inherited-correction-held-out-order-replacement/test_provider_schema_runtime.py
 )
 
 (
@@ -137,4 +240,4 @@ git -C "$ROOT" worktree add --detach "$TMP_ROOT/erdos" "$ERDOS_COMMIT" >/dev/nul
   PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s paper/artifacts/erdos-264 -p 'test_*.py'
 )
 
-echo '{"schema":"vela.flagship-paper-reproduction-result.v1","status":"pass","provider_calls":0,"authority_effect":"none","held_out_status":"not_run"}'
+echo '{"schema":"vela.flagship-paper-reproduction-result.v1","status":"pass","provider_calls":0,"authority_effect":"none","held_out_positive_gate":"not_supported"}'

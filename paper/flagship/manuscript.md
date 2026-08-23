@@ -1,8 +1,8 @@
 ---
 title: "Replayable scientific state under local authority"
-subtitle: "Vela's executable substrate, correction evidence, and open inheritance test"
+subtitle: "Vela's executable substrate and two negative inheritance tests"
 author: "Vela contributors"
-date: "Working draft, 2026-08-21"
+date: "Working draft, 2026-08-22"
 lang: en
 ---
 
@@ -31,17 +31,17 @@ Decision supplies the only Standing-changing operation. One real Erdős 264
 source correction binds five direct consumers, a scoped proof repair, replay,
 and a cold-successor handoff.
 
-The empirical inheritance claim remains open. A preregistered internal
-16-session comparison produced 130 points and five exact successes in the Vela
-arm versus 112 points and zero exact successes in the Git/documents arm, with a
-restricted-time ratio of 0.388463730674583. The Vela arm also recorded three
-authority errors and the Git/documents arm eight. The preregistered positive
-gate was `not_supported`. A byte-bound audit found exact correction pairs,
-consequence classifications, and safe actions in all 16 responses; the misses
-arose from prose-versus-code authority fields and path-without-digest source
-bindings. Those findings motivate a fresh protected 36-cell, three-family,
-three-arm held-out test. They do not rescore the sealed trial or establish
-lift.
+The empirical inheritance claim is unsupported. A preregistered internal
+16-session comparison returned `positive_gate=not_supported`. A later held-out
+benchmark separated Git/documents, a neutral structured-state wrapper, and
+Vela across three synthetic correction families. Each control arm achieved
+12/12 exact and impact-complete results with zero authority errors. Vela
+achieved 11/12 exact and 12/12 impact-complete results with one authority
+error. Restricted means were 12.800895867, 13.98268798558333, and
+63.252235329 seconds for Git/documents, the wrapper, and Vela. The registered
+structure, governance/inheritance, and total gates all failed. Independent
+review passed the exact 36-cell custody and negative result. These experiments
+support no Vela lift claim.
 
 # 1. Claim
 
@@ -66,9 +66,9 @@ cost of finding affected claims and choosing safe next actions relative to Git
 and documents that contain the same information.
 
 The first three layers describe the executable substrate and its bounded
-reference traces. The fourth is an empirical hypothesis. The sealed
-16-session study did not satisfy its registered positive gate, so this draft
-does not claim inherited-correction lift.
+reference traces. The fourth is an empirical hypothesis. Both the sealed
+16-session study and the held-out 36-cell study missed their registered
+positive gates, so this draft does not claim inherited-correction lift.
 
 # 2. Formal model
 
@@ -149,9 +149,8 @@ The program uses separate failure criteria for substrate and empirical claims.
 7. **Reproduction failure.** The exact artifact package does not regenerate
    registered roots and categorical results from its bound commit.
 
-The sealed 16-session experiment triggered failure criterion 6: its positive
-gate failed. The result remains part of the evidence rather than disappearing
-from the denominator.
+Both inherited-correction experiments triggered failure criterion 6. Their
+positive gates failed, and both fixed denominators remain part of the evidence.
 
 # 4. Methods
 
@@ -223,7 +222,7 @@ rescoring a cell. It compared predecessor and successor identity, four
 consequence classes, four safe-action codes, Standing-effect fields, and source
 bindings. Independent review recomputed every row and the audit root.
 
-## 4.7 Held-out replication, prelaunch-qualified
+## 4.7 Held-out replication
 
 The frozen design uses three unseen correction families with different
 vocabularies, dependency topologies, and repository-local authority regimes.
@@ -273,34 +272,70 @@ strategy: a neutral structured view helps estimate the effect of state
 structure without assigning that wrapper Vela semantics. StateMem's reported
 results do not count as evidence for Vela, this benchmark, or adoption.
 
-Producer `8cc1a89d7b1ae47cb6cabb36bfd79b46c3f4db81`, tree
-`98b661c44225425ababecdbb7aead0090d09a4f7`, freezes registration
-`sha256:185e781cd0b1a06d89488266e9e7147f42834d960063818f0cdf56209c6d3306`
-and artifact root
-`sha256:17f113d16aa7b474d91b9f09e4314dce133367b7274187ce7bef87a1bbf7c735`.
-Independent review `f9b5d67a55c1ad41fcb67cc1d7ebe86d03d37782`
-PASSed those exact prelaunch bytes. All 36 permits remain held and zero are
-consumed. Protected adjudication remains pending, no answer bytes are present,
-and status remains `0/36`, `not_run`.
+The final successor registration bound the same three-arm design after
+fail-closed runtime compatibility checks. Its registration root is
+`sha256:60acdfa31d25f9df5f342b75caf8e65426c5b71fa320c36fe5568de9fbf13b10`
+and its assignment root is
+`sha256:64a356db4800b6fb04090ae81a6c2d33bf37ad8b71e92e01567edc5fa6362e72`.
+The runner executed 36 sequential attempt-one cells, 12 per arm, with one turn
+and response per cell. It recorded zero retries, substitutions, timeouts,
+tools, or compactions. Each consumed permit and terminal response entered
+custody before the next cell began. Two stopped predecessor registrations and
+the neutral runtime calibration remained outside the denominator.
 
-The remaining decision is separate explicit user authorization for the
-independent evaluator to freeze and bind protected adjudication and then
-execute this exact registered study. The execution keeps zero retries and
-substitutions. No duplicate study is needed. Prelaunch PASS supplies no
-protected-key access, participant, provider, scoring, result, merge, Core or
-Protocol, authority, Standing, or Decision authorization.
+The producer sealed the complete capture at
+`5694bebac03b062d6acdce5a2a900551850e6a1c`, tree
+`feec0ff21b9b13be8cbb97083f441ef66bdd48f2`. The capture root is
+`sha256:4a592d88b43dc02d5495d7679834535d6fa97f20759600400253677a946f87fd`
+and the complete custody root is
+`sha256:ccf69e70a3887c8a9f9ddffa2d62051e114a8974b2d2ae83c72366a1eb98dcef`.
+One protected scoring process produced the result at
+`4524c8f776943a267e04e03e9a237ecaed14bc2`, tree
+`4d5650a999ac0be59e71d5bd664e885cad5192c7`. The score-capture root is
+`sha256:f74229b3346cf56e2128d78b366f5fb99380872c27285d196c13862738bc8e98`
+and the canonical result root is
+`sha256:92eed5bcb9e6b647d52a53282563077d3829b28c426e0dd9898a073f2590b8a5`.
+Independent review `e6d8348bea3a57e88c5f9426d44a480b7a026fbd`
+reconstructed the custody and arithmetic without opening the protected key or
+rescoring the study.
 
 # 5. Results
 
-| Evidence layer | Exact result | Claim status |
-| --- | --- | --- |
-| Protocol 1 | Conformance root `sha256:6ca327d6ec6f56c051e236be9eee42629e1f67dce393c1518e051ff8c14b279e`; independent root readers agree on the reviewed surface. | Bounded implementation agreement |
-| Portable divergence | Same Submission and Claim roots; distinct local principals, Decisions, Repository roots, and accepted versus unassessed Standing; clean-clone replay passes. | Bounded interoperability without consensus |
-| Controller trace | Map, native work, Verification, separate Decision, replay, and remap retained; controller authority effect `none`. | One first-party removability trace |
-| Erdős 264 | One real source correction, five direct consumers, source-preserving repair, attributed Decision, replay, and successor handoff; matched study 0/1 versus 0/1. | Action-complete case, no causal lift |
-| Inherited correction | Git/documents: 112 points, 0 exact, 8 authority errors, restricted mean 600 s. Vela: 130 points, 5 exact, 3 authority errors, restricted mean 233.07823840475 s. Ratio 0.388463730674583. | `positive_gate=not_supported` |
-| Miss audit | All 16 pair, class, and action answers exact; 11 semantic-none prose misses; 8 path-without-digest misses. | Directional contract and navigation evidence |
-| Held-out replication | Producer `8cc1a89d7b1ae47cb6cabb36bfd79b46c3f4db81`; registration `sha256:185e781cd0b1a06d89488266e9e7147f42834d960063818f0cdf56209c6d3306`; 36 held permits, 0 consumed, protected adjudication pending, no executed result. | Prelaunch-qualified; `0/36`, `not_run` |
+**Protocol 1.** Independent readers agree on the reviewed surface at
+conformance root
+`sha256:6ca327d6ec6f56c051e236be9eee42629e1f67dce393c1518e051ff8c14b279e`.
+This supports bounded implementation agreement.
+
+**Portable divergence.** The same Submission and Claim roots enter histories
+with distinct local principals, Decisions, Repository roots, and accepted
+versus unassessed Standing. Clean-clone replay passes. This supports bounded
+interoperability without consensus.
+
+**Controller trace.** The retained trace binds the map, native work,
+Verification, separate Decision, replay, and remap. The controller authority
+effect is `none`. This is one first-party removability trace.
+
+**Erdős 264.** The case binds one real source correction, five direct
+consumers, a source-preserving repair, attributed Decision, replay, and
+successor handoff. The matched study returned 0/1 versus 0/1, so it supports no
+causal lift.
+
+**Sealed inherited correction.** Git/documents recorded 112 points, 0 exact
+successes, 8 authority errors, and a 600-second restricted mean. Vela recorded
+130 points, 5 exact successes, 3 authority errors, and a
+233.07823840475-second restricted mean. The time ratio was
+0.388463730674583 and `positive_gate=not_supported`.
+
+**Miss audit.** All 16 pair, class, and action answers were exact. The audit
+found 11 semantic-none prose misses and 8 path-without-digest misses. This is
+directional contract and navigation evidence.
+
+**Held-out replication.** Git/documents achieved 12/12 exact and
+impact-complete results, 0 authority errors, and a 12.800895867-second
+restricted mean. The wrapper achieved 12/12, 12/12, 0, and
+13.98268798558333 seconds. Vela achieved 11/12, 12/12, 1, and 63.252235329
+seconds. Structure, governance/inheritance, and total gates are false;
+`positive_gate=not_supported`.
 
 The 16-session counts and time ratio show a directional internal difference.
 The registered gate required at least six Vela exact successes, no Vela
@@ -314,21 +349,64 @@ described a null Standing effect in prose instead of returning the scorer's
 literal `none` token. All eight Git/documents participants cited accurate paths
 but omitted a digest from a free-text field. The frozen scorer treated those
 contract misses as authority or exactness failures and mapped failed exactness
-to 600 seconds. The registered result keeps that treatment. A new study can
-test a closed contract without changing the old score.
+to 600 seconds. The registered result keeps that treatment and remains
+unchanged.
+
+The held-out study used that prospective closed contract and added a neutral
+structured-state control. Both controls achieved perfect exact and
+impact-complete counts. Vela missed one exact result through an authority error
+and took longer under the registered restricted-time measure. The structure,
+governance/inheritance, and total gates all failed. This fixed synthetic result
+does not show a Vela advantage over either control. It also cannot establish a
+general Vela disadvantage beyond the three registered families, one model, and
+one runtime.
 
 # 6. Artifact manifest
 
-| Artifact | Commit or root | Contents | Reproduction status |
-| --- | --- | --- | --- |
-| Current Protocol 1 and portable divergence | commit `4685462c44b1f073870f31025ae73d1d8770ce73`, tree `13c5e0cf2e64be907cee4c0fd740ab0027118e13` | Normative protocol, conformance vectors, two complete divergence histories | In current main; one-command check |
-| Portable expected vector | `sha256:858019d298f55295fe92989bb23a343ce73b6976338f36c7c637c82272274041` | Exact principals, Decisions, Events, Repository roots, projections, and Standing | In current main; one-command check |
-| Controller trace | pre-run `sha256:e0a517d543ce448917f6baa1a620727431caa53b0590f247bbf3fe9f5c3ed6d6`; post-verification-map `sha256:439a804908890e4029922cc91cdd0a79122187d573530fc760a419d90786be21`; post-decision `sha256:b29e8cbb50aff3cc81a4ac6f4cf261b9a3ca9d80dbe69614d9a771116d80151c` | Root-bound map, target, Verification, Decision, replay, and remap | In current main; source-only integrity check |
-| Erdős 264 case | commit `b6e554513346f515090e013a3484548261b7b93d`, tree `ab3df803bf11abc9adc4915be8be573501f454dd`; result root `sha256:f9c009ec0e53cfd0362b924b440ba44cee243af5248906da1c82f516ec4c7585` | Real source transition, matched null result, post-study repair, Decision, replay, handoff | Historical retained bytes; external source checkout needed for full source revalidation |
-| Sealed 16-session result | producer `7641d775911f6026a9c36649d6cf1354dd1f70c0`; result `sha256:48c3ab674e1ef707a207c2a5cf8addab16d7209e8229def76f0f1568a466f83f` | Registration, packets, 16 captures, scorer, canonical result | Independently reviewed at `1f7ebabee72058619e8081d71c3fc4325b81f64b` |
-| Capture and custody | capture `sha256:0e5f60fa1dc78e531d44cb8fff626e73c6b2c0017bbcec52e41220cbfac686fd`; custody `sha256:619512f17009dd92c651a687cbc17dd5899c0b908619d82de465b9747a7aa3f5` | Exact denominator, permits, terminal receipts, provider events, and responses | Independently reconstructed |
-| Miss audit | producer `de13073ff8f3a9f2958f8c93c848205c533ddb1e`; artifact `sha256:8463024ee31116c33cee9e43262286bb78855654ecc974e77818bf4dfac581af` | Frozen per-cell classifications and prospective fixes | Independently reviewed at `720053e9fc0cb95d2b2258516663300f43b29c16` |
-| Held-out three-family design | producer `8cc1a89d7b1ae47cb6cabb36bfd79b46c3f4db81`, tree `98b661c44225425ababecdbb7aead0090d09a4f7`; registration `sha256:185e781cd0b1a06d89488266e9e7147f42834d960063818f0cdf56209c6d3306`; artifact `sha256:17f113d16aa7b474d91b9f09e4314dce133367b7274187ce7bef87a1bbf7c735` | Protected 36-cell registration, three matched arms, packets, assignments, and held custody; adjudication pending | Prelaunch PASS `f9b5d67a55c1ad41fcb67cc1d7ebe86d03d37782`; `0/36`, `not_run` |
+**Current Protocol 1 and portable divergence.** Commit
+`4685462c44b1f073870f31025ae73d1d8770ce73`, tree
+`13c5e0cf2e64be907cee4c0fd740ab0027118e13`, retains the normative protocol,
+conformance vectors, and two complete divergence histories. The portable
+expected vector is
+`sha256:858019d298f55295fe92989bb23a343ce73b6976338f36c7c637c82272274041`.
+
+**Controller trace.** The pre-run, post-Verification-map, and post-Decision
+roots are `sha256:e0a517d543ce448917f6baa1a620727431caa53b0590f247bbf3fe9f5c3ed6d6`,
+`sha256:439a804908890e4029922cc91cdd0a79122187d573530fc760a419d90786be21`,
+and `sha256:b29e8cbb50aff3cc81a4ac6f4cf261b9a3ca9d80dbe69614d9a771116d80151c`.
+
+**Erdős 264 case.** Commit `b6e554513346f515090e013a3484548261b7b93d`,
+tree `ab3df803bf11abc9adc4915be8be573501f454dd`, retains result root
+`sha256:f9c009ec0e53cfd0362b924b440ba44cee243af5248906da1c82f516ec4c7585`.
+Full source revalidation also needs the bound external source checkout.
+
+**Sealed 16-session result and audit.** Producer
+`7641d775911f6026a9c36649d6cf1354dd1f70c0` retains result
+`sha256:48c3ab674e1ef707a207c2a5cf8addab16d7209e8229def76f0f1568a466f83f`.
+Capture and custody roots are
+`sha256:0e5f60fa1dc78e531d44cb8fff626e73c6b2c0017bbcec52e41220cbfac686fd`
+and `sha256:619512f17009dd92c651a687cbc17dd5899c0b908619d82de465b9747a7aa3f5`.
+Review `1f7ebabee72058619e8081d71c3fc4325b81f64b` passed the result. Audit
+producer `de13073ff8f3a9f2958f8c93c848205c533ddb1e` retains artifact
+`sha256:8463024ee31116c33cee9e43262286bb78855654ecc974e77818bf4dfac581af`,
+reviewed at `720053e9fc0cb95d2b2258516663300f43b29c16`.
+
+**Held-out sealed capture.** Commit
+`5694bebac03b062d6acdce5a2a900551850e6a1c`, tree
+`feec0ff21b9b13be8cbb97083f441ef66bdd48f2`, retains capture
+`sha256:4a592d88b43dc02d5495d7679834535d6fa97f20759600400253677a946f87fd`
+and custody
+`sha256:ccf69e70a3887c8a9f9ddffa2d62051e114a8974b2d2ae83c72366a1eb98dcef`.
+Pre-score review `b634523ea1c85dce697404968cf7492f09a6412f` passed those bytes.
+
+**Held-out scored result.** Commit
+`4524c8f776943a267e04e03e9a237ecaed14bc2c`, tree
+`4d5650a999ac0be59e71d5bd664e885cad5192c7`, retains result bytes
+`sha256:ae0c980a18633832a83b73e0c715ee11e702aeb56660c4e027d5ece03425f372`
+and canonical result
+`sha256:92eed5bcb9e6b647d52a53282563077d3829b28c426e0dd9898a073f2590b8a5`.
+Independent review `e6d8348bea3a57e88c5f9426d44a480b7a026fbd` passed the fixed negative
+result with `positive_gate=not_supported`.
 
 # 7. Reproduction contract
 
@@ -341,9 +419,10 @@ The paper's current source tree provides one entry point:
 The command must fail closed unless it can resolve every bound commit and
 reproduce the listed roots. It runs current Protocol 1 conformance, the
 portable-divergence test, inherited-correction verification and deterministic
-serialization checks, audit-manifest reconstruction, and retained Erdős 264
-unit checks in disposable detached worktrees. It prints no protected held-out
-labels and invokes no provider or authority action.
+serialization checks, held-out custody and result checks, audit-manifest
+reconstruction, and retained Erdős 264 unit checks in disposable detached
+worktrees. It opens no protected adjudication and invokes no provider or
+authority action.
 
 The final public bundle must include every tracked source member plus the exact
 external Formal Conjectures and Erdős source members needed for the real
@@ -354,18 +433,21 @@ reproduction; the current claim set does not require or presume that event.
 
 # 8. Limitations
 
-The empirical corpus contains one synthetic correction family and one bounded
-real mathematical correction. The 16-session trial used one model family,
-first-party infrastructure, and eight sessions per condition. It failed its
-positive gate. The audit found output-contract and navigation effects within
-that fixture; it cannot separate every model, packet, or scorer effect.
+The empirical corpus contains four synthetic correction families and one
+bounded real mathematical correction. Both model studies used one model family
+and first-party infrastructure. The 16-session trial had eight sessions per
+condition. The held-out study had 12 per arm across three families. Both
+failed their positive gates. The first audit found output-contract and
+navigation effects within its fixture; it cannot separate every model, packet,
+or scorer effect.
 
-The three-arm design may separate structured presentation from Vela-specific
+The three-arm result measures structured presentation and Vela-specific
 governance only within its frozen families and authority regimes. Prospective
 length matching cannot make distinct representations identical, and the
-neutral wrapper cannot test Repository authorization or Standing replay.
-Prelaunch qualification does not supply an executed observation; the study
-remains `0/36` and `not_run`.
+neutral wrapper cannot test Repository authorization or Standing replay. Both
+controls achieved perfect exact counts while Vela recorded one authority
+error and a longer restricted mean. That result rejects the registered lift
+claims for this benchmark; it does not establish a general Vela disadvantage.
 
 The portable-divergence identities are synthetic test-support principals. The
 controller trace and Erdős 264 handoff used first-party operators on colocated
@@ -385,13 +467,13 @@ This paper does not claim global truth, global consensus, transported Standing,
 automatic scientific acceptance, or controller authority. It does not call a
 Verification a Decision. It does not report the 16-session time ratio as
 positive lift, because the registered gate failed. It does not count the
-post-result audit as a rescore. It does not call the held-out design executed,
-successful, or authorized for execution. It does not treat prelaunch PASS as a
-result or expose pending adjudication. It assigns no Repository, Decision,
-Event, Standing, or authority semantics to the neutral wrapper. It does not
-use StateMem's results as Vela evidence. It does not claim external
-reproduction, adoption, or general productivity. Vela's global registry and
-derived global Frontiers do not constitute a single global truth ledger.
+post-result audit as a rescore. It does not turn the held-out gate failures
+into positive lift or extrapolate them beyond the fixed synthetic benchmark.
+It assigns no Repository, Decision, Event, Standing, or authority semantics to
+the neutral wrapper. It does not use StateMem's results as Vela evidence. It
+does not claim external reproduction, adoption, or general productivity.
+Vela's global registry and derived global Frontiers do not constitute a single
+global truth ledger.
 
 # 10. Current paper-ready gate
 
@@ -400,30 +482,22 @@ The internal paper-ready gate consists of:
 1. exact Protocol 1 and portable-divergence evidence;
 2. a bounded controller/substrate trace and real correction case;
 3. the sealed negative 16-session result and reviewed miss audit;
-4. the prelaunch-qualified protected held-out registration followed by
-   fixed-denominator execution and independent exact-byte result review; and
+4. the protected held-out registration, fixed-denominator execution, and
+   independent exact-byte negative-result review; and
 5. a public-ready source and evidence bundle that passes the one-command
    reproduction contract.
 
-Items 1 through 3 and the prelaunch portion of item 4 exist. Held-out execution,
-result review, and item 5 remain open. The next study decision is separate
-explicit user authorization for protected-adjudication freeze and binding and
-then execution of the registered 36 cells. External execution after
-publication can test the package under a new operator and institution. The
-manuscript will report that future event only after it occurs.
+Items 1 through 4 exist. This manuscript update binds the held-out terminal
+result to item 5's one-command check. The remaining internal gate is an
+independent exact-byte review of the reconciled paper and reproduction bundle.
+No further model study is required to report the two negative empirical
+results. External execution after publication can test the package under a new
+operator and institution; it is not a prerequisite for this paper.
 
-## 10.1 Compressed critical path
+## 10.1 Remaining closure
 
-These planning ranges assume the existing bounded scope and no infrastructure
-failure. The fastest case assumes first-pass method and result review. The
-expected case allows one narrow correction cycle at each review boundary.
-
-| Stage | Fastest case | Expected duration | Exit condition |
-| --- | --- | --- | --- |
-| Implement and freeze the three-arm packets, wrapper, registration, and permits | complete | complete | Immutable 36-cell design with all permits held |
-| Independent method and exact-byte prelaunch review | complete | complete | Exact PASS for the frozen design |
-| Sequential execution and custody | 8--12 hours | 1--2 days | Exactly 36 terminal cells frozen, with failures retained and zero retries |
-| Deterministic scoring and independent post-result review | 4--8 hours | 0.5--1 day | Canonical result plus exact PASS or a reported blocker |
-| Manuscript and public reproduction-bundle integration | 2--4 hours | 0.5--1 day | Updated claim matrix, artifact manifest, render, and one-command check |
-| **Remaining internal paper critical path** | **14--24 hours** | **2--4 days** | Internal paper-ready gate evaluated without an external executor |
-| External reproduction after publication | 0 hours added | 0 days added | Downstream validation, outside this paper-ready gate |
+The empirical program is terminal. The paper branch still requires one
+independent review that reproduces the bound roots, verifies the claim matrix,
+checks the PDF, and confirms that the one-command package performs no provider
+or authority action. Publication and outside reproduction remain separate
+future decisions.

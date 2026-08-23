@@ -20,12 +20,12 @@ The draft separates four questions:
    cost under a preregistered matched comparison?
 
 The first three have bounded executable evidence. The sealed 16-session study
-did not satisfy its preregistered positive gate. The fresh 36-cell,
-three-family, three-arm held-out study has independent prelaunch qualification
-and remains `0/36`, `not_run`, with all 36 permits held. The next step requires
-separate explicit user authorization for protected-adjudication freeze and
-binding, followed by execution of this registered study. No duplicate study is
-needed.
+did not satisfy its preregistered positive gate. A later 36-cell, three-family,
+three-arm held-out study also returned `positive_gate=not_supported`. Both
+controls achieved 12/12 exact successes; Vela achieved 11/12 with one authority
+error and a longer restricted mean. Independent review passed the fixed
+denominator, custody, arithmetic, and negative claim ceiling. The paper reports
+that failure without rerunning, rescoring, or replacing any cell.
 
 Read the [claim-evidence matrix](CLAIM_EVIDENCE.md) before the
 [manuscript](manuscript.md). The matrix controls the wording of empirical
@@ -41,9 +41,9 @@ commits named in the manuscript:
 ```
 
 The command creates disposable detached worktrees, checks the immutable roots,
-then runs the Protocol 1, portable-divergence, inherited-correction, and
-Erdős 264 retained checks. It never runs a model, invokes a Decision, changes
-Standing, or prints the protected held-out adjudication.
+then runs the Protocol 1, portable-divergence, inherited-correction, held-out,
+and Erdős 264 retained checks. It never runs a model, invokes a Decision,
+changes Standing, or opens protected adjudication.
 
 Use `--integrity-only` to check the bound commits, roots, categorical outcomes,
 and manuscript evidence without compiling Rust or restoring Python
