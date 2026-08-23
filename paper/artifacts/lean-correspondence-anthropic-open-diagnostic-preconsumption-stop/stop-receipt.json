@@ -1,0 +1,68 @@
+{
+  "affected_bundle_count": 6,
+  "affected_run_ids": [
+    "anthropic-diag-2f719af4c655ef77",
+    "anthropic-diag-395839ae5418ff4d",
+    "anthropic-diag-563bdd90a8c7df7a",
+    "anthropic-diag-6cccc41b01c2e998",
+    "anthropic-diag-7981a902f25c4abe",
+    "anthropic-diag-fa6a2181a9a7b010"
+  ],
+  "authority_effect": "none",
+  "credential_file_preflight": {
+    "acl": "empty",
+    "content_accessed": false,
+    "credential_retained": false,
+    "group_id": 20,
+    "link_count": 1,
+    "mode": "0600",
+    "owner_id": 501,
+    "path": "/Users/williamblair/episteme/atlas-platform/apps/radar/.env.local",
+    "path_components_non_symlink": true,
+    "regular_file": true,
+    "xattrs": [
+      "com.apple.provenance"
+    ]
+  },
+  "direct_maintained_qualifier": {
+    "bundle": "/private/tmp/vela-anthropic-open-diagnostic-held-v2/anthropic-diag-2f719af4c655ef77",
+    "command": [
+      "/private/tmp/vela-stage-a-runtime-qualification-python-v1/.venv/bin/python",
+      "/private/tmp/vela-stage-a-runtime-qualification-maintained-v2/tools/evidence_qualification/qualification.py",
+      "--bundle",
+      "/private/tmp/vela-anthropic-open-diagnostic-held-v2/anthropic-diag-2f719af4c655ef77"
+    ],
+    "error": "self_verification_targets_predecessor_or_other_artifact",
+    "exit_code": 2,
+    "status": "blocked"
+  },
+  "final_review": {
+    "commit": "1b1b23716e341319cb2ad32e153b154023be5e8c",
+    "sole_parent": "9d95834f75ae8e698cb223ff5faf3f75173b9797",
+    "tree": "631e67ceae7d4540ac4e5bec41a69eedd5b64df1"
+  },
+  "frozen_bundle_self_verification_qualifier_sha256": "sha256:3dd348d8795152da74e79547296661897f873a4be3d2502c28f656b9ebddd9f4",
+  "frozen_registry_maintained_qualifier_sha256": "sha256:7da9db070f4113784841d19a2cb0f89b13ab58bea1d6f805dda6c6eff48add1d",
+  "observed_at": "2026-08-23T07:48:41Z",
+  "producer": {
+    "branch_remote_equal": true,
+    "commit": "9d95834f75ae8e698cb223ff5faf3f75173b9797",
+    "tree": "6fee587ab66e3b07395ed1b9c646552b1aac468a"
+  },
+  "schema": "vela.lean-correspondence-anthropic-open-diagnostic-preconsumption-stop.v1",
+  "state": {
+    "credential_content_accesses": 0,
+    "diagnostic_permits_consumed": 0,
+    "diagnostic_permits_held": 6,
+    "diagnostic_permits_released": 0,
+    "endpoint_attempts": 0,
+    "original_openai_neutral_permit": "held_unchanged",
+    "original_stage_a_participant_permits_held": 12,
+    "provider_calls": 0,
+    "scoring_attempts": 0,
+    "terminal_captures": 0
+  },
+  "status": "blocked_before_credential_access_or_permit_consumption",
+  "systemic_cause": "all_six_bundles_target_predecessor_qualifier_bytes",
+  "verified_current_maintained_qualifier_sha256": "sha256:7da9db070f4113784841d19a2cb0f89b13ab58bea1d6f805dda6c6eff48add1d"
+}

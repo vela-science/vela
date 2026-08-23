@@ -1,0 +1,18 @@
+{
+  "artifact_root": "sha256:1f2a3f6149011e364c8d9de143ac6f043b09eda5cd57ecae8f51cc3fedcf5afb",
+  "authority_effect": "none",
+  "files": [
+    {
+      "bytes": 702,
+      "path": "README.md",
+      "sha256": "sha256:0c9ecfa69dabeb486145a963057cbb70c77b47427147883d5552edbf83a9fce5"
+    },
+    {
+      "bytes": 2723,
+      "path": "stop-receipt.json",
+      "sha256": "sha256:cec7ad0208f0adcebfc4a3058c6c05414050c838a1c7ecee1cfee777efab4142"
+    }
+  ],
+  "schema": "vela.lean-correspondence-anthropic-open-diagnostic-preconsumption-stop-artifact.v1",
+  "status": "blocked_before_credential_access_or_permit_consumption"
+}
