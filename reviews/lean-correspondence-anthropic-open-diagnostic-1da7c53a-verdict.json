@@ -1,0 +1,38 @@
+{
+  "artifact_root": "sha256:e4f4b44cba1cd7f1cd953d7869e6a6193e57858476e34fac72e7908d1562fc78",
+  "authority_effect": "none",
+  "execution_authorized": false,
+  "findings": [
+    {
+      "gate": "AD-F2",
+      "outcome": "PASS",
+      "summary": "complete trusted-root and registered scorer-input custody reproduced"
+    },
+    {
+      "gate": "AD-F1-regression",
+      "minimal_fix": "use a canonical non-aliased trusted root in the maintained runtime-capture fixture and retain explicit alias rejection coverage",
+      "outcome": "BLOCKED",
+      "summary": "ordinary locked maintained runtime-capture test execution errors on the supported macOS host"
+    },
+    {
+      "gate": "SQ-F1",
+      "outcome": "PASS",
+      "summary": "locked lint and formatting pass"
+    }
+  ],
+  "no_call_state": {
+    "credential_content_accesses": 0,
+    "diagnostic_permits_held": 6,
+    "diagnostic_permits_released": 0,
+    "original_stage_a_permits_held": 12,
+    "participant_responses": 0,
+    "provider_calls": 0,
+    "scoring_attempts": 0,
+    "terminal_captures": 0
+  },
+  "producer_commit": "1da7c53a3f7a5bce172aa50f0a069964c1b67b15",
+  "producer_parent": "5dddab01f1555ab4ef6f44176f06cad03b89fa25",
+  "producer_tree": "ed69531d346d593ffc754e6beaf53f7ecaefccdc",
+  "schema": "vela.independent-review-verdict.v1",
+  "verdict": "BLOCKED"
+}
