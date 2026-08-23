@@ -19,7 +19,9 @@ import evidence_tree
 
 class EvidenceTreeTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.temporary = tempfile.TemporaryDirectory(prefix="diagnostic-evidence-")
+        self.temporary = tempfile.TemporaryDirectory(
+            prefix="diagnostic-evidence-", dir=Path.cwd()
+        )
         self.root = Path(self.temporary.name)
         self.sources = self.root / "sources"
         shutil.copytree(ROOT / "evidence-sources", self.sources)
@@ -119,7 +121,7 @@ class EvidenceTreeTests(unittest.TestCase):
             patch("secure_reader.os.open", side_effect=replace_then_open),
             self.assertRaises(ValueError),
         ):
-            evidence_tree.regular_bytes(victim, "replacement victim")
+            evidence_tree.regular_bytes(victim, "replacement victim", (self.root,))
 
     def test_regular_reader_rejects_external_hardlink(self) -> None:
         victim = self.root / "hardlinked-victim"
@@ -127,7 +129,7 @@ class EvidenceTreeTests(unittest.TestCase):
         victim.write_bytes(b"BOUND")
         os.link(victim, alias)
         with self.assertRaises(ValueError):
-            evidence_tree.regular_bytes(victim, "hardlinked victim")
+            evidence_tree.regular_bytes(victim, "hardlinked victim", (self.root,))
 
 
 if __name__ == "__main__":

@@ -99,7 +99,7 @@
     "neutral_calibrations_run": 0,
     "path": "offline-qualification.json",
     "provider_calls": 0,
-    "record_root": "sha256:c8b0126bb69c69d48836d3c36652dd64608f4596347577a1b6b0c91657e01db2",
+    "record_root": "sha256:d823263fc7293f48cbc0e178c5b6c9e02542cbbf6dcc9a0736d9310e869621bd",
     "status": "qualified_hold_exact_schema_launchable_runtimes_and_offline_same_input_preflight"
   },
   "participant_configurations": [
@@ -129,7 +129,7 @@
       },
       "provider_adapter": "openai-responses-v1",
       "provider_organization": "OpenAI",
-      "qualification_root": "sha256:c489c6633f37aa60a94200066295398ae593a2adb33be7a72d1a85edb1755587",
+      "qualification_root": "sha256:8a1ebd59408992e4f53328973d69e326c889efe947b2aec8811fc39c7a291d52",
       "slot_id": "configuration-a",
       "status": "candidate_configuration_exact_schema_pre_request_validated_held",
       "tool_boundary_root": "sha256:0b2e1fb701f70b02f9cc7ad79201f84374dfeb904299b59a6667d36eb4e59c69"
@@ -158,7 +158,7 @@
       },
       "provider_adapter": "anthropic-messages-v1",
       "provider_organization": "Anthropic",
-      "qualification_root": "sha256:cfcfa46ba16d8c20b80ef8170867c3b55aa76a1bbfa88816b32219d2121bcf7b",
+      "qualification_root": "sha256:91814c2658cacdd3b4a97be4c89f119512703adc82016e87834d91708cb16d4b",
       "slot_id": "configuration-b",
       "status": "candidate_configuration_exact_schema_pre_request_validated_held",
       "tool_boundary_root": "sha256:01dfbda69c1c7760423fdba41eaac18687a73d9fe683a8a5f207fdc8abe2a7d9"

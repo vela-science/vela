@@ -31,6 +31,9 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 try:
     from tools.evidence_qualification.secure_reader import (
+        read_absolute_regular as secure_read_absolute_regular,
+    )
+    from tools.evidence_qualification.secure_reader import (
         read_regular as secure_read_regular,
     )
 except ModuleNotFoundError:  # Standalone frozen qualifier beside secure_reader.py.
@@ -42,6 +45,7 @@ except ModuleNotFoundError:  # Standalone frozen qualifier beside secure_reader.
         raise RuntimeError("maintained secure reader unavailable")
     _reader_module = importlib.util.module_from_spec(_reader_spec)
     _reader_spec.loader.exec_module(_reader_module)
+    secure_read_absolute_regular = _reader_module.read_absolute_regular
     secure_read_regular = _reader_module.read_regular
 
 SCHEMA = "vela.tooling.evidence-qualification.v1"
@@ -115,7 +119,7 @@ TOOL_BOUNDARY_SCHEMA_V2 = "vela.tooling.read-only-offline-tool-boundary.v2"
 TOOL_RECEIPT_SCHEMA = "vela.tooling.read-only-tool-receipt.v1"
 RAW_PROVIDER_EVENT_SCHEMA = "vela.tooling.raw-provider-event.v1"
 PROVIDER_EQUIVALENCE_SCHEMA = "vela.tooling.provider-equivalence.v1"
-QUALIFIER = Path(__file__).resolve()
+QUALIFIER = Path(__file__).absolute()
 PERMIT_SCHEMA = "vela.tooling.closed-launch-permit.v1"
 RUNNER_VERSION = "neutral-runner/1"
 EVENT_SCHEMA = "vela.tooling.provider-event.v1"
@@ -348,31 +352,15 @@ def read_regular(path: Path, label: str) -> bytes:
             relative = None
         if relative is not None:
             return _read_bundle_regular(root, relative, label)
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
-    try:
-        descriptor = os.open(path, flags)
-    except OSError as error:
-        raise QualificationError(f"{label}_missing_or_unsafe") from error
-    try:
-        metadata = os.fstat(descriptor)
-        if not stat.S_ISREG(metadata.st_mode):
-            raise QualificationError(f"{label}_not_regular")
-        if metadata.st_nlink != 1:
-            raise QualificationError(f"{label}_link_count_invalid")
-        with os.fdopen(descriptor, "rb") as handle:
-            descriptor = -1
-            raw = handle.read()
-            final_metadata = os.fstat(handle.fileno())
-            if (
-                final_metadata.st_dev != metadata.st_dev
-                or final_metadata.st_ino != metadata.st_ino
-                or final_metadata.st_nlink != 1
-            ):
-                raise QualificationError(f"{label}_custody_changed_during_read")
-            return raw
-    finally:
-        if descriptor >= 0:
-            os.close(descriptor)
+    result = secure_read_absolute_regular(
+        path,
+        label,
+        trusted_roots=(path.parent,),
+        error_type=QualificationError,
+    )
+    if not isinstance(result, bytes):
+        raise QualificationError(f"{label}_reader_contract_invalid")
+    return result
 
 
 def _read_bundle_regular(root: Path, relative: Path, label: str) -> bytes:

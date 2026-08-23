@@ -43,13 +43,13 @@ METHOD_ARTIFACT_ROOT = (
     "sha256:2d909b874eedc765546010e799d6fde709c88f3fcc623b45ab46130c3dfa68e4"
 )
 RUNTIME_ARTIFACT_ROOT = (
-    "sha256:ff310cd5c3bcefa5ece6589df441b1c0c2f115333013b1c42fa92629853f4a64"
+    "sha256:b8535016ae32438159f55966aba8692c1df4d2f948b395378d558691e1c3e615"
 )
 RUNTIME_RECORD_ROOT = (
-    "sha256:c8b0126bb69c69d48836d3c36652dd64608f4596347577a1b6b0c91657e01db2"
+    "sha256:d823263fc7293f48cbc0e178c5b6c9e02542cbbf6dcc9a0736d9310e869621bd"
 )
 RUNTIME_REGISTRATION_ROOT = (
-    "sha256:ce4330143a091a2602ad74287fac510fad8e687fba4af23d561c118d833b46fd"
+    "sha256:16587502b39c4af3092743e3e908eb47b66759c7382dcbe4e31472885969d52c"
 )
 RUNTIME_SOURCE_ROOT = (
     "sha256:e37927ac5eb1085eeb47b4ee7fc60d63ba95b1a3c7b8876a5746f35ec3233614"
@@ -58,7 +58,7 @@ ANTHROPIC_CONFIGURATION_ROOT = (
     "sha256:fe8c8a8f320f8179f343202403d3cf37b50f77c2b38495d2dc9ef739ab34f4fa"
 )
 ANTHROPIC_QUALIFICATION_ROOT = (
-    "sha256:cfcfa46ba16d8c20b80ef8170867c3b55aa76a1bbfa88816b32219d2121bcf7b"
+    "sha256:91814c2658cacdd3b4a97be4c89f119512703adc82016e87834d91708cb16d4b"
 )
 ANTHROPIC_TOOL_POLICY_ROOT = (
     "sha256:c98932d0d5bcd5956b8c578f0f42bd3c94e827d5c5ca5b8034ca9bfd1799ffd2"
@@ -231,6 +231,21 @@ def write_json(path: Path, value: Any) -> None:
         json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
         encoding="utf-8",
     )
+
+
+def pretty_bytes(value: Any) -> bytes:
+    return (
+        json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+    ).encode()
+
+
+def scorer_input_receipt(path: str, raw: bytes) -> dict[str, Any]:
+    return {
+        "bytes": len(raw),
+        "path": path,
+        "sha256": raw_root(raw),
+        "type": "regular_file",
+    }
 
 
 def read_json(path: Path) -> Any:
@@ -893,20 +908,6 @@ def build_records(destination: Path) -> dict[str, Any]:
             (destination / "evidence-sources/catalog.json").read_bytes()
         ),
     }
-    registration_contract = {
-        "arms": ["raw-source", "correspondence-assisted"],
-        "authority_effect": "none",
-        "claim_ceiling": claim_ceiling,
-        "fixed_denominator": 6,
-        "one_configuration": True,
-        "one_scoring_attempt": True,
-        "roots": roots,
-        "schema": "vela.lean-correspondence-anthropic-open-diagnostic-registration-contract.v1",
-        "zero_retries": True,
-        "zero_substitutions": True,
-    }
-    registration_contract_root = canonical_root(registration_contract)
-
     permits = []
     permit_summaries = []
     for row in schedule_rows:
@@ -971,16 +972,20 @@ def build_records(destination: Path) -> dict[str, Any]:
         "scoring_attempts": 0,
         "terminal": 0,
     }
-    registration = {
-        "hold_state_root": canonical_root(hold),
-        "permit_set_root": permit_set_root,
-        "registration_contract": registration_contract,
-        "registration_contract_root": registration_contract_root,
-        "schema": "vela.lean-correspondence-anthropic-open-diagnostic-registration.v1",
-    }
-    registration["registration_root"] = canonical_root(registration)
-
-    custody = {
+    scorer_inputs = [
+        scorer_input_receipt("assignment-schedule.json", pretty_bytes(schedule)),
+        scorer_input_receipt("case-selection.json", case_raw),
+        scorer_input_receipt("hold-state.json", pretty_bytes(hold)),
+        scorer_input_receipt("open-adjudication.json", pretty_bytes(open_adjudication)),
+        scorer_input_receipt("response.schema.json", schema_raw),
+        scorer_input_receipt("scoring-contract.json", pretty_bytes(scoring)),
+    ]
+    scorer_inputs.extend(
+        scorer_input_receipt(f"permits/{cell_id}.permit.json", pretty_bytes(permit))
+        for cell_id, permit in permits
+    )
+    scorer_inputs.sort(key=lambda item: item["path"])
+    custody_template = {
         "authority_effect": "none",
         "credential_nonretention_required": True,
         "fixed_denominator": 6,
@@ -989,7 +994,7 @@ def build_records(destination: Path) -> dict[str, Any]:
         "participant_network": False,
         "provider_calls": 0,
         "raw_provider_bytes_retained_before_normalization": True,
-        "registration_root": registration["registration_root"],
+        "registration_root": "$REGISTRATION_ROOT",
         "required_terminal_files": [
             "consumed-permit.json",
             "launch.json",
@@ -1009,10 +1014,10 @@ def build_records(destination: Path) -> dict[str, Any]:
         "zero_retries": True,
         "zero_substitutions": True,
     }
-    prelaunch = {
+    prelaunch_template = {
         "authority_effect": "none",
         "credential_content_accesses": 0,
-        "custody_root": canonical_root(custody),
+        "custody_root": "$CUSTODY_ROOT",
         "execution_authorized": False,
         "fixed_denominator": 6,
         "held_permits": 6,
@@ -1022,7 +1027,7 @@ def build_records(destination: Path) -> dict[str, Any]:
         "participant_responses": 0,
         "permit_set_root": permit_set_root,
         "provider_calls": 0,
-        "registration_root": registration["registration_root"],
+        "registration_root": "$REGISTRATION_ROOT",
         "released_permits": 0,
         "schema": "vela.lean-correspondence-anthropic-open-diagnostic-prelaunch.v1",
         "scoring_attempts": 0,
@@ -1030,6 +1035,36 @@ def build_records(destination: Path) -> dict[str, Any]:
         "state": "held_pending_independent_exact_prelaunch_review",
         "terminal_captures": 0,
     }
+    roots["custody_contract_template_root"] = canonical_root(custody_template)
+    roots["prelaunch_state_template_root"] = canonical_root(prelaunch_template)
+    registration_contract = {
+        "arms": ["raw-source", "correspondence-assisted"],
+        "authority_effect": "none",
+        "claim_ceiling": claim_ceiling,
+        "fixed_denominator": 6,
+        "one_configuration": True,
+        "one_scoring_attempt": True,
+        "roots": roots,
+        "schema": "vela.lean-correspondence-anthropic-open-diagnostic-registration-contract.v1",
+        "scorer_inputs": scorer_inputs,
+        "zero_retries": True,
+        "zero_substitutions": True,
+    }
+    registration_contract_root = canonical_root(registration_contract)
+    registration = {
+        "hold_state_root": canonical_root(hold),
+        "permit_set_root": permit_set_root,
+        "registration_contract": registration_contract,
+        "registration_contract_root": registration_contract_root,
+        "schema": "vela.lean-correspondence-anthropic-open-diagnostic-registration.v1",
+    }
+    registration["registration_root"] = canonical_root(registration)
+
+    custody = dict(custody_template)
+    custody["registration_root"] = registration["registration_root"]
+    prelaunch = dict(prelaunch_template)
+    prelaunch["custody_root"] = canonical_root(custody)
+    prelaunch["registration_root"] = registration["registration_root"]
 
     records = {
         "assignment-schedule.json": schedule,

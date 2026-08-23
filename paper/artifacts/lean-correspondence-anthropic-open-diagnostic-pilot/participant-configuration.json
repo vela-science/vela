@@ -12,7 +12,7 @@
     "image_digest": "sha256:3a8ee2d16720fc4ff91f6fd54ad698cd18aa7e387e3ce78a0ea751f7cf78dda7",
     "model": "claude-opus-5",
     "model_snapshot_semantics": "canonical_pinned_model_id_not_pre-4.6_alias",
-    "offline_qualification_root": "sha256:cfcfa46ba16d8c20b80ef8170867c3b55aa76a1bbfa88816b32219d2121bcf7b",
+    "offline_qualification_root": "sha256:91814c2658cacdd3b4a97be4c89f119512703adc82016e87834d91708cb16d4b",
     "parameters": {
       "max_tokens": 32768,
       "output_config_effort": "high",

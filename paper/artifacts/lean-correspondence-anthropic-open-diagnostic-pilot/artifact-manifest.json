@@ -1,5 +1,5 @@
 {
-  "artifact_root": "sha256:648cb5c2707e3e59921b27f29b9d91de585ef31dbd1fa680def514d99a1b0ee3",
+  "artifact_root": "sha256:e4f4b44cba1cd7f1cd953d7869e6a6193e57858476e34fac72e7908d1562fc78",
   "authority_effect": "none",
   "entries": [
     {
@@ -30,7 +30,7 @@
     {
       "bytes": 1076,
       "path": "custody-contract.json",
-      "sha256": "sha256:8e58fb0bba1b5b5f6289b793241f247398b3da90e554195563612ee09f5bfd3c"
+      "sha256": "sha256:90c23904bf48480d48e4dbbe4360169a58711cd57efb9ce016bacfcd94137900"
     },
     {
       "bytes": 4175,
@@ -333,14 +333,14 @@
       "sha256": "sha256:fae594cf35937d4ed939bf8b2a23f5eb37b13312a06b95fb50ddbfc61500f823"
     },
     {
-      "bytes": 7843,
+      "bytes": 8075,
       "path": "evidence_tree.py",
-      "sha256": "sha256:b7164ca6b9f4b12b520ea944b808c832236740a46c73ee3a3514e938b86737cd"
+      "sha256": "sha256:0ea27d01c37db597949d4e05cccb42abefabc20d06e93c9ea9cd569f8cb7776c"
     },
     {
       "bytes": 11459,
       "path": "execution-bundle-registry.json",
-      "sha256": "sha256:35729e4d86f9885d373fed24bfedc0dca967ed2077c36f3199d9bab5c5201d2f"
+      "sha256": "sha256:de97e9637480d409ca7d97b2cf66295283f1cd938daa34054da30a24fc363729"
     },
     {
       "bytes": 1123,
@@ -3073,9 +3073,9 @@
       "sha256": "sha256:04cf6154ee811cc21722777d8b77df5c54f41290b9e52514b783c212261ff59a"
     },
     {
-      "bytes": 45627,
+      "bytes": 47118,
       "path": "generate.py",
-      "sha256": "sha256:386d6ce456f790bdbe5f9eed65b3cd22b9e98e09654533f0c0a420de366d0f99"
+      "sha256": "sha256:d7f5a5fe0d0b50379853fd90d7ad508984d4111fc6c7bd7b1b625a27ee24bbf5"
     },
     {
       "bytes": 2370,
@@ -3155,7 +3155,7 @@
     {
       "bytes": 1359,
       "path": "participant-configuration.json",
-      "sha256": "sha256:6708ec764456d770fc37a5dff79d6ab55b1b43962bcc00a601237b4f5b195eec"
+      "sha256": "sha256:96efc6175ff34c70260ae4d2694ccd1eaf7fd71d110503ec340ca6e338084a77"
     },
     {
       "bytes": 1667,
@@ -3190,7 +3190,7 @@
     {
       "bytes": 887,
       "path": "prelaunch-state.json",
-      "sha256": "sha256:bd66f3536fc992c17e978dbed65d133be85ce28083b754e88530526db142f4ab"
+      "sha256": "sha256:22f4cd5de0ae3e6ea71f206e40da55cd7650b505c7daff6046c8a4efbb564a06"
     },
     {
       "bytes": 1083,
@@ -3233,9 +3233,9 @@
       "sha256": "sha256:a4ae0592b31fe8f131fcc9454866ff86683b76962fca9800c55a68b31ed5cecb"
     },
     {
-      "bytes": 3085,
+      "bytes": 5979,
       "path": "registration.json",
-      "sha256": "sha256:8165a67f7f4c30d9adc75202677073943dc3fab8c72b0da296edb687758474e9"
+      "sha256": "sha256:896b0c9b12230915308be2c40486c17e9626babc5c2a357b48d94f03bd400ec7"
     },
     {
       "bytes": 2498,
@@ -3250,7 +3250,7 @@
     {
       "bytes": 3748,
       "path": "runtime-binding.json",
-      "sha256": "sha256:826855cb24997bd8717531f52a6c16452cd90f4a7b8217a6511c03bb9e003f41"
+      "sha256": "sha256:a0394ff64b4db8e1afc4034c3278d1fd63c5476039e36cbb7a1fd6b0a6b69671"
     },
     {
       "bytes": 35631,
@@ -3258,9 +3258,9 @@
       "sha256": "sha256:7333aabfa041fdfea948b88f390acd025108aa550222c6a191640f68be8186aa"
     },
     {
-      "bytes": 16276,
+      "bytes": 26038,
       "path": "scorer.py",
-      "sha256": "sha256:dc957eafeb27f036958ef169119723e1fa7debd02a94ae5e2dfe2decf27e2a6e"
+      "sha256": "sha256:2204f2903ea74035df0fd1e4e7c5c0292f7df8a4f1e1e12f22cd92d953bfa4d5"
     },
     {
       "bytes": 2411,
@@ -3268,9 +3268,9 @@
       "sha256": "sha256:db452f1b401e255c74125d0c45090c83da5d1c2b11405a906419c37161b0b893"
     },
     {
-      "bytes": 4954,
+      "bytes": 8125,
       "path": "secure_reader.py",
-      "sha256": "sha256:6a7a7f1c6a3723447e5d5489fe12a6de627599e4bc3d400da6b02767087de8e7"
+      "sha256": "sha256:f229daeba60c24914cd33a37739e4f9b46eff88b4ae1e7a72ffc125c5f0bfe36"
     },
     {
       "bytes": 2499,
@@ -3278,14 +3278,14 @@
       "sha256": "sha256:1cd4a44cd454d02c920a61d9c6594c46c1f3c4fab1720d9744bd379eb4037a77"
     },
     {
-      "bytes": 4850,
+      "bytes": 4916,
       "path": "test_evidence_tree.py",
-      "sha256": "sha256:54d7f69cf007399725d6527cbe5071728e4931e6329ba5103b86a8b2ecc29040"
+      "sha256": "sha256:36a16ec45bbd5b036dfd890ec9d99b342b0c441d611ba3c4792766e45b1d15fc"
     },
     {
-      "bytes": 28319,
+      "bytes": 29595,
       "path": "test_verify.py",
-      "sha256": "sha256:115f56be13fdd343711bbd577338ae987328fd4007264cf49b70faff488678ec"
+      "sha256": "sha256:1caae0cfd2b3144c1c8c6cf82ceef9073b3b2b46ae5bf7d5611d992dae1631d7"
     },
     {
       "bytes": 22713,

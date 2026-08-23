@@ -27,8 +27,10 @@ def _pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return value
 
 
-def load_json(path: Path) -> Any:
-    return json.loads(path.read_bytes(), object_pairs_hook=_pairs)
+def load_json(path: Path, trusted_roots: tuple[Path, ...], label: str) -> Any:
+    return json.loads(
+        regular_bytes(path, label, trusted_roots), object_pairs_hook=_pairs
+    )
 
 
 def canonical_bytes(value: Any) -> bytes:
@@ -70,8 +72,8 @@ def safe_relative(value: Any, label: str) -> Path:
     return path
 
 
-def regular_bytes(path: Path, label: str) -> bytes:
-    result = read_absolute_regular(path, label)
+def regular_bytes(path: Path, label: str, trusted_roots: tuple[Path, ...]) -> bytes:
+    result = read_absolute_regular(path, label, trusted_roots=trusted_roots)
     if not isinstance(result, bytes):
         raise TypeError(f"{label} reader contract invalid")
     return result
@@ -93,7 +95,7 @@ def inventory(directory: Path) -> list[dict[str, Any]]:
             if identity in identities:
                 raise ValueError("workspace inode reuse forbidden")
             identities.add(identity)
-            raw = regular_bytes(path, "workspace file")
+            raw = regular_bytes(path, "workspace file", (directory,))
             entries.append(
                 {
                     "bytes": len(raw),
@@ -113,11 +115,11 @@ def materialize(
 ) -> dict[str, Any]:
     """Materialize exactly the catalog entries authorized by one packet."""
 
-    packet_raw = regular_bytes(packet_path, "execution packet")
+    packet_raw = regular_bytes(packet_path, "execution packet", (packet_path.parent,))
     packet = json.loads(packet_raw, object_pairs_hook=_pairs)
     if type(packet) is not dict or type(packet.get("assignment_id")) is not str:
         raise ValueError("execution packet identity invalid")
-    catalog = load_json(source_root / "catalog.json")
+    catalog = load_json(source_root / "catalog.json", (source_root,), "source catalog")
     if (
         type(catalog) is not dict
         or set(catalog) != {"assignment_cases", "cases", "schema", "source_commits"}
@@ -176,7 +178,7 @@ def materialize(
         if type(sha256) is not str or not sha256.startswith(ROOT_RE):
             raise ValueError("evidence SHA-256 invalid")
         object_path = source_root / "objects" / sha256.removeprefix(ROOT_RE)
-        raw = regular_bytes(object_path, "evidence source object")
+        raw = regular_bytes(object_path, "evidence source object", (source_root,))
         if (
             type(entry["bytes"]) is not int
             or type(entry["bytes"]) is bool

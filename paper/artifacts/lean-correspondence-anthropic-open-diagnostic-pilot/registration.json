@@ -28,24 +28,100 @@
       "assignment_root": "sha256:99df881e189024c6c134ea3e521e5748cc901f56a1a5e25a8b49042b27e6bb79",
       "case_selection_bytes": "sha256:fe57578532a02c93b811059a97b1ccd133ee291f27aa2d4865763005b80126b3",
       "credential_metadata_root": "sha256:a3429f1828d4aca8b58cfc4aef5a1c19400ce0c88ef15ef3323a68918a2f8e4b",
+      "custody_contract_template_root": "sha256:73c124eee9e80a15b233918f32b8033031bf3c76fccbb135e3b2f4e1b0ed5a61",
       "evidence_source_catalog_root": "sha256:0ac4cc728cda49da0e12a1407737d4731aad6b13a7ef53be482d289ad6dc1fa1",
-      "execution_bundle_registry_root": "sha256:95f604fc38f86803791323a08fa6668ced9f02e77a91ab3bade648455ac2c8fd",
+      "execution_bundle_registry_root": "sha256:f7bb0dfe2efb57be76d84e0140bc1a03b526a602b33042b80b7f86c9c2bb8afd",
       "open_adjudication_root": "sha256:7988305fffe5a42880b515fc89f01f4e18676dbf734847274a2f798bbe90983e",
       "packet_derivations_root": "sha256:76a7e52f4ec6cf9838e90d28034cf6476197565541b99337135aa315b6924c61",
-      "participant_configuration_root": "sha256:89ce753d1b6e58f78cda9f7ace9263e94c0453f8a2a0fc2351f909d0d209e6de",
+      "participant_configuration_root": "sha256:d32282f18791e7791d2891fc8e245552e49924a7c5aa334eaff01dd4ac34304c",
+      "prelaunch_state_template_root": "sha256:eed32f7db223e60f4818c6dbdcee4de3aa76e3adac077cd89ee883cf1e2fadee",
       "preregistration_root": "sha256:6afa2dc1dcafb83cb0e77b773a5223d3b51bd1727d5e3c6dc0d9e5a8554cdf1e",
       "prompt_bindings_root": "sha256:d4dd44c40340660bcf17e2788d3aa74cae5a1812007a5e5b88b75e25a70f9893",
       "response_schema_sha256": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
       "roadmap_boundary_root": "sha256:1ef2b6fbe10743a38c787d18a38940bd2ff4505f39edfbaabb411fea481aaa2a",
-      "runtime_binding_root": "sha256:691913f91113dac6c114cf719bf47bce6ed70fb644c9f24dc4aa93fa0b75f09f",
+      "runtime_binding_root": "sha256:ada524ce8db41bdf7ad45ad654e93aae0da7b3aba9f8e3411ffc4f1f7ae58588",
       "scoring_contract_root": "sha256:26e9910a4003a619edb59d6d1a449f68863ee84b0cb18a624d2e7376a6f6482e",
       "source_bindings_root": "sha256:8bfea8b4ab7389b191902d06887dc914349eb84290c4a5a12151b29826afab8d"
     },
     "schema": "vela.lean-correspondence-anthropic-open-diagnostic-registration-contract.v1",
+    "scorer_inputs": [
+      {
+        "bytes": 8213,
+        "path": "assignment-schedule.json",
+        "sha256": "sha256:7797f1469e8877c68e484f98f82079072ef37f275616fd3c3591c5e29017c559",
+        "type": "regular_file"
+      },
+      {
+        "bytes": 10493,
+        "path": "case-selection.json",
+        "sha256": "sha256:fe57578532a02c93b811059a97b1ccd133ee291f27aa2d4865763005b80126b3",
+        "type": "regular_file"
+      },
+      {
+        "bytes": 2370,
+        "path": "hold-state.json",
+        "sha256": "sha256:3625ef37c1b7fabe5fe942cd9bb5ff60babf229d041c45c4c51f7387e4a7d2b5",
+        "type": "regular_file"
+      },
+      {
+        "bytes": 4339,
+        "path": "open-adjudication.json",
+        "sha256": "sha256:98ad691c4485388c49aa2cf02c860565e5b8266ee23dae2aa773be85547a488f",
+        "type": "regular_file"
+      },
+      {
+        "bytes": 1667,
+        "path": "permits/anthropic-diag-2f719af4c655ef77.permit.json",
+        "sha256": "sha256:0494aa86eb305fffc7d925f39a63ecae6e22ef887d208c548e069b47954fbe4d",
+        "type": "regular_file"
+      },
+      {
+        "bytes": 1667,
+        "path": "permits/anthropic-diag-395839ae5418ff4d.permit.json",
+        "sha256": "sha256:f82b7d5b30892050350d1083ab90d6be8ddbeaeef3cda965a6c20b4ba444362a",
+        "type": "regular_file"
+      },
+      {
+        "bytes": 1667,
+        "path": "permits/anthropic-diag-563bdd90a8c7df7a.permit.json",
+        "sha256": "sha256:2d175e3415bdb67d93cfb70ce1da8994823dd20cd38ec702a071809182a63237",
+        "type": "regular_file"
+      },
+      {
+        "bytes": 1680,
+        "path": "permits/anthropic-diag-6cccc41b01c2e998.permit.json",
+        "sha256": "sha256:3fc4788b4498fa0479bfd6e2b2794a36f4096ee3e0fd77a153da9e34ae0b43a4",
+        "type": "regular_file"
+      },
+      {
+        "bytes": 1680,
+        "path": "permits/anthropic-diag-7981a902f25c4abe.permit.json",
+        "sha256": "sha256:ecb3279d6f030eafbb7b94f8d450408f34ceec1d1d1bbdce15be3d5daf6236c4",
+        "type": "regular_file"
+      },
+      {
+        "bytes": 1680,
+        "path": "permits/anthropic-diag-fa6a2181a9a7b010.permit.json",
+        "sha256": "sha256:aa8dbaaf0d7bb713457c62154827ecb0b0d3fe071b5de733803bc652f82dc362",
+        "type": "regular_file"
+      },
+      {
+        "bytes": 2498,
+        "path": "response.schema.json",
+        "sha256": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
+        "type": "regular_file"
+      },
+      {
+        "bytes": 2411,
+        "path": "scoring-contract.json",
+        "sha256": "sha256:db452f1b401e255c74125d0c45090c83da5d1c2b11405a906419c37161b0b893",
+        "type": "regular_file"
+      }
+    ],
     "zero_retries": true,
     "zero_substitutions": true
   },
-  "registration_contract_root": "sha256:13d17f748bc3b425cb3c57bbc9edab53c0737b2e24776a81e52a8ed53312dff0",
-  "registration_root": "sha256:287261e48ad6ecc7566e23d0bc0212662d53ea79c9c2ad730c9f8e985f81fb4a",
+  "registration_contract_root": "sha256:c01339eef3c437fb06c8148f47ca0129f76324973ee0a6ec48c2567200148daa",
+  "registration_root": "sha256:d18bb4ef8aa79b3c8fb2ef59c5cc434bd6146211a26320ae5f7632aa6fb02ac0",
   "schema": "vela.lean-correspondence-anthropic-open-diagnostic-registration.v1"
 }

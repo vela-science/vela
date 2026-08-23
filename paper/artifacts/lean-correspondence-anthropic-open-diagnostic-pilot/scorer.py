@@ -13,11 +13,11 @@ from pathlib import Path
 from typing import Any
 
 from runtime_capture import validate_compiled_capture
-from secure_reader import read_regular
+from secure_reader import read_absolute_regular, read_regular
 
 sys.dont_write_bytecode = True
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).absolute().parent
 COMPONENTS = (
     "relation_validation_correct",
     "change_classification_correct",
@@ -56,8 +56,11 @@ def _pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def load_json(path: Path) -> Any:
-    return json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_pairs)
+def parse_json(raw: bytes, label: str) -> Any:
+    try:
+        return json.loads(raw, object_pairs_hook=_pairs)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"{label} must be exact duplicate-free JSON") from error
 
 
 def canonical_bytes(value: Any) -> bytes:
@@ -67,6 +70,12 @@ def canonical_bytes(value: Any) -> bytes:
         sort_keys=True,
         separators=(",", ":"),
         allow_nan=False,
+    ).encode()
+
+
+def pretty_bytes(value: Any) -> bytes:
+    return (
+        json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
     ).encode()
 
 
@@ -112,10 +121,51 @@ def read_bound(
     relative: Any,
     label: str,
     validator: Any = None,
+    *,
+    expected_bytes: int | None = None,
+    expected_sha256: str | None = None,
+    identity_registry: set[tuple[int, int]] | None = None,
 ) -> Any:
     if type(relative) is not str:
         raise ValueError(f"{label} path must be a string")
-    return read_regular(root, Path(relative), label, validator=validator)
+    return read_regular(
+        root,
+        Path(relative),
+        label,
+        validator=validator,
+        expected_bytes=expected_bytes,
+        expected_sha256=expected_sha256,
+        identity_registry=identity_registry,
+    )
+
+
+def read_json_bound(
+    root: Path,
+    relative: str,
+    label: str,
+    identities: set[tuple[int, int]],
+    *,
+    expected_bytes: int | None = None,
+    expected_sha256: str | None = None,
+) -> Any:
+    def validate(raw: bytes) -> Any:
+        value = parse_json(raw, label)
+        if raw != pretty_bytes(value):
+            raise ValueError(f"{label} must use exact registered JSON bytes")
+        return value
+
+    result = read_bound(
+        root,
+        relative,
+        label,
+        validate,
+        expected_bytes=expected_bytes,
+        expected_sha256=expected_sha256,
+        identity_registry=identities,
+    )
+    if not isinstance(result, tuple):
+        raise TypeError(f"{label} reader contract invalid")
+    return result[1]
 
 
 def validate_response(value: Any, assignment_id: str) -> dict[str, Any]:
@@ -208,7 +258,11 @@ def derive_components(
 
 
 def score_document(document: Any, package_root: Path = ROOT) -> dict[str, Any]:
-    package_root = package_root.resolve()
+    package_root = Path(package_root)
+    if not package_root.is_absolute() or os.path.normpath(
+        os.fspath(package_root)
+    ) != os.fspath(package_root):
+        raise ValueError("package root must be one canonical absolute trusted root")
     if type(document) is not dict or set(document) != DOC_KEYS:
         raise ValueError("score input must be one exact closed object")
     if (
@@ -220,29 +274,225 @@ def score_document(document: Any, package_root: Path = ROOT) -> dict[str, Any]:
         raise ValueError("exactly one score attempt is allowed")
     if exact_int(document["fixed_denominator"], "fixed_denominator") != 6:
         raise ValueError("fixed denominator must remain six")
-    registration = load_json(package_root / "registration.json")
-    if document["registration_root"] != registration["registration_root"]:
-        raise ValueError("registration root mismatch")
-    schedule = load_json(package_root / "assignment-schedule.json")
-    expected = {row["cell_id"]: row for row in schedule["rows"]}
-    permits = {
-        cell_id: load_json(package_root / "permits" / f"{cell_id}.permit.json")
-        for cell_id in expected
+    identities: set[tuple[int, int]] = set()
+    registration = read_json_bound(
+        package_root, "registration.json", "registration", identities
+    )
+    if type(registration) is not dict or set(registration) != {
+        "hold_state_root",
+        "permit_set_root",
+        "registration_contract",
+        "registration_contract_root",
+        "registration_root",
+        "schema",
+    }:
+        raise ValueError("registration shape invalid")
+    registration_body = {
+        key: value for key, value in registration.items() if key != "registration_root"
     }
-    adjudication_value = load_json(package_root / "open-adjudication.json")
+    if (
+        document["registration_root"] != registration["registration_root"]
+        or registration["registration_root"] != canonical_root(registration_body)
+        or registration["registration_contract_root"]
+        != canonical_root(registration["registration_contract"])
+    ):
+        raise ValueError("registration root mismatch")
+    registered_roots = registration["registration_contract"].get("roots")
+    if type(registered_roots) is not dict:
+        raise ValueError("registration roots invalid")
+    registered_inputs_value = registration["registration_contract"].get("scorer_inputs")
+    if type(registered_inputs_value) is not list:
+        raise ValueError("scorer input registry invalid")
+    registered_inputs: dict[str, dict[str, Any]] = {}
+    for receipt in registered_inputs_value:
+        if (
+            type(receipt) is not dict
+            or set(receipt) != {"bytes", "path", "sha256", "type"}
+            or type(receipt["path"]) is not str
+            or not receipt["path"]
+            or receipt["path"] in registered_inputs
+            or receipt["type"] != "regular_file"
+            or type(receipt["bytes"]) is not int
+            or receipt["bytes"] < 0
+            or type(receipt["sha256"]) is not str
+            or ROOT_RE.fullmatch(receipt["sha256"]) is None
+        ):
+            raise ValueError("scorer input registry entry invalid")
+        registered_inputs[receipt["path"]] = receipt
+
+    def receipt(path: str) -> dict[str, Any]:
+        value = registered_inputs.get(path)
+        if value is None:
+            raise ValueError(f"unregistered scorer input: {path}")
+        return value
+
+    schedule_receipt = receipt("assignment-schedule.json")
+    schedule = read_json_bound(
+        package_root,
+        "assignment-schedule.json",
+        "assignment_schedule",
+        identities,
+        expected_bytes=schedule_receipt["bytes"],
+        expected_sha256=schedule_receipt["sha256"],
+    )
+    schedule_body = {
+        key: value for key, value in schedule.items() if key != "assignment_root"
+    }
+    if schedule.get("assignment_root") != registered_roots.get(
+        "assignment_root"
+    ) or canonical_root(schedule_body) != registered_roots.get("assignment_root"):
+        raise ValueError("assignment schedule root mismatch")
+    expected = {row["cell_id"]: row for row in schedule["rows"]}
+    expected_static_paths = {
+        "assignment-schedule.json",
+        "case-selection.json",
+        "hold-state.json",
+        "open-adjudication.json",
+        "response.schema.json",
+        "scoring-contract.json",
+        *(f"permits/{cell_id}.permit.json" for cell_id in expected),
+    }
+    if set(registered_inputs) != expected_static_paths:
+        raise ValueError("scorer input registry denominator invalid")
+
+    hold_receipt = receipt("hold-state.json")
+    hold = read_json_bound(
+        package_root,
+        "hold-state.json",
+        "hold_state",
+        identities,
+        expected_bytes=hold_receipt["bytes"],
+        expected_sha256=hold_receipt["sha256"],
+    )
+    if (
+        canonical_root(hold) != registration["hold_state_root"]
+        or hold.get("permit_set_root") != registration["permit_set_root"]
+        or hold.get("held") != 6
+        or hold.get("released") != 0
+        or hold.get("consumed") != 0
+    ):
+        raise ValueError("held permit state mismatch")
+    permit_receipts = {
+        item["cell_id"]: item for item in hold.get("permits", []) if type(item) is dict
+    }
+    if set(permit_receipts) != set(expected):
+        raise ValueError("held permit denominator mismatch")
+    permits = {}
+    for cell_id in expected:
+        permit_path = f"permits/{cell_id}.permit.json"
+        permit_receipt = receipt(permit_path)
+        permit = read_json_bound(
+            package_root,
+            permit_path,
+            f"permit_{cell_id}",
+            identities,
+            expected_bytes=permit_receipt["bytes"],
+            expected_sha256=permit_receipt["sha256"],
+        )
+        if maintained_root(permit) != permit_receipts[cell_id].get("permit_root"):
+            raise ValueError("held permit byte/root mismatch")
+        permits[cell_id] = permit
+
+    adjudication_receipt = receipt("open-adjudication.json")
+    adjudication_value = read_json_bound(
+        package_root,
+        "open-adjudication.json",
+        "open_adjudication",
+        identities,
+        expected_bytes=adjudication_receipt["bytes"],
+        expected_sha256=adjudication_receipt["sha256"],
+    )
+    if canonical_root(adjudication_value) != registered_roots.get(
+        "open_adjudication_root"
+    ):
+        raise ValueError("open adjudication root mismatch")
     adjudication = {item["case_id"]: item for item in adjudication_value["cases"]}
-    cases = load_json(package_root / "case-selection.json")["cases"]
+    case_receipt = receipt("case-selection.json")
+    if case_receipt["sha256"] != registered_roots.get("case_selection_bytes"):
+        raise ValueError("case selection receipt/root mismatch")
+    case_result = read_bound(
+        package_root,
+        "case-selection.json",
+        "case_selection",
+        lambda raw: parse_json(raw, "case_selection"),
+        expected_bytes=case_receipt["bytes"],
+        expected_sha256=case_receipt["sha256"],
+        identity_registry=identities,
+    )
+    if not isinstance(case_result, tuple):
+        raise TypeError("case selection reader contract invalid")
+    cases = case_result[1]["cases"]
     allowed_evidence = {
         item["case_id"]: {atom["sha256"] for atom in item["base_atoms"]}
         for item in cases
     }
+
+    scoring_receipt = receipt("scoring-contract.json")
+    scoring_contract = read_json_bound(
+        package_root,
+        "scoring-contract.json",
+        "scoring_contract",
+        identities,
+        expected_bytes=scoring_receipt["bytes"],
+        expected_sha256=scoring_receipt["sha256"],
+    )
+    if canonical_root(scoring_contract) != registered_roots.get(
+        "scoring_contract_root"
+    ) or scoring_contract.get("open_adjudication_root") != registered_roots.get(
+        "open_adjudication_root"
+    ):
+        raise ValueError("scoring contract root mismatch")
+    schema_receipt = receipt("response.schema.json")
+    if schema_receipt["sha256"] != registered_roots.get("response_schema_sha256"):
+        raise ValueError("response schema receipt/root mismatch")
+    read_bound(
+        package_root,
+        "response.schema.json",
+        "response_schema",
+        expected_bytes=schema_receipt["bytes"],
+        expected_sha256=schema_receipt["sha256"],
+        identity_registry=identities,
+    )
+    custody = read_json_bound(
+        package_root, "custody-contract.json", "custody_contract", identities
+    )
+    prelaunch = read_json_bound(
+        package_root, "prelaunch-state.json", "prelaunch_state", identities
+    )
+    custody_template = dict(custody)
+    custody_template["registration_root"] = "$REGISTRATION_ROOT"
+    prelaunch_template = dict(prelaunch)
+    prelaunch_template["custody_root"] = "$CUSTODY_ROOT"
+    prelaunch_template["registration_root"] = "$REGISTRATION_ROOT"
+    if (
+        canonical_root(custody) != prelaunch.get("custody_root")
+        or canonical_root(custody_template)
+        != registered_roots.get("custody_contract_template_root")
+        or canonical_root(prelaunch_template)
+        != registered_roots.get("prelaunch_state_template_root")
+        or custody.get("registration_root") != registration["registration_root"]
+        or custody.get("scoring_contract_root")
+        != registered_roots.get("scoring_contract_root")
+        or custody.get("response_schema_sha256")
+        != registered_roots.get("response_schema_sha256")
+        or prelaunch.get("registration_root") != registration["registration_root"]
+        or prelaunch.get("permit_set_root") != registration["permit_set_root"]
+        or prelaunch.get("provider_calls") != 0
+        or prelaunch.get("scoring_attempts") != 0
+    ):
+        raise ValueError("custody or prelaunch binding mismatch")
     manifest_paths = document["capture_manifests"]
     if type(manifest_paths) is not list or len(manifest_paths) != 6:
         raise ValueError("all six capture manifests are required")
     observed: dict[str, dict[str, Any]] = {}
     capture_bindings = []
     for manifest_path in manifest_paths:
-        manifest_raw = read_bound(package_root, manifest_path, "capture_manifest")
+        manifest_raw = read_bound(
+            package_root,
+            manifest_path,
+            "capture_manifest",
+            identity_registry=identities,
+        )
         manifest = json.loads(manifest_raw, object_pairs_hook=_pairs)
         manifest = validate_compiled_capture(manifest)
         provider_calls = exact_int(manifest["provider_calls"], "capture provider_calls")
@@ -420,9 +670,18 @@ def score_to_file(
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("input", type=Path)
+    parser.add_argument("--input-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    score_to_file(load_json(args.input), args.output)
+    input_result = read_absolute_regular(
+        args.input,
+        "score_input",
+        trusted_roots=(args.input_root,),
+        validator=lambda raw: parse_json(raw, "score_input"),
+    )
+    if not isinstance(input_result, tuple):
+        raise TypeError("score input reader contract invalid")
+    score_to_file(input_result[1], args.output)
     return 0
 
 

@@ -1,5 +1,5 @@
 {
-  "artifact_root": "sha256:ff310cd5c3bcefa5ece6589df441b1c0c2f115333013b1c42fa92629853f4a64",
+  "artifact_root": "sha256:b8535016ae32438159f55966aba8692c1df4d2f948b395378d558691e1c3e615",
   "entries": [
     {
       "bytes": 6553,
@@ -244,7 +244,7 @@
     {
       "bytes": 24937,
       "path": "offline-qualification.json",
-      "sha256": "sha256:36598ad1f2c5014d59d194a15d07febcf75c2ce4f79d98d019c39b9ec35412eb"
+      "sha256": "sha256:4ae0f6e34a508e6c9cba216affad8b80e8db4b36883c4c0c9a29c2967010c414"
     },
     {
       "bytes": 54821,
@@ -259,12 +259,12 @@
     {
       "bytes": 17027,
       "path": "registration.json",
-      "sha256": "sha256:1f9656ed7c4a79eae490f0616cde9e5db42e247f1c4581af4062fc4fbbdf8006"
+      "sha256": "sha256:2362e634b832c4392459d1e6c4c20fe98fba41d59ff1231311658ed651015f22"
     },
     {
-      "bytes": 5048,
+      "bytes": 5537,
       "path": "run_input_materialize.py",
-      "sha256": "sha256:ba2e61d7908e1a669b2321f1d452968faa46fd5bbfd69d9c257ce6e8da93cf79"
+      "sha256": "sha256:57d6167ba19f74928c508e43713184d8ceecfd36bdf1ac13a1d82f163c73547a"
     },
     {
       "bytes": 433,
@@ -307,9 +307,9 @@
       "sha256": "sha256:d7be79f18f5c24d7ac67bb7d4b5fbdfe7d11437fbdb82228c12e6b8f0c061d50"
     },
     {
-      "bytes": 4954,
+      "bytes": 8125,
       "path": "secure_reader.py",
-      "sha256": "sha256:6a7a7f1c6a3723447e5d5489fe12a6de627599e4bc3d400da6b02767087de8e7"
+      "sha256": "sha256:f229daeba60c24914cd33a37739e4f9b46eff88b4ae1e7a72ffc125c5f0bfe36"
     },
     {
       "bytes": 4572,
@@ -329,7 +329,7 @@
     {
       "bytes": 58798,
       "path": "verify.py",
-      "sha256": "sha256:0bf54b816a91a6e1ea5400ccec5d7ff6b421af0316a024332f5ee1bbc9aa8655"
+      "sha256": "sha256:72c5e69fae6bd014fa414dec2eb466597c5e224ce6c21d631dc705b24d5294f7"
     }
   ],
   "schema": "vela.lean-correspondence-stage-a-runtime-qualification-artifact-root.v2"

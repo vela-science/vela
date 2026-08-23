@@ -267,8 +267,13 @@ def capture_package(root: Path) -> None:
     for name in (
         "assignment-schedule.json",
         "case-selection.json",
+        "custody-contract.json",
+        "hold-state.json",
         "open-adjudication.json",
+        "prelaunch-state.json",
         "registration.json",
+        "response.schema.json",
+        "scoring-contract.json",
     ):
         shutil.copyfile(ROOT / name, root / name)
     shutil.copytree(ROOT / "permits", root / "permits")
@@ -499,7 +504,9 @@ def scoring_document(
 
 class ScorerTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.temporary = tempfile.TemporaryDirectory(prefix="anthropic-score-")
+        self.temporary = tempfile.TemporaryDirectory(
+            prefix="anthropic-score-", dir=Path.cwd()
+        )
         self.root = Path(self.temporary.name) / "package"
         capture_package(self.root)
 
@@ -684,6 +691,34 @@ class ScorerTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             scorer.read_bound(self.root, path.name, "replacement", replace)
+
+    def test_every_registered_support_input_raw_drift_is_rejected(self) -> None:
+        document = self.document()
+        cell_id = json.loads((self.root / "assignment-schedule.json").read_text())[
+            "rows"
+        ][0]["cell_id"]
+        paths = (
+            "registration.json",
+            "assignment-schedule.json",
+            "hold-state.json",
+            f"permits/{cell_id}.permit.json",
+            "open-adjudication.json",
+            "case-selection.json",
+            "scoring-contract.json",
+            "response.schema.json",
+            "custody-contract.json",
+            "prelaunch-state.json",
+        )
+        for relative in paths:
+            with self.subTest(relative=relative):
+                path = self.root / relative
+                original = path.read_bytes()
+                try:
+                    path.write_bytes(original + b" ")
+                    with self.assertRaises(ValueError):
+                        scorer.score_document(document, self.root)
+                finally:
+                    path.write_bytes(original)
 
 
 if __name__ == "__main__":

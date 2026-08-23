@@ -12,7 +12,7 @@
     "image_digest": "sha256:3a8ee2d16720fc4ff91f6fd54ad698cd18aa7e387e3ce78a0ea751f7cf78dda7",
     "model": "claude-opus-5",
     "model_snapshot_semantics": "canonical_pinned_model_id_not_pre-4.6_alias",
-    "offline_qualification_root": "sha256:cfcfa46ba16d8c20b80ef8170867c3b55aa76a1bbfa88816b32219d2121bcf7b",
+    "offline_qualification_root": "sha256:91814c2658cacdd3b4a97be4c89f119512703adc82016e87834d91708cb16d4b",
     "parameters": {
       "max_tokens": 32768,
       "output_config_effort": "high",
@@ -59,9 +59,9 @@
     "unrestricted_clients": false
   },
   "prior_v4_positive_qualification": true,
-  "runtime_artifact_root": "sha256:ff310cd5c3bcefa5ece6589df441b1c0c2f115333013b1c42fa92629853f4a64",
-  "runtime_offline_record_root": "sha256:c8b0126bb69c69d48836d3c36652dd64608f4596347577a1b6b0c91657e01db2",
-  "runtime_registration_root": "sha256:ce4330143a091a2602ad74287fac510fad8e687fba4af23d561c118d833b46fd",
+  "runtime_artifact_root": "sha256:b8535016ae32438159f55966aba8692c1df4d2f948b395378d558691e1c3e615",
+  "runtime_offline_record_root": "sha256:d823263fc7293f48cbc0e178c5b6c9e02542cbbf6dcc9a0736d9310e869621bd",
+  "runtime_registration_root": "sha256:16587502b39c4af3092743e3e908eb47b66759c7382dcbe4e31472885969d52c",
   "schema": "vela.lean-correspondence-anthropic-open-diagnostic-runtime-binding.v1",
   "successor_independent_review": "pending",
   "successor_positive_qualification": false

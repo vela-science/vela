@@ -130,7 +130,7 @@
   "fixed_denominator": 6,
   "maintained_qualifier_base_sha256": "sha256:61591eec3304e299a9344888bc2a6f08cd32785b647ef5b0107da490dbf18013",
   "maintained_qualifier_commit": "cc3b88d8bfcfd7b4f720a023f049d5c365be9423",
-  "maintained_qualifier_successor_sha256": "sha256:3dd348d8795152da74e79547296661897f873a4be3d2502c28f656b9ebddd9f4",
+  "maintained_qualifier_successor_sha256": "sha256:7da9db070f4113784841d19a2cb0f89b13ab58bea1d6f805dda6c6eff48add1d",
   "no_post_review_materialization_required": true,
   "provider_calls": 0,
   "schema": "vela.lean-correspondence-anthropic-open-diagnostic-execution-bundles.v2",

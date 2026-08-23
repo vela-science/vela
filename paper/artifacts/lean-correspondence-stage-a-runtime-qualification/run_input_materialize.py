@@ -39,7 +39,12 @@ def read_exact_regular(
         if after_open:
             after_open()
 
-    result = read_absolute_regular(path, "schema", validator=validate)
+    result = read_absolute_regular(
+        path,
+        "schema",
+        trusted_roots=(path.parent,),
+        validator=validate,
+    )
     if not isinstance(result, tuple):
         raise TypeError("schema_reader_contract_invalid")
     raw, _validated = result
@@ -112,11 +117,23 @@ def main() -> int:
     parser.add_argument("--tool-policy-root", required=True)
     parser.add_argument("--workspace-preflight-root", required=True)
     args = parser.parse_args()
-    packet = args.packet_file.read_bytes()
+    packet_result = read_absolute_regular(
+        args.packet_file,
+        "packet",
+        trusted_roots=(args.packet_file.parent,),
+    )
+    prompt_result = read_absolute_regular(
+        args.prompt_file,
+        "prompt",
+        trusted_roots=(args.prompt_file.parent,),
+    )
+    if not isinstance(packet_result, bytes) or not isinstance(prompt_result, bytes):
+        raise TypeError("runner input reader contract invalid")
+    packet = packet_result
     fields = {
         "run_id": args.run_id,
         "model": args.model,
-        "prompt": args.prompt_file.read_text(),
+        "prompt": prompt_result.decode("utf-8"),
         "packet_path": "/input/packet.json",
         "packet_bytes": len(packet),
         "packet_sha256": digest(packet),

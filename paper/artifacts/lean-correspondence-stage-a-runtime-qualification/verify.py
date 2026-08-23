@@ -30,10 +30,10 @@ STOPPED_V3 = (
 )
 SHA256 = re.compile(r"sha256:[0-9a-f]{64}\Z")
 EXPECTED_REGISTRATION_ROOT = (
-    "sha256:ce4330143a091a2602ad74287fac510fad8e687fba4af23d561c118d833b46fd"
+    "sha256:16587502b39c4af3092743e3e908eb47b66759c7382dcbe4e31472885969d52c"
 )
 EXPECTED_OFFLINE_RECORD_ROOT = (
-    "sha256:c8b0126bb69c69d48836d3c36652dd64608f4596347577a1b6b0c91657e01db2"
+    "sha256:d823263fc7293f48cbc0e178c5b6c9e02542cbbf6dcc9a0736d9310e869621bd"
 )
 EXPECTED_QUALIFIER = {
     "git_commit": "cc3b88d8bfcfd7b4f720a023f049d5c365be9423",
@@ -68,7 +68,7 @@ EXPECTED_PROVIDER = {
         "model": "gpt-5.6-sol",
         "run_id": "neutral-calibration-openai-json-v2",
         "configuration_root": "sha256:96555c45c33ed2a106cfb261025b752a4eeb1514aa180985ecd5ea0551a6616d",
-        "qualification_root": "sha256:c489c6633f37aa60a94200066295398ae593a2adb33be7a72d1a85edb1755587",
+        "qualification_root": "sha256:8a1ebd59408992e4f53328973d69e326c889efe947b2aec8811fc39c7a291d52",
         "image_digest": "sha256:670a21eedcf7b37f347e587960a95c711396932e2a9971f73a98ffc50083579f",
         "tool_boundary_root": "sha256:0b2e1fb701f70b02f9cc7ad79201f84374dfeb904299b59a6667d36eb4e59c69",
         "runtime_source_root": "sha256:b075dd06e3ca297cf0200e793f70d34ca7b9018932d20c624a5cf891bb936568",
@@ -81,7 +81,7 @@ EXPECTED_PROVIDER = {
         "model": "claude-opus-5",
         "run_id": "neutral-calibration-anthropic-json-v4-lossless",
         "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
-        "qualification_root": "sha256:cfcfa46ba16d8c20b80ef8170867c3b55aa76a1bbfa88816b32219d2121bcf7b",
+        "qualification_root": "sha256:91814c2658cacdd3b4a97be4c89f119512703adc82016e87834d91708cb16d4b",
         "image_digest": "sha256:3a8ee2d16720fc4ff91f6fd54ad698cd18aa7e387e3ce78a0ea751f7cf78dda7",
         "tool_boundary_root": "sha256:01dfbda69c1c7760423fdba41eaac18687a73d9fe683a8a5f207fdc8abe2a7d9",
         "runtime_source_root": "sha256:e37927ac5eb1085eeb47b4ee7fc60d63ba95b1a3c7b8876a5746f35ec3233614",

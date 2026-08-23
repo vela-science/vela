@@ -1910,7 +1910,8 @@ class EvidenceQualificationTests(unittest.TestCase):
         alias = self.root / "schemas/registered.hardlink.json"
         alias.hardlink_to(source)
         with self.assertRaisesRegex(
-            QualificationError, "(?:hardlink_forbidden|link_count_invalid)"
+            QualificationError,
+            "(?:hardlink_forbidden|link_count_invalid|not_regular_single_link)",
         ):
             validate_tool_boundary(tool_boundary(self.root, "openai-responses-v1"))
         alias.unlink()
