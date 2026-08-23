@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import base64
 import json
+import os
+import stat
 import tempfile
 import unittest
 from pathlib import Path
@@ -63,10 +65,39 @@ def response_payload(raw: bytes, status: int = 200) -> dict[str, object]:
     }
 
 
+def canonical_temporary_root() -> tuple[tempfile.TemporaryDirectory[str], Path]:
+    """Create one test-owned root whose registered spelling has no aliases."""
+
+    preferred = Path("/private/tmp")
+    temporary_base = (
+        preferred
+        if preferred.is_dir() and not preferred.is_symlink()
+        else Path(os.path.realpath(tempfile.gettempdir()))
+    )
+    temporary = tempfile.TemporaryDirectory(
+        prefix="runtime-capture-", dir=temporary_base
+    )
+    root = Path(temporary.name)
+    if (
+        not root.is_absolute()
+        or os.path.normpath(os.fspath(root)) != os.fspath(root)
+        or Path(os.path.realpath(root)) != root
+    ):
+        temporary.cleanup()
+        raise RuntimeError("runtime capture fixture root is not canonical")
+    current = Path(root.anchor)
+    for component in root.parts[1:]:
+        current /= component
+        metadata = os.lstat(current)
+        if stat.S_ISLNK(metadata.st_mode):
+            temporary.cleanup()
+            raise RuntimeError("runtime capture fixture root contains a symlink")
+    return temporary, root
+
+
 class RuntimeCaptureTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.temporary = tempfile.TemporaryDirectory(prefix="runtime-capture-")
-        self.root = Path(self.temporary.name)
+        self.temporary, self.root = canonical_temporary_root()
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
@@ -317,10 +348,16 @@ class RuntimeCaptureTests(unittest.TestCase):
         }
 
     def test_actual_frame_one_tool_compiles_with_two_calls(self) -> None:
-        compiled = compile_capture(self.root, self.fixture())
+        fixture = self.fixture()
+        compiled = compile_capture(self.root, fixture)
         self.assertEqual(compiled["tool_call_count"], 1)
         self.assertEqual(compiled["provider_calls"], 2)
         self.assertEqual(validate_compiled_capture(compiled), compiled)
+        alias = self.root.with_name(self.root.name + "-alias")
+        alias.symlink_to(self.root, target_is_directory=True)
+        self.addCleanup(alias.unlink)
+        with self.assertRaisesRegex(ValueError, "directory_not_real"):
+            compile_capture(alias, fixture)
 
     def test_zero_contact_terminal_is_retained(self) -> None:
         compiled = compile_capture(self.root, self.fixture(zero_call=True))
