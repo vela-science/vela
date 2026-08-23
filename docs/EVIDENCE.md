@@ -82,6 +82,63 @@ It does not establish:
 - external validation; or
 - a Vela authority role.
 
+## Held-out correction study
+
+On 2026-08-21 the project completed a second preregistered, held-out study on
+a different task. Where Phase 0 asked a cold successor to answer questions
+about inherited work, this study asked an agent to perform a bounded
+correction. Three synthetic families, three arms, four sessions each. The
+adjudication key was held by an independent evaluator and disclosed only as a
+canonical root until every cell was ingested. Single-use permits, one attempt,
+zero retries, zero substitutions.
+
+| Arm | Exact | Impact-complete | Authority errors | Mean runtime |
+| --- | ---: | ---: | ---: | ---: |
+| Git / documents | 12 / 12 | 12 / 12 | 0 | 12.80 s |
+| Neutral state wrapper | 12 / 12 | 12 / 12 | 0 | 13.98 s |
+| Vela | 11 / 12 | 12 / 12 | 1 | 14.63 s |
+
+Every preregistered gate was false, aggregate and per family: `structure`,
+`governance_inheritance`, and `total`. The task was nondiscriminative — both
+comparison arms were exact in every cell, so no arm could demonstrate an
+advantage.
+
+- Registration root: `sha256:60acdfa31d25f9df5f342b75caf8e65426c5b71fa320c36fe5568de9fbf13b10`
+- Adjudication root: `sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d`
+- Capture root: `sha256:f74229b3346cf56e2128d78b366f5fb99380872c27285d196c13862738bc8e98`
+
+## Reading the two studies together
+
+They do not conflict; they differ in task. Structured state did not improve
+task success when the task was within the participant's reach. It removed
+authority and provenance errors, and reduced navigation cost, when the
+successor had to reason about who accepted what and what superseded what. In
+Phase 0 the raw-source arm produced two authority confusions and two missed
+trust or licence dependencies and the Vela arm produced none, at 2.5 median
+tool calls against 11.0.
+
+A success-rate metric does not detect what the layer is for. Reporting only
+the held-out correction study would understate it; reporting only Phase 0
+would overstate it.
+
+## A metric caution
+
+Both studies score a failed cell by substituting a 600-second penalty into a
+restricted-mean time statistic. That composite is deliberate, and a failure
+should cost something, but it must never be read or reported as a duration.
+
+It has produced a misleading number in both directions here. In the 16-cell
+precursor to the correction study it produced an apparent 2.6x speed
+advantage for Vela; the comparison arm's cells actually completed in 11.45 to
+17.29 seconds and its 600.00 figure was eight penalties averaged. In the
+36-cell study it produced an apparent 4.5x slowdown for Vela; the single
+failed cell, `orderfix-run-25`, actually completed in 16.512 seconds and was
+scored at 600, and the arithmetic closes as
+(175.538 - 16.512 + 600) / 12 = 63.252. No run in either study exceeded 21
+seconds.
+
+Decompose any difference in this statistic before interpreting it.
+
 ## Open validation gates
 
 The most important missing evidence is outside the Core implementation:
@@ -93,5 +150,6 @@ The most important missing evidence is outside the Core implementation:
 5. a broader preregistered evaluation reproduces or overturns Phase 0.
 
 Until those gates pass, describe Vela as a working and internally qualified
-scientific-inheritance mechanism with promising early evidence, not a mature
-or externally validated scientific platform.
+scientific-inheritance mechanism with one positive and one negative
+preregistered internal result, not a mature or externally validated scientific
+platform.
