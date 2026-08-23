@@ -1,0 +1,63 @@
+{
+  "artifact": {
+    "assignment_root": "sha256:6a2caf2dba0ae9e463885c126016183dcd3c247b2b85b9352db55fdb708affd4",
+    "custody_root": "sha256:b3b0bd9e057f331338cff449d60dad0bd975376334c735c511387b16ad2fd34b",
+    "execution_bundle_registry_root": "sha256:7b110a78ce4b6162f6bd54432098179c57b5b539f491698739f10057f5831d91",
+    "hold_state_root": "sha256:e1f40ce4899f26411d8d343bf4aabb8f444258c01629ca00a3c741a787869d8d",
+    "open_adjudication_root": "sha256:83211274aa587f56daaa7e7c5b35756400eac041a36f7ce602e96879202719ed",
+    "packet_derivations_root": "sha256:76a7e52f4ec6cf9838e90d28034cf6476197565541b99337135aa315b6924c61",
+    "path": "paper/artifacts/lean-correspondence-anthropic-open-diagnostic-pilot",
+    "permit_set_root": "sha256:55371e684d063be9c335af6bf8ae3c0ef548357619a6110a2af187a00310d859",
+    "preregistration_root": "sha256:6c7ad3e9113927cc914b7ad8faaa914868df14ee47605bacc948a903bba368c8",
+    "registration_contract_root": "sha256:8f58d63edb74558ae3b34044eab06de320293562fd35745c32bd20622138c9dd",
+    "registration_root": "sha256:d6192ae287b353fbd57e98ab6b406e68a9f7f3ed117019c79bc7139dc5dba756",
+    "root": "sha256:707cff55eec2da4cad059650a61d5e39fadd6270ead38acd6e7854fc03b85b80",
+    "scoring_contract_root": "sha256:17f0bb424cb7b1eb469b1c5ce472f19f71d9895295ae723c2dd6dde272e5fef6"
+  },
+  "authority_effect": "none",
+  "execution_authorized": false,
+  "findings": [
+    {
+      "code": "AD-01R",
+      "disposition": "blocking",
+      "summary": "The qualified requests expose only packet paths and hashes; the referenced source evidence is absent and /workspace is an unrelated neutral schemas mount, so the participant cannot inspect the frozen assignment."
+    },
+    {
+      "code": "AD-02R1",
+      "disposition": "blocking",
+      "summary": "The scorer hardcodes one provider call for every terminal status and rejects a fully bound zero-call pre-provider failure, violating the fixed-denominator failure semantics."
+    },
+    {
+      "code": "AD-02R2",
+      "disposition": "blocking",
+      "summary": "The no-false-inference component requires exact adjudication-label equality and incorrectly penalizes conservative authority/scientific uncertainty that makes no overclaim."
+    },
+    {
+      "code": "AD-02R3",
+      "disposition": "blocking",
+      "summary": "The scorer capture reader does not bind pre-open pathname metadata to the opened descriptor; deterministic open substitution returned forged bytes successfully."
+    }
+  ],
+  "independence": {
+    "credential_accesses": 0,
+    "permit_releases": 0,
+    "producer_bytes_modified": false,
+    "provider_calls": 0,
+    "scoring_attempts": 0
+  },
+  "prior_review": {
+    "commit": "f920321a95736e5a17f84a2c1d35451ea7539a1c",
+    "verdict": "BLOCKED"
+  },
+  "producer": {
+    "commit": "2d3b53575bd9465a0331b0e9fbf99510b05001f9",
+    "parent": "3a497e75e85690a7bf03563e00d81fe0dbc339e5",
+    "tree": "371e1efbb5b5564495ac7a5cfdf6aa16c254eeab"
+  },
+  "report": {
+    "path": "reviews/lean-correspondence-anthropic-open-diagnostic-2d3b5357-report.md",
+    "sha256": "sha256:c26d2aa3a806c485225d79e9d5a2dbd80ac6e9e59dcd5f6472651b6cee2347a9"
+  },
+  "schema": "vela.review.lean-correspondence-anthropic-open-diagnostic-corrective-prelaunch.v1",
+  "verdict": "BLOCKED"
+}
