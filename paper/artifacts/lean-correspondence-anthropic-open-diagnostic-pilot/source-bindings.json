@@ -1,0 +1,37 @@
+{
+  "anthropic_v4": {
+    "amended_artifact_root": "sha256:958817c1de7d31497846294208b7178d785a4081e971b578cfd6cdbb8e4fca4a",
+    "amendment_commit": "a9ee9e43a2152abf7267de9d38e57049ae64b499",
+    "amendment_tree": "76d4d969177a19ec0bbb0b896f6cdfe8ffda5e58",
+    "execution_artifact_root": "sha256:58f2995e8993045d9f9653371c1b49a770e23c59ca85d79cc26ff536a1537a0a",
+    "independent_review_commit": "42f5c86bb337dd8a87507c5bb85ffe02a3829afc",
+    "independent_review_report_sha256": "sha256:31f66a81b62a7b7bc2f3402e0146f67013b316f9576ded2e20615b2b6cfcc580",
+    "independent_review_tree": "28a881f125cd2965dbf03fc44c0388f4b7fd495f",
+    "independent_review_verdict": "PASS",
+    "independent_review_verdict_sha256": "sha256:0694575d8f370bd7e9c8113ff68d24cf383e155b17a987feb918e53c9fdc3333",
+    "parsed_response_root": "sha256:95bf0c205c10167f57d769a0f77daef57ede2db3a6061464957c496e50eddc46",
+    "permit_root": "sha256:dfc9f20e029b7ea51eb28c6b3d81f70eace063c681d56d2c9ce7356b3dbe8b63",
+    "request_root": "sha256:cf67944d1872244c9d89ed3f7ad9cc27c3a37a4deba665f47a939985e2c62e8c"
+  },
+  "frozen_stage_a": {
+    "artifact_root": "sha256:f89d335912adbbd0e3b3f1cb98ec3f4fa78a27f3742652ac7244eaa86ed6aca8",
+    "assignment_root": "sha256:11fbe1785066cdc4183028cb71b26e2eedf9cb5fb35163440237f83470930b48",
+    "case_selection_bytes": "sha256:fe57578532a02c93b811059a97b1ccd133ee291f27aa2d4865763005b80126b3",
+    "fixed_denominator": 12,
+    "method_artifact_root": "sha256:2d909b874eedc765546010e799d6fde709c88f3fcc623b45ab46130c3dfa68e4",
+    "method_commit": "8a999f5e8ca543531f5e1241fbdef391c78d068a",
+    "method_tree": "85b43ec7023d16cac404a6f8b6c8d8117584027a",
+    "participant_permit_set_root": "sha256:75bfa627a70465ae7b1ffe8dbf07d980db1f58ed3e68d7745fae22f851c12f1c",
+    "participant_permits_held": 12,
+    "participant_permits_modified": false,
+    "producer_commit": "c4a90b63d2f35c16876ff8b36f48742ae2c6ea7d",
+    "producer_tree": "af0cd1e65bf0efb1ca60897f47bab1cbc6e69232",
+    "provider_calls": 0
+  },
+  "immutable_neutral_lineage": {
+    "v2_consumed_zero_contact_artifact_root": "sha256:b72c5d8c5bdf66e528524719773dfc37dda98b7b219c841349a9c6e4874abb1b",
+    "v3_consumed_failed_exact_request_artifact_root": "sha256:63cbbdf6ae6c7e906268b31f33198d06b8db0757e6db48b6187286cacd08dcb9",
+    "v4_exact_pass_artifact_root": "sha256:958817c1de7d31497846294208b7178d785a4081e971b578cfd6cdbb8e4fca4a"
+  },
+  "schema": "vela.lean-correspondence-anthropic-open-diagnostic-source-bindings.v1"
+}

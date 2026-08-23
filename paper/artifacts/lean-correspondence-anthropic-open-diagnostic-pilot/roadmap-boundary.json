@@ -1,0 +1,48 @@
+{
+  "current_wedge": "scientific inheritance plus cross-system correspondence plus measurable successor advantage in formal mathematics",
+  "frontiers": {
+    "authoritative": false,
+    "derived": true,
+    "disposable": true,
+    "expansion_authorized": false
+  },
+  "latest_sealed_36_cell_result": {
+    "authority_effect": "none",
+    "commit": "4524c8f776943a267e04e03e9a237ecaed14bc2c",
+    "fixed_denominator": 36,
+    "git_documents_exact": "12/12",
+    "impact_complete": {
+      "git_documents": "12/12",
+      "state_wrapper": "12/12",
+      "vela": "12/12"
+    },
+    "independent_review": {
+      "branch": "origin/codex/review-order-result-4524c8f7",
+      "commit": "e6d8348bea3a57e88c5f9426d44a480b7a026fbd",
+      "report_sha256": "sha256:63b058d0aadbaa9abb1a43e4b5598072e003bba6dbff0c10f65e2f5f52075a7c",
+      "tree": "d4c6f9063b317be2a536af8a25344c2fa9931bbe",
+      "verdict": "PASS",
+      "verdict_sha256": "sha256:fb79caf645df89df528c92959275d002871b6347c10e2cd833f431118798edf3"
+    },
+    "positive_gate": "not_supported",
+    "preregistered_gates": {
+      "governance_inheritance": false,
+      "structure": false,
+      "total": false
+    },
+    "result_canonical_root": "sha256:92eed5bcb9e6b647d52a53282563077d3829b28c426e0dd9898a073f2590b8a5",
+    "result_evidence_root": "sha256:d9f017734d1c58ca9ecaba2621a7ddec12e178a78bf6b2d228dc2542aa71a104",
+    "result_sha256": "sha256:ae0c980a18633832a83b73e0c715ee11e702aeb56660c4e027d5ece03425f372",
+    "state_wrapper_exact": "12/12",
+    "tree": "4d5650a999ac0be59e71d5bd664e885cad5192c7",
+    "vela_authority_errors": 1,
+    "vela_exact": "11/12"
+  },
+  "memo_role": "claim_and_roadmap_boundary_only_not_current_evidence",
+  "memo_title": "The Living Frontier",
+  "native_authorities_remain_sovereign": true,
+  "phase_rule": "every_phase_is_a_proof_gate",
+  "protocol": "narrow_unchanged",
+  "schema": "vela.lean-correspondence-anthropic-open-diagnostic-roadmap-boundary.v1",
+  "superseded_directional_16_cell_result": "not_current_headline_and_not_evidence_for_this_diagnostic"
+}

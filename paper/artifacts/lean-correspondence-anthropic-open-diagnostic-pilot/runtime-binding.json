@@ -1,0 +1,60 @@
+{
+  "anthropic_configuration": {
+    "api": {
+      "anthropic_version_header": "2023-06-01",
+      "endpoint": "https://api.anthropic.com/v1/messages",
+      "library": "go1.26.2_standard_library_net_http",
+      "provider_api_version": "messages-v1_with_anthropic-version-2023-06-01",
+      "provider_cli": "none",
+      "sdk": "none_raw_https"
+    },
+    "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
+    "image_digest": "sha256:a95b75cfc449afc2ecb87a5808542339b1776ced9b15d91a27e795993acdbba0",
+    "model": "claude-opus-5",
+    "model_snapshot_semantics": "canonical_pinned_model_id_not_pre-4.6_alias",
+    "parameters": {
+      "max_tokens": 32768,
+      "output_config_effort": "high",
+      "retries": 0,
+      "service_tier": "standard_only",
+      "temperature": "omitted",
+      "thinking": "adaptive_default",
+      "timeout_seconds": 1200
+    },
+    "provider_adapter": "anthropic-messages-v1",
+    "provider_organization": "Anthropic",
+    "qualification_root": "sha256:27fb9ab360e0e0f29b9c33e6e5efe364a107c4bf0d00d0206b2e12349ecef045",
+    "tool_boundary_root": "sha256:01dfbda69c1c7760423fdba41eaac18687a73d9fe683a8a5f207fdc8abe2a7d9"
+  },
+  "artifacts": {
+    "bridge_sha256": "sha256:ecab9c565b399170f8f0f9990927cc689f7c669a37d42cd775bc31e25532b442",
+    "image_archive_sha256": "sha256:646128f39c03260bdc72c191d91d3f96cc403a5f63ef3b3399c7dc3a6089d279",
+    "image_config_digest": "sha256:8a1d93b83daa75fdeca6efcc4380b4510c1232e086bb3f994ceda0ce593cad78",
+    "image_digest": "sha256:a95b75cfc449afc2ecb87a5808542339b1776ced9b15d91a27e795993acdbba0",
+    "launchability_sha256": "sha256:ec5c90a7b8e885d7a7e679ae2ea8c1989b772a218ce7074a7418acd8709cae3b",
+    "lossless_request_transport_custody_sha256": "sha256:d1813ba1ad996442e38efe92ec8556210ddc11ffc8037a23ebb0c5b007157fb6",
+    "neutral_content_equivalence_root": "sha256:1818fb5da3c0b3c57f24083eaa54acb448ce9cd14f59cbd0bd0d2aaef2dac8b8",
+    "neutral_packet_root": "sha256:a38b18fb6284288f352e234aa32cffb79af880a03d8faf7c1e3492e6d8eba267",
+    "neutral_prompt_root": "sha256:3443fa942b90f84718cc4e6918ebf6d121ebc40cf58f5b3c610f4e983c4d4ed9",
+    "offline_validation_sha256": "sha256:1f857493dbecf40001dbc3a9e1b5be17ac46dd166096b48e7906a1da7451fddd",
+    "provider_contract_sha256": "sha256:0c9bdde3bfba9b2964d8f81601ed59f956f3e5e49bda42bcb9a55606f0d91da4",
+    "provider_schema_sha256": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
+    "run_input_materialization_receipt_sha256": "sha256:328dace8aee7d4cea3c2532e4e0012b01ad07b73ca6ce9b528d774fa62306028",
+    "runner_sha256": "sha256:f28ab18c0669630e68f5195bc2f8f2fc0027f0e5d316c8b1abaa37bde9387e44",
+    "runtime_source_root": "sha256:345b150207668e98a2a061c328e3552697b5370c50fb50dfbd96f598aaa65e30"
+  },
+  "information_boundary": {
+    "credential_fd_only": true,
+    "endpoint": "https://api.anthropic.com/v1/messages",
+    "network_from_participant": false,
+    "read_only_offline_shell_and_file_tools": true,
+    "redirects": "rejected",
+    "source_mounts": "read_only",
+    "unrestricted_clients": false
+  },
+  "post_review_positive_qualification": true,
+  "runtime_artifact_root": "sha256:57d49f290bcecb665b004ec54399361142b83590ed40d7291b8aabe00c8c0a2e",
+  "runtime_offline_record_root": "sha256:7a89479a46e004317cc69b78ffa1ea0c5fe7130a65c257de1dd43c9e31d6578e",
+  "runtime_registration_root": "sha256:2ddcd97a0dfff125ac88a6c102e58a0f380c929c6bc243a8e8298eb742dc6ef3",
+  "schema": "vela.lean-correspondence-anthropic-open-diagnostic-runtime-binding.v1"
+}

@@ -1,0 +1,22 @@
+{
+  "assignment_root": "sha256:cd53dcfcc0293b7ec2bb88297b146f8868ba34ea6b354867bde5a646cd3732d1",
+  "attempt": 1,
+  "authority_effect": "none",
+  "cell_id": "anthropic-diag-563bdd90a8c7df7a",
+  "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
+  "consumed": false,
+  "participant_id": "anthropic-participant-a66fe51e33746f16",
+  "permit_id": "anthropic-diagnostic-permit-070cf0b83e95ea0e23fe",
+  "permit_release_authorized": false,
+  "permit_release_gate": "new_independent_exact_prelaunch_PASS_and_later_explicit_execution_authorization",
+  "registration_contract_root": "sha256:c1793b548823dacfa2b471a0c4e52ac246440c4d330aa7e4500c3b9b75c7f324",
+  "response_schema_sha256": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
+  "runtime_binding_root": "sha256:0536cf34042fd682f998b5e0b987bea201709910eb8a924fef6ca35ac0d8106b",
+  "schema": "vela.lean-correspondence-anthropic-open-diagnostic-permit.v1",
+  "source_assignment_id": "lc-a-06-08d458a94d1f",
+  "source_packet_root": "sha256:4a88d4ee49cbdce22a5d82bbaf2e82519d849f747d7cc787d98d4c8949f017fd",
+  "source_prompt_root": "sha256:7b4ebc7fed080611105359ea2ffc07cec292c5e98f7f60809e0819e057f561f2",
+  "status": "held_non_releasable_pending_independent_exact_prelaunch_review",
+  "zero_retries": true,
+  "zero_substitutions": true
+}

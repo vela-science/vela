@@ -1,0 +1,30 @@
+{
+  "arms": [
+    "raw-source",
+    "correspondence-assisted"
+  ],
+  "case_count": 3,
+  "claim_ceiling": {
+    "anthropic_reviewer_agent_feasibility_for_exact_open_cases": "only_possible_future_positive_classification",
+    "breakthrough_claim": false,
+    "cross_provider_generality": false,
+    "frontiers_expansion": false,
+    "human_benefit": false,
+    "living_frontier_g3_inheritance_advantage": false,
+    "living_frontier_phase_0_gate": false,
+    "protocol_or_core_effect": "none",
+    "scientific_lift": false,
+    "stage_b_authorized": false,
+    "standing_or_authority_effect": "none",
+    "two_provider_stage_a_satisfied": false
+  },
+  "configuration_count": 1,
+  "design": "non_confirmatory_anthropic_only_open_feasibility_diagnostic",
+  "fixed_denominator": 6,
+  "fresh_participant_per_cell": true,
+  "participant_cells": 6,
+  "schema": "vela.lean-correspondence-anthropic-open-diagnostic-preregistration.v1",
+  "scoring_contract_root": "sha256:1307af882cb00cb4785d0e35a356fef18031514c5ff4171a711f04c65330a138",
+  "zero_retries": true,
+  "zero_substitutions": true
+}

@@ -1,0 +1,57 @@
+{
+  "authority_effect": "none",
+  "consumed": 0,
+  "fixed_denominator": 6,
+  "held": 6,
+  "original_openai_neutral_permit": "held_unchanged",
+  "original_stage_a_participant_permits": {
+    "held": 12,
+    "modified": false,
+    "permit_set_root": "sha256:75bfa627a70465ae7b1ffe8dbf07d980db1f58ed3e68d7745fae22f851c12f1c",
+    "released": 0
+  },
+  "permit_set_root": "sha256:352930210c092f4ac51d10c90512b24d945ca794ab2fec6609c03b099316db10",
+  "permits": [
+    {
+      "cell_id": "anthropic-diag-2f719af4c655ef77",
+      "permit_id": "anthropic-diagnostic-permit-68f5b881eb12d285cddb",
+      "permit_root": "sha256:819541289a0e0d50cd80113cd8ddb21e1eb5ab9efb2135f1d8850b89f94cc8bf",
+      "status": "held_non_releasable"
+    },
+    {
+      "cell_id": "anthropic-diag-395839ae5418ff4d",
+      "permit_id": "anthropic-diagnostic-permit-811516822901d521b36c",
+      "permit_root": "sha256:40787788aee9801b1c988b13c06cb110bd57b77084bc9f73bc08bcf16c5b426f",
+      "status": "held_non_releasable"
+    },
+    {
+      "cell_id": "anthropic-diag-563bdd90a8c7df7a",
+      "permit_id": "anthropic-diagnostic-permit-070cf0b83e95ea0e23fe",
+      "permit_root": "sha256:04384f88ee523645dec5d1005ee3d9f2916f71c479ff4a83514c1763334f8f7b",
+      "status": "held_non_releasable"
+    },
+    {
+      "cell_id": "anthropic-diag-6cccc41b01c2e998",
+      "permit_id": "anthropic-diagnostic-permit-91b6150b310a6f1a25e9",
+      "permit_root": "sha256:1fd51737aed47d38362f9ae752d8261ec9bc94dc19e8aaf986e98e2ba408165f",
+      "status": "held_non_releasable"
+    },
+    {
+      "cell_id": "anthropic-diag-7981a902f25c4abe",
+      "permit_id": "anthropic-diagnostic-permit-79e8b70b6c7c37cefdb1",
+      "permit_root": "sha256:0db3911a455a223d1eec2fc94b13a2713f6a5c0bfb02ec626ff6d748f0c20fe4",
+      "status": "held_non_releasable"
+    },
+    {
+      "cell_id": "anthropic-diag-fa6a2181a9a7b010",
+      "permit_id": "anthropic-diagnostic-permit-e244a410900fb8732a85",
+      "permit_root": "sha256:f23f0a97e88930e54c990315560180945a55ab2ea0ce3709c89f687a2ab274a6",
+      "status": "held_non_releasable"
+    }
+  ],
+  "provider_calls": 0,
+  "released": 0,
+  "schema": "vela.lean-correspondence-anthropic-open-diagnostic-hold-state.v1",
+  "scoring_attempts": 0,
+  "terminal": 0
+}

@@ -1,0 +1,197 @@
+{
+  "artifact_root": "sha256:d453622eeb3afb1eaeef5b0aaf5e323194df352681221146d42901993c9bb110",
+  "authority_effect": "none",
+  "entries": [
+    {
+      "bytes": 2432,
+      "path": "README.md",
+      "sha256": "sha256:47bf14f4eefe46c84f1f5ed483be2da4fc25c859bf8c3b61ecd4ad788c89b579"
+    },
+    {
+      "bytes": 5711,
+      "path": "assignment-schedule.json",
+      "sha256": "sha256:a3a29dacb9aea51141578ff08a2c7bc8f0f7ae70979ef75c95cb853c2c37aa3f"
+    },
+    {
+      "bytes": 10493,
+      "path": "case-selection.json",
+      "sha256": "sha256:fe57578532a02c93b811059a97b1ccd133ee291f27aa2d4865763005b80126b3"
+    },
+    {
+      "bytes": 611,
+      "path": "credential-metadata.json",
+      "sha256": "sha256:df3624298a656cd0bbdf40b6bfe858bfbc9afc22131905bf6b6bedefec3c8179"
+    },
+    {
+      "bytes": 1025,
+      "path": "custody-contract.json",
+      "sha256": "sha256:d85d737fc21e4d2350c9d8fd698db95da903ed413ca148f3d38350c7a64abb5c"
+    },
+    {
+      "bytes": 32295,
+      "path": "generate.py",
+      "sha256": "sha256:a8146a967acc5b5d21e1bfb148f6082b7adcde8984ba420ba4c527e06b301b7d"
+    },
+    {
+      "bytes": 2244,
+      "path": "hold-state.json",
+      "sha256": "sha256:e199355c1ffa34f4208fcc1300f4cdfd5838edfff0a040a085f38e289051ca2e"
+    },
+    {
+      "bytes": 1919,
+      "path": "packets/anthropic-diag-2f719af4c655ef77.json",
+      "sha256": "sha256:6f4e2cad5ee4be0ae3ecd00765b8e830f52c2d2b43eb825d0269eea9221cfc00"
+    },
+    {
+      "bytes": 1324,
+      "path": "packets/anthropic-diag-395839ae5418ff4d.json",
+      "sha256": "sha256:cab08a1448a9b6456b6eacf752f98b51061774fbca5084373294f52c06dea392"
+    },
+    {
+      "bytes": 3006,
+      "path": "packets/anthropic-diag-563bdd90a8c7df7a.json",
+      "sha256": "sha256:4a88d4ee49cbdce22a5d82bbaf2e82519d849f747d7cc787d98d4c8949f017fd"
+    },
+    {
+      "bytes": 2455,
+      "path": "packets/anthropic-diag-6cccc41b01c2e998.json",
+      "sha256": "sha256:1241489bffb879cf66fbd952a7e47f4607a68706de20cd6416f01a4d54f00bf6"
+    },
+    {
+      "bytes": 3614,
+      "path": "packets/anthropic-diag-7981a902f25c4abe.json",
+      "sha256": "sha256:cafb6e4bb20c93fbfdd3c4135abedb34e9185b20287f30f03d544c07b288eac0"
+    },
+    {
+      "bytes": 1728,
+      "path": "packets/anthropic-diag-fa6a2181a9a7b010.json",
+      "sha256": "sha256:c41dbe9353981b90c8e96aee7ab8f4e8f809e1e50dd5bd8dd87f4e36e6187bdb"
+    },
+    {
+      "bytes": 1353,
+      "path": "participant-configuration.json",
+      "sha256": "sha256:8924b91f4f62e7b158f7e0170924a8246ae4d95d3c04f1831a58dea346656162"
+    },
+    {
+      "bytes": 1355,
+      "path": "permits/anthropic-diag-2f719af4c655ef77.permit.json",
+      "sha256": "sha256:a750fb06461047e95400b09c98b89b9e6b6a17a52af894e61e8f9285ec396172"
+    },
+    {
+      "bytes": 1355,
+      "path": "permits/anthropic-diag-395839ae5418ff4d.permit.json",
+      "sha256": "sha256:1ec4fefcf1fe767197bbc222f6483397f41260e35e0f29bb51eaf5c30254d7e8"
+    },
+    {
+      "bytes": 1355,
+      "path": "permits/anthropic-diag-563bdd90a8c7df7a.permit.json",
+      "sha256": "sha256:dbea2214af2e0dc95014304ea264b6d16fd03ab6c8b5764c827008683ec5403e"
+    },
+    {
+      "bytes": 1355,
+      "path": "permits/anthropic-diag-6cccc41b01c2e998.permit.json",
+      "sha256": "sha256:cd430c8ea1d4f85eac0d99268aa98ccdffca68407b210bbf8f785b8218db2611"
+    },
+    {
+      "bytes": 1355,
+      "path": "permits/anthropic-diag-7981a902f25c4abe.permit.json",
+      "sha256": "sha256:07a4d1231e371ad4df192b3427a17dc487c528c48a4e54ca7a12a610f819defd"
+    },
+    {
+      "bytes": 1355,
+      "path": "permits/anthropic-diag-fa6a2181a9a7b010.permit.json",
+      "sha256": "sha256:6c39033dbf647d39495aad484b207c2dde7aeede90b1fcdef6636d85d12ada02"
+    },
+    {
+      "bytes": 887,
+      "path": "prelaunch-state.json",
+      "sha256": "sha256:a9bd81f3de6b4ec4db60c8b7d3205861aaadaee3831352c4a2b094e9cd0a0935"
+    },
+    {
+      "bytes": 1083,
+      "path": "preregistration.json",
+      "sha256": "sha256:bec9fcd5a12769c224f893ebc19a83c2b518171821f85aa01c7370ce3e6f7e86"
+    },
+    {
+      "bytes": 5541,
+      "path": "prompt-bindings.json",
+      "sha256": "sha256:d29f31983c61b790e81f68fbcde834a4f26adf0d6b350686b82211f2c10760da"
+    },
+    {
+      "bytes": 1694,
+      "path": "prompts/anthropic-diag-2f719af4c655ef77.txt",
+      "sha256": "sha256:31809158cbfc37adb49e4949e1be71f63539eef33d6c577c4f472297b2a1cb15"
+    },
+    {
+      "bytes": 1694,
+      "path": "prompts/anthropic-diag-395839ae5418ff4d.txt",
+      "sha256": "sha256:f3edcff7644446dd5337a2a54f8a9be3ffd55bb04288de8b85319ff6f5a84e47"
+    },
+    {
+      "bytes": 1694,
+      "path": "prompts/anthropic-diag-563bdd90a8c7df7a.txt",
+      "sha256": "sha256:7b4ebc7fed080611105359ea2ffc07cec292c5e98f7f60809e0819e057f561f2"
+    },
+    {
+      "bytes": 1738,
+      "path": "prompts/anthropic-diag-6cccc41b01c2e998.txt",
+      "sha256": "sha256:807b4465c374013238f3aec4cef504fe099236aa5ca214b0fe64c3dbe067a278"
+    },
+    {
+      "bytes": 1738,
+      "path": "prompts/anthropic-diag-7981a902f25c4abe.txt",
+      "sha256": "sha256:de47263d31b832237bb8a20e6ed0ccfc608dda2c40f451bf49326c0a62e5ebe0"
+    },
+    {
+      "bytes": 1738,
+      "path": "prompts/anthropic-diag-fa6a2181a9a7b010.txt",
+      "sha256": "sha256:a4ae0592b31fe8f131fcc9454866ff86683b76962fca9800c55a68b31ed5cecb"
+    },
+    {
+      "bytes": 2642,
+      "path": "registration.json",
+      "sha256": "sha256:a2fa385a56859aa9ee82baad277f0a7346191aee6a34696d546767aeb486e4af"
+    },
+    {
+      "bytes": 2498,
+      "path": "response.schema.json",
+      "sha256": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268"
+    },
+    {
+      "bytes": 2058,
+      "path": "roadmap-boundary.json",
+      "sha256": "sha256:96c6d8838759cecd45d5a6f51989c078dd5ee85b6906a388a95591b705c68519"
+    },
+    {
+      "bytes": 3569,
+      "path": "runtime-binding.json",
+      "sha256": "sha256:bbf7a280de802302ca60935e77648dae5913c746ceb64b9ef2158136b7ff3577"
+    },
+    {
+      "bytes": 7403,
+      "path": "scorer.py",
+      "sha256": "sha256:3b4d85f58ea9a14ec4a24d2a8f6b435c1540d30e663542e4e5b42fba2aae4ef9"
+    },
+    {
+      "bytes": 2081,
+      "path": "scoring-contract.json",
+      "sha256": "sha256:a72c1782b2900471849f78829e664d941bbd33ee79e41394eae0670db697496f"
+    },
+    {
+      "bytes": 2499,
+      "path": "source-bindings.json",
+      "sha256": "sha256:1cd4a44cd454d02c920a61d9c6594c46c1f3c4fab1720d9744bd379eb4037a77"
+    },
+    {
+      "bytes": 10467,
+      "path": "test_verify.py",
+      "sha256": "sha256:207a3b4e596d149635e848adcb47e503275bbaa26681ce769f6cc2c4d1441163"
+    },
+    {
+      "bytes": 15957,
+      "path": "verify.py",
+      "sha256": "sha256:25e1347bf7215a83589a525df2c6e8aa1469fa5d7dcfe2d56282a1e87017d54a"
+    }
+  ],
+  "schema": "vela.lean-correspondence-anthropic-open-diagnostic-manifest.v1"
+}

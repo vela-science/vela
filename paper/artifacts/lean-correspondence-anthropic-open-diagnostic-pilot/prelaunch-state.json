@@ -1,0 +1,21 @@
+{
+  "authority_effect": "none",
+  "credential_content_accesses": 0,
+  "custody_root": "sha256:6979783a9df63cf9614e77a17917566b5577fb65090ea59dada0efdaaa47913e",
+  "execution_authorized": false,
+  "fixed_denominator": 6,
+  "held_permits": 6,
+  "independent_prelaunch_review": "not_requested",
+  "openai_neutral_permit": "held_unchanged",
+  "original_stage_a_participant_permits_held": 12,
+  "participant_responses": 0,
+  "permit_set_root": "sha256:352930210c092f4ac51d10c90512b24d945ca794ab2fec6609c03b099316db10",
+  "provider_calls": 0,
+  "registration_root": "sha256:9ce35870648a6eacf0f7b2c3970c7151227620c3d884aad54e7d30e208abcf96",
+  "released_permits": 0,
+  "schema": "vela.lean-correspondence-anthropic-open-diagnostic-prelaunch.v1",
+  "scoring_attempts": 0,
+  "stage_b_families_selected": 0,
+  "state": "held_pending_independent_exact_prelaunch_review",
+  "terminal_captures": 0
+}

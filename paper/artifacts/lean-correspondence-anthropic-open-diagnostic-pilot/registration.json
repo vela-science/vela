@@ -1,0 +1,47 @@
+{
+  "hold_state_root": "sha256:af4d1c9413d4939bfff5b6b2d0cc7e85b75f4a1e4363367002c73d85bee7f096",
+  "permit_set_root": "sha256:352930210c092f4ac51d10c90512b24d945ca794ab2fec6609c03b099316db10",
+  "registration_contract": {
+    "arms": [
+      "raw-source",
+      "correspondence-assisted"
+    ],
+    "authority_effect": "none",
+    "claim_ceiling": {
+      "anthropic_reviewer_agent_feasibility_for_exact_open_cases": "only_possible_future_positive_classification",
+      "breakthrough_claim": false,
+      "cross_provider_generality": false,
+      "frontiers_expansion": false,
+      "human_benefit": false,
+      "living_frontier_g3_inheritance_advantage": false,
+      "living_frontier_phase_0_gate": false,
+      "protocol_or_core_effect": "none",
+      "scientific_lift": false,
+      "stage_b_authorized": false,
+      "standing_or_authority_effect": "none",
+      "two_provider_stage_a_satisfied": false
+    },
+    "fixed_denominator": 6,
+    "one_configuration": true,
+    "one_scoring_attempt": true,
+    "roots": {
+      "assignment_root": "sha256:cd53dcfcc0293b7ec2bb88297b146f8868ba34ea6b354867bde5a646cd3732d1",
+      "case_selection_bytes": "sha256:fe57578532a02c93b811059a97b1ccd133ee291f27aa2d4865763005b80126b3",
+      "credential_metadata_root": "sha256:a3429f1828d4aca8b58cfc4aef5a1c19400ce0c88ef15ef3323a68918a2f8e4b",
+      "participant_configuration_root": "sha256:ddde5dcc71bcc032e2105ead118a095e1f709a3a23e05658944f3b52f4659cf9",
+      "preregistration_root": "sha256:499ccac7918b70b129aa6d0a42f3698b0c8164734f2c87d88964896d544000bd",
+      "prompt_bindings_root": "sha256:d4dd44c40340660bcf17e2788d3aa74cae5a1812007a5e5b88b75e25a70f9893",
+      "response_schema_sha256": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
+      "roadmap_boundary_root": "sha256:1ef2b6fbe10743a38c787d18a38940bd2ff4505f39edfbaabb411fea481aaa2a",
+      "runtime_binding_root": "sha256:0536cf34042fd682f998b5e0b987bea201709910eb8a924fef6ca35ac0d8106b",
+      "scoring_contract_root": "sha256:1307af882cb00cb4785d0e35a356fef18031514c5ff4171a711f04c65330a138",
+      "source_bindings_root": "sha256:8bfea8b4ab7389b191902d06887dc914349eb84290c4a5a12151b29826afab8d"
+    },
+    "schema": "vela.lean-correspondence-anthropic-open-diagnostic-registration-contract.v1",
+    "zero_retries": true,
+    "zero_substitutions": true
+  },
+  "registration_contract_root": "sha256:c1793b548823dacfa2b471a0c4e52ac246440c4d330aa7e4500c3b9b75c7f324",
+  "registration_root": "sha256:9ce35870648a6eacf0f7b2c3970c7151227620c3d884aad54e7d30e208abcf96",
+  "schema": "vela.lean-correspondence-anthropic-open-diagnostic-registration.v1"
+}

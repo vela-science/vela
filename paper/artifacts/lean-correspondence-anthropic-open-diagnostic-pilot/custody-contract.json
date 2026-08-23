@@ -1,0 +1,28 @@
+{
+  "authority_effect": "none",
+  "credential_nonretention_required": true,
+  "fixed_denominator": 6,
+  "one_permit_per_cell": true,
+  "one_scoring_attempt": true,
+  "participant_network": false,
+  "provider_calls": 0,
+  "raw_provider_bytes_retained_before_normalization": true,
+  "registration_root": "sha256:9ce35870648a6eacf0f7b2c3970c7151227620c3d884aad54e7d30e208abcf96",
+  "required_terminal_files": [
+    "consumed-permit.json",
+    "launch.json",
+    "provider-request-frame.json",
+    "provider-request.raw.json",
+    "provider-events.jsonl",
+    "provider-stderr.txt",
+    "participant-response.raw.json",
+    "usage.json",
+    "terminal-receipt.json",
+    "teardown.json"
+  ],
+  "response_schema_sha256": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
+  "schema": "vela.lean-correspondence-anthropic-open-diagnostic-custody.v1",
+  "scoring_contract_root": "sha256:1307af882cb00cb4785d0e35a356fef18031514c5ff4171a711f04c65330a138",
+  "zero_retries": true,
+  "zero_substitutions": true
+}
