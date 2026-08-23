@@ -1,0 +1,24 @@
+{
+  "bridge_receipt": {
+    "evidence_manifest_root": "sha256:71d7fe49ee2ab8134252a7fc4661e947c36d0ae661031d3aabb3abd8475bbe83",
+    "evidence_tree_root": "sha256:b5605cba473e88278e53857159e410fb6d72411778d82860928798d3b751dcd7",
+    "network_contact": false,
+    "operations": [
+      "read",
+      "list",
+      "stat",
+      "search"
+    ],
+    "reachable_file_count": 8,
+    "schema": "vela.anthropic-offline-workspace-bridge-preflight.v1",
+    "status": "pass",
+    "workspace_manifest_sha256": "sha256:b5beb5173ea9beac190b748df0f3a96b7d5f441eef98e91c1ec84ae808859b9f",
+    "writes": false
+  },
+  "evidence_manifest_root": "sha256:71d7fe49ee2ab8134252a7fc4661e947c36d0ae661031d3aabb3abd8475bbe83",
+  "schema": "vela.anthropic-offline-workspace-bound-preflight.v1",
+  "status": "pass",
+  "tool_boundary_root": "sha256:9acef8746733de1b2cf778e8a0677c16cf5972470d7fe8009e9a3dbc1bbd3961",
+  "tool_policy_root": "sha256:c98932d0d5bcd5956b8c578f0f42bd3c94e827d5c5ca5b8034ca9bfd1799ffd2",
+  "workspace_content_root": "sha256:64837ed4284a5af32c027e6a05d4591d91b10bf9c11982be4b32364939191393"
+}

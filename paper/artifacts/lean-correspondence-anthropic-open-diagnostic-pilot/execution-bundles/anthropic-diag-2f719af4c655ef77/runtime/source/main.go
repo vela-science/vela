@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"unicode/utf8"
 )
 
 // providerAdapter is injected by the reproducible build. The participant
@@ -186,27 +187,17 @@ func canonical(value any) ([]byte, error) {
 
 func requestBody(input runInput, packet json.RawMessage) ([]byte, error) {
 	toolSpecs := []map[string]any{
-		map[string]any{
-			"name":        "shell",
-			"description": "Return git --no-optional-locks status --short for the read-only workspace.",
-			"input_schema": map[string]any{
-				"type": "object", "additionalProperties": false,
-				"required": []string{"argv", "cwd"},
-				"properties": map[string]any{
-					"argv": map[string]any{"const": []string{"git", "--no-optional-locks", "status", "--short"}},
-					"cwd":  map[string]any{"const": "/workspace"},
-				},
-			},
-		},
-		map[string]any{
+		{
 			"name":        "read_file",
-			"description": "Read one regular non-symlink file below the read-only workspace.",
+			"description": "Read, list, stat, or literal-search exact UTF-8 evidence below the read-only /workspace assignment tree.",
 			"input_schema": map[string]any{
-				"type": "object", "additionalProperties": false,
-				"required": []string{"operation", "path"},
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"type":    "object", "additionalProperties": false,
+				"required": []string{"operation", "path", "query"},
 				"properties": map[string]any{
-					"operation": map[string]any{"enum": []string{"read", "list", "stat"}},
-					"path":      map[string]any{"type": "string", "pattern": "^/workspace(?:/|$)"},
+					"operation": map[string]any{"enum": []string{"read", "list", "stat", "search"}, "type": "string"},
+					"path":      map[string]any{"minLength": 1, "pattern": "^/", "type": "string"},
+					"query":     map[string]any{"maxLength": 256, "type": "string"},
 				},
 			},
 		},
@@ -852,26 +843,16 @@ func validateTool(name string, arguments json.RawMessage) error {
 		return err
 	}
 	switch name {
-	case "shell":
-		if !exactKeys(object, "argv", "cwd") {
-			return errors.New("shell arguments are not closed")
-		}
-		var argv []string
-		var cwd string
-		if err := json.Unmarshal(object["argv"], &argv); err != nil ||
-			json.Unmarshal(object["cwd"], &cwd) != nil || cwd != "/workspace" ||
-			len(argv) != 4 || argv[0] != "git" || argv[1] != "--no-optional-locks" || argv[2] != "status" || argv[3] != "--short" {
-			return errors.New("shell command is not the exact read-only git status argv")
-		}
 	case "read_file":
-		if !exactKeys(object, "operation", "path") {
+		if !exactKeys(object, "operation", "path", "query") {
 			return errors.New("read_file arguments are not closed")
 		}
-		var operation string
-		var path string
+		var operation, path, query string
 		if err := json.Unmarshal(object["operation"], &operation); err != nil ||
-			!member(operation, "read", "list", "stat") ||
+			!member(operation, "read", "list", "stat", "search") ||
 			json.Unmarshal(object["path"], &path) != nil ||
+			json.Unmarshal(object["query"], &query) != nil ||
+			(operation == "search") != (query != "") || len(query) > 256 || !utf8.ValidString(query) ||
 			(path != "/workspace" && !strings.HasPrefix(path, "/workspace/")) {
 			return errors.New("read_file path invalid")
 		}
@@ -889,13 +870,10 @@ func selfTest() error {
 	if _, err := endpoint(providerAdapter); err != nil {
 		return err
 	}
-	if err := validateTool("shell", json.RawMessage(`{"argv":["git","--no-optional-locks","status","--short"],"cwd":"/workspace"}`)); err != nil {
+	if err := validateTool("read_file", json.RawMessage(`{"operation":"read","path":"/workspace/packet.json","query":""}`)); err != nil {
 		return err
 	}
-	if err := validateTool("read_file", json.RawMessage(`{"operation":"read","path":"/workspace/packet.json"}`)); err != nil {
-		return err
-	}
-	for _, rejected := range []json.RawMessage{json.RawMessage(`{"operation":"read","path":"/workspace/../secret"}`), json.RawMessage(`{"operation":"read","path":"/etc/passwd"}`)} {
+	for _, rejected := range []json.RawMessage{json.RawMessage(`{"operation":"read","path":"/workspace/../secret","query":""}`), json.RawMessage(`{"operation":"read","path":"/etc/passwd","query":""}`), json.RawMessage(`{"argv":["cat","/etc/passwd"]}`)} {
 		if validateTool("read_file", rejected) == nil {
 			return errors.New("path adversary accepted")
 		}

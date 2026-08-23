@@ -24,7 +24,7 @@
   "fresh_participant_per_cell": true,
   "participant_cells": 6,
   "schema": "vela.lean-correspondence-anthropic-open-diagnostic-preregistration.v1",
-  "scoring_contract_root": "sha256:17f0bb424cb7b1eb469b1c5ce472f19f71d9895295ae723c2dd6dde272e5fef6",
+  "scoring_contract_root": "sha256:26e9910a4003a619edb59d6d1a449f68863ee84b0cb18a624d2e7376a6f6482e",
   "zero_retries": true,
   "zero_substitutions": true
 }

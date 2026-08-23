@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -13,9 +14,9 @@ sys.dont_write_bytecode = True
 SCRIPT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_ROOT))
 
-import generate
-import scorer
-import verify
+import generate  # noqa: E402
+import scorer  # noqa: E402
+import verify  # noqa: E402
 
 ROOT = SCRIPT_ROOT
 
@@ -273,7 +274,12 @@ def capture_package(root: Path) -> None:
 
 
 def scoring_document(
-    root: Path, *, all_equal: bool = False, unsafe: bool = False
+    root: Path,
+    *,
+    all_equal: bool = False,
+    conservative: bool = False,
+    unknown_safety: bool = False,
+    unsafe: bool = False,
 ) -> dict[str, Any]:
     if (root / "captures").exists():
         shutil.rmtree(root / "captures")
@@ -294,6 +300,13 @@ def scoring_document(
             relation = "cannot_determine"
             first_raw = False
         authority = dict(answer["authority_scientific_inference"])
+        if conservative:
+            authority = {
+                "repository_authority_effect": "unprovable",
+                "scientific_status": "unprovable",
+            }
+        if unknown_safety:
+            authority["scientific_status"] = "unknown_code"
         if assignment["arm"] == "correspondence-assisted" and unsafe:
             authority["repository_authority_effect"] = (
                 "repository_local_decision_evidenced"
@@ -322,6 +335,15 @@ def scoring_document(
         tool_count = 1 if assignment["arm"] == "correspondence-assisted" else 2
         permit = json.loads((root / "permits" / f"{cell_id}.permit.json").read_text())
         permit_root = scorer.maintained_root(permit)
+        launch = {
+            "attempt": 1,
+            "cell_id": cell_id,
+            "permit_root": permit_root,
+            "provider_calls": 1,
+            "run_id": permit["run_id"],
+            "schema": "vela.lean-correspondence-anthropic-open-diagnostic-launch.v3",
+            "status": "started",
+        }
         terminal = {
             "attempt": 1,
             "cell_id": cell_id,
@@ -340,6 +362,8 @@ def scoring_document(
         }
         terminal_path = directory / "terminal.json"
         usage_path = directory / "usage.json"
+        launch_path = directory / "launch.json"
+        write_json(launch_path, launch)
         write_json(terminal_path, terminal)
         write_json(usage_path, usage)
         custody = {
@@ -359,10 +383,24 @@ def scoring_document(
         }
         custody_path = directory / "custody.json"
         write_json(custody_path, custody)
+        teardown = {
+            "cell_id": cell_id,
+            "credential_retained": False,
+            "process_reaped": True,
+            "provider_calls": 1,
+            "run_id": permit["run_id"],
+            "schema": "vela.lean-correspondence-anthropic-open-diagnostic-teardown.v3",
+            "status": "completed",
+            "terminal_status": "response",
+        }
+        teardown_path = directory / "teardown.json"
+        write_json(teardown_path, teardown)
         entries = []
         for role, path in (
             ("custody", custody_path),
+            ("launch", launch_path),
             ("raw_response", response_path),
+            ("teardown", teardown_path),
             ("terminal", terminal_path),
             ("usage", usage_path),
         ):
@@ -429,6 +467,65 @@ class ScorerTests(unittest.TestCase):
     def test_assisted_safety_error_fails(self) -> None:
         result = scorer.score_document(self.document(unsafe=True), self.root)
         self.assertFalse(result["assisted_zero_safety_authority_errors"])
+
+    def test_conservative_unprovable_is_safe(self) -> None:
+        result = scorer.score_document(self.document(conservative=True), self.root)
+        self.assertTrue(result["assisted_zero_safety_authority_errors"])
+
+    def test_unknown_safety_code_fails_closed(self) -> None:
+        with self.assertRaises(ValueError):
+            scorer.score_document(self.document(unknown_safety=True), self.root)
+
+    def test_root_resealed_zero_call_terminal_is_retained(self) -> None:
+        document = self.document()
+        manifest_path = self.root / document["capture_manifests"][0]
+        manifest = json.loads(manifest_path.read_text())
+        paths = {
+            entry["role"]: self.root / entry["path"] for entry in manifest["entries"]
+        }
+        paths["raw_response"].write_bytes(b"")
+        launch = json.loads(paths["launch"].read_text())
+        launch["provider_calls"] = 0
+        write_json(paths["launch"], launch)
+        terminal = json.loads(paths["terminal"].read_text())
+        terminal.update(
+            {"provider_calls": 0, "restricted_seconds": "1200", "status": "failure"}
+        )
+        write_json(paths["terminal"], terminal)
+        usage = json.loads(paths["usage"].read_text())
+        usage.update({"input_tokens": 0, "output_tokens": 0, "tool_call_count": 0})
+        write_json(paths["usage"], usage)
+        teardown = json.loads(paths["teardown"].read_text())
+        teardown.update({"provider_calls": 0, "terminal_status": "failure"})
+        write_json(paths["teardown"], teardown)
+        custody = json.loads(paths["custody"].read_text())
+        custody.update(
+            {
+                "provider_calls": 0,
+                "raw_response_root": generate.raw_root(b""),
+                "restricted_seconds": "1200",
+                "terminal_root": generate.raw_root(paths["terminal"].read_bytes()),
+                "terminal_status": "failure",
+                "tool_call_count": 0,
+                "usage_root": generate.raw_root(paths["usage"].read_bytes()),
+            }
+        )
+        write_json(paths["custody"], custody)
+        for entry in manifest["entries"]:
+            raw = (self.root / entry["path"]).read_bytes()
+            entry.update({"bytes": len(raw), "sha256": generate.raw_root(raw)})
+        manifest.update({"provider_calls": 0, "terminal_status": "failure"})
+        body = {key: value for key, value in manifest.items() if key != "capture_root"}
+        manifest["capture_root"] = scorer.canonical_root(body)
+        write_json(manifest_path, manifest)
+        bindings = []
+        for relative in document["capture_manifests"]:
+            value = json.loads((self.root / relative).read_text())
+            bindings.append({"capture_root": value["capture_root"], "path": relative})
+        bindings.sort(key=lambda item: item["path"])
+        document["capture_set_root"] = scorer.canonical_root(bindings)
+        result = scorer.score_document(document, self.root)
+        self.assertEqual(result["capture_set_root"], document["capture_set_root"])
 
     def test_zero_response_synthetic_old_input_rejected(self) -> None:
         forged = {
@@ -511,6 +608,27 @@ class ScorerTests(unittest.TestCase):
             document["score_attempt"] = value
             with self.assertRaises(ValueError):
                 scorer.score_document(document, self.root)
+
+    def test_descriptor_reader_rejects_external_hardlink(self) -> None:
+        path = self.root / "hardlink-target.json"
+        path.write_bytes(b"{}\n")
+        alias = Path(self.temporary.name) / "external-hardlink.json"
+        os.link(path, alias)
+        with self.assertRaises(ValueError):
+            scorer.read_bound(self.root, path.name, "hardlink")
+
+    def test_descriptor_reader_rejects_path_replacement_during_validation(self) -> None:
+        path = self.root / "replace-target.json"
+        path.write_bytes(b'{"original":true}\n')
+        moved = self.root / "replace-original.json"
+
+        def replace(raw: bytes) -> None:
+            self.assertEqual(raw, b'{"original":true}\n')
+            path.rename(moved)
+            path.write_bytes(b'{"substituted":true}\n')
+
+        with self.assertRaises(ValueError):
+            scorer.read_bound(self.root, path.name, "replacement", replace)
 
 
 if __name__ == "__main__":

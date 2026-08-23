@@ -38,7 +38,67 @@ FORBIDDEN_EVENT = re.compile(
 NETWORK_PACKAGE_METADATA = re.compile(
     r"\b(?:apt-get|apt|apk|dnf|yum)\s+(?:update|install)\b"
 )
-PROVEN_PROVIDER_DELETIONS = {"uniqueItems": True}
+LEGACY_PROVIDER_DELETIONS = {"uniqueItems": True}
+PROVIDER_ADAPTERS = {
+    "openai-responses-v1": ("openai", "responses/v1"),
+    "anthropic-messages-v1": ("anthropic", "messages/v1"),
+}
+# Provider derivation is selected by the exact registered-schema bytes and
+# adapter. Each entry is a closed ordered transformation, not permission to
+# delete a keyword with the same spelling elsewhere.
+NEUTRAL_REGISTERED_SCHEMA_SHA256 = (
+    "sha256:d25a5b53c3e715806b38b7d63511ce5ac118137b5a42a3a3e2a81792218082ad"
+)
+STAGE_A_REGISTERED_SCHEMA_SHA256 = (
+    "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268"
+)
+PROVIDER_SCHEMA_RULES = {
+    NEUTRAL_REGISTERED_SCHEMA_SHA256: {
+        "openai-responses-v1": (
+            ("/properties/items/uniqueItems", "uniqueItems", True),
+            ("/properties/items/minItems", "minItems", 3),
+        ),
+        "anthropic-messages-v1": (
+            ("/properties/items/uniqueItems", "uniqueItems", True),
+            ("/properties/items/minItems", "minItems", 3),
+        ),
+    },
+    STAGE_A_REGISTERED_SCHEMA_SHA256: {
+        "openai-responses-v1": (
+            ("/properties/impact_closure/uniqueItems", "uniqueItems", True),
+            (
+                "/properties/impact_closure/items/properties/evidence_ids/minItems",
+                "minItems",
+                1,
+            ),
+            (
+                "/properties/impact_closure/items/properties/evidence_ids/uniqueItems",
+                "uniqueItems",
+                True,
+            ),
+            ("/properties/uncertainty/uniqueItems", "uniqueItems", True),
+        ),
+        "anthropic-messages-v1": (
+            ("/properties/impact_closure/uniqueItems", "uniqueItems", True),
+            (
+                "/properties/impact_closure/items/properties/evidence_ids/minItems",
+                "minItems",
+                1,
+            ),
+            (
+                "/properties/impact_closure/items/properties/evidence_ids/uniqueItems",
+                "uniqueItems",
+                True,
+            ),
+            ("/properties/uncertainty/uniqueItems", "uniqueItems", True),
+        ),
+    },
+}
+TOOL_BOUNDARY_SCHEMA = "vela.tooling.read-only-offline-tool-boundary.v1"
+TOOL_BOUNDARY_SCHEMA_V2 = "vela.tooling.read-only-offline-tool-boundary.v2"
+TOOL_RECEIPT_SCHEMA = "vela.tooling.read-only-tool-receipt.v1"
+RAW_PROVIDER_EVENT_SCHEMA = "vela.tooling.raw-provider-event.v1"
+PROVIDER_EQUIVALENCE_SCHEMA = "vela.tooling.provider-equivalence.v1"
 QUALIFIER = Path(__file__).resolve()
 PERMIT_SCHEMA = "vela.tooling.closed-launch-permit.v1"
 RUNNER_VERSION = "neutral-runner/1"
@@ -46,6 +106,51 @@ EVENT_SCHEMA = "vela.tooling.provider-event.v1"
 LAUNCH_SCHEMA = "vela.tooling.neutral-launch.v1"
 TERMINAL_SCHEMA = "vela.tooling.neutral-terminal-receipt.v1"
 TEARDOWN_SCHEMA = "vela.tooling.neutral-teardown.v1"
+TOOL_INPUT_SCHEMAS = {
+    ("shell", "1"): {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["argv", "cwd"],
+        "properties": {
+            "argv": {
+                "type": "array",
+                "minItems": 1,
+                "items": {"type": "string", "minLength": 1},
+            },
+            "cwd": {"type": "string", "minLength": 1, "pattern": "^/"},
+        },
+    },
+    ("read_file", "1"): {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["operation", "path"],
+        "properties": {
+            "operation": {"type": "string", "enum": ["read", "list", "stat"]},
+            "path": {"type": "string", "minLength": 1, "pattern": "^/"},
+        },
+    },
+    ("read_file", "2"): {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["operation", "path", "query"],
+        "properties": {
+            "operation": {
+                "type": "string",
+                "enum": ["read", "list", "stat", "search"],
+            },
+            "path": {"type": "string", "minLength": 1, "pattern": "^/"},
+            "query": {"type": "string", "maxLength": 256},
+        },
+    },
+}
+# This is the complete shell vocabulary needed by offline-shell-files/1.
+# --no-optional-locks prevents Git's read path from refreshing the index.
+SHELL_ARGV_VOCABULARIES = {
+    "1": (("git", "--no-optional-locks", "status", "--short"),),
+}
 _ACTIVE_BUNDLE_ROOT: contextvars.ContextVar[Path | None] = contextvars.ContextVar(
     "evidence_qualification_bundle_root", default=None
 )
@@ -317,7 +422,7 @@ def tree_manifest(directory: Path) -> list[dict[str, Any]]:
     return entries
 
 
-def _delete_pointer(value: Any, pointer: str) -> None:
+def _pointer_parent(value: Any, pointer: str) -> tuple[dict[str, Any], str]:
     if not isinstance(pointer, str) or not pointer.startswith("/"):
         raise QualificationError("provider_deleted_pointer_invalid")
     parts = [
@@ -331,22 +436,84 @@ def _delete_pointer(value: Any, pointer: str) -> None:
     keyword = parts[-1]
     if not isinstance(parent, dict) or keyword not in parent:
         raise QualificationError("provider_deleted_pointer_missing")
+    return parent, keyword
+
+
+def _same_json_value(left: Any, right: Any) -> bool:
+    return type(left) is type(right) and left == right
+
+
+def _deletion_rule(
+    rule: Any, adapter: str | None, registered_schema_sha256: str | None
+) -> tuple[str, str, Any]:
+    if isinstance(rule, str):
+        if adapter is not None:
+            raise QualificationError("provider_legacy_deletion_forbidden")
+        parent_keyword = rule.rsplit("/", 1)[-1].replace("~1", "/").replace("~0", "~")
+        if parent_keyword not in LEGACY_PROVIDER_DELETIONS:
+            raise QualificationError("provider_deleted_keyword_not_proven")
+        return rule, parent_keyword, LEGACY_PROVIDER_DELETIONS[parent_keyword]
+    exact_keys(rule, {"pointer", "keyword", "expected_value"}, "provider_deletion")
+    if adapter not in PROVIDER_ADAPTERS:
+        raise QualificationError("provider_adapter_unknown")
+    registry = PROVIDER_SCHEMA_RULES.get(registered_schema_sha256)
+    if registry is None or adapter not in registry:
+        raise QualificationError("provider_registered_schema_not_registered")
+    pointer = rule["pointer"]
+    keyword = rule["keyword"]
+    expected = rule["expected_value"]
     if (
-        keyword not in PROVEN_PROVIDER_DELETIONS
-        or parent[keyword] is not PROVEN_PROVIDER_DELETIONS[keyword]
+        not isinstance(pointer, str)
+        or not isinstance(keyword, str)
+        or pointer.rsplit("/", 1)[-1].replace("~1", "/").replace("~0", "~") != keyword
+        or not any(
+            pointer == registered_pointer
+            and keyword == registered_keyword
+            and _same_json_value(expected, registered_expected)
+            for registered_pointer, registered_keyword, registered_expected in (
+                registry[adapter]
+            )
+        )
     ):
-        raise QualificationError("provider_deleted_keyword_not_proven")
+        raise QualificationError("provider_deletion_rule_not_registered")
+    return pointer, keyword, expected
+
+
+def _delete_pointer(
+    value: Any,
+    rule: Any,
+    adapter: str | None,
+    registered_schema_sha256: str | None,
+) -> None:
+    pointer, keyword, expected = _deletion_rule(rule, adapter, registered_schema_sha256)
+    parent, observed_keyword = _pointer_parent(value, pointer)
+    if observed_keyword != keyword or not _same_json_value(parent[keyword], expected):
+        raise QualificationError("provider_deleted_expected_value_drift")
     del parent[keyword]
 
 
 def provider_derivative(
-    registered: dict[str, Any], pointers: list[str]
+    registered: dict[str, Any],
+    deletions: list[Any],
+    adapter: str | None = None,
+    registered_schema_sha256: str | None = None,
 ) -> dict[str, Any]:
-    if not pointers or len(set(pointers)) != len(pointers):
+    if not isinstance(deletions, list) or (not deletions and adapter is None):
+        raise QualificationError("provider_deleted_pointers_invalid")
+    identities = tuple(
+        _deletion_rule(deletion, adapter, registered_schema_sha256)
+        for deletion in deletions
+    )
+    registry = PROVIDER_SCHEMA_RULES.get(registered_schema_sha256, {})
+    if adapter is not None and identities != registry.get(adapter):
+        raise QualificationError("provider_deletion_sequence_not_registered")
+    if len({canonical_json_bytes(identity) for identity in identities}) != len(
+        identities
+    ):
         raise QualificationError("provider_deleted_pointers_invalid")
     derived = parse_json(canonical_json_bytes(registered), "registered_schema_copy")
-    for pointer in pointers:
-        _delete_pointer(derived, pointer)
+    for deletion in deletions:
+        _delete_pointer(derived, deletion, adapter, registered_schema_sha256)
     return derived
 
 
@@ -355,6 +522,8 @@ def validate_schema_boundary(
     provider: Any,
     deleted_pointers: Any,
     response: Any,
+    adapter: str | None = None,
+    registered_schema_sha256: str | None = None,
 ) -> None:
     if not isinstance(registered, dict) or not isinstance(provider, dict):
         raise QualificationError("response_schema_not_object")
@@ -366,7 +535,7 @@ def validate_schema_boundary(
     except Exception as error:
         raise QualificationError("response_schema_invalid") from error
     if not isinstance(deleted_pointers, list) or provider != provider_derivative(
-        registered, deleted_pointers
+        registered, deleted_pointers, adapter, registered_schema_sha256
     ):
         raise QualificationError("provider_schema_not_exact_derivative")
     errors = sorted(
@@ -377,6 +546,258 @@ def validate_schema_boundary(
     )
     if errors:
         raise QualificationError("response_full_schema_invalid")
+
+
+def _closed_absolute_path(value: Any, label: str) -> Path:
+    if not isinstance(value, str):
+        raise QualificationError(f"{label}_invalid")
+    path = Path(value)
+    if not path.is_absolute() or ".." in path.parts:
+        raise QualificationError(f"{label}_invalid")
+    return path
+
+
+def _mount_content_root(source: Path) -> str:
+    if source.is_symlink() or not source.exists():
+        raise QualificationError("tool_mount_source_unsafe")
+    if source.is_file():
+        metadata = source.stat()
+        if metadata.st_nlink != 1:
+            raise QualificationError("tool_mount_hardlink_forbidden")
+        return digest(read_regular(source, "tool_mount_source"))
+    if not source.is_dir():
+        raise QualificationError("tool_mount_source_unsafe")
+    identities: set[tuple[int, int]] = set()
+    entries = []
+    for path in sorted(source.rglob("*")):
+        metadata = os.lstat(path)
+        if stat.S_ISLNK(metadata.st_mode):
+            raise QualificationError("tool_mount_symlink_forbidden")
+        if stat.S_ISREG(metadata.st_mode):
+            if metadata.st_nlink != 1:
+                raise QualificationError("tool_mount_hardlink_forbidden")
+            identity = (metadata.st_dev, metadata.st_ino)
+            if identity in identities:
+                raise QualificationError("tool_mount_inode_reuse")
+            identities.add(identity)
+            raw = read_regular(path, "tool_mount_source")
+            entries.append(
+                {
+                    "path": path.relative_to(source).as_posix(),
+                    "bytes": len(raw),
+                    "sha256": digest(raw),
+                }
+            )
+    return canonical_root(entries)
+
+
+def _validate_tool_input_schema(value: Any, name: str, version: str) -> str:
+    if not isinstance(value, dict):
+        raise QualificationError("tool_input_schema_invalid")
+    if (
+        value.get("$schema") != "https://json-schema.org/draft/2020-12/schema"
+        or value.get("type") != "object"
+        or value.get("additionalProperties") is not False
+    ):
+        raise QualificationError("tool_input_schema_not_closed")
+    try:
+        Draft202012Validator.check_schema(value)
+    except Exception as error:
+        raise QualificationError("tool_input_schema_invalid") from error
+    expected = TOOL_INPUT_SCHEMAS.get((name, version))
+    if expected is None or canonical_json_bytes(value) != canonical_json_bytes(
+        expected
+    ):
+        raise QualificationError("tool_input_schema_not_registered")
+    return canonical_root({"name": name, "schema": value})
+
+
+def _validate_allowed_argv(value: Any, version: str) -> tuple[tuple[str, ...], ...]:
+    if not isinstance(value, list) or not all(isinstance(argv, list) for argv in value):
+        raise QualificationError("tool_allowed_argv_invalid")
+    observed = tuple(tuple(argv) for argv in value)
+    expected = SHELL_ARGV_VOCABULARIES.get(version)
+    if expected is None or observed != expected:
+        raise QualificationError("tool_allowed_argv_not_registered")
+    return observed
+
+
+def validate_tool_boundary(value: Any) -> dict[str, Any]:
+    """Validate a maintained offline read-only tool vocabulary and workspace."""
+
+    version_two = (
+        isinstance(value, dict) and value.get("schema") == TOOL_BOUNDARY_SCHEMA_V2
+    )
+    fields = {
+        "schema",
+        "mode",
+        "provider_adapter",
+        "provider_organization",
+        "api_version",
+        "tool_protocol_version",
+        "tools",
+        "mounts",
+        "network",
+        "writes",
+        "shell_interpolation",
+        "max_output_bytes",
+        "per_call_timeout_seconds",
+        "lifecycle",
+    }
+    if version_two:
+        fields.add("max_tool_calls")
+    exact_keys(value, fields, "tool_boundary")
+    adapter = value["provider_adapter"]
+    expected_provider = PROVIDER_ADAPTERS.get(adapter)
+    if (
+        value["schema"] not in {TOOL_BOUNDARY_SCHEMA, TOOL_BOUNDARY_SCHEMA_V2}
+        or value["mode"]
+        != (
+            "read_only_offline_files"
+            if version_two
+            else "read_only_offline_shell_files"
+        )
+        or expected_provider is None
+        or (value["provider_organization"], value["api_version"]) != expected_provider
+        or value["tool_protocol_version"]
+        != ("offline-files/2" if version_two else "offline-shell-files/1")
+        or value["network"] is not False
+        or value["writes"] is not False
+        or value["shell_interpolation"] is not False
+        or isinstance(value["max_output_bytes"], bool)
+        or not isinstance(value["max_output_bytes"], int)
+        or value["max_output_bytes"] <= 0
+        or isinstance(value["per_call_timeout_seconds"], bool)
+        or not isinstance(value["per_call_timeout_seconds"], int)
+        or value["per_call_timeout_seconds"] <= 0
+        or value["lifecycle"]
+        != [
+            "thread.started",
+            "turn.started",
+            "tool.call",
+            "tool.result",
+            "item.completed",
+            "turn.completed",
+        ]
+        or (
+            version_two
+            and (
+                isinstance(value["max_tool_calls"], bool)
+                or not isinstance(value["max_tool_calls"], int)
+                or value["max_tool_calls"] < 1
+                or value["max_tool_calls"] > 64
+            )
+        )
+    ):
+        raise QualificationError("tool_boundary_contract_invalid")
+    tools = value["tools"]
+    if not isinstance(tools, list) or len(tools) != (1 if version_two else 2):
+        raise QualificationError("tool_boundary_tools_invalid")
+    by_name: dict[str, dict[str, Any]] = {}
+    schema_roots = []
+    allowed_argv: tuple[tuple[str, ...], ...] = ()
+    file_roots: tuple[Path, ...] = ()
+    for tool in tools:
+        exact_keys(
+            tool,
+            {
+                "name",
+                "version",
+                "input_schema",
+                "operations",
+                "allowed_argv",
+                "file_roots",
+            },
+            "tool_definition",
+        )
+        name = tool["name"]
+        allowed_names = {"read_file"} if version_two else {"shell", "read_file"}
+        if name in by_name or name not in allowed_names:
+            raise QualificationError("tool_name_invalid")
+        version = tool["version"]
+        if version != ("2" if version_two else "1"):
+            raise QualificationError("tool_version_invalid")
+        roots = (
+            tuple(
+                _closed_absolute_path(item, "tool_file_root")
+                for item in tool["file_roots"]
+            )
+            if isinstance(tool["file_roots"], list)
+            else ()
+        )
+        if not roots:
+            raise QualificationError("tool_file_roots_invalid")
+        schema_roots.append(
+            _validate_tool_input_schema(tool["input_schema"], name, version)
+        )
+        if name == "shell":
+            if tool["operations"] != ["execute"]:
+                raise QualificationError("tool_operations_invalid")
+            allowed_argv = _validate_allowed_argv(tool["allowed_argv"], version)
+        else:
+            if (
+                tool["operations"]
+                != (
+                    ["read", "list", "stat", "search"]
+                    if version_two
+                    else ["read", "list", "stat"]
+                )
+                or tool["allowed_argv"] != []
+            ):
+                raise QualificationError("tool_operations_invalid")
+        if file_roots and roots != file_roots:
+            raise QualificationError("tool_file_roots_not_equivalent")
+        file_roots = roots
+        by_name[name] = tool
+    mounts = value["mounts"]
+    if not isinstance(mounts, list) or not mounts:
+        raise QualificationError("tool_mounts_invalid")
+    targets = []
+    for mount in mounts:
+        exact_keys(
+            mount, {"source", "target", "read_only", "content_root"}, "tool_mount"
+        )
+        source = _closed_absolute_path(mount["source"], "tool_mount_source")
+        target = _closed_absolute_path(mount["target"], "tool_mount_target")
+        if source != Path(os.path.abspath(source)) or source != source.resolve():
+            raise QualificationError("tool_mount_source_not_canonical")
+        if mount["read_only"] is not True or mount[
+            "content_root"
+        ] != _mount_content_root(source):
+            raise QualificationError("tool_mount_binding_invalid")
+        if target in targets:
+            raise QualificationError("tool_mount_target_duplicate")
+        targets.append(target)
+    if tuple(targets) != file_roots:
+        raise QualificationError("tool_mount_file_root_mismatch")
+    workspace_content_root = canonical_root(
+        [
+            {"content_root": mount["content_root"], "target": mount["target"]}
+            for mount in mounts
+        ]
+    )
+    policy = {
+        key: item
+        for key, item in value.items()
+        if key
+        not in {"provider_adapter", "provider_organization", "api_version", "mounts"}
+    }
+    policy["mount_targets"] = [mount["target"] for mount in mounts]
+    return {
+        "version_two": version_two,
+        "adapter": adapter,
+        "provider_organization": value["provider_organization"],
+        "tool_boundary_root": canonical_root(value),
+        "tool_semantics_root": canonical_root(policy),
+        "tool_policy_root": canonical_root(policy),
+        "workspace_content_root": workspace_content_root,
+        "tool_schema_roots": schema_roots,
+        "allowed_argv": allowed_argv,
+        "file_roots": file_roots,
+        "max_output_bytes": value["max_output_bytes"],
+        "per_call_timeout_seconds": value["per_call_timeout_seconds"],
+        "max_tool_calls": value.get("max_tool_calls", 1),
+    }
 
 
 def normalize_closed_set(
@@ -428,8 +849,8 @@ def normalize_shadow_account(raw: bytes, account: str, fixed_day: int) -> bytes:
     return ("\n".join(lines) + suffix).encode()
 
 
-def _permit_fields() -> set[str]:
-    return {
+def _permit_fields(expected: dict[str, Any] | None = None) -> set[str]:
+    fields = {
         "schema",
         "registration_id",
         "assignment_id",
@@ -450,6 +871,16 @@ def _permit_fields() -> set[str]:
         "issued_at",
         "consumed_at",
     }
+    optional = {
+        "tool_boundary_root",
+        "tool_policy_root",
+        "workspace_content_root",
+        "evidence_manifest_root",
+        "workspace_preflight_root",
+    }
+    return fields | (
+        {key for key in optional if key in expected} if expected else set()
+    )
 
 
 def validate_permit(
@@ -458,7 +889,7 @@ def validate_permit(
     *,
     status: str,
 ) -> None:
-    exact_keys(value, _permit_fields(), "permit")
+    exact_keys(value, _permit_fields(expected), "permit")
     if value["schema"] != PERMIT_SCHEMA or value["status"] != status:
         raise QualificationError("permit_schema_or_status_invalid")
     for key, expected_value in expected.items():
@@ -491,8 +922,15 @@ def validate_permit(
         "provider_schema_bytes",
         "prompt_root",
         "packet_root",
+        "tool_boundary_root",
+        "tool_policy_root",
+        "workspace_content_root",
+        "evidence_manifest_root",
+        "workspace_preflight_root",
     ):
-        if not isinstance(value[key], str) or not SHA256.fullmatch(value[key]):
+        if key in value and (
+            not isinstance(value[key], str) or not SHA256.fullmatch(value[key])
+        ):
             raise QualificationError(f"permit_root_invalid:{key}")
     parse_timestamp(value["issued_at"], "permit_issued_at")
     if status == "held":
@@ -736,6 +1174,459 @@ def validate_events(raw: bytes, output_token_ceiling: int) -> dict[str, Any]:
         "usage": usage,
         "timestamps": timestamps,
     }
+
+
+def _parse_event_lines(raw: bytes, label: str) -> list[dict[str, Any]]:
+    events = []
+    for index, line in enumerate(raw.splitlines(), 1):
+        if not line:
+            continue
+        event = parse_json(line, f"{label}_{index}")
+        if not isinstance(event, dict):
+            raise QualificationError(f"{label}_not_object")
+        events.append(event)
+    return events
+
+
+def _path_inside_roots(path: Path, roots: tuple[Path, ...]) -> bool:
+    return any(path == root or root in path.parents for root in roots)
+
+
+def _validate_tool_call(
+    item: Any, boundary: dict[str, Any]
+) -> tuple[str, str, dict[str, Any]]:
+    exact_keys(item, {"type", "call_id", "tool_name", "arguments"}, "tool_call")
+    if item["type"] != "tool_call":
+        raise QualificationError("tool_call_type_invalid")
+    call_id = item["call_id"]
+    tool_name = item["tool_name"]
+    arguments = item["arguments"]
+    if (
+        not isinstance(call_id, str)
+        or not call_id
+        or tool_name not in {"shell", "read_file"}
+        or not isinstance(arguments, dict)
+    ):
+        raise QualificationError("tool_call_invalid")
+    if tool_name == "shell":
+        exact_keys(arguments, {"argv", "cwd"}, "shell_arguments")
+        argv = arguments["argv"]
+        cwd = _closed_absolute_path(arguments["cwd"], "shell_cwd")
+        if (
+            not isinstance(argv, list)
+            or any(not isinstance(arg, str) or not arg for arg in argv)
+            or tuple(argv) not in boundary["allowed_argv"]
+            or not _path_inside_roots(cwd, boundary["file_roots"])
+        ):
+            raise QualificationError("shell_call_not_allowlisted")
+    else:
+        version_two = not boundary["allowed_argv"]
+        exact_keys(
+            arguments,
+            {"operation", "path", "query"} if version_two else {"operation", "path"},
+            "file_arguments",
+        )
+        path = _closed_absolute_path(arguments["path"], "file_path")
+        operation = arguments["operation"]
+        query = arguments.get("query")
+        if (
+            operation
+            not in (
+                {"read", "list", "stat", "search"}
+                if version_two
+                else {"read", "list", "stat"}
+            )
+            or not _path_inside_roots(path, boundary["file_roots"])
+            or (
+                version_two
+                and (
+                    not isinstance(query, str) or (operation == "search") != bool(query)
+                )
+            )
+        ):
+            raise QualificationError("file_call_not_allowlisted")
+    return call_id, tool_name, arguments
+
+
+def validate_tool_events(
+    raw: bytes, output_token_ceiling: int, boundary: dict[str, Any]
+) -> dict[str, Any]:
+    events = _parse_event_lines(raw, "provider_event")
+    types = [event.get("type") for event in events]
+    if (
+        len(events) < 6
+        or types[:2] != ["thread.started", "turn.started"]
+        or types[-2:] != ["item.completed", "turn.completed"]
+        or len(types[2:-2]) % 2 != 0
+        or any(
+            pair != ["tool.call", "tool.result"]
+            for pair in (
+                types[index : index + 2] for index in range(2, len(types) - 2, 2)
+            )
+        )
+    ):
+        raise QualificationError("provider_tool_event_sequence_invalid")
+    tool_count = len(types[2:-2]) // 2
+    if tool_count < 1 or tool_count > boundary["max_tool_calls"]:
+        raise QualificationError("provider_tool_event_count_invalid")
+    for event in events:
+        if event.get("schema") != EVENT_SCHEMA:
+            raise QualificationError("provider_event_schema_invalid")
+    exact_keys(
+        events[0], {"schema", "type", "run_id", "thread_id", "at"}, "thread_started"
+    )
+    exact_keys(
+        events[1],
+        {"schema", "type", "run_id", "thread_id", "turn_id", "at"},
+        "turn_started",
+    )
+    common_item_keys = {
+        "schema",
+        "type",
+        "run_id",
+        "thread_id",
+        "turn_id",
+        "response_id",
+        "at",
+        "item",
+    }
+    for index in range(2, len(events) - 1):
+        exact_keys(
+            events[index],
+            common_item_keys,
+            "item_completed" if index == len(events) - 2 else "tool_event",
+        )
+    exact_keys(
+        events[-1],
+        {
+            "schema",
+            "type",
+            "run_id",
+            "thread_id",
+            "turn_id",
+            "response_id",
+            "at",
+            "usage",
+        },
+        "turn_completed",
+    )
+    tool_calls = []
+    tool_results = []
+    call_ids = set()
+    for index in range(2, len(events) - 2, 2):
+        call_id, tool_name, arguments = _validate_tool_call(
+            events[index]["item"], boundary
+        )
+        if call_id in call_ids:
+            raise QualificationError("tool_call_id_duplicate")
+        call_ids.add(call_id)
+        result = events[index + 1]["item"]
+        exact_keys(
+            result,
+            {
+                "type",
+                "call_id",
+                "tool_name",
+                "receipt_root",
+                "stdout_bytes",
+                "stdout_sha256",
+                "stderr_bytes",
+                "stderr_sha256",
+                "exit_code",
+            },
+            "tool_result",
+        )
+        if (
+            result["type"] != "tool_result"
+            or result["call_id"] != call_id
+            or result["tool_name"] != tool_name
+            or not SHA256.fullmatch(str(result["receipt_root"]))
+            or not SHA256.fullmatch(str(result["stdout_sha256"]))
+            or not SHA256.fullmatch(str(result["stderr_sha256"]))
+            or any(
+                isinstance(result[key], bool)
+                or not isinstance(result[key], int)
+                or result[key] < 0
+                for key in ("stdout_bytes", "stderr_bytes")
+            )
+            or result["stdout_bytes"] + result["stderr_bytes"]
+            > boundary["max_output_bytes"]
+            or isinstance(result["exit_code"], bool)
+            or not isinstance(result["exit_code"], int)
+        ):
+            raise QualificationError("tool_result_invalid")
+        tool_calls.append(
+            {"call_id": call_id, "tool_name": tool_name, "arguments": arguments}
+        )
+        tool_results.append(result)
+    message = events[-2]["item"]
+    exact_keys(message, {"type", "text"}, "provider_message")
+    if message["type"] != "agent_message" or not isinstance(message["text"], str):
+        raise QualificationError("provider_message_invalid")
+    identities = {(event["run_id"], event["thread_id"]) for event in events}
+    if len(identities) != 1:
+        raise QualificationError("provider_event_identity_drift")
+    if any(event.get("turn_id") != events[1]["turn_id"] for event in events[2:]):
+        raise QualificationError("provider_turn_identity_drift")
+    if any(
+        event.get("response_id") != events[2]["response_id"] for event in events[3:]
+    ):
+        raise QualificationError("provider_response_identity_drift")
+    timestamps = [parse_timestamp(event["at"], "provider_event") for event in events]
+    if timestamps != sorted(timestamps):
+        raise QualificationError("provider_event_time_not_monotone")
+    usage = events[-1]["usage"]
+    exact_keys(
+        usage,
+        {"input_tokens", "cached_input_tokens", "output_tokens", "tool_call_count"},
+        "provider_usage",
+    )
+    if any(
+        isinstance(value, bool) or not isinstance(value, int) or value < 0
+        for value in usage.values()
+    ):
+        raise QualificationError("provider_usage_invalid")
+    if (
+        usage["tool_call_count"] != tool_count
+        or usage["cached_input_tokens"] > usage["input_tokens"]
+        or usage["output_tokens"] > output_token_ceiling
+    ):
+        raise QualificationError("provider_usage_contract_invalid")
+    return {
+        "events": events,
+        "messages": [message],
+        "usage": usage,
+        "timestamps": timestamps,
+        "tool_call": tool_calls[0],
+        "tool_result": tool_results[0],
+        "tool_calls": tool_calls,
+        "tool_results": tool_results,
+        "normalized_tool_semantics_root": canonical_root(
+            [
+                {
+                    "tool_name": call["tool_name"],
+                    "arguments": call["arguments"],
+                    "stdout_bytes": result["stdout_bytes"],
+                    "stdout_sha256": result["stdout_sha256"],
+                    "stderr_bytes": result["stderr_bytes"],
+                    "stderr_sha256": result["stderr_sha256"],
+                    "exit_code": result["exit_code"],
+                }
+                for call, result in zip(tool_calls, tool_results, strict=True)
+            ]
+        ),
+    }
+
+
+def validate_raw_provider_events(
+    raw: bytes, normalized_raw: bytes, adapter: str
+) -> str:
+    raw_events = _parse_event_lines(raw, "raw_provider_event")
+    normalized_lines = [line + b"\n" for line in normalized_raw.splitlines() if line]
+    normalized_types = [
+        parse_json(line, "normalized_provider_event")["type"]
+        for line in normalized_raw.splitlines()
+        if line
+    ]
+    tool_count = normalized_types.count("tool.call")
+    expected_types = {
+        "openai-responses-v1": [
+            "response.created",
+            "response.in_progress",
+            *sum(
+                (
+                    ["response.function_call_arguments.done", "runner.tool_result"]
+                    for _ in range(tool_count)
+                ),
+                [],
+            ),
+            "response.output_text.done",
+            "response.completed",
+        ],
+        "anthropic-messages-v1": [
+            "message_start",
+            "message_delta.start",
+            *sum(
+                (
+                    ["content_block_stop.tool_use", "runner.tool_result"]
+                    for _ in range(tool_count)
+                ),
+                [],
+            ),
+            "content_block_stop.text",
+            "message_stop",
+        ],
+    }.get(adapter)
+    if expected_types is None or len(raw_events) != len(normalized_lines):
+        raise QualificationError("raw_provider_event_count_invalid")
+    for index, (event, normalized_line, event_type) in enumerate(
+        zip(raw_events, normalized_lines, expected_types, strict=True)
+    ):
+        exact_keys(
+            event,
+            {
+                "schema",
+                "provider_adapter",
+                "sequence",
+                "provider_event_type",
+                "provider_payload",
+                "normalized_event_bytes",
+            },
+            "raw_provider_event",
+        )
+        if (
+            event["schema"] != RAW_PROVIDER_EVENT_SCHEMA
+            or event["provider_adapter"] != adapter
+            or event["sequence"] != index
+            or isinstance(event["sequence"], bool)
+            or event["provider_event_type"] != event_type
+            or not isinstance(event["provider_payload"], dict)
+            or event["normalized_event_bytes"] != digest(normalized_line)
+        ):
+            raise QualificationError("raw_provider_event_binding_invalid")
+    return canonical_root(raw_events)
+
+
+def validate_tool_receipts(
+    root: Path,
+    value: Any,
+    event_summary: dict[str, Any],
+    boundary: dict[str, Any],
+) -> str:
+    calls = event_summary["tool_calls"]
+    results = event_summary["tool_results"]
+    if not isinstance(value, list) or len(value) != len(calls):
+        raise QualificationError("tool_receipt_count_invalid")
+    output_paths = set()
+    prior_completed = None
+    for receipt, call, result in zip(value, calls, results, strict=True):
+        exact_keys(
+            receipt,
+            {
+                "schema",
+                "call_id",
+                "tool_name",
+                "arguments",
+                "arguments_root",
+                "stdout",
+                "stdout_bytes",
+                "stdout_sha256",
+                "stderr",
+                "stderr_bytes",
+                "stderr_sha256",
+                "exit_code",
+                "network_disabled",
+                "writes_disabled",
+                "started_at",
+                "completed_at",
+                "timeout_seconds",
+            },
+            "tool_receipt",
+        )
+        stdout_path = safe_relative(root, receipt["stdout"], "tool_stdout")
+        stderr_path = safe_relative(root, receipt["stderr"], "tool_stderr")
+        if (
+            stdout_path == stderr_path
+            or stdout_path in output_paths
+            or stderr_path in output_paths
+        ):
+            raise QualificationError("tool_receipt_output_paths_not_unique")
+        output_paths |= {stdout_path, stderr_path}
+        stdout = read_regular(stdout_path, "tool_stdout")
+        stderr = read_regular(stderr_path, "tool_stderr")
+        started = parse_timestamp(receipt["started_at"], "tool_started")
+        completed = parse_timestamp(receipt["completed_at"], "tool_completed")
+        if (
+            receipt["schema"] != TOOL_RECEIPT_SCHEMA
+            or receipt["call_id"] != call["call_id"]
+            or receipt["tool_name"] != call["tool_name"]
+            or receipt["arguments"] != call["arguments"]
+            or receipt["arguments_root"] != canonical_root(call["arguments"])
+            or receipt["stdout_bytes"] != len(stdout)
+            or receipt["stdout_sha256"] != digest(stdout)
+            or receipt["stderr_bytes"] != len(stderr)
+            or receipt["stderr_sha256"] != digest(stderr)
+            or receipt["exit_code"] != result["exit_code"]
+            or receipt["stdout_bytes"] != result["stdout_bytes"]
+            or receipt["stdout_sha256"] != result["stdout_sha256"]
+            or receipt["stderr_bytes"] != result["stderr_bytes"]
+            or receipt["stderr_sha256"] != result["stderr_sha256"]
+            or canonical_root(receipt) != result["receipt_root"]
+            or receipt["network_disabled"] is not True
+            or receipt["writes_disabled"] is not True
+            or receipt["timeout_seconds"] != boundary["per_call_timeout_seconds"]
+            or completed < started
+            or (prior_completed is not None and started < prior_completed)
+        ):
+            raise QualificationError("tool_receipt_binding_invalid")
+        prior_completed = completed
+    return canonical_root(value)
+
+
+def validate_provider_equivalence(value: Any) -> str:
+    exact_keys(value, {"schema", "providers"}, "provider_equivalence")
+    providers = value["providers"]
+    if (
+        value["schema"] != PROVIDER_EQUIVALENCE_SCHEMA
+        or not isinstance(providers, list)
+        or len(providers) != 2
+    ):
+        raise QualificationError("provider_equivalence_invalid")
+    adapters = set()
+    organizations = set()
+    comparable = []
+    for provider in providers:
+        exact_keys(
+            provider,
+            {
+                "provider_adapter",
+                "provider_organization",
+                "tool_boundary_root",
+                "tool_semantics_root",
+                "participant_visible_atoms_root",
+                "registered_schema_bytes",
+                "provider_schema_bytes",
+                "raw_provider_events_bytes",
+                "normalized_events_bytes",
+                "normalized_tool_semantics_root",
+                "tool_receipts_root",
+            },
+            "provider_equivalence_entry",
+        )
+        adapter = provider["provider_adapter"]
+        expected = PROVIDER_ADAPTERS.get(adapter)
+        if expected is None or provider["provider_organization"] != expected[0]:
+            raise QualificationError("provider_equivalence_adapter_invalid")
+        roots = {
+            key: item
+            for key, item in provider.items()
+            if key not in {"provider_adapter", "provider_organization"}
+        }
+        if any(
+            not isinstance(item, str) or not SHA256.fullmatch(item)
+            for item in roots.values()
+        ):
+            raise QualificationError("provider_equivalence_root_invalid")
+        adapters.add(adapter)
+        organizations.add(provider["provider_organization"])
+        comparable.append(
+            {
+                key: provider[key]
+                for key in (
+                    "tool_semantics_root",
+                    "participant_visible_atoms_root",
+                    "registered_schema_bytes",
+                    "normalized_tool_semantics_root",
+                )
+            }
+        )
+    if (
+        adapters != set(PROVIDER_ADAPTERS)
+        or len(organizations) != 2
+        or comparable[0] != comparable[1]
+    ):
+        raise QualificationError("provider_participant_visible_equivalence_invalid")
+    return canonical_root(value)
 
 
 def _validate_mounts(mounts: Any) -> None:
@@ -1175,21 +2066,26 @@ def _validate_runtime(root: Path, value: Any) -> dict[str, Any]:
 def _validate_configuration(
     root: Path, value: Any, runtime: dict[str, Any]
 ) -> dict[str, Any]:
+    base_fields = {
+        "model",
+        "reasoning_effort",
+        "service_tier",
+        "timeout_seconds",
+        "output_token_ceiling",
+        "attempt",
+        "retries",
+        "tools",
+        "strict_arguments",
+        "compatibility_receipt",
+        "runner_version",
+    }
+    tool_mode = isinstance(value, dict) and value.get("tools") in {
+        "read_only_offline_shell_files",
+        "read_only_offline_files",
+    }
     exact_keys(
         value,
-        {
-            "model",
-            "reasoning_effort",
-            "service_tier",
-            "timeout_seconds",
-            "output_token_ceiling",
-            "attempt",
-            "retries",
-            "tools",
-            "strict_arguments",
-            "compatibility_receipt",
-            "runner_version",
-        },
+        base_fields | ({"provider_adapter", "tool_boundary"} if tool_mode else set()),
         "configuration",
     )
     if (
@@ -1203,7 +2099,13 @@ def _validate_configuration(
         or value["attempt"] != 1
         or isinstance(value["retries"], bool)
         or value["retries"] != 0
-        or value["tools"] != "none"
+        or value["tools"]
+        not in {
+            "none",
+            "no_tools",
+            "read_only_offline_shell_files",
+            "read_only_offline_files",
+        }
         or value["runner_version"] != RUNNER_VERSION
         or any(
             not isinstance(value[key], str) or not value[key]
@@ -1217,29 +2119,68 @@ def _validate_configuration(
         or len(set(value["strict_arguments"])) != len(value["strict_arguments"])
     ):
         raise QualificationError("configuration_contract_invalid")
+    boundary = None
+    if tool_mode:
+        boundary_value = load_json(
+            safe_relative(root, value["tool_boundary"], "tool_boundary"),
+            "tool_boundary",
+        )
+        boundary = validate_tool_boundary(boundary_value)
+        if boundary["adapter"] != value["provider_adapter"]:
+            raise QualificationError("configuration_provider_adapter_drift")
+    elif (
+        value["tools"] == "no_tools"
+        and any(
+            re.search(r"(?:^|[=])none$", item) for item in value["strict_arguments"]
+        )
+        is False
+    ):
+        raise QualificationError("configuration_no_tools_not_strict")
     receipt = load_json(
         safe_relative(
             root, value["compatibility_receipt"], "configuration_compatibility_receipt"
         ),
         "configuration_compatibility_receipt",
     )
+    compatibility_fields = {
+        "schema",
+        "runner_version",
+        "strict_parse_passed",
+        "provider_contact_possible",
+        "accepted_arguments",
+        "stderr_sha256",
+        "image_digest",
+        "configuration_root",
+        "runtime_source_root",
+        "dockerfile_bytes",
+    }
+    version_two = tool_mode and boundary["version_two"]
+    if version_two:
+        compatibility_fields |= {
+            "provider_adapter",
+            "tool_boundary_root",
+            "tool_policy_root",
+            "workspace_content_root",
+        }
+    elif tool_mode:
+        compatibility_fields |= {"provider_adapter", "tool_boundary_root"}
     exact_keys(
         receipt,
-        {
-            "schema",
-            "runner_version",
-            "strict_parse_passed",
-            "provider_contact_possible",
-            "accepted_arguments",
-            "stderr_sha256",
-            "image_digest",
-            "configuration_root",
-            "runtime_source_root",
-            "dockerfile_bytes",
-        },
+        compatibility_fields,
         "configuration_compatibility_receipt",
     )
-    configuration_root = canonical_root(value)
+    configuration_root = (
+        canonical_root(
+            {
+                "configuration": value,
+                ("tool_policy_root" if version_two else "tool_boundary_root"): boundary[
+                    "tool_policy_root" if version_two else "tool_boundary_root"
+                ],
+            }
+        )
+        if tool_mode
+        else canonical_root(value)
+    )
     if (
         receipt["schema"] != "vela.tooling.strict-config-compatibility.v1"
         or receipt["runner_version"] != value["runner_version"]
@@ -1251,6 +2192,21 @@ def _validate_configuration(
         or receipt["configuration_root"] != configuration_root
         or receipt["runtime_source_root"] != runtime["runtime_source_root"]
         or receipt["dockerfile_bytes"] != runtime["dockerfile_bytes"]
+        or (
+            tool_mode
+            and (
+                receipt["provider_adapter"] != boundary["adapter"]
+                or receipt["tool_boundary_root"] != boundary["tool_boundary_root"]
+                or (
+                    version_two
+                    and (
+                        receipt["tool_policy_root"] != boundary["tool_policy_root"]
+                        or receipt["workspace_content_root"]
+                        != boundary["workspace_content_root"]
+                    )
+                )
+            )
+        )
     ):
         raise QualificationError("configuration_compatibility_invalid")
     return {
@@ -1259,6 +2215,11 @@ def _validate_configuration(
         "image_digest": receipt["image_digest"],
         "runner_version": value["runner_version"],
         "timeout_seconds": value["timeout_seconds"],
+        "tool_mode": (
+            "no_tools" if value["tools"] in {"none", "no_tools"} else value["tools"]
+        ),
+        "tool_boundary": boundary,
+        "provider_adapter": boundary["adapter"] if boundary else None,
     }
 
 
@@ -1269,23 +2230,35 @@ def _validate_participant_hold(
     configuration: dict[str, Any],
     schemas: dict[str, Any],
 ) -> dict[str, Any]:
-    exact_keys(
-        value,
-        {"hold", "permit", "consumed_permit", "identity"},
-        "participant_permit",
+    participant_fields = {"hold", "permit", "consumed_permit", "identity"}
+    version_two = (
+        configuration["tool_boundary"] is not None
+        and configuration["tool_boundary"]["version_two"]
     )
+    if version_two:
+        participant_fields.add("workspace_preflight")
+    exact_keys(value, participant_fields, "participant_permit")
     identity = value["identity"]
+    identity_fields = {
+        "registration_id",
+        "assignment_id",
+        "participant_id",
+        "run_id",
+        "condition",
+        "prompt_root",
+        "packet_root",
+    }
+    if version_two:
+        identity_fields |= {
+            "tool_boundary_root",
+            "tool_policy_root",
+            "workspace_content_root",
+            "evidence_manifest_root",
+            "workspace_preflight_root",
+        }
     exact_keys(
         identity,
-        {
-            "registration_id",
-            "assignment_id",
-            "participant_id",
-            "run_id",
-            "condition",
-            "prompt_root",
-            "packet_root",
-        },
+        identity_fields,
         "participant_permit_identity",
     )
     hold = load_json(
@@ -1317,6 +2290,68 @@ def _validate_participant_hold(
         "timeout_seconds": configuration["timeout_seconds"],
     }
     validate_permit(permit, expected, status="held")
+    if version_two:
+        preflight_path = safe_relative(
+            root, value["workspace_preflight"], "participant_workspace_preflight"
+        )
+        preflight_raw = read_regular(preflight_path, "participant_workspace_preflight")
+        preflight = parse_json(preflight_raw, "participant_workspace_preflight")
+        exact_keys(
+            preflight,
+            {
+                "schema",
+                "status",
+                "bridge_receipt",
+                "tool_boundary_root",
+                "tool_policy_root",
+                "workspace_content_root",
+                "evidence_manifest_root",
+            },
+            "participant_workspace_preflight",
+        )
+        bridge_receipt = preflight["bridge_receipt"]
+        exact_keys(
+            bridge_receipt,
+            {
+                "schema",
+                "status",
+                "workspace_manifest_sha256",
+                "evidence_manifest_root",
+                "evidence_tree_root",
+                "reachable_file_count",
+                "operations",
+                "network_contact",
+                "writes",
+            },
+            "participant_workspace_bridge_receipt",
+        )
+        if (
+            digest(preflight_raw) != identity["workspace_preflight_root"]
+            or preflight["schema"]
+            != "vela.anthropic-offline-workspace-bound-preflight.v1"
+            or preflight["status"] != "pass"
+            or preflight["tool_boundary_root"]
+            != configuration["tool_boundary"]["tool_boundary_root"]
+            or preflight["tool_policy_root"]
+            != configuration["tool_boundary"]["tool_policy_root"]
+            or preflight["workspace_content_root"]
+            != configuration["tool_boundary"]["workspace_content_root"]
+            or preflight["evidence_manifest_root"] != identity["evidence_manifest_root"]
+            or bridge_receipt["schema"]
+            != "vela.anthropic-offline-workspace-bridge-preflight.v1"
+            or bridge_receipt["status"] != "pass"
+            or bridge_receipt["evidence_manifest_root"]
+            != identity["evidence_manifest_root"]
+            or isinstance(bridge_receipt["reachable_file_count"], bool)
+            or not isinstance(bridge_receipt["reachable_file_count"], int)
+            or bridge_receipt["reachable_file_count"] < 1
+            or bridge_receipt["operations"] != ["read", "list", "stat", "search"]
+            or bridge_receipt["network_contact"] is not False
+            or bridge_receipt["writes"] is not False
+            or not SHA256.fullmatch(bridge_receipt["workspace_manifest_sha256"])
+            or not SHA256.fullmatch(bridge_receipt["evidence_tree_root"])
+        ):
+            raise QualificationError("participant_workspace_preflight_invalid")
     if (
         hold["schema"] != "vela.tooling.participant-hold.v1"
         or hold["status"] != "hold"
@@ -1344,21 +2379,29 @@ def _validate_capture_fixture(
     configuration: dict[str, Any],
     runtime: dict[str, Any],
 ) -> dict[str, Any]:
+    tool_mode = configuration["tool_mode"] in {
+        "read_only_offline_shell_files",
+        "read_only_offline_files",
+    }
+    version_two = tool_mode and configuration["tool_boundary"]["version_two"]
+    fixture_fields = {
+        "directory",
+        "permit_template",
+        "consumed_permit",
+        "launch",
+        "events",
+        "stderr",
+        "raw_response",
+        "terminal_receipt",
+        "teardown_receipt",
+        "capture_manifest",
+        "identity",
+    }
+    if tool_mode:
+        fixture_fields |= {"raw_provider_events", "tool_receipts"}
     exact_keys(
         value,
-        {
-            "directory",
-            "permit_template",
-            "consumed_permit",
-            "launch",
-            "events",
-            "stderr",
-            "raw_response",
-            "terminal_receipt",
-            "teardown_receipt",
-            "capture_manifest",
-            "identity",
-        },
+        fixture_fields,
         "neutral_fixture",
     )
     fixture_dir = safe_relative(root, value["directory"], "neutral_fixture_directory")
@@ -1372,17 +2415,26 @@ def _validate_capture_fixture(
     template = load_json(paths["permit_template"], "neutral_fixture_permit_template")
     consumed = load_json(paths["consumed_permit"], "neutral_fixture_consumed_permit")
     identity = value["identity"]
+    identity_fields = {
+        "registration_id",
+        "assignment_id",
+        "participant_id",
+        "run_id",
+        "condition",
+        "prompt_root",
+        "packet_root",
+    }
+    if version_two:
+        identity_fields |= {
+            "tool_boundary_root",
+            "tool_policy_root",
+            "workspace_content_root",
+            "evidence_manifest_root",
+            "workspace_preflight_root",
+        }
     exact_keys(
         identity,
-        {
-            "registration_id",
-            "assignment_id",
-            "participant_id",
-            "run_id",
-            "condition",
-            "prompt_root",
-            "packet_root",
-        },
+        identity_fields,
         "neutral_fixture_identity",
     )
     expected_permit = {
@@ -1414,20 +2466,56 @@ def _validate_capture_fixture(
     response = parse_json(response_raw, "neutral_fixture_raw_response")
     receipt = load_json(paths["terminal_receipt"], "neutral_fixture_terminal_receipt")
     teardown = parse_json(teardown_raw, "neutral_fixture_teardown")
-    event_summary = validate_events(events_raw, configuration["output_token_ceiling"])
+    if tool_mode:
+        event_summary = validate_tool_events(
+            events_raw,
+            configuration["output_token_ceiling"],
+            configuration["tool_boundary"],
+        )
+        raw_provider_events = read_regular(
+            paths["raw_provider_events"], "neutral_fixture_raw_provider_events"
+        )
+        raw_provider_events_root = validate_raw_provider_events(
+            raw_provider_events, events_raw, configuration["provider_adapter"]
+        )
+        tool_receipts_raw = read_regular(
+            paths["tool_receipts"], "neutral_fixture_tool_receipts"
+        )
+        tool_receipts = parse_json(tool_receipts_raw, "neutral_fixture_tool_receipts")
+        tool_receipts_root = validate_tool_receipts(
+            root, tool_receipts, event_summary, configuration["tool_boundary"]
+        )
+    else:
+        event_summary = validate_events(
+            events_raw, configuration["output_token_ceiling"]
+        )
+        raw_provider_events = None
+        raw_provider_events_root = None
+        tool_receipts_raw = None
+        tool_receipts_root = None
+    launch_fields = {
+        "schema",
+        "run_id",
+        "attempt",
+        "runner_version",
+        "permit_bytes",
+        "configuration_root",
+        "runtime_source_root",
+        "image_digest",
+        "started_at",
+    }
+    if tool_mode:
+        launch_fields |= {"tool_boundary_root", "provider_adapter"}
+    if version_two:
+        launch_fields |= {
+            "tool_policy_root",
+            "workspace_content_root",
+            "evidence_manifest_root",
+            "workspace_preflight_root",
+        }
     exact_keys(
         launch,
-        {
-            "schema",
-            "run_id",
-            "attempt",
-            "runner_version",
-            "permit_bytes",
-            "configuration_root",
-            "runtime_source_root",
-            "image_digest",
-            "started_at",
-        },
+        launch_fields,
         "neutral_fixture_launch",
     )
     permit_bytes = digest(
@@ -1444,6 +2532,27 @@ def _validate_capture_fixture(
         or launch["configuration_root"] != configuration["configuration_root"]
         or launch["runtime_source_root"] != runtime["runtime_source_root"]
         or launch["image_digest"] != runtime["image_digest"]
+        or (
+            tool_mode
+            and (
+                launch["tool_boundary_root"]
+                != configuration["tool_boundary"]["tool_boundary_root"]
+                or launch["provider_adapter"] != configuration["provider_adapter"]
+                or (
+                    version_two
+                    and (
+                        launch["tool_policy_root"]
+                        != configuration["tool_boundary"]["tool_policy_root"]
+                        or launch["workspace_content_root"]
+                        != configuration["tool_boundary"]["workspace_content_root"]
+                        or launch["evidence_manifest_root"]
+                        != identity["evidence_manifest_root"]
+                        or launch["workspace_preflight_root"]
+                        != identity["workspace_preflight_root"]
+                    )
+                )
+            )
+        )
     ):
         raise QualificationError("neutral_fixture_launch_binding_invalid")
     events = event_summary["events"]
@@ -1457,6 +2566,8 @@ def _validate_capture_fixture(
         schemas["provider"],
         schemas["deleted_pointers"],
         response,
+        schemas["provider_adapter"],
+        schemas["registered_bytes"],
     )
     normalized = normalize_closed_set(
         response,
@@ -1464,34 +2575,51 @@ def _validate_capture_fixture(
         schemas["closed_set_key"],
         schemas["closed_set_expected"],
     )
+    terminal_fields = {
+        "schema",
+        "status",
+        "permit_bytes",
+        "launch_bytes",
+        "provider_events_bytes",
+        "provider_stderr_bytes",
+        "raw_response_bytes",
+        "teardown_receipt_bytes",
+        "registered_schema_bytes",
+        "provider_schema_bytes",
+        "canonical_response_root",
+        "configuration_root",
+        "image_digest",
+        "trust_bundle_sha256",
+        "cumulative_provider_usage_is_telemetry_only",
+        "credential_retained",
+        "run_id",
+        "attempt",
+        "runner_version",
+        "runtime_source_root",
+        "started_at",
+        "completed_at",
+        "duration_seconds",
+        "exit_code",
+    }
+    if tool_mode:
+        terminal_fields |= {
+            "raw_provider_events_bytes",
+            "raw_provider_events_root",
+            "tool_receipts_bytes",
+            "tool_receipts_root",
+            "tool_boundary_root",
+            "provider_adapter",
+        }
+    if version_two:
+        terminal_fields |= {
+            "tool_policy_root",
+            "workspace_content_root",
+            "evidence_manifest_root",
+            "workspace_preflight_root",
+        }
     exact_keys(
         receipt,
-        {
-            "schema",
-            "status",
-            "permit_bytes",
-            "launch_bytes",
-            "provider_events_bytes",
-            "provider_stderr_bytes",
-            "raw_response_bytes",
-            "teardown_receipt_bytes",
-            "registered_schema_bytes",
-            "provider_schema_bytes",
-            "canonical_response_root",
-            "configuration_root",
-            "image_digest",
-            "trust_bundle_sha256",
-            "cumulative_provider_usage_is_telemetry_only",
-            "credential_retained",
-            "run_id",
-            "attempt",
-            "runner_version",
-            "runtime_source_root",
-            "started_at",
-            "completed_at",
-            "duration_seconds",
-            "exit_code",
-        },
+        terminal_fields,
         "neutral_fixture_terminal_receipt",
     )
     expected = {
@@ -1517,6 +2645,30 @@ def _validate_capture_fixture(
         "cumulative_provider_usage_is_telemetry_only": True,
         "credential_retained": False,
     }
+    if tool_mode:
+        expected.update(
+            {
+                "raw_provider_events_bytes": digest(raw_provider_events),
+                "raw_provider_events_root": raw_provider_events_root,
+                "tool_receipts_bytes": digest(tool_receipts_raw),
+                "tool_receipts_root": tool_receipts_root,
+                "tool_boundary_root": configuration["tool_boundary"][
+                    "tool_boundary_root"
+                ],
+                "provider_adapter": configuration["provider_adapter"],
+            }
+        )
+    if version_two:
+        expected.update(
+            {
+                "tool_policy_root": configuration["tool_boundary"]["tool_policy_root"],
+                "workspace_content_root": configuration["tool_boundary"][
+                    "workspace_content_root"
+                ],
+                "evidence_manifest_root": identity["evidence_manifest_root"],
+                "workspace_preflight_root": identity["workspace_preflight_root"],
+            }
+        )
     terminal_started = parse_timestamp(receipt["started_at"], "terminal_started")
     terminal_completed = parse_timestamp(receipt["completed_at"], "terminal_completed")
     duration = nonnegative_number(receipt["duration_seconds"], "terminal_duration")
@@ -1531,24 +2683,34 @@ def _validate_capture_fixture(
         != Decimal(str((terminal_completed - terminal_started).total_seconds()))
     ):
         raise QualificationError("neutral_fixture_terminal_receipt_drift")
+    teardown_fields = {
+        "schema",
+        "process_reaped",
+        "network_disabled",
+        "mounts_detached",
+        "completed_at",
+        "run_id",
+        "attempt",
+        "status",
+        "exit_code",
+        "started_at",
+        "duration_seconds",
+        "permit_bytes",
+        "launch_bytes",
+        "provider_stderr_bytes",
+    }
+    if tool_mode:
+        teardown_fields |= {"tool_boundary_root", "provider_adapter"}
+    if version_two:
+        teardown_fields |= {
+            "tool_policy_root",
+            "workspace_content_root",
+            "evidence_manifest_root",
+            "workspace_preflight_root",
+        }
     exact_keys(
         teardown,
-        {
-            "schema",
-            "process_reaped",
-            "network_disabled",
-            "mounts_detached",
-            "completed_at",
-            "run_id",
-            "attempt",
-            "status",
-            "exit_code",
-            "started_at",
-            "duration_seconds",
-            "permit_bytes",
-            "launch_bytes",
-            "provider_stderr_bytes",
-        },
+        teardown_fields,
         "neutral_fixture_teardown",
     )
     if (
@@ -1565,6 +2727,27 @@ def _validate_capture_fixture(
         or teardown["process_reaped"] is not True
         or teardown["network_disabled"] is not True
         or teardown["mounts_detached"] is not True
+        or (
+            tool_mode
+            and (
+                teardown["tool_boundary_root"]
+                != configuration["tool_boundary"]["tool_boundary_root"]
+                or teardown["provider_adapter"] != configuration["provider_adapter"]
+                or (
+                    version_two
+                    and (
+                        teardown["tool_policy_root"]
+                        != configuration["tool_boundary"]["tool_policy_root"]
+                        or teardown["workspace_content_root"]
+                        != configuration["tool_boundary"]["workspace_content_root"]
+                        or teardown["evidence_manifest_root"]
+                        != identity["evidence_manifest_root"]
+                        or teardown["workspace_preflight_root"]
+                        != identity["workspace_preflight_root"]
+                    )
+                )
+            )
+        )
     ):
         raise QualificationError("neutral_fixture_teardown_incomplete")
     teardown_started = parse_timestamp(teardown["started_at"], "teardown_started")
@@ -1595,6 +2778,7 @@ def _validate_capture_fixture(
         "raw_response",
         "terminal_receipt",
         "teardown_receipt",
+        *(("raw_provider_events", "tool_receipts") if tool_mode else ()),
     ):
         raw = read_regular(paths[key], f"neutral_fixture_{key}")
         expected_entries.append(
@@ -1604,6 +2788,24 @@ def _validate_capture_fixture(
                 "sha256": digest(raw),
             }
         )
+    if tool_mode:
+        for receipt_item in tool_receipts:
+            for key in ("stdout", "stderr"):
+                output_path = safe_relative(
+                    root, receipt_item[key], f"neutral_fixture_tool_{key}"
+                )
+                if fixture_dir not in output_path.parents:
+                    raise QualificationError(
+                        "neutral_fixture_tool_output_outside_directory"
+                    )
+                output_raw = read_regular(output_path, f"neutral_fixture_tool_{key}")
+                expected_entries.append(
+                    {
+                        "path": output_path.relative_to(fixture_dir).as_posix(),
+                        "bytes": len(output_raw),
+                        "sha256": digest(output_raw),
+                    }
+                )
     expected_entries.sort(key=lambda entry: entry["path"])
     expected_manifest = {
         "schema": "vela.tooling.neutral-capture-manifest.v1",
@@ -1612,12 +2814,26 @@ def _validate_capture_fixture(
     expected_manifest["capture_root"] = canonical_root(expected_manifest)
     if manifest != expected_manifest:
         raise QualificationError("neutral_fixture_capture_bridge_incomplete")
-    return {
+    result = {
         "neutral_capture_root": manifest["capture_root"],
         "raw_response_bytes": digest(response_raw),
         "canonical_response_root": canonical_root(normalized),
         "input_tokens_telemetry": event_summary["usage"]["input_tokens"],
     }
+    if tool_mode:
+        result.update(
+            {
+                "raw_provider_events_root": raw_provider_events_root,
+                "tool_receipts_root": tool_receipts_root,
+                "raw_provider_events_bytes": digest(raw_provider_events),
+                "normalized_events_bytes": digest(events_raw),
+                "normalized_tool_semantics_root": event_summary[
+                    "normalized_tool_semantics_root"
+                ],
+                "participant_visible_atoms_root": identity["packet_root"],
+            }
+        )
+    return result
 
 
 @dataclass(frozen=True)
@@ -1706,27 +2922,41 @@ def qualify_bundle(bundle: Path) -> dict[str, Any]:
 def _qualify_root(root: Path) -> dict[str, Any]:
     config_path = safe_relative(root, "qualification.json", "qualification")
     config = load_json(config_path, "qualification")
+    qualification_fields = {
+        "schema",
+        "status",
+        "configuration",
+        "schemas",
+        "runtime",
+        "participant_permit",
+        "neutral_fixture",
+        "scoring_snapshot",
+        "self_verification",
+    }
+    if isinstance(config, dict) and "provider_equivalence" in config:
+        qualification_fields.add("provider_equivalence")
     exact_keys(
         config,
-        {
-            "schema",
-            "status",
-            "configuration",
-            "schemas",
-            "runtime",
-            "participant_permit",
-            "neutral_fixture",
-            "scoring_snapshot",
-            "self_verification",
-        },
+        qualification_fields,
         "qualification",
     )
     if config["schema"] != SCHEMA or config["status"] != "hold":
         raise QualificationError("qualification_not_held")
     schema_config = config["schemas"]
+    modern_schema = isinstance(schema_config, dict) and "deletions" in schema_config
     exact_keys(
         schema_config,
-        {"registered", "provider", "deleted_pointers", "valid_response", "closed_set"},
+        {
+            "registered",
+            "provider",
+            "valid_response",
+            "closed_set",
+            *(
+                {"deletions", "provider_adapter"}
+                if modern_schema
+                else {"deleted_pointers"}
+            ),
+        },
         "schemas",
     )
     registered_path = safe_relative(
@@ -1744,8 +2974,35 @@ def _qualify_root(root: Path) -> dict[str, Any]:
     valid_response = parse_json(valid_raw, "valid_response")
     closed = schema_config["closed_set"]
     exact_keys(closed, {"field", "key", "expected"}, "closed_set")
+    registered_schema_sha256 = digest(registered_raw)
+    declared_tools = (
+        config["configuration"].get("tools")
+        if isinstance(config["configuration"], dict)
+        else None
+    )
+    declared_tool_mode = (
+        "no_tools" if declared_tools in {"none", "no_tools"} else declared_tools
+    )
+    if not modern_schema and (
+        declared_tool_mode != "no_tools"
+        or registered_schema_sha256 != NEUTRAL_REGISTERED_SCHEMA_SHA256
+    ):
+        raise QualificationError("provider_legacy_schema_binding_invalid")
+    if declared_tool_mode in {
+        "read_only_offline_shell_files",
+        "read_only_offline_files",
+    } and (
+        not modern_schema
+        or registered_schema_sha256 != STAGE_A_REGISTERED_SCHEMA_SHA256
+    ):
+        raise QualificationError("provider_tool_schema_binding_invalid")
     validate_schema_boundary(
-        registered, provider, schema_config["deleted_pointers"], valid_response
+        registered,
+        provider,
+        schema_config["deletions" if modern_schema else "deleted_pointers"],
+        valid_response,
+        schema_config["provider_adapter"] if modern_schema else None,
+        registered_schema_sha256 if modern_schema else None,
     )
     canonical_valid = normalize_closed_set(
         valid_response, closed["field"], closed["key"], closed["expected"]
@@ -1753,8 +3010,13 @@ def _qualify_root(root: Path) -> dict[str, Any]:
     schemas = {
         "registered": registered,
         "provider": provider,
-        "deleted_pointers": schema_config["deleted_pointers"],
-        "registered_bytes": digest(registered_raw),
+        "deleted_pointers": schema_config[
+            "deletions" if modern_schema else "deleted_pointers"
+        ],
+        "provider_adapter": schema_config["provider_adapter"]
+        if modern_schema
+        else None,
+        "registered_bytes": registered_schema_sha256,
         "provider_bytes": digest(provider_raw),
         "closed_set_field": closed["field"],
         "closed_set_key": closed["key"],
@@ -1765,6 +3027,11 @@ def _qualify_root(root: Path) -> dict[str, Any]:
     configuration = _validate_configuration(root, config["configuration"], runtime)
     if configuration["image_digest"] != runtime["image_digest"]:
         raise QualificationError("configuration_compatibility_image_drift")
+    if (
+        modern_schema
+        and schemas["provider_adapter"] != configuration["provider_adapter"]
+    ):
+        raise QualificationError("provider_schema_adapter_drift")
     hold = _validate_participant_hold(
         root, config["participant_permit"], runtime, configuration, schemas
     )
@@ -1777,6 +3044,48 @@ def _qualify_root(root: Path) -> dict[str, Any]:
     )
     snapshot = pre_key_snapshot(root, snapshot_manifest)
     self_root = _validate_self_verification(root, config["self_verification"])
+    provider_equivalence_root = None
+    provider_equivalence = None
+    if "provider_equivalence" in config:
+        provider_equivalence = load_json(
+            safe_relative(root, config["provider_equivalence"], "provider_equivalence"),
+            "provider_equivalence",
+        )
+        provider_equivalence_root = validate_provider_equivalence(provider_equivalence)
+    if (
+        configuration["tool_mode"]
+        in {"read_only_offline_shell_files", "read_only_offline_files"}
+        and provider_equivalence_root is None
+    ) or (
+        configuration["tool_mode"] == "no_tools"
+        and provider_equivalence_root is not None
+    ):
+        raise QualificationError("provider_equivalence_mode_invalid")
+    if provider_equivalence is not None:
+        current = [
+            item
+            for item in provider_equivalence["providers"]
+            if item["provider_adapter"] == configuration["provider_adapter"]
+        ]
+        expected_current = {
+            "provider_adapter": configuration["provider_adapter"],
+            "provider_organization": configuration["tool_boundary"][
+                "provider_organization"
+            ],
+            "tool_boundary_root": configuration["tool_boundary"]["tool_boundary_root"],
+            "tool_semantics_root": configuration["tool_boundary"][
+                "tool_semantics_root"
+            ],
+            "participant_visible_atoms_root": fixture["participant_visible_atoms_root"],
+            "registered_schema_bytes": schemas["registered_bytes"],
+            "provider_schema_bytes": schemas["provider_bytes"],
+            "raw_provider_events_bytes": fixture["raw_provider_events_bytes"],
+            "normalized_events_bytes": fixture["normalized_events_bytes"],
+            "normalized_tool_semantics_root": fixture["normalized_tool_semantics_root"],
+            "tool_receipts_root": fixture["tool_receipts_root"],
+        }
+        if current != [expected_current]:
+            raise QualificationError("provider_equivalence_capture_binding_invalid")
     gates = {
         "configuration": True,
         "provider_schema_derivative": True,
@@ -1790,6 +3099,17 @@ def _qualify_root(root: Path) -> dict[str, Any]:
         "canonical_decimal_serialization": True,
         "self_verification_target": True,
     }
+    if configuration["tool_mode"] in {
+        "read_only_offline_shell_files",
+        "read_only_offline_files",
+    }:
+        gates.update(
+            {
+                "read_only_offline_tool_boundary": True,
+                "raw_provider_event_normalization": True,
+                "provider_equivalence": provider_equivalence_root is not None,
+            }
+        )
     receipt = {
         "schema": RECEIPT_SCHEMA,
         "status": "qualified_hold",
@@ -1808,6 +3128,26 @@ def _qualify_root(root: Path) -> dict[str, Any]:
         "self_verification_root": self_root,
         "gates": gates,
     }
+    if configuration["tool_mode"] in {
+        "read_only_offline_shell_files",
+        "read_only_offline_files",
+    }:
+        receipt.update(
+            {
+                "tool_boundary_root": configuration["tool_boundary"][
+                    "tool_boundary_root"
+                ],
+                "tool_semantics_root": configuration["tool_boundary"][
+                    "tool_semantics_root"
+                ],
+                "tool_policy_root": configuration["tool_boundary"]["tool_policy_root"],
+                "workspace_content_root": configuration["tool_boundary"][
+                    "workspace_content_root"
+                ],
+                "provider_adapter": configuration["provider_adapter"],
+                "provider_equivalence_root": provider_equivalence_root,
+            }
+        )
     receipt["qualification_root"] = canonical_root(receipt)
     return receipt
 

@@ -1,0 +1,5 @@
+name = "stage_a_invalid_source"
+version = "0.1.0"
+
+[[lean_lib]]
+name = "Basic"

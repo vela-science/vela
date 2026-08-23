@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"syscall"
 	"testing"
 )
 
@@ -96,13 +99,55 @@ func TestToolBoundaryAdversaries(t *testing.T) {
 		args string
 	}{
 		{"shell", `{}`},
-		{"read_file", `{"operation":"read","path":"/workspace/../etc/passwd"}`},
-		{"read_file", `{"operation":"read","path":"/etc/passwd"}`},
+		{"read_file", `{"operation":"read","path":"/workspace/../etc/passwd","query":""}`},
+		{"read_file", `{"operation":"read","path":"/etc/passwd","query":""}`},
 		{"shell", `{"argv":["git","status"],"cwd":"/workspace"}`},
 	} {
 		if _, err := executeTool("/", item.name, json.RawMessage(item.args)); err == nil {
 			t.Fatalf("accepted tool adversary: %s %s", item.name, item.args)
 		}
+	}
+}
+
+func TestDescriptorToolRejectsSymlinkHardlinkAndOpenInterposition(t *testing.T) {
+	workspace := t.TempDir()
+	target := filepath.Join(workspace, "evidence.txt")
+	if err := os.WriteFile(target, []byte("exact evidence\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	valid := json.RawMessage(`{"operation":"read","path":"/workspace/evidence.txt","query":""}`)
+	if _, err := executeTool(workspace, "read_file", valid); err != nil {
+		t.Fatalf("valid descriptor read failed: %v", err)
+	}
+	hardlink := filepath.Join(t.TempDir(), "alias.txt")
+	if err := os.Link(target, hardlink); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := executeTool(workspace, "read_file", valid); err == nil {
+		t.Fatal("accepted externally hardlinked evidence")
+	}
+	if err := os.Remove(hardlink); err != nil {
+		t.Fatal(err)
+	}
+	symlink := filepath.Join(workspace, "symbolic.txt")
+	if err := os.Symlink("evidence.txt", symlink); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := executeTool(workspace, "read_file", json.RawMessage(`{"operation":"read","path":"/workspace/symbolic.txt","query":""}`)); err == nil {
+		t.Fatal("accepted symbolic evidence")
+	}
+	_, _, _, _, err := openBoundWithOpener(workspace, "/workspace/evidence.txt", func(root *os.Root, relative string) (*os.File, error) {
+		moved := filepath.Join(workspace, "original.txt")
+		if err := os.Rename(target, moved); err != nil {
+			return nil, err
+		}
+		if err := os.WriteFile(target, []byte("substituted\n"), 0o600); err != nil {
+			return nil, err
+		}
+		return root.OpenFile(relative, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	})
+	if err == nil {
+		t.Fatal("accepted deterministic path replacement between validation and open")
 	}
 }
 
@@ -113,10 +158,10 @@ func TestProviderToolFramesAndContinuations(t *testing.T) {
 		tool      string
 		arguments string
 	}{
-		{"shell", "shell", `{"argv":["git","--no-optional-locks","status","--short"],"cwd":"/workspace"}`},
-		{"read", "read_file", `{"operation":"read","path":"/workspace/packet.json"}`},
-		{"list", "read_file", `{"operation":"list","path":"/workspace"}`},
-		{"stat", "read_file", `{"operation":"stat","path":"/workspace/packet.json"}`},
+		{"read", "read_file", `{"operation":"read","path":"/workspace/packet.json","query":""}`},
+		{"list", "read_file", `{"operation":"list","path":"/workspace","query":""}`},
+		{"stat", "read_file", `{"operation":"stat","path":"/workspace/packet.json","query":""}`},
+		{"search", "read_file", `{"operation":"search","path":"/workspace/packet.json","query":"assignment"}`},
 	}
 	for _, item := range openAICases {
 		t.Run("openai_"+item.name, func(t *testing.T) {
@@ -136,7 +181,7 @@ func TestProviderToolFramesAndContinuations(t *testing.T) {
 	}
 
 	useAdapter(t, "anthropic-messages-v1")
-	anthropic := json.RawMessage(`{"content":[{"type":"tool_use","id":"tool-1","name":"read_file","input":{"operation":"read","path":"/workspace/packet.json"}}]}`)
+	anthropic := json.RawMessage(`{"content":[{"type":"tool_use","id":"tool-1","name":"read_file","input":{"operation":"read","path":"/workspace/packet.json","query":""}}],"stop_reason":"tool_use"}`)
 	_, tools, err := parseResponse(anthropic)
 	if err != nil || len(tools) != 1 || tools[0].CallID != "tool-1" {
 		t.Fatalf("Anthropic tool parse failed: %#v %v", tools, err)
@@ -144,6 +189,25 @@ func TestProviderToolFramesAndContinuations(t *testing.T) {
 	next, err := continuation(json.RawMessage(`{"model":"held","messages":[]}`), anthropic, json.RawMessage(`{"content":"x"}`), tools[0])
 	if err != nil || !json.Valid(next) {
 		t.Fatalf("Anthropic continuation failed: %s %v", next, err)
+	}
+}
+
+func TestAnthropicLifecycleRejectsWrongStopMixedAndParallelBlocks(t *testing.T) {
+	useAdapter(t, "anthropic-messages-v1")
+	for name, raw := range map[string]string{
+		"wrong_tool_stop":  `{"content":[{"type":"tool_use","id":"tool-1","name":"read_file","input":{"operation":"read","path":"/workspace/a","query":""}}],"stop_reason":"end_turn"}`,
+		"mixed_tool_text":  `{"content":[{"type":"tool_use","id":"tool-1","name":"read_file","input":{"operation":"read","path":"/workspace/a","query":""}},{"type":"text","text":"answer"}],"stop_reason":"tool_use"}`,
+		"wrong_final_stop": `{"content":[{"type":"text","text":"answer"}],"stop_reason":"tool_use"}`,
+		"parallel_tools":   `{"content":[{"type":"tool_use","id":"tool-1","name":"read_file","input":{"operation":"read","path":"/workspace/a","query":""}},{"type":"tool_use","id":"tool-2","name":"read_file","input":{"operation":"read","path":"/workspace/b","query":""}}],"stop_reason":"tool_use"}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, _, err := parseResponse([]byte(raw)); err == nil {
+				t.Fatal("accepted invalid Anthropic lifecycle")
+			}
+		})
+	}
+	if terminal, tools, err := parseResponse([]byte(`{"content":[{"type":"text","text":"answer"}],"stop_reason":"end_turn"}`)); err != nil || len(tools) != 0 || string(terminal) != "answer" {
+		t.Fatalf("valid Anthropic terminal failed: %s %#v %v", terminal, tools, err)
 	}
 }
 
@@ -164,20 +228,20 @@ func openAIResponse(t *testing.T, name string, arguments any) json.RawMessage {
 
 func TestOpenAIArgumentsRejectMalformedNonObjectDoubleEncodedAndUnknown(t *testing.T) {
 	useAdapter(t, "openai-responses-v1")
-	valid := `{"operation":"read","path":"/workspace/packet.json"}`
+	valid := `{"operation":"read","path":"/workspace/packet.json","query":""}`
 	doubleEncoded, err := json.Marshal(valid)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for name, arguments := range map[string]any{
-		"object_wire_value": map[string]any{"operation": "read", "path": "/workspace/packet.json"},
+		"object_wire_value": map[string]any{"operation": "read", "path": "/workspace/packet.json", "query": ""},
 		"malformed":         `{`,
 		"array":             `[]`,
 		"null":              `null`,
 		"scalar":            `1`,
 		"double_encoded":    string(doubleEncoded),
-		"unknown_field":     `{"operation":"read","path":"/workspace/packet.json","write":false}`,
-		"duplicate_field":   `{"operation":"read","operation":"stat","path":"/workspace/packet.json"}`,
+		"unknown_field":     `{"operation":"read","path":"/workspace/packet.json","query":"","write":false}`,
+		"duplicate_field":   `{"operation":"read","operation":"stat","path":"/workspace/packet.json","query":""}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, _, err := parseResponse(openAIResponse(t, "read_file", arguments)); err == nil {
@@ -188,7 +252,7 @@ func TestOpenAIArgumentsRejectMalformedNonObjectDoubleEncodedAndUnknown(t *testi
 }
 
 func TestOpenAIRawDecodedCustodyDriftFails(t *testing.T) {
-	decoded := json.RawMessage(`{"operation":"read","path":"/workspace/packet.json"}`)
+	decoded := json.RawMessage(`{"operation":"read","path":"/workspace/packet.json","query":""}`)
 	rawField, err := json.Marshal(string(decoded))
 	if err != nil {
 		t.Fatal(err)
@@ -202,13 +266,13 @@ func TestOpenAIRawDecodedCustodyDriftFails(t *testing.T) {
 		arguments json.RawMessage
 		custody   argumentCustody
 	}{
-		{"decoded", json.RawMessage(`{"operation":"stat","path":"/workspace/packet.json"}`), *original},
+		{"decoded", json.RawMessage(`{"operation":"stat","path":"/workspace/packet.json","query":""}`), *original},
 		{"raw", decoded, *original},
 		{"raw_digest", decoded, *original},
 		{"decoded_digest", decoded, *original},
 		{"decode_count", decoded, *original},
 	}
-	mutations[1].custody.RawField = json.RawMessage(`"{\"operation\":\"stat\",\"path\":\"/workspace/packet.json\"}"`)
+	mutations[1].custody.RawField = json.RawMessage(`"{\"operation\":\"stat\",\"path\":\"/workspace/packet.json\",\"query\":\"\"}"`)
 	mutations[2].custody.RawFieldSHA256 = "sha256:" + string(bytes.Repeat([]byte{'0'}, 64))
 	mutations[3].custody.DecodedBytesSHA256 = "sha256:" + string(bytes.Repeat([]byte{'1'}, 64))
 	mutations[4].custody.DecodeCount = 2

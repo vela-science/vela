@@ -1,0 +1,452 @@
+{
+  "assignment_cases": {
+    "lc-a-02-9a7f3df519ce": "erdos-730-affirmative-rhs",
+    "lc-a-04-c5b30fe7508a": "erdos-730-affirmative-rhs",
+    "lc-a-06-08d458a94d1f": "fc-leaneval-oeis-303656",
+    "lc-a-08-f948f6ada044": "fc-leaneval-oeis-303656",
+    "lc-a-10-3abef0f4c151": "deliberately-invalid-byte-identity",
+    "lc-a-12-5860f79941fb": "deliberately-invalid-byte-identity"
+  },
+  "cases": {
+    "deliberately-invalid-byte-identity": {
+      "participant_visible_case_id": "open-calibration-03",
+      "supplemental_entries": [
+        {
+          "bytes": 2883,
+          "kind": "fixture_lineage",
+          "logical_path": "invalid-fixture/fixture.json",
+          "sha256": "sha256:9bc39cea4fcd4e1b552aeabfc5c9a427d6a8ba97e85292f56987acd917d4afab",
+          "source": {
+            "path": "paper/artifacts/lean-correspondence-stage-a-open-pilot/invalid-fixture/fixture.json",
+            "producer_parent": "2d3b53575bd9465a0331b0e9fbf99510b05001f9"
+          }
+        }
+      ]
+    },
+    "erdos-730-affirmative-rhs": {
+      "participant_visible_case_id": "open-calibration-01",
+      "supplemental_entries": [
+        {
+          "bytes": 240,
+          "kind": "bounded_git_history",
+          "logical_path": "histories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0.json",
+          "sha256": "sha256:bf91d981b78760af99224e4b32fba0524bad18c58344d9b08994939072c5350f",
+          "source": {
+            "commit": "9f5ee773841921f460b4a26a3552f5eca4accaa0",
+            "repository": "formal-conjectures"
+          }
+        },
+        {
+          "bytes": 1967,
+          "kind": "git_blob",
+          "logical_path": "repositories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0/FormalConjectures/ErdosProblems/730.lean",
+          "sha256": "sha256:c8e532aa2916312501375df4e30ca4770fdeb3968d39622dda5cdfc5f9fa26e7",
+          "source": {
+            "commit": "9f5ee773841921f460b4a26a3552f5eca4accaa0",
+            "path": "FormalConjectures/ErdosProblems/730.lean",
+            "repository": "formal-conjectures"
+          }
+        },
+        {
+          "bytes": 24,
+          "kind": "git_blob",
+          "logical_path": "repositories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0/lean-toolchain",
+          "sha256": "sha256:e695e6e5d8e7a8be4d6cf159dfb995847993d26c6cc450353a86f387279025b9",
+          "source": {
+            "commit": "9f5ee773841921f460b4a26a3552f5eca4accaa0",
+            "path": "lean-toolchain",
+            "repository": "formal-conjectures"
+          }
+        },
+        {
+          "bytes": 3129,
+          "kind": "git_blob",
+          "logical_path": "repositories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0/lake-manifest.json",
+          "sha256": "sha256:5b99b5f4f807cbba67bbcd22e5e486c17d6a8d970ea218de08d05830ab350c26",
+          "source": {
+            "commit": "9f5ee773841921f460b4a26a3552f5eca4accaa0",
+            "path": "lake-manifest.json",
+            "repository": "formal-conjectures"
+          }
+        },
+        {
+          "bytes": 276,
+          "kind": "bounded_git_history",
+          "logical_path": "histories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460.json",
+          "sha256": "sha256:464a52ea97c03bfcaa65714796aab92be41ceb1c9555a89db85aac71b31fae32",
+          "source": {
+            "commit": "03729c9cbb0b602f5a828bb850c85e84c5a6d460",
+            "repository": "lean-proofs"
+          }
+        },
+        {
+          "bytes": 1979,
+          "kind": "git_blob",
+          "logical_path": "repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/Palomar/Erdos730/Challenge.lean",
+          "sha256": "sha256:589175e4b54f9438a3f67f58f6c319c71f106083ca3a2295da7c60e6bee470c4",
+          "source": {
+            "commit": "03729c9cbb0b602f5a828bb850c85e84c5a6d460",
+            "path": "Palomar/Erdos730/Challenge.lean",
+            "repository": "lean-proofs"
+          }
+        },
+        {
+          "bytes": 260,
+          "kind": "git_blob",
+          "logical_path": "repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/Palomar/Erdos730/comparator.json",
+          "sha256": "sha256:a3de92effd6e1140648bd738d1cc207de6be54b31e519e91b6f384c5f98c539e",
+          "source": {
+            "commit": "03729c9cbb0b602f5a828bb850c85e84c5a6d460",
+            "path": "Palomar/Erdos730/comparator.json",
+            "repository": "lean-proofs"
+          }
+        },
+        {
+          "bytes": 291,
+          "kind": "git_blob",
+          "logical_path": "repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/PalomarSolutions/Erdos730.lean",
+          "sha256": "sha256:8f1103c1db48e9c8776ed4fe2416f67447e0e3426b6203d4690ddf1a95cf1294",
+          "source": {
+            "commit": "03729c9cbb0b602f5a828bb850c85e84c5a6d460",
+            "path": "PalomarSolutions/Erdos730.lean",
+            "repository": "lean-proofs"
+          }
+        },
+        {
+          "bytes": 17116,
+          "kind": "git_blob",
+          "logical_path": "repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/ErdosProblems/Erdos730/FullDensityCore.lean",
+          "sha256": "sha256:0efbd59fc28ee6263e9be959643986a5ed0b40eb2920216676f26e302d6a61fa",
+          "source": {
+            "commit": "03729c9cbb0b602f5a828bb850c85e84c5a6d460",
+            "path": "ErdosProblems/Erdos730/FullDensityCore.lean",
+            "repository": "lean-proofs"
+          }
+        },
+        {
+          "bytes": 1969,
+          "kind": "git_blob",
+          "logical_path": "repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/ErdosProblems/Erdos730/FullDensityTheorem.lean",
+          "sha256": "sha256:4ab6fb660d93fa1da1f9fbfc89c018a3152845f9ba167c3486c73ac13eaa9e38",
+          "source": {
+            "commit": "03729c9cbb0b602f5a828bb850c85e84c5a6d460",
+            "path": "ErdosProblems/Erdos730/FullDensityTheorem.lean",
+            "repository": "lean-proofs"
+          }
+        },
+        {
+          "bytes": 4628,
+          "kind": "git_blob",
+          "logical_path": "repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/Audit.lean",
+          "sha256": "sha256:9fcc8078dbdefdac2acceccf24d832b22f7038a6c303f4b67721d45b2a5a87aa",
+          "source": {
+            "commit": "03729c9cbb0b602f5a828bb850c85e84c5a6d460",
+            "path": "Audit.lean",
+            "repository": "lean-proofs"
+          }
+        },
+        {
+          "bytes": 2266,
+          "kind": "git_blob",
+          "logical_path": "repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/scripts/check_axioms.sh",
+          "sha256": "sha256:01abf748a6edd4e6e2b27213b8ab5be21cea2fadd0d76af6c152d1c8d9084fda",
+          "source": {
+            "commit": "03729c9cbb0b602f5a828bb850c85e84c5a6d460",
+            "path": "scripts/check_axioms.sh",
+            "repository": "lean-proofs"
+          }
+        },
+        {
+          "bytes": 25,
+          "kind": "git_blob",
+          "logical_path": "repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/lean-toolchain",
+          "sha256": "sha256:302cd63c54178885b89e669f33b38f12f4dd7ae7e5cac537b3203e3768d8fb2b",
+          "source": {
+            "commit": "03729c9cbb0b602f5a828bb850c85e84c5a6d460",
+            "path": "lean-toolchain",
+            "repository": "lean-proofs"
+          }
+        },
+        {
+          "bytes": 4722,
+          "kind": "git_blob",
+          "logical_path": "repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/lake-manifest.json",
+          "sha256": "sha256:a81ef40554be38a473d0339b81e220c9d013226aae49d29305417f2e091bf482",
+          "source": {
+            "commit": "03729c9cbb0b602f5a828bb850c85e84c5a6d460",
+            "path": "lake-manifest.json",
+            "repository": "lean-proofs"
+          }
+        },
+        {
+          "bytes": 250,
+          "kind": "bounded_git_history",
+          "logical_path": "histories/lean-proofs-candidate-packet@148e18cce542f397ccb60b21a896ba063f6d6cca.json",
+          "sha256": "sha256:bda699588ea5398992e387a30bac370ec8a327775722a3f52773e3057dde867b",
+          "source": {
+            "commit": "148e18cce542f397ccb60b21a896ba063f6d6cca",
+            "repository": "lean-proofs-candidate-packet"
+          }
+        }
+      ]
+    },
+    "fc-leaneval-oeis-303656": {
+      "participant_visible_case_id": "open-calibration-02",
+      "supplemental_entries": [
+        {
+          "bytes": 240,
+          "kind": "bounded_git_history",
+          "logical_path": "histories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0.json",
+          "sha256": "sha256:bf91d981b78760af99224e4b32fba0524bad18c58344d9b08994939072c5350f",
+          "source": {
+            "commit": "9f5ee773841921f460b4a26a3552f5eca4accaa0",
+            "repository": "formal-conjectures"
+          }
+        },
+        {
+          "bytes": 2304,
+          "kind": "git_blob",
+          "logical_path": "repositories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0/FormalConjectures/OEIS/303656.lean",
+          "sha256": "sha256:636de7115b068cf999ecca9c9df14046dc142e6744974b91d181074858ab8b19",
+          "source": {
+            "commit": "9f5ee773841921f460b4a26a3552f5eca4accaa0",
+            "path": "FormalConjectures/OEIS/303656.lean",
+            "repository": "formal-conjectures"
+          }
+        },
+        {
+          "bytes": 24,
+          "kind": "git_blob",
+          "logical_path": "repositories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0/lean-toolchain",
+          "sha256": "sha256:e695e6e5d8e7a8be4d6cf159dfb995847993d26c6cc450353a86f387279025b9",
+          "source": {
+            "commit": "9f5ee773841921f460b4a26a3552f5eca4accaa0",
+            "path": "lean-toolchain",
+            "repository": "formal-conjectures"
+          }
+        },
+        {
+          "bytes": 3129,
+          "kind": "git_blob",
+          "logical_path": "repositories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0/lake-manifest.json",
+          "sha256": "sha256:5b99b5f4f807cbba67bbcd22e5e486c17d6a8d970ea218de08d05830ab350c26",
+          "source": {
+            "commit": "9f5ee773841921f460b4a26a3552f5eca4accaa0",
+            "path": "lake-manifest.json",
+            "repository": "formal-conjectures"
+          }
+        },
+        {
+          "bytes": 248,
+          "kind": "bounded_git_history",
+          "logical_path": "histories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa.json",
+          "sha256": "sha256:75531bdb2d5983ee032344547bda9295c353044cc66ef54ace137adc0d51d694",
+          "source": {
+            "commit": "2654e42de2026de6cdb248ad5ed0f1c7d659c8fa",
+            "repository": "formal-conjectures-adapter"
+          }
+        },
+        {
+          "bytes": 1599,
+          "kind": "git_blob",
+          "logical_path": "repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/tools.toml",
+          "sha256": "sha256:4c0897857bdac53c4b4d6c66c81f07d92be3382c70a47d0f5c441e2558e72f25",
+          "source": {
+            "commit": "2654e42de2026de6cdb248ad5ed0f1c7d659c8fa",
+            "path": "comparator/tools.toml",
+            "repository": "formal-conjectures-adapter"
+          }
+        },
+        {
+          "bytes": 32580,
+          "kind": "git_blob",
+          "logical_path": "repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/fc_source.py",
+          "sha256": "sha256:748f9b69103a5c16615082c24ec812cfcb60e085a52a23e1e34cac905e3d6cdf",
+          "source": {
+            "commit": "2654e42de2026de6cdb248ad5ed0f1c7d659c8fa",
+            "path": "comparator/adapter/fc_source.py",
+            "repository": "formal-conjectures-adapter"
+          }
+        },
+        {
+          "bytes": 24919,
+          "kind": "git_blob",
+          "logical_path": "repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/fc_leaneval_importer.py",
+          "sha256": "sha256:ce78bcdf203809f0aa39eddd2763f930f53bc1b2384f8530e0db09f75f04e457",
+          "source": {
+            "commit": "2654e42de2026de6cdb248ad5ed0f1c7d659c8fa",
+            "path": "comparator/adapter/fc_leaneval_importer.py",
+            "repository": "formal-conjectures-adapter"
+          }
+        },
+        {
+          "bytes": 23772,
+          "kind": "git_blob",
+          "logical_path": "repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/leaneval_interface.py",
+          "sha256": "sha256:facc953157c111381658e78cf6bd29a7eedb99c0b7660f6250e25dd2eeb53b73",
+          "source": {
+            "commit": "2654e42de2026de6cdb248ad5ed0f1c7d659c8fa",
+            "path": "comparator/adapter/leaneval_interface.py",
+            "repository": "formal-conjectures-adapter"
+          }
+        },
+        {
+          "bytes": 3385,
+          "kind": "git_blob",
+          "logical_path": "repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/leaneval_generator_cli.py",
+          "sha256": "sha256:c97a2a5283c21ab5156c7d98abc3a0e7d0d0a042bf220bff6d783003b4701838",
+          "source": {
+            "commit": "2654e42de2026de6cdb248ad5ed0f1c7d659c8fa",
+            "path": "comparator/adapter/leaneval_generator_cli.py",
+            "repository": "formal-conjectures-adapter"
+          }
+        },
+        {
+          "bytes": 15407,
+          "kind": "git_blob",
+          "logical_path": "repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/make_comparator_workspace.py",
+          "sha256": "sha256:1ffd6c63d404d2df0d90abc6ddb3f378949607c780155936bc21d09b9be5dc25",
+          "source": {
+            "commit": "2654e42de2026de6cdb248ad5ed0f1c7d659c8fa",
+            "path": "comparator/adapter/make_comparator_workspace.py",
+            "repository": "formal-conjectures-adapter"
+          }
+        },
+        {
+          "bytes": 642,
+          "kind": "git_blob",
+          "logical_path": "repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/ComparatorFacts.lean",
+          "sha256": "sha256:774618274d5f0bac18261cf6e8901f40752b91fd9aea26e9a7a0f4193fe38cee",
+          "source": {
+            "commit": "2654e42de2026de6cdb248ad5ed0f1c7d659c8fa",
+            "path": "comparator/adapter/ComparatorFacts.lean",
+            "repository": "formal-conjectures-adapter"
+          }
+        },
+        {
+          "bytes": 22800,
+          "kind": "git_blob",
+          "logical_path": "repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/ComparatorFacts/Binders.lean",
+          "sha256": "sha256:2f08deafdc7794a81abd43cf000ac8bb47004b3260a12c7cb83b7a7cc6d6c7a9",
+          "source": {
+            "commit": "2654e42de2026de6cdb248ad5ed0f1c7d659c8fa",
+            "path": "comparator/adapter/ComparatorFacts/Binders.lean",
+            "repository": "formal-conjectures-adapter"
+          }
+        },
+        {
+          "bytes": 5026,
+          "kind": "git_blob",
+          "logical_path": "repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/ComparatorFacts/Extract.lean",
+          "sha256": "sha256:d6858aa010d5dacbf3bacea18bdbc0c3a1198c67eba408888ef3f6ec17736d02",
+          "source": {
+            "commit": "2654e42de2026de6cdb248ad5ed0f1c7d659c8fa",
+            "path": "comparator/adapter/ComparatorFacts/Extract.lean",
+            "repository": "formal-conjectures-adapter"
+          }
+        },
+        {
+          "bytes": 1337,
+          "kind": "git_blob",
+          "logical_path": "repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/templates/WorkspaceTest.lean",
+          "sha256": "sha256:ed5e47d43a6869f6213141c3d0214ab5741d9cbdac3d71b80289706fef635abd",
+          "source": {
+            "commit": "2654e42de2026de6cdb248ad5ed0f1c7d659c8fa",
+            "path": "comparator/templates/WorkspaceTest.lean",
+            "repository": "formal-conjectures-adapter"
+          }
+        },
+        {
+          "bytes": 2703,
+          "kind": "git_blob",
+          "logical_path": "repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/known_failures.toml",
+          "sha256": "sha256:87233c6c35739ff5b99d7f822012c887a1f3ad1fcaa047d1cf56a3725d92cc25",
+          "source": {
+            "commit": "2654e42de2026de6cdb248ad5ed0f1c7d659c8fa",
+            "path": "comparator/known_failures.toml",
+            "repository": "formal-conjectures-adapter"
+          }
+        },
+        {
+          "bytes": 231,
+          "kind": "bounded_git_history",
+          "logical_path": "histories/lean-eval@7699436464052268e6c04b41554bfbc2c6908ec5.json",
+          "sha256": "sha256:97ef4e34fb6e425ad0ccd22343ec703f37cb4e461f1425b2bae1f42a5c321357",
+          "source": {
+            "commit": "7699436464052268e6c04b41554bfbc2c6908ec5",
+            "repository": "lean-eval"
+          }
+        },
+        {
+          "bytes": 25,
+          "kind": "git_blob",
+          "logical_path": "repositories/lean-eval@7699436464052268e6c04b41554bfbc2c6908ec5/lean-toolchain",
+          "sha256": "sha256:302cd63c54178885b89e669f33b38f12f4dd7ae7e5cac537b3203e3768d8fb2b",
+          "source": {
+            "commit": "7699436464052268e6c04b41554bfbc2c6908ec5",
+            "path": "lean-toolchain",
+            "repository": "lean-eval"
+          }
+        },
+        {
+          "bytes": 3188,
+          "kind": "git_blob",
+          "logical_path": "repositories/lean-eval@7699436464052268e6c04b41554bfbc2c6908ec5/lake-manifest.json",
+          "sha256": "sha256:48a53853ec0b2af3aacebf0a8abc58411a4123e76b59fabeedf5f95aaaddbdb1",
+          "source": {
+            "commit": "7699436464052268e6c04b41554bfbc2c6908ec5",
+            "path": "lake-manifest.json",
+            "repository": "lean-eval"
+          }
+        },
+        {
+          "bytes": 241,
+          "kind": "bounded_git_history",
+          "logical_path": "histories/lean-eval-generator@a726789593eeac5c32ad82760061cd5bf6cae662.json",
+          "sha256": "sha256:3cc331019952035f8c3623e0511e9bfcf0d9ad108ce3c37242893585c33ef730",
+          "source": {
+            "commit": "a726789593eeac5c32ad82760061cd5bf6cae662",
+            "repository": "lean-eval-generator"
+          }
+        },
+        {
+          "bytes": 3808,
+          "kind": "git_blob",
+          "logical_path": "repositories/lean-eval-generator@a726789593eeac5c32ad82760061cd5bf6cae662/schemas/request-v1.schema.json",
+          "sha256": "sha256:1e91942530fcadc5cb0fbd04a982b6a09ad0427302f3175e0d042d304a93cbc6",
+          "source": {
+            "commit": "a726789593eeac5c32ad82760061cd5bf6cae662",
+            "path": "schemas/request-v1.schema.json",
+            "repository": "lean-eval-generator"
+          }
+        },
+        {
+          "bytes": 812,
+          "kind": "git_blob",
+          "logical_path": "repositories/lean-eval-generator@a726789593eeac5c32ad82760061cd5bf6cae662/schemas/response-v1.schema.json",
+          "sha256": "sha256:1819a8073d67f85d6420a4a2d287a75df30c41a5353ae0944990e57d59eefe01",
+          "source": {
+            "commit": "a726789593eeac5c32ad82760061cd5bf6cae662",
+            "path": "schemas/response-v1.schema.json",
+            "repository": "lean-eval-generator"
+          }
+        },
+        {
+          "bytes": 250,
+          "kind": "bounded_git_history",
+          "logical_path": "histories/lean-proofs-candidate-packet@148e18cce542f397ccb60b21a896ba063f6d6cca.json",
+          "sha256": "sha256:bda699588ea5398992e387a30bac370ec8a327775722a3f52773e3057dde867b",
+          "source": {
+            "commit": "148e18cce542f397ccb60b21a896ba063f6d6cca",
+            "repository": "lean-proofs-candidate-packet"
+          }
+        }
+      ]
+    }
+  },
+  "schema": "vela.lean-correspondence-evidence-source-catalog.v1",
+  "source_commits": {
+    "candidate_packet": "148e18cce542f397ccb60b21a896ba063f6d6cca",
+    "correspondence": "01d0b3253227bc41d2edc13e5cb318bdae53fc88"
+  }
+}

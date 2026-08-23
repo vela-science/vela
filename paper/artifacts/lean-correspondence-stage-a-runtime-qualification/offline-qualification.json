@@ -89,10 +89,10 @@
           "single_use_permit_hold": true,
           "trust_and_mounts": true
         },
-        "image_config_digest": "sha256:eee97c9b5998fffd15d5b4396dc37b281b4c2babdd6f50fea72bd829a9466813",
-        "image_digest": "sha256:50410f6185ec3c2777062597df16af38913ef35be374e685c772925fb950a31c",
+        "image_config_digest": "sha256:1b26748901587976615ad74f9cbf95e6e15b6052c07e7661a592ca0d0aed54f9",
+        "image_digest": "sha256:f0ce5175fe6f72bb44f355f7f443e814bec91efb75c28326b3d97fee54aef4fb",
         "input_tokens_telemetry": 100,
-        "neutral_capture_root": "sha256:b1e3a49b0115dfcc9cca5f01144984a8dcc27b690a8a7fa10ceb82f16c35e0b9",
+        "neutral_capture_root": "sha256:f215f87f8eefd0d49979bc6b92959642fd0d99dc14d60b01eb9dd399fcf3b7a0",
         "normalized_events_bytes": "sha256:9a885be7ca6a8b6ecbe0033a256709f353de7882a5c61b0f520bb4061d90e3a5",
         "normalized_tool_semantics_root": "sha256:6f858cdfb3c2ca19bdd00b89a1fe98e42615a5ef08d4f5f2dfea560be65c25c9",
         "participant_hold_root": "sha256:a88467323c3cfcc290eafa9f1285966db4c9c09bfe980434ffcf711bb03db412",
@@ -101,7 +101,7 @@
           "attempt": 1,
           "condition": "neutral-no-science-held",
           "configuration_root": "sha256:96555c45c33ed2a106cfb261025b752a4eeb1514aa180985ecd5ea0551a6616d",
-          "image_digest": "sha256:50410f6185ec3c2777062597df16af38913ef35be374e685c772925fb950a31c",
+          "image_digest": "sha256:f0ce5175fe6f72bb44f355f7f443e814bec91efb75c28326b3d97fee54aef4fb",
           "packet_root": "sha256:a38b18fb6284288f352e234aa32cffb79af880a03d8faf7c1e3492e6d8eba267",
           "participant_id": "neutral-calibration-openai",
           "prompt_root": "sha256:3443fa942b90f84718cc4e6918ebf6d121ebc40cf58f5b3c610f4e983c4d4ed9",
@@ -110,10 +110,10 @@
           "registration_id": "stage-a-runtime-registration",
           "run_id": "neutral-calibration-openai-json-v2",
           "runner_version": "neutral-runner/1",
-          "runtime_source_root": "sha256:f63196d42a85b839984c1abfd663b293f911fd0792c43cdf26e56ec9c7f4f4e8",
+          "runtime_source_root": "sha256:5ec5d345bd9ecc8828ffbf5aa7da60b10164d5ac1a821fd8e7bf37e63c7fd8b6",
           "timeout_seconds": 1200
         },
-        "participant_permit_root": "sha256:f51169112d3be0ec092abf833131b5cd24acdf5772cebb3ea6a7dc0211cf5eed",
+        "participant_permit_root": "sha256:b41826ce2a5897f854f4c9116fc40c5ef189e5f17bad1ea8979c90c946ad04ea",
         "participant_permits_consumed": 0,
         "participant_visible_atoms_root": "sha256:3814a08354123311f292c2673ec2e7c5cf0308762dd23ec6ef76398c7d3166df",
         "pre_key_snapshot_root": "sha256:469f4ebd7ae669239ee01d54f89f4d084ef8c633fde40e520ab526fc2192e641",
@@ -121,12 +121,12 @@
         "provider_calls": 0,
         "provider_equivalence_root": "sha256:bc40341349f6f771be5eef2481fcef3bf72d278b2df65d5df05d01e62e271720",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
-        "qualification_root": "sha256:e23aa963b3b0eb305e2ef3a0bcb773c666263b49ce58b8d92cf711f3a6193f69",
+        "qualification_root": "sha256:f5f4892ae2ddd6e871f8e3eeb8f8faeb34a7137fc6070df8b023815a6505e4f6",
         "raw_provider_events_bytes": "sha256:cc71fcd9c05055ca93b96a9bce2d193a2c4a639032205de89fa2e6cf946c3712",
         "raw_provider_events_root": "sha256:bd28099252d4509901e2337636254921d2a20de5482ba25b15be4f9af529d661",
         "raw_response_bytes": "sha256:6e87719bca647b009b3f9e49105478b9690a14d83a637d5bfbbc72ebc30f47a3",
         "registered_schema_bytes": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
-        "runtime_source_root": "sha256:f63196d42a85b839984c1abfd663b293f911fd0792c43cdf26e56ec9c7f4f4e8",
+        "runtime_source_root": "sha256:5ec5d345bd9ecc8828ffbf5aa7da60b10164d5ac1a821fd8e7bf37e63c7fd8b6",
         "schema": "vela.tooling.evidence-qualification-receipt.v1",
         "scientific_sessions": 0,
         "self_verification_root": "sha256:dd9830b8745a4ba6d98d4090eb889c56e8d769ebf4c2cffdbd53a5771c4c3103",
@@ -138,24 +138,24 @@
       },
       "retained": {
         "bridge": {
-          "bytes": 5832830,
+          "bytes": 5767294,
           "path": "offline-qualification-assets/openai-bridge.bin",
-          "sha256": "sha256:609fdb7fd64d372ee4ba03cc89e659bfaa8b05ed563d77f2217067bae778c44d"
+          "sha256": "sha256:fd855d4dedf5f9048f485ac4c1b3f061d88b2c99f8f9d0717fbd7bd1debb611c"
         },
         "build_a": {
           "bytes": 991,
           "path": "offline-qualification-assets/openai-build_a.json",
-          "sha256": "sha256:b4c7064039d535a842fa19ca78260b23e2d8c6f01add5ce24c66a72e113febf1"
+          "sha256": "sha256:8693dbe581c29606e9f8eacd1c3d54495d82673e3c9425575464e97003c5c7ab"
         },
         "build_b": {
           "bytes": 991,
           "path": "offline-qualification-assets/openai-build_b.json",
-          "sha256": "sha256:e6e937bd5e8343192cdac2fa9e9dac50f9950427601297e0467f03068de9c1c6"
+          "sha256": "sha256:304c16b884fde4ecb0fbfd1619c3684c03b802b5f3603514de0cf97005384763"
         },
         "held_permit": {
           "bytes": 1157,
           "path": "offline-qualification-assets/openai-held_permit.json",
-          "sha256": "sha256:7097d7f17d89a0dbdaccc85fd38c7b74d85f23a1a0cee1eef9e4bea580ba2780"
+          "sha256": "sha256:8a9d8acb35c657058366d0d2113be3841b57cb3633786702ab6a5120c9642fb0"
         },
         "hold_state": {
           "bytes": 224,
@@ -163,14 +163,14 @@
           "sha256": "sha256:0c576e3a9cffde14908279ec47d3f7e76b0af4de7396c49f7d5e010f595832b4"
         },
         "image": {
-          "bytes": 10383360,
+          "bytes": 10321920,
           "path": "offline-qualification-assets/openai-image.tar",
-          "sha256": "sha256:2bfeebd7666805153e74f1a7e8a01854db218e5b0e438b09ae6eb5514816eaf5"
+          "sha256": "sha256:300e321687eef6fbc76619bcd89154da532ee9a03f28502348582225631c4f17"
         },
         "launchability": {
           "bytes": 1246,
           "path": "offline-qualification-assets/openai-launchability.json",
-          "sha256": "sha256:b6b9c73de349565f2f8619ce6378bdf44d037ec4eccd67f4e356040c85ab2bdd"
+          "sha256": "sha256:790bbf9505e21503118bab52fcd132a4e365c2c571f244fcb1d450bd6145d231"
         },
         "materialization_receipt": {
           "bytes": 781,
@@ -190,7 +190,7 @@
         "offline_validation_receipt": {
           "bytes": 1172,
           "path": "offline-qualification-assets/openai-offline_validation_receipt.json",
-          "sha256": "sha256:8af6641c59d3968d312e17685d82a85b38328e4f093a72866bd67dd9bac03c47"
+          "sha256": "sha256:2140932c4436f7d88ead26c6bc939df03505fbd36433cff857e26b530eafa3ca"
         },
         "preflight": {
           "bytes": 1900670,
@@ -198,9 +198,9 @@
           "sha256": "sha256:27ccb0e45ae8927a574a05f561f634171921bff29b68e3c27e19dcfa3dfe091d"
         },
         "provider_contract": {
-          "bytes": 2587,
+          "bytes": 2687,
           "path": "offline-qualification-assets/openai-provider_contract.json",
-          "sha256": "sha256:5c25bbd901a3226b518234692b7bb9677fa96b997af81d901a50fe97fe870100"
+          "sha256": "sha256:2292998ad7076b49ffb26da9aa805369f8bd8ac4f5c9a799782bb03af297c971"
         },
         "provider_schema": {
           "bytes": 2384,
@@ -208,19 +208,19 @@
           "sha256": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7"
         },
         "request_bytes": {
-          "bytes": 4470,
+          "bytes": 4304,
           "path": "offline-qualification-assets/openai-request_bytes.json",
-          "sha256": "sha256:01a74199912f0fbb2ca605445da944ba252b1a922ed8d8bbda383713c736dbee"
+          "sha256": "sha256:1f05bde584f5a9fcfc11cb3642a5d4e7d0f9971239f518f5edacfa51c76a0a5e"
         },
         "request_transport_custody": {
           "bytes": 439,
           "path": "offline-qualification-assets/openai-request_transport_custody.json",
-          "sha256": "sha256:fdd3c9fc9c04e98e6082aac4e42da8b78b860bd72e520ee8af94e5924a686764"
+          "sha256": "sha256:93f52f15d2ca2d4ee1a73fbf500855e70fa2db50d91fced42a12d26288c4b430"
         },
         "retired_permit": {
           "bytes": 929,
           "path": "offline-qualification-assets/openai-retired_permit.json",
-          "sha256": "sha256:48e72f45ab0b8e9485ab99748d31def19903f210740ff76f063c0d11458ab73d"
+          "sha256": "sha256:279afbfcb47a8d2b4617d14e0ecb220fbd8b4102f4219bf305ee16cc49e23e54"
         },
         "run_input": {
           "bytes": 3218,
@@ -230,12 +230,12 @@
         "runner": {
           "bytes": 2293886,
           "path": "offline-qualification-assets/openai-runner.bin",
-          "sha256": "sha256:a64fd88772136e2a7cce5631733853e48420a020b3194aed3baa5c9999401363"
+          "sha256": "sha256:305e08ada79d07e74e52b528a814cebf3095a5a80577dc72115c8b75aa01f8e0"
         },
         "source_manifest": {
-          "bytes": 2051,
+          "bytes": 2052,
           "path": "offline-qualification-assets/openai-source_manifest.json",
-          "sha256": "sha256:b4ddf36e0f1d1a899de04579cad44a92ece7c3ae7c695d67cae0854fdf5b57fa"
+          "sha256": "sha256:0dbd1a8c5c5904f249310ea180cb2b69cc2a366e4b16b82138e2ebbed517e601"
         },
         "tool_boundary": {
           "bytes": 2483,
@@ -277,10 +277,10 @@
           "single_use_permit_hold": true,
           "trust_and_mounts": true
         },
-        "image_config_digest": "sha256:8a1d93b83daa75fdeca6efcc4380b4510c1232e086bb3f994ceda0ce593cad78",
-        "image_digest": "sha256:a95b75cfc449afc2ecb87a5808542339b1776ced9b15d91a27e795993acdbba0",
+        "image_config_digest": "sha256:01af93cac3a59af00245c7f34201b211b266d1209afe126f6e8543750b9eb412",
+        "image_digest": "sha256:315fd2ae42a140f3be8dd05d34031f83aca6fa29e421f86ca335a4dfafd6b2f6",
         "input_tokens_telemetry": 100,
-        "neutral_capture_root": "sha256:31ad7fd57d0d393b92a46b191ca17da909bc98f5c1d5d7d663c57f955f26de88",
+        "neutral_capture_root": "sha256:c56fb69cb33407b38a58337cb0d29c9570a435ca176a2f07feb1f71a8b10e642",
         "normalized_events_bytes": "sha256:9a885be7ca6a8b6ecbe0033a256709f353de7882a5c61b0f520bb4061d90e3a5",
         "normalized_tool_semantics_root": "sha256:6f858cdfb3c2ca19bdd00b89a1fe98e42615a5ef08d4f5f2dfea560be65c25c9",
         "participant_hold_root": "sha256:f2668374338222843f05958a04bfb73310f468111abca2e4234a1fa1ffa9565f",
@@ -289,7 +289,7 @@
           "attempt": 1,
           "condition": "neutral-no-science-held",
           "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
-          "image_digest": "sha256:a95b75cfc449afc2ecb87a5808542339b1776ced9b15d91a27e795993acdbba0",
+          "image_digest": "sha256:315fd2ae42a140f3be8dd05d34031f83aca6fa29e421f86ca335a4dfafd6b2f6",
           "packet_root": "sha256:a38b18fb6284288f352e234aa32cffb79af880a03d8faf7c1e3492e6d8eba267",
           "participant_id": "neutral-calibration-anthropic",
           "prompt_root": "sha256:3443fa942b90f84718cc4e6918ebf6d121ebc40cf58f5b3c610f4e983c4d4ed9",
@@ -298,10 +298,10 @@
           "registration_id": "stage-a-runtime-registration",
           "run_id": "neutral-calibration-anthropic-json-v4-lossless",
           "runner_version": "neutral-runner/1",
-          "runtime_source_root": "sha256:345b150207668e98a2a061c328e3552697b5370c50fb50dfbd96f598aaa65e30",
+          "runtime_source_root": "sha256:4a44868aaf4a5d00dd7c21aa9e95ced13c9674b659b3e24aca6bac90d15ad460",
           "timeout_seconds": 1200
         },
-        "participant_permit_root": "sha256:dfc9f20e029b7ea51eb28c6b3d81f70eace063c681d56d2c9ce7356b3dbe8b63",
+        "participant_permit_root": "sha256:1db30a246b6727cf1e01f923b80f4247defab2318e63483c5d6efd58689c1e36",
         "participant_permits_consumed": 0,
         "participant_visible_atoms_root": "sha256:3814a08354123311f292c2673ec2e7c5cf0308762dd23ec6ef76398c7d3166df",
         "pre_key_snapshot_root": "sha256:469f4ebd7ae669239ee01d54f89f4d084ef8c633fde40e520ab526fc2192e641",
@@ -309,12 +309,12 @@
         "provider_calls": 0,
         "provider_equivalence_root": "sha256:bc40341349f6f771be5eef2481fcef3bf72d278b2df65d5df05d01e62e271720",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
-        "qualification_root": "sha256:27fb9ab360e0e0f29b9c33e6e5efe364a107c4bf0d00d0206b2e12349ecef045",
+        "qualification_root": "sha256:74e07177b119edf0e9fcf18940cce9fa06757526092bc38f18595471debb623e",
         "raw_provider_events_bytes": "sha256:887b76771bbf16fde341c1f5963303255f910bc30e5129e5cd5ceea8249ec031",
         "raw_provider_events_root": "sha256:4106dc00b8120a9175441ef41e731f2858dcb99e7500232b8594103e35f9a953",
         "raw_response_bytes": "sha256:6e87719bca647b009b3f9e49105478b9690a14d83a637d5bfbbc72ebc30f47a3",
         "registered_schema_bytes": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
-        "runtime_source_root": "sha256:345b150207668e98a2a061c328e3552697b5370c50fb50dfbd96f598aaa65e30",
+        "runtime_source_root": "sha256:4a44868aaf4a5d00dd7c21aa9e95ced13c9674b659b3e24aca6bac90d15ad460",
         "schema": "vela.tooling.evidence-qualification-receipt.v1",
         "scientific_sessions": 0,
         "self_verification_root": "sha256:dd9830b8745a4ba6d98d4090eb889c56e8d769ebf4c2cffdbd53a5771c4c3103",
@@ -326,24 +326,24 @@
       },
       "retained": {
         "bridge": {
-          "bytes": 5832830,
+          "bytes": 5767294,
           "path": "offline-qualification-assets/anthropic-bridge.bin",
-          "sha256": "sha256:ecab9c565b399170f8f0f9990927cc689f7c669a37d42cd775bc31e25532b442"
+          "sha256": "sha256:f5d60e7eca4fbf2e511f101514febf457919dc521e75ef749bae985911475bdb"
         },
         "build_a": {
           "bytes": 991,
           "path": "offline-qualification-assets/anthropic-build_a.json",
-          "sha256": "sha256:9ca078e9ebb19982c7a72299a07d62762b8b68192b962f1d9aaf8120b33eda6b"
+          "sha256": "sha256:f85e2e45ac2df889064736f22fbc3f92dc4fcee094822e6b4aa488b3197595e3"
         },
         "build_b": {
           "bytes": 991,
           "path": "offline-qualification-assets/anthropic-build_b.json",
-          "sha256": "sha256:2fb0f8bdfa83fee902e2931ee488b30cf2442df344008aeb5f485eea579de60d"
+          "sha256": "sha256:cddf2b64d9b081216bbf3f29b0acfced9d9cd961fa4766a96d041ecc7eef0c11"
         },
         "held_permit": {
           "bytes": 1175,
           "path": "offline-qualification-assets/anthropic-held_permit.json",
-          "sha256": "sha256:d9c270cca0418a029a7514cb76c57a8e8751c9029ce35ab5275f92fa8d22ccd7"
+          "sha256": "sha256:be93b4d55fd5fd3e8e3df6753b19b46f2a9fae7cb2627660763aacc71e2aebd3"
         },
         "hold_state": {
           "bytes": 227,
@@ -351,14 +351,14 @@
           "sha256": "sha256:6b18dbe9374e2d14c1f729331a0eff952833366f85392b99bf865d63bf4fd10f"
         },
         "image": {
-          "bytes": 10383360,
+          "bytes": 10321920,
           "path": "offline-qualification-assets/anthropic-image.tar",
-          "sha256": "sha256:646128f39c03260bdc72c191d91d3f96cc403a5f63ef3b3399c7dc3a6089d279"
+          "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
         },
         "launchability": {
           "bytes": 1248,
           "path": "offline-qualification-assets/anthropic-launchability.json",
-          "sha256": "sha256:ec5c90a7b8e885d7a7e679ae2ea8c1989b772a218ce7074a7418acd8709cae3b"
+          "sha256": "sha256:a180d19a49287c6271fc7aea61da8f041aaf3c0e3db4a9e309559f84dc4c2ff8"
         },
         "materialization_receipt": {
           "bytes": 781,
@@ -378,7 +378,7 @@
         "offline_validation_receipt": {
           "bytes": 1186,
           "path": "offline-qualification-assets/anthropic-offline_validation_receipt.json",
-          "sha256": "sha256:1f857493dbecf40001dbc3a9e1b5be17ac46dd166096b48e7906a1da7451fddd"
+          "sha256": "sha256:f558beec700c9339c0fd7f1ffdc5a81ab1334d6eb15e4e99b56a20c1b26d79c9"
         },
         "preflight": {
           "bytes": 1900670,
@@ -386,9 +386,9 @@
           "sha256": "sha256:27ccb0e45ae8927a574a05f561f634171921bff29b68e3c27e19dcfa3dfe091d"
         },
         "provider_contract": {
-          "bytes": 2391,
+          "bytes": 2491,
           "path": "offline-qualification-assets/anthropic-provider_contract.json",
-          "sha256": "sha256:0c9bdde3bfba9b2964d8f81601ed59f956f3e5e49bda42bcb9a55606f0d91da4"
+          "sha256": "sha256:9629b9a7467eda0a3991a718f3b652c9b90dd8d0ea049da31f19510510a4857c"
         },
         "provider_schema": {
           "bytes": 2384,
@@ -396,19 +396,19 @@
           "sha256": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7"
         },
         "request_bytes": {
-          "bytes": 4278,
+          "bytes": 4142,
           "path": "offline-qualification-assets/anthropic-request_bytes.json",
-          "sha256": "sha256:cf67944d1872244c9d89ed3f7ad9cc27c3a37a4deba665f47a939985e2c62e8c"
+          "sha256": "sha256:2ed4af49e6876d6d5dd30da47f7bac6f7db0df083b6908b4c7b2d01bf3326783"
         },
         "request_transport_custody": {
           "bytes": 439,
           "path": "offline-qualification-assets/anthropic-request_transport_custody.json",
-          "sha256": "sha256:d1813ba1ad996442e38efe92ec8556210ddc11ffc8037a23ebb0c5b007157fb6"
+          "sha256": "sha256:fe9a30521be317f05404aef6e239605021aa8877f87b0bc1e40cb5062c396dcd"
         },
         "retired_permit": {
           "bytes": 934,
           "path": "offline-qualification-assets/anthropic-retired_permit.json",
-          "sha256": "sha256:32becd90f76ef14ac15e1fb5936d77fd0181d808e6fb507459acc5d2b550149e"
+          "sha256": "sha256:0da47bf64fc482bce4065c2281b7dcda4ab3add39d79fc75517b5b605fa09e18"
         },
         "run_input": {
           "bytes": 3232,
@@ -418,12 +418,12 @@
         "runner": {
           "bytes": 2293886,
           "path": "offline-qualification-assets/anthropic-runner.bin",
-          "sha256": "sha256:f28ab18c0669630e68f5195bc2f8f2fc0027f0e5d316c8b1abaa37bde9387e44"
+          "sha256": "sha256:b0163f2d02e1102013b2c6fb63d97b983f80ba9ce6c457e752e26fb8540da0fe"
         },
         "source_manifest": {
-          "bytes": 2051,
+          "bytes": 2052,
           "path": "offline-qualification-assets/anthropic-source_manifest.json",
-          "sha256": "sha256:775d51b5a2ab72da95c4c8f4a062074132de8584c8e5ebe2b2e012c2c4289ff9"
+          "sha256": "sha256:fb4a4b70407c6a3c856265a029b8ff0dee74cbb11c83213a65bb18e0d454291c"
         },
         "tool_boundary": {
           "bytes": 2487,
@@ -438,7 +438,7 @@
     "sha256": "sha256:61591eec3304e299a9344888bc2a6f08cd32785b647ef5b0107da490dbf18013",
     "tree": "341e0d22fa570b1b5e8dd9f70b219c11308ba45f"
   },
-  "record_root": "sha256:7a89479a46e004317cc69b78ffa1ea0c5fe7130a65c257de1dd43c9e31d6578e",
+  "record_root": "sha256:51df9fe89d649e5fbb6519d2f02eefaaf5dc672c350de1fcc58fab5047944e3f",
   "schema": "vela.lean-correspondence-stage-a-offline-runtime-qualification.v1",
   "status": "offline_qualified_hold",
   "trust_bundle_sha256": "sha256:9dae8d76e55cb08991f2b672d58999ea15560d910759c16b544f843bdffbb994"

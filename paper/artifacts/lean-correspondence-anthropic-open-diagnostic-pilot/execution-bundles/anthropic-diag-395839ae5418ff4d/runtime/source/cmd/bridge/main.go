@@ -14,10 +14,12 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
+	"syscall"
 	"time"
+	"unicode/utf8"
 )
 
 var providerAdapter = "unbound"
@@ -243,33 +245,131 @@ func endpoint() (string, error) {
 	}
 }
 
-func closedPath(workspace, logical string) (string, os.FileInfo, error) {
+const maxToolOutputBytes = 65536
+
+func workspaceRelative(logical string) (string, error) {
 	if (logical != "/workspace" && !strings.HasPrefix(logical, "/workspace/")) || strings.ContainsRune(logical, '\x00') {
-		return "", nil, errors.New("invalid read path")
+		return "", errors.New("invalid read path")
 	}
 	relative := strings.TrimPrefix(logical, "/workspace/")
 	if logical == "/workspace" {
-		relative = ""
+		relative = "."
 	}
-	if relative != "" && filepath.Clean(relative) != relative {
-		return "", nil, errors.New("read path escapes workspace")
+	if filepath.Clean(relative) != relative || filepath.IsAbs(relative) {
+		return "", errors.New("read path escapes workspace")
 	}
-	current := workspace
+	return relative, nil
+}
+
+func linkCount(info os.FileInfo) (uint64, bool) {
+	value, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return 0, false
+	}
+	return uint64(value.Nlink), true
+}
+
+func validateComponents(root *os.Root, relative string) (os.FileInfo, error) {
+	current := ""
+	var target os.FileInfo
 	for _, component := range strings.Split(relative, "/") {
-		if component == "" {
-			continue
+		if component == "." {
+			component = ""
 		}
-		current = filepath.Join(current, component)
-		info, err := os.Lstat(current)
+		if component != "" {
+			current = filepath.Join(current, component)
+		}
+		name := current
+		if name == "" {
+			name = "."
+		}
+		info, err := root.Lstat(name)
 		if err != nil || info.Mode()&os.ModeSymlink != 0 {
-			return "", nil, errors.New("read path contains missing or symbolic component")
+			return nil, errors.New("read path contains missing or symbolic component")
+		}
+		target = info
+	}
+	if target == nil {
+		return nil, errors.New("read path invalid")
+	}
+	return target, nil
+}
+
+type boundOpener func(*os.Root, string) (*os.File, error)
+
+func openBoundWithOpener(workspace, logical string, opener boundOpener) (*os.File, *os.Root, string, os.FileInfo, error) {
+	if !filepath.IsAbs(workspace) || filepath.Clean(workspace) != workspace {
+		return nil, nil, "", nil, errors.New("workspace path is not canonical absolute")
+	}
+	rootInfo, err := os.Lstat(workspace)
+	if err != nil || rootInfo.Mode()&os.ModeSymlink != 0 || !rootInfo.IsDir() {
+		return nil, nil, "", nil, errors.New("workspace root is unsafe")
+	}
+	root, err := os.OpenRoot(workspace)
+	if err != nil {
+		return nil, nil, "", nil, errors.New("workspace descriptor unavailable")
+	}
+	relative, err := workspaceRelative(logical)
+	if err != nil {
+		root.Close()
+		return nil, nil, "", nil, err
+	}
+	pre, err := validateComponents(root, relative)
+	if err != nil {
+		root.Close()
+		return nil, nil, "", nil, err
+	}
+	file, err := opener(root, relative)
+	if err != nil {
+		root.Close()
+		return nil, nil, "", nil, errors.New("descriptor-relative no-follow open failed")
+	}
+	opened, err := file.Stat()
+	if err != nil || !os.SameFile(pre, opened) || opened.Mode()&os.ModeSymlink != 0 {
+		file.Close()
+		root.Close()
+		return nil, nil, "", nil, errors.New("read path changed before descriptor open")
+	}
+	if opened.Mode().IsRegular() {
+		if count, ok := linkCount(opened); !ok || count != 1 {
+			file.Close()
+			root.Close()
+			return nil, nil, "", nil, errors.New("read target hardlink forbidden")
 		}
 	}
-	info, err := os.Lstat(current)
-	if err != nil || info.Mode()&os.ModeSymlink != 0 {
-		return "", nil, errors.New("read path invalid")
+	return file, root, relative, opened, nil
+}
+
+func openBound(workspace, logical string) (*os.File, *os.Root, string, os.FileInfo, error) {
+	return openBoundWithOpener(workspace, logical, func(root *os.Root, relative string) (*os.File, error) {
+		return root.OpenFile(relative, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	})
+}
+
+func closeValidated(file *os.File, root *os.Root, relative string, opened os.FileInfo) error {
+	afterFD, statErr := file.Stat()
+	afterPath, pathErr := validateComponents(root, relative)
+	closeErr := file.Close()
+	rootErr := root.Close()
+	if statErr != nil || pathErr != nil || closeErr != nil || rootErr != nil ||
+		!os.SameFile(opened, afterFD) || !os.SameFile(opened, afterPath) ||
+		afterFD.Mode().Type() != opened.Mode().Type() || afterFD.Size() != opened.Size() {
+		return errors.New("read target custody drift")
 	}
-	return current, info, nil
+	if opened.Mode().IsRegular() {
+		if count, ok := linkCount(afterFD); !ok || count != 1 {
+			return errors.New("read target link-count drift")
+		}
+	}
+	return nil
+}
+
+func marshalBounded(value any) (json.RawMessage, error) {
+	raw, err := json.Marshal(value)
+	if err != nil || len(raw) > maxToolOutputBytes {
+		return nil, errors.New("tool output exceeds closed byte bound")
+	}
+	return raw, nil
 }
 
 func executeTool(workspace, name string, arguments json.RawMessage) (json.RawMessage, error) {
@@ -278,62 +378,89 @@ func executeTool(workspace, name string, arguments json.RawMessage) (json.RawMes
 		return nil, err
 	}
 	switch name {
-	case "shell":
-		var argv []string
-		var cwd string
-		if err := json.Unmarshal(object["argv"], &argv); err != nil ||
-			json.Unmarshal(object["cwd"], &cwd) != nil || cwd != "/workspace" ||
-			len(argv) != 4 || argv[0] != "git" || argv[1] != "--no-optional-locks" || argv[2] != "status" || argv[3] != "--short" {
-			return nil, errors.New("shell command is not exact")
-		}
-		command := exec.Command("git", "--no-optional-locks", "status", "--short")
-		command.Dir = workspace
-		command.Env = []string{"PATH=/usr/bin:/bin", "GIT_CONFIG_NOSYSTEM=1", "GIT_TERMINAL_PROMPT=0"}
-		stdout, err := command.Output()
-		if err != nil {
-			return nil, errors.New("git_status failed")
-		}
-		return json.Marshal(map[string]any{"stdout": string(stdout), "stderr": "", "exit_code": 0})
 	case "read_file":
-		var operation string
-		var logical string
+		var operation, logical, query string
 		if err := json.Unmarshal(object["operation"], &operation); err != nil ||
-			json.Unmarshal(object["path"], &logical) != nil {
+			json.Unmarshal(object["path"], &logical) != nil ||
+			json.Unmarshal(object["query"], &query) != nil {
 			return nil, errors.New("read_file path invalid")
 		}
-		path, info, err := closedPath(workspace, logical)
+		file, root, relative, info, err := openBound(workspace, logical)
 		if err != nil {
 			return nil, err
 		}
-		switch operation {
-		case "read":
-			if !info.Mode().IsRegular() || info.Size() > 16*1024*1024 {
-				return nil, errors.New("read target is not a bounded regular file")
+		closed := false
+		closeFile := func() error {
+			if closed {
+				return nil
 			}
-			raw, err := os.ReadFile(path)
-			if err != nil {
+			closed = true
+			return closeValidated(file, root, relative, info)
+		}
+		defer func() { _ = closeFile() }()
+		started := time.Now()
+		finish := func(value any) (json.RawMessage, error) {
+			if time.Since(started) > 30*time.Second {
+				return nil, errors.New("tool call timeout exceeded")
+			}
+			if err := closeFile(); err != nil {
 				return nil, err
 			}
-			return json.Marshal(map[string]any{"path": logical, "bytes": len(raw), "content": string(raw)})
+			return marshalBounded(value)
+		}
+		switch operation {
+		case "read":
+			if !info.Mode().IsRegular() || info.Size() > maxToolOutputBytes/2 {
+				return nil, errors.New("read target is not a bounded regular file")
+			}
+			raw, err := io.ReadAll(io.LimitReader(file, maxToolOutputBytes/2+1))
+			if err != nil || int64(len(raw)) != info.Size() || !utf8.Valid(raw) {
+				return nil, errors.New("read target bytes invalid")
+			}
+			return finish(map[string]any{"path": logical, "bytes": len(raw), "sha256": digestBytes(raw), "content": string(raw)})
 		case "list":
 			if !info.IsDir() {
 				return nil, errors.New("list target is not a directory")
 			}
-			entries, err := os.ReadDir(path)
+			entries, err := file.Readdir(-1)
 			if err != nil {
 				return nil, err
 			}
 			names := make([]string, 0, len(entries))
-			for _, entry := range entries {
-				entryInfo, err := entry.Info()
-				if err != nil || entryInfo.Mode()&os.ModeSymlink != 0 {
+			for _, entryInfo := range entries {
+				if entryInfo.Mode()&os.ModeSymlink != 0 {
 					return nil, errors.New("list contains symbolic entry")
 				}
-				names = append(names, entry.Name())
+				if entryInfo.Mode().IsRegular() {
+					if count, ok := linkCount(entryInfo); !ok || count != 1 {
+						return nil, errors.New("list contains hardlinked entry")
+					}
+				}
+				names = append(names, entryInfo.Name())
 			}
-			return json.Marshal(map[string]any{"path": logical, "entries": names})
+			sort.Strings(names)
+			return finish(map[string]any{"path": logical, "entries": names})
 		case "stat":
-			return json.Marshal(map[string]any{"path": logical, "bytes": info.Size(), "directory": info.IsDir(), "regular": info.Mode().IsRegular()})
+			count, ok := linkCount(info)
+			if !ok {
+				return nil, errors.New("stat link count unavailable")
+			}
+			return finish(map[string]any{"path": logical, "bytes": info.Size(), "directory": info.IsDir(), "regular": info.Mode().IsRegular(), "links": count})
+		case "search":
+			if !info.Mode().IsRegular() || info.Size() > maxToolOutputBytes/2 || query == "" || len(query) > 256 || !utf8.ValidString(query) {
+				return nil, errors.New("search target or query invalid")
+			}
+			raw, err := io.ReadAll(io.LimitReader(file, maxToolOutputBytes/2+1))
+			if err != nil || int64(len(raw)) != info.Size() || !utf8.Valid(raw) {
+				return nil, errors.New("search target bytes invalid")
+			}
+			matches := make([]map[string]any, 0)
+			for index, line := range strings.Split(string(raw), "\n") {
+				if strings.Contains(line, query) {
+					matches = append(matches, map[string]any{"line": index + 1, "text": line})
+				}
+			}
+			return finish(map[string]any{"path": logical, "query": query, "matches": matches})
 		default:
 			return nil, errors.New("read_file operation invalid")
 		}
@@ -348,25 +475,16 @@ func validateToolArguments(name string, arguments json.RawMessage) (map[string]j
 		return nil, err
 	}
 	switch name {
-	case "shell":
-		if len(object) != 2 || object["argv"] == nil || object["cwd"] == nil {
-			return nil, errors.New("shell arguments not closed")
-		}
-		var argv []string
-		var cwd string
-		if err := json.Unmarshal(object["argv"], &argv); err != nil ||
-			json.Unmarshal(object["cwd"], &cwd) != nil || cwd != "/workspace" ||
-			len(argv) != 4 || argv[0] != "git" || argv[1] != "--no-optional-locks" || argv[2] != "status" || argv[3] != "--short" {
-			return nil, errors.New("shell command is not exact")
-		}
 	case "read_file":
-		if len(object) != 2 || object["operation"] == nil || object["path"] == nil {
+		if len(object) != 3 || object["operation"] == nil || object["path"] == nil || object["query"] == nil {
 			return nil, errors.New("read_file arguments not closed")
 		}
-		var operation, logical string
+		var operation, logical, query string
 		if err := json.Unmarshal(object["operation"], &operation); err != nil ||
 			json.Unmarshal(object["path"], &logical) != nil ||
-			(operation != "read" && operation != "list" && operation != "stat") ||
+			json.Unmarshal(object["query"], &query) != nil ||
+			(operation != "read" && operation != "list" && operation != "stat" && operation != "search") ||
+			(operation == "search") != (query != "") || len(query) > 256 || !utf8.ValidString(query) ||
 			(logical != "/workspace" && !strings.HasPrefix(logical, "/workspace/")) ||
 			filepath.Clean(logical) != logical || strings.ContainsRune(logical, '\x00') {
 			return nil, errors.New("read_file arguments invalid")
@@ -433,6 +551,12 @@ func parseResponse(raw []byte) (json.RawMessage, []frame, error) {
 	if err := json.Unmarshal(object[key], &blocks); err != nil {
 		return nil, nil, errors.New("provider terminal blocks missing")
 	}
+	var anthropicStopReason string
+	if providerAdapter == "anthropic-messages-v1" {
+		if err := json.Unmarshal(object["stop_reason"], &anthropicStopReason); err != nil {
+			return nil, nil, errors.New("Anthropic stop_reason missing")
+		}
+	}
 	var text strings.Builder
 	var tools []frame
 	for _, block := range blocks {
@@ -480,6 +604,17 @@ func parseResponse(raw []byte) (json.RawMessage, []frame, error) {
 	}
 	if len(tools) == 0 && text.Len() == 0 {
 		return nil, nil, errors.New("provider terminal text missing")
+	}
+	if len(tools) > 1 {
+		return nil, nil, errors.New("parallel tool calls are forbidden")
+	}
+	if providerAdapter == "anthropic-messages-v1" {
+		if len(tools) > 0 && (anthropicStopReason != "tool_use" || text.Len() != 0) {
+			return nil, nil, errors.New("Anthropic tool turn lifecycle invalid")
+		}
+		if len(tools) == 0 && anthropicStopReason != "end_turn" {
+			return nil, nil, errors.New("Anthropic terminal lifecycle invalid")
+		}
 	}
 	return json.RawMessage(text.String()), tools, nil
 }
@@ -570,6 +705,7 @@ func serve(workspace string) error {
 		return errors.New("provider request escaped exact endpoint")
 	}
 	providerCalls := 0
+	seenToolCallIDs := make(map[string]bool)
 	for turn := 0; turn < 64; turn++ {
 		providerCalls++
 		writeCustody, err := custodyForBody(body, schema)
@@ -600,6 +736,10 @@ func serve(workspace string) error {
 			return errors.New("parallel tool calls are forbidden")
 		}
 		tool := tools[0]
+		if seenToolCallIDs[tool.CallID] {
+			return errors.New("tool call id reused across turns")
+		}
+		seenToolCallIDs[tool.CallID] = true
 		if err := encoder.Encode(tool); err != nil || !scanner.Scan() {
 			return errors.New("participant tool validation frame absent")
 		}
@@ -633,13 +773,106 @@ func selfTest() error {
 	if _, err := endpoint(); err != nil {
 		return err
 	}
-	if _, err := executeTool("/", "read_file", json.RawMessage(`{"operation":"read","path":"/workspace/../etc/passwd"}`)); err == nil {
+	if _, err := executeTool("/", "read_file", json.RawMessage(`{"operation":"read","path":"/workspace/../etc/passwd","query":""}`)); err == nil {
 		return errors.New("path escape adversary accepted")
 	}
 	if _, err := executeTool("/", "shell", json.RawMessage(`{}`)); err == nil {
 		return errors.New("unrestricted tool adversary accepted")
 	}
 	return nil
+}
+
+type workspaceBinding struct {
+	Bytes       int            `json:"bytes"`
+	Kind        string         `json:"kind"`
+	LogicalPath string         `json:"logical_path"`
+	MountedPath string         `json:"mounted_path"`
+	SHA256      string         `json:"sha256"`
+	Source      map[string]any `json:"source"`
+}
+
+type workspaceManifest struct {
+	AssignmentID         string             `json:"assignment_id"`
+	Bindings             []workspaceBinding `json:"bindings"`
+	CaseID               string             `json:"case_id"`
+	CellID               string             `json:"cell_id"`
+	EvidenceManifestRoot string             `json:"evidence_manifest_root"`
+	EvidenceTreeRoot     string             `json:"evidence_tree_root"`
+	PacketBytes          int                `json:"packet_bytes"`
+	PacketSHA256         string             `json:"packet_sha256"`
+	Schema               string             `json:"schema"`
+	WorkspaceMount       string             `json:"workspace_mount"`
+}
+
+func validateWorkspace(workspace string) error {
+	workspace, err := filepath.Abs(workspace)
+	if err != nil || filepath.Clean(workspace) != workspace {
+		return errors.New("workspace validation path invalid")
+	}
+	operations := []json.RawMessage{
+		json.RawMessage(`{"operation":"list","path":"/workspace","query":""}`),
+		json.RawMessage(`{"operation":"stat","path":"/workspace/assignment-manifest.json","query":""}`),
+		json.RawMessage(`{"operation":"read","path":"/workspace/assignment-manifest.json","query":""}`),
+		json.RawMessage(`{"operation":"search","path":"/workspace/assignment-manifest.json","query":"vela.lean-correspondence-assignment-evidence-manifest.v1"}`),
+	}
+	var manifestRaw []byte
+	for index, arguments := range operations {
+		result, err := executeTool(workspace, "read_file", arguments)
+		if err != nil {
+			return fmt.Errorf("workspace bridge operation %d failed: %w", index, err)
+		}
+		if index == 2 {
+			var receipt struct {
+				Bytes   int    `json:"bytes"`
+				Content string `json:"content"`
+				Path    string `json:"path"`
+				SHA256  string `json:"sha256"`
+			}
+			if json.Unmarshal(result, &receipt) != nil || receipt.Path != "/workspace/assignment-manifest.json" || receipt.Bytes != len([]byte(receipt.Content)) || receipt.SHA256 != digestBytes([]byte(receipt.Content)) {
+				return errors.New("workspace manifest bridge receipt invalid")
+			}
+			manifestRaw = []byte(receipt.Content)
+		}
+	}
+	object, err := decodeExactJSONObject(manifestRaw)
+	if err != nil || len(object) != 10 {
+		return errors.New("workspace manifest is not closed")
+	}
+	var manifest workspaceManifest
+	decoder := json.NewDecoder(bytes.NewReader(manifestRaw))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&manifest) != nil || manifest.Schema != "vela.lean-correspondence-assignment-evidence-manifest.v1" || manifest.WorkspaceMount != "/workspace" || manifest.AssignmentID == "" || manifest.CellID == "" || manifest.CaseID == "" || len(manifest.Bindings) == 0 {
+		return errors.New("workspace manifest contract invalid")
+	}
+	seen := make(map[string]bool)
+	for _, binding := range manifest.Bindings {
+		if binding.LogicalPath == "" || seen[binding.LogicalPath] || binding.MountedPath != "/workspace/"+binding.LogicalPath || binding.Bytes < 0 || binding.SHA256 == "" {
+			return errors.New("workspace binding identity invalid")
+		}
+		seen[binding.LogicalPath] = true
+		arguments, _ := json.Marshal(map[string]any{"operation": "read", "path": binding.MountedPath, "query": ""})
+		result, err := executeTool(workspace, "read_file", arguments)
+		if err != nil {
+			return fmt.Errorf("workspace evidence unreachable: %s: %w", binding.LogicalPath, err)
+		}
+		var receipt struct {
+			Bytes  int    `json:"bytes"`
+			Path   string `json:"path"`
+			SHA256 string `json:"sha256"`
+		}
+		if json.Unmarshal(result, &receipt) != nil || receipt.Path != binding.MountedPath || receipt.Bytes != binding.Bytes || receipt.SHA256 != binding.SHA256 {
+			return errors.New("workspace evidence bridge binding drift")
+		}
+	}
+	return json.NewEncoder(os.Stdout).Encode(map[string]any{
+		"schema": "vela.anthropic-offline-workspace-bridge-preflight.v1",
+		"status": "pass", "workspace_manifest_sha256": digestBytes(manifestRaw),
+		"evidence_manifest_root": manifest.EvidenceManifestRoot,
+		"evidence_tree_root":     manifest.EvidenceTreeRoot,
+		"reachable_file_count":   len(manifest.Bindings),
+		"operations":             []string{"read", "list", "stat", "search"},
+		"network_contact":        false, "writes": false,
+	})
 }
 
 func validatePayloadOffline() error {
@@ -678,10 +911,12 @@ func main() {
 		err = selfTest()
 	case len(os.Args) == 2 && os.Args[1] == "--validate-payload":
 		err = validatePayloadOffline()
+	case len(os.Args) == 3 && os.Args[1] == "--validate-workspace":
+		err = validateWorkspace(os.Args[2])
 	case len(os.Args) == 3 && os.Args[1] == "--serve":
 		err = serve(os.Args[2])
 	default:
-		err = errors.New("accepted arguments are exactly --self-test, --validate-payload, or --serve CANONICAL_WORKSPACE")
+		err = errors.New("accepted arguments are exactly --self-test, --validate-payload, --validate-workspace CANONICAL_WORKSPACE, or --serve CANONICAL_WORKSPACE")
 	}
 	if err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, err)

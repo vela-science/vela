@@ -1,0 +1,16 @@
+{
+  "authority_effect": "none",
+  "command": [
+    "lake",
+    "env",
+    "lean",
+    "InvalidWitness.lean"
+  ],
+  "expected_exit": "nonzero",
+  "observed_exit": 1,
+  "outcome": "witness_failed_as_designed",
+  "relation_record_root": "sha256:c8497ebfb029520813723f12072bd9a96c5df23f8367fa860d5ab1d4a44a99ab",
+  "schema": "vela.lean-correspondence-stage-a-invalid-witness-receipt.v1",
+  "stderr_contract": "Lean type mismatch proving 11 is not 12; exact stderr is runtime-local and not scored",
+  "stdout_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

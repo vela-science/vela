@@ -2,11 +2,12 @@
   "attempt": 1,
   "completed_at": "2026-08-21T00:00:01Z",
   "duration_seconds": 0.1,
+  "evidence_manifest_root": "sha256:93206554783d1872099cf152c96839831af355e60fe2fe6652e49ae321975c9d",
   "exit_code": 0,
-  "launch_bytes": "sha256:93b562096bbdbb1910ca50390b8e93d72f7359a22c6243d7b34b20c8015da39a",
+  "launch_bytes": "sha256:f23ed819a6596ffba02577f353916e9db451bf5bfa2f663653140bc17534d77d",
   "mounts_detached": true,
   "network_disabled": true,
-  "permit_bytes": "sha256:a80de795d864a7ed08369226fb0be9edf2e4b9c3cd9e44407f84ef7863e418a7",
+  "permit_bytes": "sha256:a24192192774c669c0f8a14f733b3eb966d818f95f43bf5dbe1ba6e6efd068b2",
   "process_reaped": true,
   "provider_adapter": "anthropic-messages-v1",
   "provider_stderr_bytes": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -14,5 +15,8 @@
   "schema": "vela.tooling.neutral-teardown.v1",
   "started_at": "2026-08-21T00:00:00.900000Z",
   "status": "completed",
-  "tool_boundary_root": "sha256:01dfbda69c1c7760423fdba41eaac18687a73d9fe683a8a5f207fdc8abe2a7d9"
+  "tool_boundary_root": "sha256:5d7872f47ec513af042d22b4ffbca3d29160161c0648662fcd169e0957bc8d5f",
+  "tool_policy_root": "sha256:c98932d0d5bcd5956b8c578f0f42bd3c94e827d5c5ca5b8034ca9bfd1799ffd2",
+  "workspace_content_root": "sha256:f752c0bb5b69d2dab037387e501e9c45a58bc613976c61324c2c7d5126f9ddc1",
+  "workspace_preflight_root": "sha256:2b8abc91b372638096e0254c0a1dbcab83e1938f9cb456ee9d2db474c9c540cd"
 }

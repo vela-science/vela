@@ -8,13 +8,14 @@
     "item.completed",
     "turn.completed"
   ],
-  "max_output_bytes": 4096,
-  "mode": "read_only_offline_shell_files",
+  "max_output_bytes": 65536,
+  "max_tool_calls": 64,
+  "mode": "read_only_offline_files",
   "mounts": [
     {
-      "content_root": "sha256:426e1200b6ea3d942d51c9a40560be04cb18bcf52885a988301efde1abf958ad",
+      "content_root": "sha256:02e4e9ba3b6950be08b567496f7870dbb8fab87ea193fc3457ce2cbf9a20e4f6",
       "read_only": true,
-      "source": "/private/tmp/vela-stage-a-runtime-qualification-bundle-v1/schemas",
+      "source": "/private/tmp/vela-anthropic-open-diagnostic-held-v2/anthropic-diag-6cccc41b01c2e998/workspace",
       "target": "/workspace"
     }
   ],
@@ -22,52 +23,10 @@
   "per_call_timeout_seconds": 30,
   "provider_adapter": "anthropic-messages-v1",
   "provider_organization": "anthropic",
-  "schema": "vela.tooling.read-only-offline-tool-boundary.v1",
+  "schema": "vela.tooling.read-only-offline-tool-boundary.v2",
   "shell_interpolation": false,
-  "tool_protocol_version": "offline-shell-files/1",
+  "tool_protocol_version": "offline-files/2",
   "tools": [
-    {
-      "allowed_argv": [
-        [
-          "git",
-          "--no-optional-locks",
-          "status",
-          "--short"
-        ]
-      ],
-      "file_roots": [
-        "/workspace"
-      ],
-      "input_schema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "argv": {
-            "items": {
-              "minLength": 1,
-              "type": "string"
-            },
-            "minItems": 1,
-            "type": "array"
-          },
-          "cwd": {
-            "minLength": 1,
-            "pattern": "^/",
-            "type": "string"
-          }
-        },
-        "required": [
-          "argv",
-          "cwd"
-        ],
-        "type": "object"
-      },
-      "name": "shell",
-      "operations": [
-        "execute"
-      ],
-      "version": "1"
-    },
     {
       "allowed_argv": [],
       "file_roots": [
@@ -81,7 +40,8 @@
             "enum": [
               "read",
               "list",
-              "stat"
+              "stat",
+              "search"
             ],
             "type": "string"
           },
@@ -89,11 +49,16 @@
             "minLength": 1,
             "pattern": "^/",
             "type": "string"
+          },
+          "query": {
+            "maxLength": 256,
+            "type": "string"
           }
         },
         "required": [
           "operation",
-          "path"
+          "path",
+          "query"
         ],
         "type": "object"
       },
@@ -101,9 +66,10 @@
       "operations": [
         "read",
         "list",
-        "stat"
+        "stat",
+        "search"
       ],
-      "version": "1"
+      "version": "2"
     }
   ],
   "writes": false

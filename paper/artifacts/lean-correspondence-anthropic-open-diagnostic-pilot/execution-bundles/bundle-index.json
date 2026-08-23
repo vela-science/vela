@@ -5,14 +5,19 @@
       "identity": {
         "assignment_id": "anthropic-diag-2f719af4c655ef77",
         "condition": "raw-source",
+        "evidence_manifest_root": "sha256:71d7fe49ee2ab8134252a7fc4661e947c36d0ae661031d3aabb3abd8475bbe83",
         "packet_root": "sha256:2af228c32b46206ae90fe4ee51534dc3086ba3fbf1809b08b897bf4caff681f6",
         "participant_id": "anthropic-participant-28c762a364c5dca8",
         "prompt_root": "sha256:31809158cbfc37adb49e4949e1be71f63539eef33d6c577c4f472297b2a1cb15",
         "registration_id": "anthropic-open-diagnostic-registration-v2",
-        "run_id": "anthropic-diag-2f719af4c655ef77"
+        "run_id": "anthropic-diag-2f719af4c655ef77",
+        "tool_boundary_root": "sha256:9acef8746733de1b2cf778e8a0677c16cf5972470d7fe8009e9a3dbc1bbd3961",
+        "tool_policy_root": "sha256:c98932d0d5bcd5956b8c578f0f42bd3c94e827d5c5ca5b8034ca9bfd1799ffd2",
+        "workspace_content_root": "sha256:64837ed4284a5af32c027e6a05d4591d91b10bf9c11982be4b32364939191393",
+        "workspace_preflight_root": "sha256:a41cdb192d665e2fafee99463e411c4660fde3895b65bb39a4db60b63318016f"
       },
-      "participant_permit_root": "sha256:97b731c1ab3f6cb68a3588e209bb7ce4b92179a1ca482ce4fb34bdff85e453f9",
-      "qualification_root": "sha256:e4bf2d88af4653bb3117d2d39b1d2a69090f4d81289798f54ed5fc227f8cf47e",
+      "participant_permit_root": "sha256:db5716003bce985bb9be4d8716246760ec6605355cbf83558a19e2771f72475d",
+      "qualification_root": "sha256:a9506c2e82452e6a404bdc916a2d7c4a4c2f010134bd8769abc414915c6c2f1c",
       "status": "qualified_hold"
     },
     {
@@ -20,14 +25,19 @@
       "identity": {
         "assignment_id": "anthropic-diag-395839ae5418ff4d",
         "condition": "raw-source",
+        "evidence_manifest_root": "sha256:9c7221957b53019d071915af1cb6c23749d5a54e1f7f93e2ebbcb5d59612c735",
         "packet_root": "sha256:94912db3cfc7172b4fea1c7666ad565347e3d0ba475a0ef86260a19ae44d8164",
         "participant_id": "anthropic-participant-d276388dc5231ece",
         "prompt_root": "sha256:f3edcff7644446dd5337a2a54f8a9be3ffd55bb04288de8b85319ff6f5a84e47",
         "registration_id": "anthropic-open-diagnostic-registration-v2",
-        "run_id": "anthropic-diag-395839ae5418ff4d"
+        "run_id": "anthropic-diag-395839ae5418ff4d",
+        "tool_boundary_root": "sha256:90855cf6c563093f3e341f81a5f3670659129d0e6ac622443209e0a4fb8347a6",
+        "tool_policy_root": "sha256:c98932d0d5bcd5956b8c578f0f42bd3c94e827d5c5ca5b8034ca9bfd1799ffd2",
+        "workspace_content_root": "sha256:862477ae83178b148d93b615ceee23cd0c23d5f6604417e6c05d2ee4c0c68438",
+        "workspace_preflight_root": "sha256:23943d284b531ae979eb186ffe942e5f5492a62e1a9023dad93bfdf5f86b34e4"
       },
-      "participant_permit_root": "sha256:c00f490dd2c34c21829305f70b63babab1f2ff201f87b903d3d2bb5d1e2008df",
-      "qualification_root": "sha256:77e4385d3f0ebc6155404c71595581dabedf1df74769beb1b43c9de274661f2a",
+      "participant_permit_root": "sha256:6cd772a71b1ed992d155d26b3148ccb8777d605c864450ec97a695d114a8d674",
+      "qualification_root": "sha256:ced45b790ab4a17238d5305c81ec338f85724dbdd3eef00e80db248e90eab8cb",
       "status": "qualified_hold"
     },
     {
@@ -35,14 +45,19 @@
       "identity": {
         "assignment_id": "anthropic-diag-fa6a2181a9a7b010",
         "condition": "correspondence-assisted",
+        "evidence_manifest_root": "sha256:03e02ad3625c027dd7e1b5ef0eea5277f9d3d66bb006ea5ffc31b6f4916430a0",
         "packet_root": "sha256:ef1bf1a9dfadcf9c31ec643638eca9595c76c6042688bb44da4f5e82e923bbf2",
         "participant_id": "anthropic-participant-b834c5a03a63fd86",
         "prompt_root": "sha256:a4ae0592b31fe8f131fcc9454866ff86683b76962fca9800c55a68b31ed5cecb",
         "registration_id": "anthropic-open-diagnostic-registration-v2",
-        "run_id": "anthropic-diag-fa6a2181a9a7b010"
+        "run_id": "anthropic-diag-fa6a2181a9a7b010",
+        "tool_boundary_root": "sha256:f631380c7c4d05dd6521da4f3591723d5fb7a6d332958f57eaa9d8e0822cd8fb",
+        "tool_policy_root": "sha256:c98932d0d5bcd5956b8c578f0f42bd3c94e827d5c5ca5b8034ca9bfd1799ffd2",
+        "workspace_content_root": "sha256:eb8101be0ceece22f7978886c4668ea5c3d9c7fe4f341f1ded110d753b0233cf",
+        "workspace_preflight_root": "sha256:11097438fca518624446c271516bb08c39df226bf76f207d21d8c6317f4a3b50"
       },
-      "participant_permit_root": "sha256:8621462a05d3d6d24692c2032b8592921dbc861666216a8359e7048d01329a2c",
-      "qualification_root": "sha256:82835cd99003e868383cbb176163fca130b01b769b3defdc5a5d8d701e68f878",
+      "participant_permit_root": "sha256:f00d809b97b7e313179e3972dfa37911323fd1404d2e8b58033e0d49ce9cc8c6",
+      "qualification_root": "sha256:0eb92c80607b7b2d155e2337243605db4d94ffc40f32278bf0bf317b7c74bcd8",
       "status": "qualified_hold"
     },
     {
@@ -50,14 +65,19 @@
       "identity": {
         "assignment_id": "anthropic-diag-563bdd90a8c7df7a",
         "condition": "raw-source",
+        "evidence_manifest_root": "sha256:6804289fad8e602c756f0b6d14ab764c998efc686c144ea1920b08933a67b71a",
         "packet_root": "sha256:8cd07b45830778e6aa076224a587189b304887fc131913e45b8a5a8742f5d3a8",
         "participant_id": "anthropic-participant-a66fe51e33746f16",
         "prompt_root": "sha256:7b4ebc7fed080611105359ea2ffc07cec292c5e98f7f60809e0819e057f561f2",
         "registration_id": "anthropic-open-diagnostic-registration-v2",
-        "run_id": "anthropic-diag-563bdd90a8c7df7a"
+        "run_id": "anthropic-diag-563bdd90a8c7df7a",
+        "tool_boundary_root": "sha256:e4fdf63526e1a2f3ed94d556987de801ad65f76a8f27811804ea309ab021718c",
+        "tool_policy_root": "sha256:c98932d0d5bcd5956b8c578f0f42bd3c94e827d5c5ca5b8034ca9bfd1799ffd2",
+        "workspace_content_root": "sha256:41554894227d01687271927f734c0b4e529497ab7b8b0817a41a4a0d369cc57b",
+        "workspace_preflight_root": "sha256:4c51b3129ac03d8bbfc5856543271e283592978274fe3afd679fe8b93fce7b34"
       },
-      "participant_permit_root": "sha256:e506ba67d3c49b0c8325a8ac0871b6a90e7599b35d8f0fea157665416e8d444b",
-      "qualification_root": "sha256:91938e9f1e2c122c891349abec01598bdebdc1f10e3009966562380571731bca",
+      "participant_permit_root": "sha256:b62638c252f19a699276ad162fd46f14c5fa48751204f3e21158f4587be30120",
+      "qualification_root": "sha256:1037bf54242c7004d8ccda95cfcf173514eafebe3bebdc44a98bd68477c14320",
       "status": "qualified_hold"
     },
     {
@@ -65,14 +85,19 @@
       "identity": {
         "assignment_id": "anthropic-diag-7981a902f25c4abe",
         "condition": "correspondence-assisted",
+        "evidence_manifest_root": "sha256:93206554783d1872099cf152c96839831af355e60fe2fe6652e49ae321975c9d",
         "packet_root": "sha256:43c41f0c0083f7b402ba6e4bdfd33212604bb98b52f7e368b757b541a62a43d0",
         "participant_id": "anthropic-participant-f658196f3fa022a9",
         "prompt_root": "sha256:de47263d31b832237bb8a20e6ed0ccfc608dda2c40f451bf49326c0a62e5ebe0",
         "registration_id": "anthropic-open-diagnostic-registration-v2",
-        "run_id": "anthropic-diag-7981a902f25c4abe"
+        "run_id": "anthropic-diag-7981a902f25c4abe",
+        "tool_boundary_root": "sha256:5d7872f47ec513af042d22b4ffbca3d29160161c0648662fcd169e0957bc8d5f",
+        "tool_policy_root": "sha256:c98932d0d5bcd5956b8c578f0f42bd3c94e827d5c5ca5b8034ca9bfd1799ffd2",
+        "workspace_content_root": "sha256:f752c0bb5b69d2dab037387e501e9c45a58bc613976c61324c2c7d5126f9ddc1",
+        "workspace_preflight_root": "sha256:2b8abc91b372638096e0254c0a1dbcab83e1938f9cb456ee9d2db474c9c540cd"
       },
-      "participant_permit_root": "sha256:479a8d2c377f636a872f1d413445fb6a2661c9da55daaee5b742e1db9bf046a2",
-      "qualification_root": "sha256:b9d43bc46a0560b673d4055ceef3246105d8634e0f9a168d78d993ad2a8b20b3",
+      "participant_permit_root": "sha256:363fefd2630c1c467bf2b487dbc0460b97dc61359d8af52e5427695d5aa71500",
+      "qualification_root": "sha256:3918e7a314809f72c329d69bfe98b02f0d897317813d8ca60c82575896b6a8d7",
       "status": "qualified_hold"
     },
     {
@@ -80,14 +105,19 @@
       "identity": {
         "assignment_id": "anthropic-diag-6cccc41b01c2e998",
         "condition": "correspondence-assisted",
+        "evidence_manifest_root": "sha256:4d59674f52b70075abe6063d2f708cf7cf0146f8448c1622e4ef5338dec6578e",
         "packet_root": "sha256:33df3ab58642d622d9592b7b92ac26c82b44dc4dade6950658c7428998b3377e",
         "participant_id": "anthropic-participant-dff681a15fce3f63",
         "prompt_root": "sha256:807b4465c374013238f3aec4cef504fe099236aa5ca214b0fe64c3dbe067a278",
         "registration_id": "anthropic-open-diagnostic-registration-v2",
-        "run_id": "anthropic-diag-6cccc41b01c2e998"
+        "run_id": "anthropic-diag-6cccc41b01c2e998",
+        "tool_boundary_root": "sha256:e15e57f749aedae234d7f9f845612b44277817184febb4f471930a6934f3acde",
+        "tool_policy_root": "sha256:c98932d0d5bcd5956b8c578f0f42bd3c94e827d5c5ca5b8034ca9bfd1799ffd2",
+        "workspace_content_root": "sha256:fefdb903dbe99ec97a11f5abbfbb760c8abcdeb42c8c9b2bc0d1054267a6f8f9",
+        "workspace_preflight_root": "sha256:a469c8597f5e5ba9910f90560d5d7ccf405491b106a386d0a8c6eaf63707256b"
       },
-      "participant_permit_root": "sha256:505e788f16c138bd0f0ff648e94d1f7a37e002c5d6993d65fa64d8d4e9118a28",
-      "qualification_root": "sha256:11b4a04d0715bddce95a281164dcc01f2ed3f281c6080bd1b10b8c0e0d47b01a",
+      "participant_permit_root": "sha256:57b6c0e62dc05990324c5ca5e0a87b81ec9d0007819c31ebfbcb9248e0ee8d48",
+      "qualification_root": "sha256:3cf751fe459abbd46ef9cd70124615a2065a4b582a0a5a8ec693d00b60841b8a",
       "status": "qualified_hold"
     }
   ],

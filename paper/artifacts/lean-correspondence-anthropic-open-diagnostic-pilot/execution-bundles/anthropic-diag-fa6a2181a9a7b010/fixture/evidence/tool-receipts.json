@@ -1,15 +1,11 @@
 [
   {
     "arguments": {
-      "argv": [
-        "git",
-        "--no-optional-locks",
-        "status",
-        "--short"
-      ],
-      "cwd": "/workspace"
+      "operation": "read",
+      "path": "/workspace/assignment-manifest.json",
+      "query": ""
     },
-    "arguments_root": "sha256:5c7de8c48cb5122b4a64f5bb2c87dd9411055fbc1a4c788c1655eda4ec098f3f",
+    "arguments_root": "sha256:c25c84fddb8e52e8b4c0d9379af55aafd2dd564487163867d71be83b65ca7be9",
     "call_id": "call-01",
     "completed_at": "2026-08-21T00:00:00.500000Z",
     "exit_code": 0,
@@ -20,10 +16,10 @@
     "stderr_bytes": 0,
     "stderr_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "stdout": "fixture/evidence/tool.stdout",
-    "stdout_bytes": 6,
-    "stdout_sha256": "sha256:2e22da2ab13713309ac75219e525b8e06ed02f3f1963b8feef203fa25827f93d",
+    "stdout_bytes": 11284,
+    "stdout_sha256": "sha256:08533e51c5fe9d5491a46987ba13e6070284cc3b5ccbd5e1de05b0057099a66a",
     "timeout_seconds": 30,
-    "tool_name": "shell",
+    "tool_name": "read_file",
     "writes_disabled": true
   }
 ]

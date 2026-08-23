@@ -1,0 +1,149 @@
+{
+  "adapters": [
+    {
+      "adapter_id": "reviewed/erdos-witness",
+      "path": "lean-correspondence-v0/cases/erdos-730/Witness.lean",
+      "repository_role": "source",
+      "sha256": "4a13ff3e935cf64e54f63164e2ef39b3bf85c122dd84d3c32c5ab9440f7efc2c"
+    },
+    {
+      "adapter_id": "reviewed/erdos-packet",
+      "path": "lean-correspondence-v0/cases/erdos-730/packet.json",
+      "repository_role": "source",
+      "sha256": "3276bfe9762ed81cf2cd700eb1e75a7dd67e68308659d499209879b16758b0ed"
+    }
+  ],
+  "assumptions": [
+    {
+      "assumption_id": "authority/none",
+      "statement": "authority_claim is none: this relation carries no repository authority, Standing, Decision, maintainer acceptance, scientific acceptance, or study authorization.",
+      "statement_sha256": "a7cf149544f6b0a29b773cdd41e46a7ede680b4ed5bbd05bd008ef643e67cf51"
+    },
+    {
+      "assumption_id": "scope/affirmative-rhs-only",
+      "statement": "Only the affirmative S.Infinite RHS is related. No relation is claimed for the full Formal Conjectures answer(sorry) biconditional.",
+      "statement_sha256": "083b2f9cd33dbee80e225bf19b36a50397ce8ac4579828dc7f60db6fb8eb6b5c"
+    },
+    {
+      "assumption_id": "ceiling/no-acceptance",
+      "statement": "The witness does not establish source faithfulness, registry status, independent mathematical review, scientific acceptance, or authority.",
+      "statement_sha256": "cfe58e525795de4e9c28409ed326824fd483bf2021793d3161be4a95269d0efd"
+    },
+    {
+      "assumption_id": "axiom-ceiling",
+      "statement": "The reviewed witness output is limited to propext, Classical.choice, and Quot.sound; unresolved source and challenge sorry declarations remain outside the proved term cone.",
+      "statement_sha256": "1df08beb7375d37bc178bb382dbf6e5744df86d13d67d06531ee15e8f697670e"
+    }
+  ],
+  "depends_on": [],
+  "invalidation": {
+    "reason": null,
+    "status": "current"
+  },
+  "relation": "definitional_equivalence",
+  "relation_id": "erdos-730.affirmative-rhs-defeq",
+  "schema_version": "lean-correspondence/relation/v0.2",
+  "source": {
+    "declaration": {
+      "end_line": 12,
+      "kind": "abbrev",
+      "name": "FormalConjecturesAffirmativeRhs",
+      "start_line": 10
+    },
+    "declaration_sha256": "402ae340f567b672bc84b9891341befc910d9f22f06ff4a284dfd2e671c8c56d",
+    "environment": {
+      "environment_root": "0283fc7a3820a49991ccad481396de40844f5d39c5c6f0eddd1d22f450eeb558",
+      "lean_toolchain": "leanprover/lean4:v4.33.0",
+      "locked_files": [
+        {
+          "path": "lake-manifest.json",
+          "sha256": "a81ef40554be38a473d0339b81e220c9d013226aae49d29305417f2e091bf482"
+        },
+        {
+          "path": "lean-correspondence-v0/cases/erdos-730/Witness.lean",
+          "sha256": "4a13ff3e935cf64e54f63164e2ef39b3bf85c122dd84d3c32c5ab9440f7efc2c"
+        },
+        {
+          "path": "lean-correspondence-v0/cases/erdos-730/packet.json",
+          "sha256": "3276bfe9762ed81cf2cd700eb1e75a7dd67e68308659d499209879b16758b0ed"
+        },
+        {
+          "path": "lean-correspondence-v0/cases/fc-leaneval-oeis-303656/packet.json",
+          "sha256": "c2300410edf5aa255223d5685adc2ea4cad8ce95873f26b246c0bb125134e7cd"
+        },
+        {
+          "path": "lean-correspondence-v0/verify_packets.py",
+          "sha256": "1b5d21b777eb3457a268d789cc318bace36bba57a9f00c94df6781018667ef63"
+        },
+        {
+          "path": "lean-toolchain",
+          "sha256": "302cd63c54178885b89e669f33b38f12f4dd7ae7e5cac537b3203e3768d8fb2b"
+        }
+      ]
+    },
+    "file": "lean-correspondence-v0/cases/erdos-730/Witness.lean",
+    "file_sha256": "4a13ff3e935cf64e54f63164e2ef39b3bf85c122dd84d3c32c5ab9440f7efc2c",
+    "repository": {
+      "commit": "148e18cce542f397ccb60b21a896ba063f6d6cca",
+      "repository_id": "williamjblair/lean-proofs"
+    }
+  },
+  "state": "verified",
+  "target": {
+    "declaration": {
+      "end_line": 16,
+      "kind": "abbrev",
+      "name": "PalomarChallengeProposition",
+      "start_line": 14
+    },
+    "declaration_sha256": "0674aee6eba0e22c7f4d5a069bd2d3319fd087206a9a5be25d3f840f5a552545",
+    "environment": {
+      "environment_root": "0283fc7a3820a49991ccad481396de40844f5d39c5c6f0eddd1d22f450eeb558",
+      "lean_toolchain": "leanprover/lean4:v4.33.0",
+      "locked_files": [
+        {
+          "path": "lake-manifest.json",
+          "sha256": "a81ef40554be38a473d0339b81e220c9d013226aae49d29305417f2e091bf482"
+        },
+        {
+          "path": "lean-correspondence-v0/cases/erdos-730/Witness.lean",
+          "sha256": "4a13ff3e935cf64e54f63164e2ef39b3bf85c122dd84d3c32c5ab9440f7efc2c"
+        },
+        {
+          "path": "lean-correspondence-v0/cases/erdos-730/packet.json",
+          "sha256": "3276bfe9762ed81cf2cd700eb1e75a7dd67e68308659d499209879b16758b0ed"
+        },
+        {
+          "path": "lean-correspondence-v0/cases/fc-leaneval-oeis-303656/packet.json",
+          "sha256": "c2300410edf5aa255223d5685adc2ea4cad8ce95873f26b246c0bb125134e7cd"
+        },
+        {
+          "path": "lean-correspondence-v0/verify_packets.py",
+          "sha256": "1b5d21b777eb3457a268d789cc318bace36bba57a9f00c94df6781018667ef63"
+        },
+        {
+          "path": "lean-toolchain",
+          "sha256": "302cd63c54178885b89e669f33b38f12f4dd7ae7e5cac537b3203e3768d8fb2b"
+        }
+      ]
+    },
+    "file": "lean-correspondence-v0/cases/erdos-730/Witness.lean",
+    "file_sha256": "4a13ff3e935cf64e54f63164e2ef39b3bf85c122dd84d3c32c5ab9440f7efc2c",
+    "repository": {
+      "commit": "148e18cce542f397ccb60b21a896ba063f6d6cca",
+      "repository_id": "williamjblair/lean-proofs"
+    }
+  },
+  "witness": {
+    "command": [
+      "lean-correspondence-real-witness",
+      "erdos"
+    ],
+    "expected_stdout_sha256": "fbb8a07d05973b49e8b1b9ac9be8187b16e99f9d17fa03d368b8b5b7d955a1f8",
+    "kind": "lean_command",
+    "repositories": [],
+    "repository_role": "source",
+    "scope": null,
+    "timeout_seconds": 300
+  }
+}

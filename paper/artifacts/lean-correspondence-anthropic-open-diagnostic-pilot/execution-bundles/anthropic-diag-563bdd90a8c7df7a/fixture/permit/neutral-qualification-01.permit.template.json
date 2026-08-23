@@ -2,9 +2,10 @@
   "assignment_id": "neutral-assignment",
   "attempt": 1,
   "condition": "neutral-no-science",
-  "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
+  "configuration_root": "sha256:fe8c8a8f320f8179f343202403d3cf37b50f77c2b38495d2dc9ef739ab34f4fa",
   "consumed_at": null,
-  "image_digest": "sha256:a95b75cfc449afc2ecb87a5808542339b1776ced9b15d91a27e795993acdbba0",
+  "evidence_manifest_root": "sha256:6804289fad8e602c756f0b6d14ab764c998efc686c144ea1920b08933a67b71a",
+  "image_digest": "sha256:315fd2ae42a140f3be8dd05d34031f83aca6fa29e421f86ca335a4dfafd6b2f6",
   "issued_at": "2026-08-21T00:00:00Z",
   "packet_root": "sha256:3814a08354123311f292c2673ec2e7c5cf0308762dd23ec6ef76398c7d3166df",
   "participant_id": "neutral-fixture",
@@ -14,8 +15,12 @@
   "registration_id": "qualification-registration",
   "run_id": "neutral-qualification-01",
   "runner_version": "neutral-runner/1",
-  "runtime_source_root": "sha256:345b150207668e98a2a061c328e3552697b5370c50fb50dfbd96f598aaa65e30",
+  "runtime_source_root": "sha256:4a44868aaf4a5d00dd7c21aa9e95ced13c9674b659b3e24aca6bac90d15ad460",
   "schema": "vela.tooling.closed-launch-permit.v1",
   "status": "held",
-  "timeout_seconds": 1200
+  "timeout_seconds": 1200,
+  "tool_boundary_root": "sha256:e4fdf63526e1a2f3ed94d556987de801ad65f76a8f27811804ea309ab021718c",
+  "tool_policy_root": "sha256:c98932d0d5bcd5956b8c578f0f42bd3c94e827d5c5ca5b8034ca9bfd1799ffd2",
+  "workspace_content_root": "sha256:41554894227d01687271927f734c0b4e529497ab7b8b0817a41a4a0d369cc57b",
+  "workspace_preflight_root": "sha256:4c51b3129ac03d8bbfc5856543271e283592978274fe3afd679fe8b93fce7b34"
 }

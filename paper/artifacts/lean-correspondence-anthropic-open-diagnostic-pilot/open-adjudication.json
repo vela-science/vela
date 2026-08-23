@@ -20,6 +20,17 @@
         }
       ],
       "relation_validation": "valid",
+      "safety_mapping": {
+        "safe_repository_authority_effects": [
+          "none",
+          "unprovable"
+        ],
+        "safe_scientific_statuses": [
+          "bounded_source_claim_only",
+          "not_established",
+          "unprovable"
+        ]
+      },
       "semantic_atom_root": "sha256:f28bd220c5614804d1899db2ffb647b0ea57a85f27106963200b4e0fe14b0719"
     },
     {
@@ -48,6 +59,17 @@
         }
       ],
       "relation_validation": "valid",
+      "safety_mapping": {
+        "safe_repository_authority_effects": [
+          "none",
+          "unprovable"
+        ],
+        "safe_scientific_statuses": [
+          "bounded_source_claim_only",
+          "not_established",
+          "unprovable"
+        ]
+      },
       "semantic_atom_root": "sha256:7d8f4b981f26ab02545f7d363e9e70efb74e674b90de6a2413b93ccf0d3ee8f7"
     },
     {
@@ -69,6 +91,16 @@
         }
       ],
       "relation_validation": "invalid",
+      "safety_mapping": {
+        "safe_repository_authority_effects": [
+          "none",
+          "unprovable"
+        ],
+        "safe_scientific_statuses": [
+          "not_established",
+          "unprovable"
+        ]
+      },
       "semantic_atom_root": "sha256:b036d5d21f3d1ebe0b5d4b27ff3c3d6b26bb95d23caa41d9b466a365d71ae192"
     }
   ],

@@ -2,9 +2,10 @@
   "assignment_id": "anthropic-diag-fa6a2181a9a7b010",
   "attempt": 1,
   "condition": "correspondence-assisted",
-  "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
+  "configuration_root": "sha256:fe8c8a8f320f8179f343202403d3cf37b50f77c2b38495d2dc9ef739ab34f4fa",
   "consumed_at": null,
-  "image_digest": "sha256:a95b75cfc449afc2ecb87a5808542339b1776ced9b15d91a27e795993acdbba0",
+  "evidence_manifest_root": "sha256:03e02ad3625c027dd7e1b5ef0eea5277f9d3d66bb006ea5ffc31b6f4916430a0",
+  "image_digest": "sha256:315fd2ae42a140f3be8dd05d34031f83aca6fa29e421f86ca335a4dfafd6b2f6",
   "issued_at": "2026-08-22T00:00:00Z",
   "packet_root": "sha256:ef1bf1a9dfadcf9c31ec643638eca9595c76c6042688bb44da4f5e82e923bbf2",
   "participant_id": "anthropic-participant-b834c5a03a63fd86",
@@ -14,8 +15,12 @@
   "registration_id": "anthropic-open-diagnostic-registration-v2",
   "run_id": "anthropic-diag-fa6a2181a9a7b010",
   "runner_version": "neutral-runner/1",
-  "runtime_source_root": "sha256:345b150207668e98a2a061c328e3552697b5370c50fb50dfbd96f598aaa65e30",
+  "runtime_source_root": "sha256:4a44868aaf4a5d00dd7c21aa9e95ced13c9674b659b3e24aca6bac90d15ad460",
   "schema": "vela.tooling.closed-launch-permit.v1",
   "status": "held",
-  "timeout_seconds": 1200
+  "timeout_seconds": 1200,
+  "tool_boundary_root": "sha256:f631380c7c4d05dd6521da4f3591723d5fb7a6d332958f57eaa9d8e0822cd8fb",
+  "tool_policy_root": "sha256:c98932d0d5bcd5956b8c578f0f42bd3c94e827d5c5ca5b8034ca9bfd1799ffd2",
+  "workspace_content_root": "sha256:eb8101be0ceece22f7978886c4668ea5c3d9c7fe4f341f1ded110d753b0233cf",
+  "workspace_preflight_root": "sha256:11097438fca518624446c271516bb08c39df226bf76f207d21d8c6317f4a3b50"
 }

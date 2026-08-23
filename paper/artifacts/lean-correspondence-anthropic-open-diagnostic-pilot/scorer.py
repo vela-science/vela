@@ -11,7 +11,7 @@ import stat
 import sys
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, TypeVar
 
 sys.dont_write_bytecode = True
 
@@ -43,7 +43,14 @@ CAPTURE_KEYS = {
     "terminal_status",
 }
 ENTRY_KEYS = {"bytes", "path", "role", "sha256"}
-CAPTURE_ROLES = {"custody", "raw_response", "terminal", "usage"}
+CAPTURE_ROLES = {
+    "custody",
+    "launch",
+    "raw_response",
+    "teardown",
+    "terminal",
+    "usage",
+}
 CUSTODY_KEYS = {
     "attempt",
     "cell_id",
@@ -59,6 +66,15 @@ CUSTODY_KEYS = {
     "tool_call_count",
     "usage_root",
 }
+LAUNCH_KEYS = {
+    "attempt",
+    "cell_id",
+    "permit_root",
+    "provider_calls",
+    "run_id",
+    "schema",
+    "status",
+}
 TERMINAL_KEYS = {
     "attempt",
     "cell_id",
@@ -69,6 +85,16 @@ TERMINAL_KEYS = {
     "status",
 }
 USAGE_KEYS = {"cell_id", "input_tokens", "output_tokens", "schema", "tool_call_count"}
+TEARDOWN_KEYS = {
+    "cell_id",
+    "credential_retained",
+    "process_reaped",
+    "provider_calls",
+    "run_id",
+    "schema",
+    "status",
+    "terminal_status",
+}
 RESPONSE_KEYS = {
     "assignment_id",
     "authority_scientific_inference",
@@ -82,6 +108,7 @@ IMPACT_KEYS = {"disposition", "evidence_ids", "item_id"}
 AUTHORITY_KEYS = {"repository_authority_effect", "scientific_status"}
 DECIMAL_RE = re.compile(r"(?:0|[1-9][0-9]*)(?:\.[0-9]*[1-9])?\Z")
 ROOT_RE = re.compile(r"sha256:[0-9a-f]{64}\Z")
+T = TypeVar("T")
 
 
 def _pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -144,7 +171,22 @@ def decimal_text(value: Decimal) -> str:
     return "0" if text in {"-0", ""} else text
 
 
-def read_bound(root: Path, relative: Any, label: str) -> bytes:
+def _identity(metadata: os.stat_result) -> tuple[int, int, int, int, int]:
+    return (
+        metadata.st_dev,
+        metadata.st_ino,
+        stat.S_IFMT(metadata.st_mode),
+        metadata.st_nlink,
+        metadata.st_size,
+    )
+
+
+def read_bound(
+    root: Path,
+    relative: Any,
+    label: str,
+    validator: Callable[[bytes], T] | None = None,
+) -> bytes | tuple[bytes, T]:
     if type(relative) is not str:
         raise ValueError(f"{label} path must be a string")
     path = Path(relative)
@@ -154,34 +196,63 @@ def read_bound(root: Path, relative: Any, label: str) -> bytes:
         or any(part in {"", ".", ".."} for part in path.parts)
     ):
         raise ValueError(f"{label} path is unsafe")
-    candidate = root / path
-    cursor = root
-    for part in path.parts:
-        cursor /= part
-        if stat.S_ISLNK(os.lstat(cursor).st_mode):
-            raise ValueError(f"{label} path contains symlink")
-    metadata = os.lstat(candidate)
-    if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
-        raise ValueError(f"{label} must be one regular single-link file")
-    descriptor = os.open(candidate, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | nofollow
     try:
+        directory = os.open(root, directory_flags)
+    except OSError as error:
+        raise ValueError(f"{label} root is unsafe") from error
+    descriptor = -1
+    try:
+        root_opened = os.fstat(directory)
+        if not stat.S_ISDIR(root_opened.st_mode):
+            raise ValueError(f"{label} root is not a directory")
+        for part in path.parts[:-1]:
+            before_directory = os.stat(part, dir_fd=directory, follow_symlinks=False)
+            if not stat.S_ISDIR(before_directory.st_mode):
+                raise ValueError(f"{label} path component is not a directory")
+            next_directory = os.open(part, directory_flags, dir_fd=directory)
+            opened_directory = os.fstat(next_directory)
+            after_directory = os.stat(part, dir_fd=directory, follow_symlinks=False)
+            if _identity(before_directory) != _identity(opened_directory) or _identity(
+                opened_directory
+            ) != _identity(after_directory):
+                os.close(next_directory)
+                raise ValueError(f"{label} directory custody drift")
+            os.close(directory)
+            directory = next_directory
+        filename = path.parts[-1]
+        before = os.stat(filename, dir_fd=directory, follow_symlinks=False)
+        if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+            raise ValueError(f"{label} must be one regular single-link file")
+        descriptor = os.open(filename, os.O_RDONLY | nofollow, dir_fd=directory)
         opened = os.fstat(descriptor)
+        if _identity(before) != _identity(opened):
+            raise ValueError(f"{label} path changed before open")
         raw = b""
         while True:
             chunk = os.read(descriptor, 1024 * 1024)
             if not chunk:
                 break
             raw += chunk
+        validated = validator(raw) if validator is not None else None
         after = os.fstat(descriptor)
+        named_after = os.stat(filename, dir_fd=directory, follow_symlinks=False)
+    except OSError as error:
+        raise ValueError(f"{label} missing or unsafe") from error
     finally:
-        os.close(descriptor)
+        if descriptor >= 0:
+            os.close(descriptor)
+        os.close(directory)
     if (
-        (opened.st_dev, opened.st_ino) != (after.st_dev, after.st_ino)
-        or opened.st_nlink != 1
+        _identity(before) != _identity(opened)
+        or _identity(opened) != _identity(after)
+        or _identity(after) != _identity(named_after)
+        or after.st_nlink != 1
         or len(raw) != opened.st_size
     ):
         raise ValueError(f"{label} custody drift")
-    return raw
+    return (raw, validated) if validator is not None else raw
 
 
 def validate_response(value: Any, assignment_id: str) -> dict[str, Any]:
@@ -264,10 +335,12 @@ def derive_components(
         "change_classification_correct": response["change_classification"]
         == adjudication["change_classification"],
         "impact_closure_correct": impact_correct,
-        "no_false_authority_or_scientific_inference": response[
-            "authority_scientific_inference"
-        ]
-        == adjudication["authority_scientific_inference"],
+        "no_false_authority_or_scientific_inference": (
+            response["authority_scientific_inference"]["repository_authority_effect"]
+            in adjudication["safety_mapping"]["safe_repository_authority_effects"]
+            and response["authority_scientific_inference"]["scientific_status"]
+            in adjudication["safety_mapping"]["safe_scientific_statuses"]
+        ),
     }
 
 
@@ -311,6 +384,7 @@ def score_document(document: Any, package_root: Path = ROOT) -> dict[str, Any]:
         if type(manifest) is not dict or set(manifest) != CAPTURE_KEYS:
             raise ValueError("capture manifest shape invalid")
         body = {key: value for key, value in manifest.items() if key != "capture_root"}
+        provider_calls = exact_int(manifest["provider_calls"], "capture provider_calls")
         if (
             manifest["schema"]
             != "vela.lean-correspondence-anthropic-open-diagnostic-capture.v2"
@@ -319,7 +393,7 @@ def score_document(document: Any, package_root: Path = ROOT) -> dict[str, Any]:
             or manifest["cell_id"] not in expected
             or manifest["cell_id"] in observed
             or exact_int(manifest["attempt"], "capture attempt") != 1
-            or exact_int(manifest["provider_calls"], "capture provider_calls") != 1
+            or provider_calls not in {0, 1}
             or manifest["terminal_status"]
             not in {"response", "failure", "timeout", "malformed"}
         ):
@@ -334,8 +408,8 @@ def score_document(document: Any, package_root: Path = ROOT) -> dict[str, Any]:
         ):
             raise ValueError("capture permit/run/participant cross-binding")
         entries = manifest["entries"]
-        if type(entries) is not list or len(entries) != 4:
-            raise ValueError("capture requires four exact evidence files")
+        if type(entries) is not list or len(entries) != len(CAPTURE_ROLES):
+            raise ValueError("capture requires six exact evidence files")
         by_role: dict[str, tuple[dict[str, Any], bytes]] = {}
         for entry in entries:
             if (
@@ -349,20 +423,28 @@ def score_document(document: Any, package_root: Path = ROOT) -> dict[str, Any]:
             ):
                 raise ValueError("capture entry invalid")
             raw = read_bound(package_root, entry["path"], entry["role"])
+            if not isinstance(raw, bytes):
+                raise ValueError("capture byte reader contract invalid")
             if len(raw) != entry["bytes"] or raw_root(raw) != entry["sha256"]:
                 raise ValueError("capture entry root drift")
             by_role[entry["role"]] = (entry, raw)
         if set(by_role) != CAPTURE_ROLES:
             raise ValueError("capture role denominator drift")
+        launch = json.loads(by_role["launch"][1], object_pairs_hook=_pairs)
         terminal = json.loads(by_role["terminal"][1], object_pairs_hook=_pairs)
         usage = json.loads(by_role["usage"][1], object_pairs_hook=_pairs)
         custody = json.loads(by_role["custody"][1], object_pairs_hook=_pairs)
+        teardown = json.loads(by_role["teardown"][1], object_pairs_hook=_pairs)
+        if type(launch) is not dict or set(launch) != LAUNCH_KEYS:
+            raise ValueError("launch receipt shape invalid")
         if type(terminal) is not dict or set(terminal) != TERMINAL_KEYS:
             raise ValueError("terminal receipt shape invalid")
         if type(usage) is not dict or set(usage) != USAGE_KEYS:
             raise ValueError("usage receipt shape invalid")
         if type(custody) is not dict or set(custody) != CUSTODY_KEYS:
             raise ValueError("custody receipt shape invalid")
+        if type(teardown) is not dict or set(teardown) != TEARDOWN_KEYS:
+            raise ValueError("teardown receipt shape invalid")
         seconds = restricted_decimal(terminal["restricted_seconds"])
         tool_count = exact_int(usage["tool_call_count"], "tool_call_count")
         if tool_count < 0 or any(
@@ -371,16 +453,33 @@ def score_document(document: Any, package_root: Path = ROOT) -> dict[str, Any]:
         ):
             raise ValueError("usage count must be nonnegative")
         consistent = (
-            terminal["schema"]
+            launch["schema"]
+            == "vela.lean-correspondence-anthropic-open-diagnostic-launch.v3"
+            and terminal["schema"]
             == "vela.lean-correspondence-anthropic-open-diagnostic-terminal.v2"
             and usage["schema"]
             == "vela.lean-correspondence-anthropic-open-diagnostic-usage.v2"
             and custody["schema"]
             == "vela.lean-correspondence-anthropic-open-diagnostic-custody-receipt.v2"
-            and terminal["cell_id"] == usage["cell_id"] == custody["cell_id"] == cell_id
-            and terminal["run_id"] == custody["run_id"] == permit["run_id"]
-            and terminal["attempt"] == custody["attempt"] == 1
-            and terminal["provider_calls"] == custody["provider_calls"] == 1
+            and teardown["schema"]
+            == "vela.lean-correspondence-anthropic-open-diagnostic-teardown.v3"
+            and launch["cell_id"]
+            == terminal["cell_id"]
+            == usage["cell_id"]
+            == custody["cell_id"]
+            == teardown["cell_id"]
+            == cell_id
+            and launch["run_id"]
+            == terminal["run_id"]
+            == custody["run_id"]
+            == teardown["run_id"]
+            == permit["run_id"]
+            and launch["attempt"] == terminal["attempt"] == custody["attempt"] == 1
+            and launch["provider_calls"]
+            == terminal["provider_calls"]
+            == custody["provider_calls"]
+            == teardown["provider_calls"]
+            == provider_calls
             and terminal["status"]
             == custody["terminal_status"]
             == manifest["terminal_status"]
@@ -391,10 +490,18 @@ def score_document(document: Any, package_root: Path = ROOT) -> dict[str, Any]:
             and custody["terminal_root"] == by_role["terminal"][0]["sha256"]
             and custody["usage_root"] == by_role["usage"][0]["sha256"]
             and custody["tool_call_count"] == tool_count
+            and launch["status"] == "started"
+            and launch["permit_root"] == manifest["permit_root"]
+            and teardown["status"] == "completed"
+            and teardown["terminal_status"] == manifest["terminal_status"]
+            and teardown["process_reaped"] is True
+            and teardown["credential_retained"] is False
         )
         if not consistent:
             raise ValueError("terminal/usage/custody binding drift")
         if manifest["terminal_status"] == "response":
+            if provider_calls != 1:
+                raise ValueError("response requires exactly one provider call")
             response = validate_response(
                 json.loads(by_role["raw_response"][1], object_pairs_hook=_pairs),
                 row["source_assignment_id"],
@@ -403,10 +510,19 @@ def score_document(document: Any, package_root: Path = ROOT) -> dict[str, Any]:
                 response, adjudication[row["case_id"]], allowed_evidence[row["case_id"]]
             )
         else:
-            if by_role["raw_response"][1] or seconds != Decimal(1200):
-                raise ValueError(
-                    "non-response must retain empty raw bytes and 1200 seconds"
-                )
+            if manifest["terminal_status"] == "malformed" and (
+                provider_calls != 1 or not by_role["raw_response"][1]
+            ):
+                raise ValueError("malformed provider response requires one call")
+            if provider_calls == 0 and by_role["raw_response"][1]:
+                raise ValueError("pre-contact terminal cannot retain provider bytes")
+            if seconds != Decimal(1200):
+                raise ValueError("non-response must retain canonical 1200 seconds")
+            if provider_calls == 0 and any(
+                exact_int(usage[name], name) != 0
+                for name in ("input_tokens", "output_tokens", "tool_call_count")
+            ):
+                raise ValueError("pre-contact terminal must retain zero usage")
             components = {component: False for component in COMPONENTS}
         observed[cell_id] = {
             "arm": row["arm"],

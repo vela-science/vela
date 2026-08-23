@@ -78,7 +78,7 @@
     {
       "consumed": false,
       "offline_pre_request_validation": "pass",
-      "permit_root": "sha256:f51169112d3be0ec092abf833131b5cd24acdf5772cebb3ea6a7dc0211cf5eed",
+      "permit_root": "sha256:b41826ce2a5897f854f4c9116fc40c5ef189e5f17bad1ea8979c90c946ad04ea",
       "provider_adapter": "openai-responses-v1",
       "provider_organization": "OpenAI",
       "run_id": "neutral-calibration-openai-json-v2",
@@ -87,7 +87,7 @@
     {
       "consumed": false,
       "offline_pre_request_validation": "pass",
-      "permit_root": "sha256:dfc9f20e029b7ea51eb28c6b3d81f70eace063c681d56d2c9ce7356b3dbe8b63",
+      "permit_root": "sha256:1db30a246b6727cf1e01f923b80f4247defab2318e63483c5d6efd58689c1e36",
       "provider_adapter": "anthropic-messages-v1",
       "provider_organization": "Anthropic",
       "run_id": "neutral-calibration-anthropic-json-v4-lossless",
@@ -99,7 +99,7 @@
     "neutral_calibrations_run": 0,
     "path": "offline-qualification.json",
     "provider_calls": 0,
-    "record_root": "sha256:7a89479a46e004317cc69b78ffa1ea0c5fe7130a65c257de1dd43c9e31d6578e",
+    "record_root": "sha256:51df9fe89d649e5fbb6519d2f02eefaaf5dc672c350de1fcc58fab5047944e3f",
     "status": "qualified_hold_exact_schema_launchable_runtimes_and_offline_same_input_preflight"
   },
   "participant_configurations": [
@@ -112,7 +112,7 @@
         "sdk": "none_raw_https"
       },
       "configuration_root": "sha256:96555c45c33ed2a106cfb261025b752a4eeb1514aa180985ecd5ea0551a6616d",
-      "image_digest": "sha256:50410f6185ec3c2777062597df16af38913ef35be374e685c772925fb950a31c",
+      "image_digest": "sha256:f0ce5175fe6f72bb44f355f7f443e814bec91efb75c28326b3d97fee54aef4fb",
       "model": "gpt-5.6-sol",
       "model_snapshot_semantics": "canonical_pinned_model_id_not_gpt-5.6_alias",
       "parameters": {
@@ -129,7 +129,7 @@
       },
       "provider_adapter": "openai-responses-v1",
       "provider_organization": "OpenAI",
-      "qualification_root": "sha256:e23aa963b3b0eb305e2ef3a0bcb773c666263b49ce58b8d92cf711f3a6193f69",
+      "qualification_root": "sha256:f5f4892ae2ddd6e871f8e3eeb8f8faeb34a7137fc6070df8b023815a6505e4f6",
       "slot_id": "configuration-a",
       "status": "candidate_configuration_exact_schema_pre_request_validated_held",
       "tool_boundary_root": "sha256:0b2e1fb701f70b02f9cc7ad79201f84374dfeb904299b59a6667d36eb4e59c69"
@@ -144,7 +144,7 @@
         "sdk": "none_raw_https"
       },
       "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
-      "image_digest": "sha256:a95b75cfc449afc2ecb87a5808542339b1776ced9b15d91a27e795993acdbba0",
+      "image_digest": "sha256:315fd2ae42a140f3be8dd05d34031f83aca6fa29e421f86ca335a4dfafd6b2f6",
       "model": "claude-opus-5",
       "model_snapshot_semantics": "canonical_pinned_model_id_not_pre-4.6_alias",
       "parameters": {
@@ -158,7 +158,7 @@
       },
       "provider_adapter": "anthropic-messages-v1",
       "provider_organization": "Anthropic",
-      "qualification_root": "sha256:27fb9ab360e0e0f29b9c33e6e5efe364a107c4bf0d00d0206b2e12349ecef045",
+      "qualification_root": "sha256:74e07177b119edf0e9fcf18940cce9fa06757526092bc38f18595471debb623e",
       "slot_id": "configuration-b",
       "status": "candidate_configuration_exact_schema_pre_request_validated_held",
       "tool_boundary_root": "sha256:01dfbda69c1c7760423fdba41eaac18687a73d9fe683a8a5f207fdc8abe2a7d9"
@@ -269,7 +269,7 @@
       "run_id": "neutral-calibration-openai",
       "schema": "vela.stage-a-neutral-permit-retirement.v1",
       "status": "retired_non_releasable",
-      "successor_permit_root": "sha256:f51169112d3be0ec092abf833131b5cd24acdf5772cebb3ea6a7dc0211cf5eed"
+      "successor_permit_root": "sha256:b41826ce2a5897f854f4c9116fc40c5ef189e5f17bad1ea8979c90c946ad04ea"
     },
     {
       "authority_effect": "none",
@@ -286,7 +286,7 @@
       "run_id": "neutral-calibration-anthropic",
       "schema": "vela.stage-a-neutral-permit-retirement.v1",
       "status": "retired_non_releasable",
-      "successor_permit_root": "sha256:dfc9f20e029b7ea51eb28c6b3d81f70eace063c681d56d2c9ce7356b3dbe8b63"
+      "successor_permit_root": "sha256:1db30a246b6727cf1e01f923b80f4247defab2318e63483c5d6efd58689c1e36"
     }
   ],
   "runtime_boundary": {
@@ -304,29 +304,29 @@
     "run_input_materialization": "exact_raw_schema_file_byte_splice_no_parse_reserialization",
     "runtime_images": [
       {
-        "image_digest": "sha256:50410f6185ec3c2777062597df16af38913ef35be374e685c772925fb950a31c",
-        "launchability_receipt_sha256": "sha256:b6b9c73de349565f2f8619ce6378bdf44d037ec4eccd67f4e356040c85ab2bdd",
+        "image_digest": "sha256:f0ce5175fe6f72bb44f355f7f443e814bec91efb75c28326b3d97fee54aef4fb",
+        "launchability_receipt_sha256": "sha256:790bbf9505e21503118bab52fcd132a4e365c2c571f244fcb1d450bd6145d231",
         "materialization_receipt_sha256": "sha256:d6063083f699ea25bcbf28c81eba6225fe07606b81ddc79a2610478db85c5b2d",
-        "offline_validation_receipt_sha256": "sha256:8af6641c59d3968d312e17685d82a85b38328e4f093a72866bd67dd9bac03c47",
+        "offline_validation_receipt_sha256": "sha256:2140932c4436f7d88ead26c6bc939df03505fbd36433cff857e26b530eafa3ca",
         "provider_adapter": "openai-responses-v1",
-        "request_bytes_sha256": "sha256:01a74199912f0fbb2ca605445da944ba252b1a922ed8d8bbda383713c736dbee",
-        "request_transport_custody_sha256": "sha256:fdd3c9fc9c04e98e6082aac4e42da8b78b860bd72e520ee8af94e5924a686764",
+        "request_bytes_sha256": "sha256:1f05bde584f5a9fcfc11cb3642a5d4e7d0f9971239f518f5edacfa51c76a0a5e",
+        "request_transport_custody_sha256": "sha256:93f52f15d2ca2d4ee1a73fbf500855e70fa2db50d91fced42a12d26288c4b430",
         "run_input_sha256": "sha256:f86f8f7d1edc8f6d5fe719e09943fbb2063e278080b56ad183ee8c153c963451",
-        "runtime_source_root": "sha256:f63196d42a85b839984c1abfd663b293f911fd0792c43cdf26e56ec9c7f4f4e8"
+        "runtime_source_root": "sha256:5ec5d345bd9ecc8828ffbf5aa7da60b10164d5ac1a821fd8e7bf37e63c7fd8b6"
       },
       {
-        "image_digest": "sha256:a95b75cfc449afc2ecb87a5808542339b1776ced9b15d91a27e795993acdbba0",
-        "launchability_receipt_sha256": "sha256:ec5c90a7b8e885d7a7e679ae2ea8c1989b772a218ce7074a7418acd8709cae3b",
+        "image_digest": "sha256:315fd2ae42a140f3be8dd05d34031f83aca6fa29e421f86ca335a4dfafd6b2f6",
+        "launchability_receipt_sha256": "sha256:a180d19a49287c6271fc7aea61da8f041aaf3c0e3db4a9e309559f84dc4c2ff8",
         "materialization_receipt_sha256": "sha256:328dace8aee7d4cea3c2532e4e0012b01ad07b73ca6ce9b528d774fa62306028",
-        "offline_validation_receipt_sha256": "sha256:1f857493dbecf40001dbc3a9e1b5be17ac46dd166096b48e7906a1da7451fddd",
+        "offline_validation_receipt_sha256": "sha256:f558beec700c9339c0fd7f1ffdc5a81ab1334d6eb15e4e99b56a20c1b26d79c9",
         "provider_adapter": "anthropic-messages-v1",
-        "request_bytes_sha256": "sha256:cf67944d1872244c9d89ed3f7ad9cc27c3a37a4deba665f47a939985e2c62e8c",
-        "request_transport_custody_sha256": "sha256:d1813ba1ad996442e38efe92ec8556210ddc11ffc8037a23ebb0c5b007157fb6",
+        "request_bytes_sha256": "sha256:2ed4af49e6876d6d5dd30da47f7bac6f7db0df083b6908b4c7b2d01bf3326783",
+        "request_transport_custody_sha256": "sha256:fe9a30521be317f05404aef6e239605021aa8877f87b0bc1e40cb5062c396dcd",
         "run_input_sha256": "sha256:ab8b5541536e3c5c88df7783150973cee1d3ba7dd75ebd79efa389973e2813bd",
-        "runtime_source_root": "sha256:345b150207668e98a2a061c328e3552697b5370c50fb50dfbd96f598aaa65e30"
+        "runtime_source_root": "sha256:4a44868aaf4a5d00dd7c21aa9e95ced13c9674b659b3e24aca6bac90d15ad460"
       }
     ],
-    "tool_mode": "read_only_offline_shell_files",
+    "tool_mode": "read_only_offline_files",
     "trust_bundle_sha256": "sha256:9dae8d76e55cb08991f2b672d58999ea15560d910759c16b544f843bdffbb994",
     "writes": false
   },

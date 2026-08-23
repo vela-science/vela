@@ -1,0 +1,188 @@
+{
+  "schema": "lean-correspondence.candidate-packet.v0",
+  "case_id": "fc-leaneval-oeis-303656",
+  "frozen_on": "2026-08-22",
+  "authority_effect": "none",
+  "relation": {
+    "type": "deterministic_generated_challenge_lineage",
+    "status": "verified_at_pins",
+    "claim": "The frozen generated Challenge and ChallengeDeps bytes are deterministic outputs of the frozen schema-version-1 request derived from OeisA303656.conjecture and OeisA303656.A at the recorded Formal Conjectures source root.",
+    "claim_ceiling": "This is byte provenance plus successful source-side and target-side elaboration, not a proof of the conjecture, general cross-version compatibility, source fidelity to the informal literature, or scientific acceptance."
+  },
+  "roots": {
+    "formal_conjectures_source": {
+      "repository": "https://github.com/google-deepmind/formal-conjectures",
+      "commit": "9f5ee773841921f460b4a26a3552f5eca4accaa0",
+      "path": "FormalConjectures/OEIS/303656.lean",
+      "blob": "8ea7925d8a07edad8e492404b673f4cb77ce6f12",
+      "sha256": "636de7115b068cf999ecca9c9df14046dc142e6744974b91d181074858ab8b19",
+      "declaration": "OeisA303656.conjecture",
+      "copied_dependencies": [
+        "OeisA303656.A"
+      ],
+      "lean_toolchain": "leanprover/lean4:v4.27.0",
+      "lean_toolchain_blob": "2bb276aae9b280aaa44fa3c21d2be1d4bc0c9862",
+      "lean_toolchain_sha256": "e695e6e5d8e7a8be4d6cf159dfb995847993d26c6cc450353a86f387279025b9",
+      "mathlib_revision": "a3a10db0e9d66acbebf76c5e6a135066525ac900",
+      "lake_manifest_blob": "13a1771e215c0200be3db3d1d6881017a1f5d179",
+      "lake_manifest_sha256": "5b99b5f4f807cbba67bbcd22e5e486c17d6a8d970ea218de08d05830ab350c26"
+    },
+    "formal_conjectures_adapter": {
+      "repository": "https://github.com/williamjblair/formal-conjectures.git",
+      "commit": "2654e42de2026de6cdb248ad5ed0f1c7d659c8fa",
+      "publication_note": "At freeze time this local commit was two commits ahead of fork/comparator-workspaces; public replay requires making this root reachable or retaining its source archive.",
+      "files": [
+        ["comparator/tools.toml", "cb8184aba5c198fe018b7c49e7d11a1f05e8e70b", "4c0897857bdac53c4b4d6c66c81f07d92be3382c70a47d0f5c441e2558e72f25"],
+        ["comparator/adapter/fc_source.py", "59b3f8266d65cd43ff844e66f9eb399c4bbe4a95", "748f9b69103a5c16615082c24ec812cfcb60e085a52a23e1e34cac905e3d6cdf"],
+        ["comparator/adapter/fc_leaneval_importer.py", "abe63ee1120edabffed39d17e158386fe427afa0", "ce78bcdf203809f0aa39eddd2763f930f53bc1b2384f8530e0db09f75f04e457"],
+        ["comparator/adapter/leaneval_interface.py", "dd9d95599d13fdae6372aa6d17470999336d7ff4", "facc953157c111381658e78cf6bd29a7eedb99c0b7660f6250e25dd2eeb53b73"],
+        ["comparator/adapter/leaneval_generator_cli.py", "122a1722ef6248da9ce6cf3aa6caa28342b52932", "c97a2a5283c21ab5156c7d98abc3a0e7d0d0a042bf220bff6d783003b4701838"],
+        ["comparator/adapter/make_comparator_workspace.py", "e8c0a36466e2f83699ac391adf0ec29eb6c1b986", "1ffd6c63d404d2df0d90abc6ddb3f378949607c780155936bc21d09b9be5dc25"],
+        ["comparator/adapter/ComparatorFacts.lean", "a988409ea25ddd570157a4e8d17da50f08320082", "774618274d5f0bac18261cf6e8901f40752b91fd9aea26e9a7a0f4193fe38cee"],
+        ["comparator/adapter/ComparatorFacts/Binders.lean", "c73753382cc1160acc366b874ce89b4d10aefdf2", "2f08deafdc7794a81abd43cf000ac8bb47004b3260a12c7cb83b7a7cc6d6c7a9"],
+        ["comparator/adapter/ComparatorFacts/Extract.lean", "33f5718a65f7313c3bdac62cfe9412a299768dd9", "d6858aa010d5dacbf3bacea18bdbc0c3a1198c67eba408888ef3f6ec17736d02"],
+        ["comparator/templates/WorkspaceTest.lean", "a231373e04321f0ed2a372d6d89dd63c4ef0e704", "ed5e47d43a6869f6213141c3d0214ab5741d9cbdac3d71b80289706fef635abd"],
+        ["comparator/known_failures.toml", "7084ebf40915c4c4444554dc55abec3afb300c3b", "87233c6c35739ff5b99d7f822012c887a1f3ad1fcaa047d1cf56a3725d92cc25"]
+      ]
+    },
+    "generator": {
+      "repository": "https://github.com/leanprover/lean-eval-generator",
+      "commit": "a726789593eeac5c32ad82760061cd5bf6cae662",
+      "contract": "schemas/request-v1.schema.json and schemas/response-v1.schema.json at this commit"
+    },
+    "lean_eval_target": {
+      "repository": "https://github.com/leanprover/lean-eval.git",
+      "commit": "7699436464052268e6c04b41554bfbc2c6908ec5",
+      "lean_toolchain": "leanprover/lean4:v4.33.0",
+      "lean_toolchain_blob": "025e59548e48cf71f2744154e2890beefe30a258",
+      "lean_toolchain_sha256": "302cd63c54178885b89e669f33b38f12f4dd7ae7e5cac537b3203e3768d8fb2b",
+      "mathlib_revision": "6f1ef4e5dd604a435bddba4747b13970cd65d2a1",
+      "lake_manifest_blob": "5c8ebadc678118994cf003060168b3ece1529e85",
+      "lake_manifest_sha256": "48a53853ec0b2af3aacebf0a8abc58411a4123e76b59fabeedf5f95aaaddbdb1"
+    }
+  },
+  "frozen_bytes": {
+    "request.json": "dfdbba45d7226a0773b6b855b3cd897824a89eaf65dbb3f2b944f145df2af987",
+    "context/OeisA303656_conjecture.lean": "e893b5dd9bc7be54d042a8123ddd60dbc5476181e5d3e3e77b3ecb844a594cbe",
+    "fc-provenance.json": "5bb186ab9f0abfd2083dbaec17de9c1a29bac046c2940b523cf3fee6ce84f684",
+    "generated/Challenge.lean": "4aaf71c4db3c4bb5f3933a618945b0db7d96fd1e18f3dc493da4e84d2f49ed9b",
+    "generated/ChallengeDeps.lean": "e01462e619bb6a63f6d37c7fe541dec22bd5756ffe5d83c2e9e747942d5e97c2",
+    "generated/Solution.lean": "9f2a22b368c6aae129012ba189dd90ea152f2bd3ace33ec827a91249e7315599",
+    "generated/config.json": "e941c74d44f9d7066fa10358c20cf31ace80147ccb10a70b0136c9d2fa7dcc2b",
+    "generated/holes.json": "474466de53ecebb2c442af815396cc49340d927e766811e01294cb7158f1ef7d",
+    "generated/lakefile.toml": "283c99ec4a1d9d6ca02d424f76599718b20d5f09ff940841aeb9855f17bb9ced",
+    "generated/lean-toolchain": "302cd63c54178885b89e669f33b38f12f4dd7ae7e5cac537b3203e3768d8fb2b",
+    "generated-files.sha256": "964e18f829bbcf6c25d0c6204e8d79bce8e3c919de714a364dadab0ea3e1261d"
+  },
+  "atomic_facts": [
+    {
+      "id": "b1",
+      "fact": "The selected source declaration and required helper are resolved from one exact Formal Conjectures blob at one exact source commit."
+    },
+    {
+      "id": "b2",
+      "fact": "The request names OeisA303656.conjecture, includes the copied helper body, carries explicit parameters n and hn, and pins the LeanEval target environment."
+    },
+    {
+      "id": "b3",
+      "fact": "Two independent adapter and generator runs produced no byte diff."
+    },
+    {
+      "id": "b4",
+      "fact": "The generated Challenge and ChallengeDeps elaborate at LeanEval's Lean 4.33.0 and Mathlib 6f1ef4e5 target; the expected sorry warning is not a solution result."
+    },
+    {
+      "id": "b5",
+      "fact": "The source-side --verify elaborated the rendered module at Formal Conjectures' Lean 4.27.0 and Mathlib a3a10db0 environment."
+    }
+  ],
+  "historical_source_change": {
+    "commit": "81e700d16ada8c5e63339d7a16accb672d3067ae",
+    "parent": "84d73c99d1f5a3a26a9537eae5b6d7792235e1f4",
+    "before_blob": "8ea6bfba2b9dfbb349364d7cc7fe66d75885a6dc",
+    "before_sha256": "7f5b6abd14c34048effb27ac59569484f63a5e9fbd0326baa3d81fd0a96a6ded",
+    "after_blob": "106eeb912c0f85e09b69e40cb818d324f12b3e9e",
+    "after_sha256": "33678a4ee9789b0afa7fa99fcd118ef7090a6912d4104644902cf172e7d003a5",
+    "classification": "meaning_preserved_with_witness",
+    "reason": "The helper was renamed from IsSumOfTwoSquaresAndPowersOf3And5 to A while its predicate body stayed byte-identical modulo the declaration name; the conjecture changed only to use the renamed helper. HistoricalRenameWitness.lean proves the two exact predicate bodies and theorem types definitionally equivalent.",
+    "witness": {
+      "file": "HistoricalRenameWitness.lean",
+      "sha256": "62bf6f59d69c01027863404aeeae0b8604a33a0b331a8c49ee6e9cde959e6ea6"
+    }
+  },
+  "environment_drift_cases": [
+    {
+      "declaration": "Erdos1092.f_asymptotic_general",
+      "classification": "environment_only_invalidation_recorded_not_reproduced_in_this_packet",
+      "evidence": "comparator/known_failures.toml at adapter commit 2654e42d records target-only Fintype instance synthesis failure between FC Mathlib a3a10db0 and target Mathlib 6f1ef4e5."
+    },
+    {
+      "declaration": "EllipticCurveRank.RatEllipticCurve.twentyone_le_rank_height_count_asymptotic",
+      "classification": "environment_only_invalidation_recorded_not_reproduced_in_this_packet",
+      "evidence": "The same rooted known-failures file records target-only notation-shape drift for toWeierstrass at Mathlib 6f1ef4e5."
+    }
+  ],
+  "watcher_classification": {
+    "unchanged_semantics": "All rooted source bytes or declaration names may change, but an explicit old-to-new Lean witness proves the proposition/type relation under both pinned source environments, regeneration is deterministic, and target checks pass. Never infer this from names or syntax alone.",
+    "meaning_change": "An old-to-new witness proves non-identity or the source owner changes binders, hypotheses, conclusion, answer-slot type, or required dependency meaning. Invalidate the old correspondence and open a new candidate relation; do not silently retarget reports.",
+    "environment_only_invalidation": "Source declaration and copied dependency bytes remain rooted and the old-to-new semantic witness passes, but elaboration or generation fails only after a Lean, Mathlib, generator, Comparator, or target-environment change. Preserve the relation and mark the affected witness unavailable at that environment.",
+    "unprovable_state": "Required commits or blobs are unreachable, environments cannot be reconstructed, dependencies or assumptions are missing, regeneration is nondeterministic, or no old-to-new witness can decide the relation. Preserve ambiguity; emit no equivalence claim."
+  },
+  "dependency_graph": {
+    "nodes": [
+      "FC source blob 8ea7925d",
+      "FC adapter commit 2654e42d",
+      "source environment Lean 4.27.0 / Mathlib a3a10db0",
+      "schema-version-1 request dfdbba45",
+      "context module e893b5dd",
+      "generator a7267895",
+      "generated workspace digest map",
+      "LeanEval target 76994364",
+      "target environment Lean 4.33.0 / Mathlib 6f1ef4e5"
+    ],
+    "edges": [
+      ["FC source blob 8ea7925d", "FC adapter commit 2654e42d", "source extraction input"],
+      ["source environment Lean 4.27.0 / Mathlib a3a10db0", "FC adapter commit 2654e42d", "elaborated declaration facts"],
+      ["FC adapter commit 2654e42d", "schema-version-1 request dfdbba45", "deterministic rendering"],
+      ["schema-version-1 request dfdbba45", "context module e893b5dd", "request moduleContent and byte-checked context"],
+      ["schema-version-1 request dfdbba45", "generator a7267895", "frozen contract input"],
+      ["generator a7267895", "generated workspace digest map", "deterministic response"],
+      ["generated workspace digest map", "LeanEval target 76994364", "vendored challenge candidate"],
+      ["target environment Lean 4.33.0 / Mathlib 6f1ef4e5", "generated workspace digest map", "successful Challenge and ChallengeDeps elaboration"]
+    ]
+  },
+  "recheck_triggers": [
+    "source commit, blob, declaration, helper closure, category, or assumptions change",
+    "FC Lean toolchain or Mathlib revision change",
+    "adapter or generator commit or wire contract change",
+    "LeanEval commit, Lean toolchain, Mathlib, Comparator, or lean4export revision change",
+    "any frozen request, context, provenance, or generated-file digest changes",
+    "historical equivalence witness stops compiling"
+  ],
+  "expected_impact_closure": [
+    "this generated-challenge lineage",
+    "reports citing the generated workspace digests",
+    "future submissions or reviewer-study tasks rooted in this challenge",
+    "watcher state for OeisA303656.conjecture"
+  ],
+  "known_uncertainty": [
+    "The adapter commit was local-only relative to its observed fork branch at freeze time.",
+    "The target build validates elaboration, not a proof or Comparator result.",
+    "The two environment-drift calibration cases are rooted records from known_failures.toml and were not independently replayed in this packet.",
+    "The historical rename witness is exact to one change and cannot classify arbitrary future edits.",
+    "No source-faithfulness review against OEIS or the cited papers was performed."
+  ],
+  "mutation_tests": [
+    "reject stale source, adapter, generator, or target commit",
+    "reject substituted declaration, helper, module, or generated challenge",
+    "reject forged source or target Lean and Mathlib environments",
+    "reject missing copied dependency, explicit parameter, or permitted-axiom assumption",
+    "reject drifted request, context, provenance, generated bytes, or historical witness"
+  ],
+  "does_not_establish": [
+    "truth or solution of OeisA303656.conjecture",
+    "equivalence inferred from names or similar syntax",
+    "general compatibility across FC and LeanEval environments",
+    "maintainer acceptance, external adoption, reviewer benefit, or scientific lift"
+  ]
+}

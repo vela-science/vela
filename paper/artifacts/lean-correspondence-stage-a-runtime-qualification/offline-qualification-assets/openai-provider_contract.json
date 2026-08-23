@@ -37,27 +37,27 @@
     "temperature": "omitted"
   },
   "schema": "vela.stage-a-provider-runtime-contract.v1",
+  "tool_lifecycle": {
+    "max_output_bytes": 65536,
+    "max_tool_calls": 64,
+    "parallel_tool_calls": false,
+    "per_call_timeout_seconds": 30,
+    "sequential_call_result_pairs": true
+  },
   "tools": [
     {
-      "allowed_argv": [
-        "git",
-        "--no-optional-locks",
-        "status",
-        "--short"
-      ],
-      "cwd": "/workspace",
-      "name": "shell",
-      "read_only": true,
-      "shell_interpolation": false
-    },
-    {
+      "descriptor_relative_no_follow": true,
+      "hardlinks": false,
       "name": "read_file",
+      "network": false,
       "operations": [
         "read",
         "list",
-        "stat"
+        "stat",
+        "search"
       ],
       "path_escape": false,
+      "query_max_bytes": 256,
       "regular_files_only": true,
       "symlinks": false,
       "workspace": "/workspace",

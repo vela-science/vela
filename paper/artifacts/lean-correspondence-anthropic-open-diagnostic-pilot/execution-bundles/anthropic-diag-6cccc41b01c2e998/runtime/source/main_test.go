@@ -226,7 +226,7 @@ func TestProviderSpecificRequestClosure(t *testing.T) {
 			if err := json.Unmarshal(raw, &body); err != nil {
 				t.Fatal(err)
 			}
-			if body["model"] != "held-model" || len(body["tools"].([]any)) != 2 {
+			if body["model"] != "held-model" || len(body["tools"].([]any)) != 1 {
 				t.Fatalf("request contract drift: %s", raw)
 			}
 			if err := selfTest(); err != nil {

@@ -1,0 +1,30 @@
+{
+  "dependency_roots": [
+    "945c4742b9ea3dfab5d670d6269fb6c719b2e0f9a6229c94d625113e069ce0e1"
+  ],
+  "outcome": "valid",
+  "receipt_root": "45f13f5bccd15b4b00135a56567cf62b9fb9246a93a7dd1d4bd0b3aeff4c4fa0",
+  "record_root": "a0a3c1b9ddba56fdea50e33dff1a605bfbdfe6650fc464f2b58e8a0c5fb3199c",
+  "relation_id": "oeis-303656.fc-to-leaneval-generated-lineage",
+  "schema_version": "lean-correspondence/receipt/v0.2",
+  "source": {
+    "commit": "148e18cce542f397ccb60b21a896ba063f6d6cca",
+    "declaration_sha256": "62db27222404ed0fda45e4017c64650809be39ecb0772d5683fbd52352a1de07",
+    "environment_root": "4ca10985f34dca32f8c3a7bf4abcf4c22b7aa99d73887b4d3f24f42c6265ff27",
+    "file_sha256": "e893b5dd9bc7be54d042a8123ddd60dbc5476181e5d3e3e77b3ecb844a594cbe",
+    "repository_id": "williamjblair/lean-proofs"
+  },
+  "target": {
+    "commit": "148e18cce542f397ccb60b21a896ba063f6d6cca",
+    "declaration_sha256": "62db27222404ed0fda45e4017c64650809be39ecb0772d5683fbd52352a1de07",
+    "environment_root": "4ca10985f34dca32f8c3a7bf4abcf4c22b7aa99d73887b4d3f24f42c6265ff27",
+    "file_sha256": "4aaf71c4db3c4bb5f3933a618945b0db7d96fd1e18f3dc493da4e84d2f49ed9b",
+    "repository_id": "williamjblair/lean-proofs"
+  },
+  "verifier_version": "0.2.0",
+  "witness": {
+    "evidence_sha256": "a62767593217dbbc71bc6894d508cf14162d2fe3dc9cce3e734a470a8d46aa5a",
+    "kind": "lean_command",
+    "result": "passed"
+  }
+}

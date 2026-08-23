@@ -2,7 +2,7 @@
   "providers": [
     {
       "normalized_events_bytes": "sha256:9a885be7ca6a8b6ecbe0033a256709f353de7882a5c61b0f520bb4061d90e3a5",
-      "normalized_tool_semantics_root": "sha256:6f858cdfb3c2ca19bdd00b89a1fe98e42615a5ef08d4f5f2dfea560be65c25c9",
+      "normalized_tool_semantics_root": "sha256:c5286bde6dcef9a89e0d912ded3b5ba6849c9a4e339149a421877573604381f7",
       "participant_visible_atoms_root": "sha256:3814a08354123311f292c2673ec2e7c5cf0308762dd23ec6ef76398c7d3166df",
       "provider_adapter": "openai-responses-v1",
       "provider_organization": "openai",
@@ -11,20 +11,20 @@
       "registered_schema_bytes": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
       "tool_boundary_root": "sha256:0b2e1fb701f70b02f9cc7ad79201f84374dfeb904299b59a6667d36eb4e59c69",
       "tool_receipts_root": "sha256:f50cbe743da37550a9ace6128c6e6a07284b79f9053cb666349c600ef5f637b7",
-      "tool_semantics_root": "sha256:14298feb0820c4ad5c9af0a8b853979a0dcc3b491bb6cde704dfbf52535aab42"
+      "tool_semantics_root": "sha256:c98932d0d5bcd5956b8c578f0f42bd3c94e827d5c5ca5b8034ca9bfd1799ffd2"
     },
     {
-      "normalized_events_bytes": "sha256:9a885be7ca6a8b6ecbe0033a256709f353de7882a5c61b0f520bb4061d90e3a5",
-      "normalized_tool_semantics_root": "sha256:6f858cdfb3c2ca19bdd00b89a1fe98e42615a5ef08d4f5f2dfea560be65c25c9",
+      "normalized_events_bytes": "sha256:23ab32dae1f861545ec023d936533381f098e8efafa72ab2d07917d85a2991ca",
+      "normalized_tool_semantics_root": "sha256:c5286bde6dcef9a89e0d912ded3b5ba6849c9a4e339149a421877573604381f7",
       "participant_visible_atoms_root": "sha256:3814a08354123311f292c2673ec2e7c5cf0308762dd23ec6ef76398c7d3166df",
       "provider_adapter": "anthropic-messages-v1",
       "provider_organization": "anthropic",
       "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
-      "raw_provider_events_bytes": "sha256:887b76771bbf16fde341c1f5963303255f910bc30e5129e5cd5ceea8249ec031",
+      "raw_provider_events_bytes": "sha256:25e675d8d2209e5340d6d51afe855bf598adf3d1b02c23090e9b96d8361a66a8",
       "registered_schema_bytes": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
-      "tool_boundary_root": "sha256:01dfbda69c1c7760423fdba41eaac18687a73d9fe683a8a5f207fdc8abe2a7d9",
-      "tool_receipts_root": "sha256:f50cbe743da37550a9ace6128c6e6a07284b79f9053cb666349c600ef5f637b7",
-      "tool_semantics_root": "sha256:14298feb0820c4ad5c9af0a8b853979a0dcc3b491bb6cde704dfbf52535aab42"
+      "tool_boundary_root": "sha256:f631380c7c4d05dd6521da4f3591723d5fb7a6d332958f57eaa9d8e0822cd8fb",
+      "tool_receipts_root": "sha256:2b8096dc04bbcc87ddfb8a83ea762cfa5696e881371e4546c624aaad054ae8f3",
+      "tool_semantics_root": "sha256:c98932d0d5bcd5956b8c578f0f42bd3c94e827d5c5ca5b8034ca9bfd1799ffd2"
     }
   ],
   "schema": "vela.tooling.provider-equivalence.v1"

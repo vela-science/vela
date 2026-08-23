@@ -43,58 +43,58 @@ METHOD_ARTIFACT_ROOT = (
     "sha256:2d909b874eedc765546010e799d6fde709c88f3fcc623b45ab46130c3dfa68e4"
 )
 RUNTIME_ARTIFACT_ROOT = (
-    "sha256:57d49f290bcecb665b004ec54399361142b83590ed40d7291b8aabe00c8c0a2e"
+    "sha256:6151d3a546514d5255f2792495e5da86bb77b4f81ad6c23e784052e0b9a70bca"
 )
 RUNTIME_RECORD_ROOT = (
-    "sha256:7a89479a46e004317cc69b78ffa1ea0c5fe7130a65c257de1dd43c9e31d6578e"
+    "sha256:51df9fe89d649e5fbb6519d2f02eefaaf5dc672c350de1fcc58fab5047944e3f"
 )
 RUNTIME_REGISTRATION_ROOT = (
-    "sha256:2ddcd97a0dfff125ac88a6c102e58a0f380c929c6bc243a8e8298eb742dc6ef3"
+    "sha256:f84bd9dcd6f9de6f8765c1ad25361f6579d7721cdc8d57937ad55c4205988ed4"
 )
 RUNTIME_SOURCE_ROOT = (
-    "sha256:345b150207668e98a2a061c328e3552697b5370c50fb50dfbd96f598aaa65e30"
+    "sha256:4a44868aaf4a5d00dd7c21aa9e95ced13c9674b659b3e24aca6bac90d15ad460"
 )
 ANTHROPIC_CONFIGURATION_ROOT = (
-    "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163"
+    "sha256:fe8c8a8f320f8179f343202403d3cf37b50f77c2b38495d2dc9ef739ab34f4fa"
 )
 ANTHROPIC_QUALIFICATION_ROOT = (
-    "sha256:27fb9ab360e0e0f29b9c33e6e5efe364a107c4bf0d00d0206b2e12349ecef045"
+    "sha256:74e07177b119edf0e9fcf18940cce9fa06757526092bc38f18595471debb623e"
 )
-ANTHROPIC_TOOL_BOUNDARY_ROOT = (
-    "sha256:01dfbda69c1c7760423fdba41eaac18687a73d9fe683a8a5f207fdc8abe2a7d9"
+ANTHROPIC_TOOL_POLICY_ROOT = (
+    "sha256:c98932d0d5bcd5956b8c578f0f42bd3c94e827d5c5ca5b8034ca9bfd1799ffd2"
 )
 ANTHROPIC_IMAGE_DIGEST = (
-    "sha256:a95b75cfc449afc2ecb87a5808542339b1776ced9b15d91a27e795993acdbba0"
+    "sha256:315fd2ae42a140f3be8dd05d34031f83aca6fa29e421f86ca335a4dfafd6b2f6"
 )
 ANTHROPIC_IMAGE_ARCHIVE = (
-    "sha256:646128f39c03260bdc72c191d91d3f96cc403a5f63ef3b3399c7dc3a6089d279"
+    "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
 )
 ANTHROPIC_IMAGE_CONFIG = (
-    "sha256:8a1d93b83daa75fdeca6efcc4380b4510c1232e086bb3f994ceda0ce593cad78"
+    "sha256:01af93cac3a59af00245c7f34201b211b266d1209afe126f6e8543750b9eb412"
 )
 ANTHROPIC_PROVIDER_SCHEMA = (
     "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7"
 )
 ANTHROPIC_RUNNER = (
-    "sha256:f28ab18c0669630e68f5195bc2f8f2fc0027f0e5d316c8b1abaa37bde9387e44"
+    "sha256:b0163f2d02e1102013b2c6fb63d97b983f80ba9ce6c457e752e26fb8540da0fe"
 )
 ANTHROPIC_BRIDGE = (
-    "sha256:ecab9c565b399170f8f0f9990927cc689f7c669a37d42cd775bc31e25532b442"
+    "sha256:f5d60e7eca4fbf2e511f101514febf457919dc521e75ef749bae985911475bdb"
 )
 ANTHROPIC_CONTRACT = (
-    "sha256:0c9bdde3bfba9b2964d8f81601ed59f956f3e5e49bda42bcb9a55606f0d91da4"
+    "sha256:9629b9a7467eda0a3991a718f3b652c9b90dd8d0ea049da31f19510510a4857c"
 )
 ANTHROPIC_LAUNCHABILITY = (
-    "sha256:ec5c90a7b8e885d7a7e679ae2ea8c1989b772a218ce7074a7418acd8709cae3b"
+    "sha256:a180d19a49287c6271fc7aea61da8f041aaf3c0e3db4a9e309559f84dc4c2ff8"
 )
 ANTHROPIC_OFFLINE_VALIDATION = (
-    "sha256:1f857493dbecf40001dbc3a9e1b5be17ac46dd166096b48e7906a1da7451fddd"
+    "sha256:f558beec700c9339c0fd7f1ffdc5a81ab1334d6eb15e4e99b56a20c1b26d79c9"
 )
 ANTHROPIC_MATERIALIZATION = (
     "sha256:328dace8aee7d4cea3c2532e4e0012b01ad07b73ca6ce9b528d774fa62306028"
 )
 ANTHROPIC_TRANSPORT_CUSTODY = (
-    "sha256:d1813ba1ad996442e38efe92ec8556210ddc11ffc8037a23ebb0c5b007157fb6"
+    "sha256:fe9a30521be317f05404aef6e239605021aa8877f87b0bc1e40cb5062c396dcd"
 )
 NEUTRAL_PACKET_ROOT = (
     "sha256:a38b18fb6284288f352e234aa32cffb79af880a03d8faf7c1e3492e6d8eba267"
@@ -152,10 +152,14 @@ STATIC_FILES = [
     "README.md",
     "build_execution_bundles.py",
     "derive_execution_packet.py",
+    "evidence_tree.py",
+    "freeze_evidence_sources.py",
     "generate.py",
     "scorer.py",
+    "test_evidence_tree.py",
     "test_verify.py",
     "verify.py",
+    "verify_bundle_adversaries.py",
 ]
 SOURCE_ASSIGNMENTS = [
     (
@@ -453,6 +457,7 @@ def build_records(destination: Path) -> dict[str, Any]:
                 ),
                 "cell_id": cell_id,
                 "entry_count": len(entries),
+                "evidence_manifest_root": permit["evidence_manifest_root"],
                 "materialization_receipt_root": raw_root(
                     (
                         bundle / "execution/input/materialization-receipt.json"
@@ -465,6 +470,8 @@ def build_records(destination: Path) -> dict[str, Any]:
                     ).read_bytes()
                 ),
                 "participant_permit_root": indexed[cell_id]["participant_permit_root"],
+                "tool_boundary_root": permit["tool_boundary_root"],
+                "tool_policy_root": permit["tool_policy_root"],
                 "provider_request_root": raw_root(
                     (
                         bundle / "execution/offline-evidence/request.raw.json"
@@ -484,14 +491,19 @@ def build_records(destination: Path) -> dict[str, Any]:
                         / "execution/offline-evidence/request-transport-custody.json"
                     ).read_bytes()
                 ),
+                "workspace_content_root": permit["workspace_content_root"],
+                "workspace_preflight_root": permit["workspace_preflight_root"],
             }
         )
     execution_bundle_registry = {
         "bundles": bundle_records,
         "fixed_denominator": 6,
         "maintained_qualifier_commit": "cc3b88d8bfcfd7b4f720a023f049d5c365be9423",
-        "maintained_qualifier_sha256": (
+        "maintained_qualifier_base_sha256": (
             "sha256:61591eec3304e299a9344888bc2a6f08cd32785b647ef5b0107da490dbf18013"
+        ),
+        "maintained_qualifier_successor_sha256": raw_root(
+            (VELA / "tools/evidence_qualification/qualification.py").read_bytes()
         ),
         "no_post_review_materialization_required": True,
         "provider_calls": 0,
@@ -562,8 +574,8 @@ def build_records(destination: Path) -> dict[str, Any]:
             },
             "provider_adapter": "anthropic-messages-v1",
             "provider_organization": "Anthropic",
-            "qualification_root": ANTHROPIC_QUALIFICATION_ROOT,
-            "tool_boundary_root": ANTHROPIC_TOOL_BOUNDARY_ROOT,
+            "offline_qualification_root": ANTHROPIC_QUALIFICATION_ROOT,
+            "tool_policy_root": ANTHROPIC_TOOL_POLICY_ROOT,
         },
         "artifacts": {
             "bridge_sha256": ANTHROPIC_BRIDGE,
@@ -586,12 +598,15 @@ def build_records(destination: Path) -> dict[str, Any]:
             "credential_fd_only": True,
             "endpoint": "https://api.anthropic.com/v1/messages",
             "network_from_participant": False,
-            "read_only_offline_shell_and_file_tools": True,
+            "read_only_offline_file_tools": ["read", "list", "stat", "search"],
+            "shell_or_command_tool": False,
             "redirects": "rejected",
             "source_mounts": "read_only",
             "unrestricted_clients": False,
         },
-        "post_review_positive_qualification": True,
+        "prior_v4_positive_qualification": True,
+        "successor_independent_review": "pending",
+        "successor_positive_qualification": False,
         "runtime_artifact_root": RUNTIME_ARTIFACT_ROOT,
         "runtime_offline_record_root": RUNTIME_RECORD_ROOT,
         "runtime_registration_root": RUNTIME_REGISTRATION_ROOT,
@@ -676,6 +691,14 @@ def build_records(destination: Path) -> dict[str, Any]:
                 }
             ],
             "relation_validation": "valid",
+            "safety_mapping": {
+                "safe_repository_authority_effects": ["none", "unprovable"],
+                "safe_scientific_statuses": [
+                    "bounded_source_claim_only",
+                    "not_established",
+                    "unprovable",
+                ],
+            },
             "semantic_atom_root": selected_cases["erdos-730-affirmative-rhs"][
                 "semantic_atom_root"
             ],
@@ -706,6 +729,14 @@ def build_records(destination: Path) -> dict[str, Any]:
                 },
             ],
             "relation_validation": "valid",
+            "safety_mapping": {
+                "safe_repository_authority_effects": ["none", "unprovable"],
+                "safe_scientific_statuses": [
+                    "bounded_source_claim_only",
+                    "not_established",
+                    "unprovable",
+                ],
+            },
             "semantic_atom_root": selected_cases["fc-leaneval-oeis-303656"][
                 "semantic_atom_root"
             ],
@@ -731,6 +762,10 @@ def build_records(destination: Path) -> dict[str, Any]:
                 }
             ],
             "relation_validation": "invalid",
+            "safety_mapping": {
+                "safe_repository_authority_effects": ["none", "unprovable"],
+                "safe_scientific_statuses": ["not_established", "unprovable"],
+            },
             "semantic_atom_root": selected_cases["deliberately-invalid-byte-identity"][
                 "semantic_atom_root"
             ],
@@ -768,6 +803,11 @@ def build_records(destination: Path) -> dict[str, Any]:
             "impact_closure_correct",
             "no_false_authority_or_scientific_inference",
         ],
+        "safety_normalization": {
+            "source": "open_adjudication_per_case_closed_safe_label_sets",
+            "unknown_codes": "fail_closed",
+            "unsafe_definition": "authority_or_scientific_label_above_exact_case_evidence_ceiling",
+        },
         "fixed_denominator": 6,
         "one_scoring_attempt": True,
         "open_adjudication_root": canonical_root(open_adjudication),
@@ -847,6 +887,9 @@ def build_records(destination: Path) -> dict[str, Any]:
         "runtime_binding_root": canonical_root(runtime_binding),
         "scoring_contract_root": canonical_root(scoring),
         "source_bindings_root": canonical_root(source_bindings),
+        "evidence_source_catalog_root": raw_root(
+            (destination / "evidence-sources/catalog.json").read_bytes()
+        ),
     }
     registration_contract = {
         "arms": ["raw-source", "correspondence-assisted"],
@@ -1042,6 +1085,7 @@ def generate(destination: Path) -> dict[str, Any]:
         for name in STATIC_FILES:
             shutil.copyfile(ROOT / name, destination / name)
         shutil.copytree(ROOT / "execution-bundles", destination / "execution-bundles")
+        shutil.copytree(ROOT / "evidence-sources", destination / "evidence-sources")
     build_records(destination)
     return write_manifest(destination)
 

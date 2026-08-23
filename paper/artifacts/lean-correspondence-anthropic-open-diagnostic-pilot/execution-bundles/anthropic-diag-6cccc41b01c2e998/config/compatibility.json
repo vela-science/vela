@@ -2,17 +2,19 @@
   "accepted_arguments": [
     "approval_policy=never",
     "web_search=disabled",
-    "tools=read_only_offline_shell_files"
+    "tools=read_only_offline_files"
   ],
-  "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
+  "configuration_root": "sha256:fe8c8a8f320f8179f343202403d3cf37b50f77c2b38495d2dc9ef739ab34f4fa",
   "dockerfile_bytes": "sha256:e6f29f21f153e5f9129e13d74630b6183691e28aa68347d5904d5f0d7f1884e3",
-  "image_digest": "sha256:a95b75cfc449afc2ecb87a5808542339b1776ced9b15d91a27e795993acdbba0",
+  "image_digest": "sha256:315fd2ae42a140f3be8dd05d34031f83aca6fa29e421f86ca335a4dfafd6b2f6",
   "provider_adapter": "anthropic-messages-v1",
   "provider_contact_possible": false,
   "runner_version": "neutral-runner/1",
-  "runtime_source_root": "sha256:345b150207668e98a2a061c328e3552697b5370c50fb50dfbd96f598aaa65e30",
+  "runtime_source_root": "sha256:4a44868aaf4a5d00dd7c21aa9e95ced13c9674b659b3e24aca6bac90d15ad460",
   "schema": "vela.tooling.strict-config-compatibility.v1",
   "stderr_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "strict_parse_passed": true,
-  "tool_boundary_root": "sha256:01dfbda69c1c7760423fdba41eaac18687a73d9fe683a8a5f207fdc8abe2a7d9"
+  "tool_boundary_root": "sha256:e15e57f749aedae234d7f9f845612b44277817184febb4f471930a6934f3acde",
+  "tool_policy_root": "sha256:c98932d0d5bcd5956b8c578f0f42bd3c94e827d5c5ca5b8034ca9bfd1799ffd2",
+  "workspace_content_root": "sha256:fefdb903dbe99ec97a11f5abbfbb760c8abcdeb42c8c9b2bc0d1054267a6f8f9"
 }

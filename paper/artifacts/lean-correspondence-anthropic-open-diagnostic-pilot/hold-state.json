@@ -10,46 +10,46 @@
     "permit_set_root": "sha256:75bfa627a70465ae7b1ffe8dbf07d980db1f58ed3e68d7745fae22f851c12f1c",
     "released": 0
   },
-  "permit_set_root": "sha256:55371e684d063be9c335af6bf8ae3c0ef548357619a6110a2af187a00310d859",
+  "permit_set_root": "sha256:2af4b9ac91254429e313a7f03ec61da4f718574964a55908409eef4bd8766d07",
   "permits": [
     {
       "cell_id": "anthropic-diag-2f719af4c655ef77",
-      "permit_root": "sha256:97b731c1ab3f6cb68a3588e209bb7ce4b92179a1ca482ce4fb34bdff85e453f9",
+      "permit_root": "sha256:db5716003bce985bb9be4d8716246760ec6605355cbf83558a19e2771f72475d",
       "run_id": "anthropic-diag-2f719af4c655ef77",
       "schema": "vela.tooling.closed-launch-permit.v1",
       "status": "held"
     },
     {
       "cell_id": "anthropic-diag-395839ae5418ff4d",
-      "permit_root": "sha256:c00f490dd2c34c21829305f70b63babab1f2ff201f87b903d3d2bb5d1e2008df",
+      "permit_root": "sha256:6cd772a71b1ed992d155d26b3148ccb8777d605c864450ec97a695d114a8d674",
       "run_id": "anthropic-diag-395839ae5418ff4d",
       "schema": "vela.tooling.closed-launch-permit.v1",
       "status": "held"
     },
     {
       "cell_id": "anthropic-diag-563bdd90a8c7df7a",
-      "permit_root": "sha256:e506ba67d3c49b0c8325a8ac0871b6a90e7599b35d8f0fea157665416e8d444b",
+      "permit_root": "sha256:b62638c252f19a699276ad162fd46f14c5fa48751204f3e21158f4587be30120",
       "run_id": "anthropic-diag-563bdd90a8c7df7a",
       "schema": "vela.tooling.closed-launch-permit.v1",
       "status": "held"
     },
     {
       "cell_id": "anthropic-diag-6cccc41b01c2e998",
-      "permit_root": "sha256:505e788f16c138bd0f0ff648e94d1f7a37e002c5d6993d65fa64d8d4e9118a28",
+      "permit_root": "sha256:57b6c0e62dc05990324c5ca5e0a87b81ec9d0007819c31ebfbcb9248e0ee8d48",
       "run_id": "anthropic-diag-6cccc41b01c2e998",
       "schema": "vela.tooling.closed-launch-permit.v1",
       "status": "held"
     },
     {
       "cell_id": "anthropic-diag-7981a902f25c4abe",
-      "permit_root": "sha256:479a8d2c377f636a872f1d413445fb6a2661c9da55daaee5b742e1db9bf046a2",
+      "permit_root": "sha256:363fefd2630c1c467bf2b487dbc0460b97dc61359d8af52e5427695d5aa71500",
       "run_id": "anthropic-diag-7981a902f25c4abe",
       "schema": "vela.tooling.closed-launch-permit.v1",
       "status": "held"
     },
     {
       "cell_id": "anthropic-diag-fa6a2181a9a7b010",
-      "permit_root": "sha256:8621462a05d3d6d24692c2032b8592921dbc861666216a8359e7048d01329a2c",
+      "permit_root": "sha256:f00d809b97b7e313179e3972dfa37911323fd1404d2e8b58033e0d49ce9cc8c6",
       "run_id": "anthropic-diag-fa6a2181a9a7b010",
       "schema": "vela.tooling.closed-launch-permit.v1",
       "status": "held"

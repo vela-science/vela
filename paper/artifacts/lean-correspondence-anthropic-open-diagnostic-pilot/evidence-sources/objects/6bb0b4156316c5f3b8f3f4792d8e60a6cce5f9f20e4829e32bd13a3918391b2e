@@ -1,0 +1,28 @@
+{
+  "dependency_roots": [],
+  "outcome": "valid",
+  "receipt_root": "7e9e41851ceffe3938019e6879f01a06cd1389891521a92e287c0447bea3bb3c",
+  "record_root": "4e21d6cb968ea09ef94a8ab89162508b4c7dc31a8d04c974449b4bb52d56e1e5",
+  "relation_id": "erdos-730.affirmative-rhs-defeq",
+  "schema_version": "lean-correspondence/receipt/v0.2",
+  "source": {
+    "commit": "148e18cce542f397ccb60b21a896ba063f6d6cca",
+    "declaration_sha256": "402ae340f567b672bc84b9891341befc910d9f22f06ff4a284dfd2e671c8c56d",
+    "environment_root": "0283fc7a3820a49991ccad481396de40844f5d39c5c6f0eddd1d22f450eeb558",
+    "file_sha256": "4a13ff3e935cf64e54f63164e2ef39b3bf85c122dd84d3c32c5ab9440f7efc2c",
+    "repository_id": "williamjblair/lean-proofs"
+  },
+  "target": {
+    "commit": "148e18cce542f397ccb60b21a896ba063f6d6cca",
+    "declaration_sha256": "0674aee6eba0e22c7f4d5a069bd2d3319fd087206a9a5be25d3f840f5a552545",
+    "environment_root": "0283fc7a3820a49991ccad481396de40844f5d39c5c6f0eddd1d22f450eeb558",
+    "file_sha256": "4a13ff3e935cf64e54f63164e2ef39b3bf85c122dd84d3c32c5ab9440f7efc2c",
+    "repository_id": "williamjblair/lean-proofs"
+  },
+  "verifier_version": "0.2.0",
+  "witness": {
+    "evidence_sha256": "cc2f6fe3dbe4d2c3e8ed4496624916dec903c2846f0804c0ad9913cb971b3fec",
+    "kind": "lean_command",
+    "result": "passed"
+  }
+}

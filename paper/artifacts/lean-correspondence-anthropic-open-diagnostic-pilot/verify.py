@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -13,18 +14,19 @@ from typing import Any
 
 sys.dont_write_bytecode = True
 
-import generate
-import scorer
+import generate  # noqa: E402
+import scorer  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent
 QUALIFIER_ROOT = Path("/private/tmp/vela-anthropic-open-diagnostic-held-v2")
 QUALIFIER = Path(
-    "/private/tmp/vela-stage-a-runtime-qualification-maintained-v1/"
+    "/private/tmp/vela-stage-a-runtime-qualification-maintained-v2/"
     "tools/evidence_qualification/qualification.py"
 )
 QUALIFIER_PYTHON = Path(
     "/private/tmp/vela-stage-a-runtime-qualification-python-v1/.venv/bin/python"
 )
+SHA256 = re.compile(r"sha256:[0-9a-f]{64}")
 
 
 class VerificationError(ValueError):
@@ -386,6 +388,11 @@ def verify_package(root: Path = ROOT, *, check_external: bool = True) -> str:
             "provider_schema_bytes",
             "prompt_root",
             "packet_root",
+            "tool_boundary_root",
+            "tool_policy_root",
+            "workspace_content_root",
+            "evidence_manifest_root",
+            "workspace_preflight_root",
             "timeout_seconds",
             "status",
             "issued_at",
@@ -410,6 +417,11 @@ def verify_package(root: Path = ROOT, *, check_external: bool = True) -> str:
             or permit["provider_schema_bytes"] != generate.ANTHROPIC_PROVIDER_SCHEMA
             or permit["prompt_root"] != row["prompt_root"]
             or permit["packet_root"] != row["execution_packet_root"]
+            or not SHA256.fullmatch(permit["tool_boundary_root"])
+            or permit["tool_policy_root"] != generate.ANTHROPIC_TOOL_POLICY_ROOT
+            or not SHA256.fullmatch(permit["workspace_content_root"])
+            or not SHA256.fullmatch(permit["evidence_manifest_root"])
+            or not SHA256.fullmatch(permit["workspace_preflight_root"])
             or type(permit["timeout_seconds"]) is not int
             or permit["timeout_seconds"] != 1200
             or permit["status"] != "held"

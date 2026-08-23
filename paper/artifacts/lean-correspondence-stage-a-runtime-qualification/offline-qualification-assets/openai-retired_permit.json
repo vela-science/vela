@@ -13,5 +13,5 @@
   "run_id": "neutral-calibration-openai",
   "schema": "vela.stage-a-neutral-permit-retirement.v1",
   "status": "retired_non_releasable",
-  "successor_permit_root": "sha256:f51169112d3be0ec092abf833131b5cd24acdf5772cebb3ea6a7dc0211cf5eed"
+  "successor_permit_root": "sha256:b41826ce2a5897f854f4c9116fc40c5ef189e5f17bad1ea8979c90c946ad04ea"
 }

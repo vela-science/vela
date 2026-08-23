@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "contextRoot": "context",
+  "leanToolchain": "leanprover/lean4:v4.33.0",
+  "mathlib": {
+    "name": "mathlib",
+    "git": "https://github.com/leanprover-community/mathlib4.git",
+    "rev": "6f1ef4e5dd604a435bddba4747b13970cd65d2a1"
+  },
+  "templates": {
+    "workspaceTest": "/-\nCopyright 2026 The Formal Conjectures Authors.\n\nLicensed under the Apache License, Version 2.0 (the \"License\");\nyou may not use this file except in compliance with the License.\nYou may obtain a copy of the License at\n\n    https://www.apache.org/licenses/LICENSE-2.0\n\nUnless required by applicable law or agreed to in writing, software\ndistributed under the License is distributed on an \"AS IS\" BASIS,\nWITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\nSee the License for the specific language governing permissions and\nlimitations under the License.\n-/\n\nimport Lean\n\nopen Lean\n\n/-- Run comparator on this workspace's `config.json`, so that `lake test`\nis the check. Adapted from `leanprover/lean-eval`'s workspace test template.\nThe binary comes from `PATH`, or from `COMPARATOR_BIN`. -/\ndef main : IO UInt32 := do\n  let comparatorBin := (← IO.getEnv \"COMPARATOR_BIN\").getD \"comparator\"\n  try\n    let child ← IO.Process.spawn {\n      cmd := \"lake\"\n      args := #[\"env\", comparatorBin, \"config.json\"]\n    }\n    child.wait\n  catch err =>\n    IO.eprintln s!\"Failed to run comparator via `{comparatorBin}`.\"\n    IO.eprintln \"Install comparator, with landrun and lean4export, and put it \\\non PATH, or set COMPARATOR_BIN. See leanprover/comparator's README.\"\n    IO.eprintln s!\"Original error: {err}\"\n    pure 1\n"
+  },
+  "problems": [
+    {
+      "id": "OeisA303656_conjecture",
+      "title": "OeisA303656.conjecture",
+      "group": "open-conjectures",
+      "status": "draft",
+      "visible": true,
+      "statementRevision": 1,
+      "tags": [
+        "formal-conjectures",
+        "research-open"
+      ],
+      "moduleName": "OeisA303656_conjecture",
+      "holes": [
+        "conjecture"
+      ],
+      "submitter": "formal-conjectures-importer",
+      "notes": null,
+      "source": null,
+      "informalSolution": null,
+      "moduleContent": "import Mathlib\n\n/-!\nThe Formal Conjectures declarations `OeisA303656.conjecture` needs, copied so\nthat the statement requires Mathlib and nothing else. Dependencies\ncome before the declarations that use them:\n\n* `OeisA303656.A`\n-/\n\nnamespace OeisA303656\nend OeisA303656\n\n-- OeisA303656.A, from FormalConjectures/OEIS/303656.lean\nnoncomputable section\nnamespace OeisA303656\n\n/-- The predicate that `n` can be written as $a^2 + b^2 + 3^c + 5^d$ for nonnegative integers. -/\ndef A (n : ℕ) : Prop :=\n  ∃ a b c d : ℕ, n = a ^ 2 + b ^ 2 + 3 ^ c + 5 ^ d\n\nend OeisA303656\nend\n\nopen OeisA303656\n\ntheorem conjecture (n : ℕ) (hn : 1 < n) : A n := by\n  sorry\n",
+      "resolvedHoles": [
+        {
+          "declarationName": "conjecture",
+          "module": "OeisA303656_conjecture",
+          "startLine": 27,
+          "startColumn": 0,
+          "endLine": 28,
+          "endColumn": 7,
+          "explicitParameters": [
+            "n",
+            "hn"
+          ],
+          "sameModuleDependencies": [
+            "OeisA303656.A"
+          ],
+          "holeDependentDependencies": [],
+          "kind": "theorem"
+        }
+      ]
+    }
+  ]
+}

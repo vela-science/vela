@@ -88,6 +88,7 @@ def main() -> None:
         )
     registration["runtime_boundary"].update(
         {
+            "tool_mode": "read_only_offline_files",
             "run_input_materialization": "exact_raw_schema_file_byte_splice_no_parse_reserialization",
             "offline_same_input_pre_request_validation": True,
             "provider_calls_derived_from_endpoint_write_receipts_only": True,

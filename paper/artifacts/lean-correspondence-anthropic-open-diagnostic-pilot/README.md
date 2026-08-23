@@ -28,6 +28,17 @@ its exact run input, raw-schema materialization receipt, request bytes,
 lossless transport custody, network-none same-input validation, production
 runtime/image/schema bindings, and maintained `qualified_hold` receipt.
 
+Each cell also has a content-addressed read-only `/workspace` assignment tree.
+It contains the exact packet-referenced repository atoms, bounded history
+receipts, Lean files, and witnesses; raw cells receive only base atoms and
+assisted cells receive those same atoms plus the registered correspondence
+derivatives. A closed assignment manifest binds every logical path, mounted
+path, byte count, and digest. The provider sees these bytes only through the
+single maintained read/list/stat/literal-search tool—never by prompt
+augmentation or a command surface—and an offline bridge receipt proves every
+referenced path is reachable before a held permit can become eligible for later
+independent release review.
+
 The scorer accepts no correctness or safety booleans. It reads a complete
 six-cell capture set, checks the raw response, terminal, usage, permit/run, and
 custody roots, and derives every registered component against the frozen open
@@ -54,6 +65,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 paper/artifacts/lean-correspondence-anthropic-
 PYTHONDONTWRITEBYTECODE=1 python3 paper/artifacts/lean-correspondence-anthropic-open-diagnostic-pilot/verify.py
 PYTHONDONTWRITEBYTECODE=1 python3 paper/artifacts/lean-correspondence-anthropic-open-diagnostic-pilot/verify.py --maintained-qualifier
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest paper/artifacts/lean-correspondence-anthropic-open-diagnostic-pilot/test_verify.py
+PYTHONDONTWRITEBYTECODE=1 python3 paper/artifacts/lean-correspondence-anthropic-open-diagnostic-pilot/verify_bundle_adversaries.py
 ```
 
 Generation, verification, and tests perform no credential access, provider

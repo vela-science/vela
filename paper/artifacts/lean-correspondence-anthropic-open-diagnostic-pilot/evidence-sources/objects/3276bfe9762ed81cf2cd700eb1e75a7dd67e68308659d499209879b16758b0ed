@@ -1,0 +1,164 @@
+{
+  "schema": "lean-correspondence.candidate-packet.v0",
+  "case_id": "erdos-730-affirmative-rhs",
+  "frozen_on": "2026-08-22",
+  "authority_effect": "none",
+  "relation": {
+    "type": "proposition_identity_plus_term_witness",
+    "status": "verified_at_pins",
+    "claim": "The affirmative S.Infinite right-hand side of FormalConjectures.ErdosProblems.730.erdos_730 is the proposition stated by Palomar.Erdos730.erdos_730_infinite, and Erdos730.FullDensityTheorem.pairSet_infinite inhabits it.",
+    "claim_ceiling": "No correspondence is claimed for the answer(sorry) wrapper, source-faithfulness beyond the frozen bytes, registry acceptance, independent review, or scientific acceptance."
+  },
+  "roots": {
+    "formal_conjectures": {
+      "repository": "https://github.com/google-deepmind/formal-conjectures",
+      "commit": "9f5ee773841921f460b4a26a3552f5eca4accaa0",
+      "lean_toolchain": "leanprover/lean4:v4.27.0",
+      "mathlib_revision": "a3a10db0e9d66acbebf76c5e6a135066525ac900",
+      "files": [
+        {
+          "path": "FormalConjectures/ErdosProblems/730.lean",
+          "blob": "d37ca5fc59eb615e7406dff2c7881e1600d15d58",
+          "sha256": "c8e532aa2916312501375df4e30ca4770fdeb3968d39622dda5cdfc5f9fa26e7"
+        },
+        {
+          "path": "lean-toolchain",
+          "blob": "2bb276aae9b280aaa44fa3c21d2be1d4bc0c9862",
+          "sha256": "e695e6e5d8e7a8be4d6cf159dfb995847993d26c6cc450353a86f387279025b9"
+        },
+        {
+          "path": "lake-manifest.json",
+          "blob": "13a1771e215c0200be3db3d1d6881017a1f5d179",
+          "sha256": "5b99b5f4f807cbba67bbcd22e5e486c17d6a8d970ea218de08d05830ab350c26"
+        }
+      ]
+    },
+    "lean_proofs": {
+      "repository": "https://github.com/williamjblair/lean-proofs.git",
+      "commit": "03729c9cbb0b602f5a828bb850c85e84c5a6d460",
+      "lean_toolchain": "leanprover/lean4:v4.33.0",
+      "mathlib_revision": "db584cd6d46c92f209a44c0f1c829460d327499d",
+      "additional_dependency": {
+        "name": "PrimeNumberTheoremAnd",
+        "revision": "769d3b81fbff001d9fa7028df0168a8e546cf692"
+      },
+      "files": [
+        {
+          "path": "Palomar/Erdos730/Challenge.lean",
+          "blob": "20d33905c3c291c15f41be49df3becef772fb8a9",
+          "sha256": "589175e4b54f9438a3f67f58f6c319c71f106083ca3a2295da7c60e6bee470c4"
+        },
+        {
+          "path": "Palomar/Erdos730/comparator.json",
+          "blob": "b3cc4fdec9d47d502485c195e5cfecef7f504701",
+          "sha256": "a3de92effd6e1140648bd738d1cc207de6be54b31e519e91b6f384c5f98c539e"
+        },
+        {
+          "path": "PalomarSolutions/Erdos730.lean",
+          "blob": "5d00a7d7d2c46fd1215a3498b9a5f3a200018f48",
+          "sha256": "8f1103c1db48e9c8776ed4fe2416f67447e0e3426b6203d4690ddf1a95cf1294"
+        },
+        {
+          "path": "ErdosProblems/Erdos730/FullDensityCore.lean",
+          "blob": "c86aef68008061f24b02911b12eb67dc03a71f82",
+          "sha256": "0efbd59fc28ee6263e9be959643986a5ed0b40eb2920216676f26e302d6a61fa"
+        },
+        {
+          "path": "ErdosProblems/Erdos730/FullDensityTheorem.lean",
+          "blob": "c70d6c5efd6f5e9642fd77193ef8a063fed28184",
+          "sha256": "4ab6fb660d93fa1da1f9fbfc89c018a3152845f9ba167c3486c73ac13eaa9e38"
+        },
+        {
+          "path": "Audit.lean",
+          "blob": "9563ce46533322321b1fc5dcd6dcdf5927874bfd",
+          "sha256": "9fcc8078dbdefdac2acceccf24d832b22f7038a6c303f4b67721d45b2a5a87aa"
+        },
+        {
+          "path": "scripts/check_axioms.sh",
+          "blob": "a995f2d132c7668ea1b61ef5bc19c20e34901e73",
+          "sha256": "01abf748a6edd4e6e2b27213b8ab5be21cea2fadd0d76af6c152d1c8d9084fda"
+        },
+        {
+          "path": "lean-toolchain",
+          "blob": "025e59548e48cf71f2744154e2890beefe30a258",
+          "sha256": "302cd63c54178885b89e669f33b38f12f4dd7ae7e5cac537b3203e3768d8fb2b"
+        },
+        {
+          "path": "lake-manifest.json",
+          "blob": "8e9937eb7b972063ccb6017f84de1a0aae4e3c50",
+          "sha256": "a81ef40554be38a473d0339b81e220c9d013226aae49d29305417f2e091bf482"
+        }
+      ]
+    }
+  },
+  "atomic_facts": [
+    {
+      "id": "a1",
+      "fact": "The frozen Formal Conjectures file defines S with the central-binomial prime-factor set expression and places S.Infinite on the right of erdos_730."
+    },
+    {
+      "id": "a2",
+      "fact": "The frozen Palomar challenge inlines the same set expression as its theorem proposition."
+    },
+    {
+      "id": "a3",
+      "fact": "The frozen solution has the identical challenge type and is the direct term Erdos730.FullDensityTheorem.pairSet_infinite."
+    },
+    {
+      "id": "a4",
+      "fact": "The terminal theorem is included in the frozen axiom audit; the successful local audit reports only propext, Classical.choice, and Quot.sound."
+    }
+  ],
+  "witness": {
+    "file": "Witness.lean",
+    "sha256": "4a13ff3e935cf64e54f63164e2ef39b3bf85c122dd84d3c32c5ab9440f7efc2c",
+    "command": "lake env lean lean-correspondence-v0/cases/erdos-730/Witness.lean",
+    "expected": "exit 0; both witness declarations print only the standard three axioms"
+  },
+  "dependency_graph": {
+    "nodes": [
+      "FC source bytes at 9f5ee773",
+      "affirmative S.Infinite RHS",
+      "Palomar Mathlib-only challenge",
+      "Palomar solution adapter",
+      "FullDensityTheorem.pairSet_infinite",
+      "lean-proofs dependency closure at 03729c9c"
+    ],
+    "edges": [
+      ["FC source bytes at 9f5ee773", "affirmative S.Infinite RHS", "parsed source containment"],
+      ["affirmative S.Infinite RHS", "Palomar Mathlib-only challenge", "definitional proposition identity witnessed by rfl"],
+      ["Palomar solution adapter", "FullDensityTheorem.pairSet_infinite", "direct Lean term"],
+      ["FullDensityTheorem.pairSet_infinite", "lean-proofs dependency closure at 03729c9c", "Lean import graph and lake manifest"]
+    ]
+  },
+  "recheck_triggers": [
+    "source commit, source blob, declaration, or proposition bytes change",
+    "challenge, solution, terminal theorem, audit, toolchain, Mathlib, or PrimeNumberTheoremAnd pin changes",
+    "permitted axiom set changes",
+    "witness stops compiling or its printed axiom set changes"
+  ],
+  "expected_impact_closure": [
+    "this correspondence packet",
+    "any report that cites this packet root",
+    "any later reviewer-study item derived from this case"
+  ],
+  "known_uncertainty": [
+    "The FC answer wrapper is not related by this witness.",
+    "The informal mathematical source was not independently adjudicated here.",
+    "The proof dependency closure contains an external package with admitted declarations outside the used theorem cone; the local axiom audit is the evidence that they do not enter this witness.",
+    "No provider, registry, maintainer, or reviewer acceptance is inferred."
+  ],
+  "mutation_tests": [
+    "reject stale repository commit",
+    "reject substituted source or challenge declaration",
+    "reject forged Lean, Mathlib, or external dependency revision",
+    "reject missing permitted-axiom assumptions",
+    "reject a drifted witness digest or failed Lean witness"
+  ],
+  "does_not_establish": [
+    "equivalence of the full Formal Conjectures theorem wrapper",
+    "publication or registration status",
+    "independent mathematical review",
+    "scientific acceptance or authority"
+  ]
+}

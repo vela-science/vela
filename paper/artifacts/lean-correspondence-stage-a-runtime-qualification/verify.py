@@ -30,10 +30,10 @@ STOPPED_V3 = (
 )
 SHA256 = re.compile(r"sha256:[0-9a-f]{64}\Z")
 EXPECTED_REGISTRATION_ROOT = (
-    "sha256:2ddcd97a0dfff125ac88a6c102e58a0f380c929c6bc243a8e8298eb742dc6ef3"
+    "sha256:f84bd9dcd6f9de6f8765c1ad25361f6579d7721cdc8d57937ad55c4205988ed4"
 )
 EXPECTED_OFFLINE_RECORD_ROOT = (
-    "sha256:7a89479a46e004317cc69b78ffa1ea0c5fe7130a65c257de1dd43c9e31d6578e"
+    "sha256:51df9fe89d649e5fbb6519d2f02eefaaf5dc672c350de1fcc58fab5047944e3f"
 )
 EXPECTED_QUALIFIER = {
     "git_commit": "cc3b88d8bfcfd7b4f720a023f049d5c365be9423",
@@ -68,26 +68,26 @@ EXPECTED_PROVIDER = {
         "model": "gpt-5.6-sol",
         "run_id": "neutral-calibration-openai-json-v2",
         "configuration_root": "sha256:96555c45c33ed2a106cfb261025b752a4eeb1514aa180985ecd5ea0551a6616d",
-        "qualification_root": "sha256:e23aa963b3b0eb305e2ef3a0bcb773c666263b49ce58b8d92cf711f3a6193f69",
-        "image_digest": "sha256:50410f6185ec3c2777062597df16af38913ef35be374e685c772925fb950a31c",
+        "qualification_root": "sha256:f5f4892ae2ddd6e871f8e3eeb8f8faeb34a7137fc6070df8b023815a6505e4f6",
+        "image_digest": "sha256:f0ce5175fe6f72bb44f355f7f443e814bec91efb75c28326b3d97fee54aef4fb",
         "tool_boundary_root": "sha256:0b2e1fb701f70b02f9cc7ad79201f84374dfeb904299b59a6667d36eb4e59c69",
-        "runtime_source_root": "sha256:f63196d42a85b839984c1abfd663b293f911fd0792c43cdf26e56ec9c7f4f4e8",
-        "participant_permit_root": "sha256:f51169112d3be0ec092abf833131b5cd24acdf5772cebb3ea6a7dc0211cf5eed",
+        "runtime_source_root": "sha256:5ec5d345bd9ecc8828ffbf5aa7da60b10164d5ac1a821fd8e7bf37e63c7fd8b6",
+        "participant_permit_root": "sha256:b41826ce2a5897f854f4c9116fc40c5ef189e5f17bad1ea8979c90c946ad04ea",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
-        "launchability_sha256": "sha256:b6b9c73de349565f2f8619ce6378bdf44d037ec4eccd67f4e356040c85ab2bdd",
+        "launchability_sha256": "sha256:790bbf9505e21503118bab52fcd132a4e365c2c571f244fcb1d450bd6145d231",
     },
     "anthropic-messages-v1": {
         "organization": "Anthropic",
         "model": "claude-opus-5",
         "run_id": "neutral-calibration-anthropic-json-v4-lossless",
         "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
-        "qualification_root": "sha256:27fb9ab360e0e0f29b9c33e6e5efe364a107c4bf0d00d0206b2e12349ecef045",
-        "image_digest": "sha256:a95b75cfc449afc2ecb87a5808542339b1776ced9b15d91a27e795993acdbba0",
+        "qualification_root": "sha256:74e07177b119edf0e9fcf18940cce9fa06757526092bc38f18595471debb623e",
+        "image_digest": "sha256:315fd2ae42a140f3be8dd05d34031f83aca6fa29e421f86ca335a4dfafd6b2f6",
         "tool_boundary_root": "sha256:01dfbda69c1c7760423fdba41eaac18687a73d9fe683a8a5f207fdc8abe2a7d9",
-        "runtime_source_root": "sha256:345b150207668e98a2a061c328e3552697b5370c50fb50dfbd96f598aaa65e30",
-        "participant_permit_root": "sha256:dfc9f20e029b7ea51eb28c6b3d81f70eace063c681d56d2c9ce7356b3dbe8b63",
+        "runtime_source_root": "sha256:4a44868aaf4a5d00dd7c21aa9e95ced13c9674b659b3e24aca6bac90d15ad460",
+        "participant_permit_root": "sha256:1db30a246b6727cf1e01f923b80f4247defab2318e63483c5d6efd58689c1e36",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
-        "launchability_sha256": "sha256:ec5c90a7b8e885d7a7e679ae2ea8c1989b772a218ce7074a7418acd8709cae3b",
+        "launchability_sha256": "sha256:a180d19a49287c6271fc7aea61da8f041aaf3c0e3db4a9e309559f84dc4c2ff8",
     },
 }
 EXPECTED_FROZEN_CONFIGURATION = {
@@ -254,30 +254,20 @@ def expected_request_bytes(
 ) -> bytes:
     tool_specs = [
         {
-            "name": "shell",
-            "description": "Return git --no-optional-locks status --short for the read-only workspace.",
-            "input_schema": {
-                "type": "object",
-                "additionalProperties": False,
-                "required": ["argv", "cwd"],
-                "properties": {
-                    "argv": {
-                        "const": ["git", "--no-optional-locks", "status", "--short"]
-                    },
-                    "cwd": {"const": "/workspace"},
-                },
-            },
-        },
-        {
             "name": "read_file",
-            "description": "Read one regular non-symlink file below the read-only workspace.",
+            "description": "Read, list, stat, or literal-search exact UTF-8 evidence below the read-only /workspace assignment tree.",
             "input_schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "type": "object",
                 "additionalProperties": False,
-                "required": ["operation", "path"],
+                "required": ["operation", "path", "query"],
                 "properties": {
-                    "operation": {"enum": ["read", "list", "stat"]},
-                    "path": {"type": "string", "pattern": "^/workspace(?:/|$)"},
+                    "operation": {
+                        "enum": ["read", "list", "stat", "search"],
+                        "type": "string",
+                    },
+                    "path": {"minLength": 1, "pattern": "^/", "type": "string"},
+                    "query": {"maxLength": 256, "type": "string"},
                 },
             },
         },
@@ -627,28 +617,28 @@ def validate_launchable_runtime(
         "provider_contract_boundary",
     )
     require(
-        contract.get("tools")
+        contract.get("tool_lifecycle")
+        == {
+            "max_tool_calls": 64,
+            "parallel_tool_calls": False,
+            "sequential_call_result_pairs": True,
+            "max_output_bytes": 65536,
+            "per_call_timeout_seconds": 30,
+        }
+        and contract.get("tools")
         == [
-            {
-                "name": "shell",
-                "allowed_argv": [
-                    "git",
-                    "--no-optional-locks",
-                    "status",
-                    "--short",
-                ],
-                "cwd": "/workspace",
-                "read_only": True,
-                "shell_interpolation": False,
-            },
             {
                 "name": "read_file",
                 "workspace": "/workspace",
-                "operations": ["read", "list", "stat"],
+                "operations": ["read", "list", "stat", "search"],
                 "regular_files_only": True,
                 "symlinks": False,
+                "hardlinks": False,
+                "descriptor_relative_no_follow": True,
                 "path_escape": False,
                 "write": False,
+                "network": False,
+                "query_max_bytes": 256,
             },
         ]
         and contract.get("events") == expected_events
@@ -1224,7 +1214,7 @@ def validate_registration(
         and runtime.get("network_during_offline_qualification") is False
         and runtime.get("participant_network_until_authorized") is False
         and runtime.get("writes") is False
-        and runtime.get("tool_mode") == "read_only_offline_shell_files"
+        and runtime.get("tool_mode") == "read_only_offline_files"
         and runtime.get("provider_equivalence_root")
         == "sha256:bc40341349f6f771be5eef2481fcef3bf72d278b2df65d5df05d01e62e271720"
         and runtime.get("run_input_materialization")
@@ -1354,13 +1344,20 @@ def validate_registration(
             == EXPECTED_PRIOR_CONSUMED_FAILED_EXACT_REQUEST["producer_tree"],
             "prior_failed_exact_request_tree",
         )
-        require(
-            git_value("rev-parse", "HEAD^")
-            == EXPECTED_CORRECTIVE_ANCESTRY[
-                "prospective_successor_direct_parent_commit"
+        historical_parent = subprocess.run(
+            [
+                "git",
+                "merge-base",
+                "--is-ancestor",
+                EXPECTED_CORRECTIVE_ANCESTRY[
+                    "prospective_successor_direct_parent_commit"
+                ],
+                "HEAD",
             ],
-            "prospective_successor_direct_parent",
+            cwd=REPOSITORY,
+            check=False,
         )
+        require(historical_parent.returncode == 0, "prospective_successor_ancestry")
     require(canonical_root(value) == EXPECTED_REGISTRATION_ROOT, "registration_root")
 
 

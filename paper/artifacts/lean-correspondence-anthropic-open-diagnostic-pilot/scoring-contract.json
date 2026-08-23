@@ -20,12 +20,17 @@
   ],
   "fixed_denominator": 6,
   "one_scoring_attempt": true,
-  "open_adjudication_root": "sha256:83211274aa587f56daaa7e7c5b35756400eac041a36f7ce602e96879202719ed",
+  "open_adjudication_root": "sha256:7988305fffe5a42880b515fc89f01f4e18676dbf734847274a2f798bbe90983e",
   "primary_estimands": [
     "per_case_component_difference_assisted_minus_raw",
     "aggregate_component_point_difference",
     "assisted_authority_or_scientific_error_count"
   ],
+  "safety_normalization": {
+    "source": "open_adjudication_per_case_closed_safe_label_sets",
+    "unknown_codes": "fail_closed",
+    "unsafe_definition": "authority_or_scientific_label_above_exact_case_evidence_ceiling"
+  },
   "schema": "vela.lean-correspondence-anthropic-open-diagnostic-scoring-contract.v1",
   "secondary_estimands": [
     "restricted_seconds_difference",

@@ -1,0 +1,24 @@
+{
+  "affected": [
+    {
+      "distance": 0,
+      "record_root": "945c4742b9ea3dfab5d670d6269fb6c719b2e0f9a6229c94d625113e069ce0e1",
+      "relation_id": "oeis-303656.historical-helper-rename-defeq",
+      "source_commit": "148e18cce542f397ccb60b21a896ba063f6d6cca",
+      "source_repository_id": "williamjblair/lean-proofs"
+    },
+    {
+      "distance": 1,
+      "record_root": "a0a3c1b9ddba56fdea50e33dff1a605bfbdfe6650fc464f2b58e8a0c5fb3199c",
+      "relation_id": "oeis-303656.fc-to-leaneval-generated-lineage",
+      "source_commit": "148e18cce542f397ccb60b21a896ba063f6d6cca",
+      "source_repository_id": "williamjblair/lean-proofs"
+    }
+  ],
+  "authority_claim": "none",
+  "changed": [
+    "oeis-303656.historical-helper-rename-defeq"
+  ],
+  "schema_version": "lean-correspondence/impact/v0.1",
+  "scope": "explicit_record_dependencies_only"
+}

@@ -12,11 +12,11 @@
     "strict_arguments": [
       "approval_policy=never",
       "web_search=disabled",
-      "tools=read_only_offline_shell_files"
+      "tools=read_only_offline_files"
     ],
     "timeout_seconds": 1200,
     "tool_boundary": "config/tool-boundary.json",
-    "tools": "read_only_offline_shell_files"
+    "tools": "read_only_offline_files"
   },
   "neutral_fixture": {
     "capture_manifest": "fixture/capture-manifest.json",
@@ -26,11 +26,16 @@
     "identity": {
       "assignment_id": "neutral-assignment",
       "condition": "neutral-no-science",
+      "evidence_manifest_root": "sha256:4d59674f52b70075abe6063d2f708cf7cf0146f8448c1622e4ef5338dec6578e",
       "packet_root": "sha256:3814a08354123311f292c2673ec2e7c5cf0308762dd23ec6ef76398c7d3166df",
       "participant_id": "neutral-fixture",
       "prompt_root": "sha256:d51f3d42ecd8e0755d1ef759fca460f7dcbb82a25a84e3f1da16b9bc0b34548f",
       "registration_id": "qualification-registration",
-      "run_id": "neutral-qualification-01"
+      "run_id": "neutral-qualification-01",
+      "tool_boundary_root": "sha256:e15e57f749aedae234d7f9f845612b44277817184febb4f471930a6934f3acde",
+      "tool_policy_root": "sha256:c98932d0d5bcd5956b8c578f0f42bd3c94e827d5c5ca5b8034ca9bfd1799ffd2",
+      "workspace_content_root": "sha256:fefdb903dbe99ec97a11f5abbfbb760c8abcdeb42c8c9b2bc0d1054267a6f8f9",
+      "workspace_preflight_root": "sha256:a469c8597f5e5ba9910f90560d5d7ccf405491b106a386d0a8c6eaf63707256b"
     },
     "launch": "fixture/evidence/launch.json",
     "permit_template": "fixture/permit/neutral-qualification-01.permit.template.json",
@@ -47,13 +52,19 @@
     "identity": {
       "assignment_id": "anthropic-diag-6cccc41b01c2e998",
       "condition": "correspondence-assisted",
+      "evidence_manifest_root": "sha256:4d59674f52b70075abe6063d2f708cf7cf0146f8448c1622e4ef5338dec6578e",
       "packet_root": "sha256:33df3ab58642d622d9592b7b92ac26c82b44dc4dade6950658c7428998b3377e",
       "participant_id": "anthropic-participant-dff681a15fce3f63",
       "prompt_root": "sha256:807b4465c374013238f3aec4cef504fe099236aa5ca214b0fe64c3dbe067a278",
       "registration_id": "anthropic-open-diagnostic-registration-v2",
-      "run_id": "anthropic-diag-6cccc41b01c2e998"
+      "run_id": "anthropic-diag-6cccc41b01c2e998",
+      "tool_boundary_root": "sha256:e15e57f749aedae234d7f9f845612b44277817184febb4f471930a6934f3acde",
+      "tool_policy_root": "sha256:c98932d0d5bcd5956b8c578f0f42bd3c94e827d5c5ca5b8034ca9bfd1799ffd2",
+      "workspace_content_root": "sha256:fefdb903dbe99ec97a11f5abbfbb760c8abcdeb42c8c9b2bc0d1054267a6f8f9",
+      "workspace_preflight_root": "sha256:a469c8597f5e5ba9910f90560d5d7ccf405491b106a386d0a8c6eaf63707256b"
     },
-    "permit": "permit/anthropic-diag-6cccc41b01c2e998.permit.json"
+    "permit": "permit/anthropic-diag-6cccc41b01c2e998.permit.json",
+    "workspace_preflight": "execution/offline-evidence/workspace-bridge-preflight.json"
   },
   "provider_equivalence": "fixture/provider-equivalence.json",
   "runtime": {
@@ -84,6 +95,11 @@
         "read_only": true,
         "source": "/private/tmp/vela-anthropic-open-diagnostic-held-v2/anthropic-diag-6cccc41b01c2e998/schemas",
         "target": "/input"
+      },
+      {
+        "read_only": true,
+        "source": "/private/tmp/vela-anthropic-open-diagnostic-held-v2/anthropic-diag-6cccc41b01c2e998/workspace",
+        "target": "/workspace"
       },
       {
         "read_only": true,
@@ -148,13 +164,13 @@
   "self_verification": {
     "command": [
       "/private/tmp/vela-stage-a-runtime-qualification-python-v1/.venv/bin/python",
-      "/private/tmp/vela-stage-a-runtime-qualification-maintained-v1/tools/evidence_qualification/qualification.py",
+      "/private/tmp/vela-stage-a-runtime-qualification-maintained-v2/tools/evidence_qualification/qualification.py",
       "--bundle",
       "/private/tmp/vela-anthropic-open-diagnostic-held-v2/anthropic-diag-6cccc41b01c2e998"
     ],
     "environment_prefix": "/private/tmp/vela-stage-a-runtime-qualification-python-v1/.venv",
     "jsonschema_module": "/private/tmp/vela-stage-a-runtime-qualification-python-v1/.venv/lib/python3.13/site-packages/jsonschema/__init__.py",
-    "qualifier_sha256": "sha256:61591eec3304e299a9344888bc2a6f08cd32785b647ef5b0107da490dbf18013"
+    "qualifier_sha256": "sha256:23a66702d895762bc84d802bd60f3832d46a8d798dae269283c09d346ed26023"
   },
   "status": "hold"
 }

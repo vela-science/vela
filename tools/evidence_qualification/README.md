@@ -22,6 +22,74 @@ its own runtime and pin the resulting qualification root plus the Vela commit
 and tree containing this qualifier. Qualification must finish before the first
 paid or scientific participant permit is released.
 
+## Closed tool modes and provider adapters
+
+The configuration vocabulary has three current modes:
+
+- `no_tools` is the explicit spelling for a new no-tool bundle. The historical
+  `tools: "none"` spelling and bundle contract remain accepted unchanged for
+  the reviewed inherited-correction fixtures. Its receipt surface is unchanged
+  except for the self-verification and qualification roots that necessarily
+  bind the newer qualifier bytes.
+- `read_only_offline_shell_files` binds the maintained
+  `offline-shell-files/1` boundary. It requires exactly the versioned `shell`
+  and `read_file` definitions, exact Draft 2020-12 input schemas, closed argv
+  and file-operation allowlists, canonical content-rooted read-only mounts,
+  no network, no writes, no shell interpolation, one exact tool-call lifecycle,
+  byte-bound stdout/stderr receipts, and complete terminal/teardown custody.
+- `read_only_offline_files` binds the maintained `offline-files/2` boundary.
+  It removes the command surface and exposes only closed `read`, `list`,
+  `stat`, and literal `search` operations. Configuration compatibility binds a
+  stable tool-policy root, while each permit, launch, terminal, and teardown
+  additionally binds its exact read-only workspace-content root and a
+  successful offline reachability receipt. The lifecycle admits one to 64
+  ordered call/result pairs and requires complete raw-event and per-call
+  receipt custody; parallel calls, missing results, and count drift fail closed.
+
+The closed adapter identifiers are `openai-responses-v1` and
+`anthropic-messages-v1`. Each retains its provider-specific raw event envelope
+and binds every raw event to one ordered normalized event byte string. A paired
+equivalence receipt must show distinct provider organizations and identical
+participant-visible atoms, tool-boundary semantics, registered schema, and
+normalized tool-call/result semantics. Provider schema, raw event, full
+normalized event, and tool-receipt roots remain distinct and retained.
+
+Provider-facing schema derivation uses an ordered list of exact removal rules:
+each rule names one JSON Pointer, its terminal keyword, and the exact expected
+value. Registry selection binds both the adapter and the exact registered-schema
+bytes. The neutral fixture at
+`sha256:d25a5b53c3e715806b38b7d63511ce5ac118137b5a42a3a3e2a81792218082ad`
+retains its exact `items.uniqueItems`, then `items.minItems`, sequence. The
+frozen Stage A participant schema at
+`sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268`
+has a separate exact four-rule sequence: `impact_closure.uniqueItems`, nested
+`evidence_ids.minItems`, nested `evidence_ids.uniqueItems`, then
+`uncertainty.uniqueItems`. Its `assignment_id.pattern` and every `minLength`
+constraint remain in the provider derivative. Any alternate schema hash,
+pointer, value, adapter, ordering, multiplicity, omission, or additional edit
+fails closed. The full registered Draft 2020-12 schema remains byte-exact and
+authoritative for local response validation. The legacy unique-items pointer
+list remains available only when the tool mode is exactly `no_tools` and the
+registered schema bytes match the historical neutral hash above. Every
+tool bundle must instead bind the frozen Stage A schema hash, one of the two
+exact provider adapters, and that adapter's complete ordered four-rule registry;
+the legacy shape and the neutral modern registry both fail closed in tool mode.
+
+The `shell/1` and `read_file/1` input schemas are checked-in canonical Draft
+2020-12 schemas bound by tool name, version, and schema root. The complete
+`shell/1` argv vocabulary is the single Stage A inspection command
+`git --no-optional-locks status --short`. Shells, interpreters, configurable
+runners, alternate executable paths, extra flags or operands, path traversal,
+metacharacters, write-capable commands, and network clients are therefore
+outside the vocabulary rather than filtered by a blacklist.
+
+The `read_file/2` schema is independently closed and requires exact
+`operation`, absolute `path`, and `query` fields. Its workspace is traversed by
+descriptor-relative no-follow opens with single-link regular-file checks and
+pre/post inode validation. This prevents pathname replacement, symlink,
+hardlink, path-escape, and source-to-mounted-root substitution from surviving a
+resealed outer bundle.
+
 ## Owned boundary
 
 The qualifier owns generic checks that remain meaningful when every scientific

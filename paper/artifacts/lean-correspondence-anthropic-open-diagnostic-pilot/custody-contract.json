@@ -7,7 +7,7 @@
   "participant_network": false,
   "provider_calls": 0,
   "raw_provider_bytes_retained_before_normalization": true,
-  "registration_root": "sha256:d6192ae287b353fbd57e98ab6b406e68a9f7f3ed117019c79bc7139dc5dba756",
+  "registration_root": "sha256:56ee9300334cc85d6dc85e5edacad249b2627d48f9a9ddb155b01b3cd8ebcf40",
   "required_terminal_files": [
     "consumed-permit.json",
     "launch.json",
@@ -22,7 +22,7 @@
   ],
   "response_schema_sha256": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
   "schema": "vela.lean-correspondence-anthropic-open-diagnostic-custody.v1",
-  "scoring_contract_root": "sha256:17f0bb424cb7b1eb469b1c5ce472f19f71d9895295ae723c2dd6dde272e5fef6",
+  "scoring_contract_root": "sha256:26e9910a4003a619edb59d6d1a449f68863ee84b0cb18a624d2e7376a6f6482e",
   "source_and_execution_packet_roots_bound": true,
   "zero_retries": true,
   "zero_substitutions": true

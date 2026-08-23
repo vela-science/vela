@@ -1,0 +1,7 @@
+{
+  "challenge_module": "Palomar.Erdos730.Challenge",
+  "solution_module": "PalomarSolutions.Erdos730",
+  "theorem_names": ["Palomar.Erdos730.erdos_730_infinite"],
+  "permitted_axioms": ["propext", "Quot.sound", "Classical.choice"],
+  "enable_nanoda": false
+}

@@ -1,21 +1,21 @@
 {
-  "artifact_root": "sha256:707cff55eec2da4cad059650a61d5e39fadd6270ead38acd6e7854fc03b85b80",
+  "artifact_root": "sha256:dbee02128aad44b896dca57a80bb262c45eaa3b8a7fd7716181b128b0ab385ae",
   "authority_effect": "none",
   "entries": [
     {
-      "bytes": 3765,
+      "bytes": 4611,
       "path": "README.md",
-      "sha256": "sha256:9c6bafdb246a7cb3f96d002a0ad390566bd1b434ffb97872be57dcd9f7e31c25"
+      "sha256": "sha256:74bb563059f672feaa2234e9bea3842af47386c9ee75406877701b5612fcb673"
     },
     {
       "bytes": 8213,
       "path": "assignment-schedule.json",
-      "sha256": "sha256:0c6a172954863ec3e15281a0b430f3e606b52cfda2e20856b48db478c006d5ff"
+      "sha256": "sha256:7797f1469e8877c68e484f98f82079072ef37f275616fd3c3591c5e29017c559"
     },
     {
-      "bytes": 7571,
+      "bytes": 25080,
       "path": "build_execution_bundles.py",
-      "sha256": "sha256:cb29a9d9e721d545abcbca658f75cd1e01cd5eee2f7947dc56eeb560bcebabb1"
+      "sha256": "sha256:6ed5c3be6c7ed71123db94dca966640b7b88694c67327d27d2e43992a2488414"
     },
     {
       "bytes": 10493,
@@ -30,7 +30,7 @@
     {
       "bytes": 1076,
       "path": "custody-contract.json",
-      "sha256": "sha256:82b77abd45cc1ae82e169b529bd1a4943a9f2fc81a74742a9e25018c0dd28825"
+      "sha256": "sha256:ba571013a52718a0a0886fcf5abd5e955157fd94f599410a85444341fc05d09d"
     },
     {
       "bytes": 4175,
@@ -38,19 +38,319 @@
       "sha256": "sha256:85f5a0366f61540f8b089a05f6dbf3395afe1cbaa19dce8b293f39f49bc45906"
     },
     {
-      "bytes": 8172,
+      "bytes": 20166,
+      "path": "evidence-sources/catalog.json",
+      "sha256": "sha256:0ac4cc728cda49da0e12a1407737d4731aad6b13a7ef53be482d289ad6dc1fa1"
+    },
+    {
+      "bytes": 2266,
+      "path": "evidence-sources/objects/01abf748a6edd4e6e2b27213b8ab5be21cea2fadd0d76af6c152d1c8d9084fda",
+      "sha256": "sha256:01abf748a6edd4e6e2b27213b8ab5be21cea2fadd0d76af6c152d1c8d9084fda"
+    },
+    {
+      "bytes": 56,
+      "path": "evidence-sources/objects/0a0c06095d3c434b28c98de8fb651907083df13e34d457eba11dd9f8fcf214f9",
+      "sha256": "sha256:0a0c06095d3c434b28c98de8fb651907083df13e34d457eba11dd9f8fcf214f9"
+    },
+    {
+      "bytes": 17116,
+      "path": "evidence-sources/objects/0efbd59fc28ee6263e9be959643986a5ed0b40eb2920216676f26e302d6a61fa",
+      "sha256": "sha256:0efbd59fc28ee6263e9be959643986a5ed0b40eb2920216676f26e302d6a61fa"
+    },
+    {
+      "bytes": 812,
+      "path": "evidence-sources/objects/1819a8073d67f85d6420a4a2d287a75df30c41a5353ae0944990e57d59eefe01",
+      "sha256": "sha256:1819a8073d67f85d6420a4a2d287a75df30c41a5353ae0944990e57d59eefe01"
+    },
+    {
+      "bytes": 3808,
+      "path": "evidence-sources/objects/1e91942530fcadc5cb0fbd04a982b6a09ad0427302f3175e0d042d304a93cbc6",
+      "sha256": "sha256:1e91942530fcadc5cb0fbd04a982b6a09ad0427302f3175e0d042d304a93cbc6"
+    },
+    {
+      "bytes": 15407,
+      "path": "evidence-sources/objects/1ffd6c63d404d2df0d90abc6ddb3f378949607c780155936bc21d09b9be5dc25",
+      "sha256": "sha256:1ffd6c63d404d2df0d90abc6ddb3f378949607c780155936bc21d09b9be5dc25"
+    },
+    {
+      "bytes": 492,
+      "path": "evidence-sources/objects/283c99ec4a1d9d6ca02d424f76599718b20d5f09ff940841aeb9855f17bb9ced",
+      "sha256": "sha256:283c99ec4a1d9d6ca02d424f76599718b20d5f09ff940841aeb9855f17bb9ced"
+    },
+    {
+      "bytes": 22800,
+      "path": "evidence-sources/objects/2f08deafdc7794a81abd43cf000ac8bb47004b3260a12c7cb83b7a7cc6d6c7a9",
+      "sha256": "sha256:2f08deafdc7794a81abd43cf000ac8bb47004b3260a12c7cb83b7a7cc6d6c7a9"
+    },
+    {
+      "bytes": 25,
+      "path": "evidence-sources/objects/302cd63c54178885b89e669f33b38f12f4dd7ae7e5cac537b3203e3768d8fb2b",
+      "sha256": "sha256:302cd63c54178885b89e669f33b38f12f4dd7ae7e5cac537b3203e3768d8fb2b"
+    },
+    {
+      "bytes": 7346,
+      "path": "evidence-sources/objects/3276bfe9762ed81cf2cd700eb1e75a7dd67e68308659d499209879b16758b0ed",
+      "sha256": "sha256:3276bfe9762ed81cf2cd700eb1e75a7dd67e68308659d499209879b16758b0ed"
+    },
+    {
+      "bytes": 856,
+      "path": "evidence-sources/objects/3704efb480b6fafe07309a5f40ddb30322b0ce4a58b238e8addcd4820fa5b9bc",
+      "sha256": "sha256:3704efb480b6fafe07309a5f40ddb30322b0ce4a58b238e8addcd4820fa5b9bc"
+    },
+    {
+      "bytes": 241,
+      "path": "evidence-sources/objects/3cc331019952035f8c3623e0511e9bfcf0d9ad108ce3c37242893585c33ef730",
+      "sha256": "sha256:3cc331019952035f8c3623e0511e9bfcf0d9ad108ce3c37242893585c33ef730"
+    },
+    {
+      "bytes": 276,
+      "path": "evidence-sources/objects/464a52ea97c03bfcaa65714796aab92be41ceb1c9555a89db85aac71b31fae32",
+      "sha256": "sha256:464a52ea97c03bfcaa65714796aab92be41ceb1c9555a89db85aac71b31fae32"
+    },
+    {
+      "bytes": 3188,
+      "path": "evidence-sources/objects/48a53853ec0b2af3aacebf0a8abc58411a4123e76b59fabeedf5f95aaaddbdb1",
+      "sha256": "sha256:48a53853ec0b2af3aacebf0a8abc58411a4123e76b59fabeedf5f95aaaddbdb1"
+    },
+    {
+      "bytes": 1012,
+      "path": "evidence-sources/objects/4a13ff3e935cf64e54f63164e2ef39b3bf85c122dd84d3c32c5ab9440f7efc2c",
+      "sha256": "sha256:4a13ff3e935cf64e54f63164e2ef39b3bf85c122dd84d3c32c5ab9440f7efc2c"
+    },
+    {
+      "bytes": 102,
+      "path": "evidence-sources/objects/4aaf71c4db3c4bb5f3933a618945b0db7d96fd1e18f3dc493da4e84d2f49ed9b",
+      "sha256": "sha256:4aaf71c4db3c4bb5f3933a618945b0db7d96fd1e18f3dc493da4e84d2f49ed9b"
+    },
+    {
+      "bytes": 1969,
+      "path": "evidence-sources/objects/4ab6fb660d93fa1da1f9fbfc89c018a3152845f9ba167c3486c73ac13eaa9e38",
+      "sha256": "sha256:4ab6fb660d93fa1da1f9fbfc89c018a3152845f9ba167c3486c73ac13eaa9e38"
+    },
+    {
+      "bytes": 1599,
+      "path": "evidence-sources/objects/4c0897857bdac53c4b4d6c66c81f07d92be3382c70a47d0f5c441e2558e72f25",
+      "sha256": "sha256:4c0897857bdac53c4b4d6c66c81f07d92be3382c70a47d0f5c441e2558e72f25"
+    },
+    {
+      "bytes": 25,
+      "path": "evidence-sources/objects/55e97be96000b5e9e290c9e74482e5e317861499a5540353ce845471bded8cea",
+      "sha256": "sha256:55e97be96000b5e9e290c9e74482e5e317861499a5540353ce845471bded8cea"
+    },
+    {
+      "bytes": 1979,
+      "path": "evidence-sources/objects/589175e4b54f9438a3f67f58f6c319c71f106083ca3a2295da7c60e6bee470c4",
+      "sha256": "sha256:589175e4b54f9438a3f67f58f6c319c71f106083ca3a2295da7c60e6bee470c4"
+    },
+    {
+      "bytes": 2572,
+      "path": "evidence-sources/objects/5b16164816153d49060a314332b42665c2121ccbe6a0695cb4ed5ebe9b761bba",
+      "sha256": "sha256:5b16164816153d49060a314332b42665c2121ccbe6a0695cb4ed5ebe9b761bba"
+    },
+    {
+      "bytes": 3129,
+      "path": "evidence-sources/objects/5b99b5f4f807cbba67bbcd22e5e486c17d6a8d970ea218de08d05830ab350c26",
+      "sha256": "sha256:5b99b5f4f807cbba67bbcd22e5e486c17d6a8d970ea218de08d05830ab350c26"
+    },
+    {
+      "bytes": 819,
+      "path": "evidence-sources/objects/62bf6f59d69c01027863404aeeae0b8604a33a0b331a8c49ee6e9cde959e6ea6",
+      "sha256": "sha256:62bf6f59d69c01027863404aeeae0b8604a33a0b331a8c49ee6e9cde959e6ea6"
+    },
+    {
+      "bytes": 2304,
+      "path": "evidence-sources/objects/636de7115b068cf999ecca9c9df14046dc142e6744974b91d181074858ab8b19",
+      "sha256": "sha256:636de7115b068cf999ecca9c9df14046dc142e6744974b91d181074858ab8b19"
+    },
+    {
+      "bytes": 39,
+      "path": "evidence-sources/objects/6951a45f2893213e6ec04eb7b96920c765dcc26ef2c882530607950c9a9555e1",
+      "sha256": "sha256:6951a45f2893213e6ec04eb7b96920c765dcc26ef2c882530607950c9a9555e1"
+    },
+    {
+      "bytes": 1321,
+      "path": "evidence-sources/objects/6bb0b4156316c5f3b8f3f4792d8e60a6cce5f9f20e4829e32bd13a3918391b2e",
+      "sha256": "sha256:6bb0b4156316c5f3b8f3f4792d8e60a6cce5f9f20e4829e32bd13a3918391b2e"
+    },
+    {
+      "bytes": 32580,
+      "path": "evidence-sources/objects/748f9b69103a5c16615082c24ec812cfcb60e085a52a23e1e34cac905e3d6cdf",
+      "sha256": "sha256:748f9b69103a5c16615082c24ec812cfcb60e085a52a23e1e34cac905e3d6cdf"
+    },
+    {
+      "bytes": 248,
+      "path": "evidence-sources/objects/75531bdb2d5983ee032344547bda9295c353044cc66ef54ace137adc0d51d694",
+      "sha256": "sha256:75531bdb2d5983ee032344547bda9295c353044cc66ef54ace137adc0d51d694"
+    },
+    {
+      "bytes": 642,
+      "path": "evidence-sources/objects/774618274d5f0bac18261cf6e8901f40752b91fd9aea26e9a7a0f4193fe38cee",
+      "sha256": "sha256:774618274d5f0bac18261cf6e8901f40752b91fd9aea26e9a7a0f4193fe38cee"
+    },
+    {
+      "bytes": 9715,
+      "path": "evidence-sources/objects/7e0d91f2fe323b594d2dba95b858d89b62bff413219c31f211f0a406e08f203b",
+      "sha256": "sha256:7e0d91f2fe323b594d2dba95b858d89b62bff413219c31f211f0a406e08f203b"
+    },
+    {
+      "bytes": 2703,
+      "path": "evidence-sources/objects/87233c6c35739ff5b99d7f822012c887a1f3ad1fcaa047d1cf56a3725d92cc25",
+      "sha256": "sha256:87233c6c35739ff5b99d7f822012c887a1f3ad1fcaa047d1cf56a3725d92cc25"
+    },
+    {
+      "bytes": 291,
+      "path": "evidence-sources/objects/8f1103c1db48e9c8776ed4fe2416f67447e0e3426b6203d4690ddf1a95cf1294",
+      "sha256": "sha256:8f1103c1db48e9c8776ed4fe2416f67447e0e3426b6203d4690ddf1a95cf1294"
+    },
+    {
+      "bytes": 895,
+      "path": "evidence-sources/objects/964e18f829bbcf6c25d0c6204e8d79bce8e3c919de714a364dadab0ea3e1261d",
+      "sha256": "sha256:964e18f829bbcf6c25d0c6204e8d79bce8e3c919de714a364dadab0ea3e1261d"
+    },
+    {
+      "bytes": 231,
+      "path": "evidence-sources/objects/97ef4e34fb6e425ad0ccd22343ec703f37cb4e461f1425b2bae1f42a5c321357",
+      "sha256": "sha256:97ef4e34fb6e425ad0ccd22343ec703f37cb4e461f1425b2bae1f42a5c321357"
+    },
+    {
+      "bytes": 56,
+      "path": "evidence-sources/objects/9a9971567a72494e3d8d95a1df556c2c6a7c04250a514043849a41dcbc30789c",
+      "sha256": "sha256:9a9971567a72494e3d8d95a1df556c2c6a7c04250a514043849a41dcbc30789c"
+    },
+    {
+      "bytes": 2883,
+      "path": "evidence-sources/objects/9bc39cea4fcd4e1b552aeabfc5c9a427d6a8ba97e85292f56987acd917d4afab",
+      "sha256": "sha256:9bc39cea4fcd4e1b552aeabfc5c9a427d6a8ba97e85292f56987acd917d4afab"
+    },
+    {
+      "bytes": 4628,
+      "path": "evidence-sources/objects/9fcc8078dbdefdac2acceccf24d832b22f7038a6c303f4b67721d45b2a5a87aa",
+      "sha256": "sha256:9fcc8078dbdefdac2acceccf24d832b22f7038a6c303f4b67721d45b2a5a87aa"
+    },
+    {
+      "bytes": 260,
+      "path": "evidence-sources/objects/a3de92effd6e1140648bd738d1cc207de6be54b31e519e91b6f384c5f98c539e",
+      "sha256": "sha256:a3de92effd6e1140648bd738d1cc207de6be54b31e519e91b6f384c5f98c539e"
+    },
+    {
+      "bytes": 4722,
+      "path": "evidence-sources/objects/a81ef40554be38a473d0339b81e220c9d013226aae49d29305417f2e091bf482",
+      "sha256": "sha256:a81ef40554be38a473d0339b81e220c9d013226aae49d29305417f2e091bf482"
+    },
+    {
+      "bytes": 79,
+      "path": "evidence-sources/objects/ad144c0b74770d65380eb3c4cc8b03e1ad364be5b9270e77c06662730df49941",
+      "sha256": "sha256:ad144c0b74770d65380eb3c4cc8b03e1ad364be5b9270e77c06662730df49941"
+    },
+    {
+      "bytes": 5968,
+      "path": "evidence-sources/objects/b1279ec663fc2a923cc96b86ee60cbca5f321b456fdc6e01be8e1ceb7e3c16d8",
+      "sha256": "sha256:b1279ec663fc2a923cc96b86ee60cbca5f321b456fdc6e01be8e1ceb7e3c16d8"
+    },
+    {
+      "bytes": 572,
+      "path": "evidence-sources/objects/bcfefc3c9b9825420af8265e12ea7a30334ebcc6f04525907e3d5aea13a47493",
+      "sha256": "sha256:bcfefc3c9b9825420af8265e12ea7a30334ebcc6f04525907e3d5aea13a47493"
+    },
+    {
+      "bytes": 250,
+      "path": "evidence-sources/objects/bda699588ea5398992e387a30bac370ec8a327775722a3f52773e3057dde867b",
+      "sha256": "sha256:bda699588ea5398992e387a30bac370ec8a327775722a3f52773e3057dde867b"
+    },
+    {
+      "bytes": 240,
+      "path": "evidence-sources/objects/bf91d981b78760af99224e4b32fba0524bad18c58344d9b08994939072c5350f",
+      "sha256": "sha256:bf91d981b78760af99224e4b32fba0524bad18c58344d9b08994939072c5350f"
+    },
+    {
+      "bytes": 13053,
+      "path": "evidence-sources/objects/c2300410edf5aa255223d5685adc2ea4cad8ce95873f26b246c0bb125134e7cd",
+      "sha256": "sha256:c2300410edf5aa255223d5685adc2ea4cad8ce95873f26b246c0bb125134e7cd"
+    },
+    {
+      "bytes": 1967,
+      "path": "evidence-sources/objects/c8e532aa2916312501375df4e30ca4770fdeb3968d39622dda5cdfc5f9fa26e7",
+      "sha256": "sha256:c8e532aa2916312501375df4e30ca4770fdeb3968d39622dda5cdfc5f9fa26e7"
+    },
+    {
+      "bytes": 3385,
+      "path": "evidence-sources/objects/c97a2a5283c21ab5156c7d98abc3a0e7d0d0a042bf220bff6d783003b4701838",
+      "sha256": "sha256:c97a2a5283c21ab5156c7d98abc3a0e7d0d0a042bf220bff6d783003b4701838"
+    },
+    {
+      "bytes": 24919,
+      "path": "evidence-sources/objects/ce78bcdf203809f0aa39eddd2763f930f53bc1b2384f8530e0db09f75f04e457",
+      "sha256": "sha256:ce78bcdf203809f0aa39eddd2763f930f53bc1b2384f8530e0db09f75f04e457"
+    },
+    {
+      "bytes": 1408,
+      "path": "evidence-sources/objects/d54b37832c3626a8d3e3efcb00b68bec0db62c88606f1ef1ee113b43160b2785",
+      "sha256": "sha256:d54b37832c3626a8d3e3efcb00b68bec0db62c88606f1ef1ee113b43160b2785"
+    },
+    {
+      "bytes": 5026,
+      "path": "evidence-sources/objects/d6858aa010d5dacbf3bacea18bdbc0c3a1198c67eba408888ef3f6ec17736d02",
+      "sha256": "sha256:d6858aa010d5dacbf3bacea18bdbc0c3a1198c67eba408888ef3f6ec17736d02"
+    },
+    {
+      "bytes": 3416,
+      "path": "evidence-sources/objects/dfdbba45d7226a0773b6b855b3cd897824a89eaf65dbb3f2b944f145df2af987",
+      "sha256": "sha256:dfdbba45d7226a0773b6b855b3cd897824a89eaf65dbb3f2b944f145df2af987"
+    },
+    {
+      "bytes": 592,
+      "path": "evidence-sources/objects/e01462e619bb6a63f6d37c7fe541dec22bd5756ffe5d83c2e9e747942d5e97c2",
+      "sha256": "sha256:e01462e619bb6a63f6d37c7fe541dec22bd5756ffe5d83c2e9e747942d5e97c2"
+    },
+    {
+      "bytes": 24,
+      "path": "evidence-sources/objects/e695e6e5d8e7a8be4d6cf159dfb995847993d26c6cc450353a86f387279025b9",
+      "sha256": "sha256:e695e6e5d8e7a8be4d6cf159dfb995847993d26c6cc450353a86f387279025b9"
+    },
+    {
+      "bytes": 655,
+      "path": "evidence-sources/objects/e893b5dd9bc7be54d042a8123ddd60dbc5476181e5d3e3e77b3ecb844a594cbe",
+      "sha256": "sha256:e893b5dd9bc7be54d042a8123ddd60dbc5476181e5d3e3e77b3ecb844a594cbe"
+    },
+    {
+      "bytes": 1337,
+      "path": "evidence-sources/objects/ed5e47d43a6869f6213141c3d0214ab5741d9cbdac3d71b80289706fef635abd",
+      "sha256": "sha256:ed5e47d43a6869f6213141c3d0214ab5741d9cbdac3d71b80289706fef635abd"
+    },
+    {
+      "bytes": 79,
+      "path": "evidence-sources/objects/f3bed256c9760a28b5aeb0725ca8b6dc15b309c437ad7b0a74420a91346e62e2",
+      "sha256": "sha256:f3bed256c9760a28b5aeb0725ca8b6dc15b309c437ad7b0a74420a91346e62e2"
+    },
+    {
+      "bytes": 23772,
+      "path": "evidence-sources/objects/facc953157c111381658e78cf6bd29a7eedb99c0b7660f6250e25dd2eeb53b73",
+      "sha256": "sha256:facc953157c111381658e78cf6bd29a7eedb99c0b7660f6250e25dd2eeb53b73"
+    },
+    {
+      "bytes": 589,
+      "path": "evidence-sources/objects/fae594cf35937d4ed939bf8b2a23f5eb37b13312a06b95fb50ddbfc61500f823",
+      "sha256": "sha256:fae594cf35937d4ed939bf8b2a23f5eb37b13312a06b95fb50ddbfc61500f823"
+    },
+    {
+      "bytes": 8461,
+      "path": "evidence_tree.py",
+      "sha256": "sha256:0d8df40c4afec53aeb8beec57003337704f7c10252db26e8408e5cf2d3b88921"
+    },
+    {
+      "bytes": 11459,
       "path": "execution-bundle-registry.json",
-      "sha256": "sha256:b15a0ebf989d1468d82098838ce8fb5f1fb0bc65d1d04ec4783ad9faebe6e148"
+      "sha256": "sha256:2348b6cb6087ab93cf0c3e40fff6b9e5414ec489b0d2bafd819ff06f81970b0d"
     },
     {
-      "bytes": 929,
+      "bytes": 1123,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/config/compatibility.json",
-      "sha256": "sha256:6b2b152fcd731366f6ebf9e8626b9e0c4a95014234180b4ebab8d436b8f61abc"
+      "sha256": "sha256:3e4c9e24fcd3c5cce7438772ec98599a0985049bd847c77a6cb2ed46b3e1dcce"
     },
     {
-      "bytes": 2487,
+      "bytes": 1811,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/config/tool-boundary.json",
-      "sha256": "sha256:e0627a2c338a4b596436a3dc545850b466cc3540f3b6834ca6cde90ec6c35367"
+      "sha256": "sha256:2b4fe8e2b49b12a7642239540feaf5d90a96b0555a876e23864aa163be3710ea"
     },
     {
       "bytes": 782,
@@ -80,52 +380,57 @@
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/execution/launchability.json",
-      "sha256": "sha256:01e98b26ab278fc22f6cd598b3ed4081ee61ce0d1380c7920711c263ecf420ce"
+      "sha256": "sha256:603363b6ee7bb8e07ff467c4a333f806566aa2df6a57e308f532ee0f242fd8f5"
     },
     {
       "bytes": 1171,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/execution/offline-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:506f002532559ebc0ee8e331b3c5ed7befbd0f94e3b04ae2cfd3791b91666b89"
+      "sha256": "sha256:9458041d7478a5558d8f86edfa58e46acdf73c5f8a64d28c5fe12c5e22dd37eb"
     },
     {
       "bytes": 569,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/execution/offline-evidence/packet-custody.json",
-      "sha256": "sha256:13241448df7d0c1212cfc7a6280bd3e780d68e4041a1b0823823ee662ca0271e"
+      "sha256": "sha256:cf811541029195249efdfeda142d785c5e03b9d3bd58916cc80722f42fb54d95"
     },
     {
       "bytes": 439,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/execution/offline-evidence/request-transport-custody.json",
-      "sha256": "sha256:7e4bd6312232862831628e4ac5b3a235bb7b9e5d6ebbfa64baedf5a0f2b50913"
+      "sha256": "sha256:faac99f6adb5a9e17815e8fac9f01f9fe2a36f022036a37b5029729569ad9bbe"
     },
     {
-      "bytes": 6694,
+      "bytes": 6558,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/execution/offline-evidence/request.raw.json",
-      "sha256": "sha256:00dbc52bed6e299441594c958eb6a437c371de935d8c361adc2cd00761214dcf"
+      "sha256": "sha256:b73fa4968eb648a29f30d0acddeda492427c2c70dbfede85aa946f9a3559cd3d"
     },
     {
-      "bytes": 4690,
+      "bytes": 1090,
+      "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/execution/offline-evidence/workspace-bridge-preflight.json",
+      "sha256": "sha256:a41cdb192d665e2fafee99463e411c4660fde3895b65bb39a4db60b63318016f"
+    },
+    {
+      "bytes": 5407,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/execution/qualification-receipt.json",
-      "sha256": "sha256:b01c26e217d32e76be8ca8b3b7ddf1e1c89f12da4bac65e3c99288d44b54feee"
+      "sha256": "sha256:6bf0da5af680cf3985942607ef65e5a213bdccd63e77fd4d644fe4883697073f"
     },
     {
-      "bytes": 2029,
+      "bytes": 2034,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/fixture/capture-manifest.json",
-      "sha256": "sha256:a3d5c59cd2a098ed18b91f221d2457420427baaea6b127ebba52fe11174efb54"
+      "sha256": "sha256:5758cc4e30a5993e1d0819fa3a63063ee39073111d43d9062fcc85a66fb1516c"
     },
     {
-      "bytes": 716,
+      "bytes": 1124,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/fixture/evidence/launch.json",
-      "sha256": "sha256:93b562096bbdbb1910ca50390b8e93d72f7359a22c6243d7b34b20c8015da39a"
+      "sha256": "sha256:aa22b5a9292dfb3fe250b5f2f7c5a85a275029f465c7aa7297bebbd7f56bfd53"
     },
     {
-      "bytes": 2556,
+      "bytes": 2447,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/fixture/evidence/provider-events.jsonl",
-      "sha256": "sha256:9a885be7ca6a8b6ecbe0033a256709f353de7882a5c61b0f520bb4061d90e3a5"
+      "sha256": "sha256:59cda81f164926fa5c95b7872f6a4515392d66a60a350757c7e0d8bfe70c779b"
     },
     {
-      "bytes": 1846,
+      "bytes": 1774,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/fixture/evidence/provider-events.raw.jsonl",
-      "sha256": "sha256:887b76771bbf16fde341c1f5963303255f910bc30e5129e5cd5ceea8249ec031"
+      "sha256": "sha256:5cee0c9e07920f87bdc76fd94ad7b69948ea9eefb7213aee4abf49f0c07e945a"
     },
     {
       "bytes": 0,
@@ -138,19 +443,19 @@
       "sha256": "sha256:6e87719bca647b009b3f9e49105478b9690a14d83a637d5bfbbc72ebc30f47a3"
     },
     {
-      "bytes": 781,
+      "bytes": 1189,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/fixture/evidence/teardown.json",
-      "sha256": "sha256:bfe5eef4bf5c45cf368064f4a89704799218214e2674827f15e122612383a754"
+      "sha256": "sha256:4641ed2bf61d257ebdbb9f9598be146ceddc6109bf1468b68e1c4610254179d2"
     },
     {
-      "bytes": 2251,
+      "bytes": 2659,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/fixture/evidence/terminal-receipt.json",
-      "sha256": "sha256:afc85e9ecdbdacc702201bcdfc7dfe65eea6077904871422baf16e3ca7e5d041"
+      "sha256": "sha256:98b504cf969435852434952b403aad58ba9504fdbbe7505e00392a3f694b26c6"
     },
     {
-      "bytes": 911,
+      "bytes": 883,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/fixture/evidence/tool-receipts.json",
-      "sha256": "sha256:166c37eb2e65bdfd66cbd6825c02d08a29a506fe4b39fc97cc2d9be8cc80c97b"
+      "sha256": "sha256:020c270683a8a6419b3bc71e48652bec692df52e2446fa82cfa0ff43d85dfbb9"
     },
     {
       "bytes": 0,
@@ -158,24 +463,24 @@
       "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
-      "bytes": 6,
+      "bytes": 3718,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/fixture/evidence/tool.stdout",
-      "sha256": "sha256:2e22da2ab13713309ac75219e525b8e06ed02f3f1963b8feef203fa25827f93d"
+      "sha256": "sha256:b5beb5173ea9beac190b748df0f3a96b7d5f441eef98e91c1ec84ae808859b9f"
     },
     {
-      "bytes": 1132,
+      "bytes": 1639,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/fixture/permit/neutral-qualification-01.permit.consumed.json",
-      "sha256": "sha256:a80de795d864a7ed08369226fb0be9edf2e4b9c3cd9e44407f84ef7863e418a7"
+      "sha256": "sha256:2c96f29f2f5b8e6306a6a4bd34c22223ffa5871d833790970fce15f880e52b65"
     },
     {
-      "bytes": 1110,
+      "bytes": 1617,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/fixture/permit/neutral-qualification-01.permit.template.json",
-      "sha256": "sha256:3d6cec0175af85a1985263d33ed64d6c9e166d5b4ba50c27940d076ca1ffb4c5"
+      "sha256": "sha256:1c9f72d9599e0926d1514abf4e9f88ad8045746af2847aca5c7f0b9575476644"
     },
     {
       "bytes": 2229,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/fixture/provider-equivalence.json",
-      "sha256": "sha256:0f83bc7da440f248daf9fa6ee34bfe57afd1acd3337b80e4c3993610c9b8dc95"
+      "sha256": "sha256:5b2665e405c4e90b782c61bdf5f195766eb238f741c5f73cd9ac0d1722202077"
     },
     {
       "bytes": 503,
@@ -188,9 +493,9 @@
       "sha256": "sha256:455a8417546cf04e37743fc9b61e0960ded39fb97076e3551ca7d0ecdf6f008d"
     },
     {
-      "bytes": 1160,
+      "bytes": 1667,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/permit/anthropic-diag-2f719af4c655ef77.permit.json",
-      "sha256": "sha256:c9d76c3e6c3d4627ca0097eea54addec0a0eb174b39ca69bc37257ceee299ee9"
+      "sha256": "sha256:dbdd0b790e3c4151bdc6df3125946b72e2e1869f87f5d4f1cbd5eb1fd04e9cf0"
     },
     {
       "bytes": 231,
@@ -198,19 +503,19 @@
       "sha256": "sha256:ecd699cb37331c6792359d2715d9faf2d688c8899c4dcc7686d3ee225e0750ca"
     },
     {
-      "bytes": 6236,
+      "bytes": 7557,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/qualification.json",
-      "sha256": "sha256:abaa7f33215cf0aca0ec223c9dc830c18f9baeb2057e677b3b590b106691ccd3"
+      "sha256": "sha256:ac28b6d8a762fc53aa8bb16c2e4e06fc2a47e195ea0ec083564daba24100924d"
     },
     {
-      "bytes": 10383360,
+      "bytes": 10321920,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/a.oci.tar",
-      "sha256": "sha256:646128f39c03260bdc72c191d91d3f96cc403a5f63ef3b3399c7dc3a6089d279"
+      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
     },
     {
-      "bytes": 10383360,
+      "bytes": 10321920,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/b.oci.tar",
-      "sha256": "sha256:646128f39c03260bdc72c191d91d3f96cc403a5f63ef3b3399c7dc3a6089d279"
+      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
     },
     {
       "bytes": 477,
@@ -220,37 +525,37 @@
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/independent-a.json",
-      "sha256": "sha256:9ca078e9ebb19982c7a72299a07d62762b8b68192b962f1d9aaf8120b33eda6b"
+      "sha256": "sha256:f85e2e45ac2df889064736f22fbc3f92dc4fcee094822e6b4aa488b3197595e3"
     },
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/independent-b.json",
-      "sha256": "sha256:2fb0f8bdfa83fee902e2931ee488b30cf2442df344008aeb5f485eea579de60d"
+      "sha256": "sha256:cddf2b64d9b081216bbf3f29b0acfced9d9cd961fa4766a96d041ecc7eef0c11"
     },
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/launchability.json",
-      "sha256": "sha256:ec5c90a7b8e885d7a7e679ae2ea8c1989b772a218ce7074a7418acd8709cae3b"
+      "sha256": "sha256:a180d19a49287c6271fc7aea61da8f041aaf3c0e3db4a9e309559f84dc4c2ff8"
     },
     {
       "bytes": 1186,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/preflight-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:1f857493dbecf40001dbc3a9e1b5be17ac46dd166096b48e7906a1da7451fddd"
+      "sha256": "sha256:f558beec700c9339c0fd7f1ffdc5a81ab1334d6eb15e4e99b56a20c1b26d79c9"
     },
     {
       "bytes": 568,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/preflight-evidence/packet-custody.json",
-      "sha256": "sha256:addd9b8641a13227d387bbc4590b7b5e2a5df7be1e3691a1f4184d2b686bf124"
+      "sha256": "sha256:df12e08ed5d119001cf5e2801a838544ce85bca309f10bc517fb6515aa4bf02c"
     },
     {
       "bytes": 439,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/preflight-evidence/request-transport-custody.json",
-      "sha256": "sha256:d1813ba1ad996442e38efe92ec8556210ddc11ffc8037a23ebb0c5b007157fb6"
+      "sha256": "sha256:fe9a30521be317f05404aef6e239605021aa8877f87b0bc1e40cb5062c396dcd"
     },
     {
-      "bytes": 4278,
+      "bytes": 4142,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/preflight-evidence/request.raw.json",
-      "sha256": "sha256:cf67944d1872244c9d89ed3f7ad9cc27c3a37a4deba665f47a939985e2c62e8c"
+      "sha256": "sha256:2ed4af49e6876d6d5dd30da47f7bac6f7db0df083b6908b4c7b2d01bf3326783"
     },
     {
       "bytes": 781,
@@ -283,9 +588,9 @@
       "sha256": "sha256:541f1ba02181456e8f467205fd7bd58a6f89402a982f2be773f191b66b171c88"
     },
     {
-      "bytes": 2051,
+      "bytes": 2052,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/source-manifest.json",
-      "sha256": "sha256:775d51b5a2ab72da95c4c8f4a062074132de8584c8e5ebe2b2e012c2c4289ff9"
+      "sha256": "sha256:fb4a4b70407c6a3c856265a029b8ff0dee74cbb11c83213a65bb18e0d454291c"
     },
     {
       "bytes": 433,
@@ -298,19 +603,19 @@
       "sha256": "sha256:41410d43956d68e40171c7fa7458ab51f2101f5a17939203a69b8c60a4f31309"
     },
     {
-      "bytes": 5832830,
+      "bytes": 5767294,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/source/bridge",
-      "sha256": "sha256:ecab9c565b399170f8f0f9990927cc689f7c669a37d42cd775bc31e25532b442"
+      "sha256": "sha256:f5d60e7eca4fbf2e511f101514febf457919dc521e75ef749bae985911475bdb"
     },
     {
-      "bytes": 25642,
+      "bytes": 34830,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/source/cmd/bridge/main.go",
-      "sha256": "sha256:b7f2d0c679fd06b04aea08aa0d22823c75c35fd06be185565b6c55ac06bad471"
+      "sha256": "sha256:6ba3e14df83e00e0f550b33051df47fb1fc34635979f6d12f9ceee5c3d84a8de"
     },
     {
-      "bytes": 8718,
+      "bytes": 11968,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/source/cmd/bridge/main_test.go",
-      "sha256": "sha256:500feab03dd6f92f6c911807477ca607bc70a3c20ebcfeaa95aaf366c47de1cb"
+      "sha256": "sha256:86bc96e892f3becd6188c1d3ff31342a48758a037c8d3220e42c8d3a55a3c7c2"
     },
     {
       "bytes": 1985,
@@ -323,14 +628,14 @@
       "sha256": "sha256:92779b1c6d6a7154d7f183403bb87fa65682677549927d5e5f2758955dd2073a"
     },
     {
-      "bytes": 44490,
+      "bytes": 43821,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/source/main.go",
-      "sha256": "sha256:884e46d5095ad25fc0dbf621bd8272efdab9f5f0596448c57eff1408c948fa7a"
+      "sha256": "sha256:7e3dcd1f2eddd202c4f29d4f8c4eaa788bd7c4c9da83213094728ac5d273161f"
     },
     {
       "bytes": 14067,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/source/main_test.go",
-      "sha256": "sha256:06ff28006e3c6b8d565e5b2d5acd694120c25e1e4f3e4ee79c9125f5d21749b5"
+      "sha256": "sha256:75320d34e2e148d28f04b7b951c3fe26c96f4edfe6bf1215c58395bff92ad6a8"
     },
     {
       "bytes": 1900670,
@@ -338,14 +643,14 @@
       "sha256": "sha256:27ccb0e45ae8927a574a05f561f634171921bff29b68e3c27e19dcfa3dfe091d"
     },
     {
-      "bytes": 2391,
+      "bytes": 2491,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/source/provider-contract.json",
-      "sha256": "sha256:0c9bdde3bfba9b2964d8f81601ed59f956f3e5e49bda42bcb9a55606f0d91da4"
+      "sha256": "sha256:9629b9a7467eda0a3991a718f3b652c9b90dd8d0ea049da31f19510510a4857c"
     },
     {
       "bytes": 2293886,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/source/runner",
-      "sha256": "sha256:f28ab18c0669630e68f5195bc2f8f2fc0027f0e5d316c8b1abaa37bde9387e44"
+      "sha256": "sha256:b0163f2d02e1102013b2c6fb63d97b983f80ba9ce6c457e752e26fb8540da0fe"
     },
     {
       "bytes": 333483,
@@ -373,14 +678,59 @@
       "sha256": "sha256:6e87719bca647b009b3f9e49105478b9690a14d83a637d5bfbbc72ebc30f47a3"
     },
     {
-      "bytes": 929,
-      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/config/compatibility.json",
-      "sha256": "sha256:6b2b152fcd731366f6ebf9e8626b9e0c4a95014234180b4ebab8d436b8f61abc"
+      "bytes": 3718,
+      "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/workspace/assignment-manifest.json",
+      "sha256": "sha256:b5beb5173ea9beac190b748df0f3a96b7d5f441eef98e91c1ec84ae808859b9f"
     },
     {
-      "bytes": 2487,
+      "bytes": 2883,
+      "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/workspace/invalid-fixture/fixture.json",
+      "sha256": "sha256:9bc39cea4fcd4e1b552aeabfc5c9a427d6a8ba97e85292f56987acd917d4afab"
+    },
+    {
+      "bytes": 56,
+      "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/workspace/invalid-fixture/source-repo/Basic.lean",
+      "sha256": "sha256:9a9971567a72494e3d8d95a1df556c2c6a7c04250a514043849a41dcbc30789c"
+    },
+    {
+      "bytes": 39,
+      "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/workspace/invalid-fixture/source-repo/InvalidWitness.lean",
+      "sha256": "sha256:6951a45f2893213e6ec04eb7b96920c765dcc26ef2c882530607950c9a9555e1"
+    },
+    {
+      "bytes": 79,
+      "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/workspace/invalid-fixture/source-repo/lakefile.toml",
+      "sha256": "sha256:f3bed256c9760a28b5aeb0725ca8b6dc15b309c437ad7b0a74420a91346e62e2"
+    },
+    {
+      "bytes": 25,
+      "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/workspace/invalid-fixture/source-repo/lean-toolchain",
+      "sha256": "sha256:55e97be96000b5e9e290c9e74482e5e317861499a5540353ce845471bded8cea"
+    },
+    {
+      "bytes": 56,
+      "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/workspace/invalid-fixture/target-repo/Basic.lean",
+      "sha256": "sha256:0a0c06095d3c434b28c98de8fb651907083df13e34d457eba11dd9f8fcf214f9"
+    },
+    {
+      "bytes": 79,
+      "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/workspace/invalid-fixture/target-repo/lakefile.toml",
+      "sha256": "sha256:ad144c0b74770d65380eb3c4cc8b03e1ad364be5b9270e77c06662730df49941"
+    },
+    {
+      "bytes": 25,
+      "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/workspace/invalid-fixture/target-repo/lean-toolchain",
+      "sha256": "sha256:55e97be96000b5e9e290c9e74482e5e317861499a5540353ce845471bded8cea"
+    },
+    {
+      "bytes": 1123,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/config/compatibility.json",
+      "sha256": "sha256:5cec0c5c8201b926df3e5ce120b2c9ec0efabbdbdd333492857efbceab6ded26"
+    },
+    {
+      "bytes": 1811,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/config/tool-boundary.json",
-      "sha256": "sha256:e0627a2c338a4b596436a3dc545850b466cc3540f3b6834ca6cde90ec6c35367"
+      "sha256": "sha256:fd44092dd41b6ef51c4f107bf3cf27072f11ceeb8c51aac1ce9658b330e13152"
     },
     {
       "bytes": 782,
@@ -410,52 +760,57 @@
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/execution/launchability.json",
-      "sha256": "sha256:ad94bb481219585713e2894d90916593bcbe7fa144d4d50e4b1e2cacb67b1d5b"
+      "sha256": "sha256:ddb1523a50c7064c06f3a31676a4d45d01b5a9a3308e9d13215986c812740aa0"
     },
     {
       "bytes": 1171,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/execution/offline-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:a0d2f9dfbe71e670ad0fefdaef114cf749ed41ab1dd54da467bba811d20787d2"
+      "sha256": "sha256:60504548ff1ab607b68aa859fc4b54c3396e062273d0e61c8ca2b1850286a44a"
     },
     {
       "bytes": 569,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/execution/offline-evidence/packet-custody.json",
-      "sha256": "sha256:cceb29a5be2212c2ad9a70494b3e102729c004975eadcd99b538c2fab1c26a88"
+      "sha256": "sha256:bb1f0632dbc4429082f84e1727f3fbe53da59ae7fda548ea56bfebfd386b795c"
     },
     {
       "bytes": 439,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/execution/offline-evidence/request-transport-custody.json",
-      "sha256": "sha256:d56f992f7df42cd44c9d23ba91990f5ab802dfcbcef564c36b42bdf59c183f69"
+      "sha256": "sha256:5e2a50d6d2a24ec8854be77c4b3f67a98acdbdfeae1845ff3552a924434b36b2"
     },
     {
-      "bytes": 6171,
+      "bytes": 6035,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/execution/offline-evidence/request.raw.json",
-      "sha256": "sha256:66c0c67718861f44bf18eb71b380d8c6a7f50ce7106d5cbf9c7fdf0909eb9e80"
+      "sha256": "sha256:e52463baf77ca0f7887228be0a6b982695bc74df85ec0de42ef7a09c5976e304"
     },
     {
-      "bytes": 4690,
+      "bytes": 1091,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/execution/offline-evidence/workspace-bridge-preflight.json",
+      "sha256": "sha256:23943d284b531ae979eb186ffe942e5f5492a62e1a9023dad93bfdf5f86b34e4"
+    },
+    {
+      "bytes": 5407,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/execution/qualification-receipt.json",
-      "sha256": "sha256:8fa717aaed57898d8a92b20f12da58cb97173209d00ac6afebb6dc3298bad143"
+      "sha256": "sha256:e623c3f9489ffb8ecae02acbf06799e11074bbd0ab8c1ca4cb527a15388c59c6"
     },
     {
-      "bytes": 2029,
+      "bytes": 2035,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/fixture/capture-manifest.json",
-      "sha256": "sha256:a3d5c59cd2a098ed18b91f221d2457420427baaea6b127ebba52fe11174efb54"
+      "sha256": "sha256:b45a508e96dc0584df9feb9102c616cf5bdb0cb8381529599e7ddb2a02ede5a9"
     },
     {
-      "bytes": 716,
+      "bytes": 1124,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/fixture/evidence/launch.json",
-      "sha256": "sha256:93b562096bbdbb1910ca50390b8e93d72f7359a22c6243d7b34b20c8015da39a"
+      "sha256": "sha256:a299de3eac0a85eb0613a94c3ba68a7c2ba04a8ed2c2780e46602656e3f61bb7"
     },
     {
-      "bytes": 2556,
+      "bytes": 2448,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/fixture/evidence/provider-events.jsonl",
-      "sha256": "sha256:9a885be7ca6a8b6ecbe0033a256709f353de7882a5c61b0f520bb4061d90e3a5"
+      "sha256": "sha256:00cb5db786170d2063f9cabac3a366494448c572fa49d0147fd2a5b5fbcf1475"
     },
     {
-      "bytes": 1846,
+      "bytes": 1774,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/fixture/evidence/provider-events.raw.jsonl",
-      "sha256": "sha256:887b76771bbf16fde341c1f5963303255f910bc30e5129e5cd5ceea8249ec031"
+      "sha256": "sha256:f71677fa83e09a1a105ac8efe53e06b97c5a5bbd28ac7b6333cfe2f6725a200c"
     },
     {
       "bytes": 0,
@@ -468,19 +823,19 @@
       "sha256": "sha256:6e87719bca647b009b3f9e49105478b9690a14d83a637d5bfbbc72ebc30f47a3"
     },
     {
-      "bytes": 781,
+      "bytes": 1189,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/fixture/evidence/teardown.json",
-      "sha256": "sha256:bfe5eef4bf5c45cf368064f4a89704799218214e2674827f15e122612383a754"
+      "sha256": "sha256:f0b10996d6304f7f3002ae7e40a7d36bc20460cb503fb29b0541162db55a8089"
     },
     {
-      "bytes": 2251,
+      "bytes": 2659,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/fixture/evidence/terminal-receipt.json",
-      "sha256": "sha256:afc85e9ecdbdacc702201bcdfc7dfe65eea6077904871422baf16e3ca7e5d041"
+      "sha256": "sha256:579efa20b4ca3bba8b0b2ad0a58c23e7e1ebcab2617b615cee07bac5b4fe2bb5"
     },
     {
-      "bytes": 911,
+      "bytes": 884,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/fixture/evidence/tool-receipts.json",
-      "sha256": "sha256:166c37eb2e65bdfd66cbd6825c02d08a29a506fe4b39fc97cc2d9be8cc80c97b"
+      "sha256": "sha256:2ee8870833941b680514cef71e9263448118ff73de559d576e350371eb4ff954"
     },
     {
       "bytes": 0,
@@ -488,24 +843,24 @@
       "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
-      "bytes": 6,
+      "bytes": 10452,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/fixture/evidence/tool.stdout",
-      "sha256": "sha256:2e22da2ab13713309ac75219e525b8e06ed02f3f1963b8feef203fa25827f93d"
+      "sha256": "sha256:39167ebea6a8fa0339090eecf0186f90400a988cedd5da259142b076d5ca755f"
     },
     {
-      "bytes": 1132,
+      "bytes": 1639,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/fixture/permit/neutral-qualification-01.permit.consumed.json",
-      "sha256": "sha256:a80de795d864a7ed08369226fb0be9edf2e4b9c3cd9e44407f84ef7863e418a7"
+      "sha256": "sha256:1b61ae9213e257aca1532a76233f93bc10eda877371b64bf9b001fd5b4fc9b89"
     },
     {
-      "bytes": 1110,
+      "bytes": 1617,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/fixture/permit/neutral-qualification-01.permit.template.json",
-      "sha256": "sha256:3d6cec0175af85a1985263d33ed64d6c9e166d5b4ba50c27940d076ca1ffb4c5"
+      "sha256": "sha256:e72edffcbed7f05ca7e14c780272b714437dc0ebf3736078d0d74c572c053e74"
     },
     {
       "bytes": 2229,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/fixture/provider-equivalence.json",
-      "sha256": "sha256:0f83bc7da440f248daf9fa6ee34bfe57afd1acd3337b80e4c3993610c9b8dc95"
+      "sha256": "sha256:eba84fcc6bbeb8b5967078937d0e48db0c07d823a5e381420bbffcad88bde557"
     },
     {
       "bytes": 503,
@@ -518,9 +873,9 @@
       "sha256": "sha256:455a8417546cf04e37743fc9b61e0960ded39fb97076e3551ca7d0ecdf6f008d"
     },
     {
-      "bytes": 1160,
+      "bytes": 1667,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/permit/anthropic-diag-395839ae5418ff4d.permit.json",
-      "sha256": "sha256:291d2a589366ea191588afb64c722acdb853038ae2424a017de9b12a54a18006"
+      "sha256": "sha256:d8bfcd04ba4ab78ac7cd9e86146d43282c7e3683a39f9cb37f634045dddd73cc"
     },
     {
       "bytes": 231,
@@ -528,19 +883,19 @@
       "sha256": "sha256:6fecc2439c5056197eea03e6f92210f32db520de0150c2191acd948606bd327e"
     },
     {
-      "bytes": 6236,
+      "bytes": 7557,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/qualification.json",
-      "sha256": "sha256:e138f4dd34cc365acad9af33aad0b81ddcd4a9709cb0413b019b4680fb684097"
+      "sha256": "sha256:5e883f9280a27fe592e914aba8b762a7e88480ac039c0cb39e337a2639006144"
     },
     {
-      "bytes": 10383360,
+      "bytes": 10321920,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/a.oci.tar",
-      "sha256": "sha256:646128f39c03260bdc72c191d91d3f96cc403a5f63ef3b3399c7dc3a6089d279"
+      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
     },
     {
-      "bytes": 10383360,
+      "bytes": 10321920,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/b.oci.tar",
-      "sha256": "sha256:646128f39c03260bdc72c191d91d3f96cc403a5f63ef3b3399c7dc3a6089d279"
+      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
     },
     {
       "bytes": 477,
@@ -550,37 +905,37 @@
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/independent-a.json",
-      "sha256": "sha256:9ca078e9ebb19982c7a72299a07d62762b8b68192b962f1d9aaf8120b33eda6b"
+      "sha256": "sha256:f85e2e45ac2df889064736f22fbc3f92dc4fcee094822e6b4aa488b3197595e3"
     },
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/independent-b.json",
-      "sha256": "sha256:2fb0f8bdfa83fee902e2931ee488b30cf2442df344008aeb5f485eea579de60d"
+      "sha256": "sha256:cddf2b64d9b081216bbf3f29b0acfced9d9cd961fa4766a96d041ecc7eef0c11"
     },
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/launchability.json",
-      "sha256": "sha256:ec5c90a7b8e885d7a7e679ae2ea8c1989b772a218ce7074a7418acd8709cae3b"
+      "sha256": "sha256:a180d19a49287c6271fc7aea61da8f041aaf3c0e3db4a9e309559f84dc4c2ff8"
     },
     {
       "bytes": 1186,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/preflight-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:1f857493dbecf40001dbc3a9e1b5be17ac46dd166096b48e7906a1da7451fddd"
+      "sha256": "sha256:f558beec700c9339c0fd7f1ffdc5a81ab1334d6eb15e4e99b56a20c1b26d79c9"
     },
     {
       "bytes": 568,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/preflight-evidence/packet-custody.json",
-      "sha256": "sha256:addd9b8641a13227d387bbc4590b7b5e2a5df7be1e3691a1f4184d2b686bf124"
+      "sha256": "sha256:df12e08ed5d119001cf5e2801a838544ce85bca309f10bc517fb6515aa4bf02c"
     },
     {
       "bytes": 439,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/preflight-evidence/request-transport-custody.json",
-      "sha256": "sha256:d1813ba1ad996442e38efe92ec8556210ddc11ffc8037a23ebb0c5b007157fb6"
+      "sha256": "sha256:fe9a30521be317f05404aef6e239605021aa8877f87b0bc1e40cb5062c396dcd"
     },
     {
-      "bytes": 4278,
+      "bytes": 4142,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/preflight-evidence/request.raw.json",
-      "sha256": "sha256:cf67944d1872244c9d89ed3f7ad9cc27c3a37a4deba665f47a939985e2c62e8c"
+      "sha256": "sha256:2ed4af49e6876d6d5dd30da47f7bac6f7db0df083b6908b4c7b2d01bf3326783"
     },
     {
       "bytes": 781,
@@ -613,9 +968,9 @@
       "sha256": "sha256:541f1ba02181456e8f467205fd7bd58a6f89402a982f2be773f191b66b171c88"
     },
     {
-      "bytes": 2051,
+      "bytes": 2052,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/source-manifest.json",
-      "sha256": "sha256:775d51b5a2ab72da95c4c8f4a062074132de8584c8e5ebe2b2e012c2c4289ff9"
+      "sha256": "sha256:fb4a4b70407c6a3c856265a029b8ff0dee74cbb11c83213a65bb18e0d454291c"
     },
     {
       "bytes": 433,
@@ -628,19 +983,19 @@
       "sha256": "sha256:41410d43956d68e40171c7fa7458ab51f2101f5a17939203a69b8c60a4f31309"
     },
     {
-      "bytes": 5832830,
+      "bytes": 5767294,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/source/bridge",
-      "sha256": "sha256:ecab9c565b399170f8f0f9990927cc689f7c669a37d42cd775bc31e25532b442"
+      "sha256": "sha256:f5d60e7eca4fbf2e511f101514febf457919dc521e75ef749bae985911475bdb"
     },
     {
-      "bytes": 25642,
+      "bytes": 34830,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/source/cmd/bridge/main.go",
-      "sha256": "sha256:b7f2d0c679fd06b04aea08aa0d22823c75c35fd06be185565b6c55ac06bad471"
+      "sha256": "sha256:6ba3e14df83e00e0f550b33051df47fb1fc34635979f6d12f9ceee5c3d84a8de"
     },
     {
-      "bytes": 8718,
+      "bytes": 11968,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/source/cmd/bridge/main_test.go",
-      "sha256": "sha256:500feab03dd6f92f6c911807477ca607bc70a3c20ebcfeaa95aaf366c47de1cb"
+      "sha256": "sha256:86bc96e892f3becd6188c1d3ff31342a48758a037c8d3220e42c8d3a55a3c7c2"
     },
     {
       "bytes": 1985,
@@ -653,14 +1008,14 @@
       "sha256": "sha256:92779b1c6d6a7154d7f183403bb87fa65682677549927d5e5f2758955dd2073a"
     },
     {
-      "bytes": 44490,
+      "bytes": 43821,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/source/main.go",
-      "sha256": "sha256:884e46d5095ad25fc0dbf621bd8272efdab9f5f0596448c57eff1408c948fa7a"
+      "sha256": "sha256:7e3dcd1f2eddd202c4f29d4f8c4eaa788bd7c4c9da83213094728ac5d273161f"
     },
     {
       "bytes": 14067,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/source/main_test.go",
-      "sha256": "sha256:06ff28006e3c6b8d565e5b2d5acd694120c25e1e4f3e4ee79c9125f5d21749b5"
+      "sha256": "sha256:75320d34e2e148d28f04b7b951c3fe26c96f4edfe6bf1215c58395bff92ad6a8"
     },
     {
       "bytes": 1900670,
@@ -668,14 +1023,14 @@
       "sha256": "sha256:27ccb0e45ae8927a574a05f561f634171921bff29b68e3c27e19dcfa3dfe091d"
     },
     {
-      "bytes": 2391,
+      "bytes": 2491,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/source/provider-contract.json",
-      "sha256": "sha256:0c9bdde3bfba9b2964d8f81601ed59f956f3e5e49bda42bcb9a55606f0d91da4"
+      "sha256": "sha256:9629b9a7467eda0a3991a718f3b652c9b90dd8d0ea049da31f19510510a4857c"
     },
     {
       "bytes": 2293886,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/source/runner",
-      "sha256": "sha256:f28ab18c0669630e68f5195bc2f8f2fc0027f0e5d316c8b1abaa37bde9387e44"
+      "sha256": "sha256:b0163f2d02e1102013b2c6fb63d97b983f80ba9ce6c457e752e26fb8540da0fe"
     },
     {
       "bytes": 333483,
@@ -703,14 +1058,114 @@
       "sha256": "sha256:6e87719bca647b009b3f9e49105478b9690a14d83a637d5bfbbc72ebc30f47a3"
     },
     {
-      "bytes": 929,
-      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/config/compatibility.json",
-      "sha256": "sha256:6b2b152fcd731366f6ebf9e8626b9e0c4a95014234180b4ebab8d436b8f61abc"
+      "bytes": 10452,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/workspace/assignment-manifest.json",
+      "sha256": "sha256:39167ebea6a8fa0339090eecf0186f90400a988cedd5da259142b076d5ca755f"
     },
     {
-      "bytes": 2487,
+      "bytes": 240,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/workspace/histories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0.json",
+      "sha256": "sha256:bf91d981b78760af99224e4b32fba0524bad18c58344d9b08994939072c5350f"
+    },
+    {
+      "bytes": 250,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/workspace/histories/lean-proofs-candidate-packet@148e18cce542f397ccb60b21a896ba063f6d6cca.json",
+      "sha256": "sha256:bda699588ea5398992e387a30bac370ec8a327775722a3f52773e3057dde867b"
+    },
+    {
+      "bytes": 276,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/workspace/histories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460.json",
+      "sha256": "sha256:464a52ea97c03bfcaa65714796aab92be41ceb1c9555a89db85aac71b31fae32"
+    },
+    {
+      "bytes": 4722,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/workspace/lake-manifest.json",
+      "sha256": "sha256:a81ef40554be38a473d0339b81e220c9d013226aae49d29305417f2e091bf482"
+    },
+    {
+      "bytes": 1012,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/workspace/lean-correspondence-v0/cases/erdos-730/Witness.lean",
+      "sha256": "sha256:4a13ff3e935cf64e54f63164e2ef39b3bf85c122dd84d3c32c5ab9440f7efc2c"
+    },
+    {
+      "bytes": 7346,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/workspace/lean-correspondence-v0/cases/erdos-730/packet.json",
+      "sha256": "sha256:3276bfe9762ed81cf2cd700eb1e75a7dd67e68308659d499209879b16758b0ed"
+    },
+    {
+      "bytes": 25,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/workspace/lean-toolchain",
+      "sha256": "sha256:302cd63c54178885b89e669f33b38f12f4dd7ae7e5cac537b3203e3768d8fb2b"
+    },
+    {
+      "bytes": 1967,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/workspace/repositories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0/FormalConjectures/ErdosProblems/730.lean",
+      "sha256": "sha256:c8e532aa2916312501375df4e30ca4770fdeb3968d39622dda5cdfc5f9fa26e7"
+    },
+    {
+      "bytes": 3129,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/workspace/repositories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0/lake-manifest.json",
+      "sha256": "sha256:5b99b5f4f807cbba67bbcd22e5e486c17d6a8d970ea218de08d05830ab350c26"
+    },
+    {
+      "bytes": 24,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/workspace/repositories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0/lean-toolchain",
+      "sha256": "sha256:e695e6e5d8e7a8be4d6cf159dfb995847993d26c6cc450353a86f387279025b9"
+    },
+    {
+      "bytes": 4628,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/workspace/repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/Audit.lean",
+      "sha256": "sha256:9fcc8078dbdefdac2acceccf24d832b22f7038a6c303f4b67721d45b2a5a87aa"
+    },
+    {
+      "bytes": 17116,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/workspace/repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/ErdosProblems/Erdos730/FullDensityCore.lean",
+      "sha256": "sha256:0efbd59fc28ee6263e9be959643986a5ed0b40eb2920216676f26e302d6a61fa"
+    },
+    {
+      "bytes": 1969,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/workspace/repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/ErdosProblems/Erdos730/FullDensityTheorem.lean",
+      "sha256": "sha256:4ab6fb660d93fa1da1f9fbfc89c018a3152845f9ba167c3486c73ac13eaa9e38"
+    },
+    {
+      "bytes": 1979,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/workspace/repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/Palomar/Erdos730/Challenge.lean",
+      "sha256": "sha256:589175e4b54f9438a3f67f58f6c319c71f106083ca3a2295da7c60e6bee470c4"
+    },
+    {
+      "bytes": 260,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/workspace/repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/Palomar/Erdos730/comparator.json",
+      "sha256": "sha256:a3de92effd6e1140648bd738d1cc207de6be54b31e519e91b6f384c5f98c539e"
+    },
+    {
+      "bytes": 291,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/workspace/repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/PalomarSolutions/Erdos730.lean",
+      "sha256": "sha256:8f1103c1db48e9c8776ed4fe2416f67447e0e3426b6203d4690ddf1a95cf1294"
+    },
+    {
+      "bytes": 4722,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/workspace/repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/lake-manifest.json",
+      "sha256": "sha256:a81ef40554be38a473d0339b81e220c9d013226aae49d29305417f2e091bf482"
+    },
+    {
+      "bytes": 25,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/workspace/repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/lean-toolchain",
+      "sha256": "sha256:302cd63c54178885b89e669f33b38f12f4dd7ae7e5cac537b3203e3768d8fb2b"
+    },
+    {
+      "bytes": 2266,
+      "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/workspace/repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/scripts/check_axioms.sh",
+      "sha256": "sha256:01abf748a6edd4e6e2b27213b8ab5be21cea2fadd0d76af6c152d1c8d9084fda"
+    },
+    {
+      "bytes": 1123,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/config/compatibility.json",
+      "sha256": "sha256:9db7eec722f8ad1e10c12608410cf8d2ba529c603be8559843920fdedbbd8e8d"
+    },
+    {
+      "bytes": 1811,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/config/tool-boundary.json",
-      "sha256": "sha256:e0627a2c338a4b596436a3dc545850b466cc3540f3b6834ca6cde90ec6c35367"
+      "sha256": "sha256:2f2d7e375c969b2bfaa67e4944dd1e83d79265e15dbae7510d802dd3b0b91fc8"
     },
     {
       "bytes": 782,
@@ -740,52 +1195,57 @@
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/execution/launchability.json",
-      "sha256": "sha256:6de28982a110b3671320ccb04bc580b3da3745f95b2cc936fd1a7be9dc09291b"
+      "sha256": "sha256:e53b53b69969cb3696951d781056576f896a069cce7d30a5431fcd470a20c49d"
     },
     {
       "bytes": 1171,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/execution/offline-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:7d7e09e629fda8c8d06f20eedbe34675c7fd75092db0cd4a4a34f530b16fcb15"
+      "sha256": "sha256:9533217e1d9b28166148cda73353f8e895ef740954173f20b3dfbef498e9daf9"
     },
     {
       "bytes": 569,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/execution/offline-evidence/packet-custody.json",
-      "sha256": "sha256:dcb4c618b38306e2fc6cc4c626c5d3ddbdcd8e47eb08531aa7e52c5bd19b2263"
+      "sha256": "sha256:f695d5642cf451052c396f95556c447c834332f0dd1086bb5fe00b92a6fc4a94"
     },
     {
       "bytes": 439,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/execution/offline-evidence/request-transport-custody.json",
-      "sha256": "sha256:8858b712475dfe08707fa7ed327b4d06534dd47671c238797f8d2600b268d80d"
+      "sha256": "sha256:cecb1763d64aad9aa0086d35fc215be57b80187efd2dc9a9ac6dd1ee3ea93021"
     },
     {
-      "bytes": 7682,
+      "bytes": 7546,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/execution/offline-evidence/request.raw.json",
-      "sha256": "sha256:765164f372b102d0db53658e7373b4edb82c3ed7c3be11a7aae042d1b39a72f2"
+      "sha256": "sha256:8024c6813ca64b8e065997d030120422c70eca43e9b39e0b62fce4b558c544ef"
     },
     {
-      "bytes": 4690,
+      "bytes": 1091,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/execution/offline-evidence/workspace-bridge-preflight.json",
+      "sha256": "sha256:4c51b3129ac03d8bbfc5856543271e283592978274fe3afd679fe8b93fce7b34"
+    },
+    {
+      "bytes": 5407,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/execution/qualification-receipt.json",
-      "sha256": "sha256:b2bbe17e0df7144bf34530ce1ed9a77f359405ac069bebc3310c1105ad20e4be"
+      "sha256": "sha256:b0e65438dca1f802efc6d5e4b7fd9df5b9bb36553f4b3d1e28771aa318c3ac0a"
     },
     {
-      "bytes": 2029,
+      "bytes": 2035,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/fixture/capture-manifest.json",
-      "sha256": "sha256:a3d5c59cd2a098ed18b91f221d2457420427baaea6b127ebba52fe11174efb54"
+      "sha256": "sha256:2239d2dfe63708e3fd421df5eefdfd2346b97d077e2d49efab7dbbeed2dbc5f7"
     },
     {
-      "bytes": 716,
+      "bytes": 1124,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/fixture/evidence/launch.json",
-      "sha256": "sha256:93b562096bbdbb1910ca50390b8e93d72f7359a22c6243d7b34b20c8015da39a"
+      "sha256": "sha256:62ad834e6bd1ae71da02122fc5bcff1b3c7872c9c5b66ae6c06bcfeeb6bfc6a8"
     },
     {
-      "bytes": 2556,
+      "bytes": 2448,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/fixture/evidence/provider-events.jsonl",
-      "sha256": "sha256:9a885be7ca6a8b6ecbe0033a256709f353de7882a5c61b0f520bb4061d90e3a5"
+      "sha256": "sha256:1151da4b8de7b011db1a172c82f0e28a29b15753610e01bd3831484c356502ec"
     },
     {
-      "bytes": 1846,
+      "bytes": 1774,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/fixture/evidence/provider-events.raw.jsonl",
-      "sha256": "sha256:887b76771bbf16fde341c1f5963303255f910bc30e5129e5cd5ceea8249ec031"
+      "sha256": "sha256:8779ddfac589f9e03ce88b6850cdbf21d6f9385794635d68c203e82600d36a2f"
     },
     {
       "bytes": 0,
@@ -798,19 +1258,19 @@
       "sha256": "sha256:6e87719bca647b009b3f9e49105478b9690a14d83a637d5bfbbc72ebc30f47a3"
     },
     {
-      "bytes": 781,
+      "bytes": 1189,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/fixture/evidence/teardown.json",
-      "sha256": "sha256:bfe5eef4bf5c45cf368064f4a89704799218214e2674827f15e122612383a754"
+      "sha256": "sha256:087e1a0ace83268f1dafa71a57441de076929cd3a1df6eedee4bcc98db515e97"
     },
     {
-      "bytes": 2251,
+      "bytes": 2659,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/fixture/evidence/terminal-receipt.json",
-      "sha256": "sha256:afc85e9ecdbdacc702201bcdfc7dfe65eea6077904871422baf16e3ca7e5d041"
+      "sha256": "sha256:078051db870e37314fbc3c0f067833cb8d482c8595106b4beaca74572fbc84ce"
     },
     {
-      "bytes": 911,
+      "bytes": 884,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/fixture/evidence/tool-receipts.json",
-      "sha256": "sha256:166c37eb2e65bdfd66cbd6825c02d08a29a506fe4b39fc97cc2d9be8cc80c97b"
+      "sha256": "sha256:c3cdb682277896176c4412d91ecf5cb3b7355e23bb5a498d36e584c5b384a9f3"
     },
     {
       "bytes": 0,
@@ -818,24 +1278,24 @@
       "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
-      "bytes": 6,
+      "bytes": 19096,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/fixture/evidence/tool.stdout",
-      "sha256": "sha256:2e22da2ab13713309ac75219e525b8e06ed02f3f1963b8feef203fa25827f93d"
+      "sha256": "sha256:8a23bd6c55ed04ee52e0747b89e7002323d0b012abd4d4b0d6ffa53b3b368133"
     },
     {
-      "bytes": 1132,
+      "bytes": 1639,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/fixture/permit/neutral-qualification-01.permit.consumed.json",
-      "sha256": "sha256:a80de795d864a7ed08369226fb0be9edf2e4b9c3cd9e44407f84ef7863e418a7"
+      "sha256": "sha256:b00dd22bf223ba69079859b5275abaabedba4ec3a39f10979f8e7c9b6a9ed0d1"
     },
     {
-      "bytes": 1110,
+      "bytes": 1617,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/fixture/permit/neutral-qualification-01.permit.template.json",
-      "sha256": "sha256:3d6cec0175af85a1985263d33ed64d6c9e166d5b4ba50c27940d076ca1ffb4c5"
+      "sha256": "sha256:f36bf893680fddeb68bcbb39c35a42f3dd7327a939cf9bf6c66106bad2aaabfd"
     },
     {
       "bytes": 2229,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/fixture/provider-equivalence.json",
-      "sha256": "sha256:0f83bc7da440f248daf9fa6ee34bfe57afd1acd3337b80e4c3993610c9b8dc95"
+      "sha256": "sha256:bd045d6bc31c04e65da33395d7f9522935a0320382bfa9a79e744732d7c5d388"
     },
     {
       "bytes": 503,
@@ -848,9 +1308,9 @@
       "sha256": "sha256:455a8417546cf04e37743fc9b61e0960ded39fb97076e3551ca7d0ecdf6f008d"
     },
     {
-      "bytes": 1160,
+      "bytes": 1667,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/permit/anthropic-diag-563bdd90a8c7df7a.permit.json",
-      "sha256": "sha256:150631b920e7b0da6dfe4b9a672d223ebc4675ef331fa16fde70387387905199"
+      "sha256": "sha256:349995dcb665d517d8f4c3cfe9ddc8abd82a6641b63659e2582345adf379d7bf"
     },
     {
       "bytes": 231,
@@ -858,19 +1318,19 @@
       "sha256": "sha256:e45d07abc98872d17bc329ebdb04cd7fa7744fc40451ec42902235b565c846c2"
     },
     {
-      "bytes": 6236,
+      "bytes": 7557,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/qualification.json",
-      "sha256": "sha256:0e996177e241d14dd9cec741406c0fe9217684125c8b8f421004a28b273ab984"
+      "sha256": "sha256:c4716b0c9819979861533f060a673ed99343ec6a6c218b039e0f49ccac4560e7"
     },
     {
-      "bytes": 10383360,
+      "bytes": 10321920,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/a.oci.tar",
-      "sha256": "sha256:646128f39c03260bdc72c191d91d3f96cc403a5f63ef3b3399c7dc3a6089d279"
+      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
     },
     {
-      "bytes": 10383360,
+      "bytes": 10321920,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/b.oci.tar",
-      "sha256": "sha256:646128f39c03260bdc72c191d91d3f96cc403a5f63ef3b3399c7dc3a6089d279"
+      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
     },
     {
       "bytes": 477,
@@ -880,37 +1340,37 @@
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/independent-a.json",
-      "sha256": "sha256:9ca078e9ebb19982c7a72299a07d62762b8b68192b962f1d9aaf8120b33eda6b"
+      "sha256": "sha256:f85e2e45ac2df889064736f22fbc3f92dc4fcee094822e6b4aa488b3197595e3"
     },
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/independent-b.json",
-      "sha256": "sha256:2fb0f8bdfa83fee902e2931ee488b30cf2442df344008aeb5f485eea579de60d"
+      "sha256": "sha256:cddf2b64d9b081216bbf3f29b0acfced9d9cd961fa4766a96d041ecc7eef0c11"
     },
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/launchability.json",
-      "sha256": "sha256:ec5c90a7b8e885d7a7e679ae2ea8c1989b772a218ce7074a7418acd8709cae3b"
+      "sha256": "sha256:a180d19a49287c6271fc7aea61da8f041aaf3c0e3db4a9e309559f84dc4c2ff8"
     },
     {
       "bytes": 1186,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/preflight-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:1f857493dbecf40001dbc3a9e1b5be17ac46dd166096b48e7906a1da7451fddd"
+      "sha256": "sha256:f558beec700c9339c0fd7f1ffdc5a81ab1334d6eb15e4e99b56a20c1b26d79c9"
     },
     {
       "bytes": 568,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/preflight-evidence/packet-custody.json",
-      "sha256": "sha256:addd9b8641a13227d387bbc4590b7b5e2a5df7be1e3691a1f4184d2b686bf124"
+      "sha256": "sha256:df12e08ed5d119001cf5e2801a838544ce85bca309f10bc517fb6515aa4bf02c"
     },
     {
       "bytes": 439,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/preflight-evidence/request-transport-custody.json",
-      "sha256": "sha256:d1813ba1ad996442e38efe92ec8556210ddc11ffc8037a23ebb0c5b007157fb6"
+      "sha256": "sha256:fe9a30521be317f05404aef6e239605021aa8877f87b0bc1e40cb5062c396dcd"
     },
     {
-      "bytes": 4278,
+      "bytes": 4142,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/preflight-evidence/request.raw.json",
-      "sha256": "sha256:cf67944d1872244c9d89ed3f7ad9cc27c3a37a4deba665f47a939985e2c62e8c"
+      "sha256": "sha256:2ed4af49e6876d6d5dd30da47f7bac6f7db0df083b6908b4c7b2d01bf3326783"
     },
     {
       "bytes": 781,
@@ -943,9 +1403,9 @@
       "sha256": "sha256:541f1ba02181456e8f467205fd7bd58a6f89402a982f2be773f191b66b171c88"
     },
     {
-      "bytes": 2051,
+      "bytes": 2052,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/source-manifest.json",
-      "sha256": "sha256:775d51b5a2ab72da95c4c8f4a062074132de8584c8e5ebe2b2e012c2c4289ff9"
+      "sha256": "sha256:fb4a4b70407c6a3c856265a029b8ff0dee74cbb11c83213a65bb18e0d454291c"
     },
     {
       "bytes": 433,
@@ -958,19 +1418,19 @@
       "sha256": "sha256:41410d43956d68e40171c7fa7458ab51f2101f5a17939203a69b8c60a4f31309"
     },
     {
-      "bytes": 5832830,
+      "bytes": 5767294,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/source/bridge",
-      "sha256": "sha256:ecab9c565b399170f8f0f9990927cc689f7c669a37d42cd775bc31e25532b442"
+      "sha256": "sha256:f5d60e7eca4fbf2e511f101514febf457919dc521e75ef749bae985911475bdb"
     },
     {
-      "bytes": 25642,
+      "bytes": 34830,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/source/cmd/bridge/main.go",
-      "sha256": "sha256:b7f2d0c679fd06b04aea08aa0d22823c75c35fd06be185565b6c55ac06bad471"
+      "sha256": "sha256:6ba3e14df83e00e0f550b33051df47fb1fc34635979f6d12f9ceee5c3d84a8de"
     },
     {
-      "bytes": 8718,
+      "bytes": 11968,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/source/cmd/bridge/main_test.go",
-      "sha256": "sha256:500feab03dd6f92f6c911807477ca607bc70a3c20ebcfeaa95aaf366c47de1cb"
+      "sha256": "sha256:86bc96e892f3becd6188c1d3ff31342a48758a037c8d3220e42c8d3a55a3c7c2"
     },
     {
       "bytes": 1985,
@@ -983,14 +1443,14 @@
       "sha256": "sha256:92779b1c6d6a7154d7f183403bb87fa65682677549927d5e5f2758955dd2073a"
     },
     {
-      "bytes": 44490,
+      "bytes": 43821,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/source/main.go",
-      "sha256": "sha256:884e46d5095ad25fc0dbf621bd8272efdab9f5f0596448c57eff1408c948fa7a"
+      "sha256": "sha256:7e3dcd1f2eddd202c4f29d4f8c4eaa788bd7c4c9da83213094728ac5d273161f"
     },
     {
       "bytes": 14067,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/source/main_test.go",
-      "sha256": "sha256:06ff28006e3c6b8d565e5b2d5acd694120c25e1e4f3e4ee79c9125f5d21749b5"
+      "sha256": "sha256:75320d34e2e148d28f04b7b951c3fe26c96f4edfe6bf1215c58395bff92ad6a8"
     },
     {
       "bytes": 1900670,
@@ -998,14 +1458,14 @@
       "sha256": "sha256:27ccb0e45ae8927a574a05f561f634171921bff29b68e3c27e19dcfa3dfe091d"
     },
     {
-      "bytes": 2391,
+      "bytes": 2491,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/source/provider-contract.json",
-      "sha256": "sha256:0c9bdde3bfba9b2964d8f81601ed59f956f3e5e49bda42bcb9a55606f0d91da4"
+      "sha256": "sha256:9629b9a7467eda0a3991a718f3b652c9b90dd8d0ea049da31f19510510a4857c"
     },
     {
       "bytes": 2293886,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/source/runner",
-      "sha256": "sha256:f28ab18c0669630e68f5195bc2f8f2fc0027f0e5d316c8b1abaa37bde9387e44"
+      "sha256": "sha256:b0163f2d02e1102013b2c6fb63d97b983f80ba9ce6c457e752e26fb8540da0fe"
     },
     {
       "bytes": 333483,
@@ -1033,14 +1493,189 @@
       "sha256": "sha256:6e87719bca647b009b3f9e49105478b9690a14d83a637d5bfbbc72ebc30f47a3"
     },
     {
-      "bytes": 929,
-      "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/config/compatibility.json",
-      "sha256": "sha256:6b2b152fcd731366f6ebf9e8626b9e0c4a95014234180b4ebab8d436b8f61abc"
+      "bytes": 19096,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/assignment-manifest.json",
+      "sha256": "sha256:8a23bd6c55ed04ee52e0747b89e7002323d0b012abd4d4b0d6ffa53b3b368133"
     },
     {
-      "bytes": 2487,
+      "bytes": 248,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/histories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa.json",
+      "sha256": "sha256:75531bdb2d5983ee032344547bda9295c353044cc66ef54ace137adc0d51d694"
+    },
+    {
+      "bytes": 240,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/histories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0.json",
+      "sha256": "sha256:bf91d981b78760af99224e4b32fba0524bad18c58344d9b08994939072c5350f"
+    },
+    {
+      "bytes": 241,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/histories/lean-eval-generator@a726789593eeac5c32ad82760061cd5bf6cae662.json",
+      "sha256": "sha256:3cc331019952035f8c3623e0511e9bfcf0d9ad108ce3c37242893585c33ef730"
+    },
+    {
+      "bytes": 231,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/histories/lean-eval@7699436464052268e6c04b41554bfbc2c6908ec5.json",
+      "sha256": "sha256:97ef4e34fb6e425ad0ccd22343ec703f37cb4e461f1425b2bae1f42a5c321357"
+    },
+    {
+      "bytes": 250,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/histories/lean-proofs-candidate-packet@148e18cce542f397ccb60b21a896ba063f6d6cca.json",
+      "sha256": "sha256:bda699588ea5398992e387a30bac370ec8a327775722a3f52773e3057dde867b"
+    },
+    {
+      "bytes": 4722,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/lake-manifest.json",
+      "sha256": "sha256:a81ef40554be38a473d0339b81e220c9d013226aae49d29305417f2e091bf482"
+    },
+    {
+      "bytes": 819,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/lean-correspondence-v0/cases/fc-leaneval-oeis-303656/HistoricalRenameWitness.lean",
+      "sha256": "sha256:62bf6f59d69c01027863404aeeae0b8604a33a0b331a8c49ee6e9cde959e6ea6"
+    },
+    {
+      "bytes": 655,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/lean-correspondence-v0/cases/fc-leaneval-oeis-303656/frozen/context/OeisA303656_conjecture.lean",
+      "sha256": "sha256:e893b5dd9bc7be54d042a8123ddd60dbc5476181e5d3e3e77b3ecb844a594cbe"
+    },
+    {
+      "bytes": 895,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/lean-correspondence-v0/cases/fc-leaneval-oeis-303656/frozen/generated-files.sha256",
+      "sha256": "sha256:964e18f829bbcf6c25d0c6204e8d79bce8e3c919de714a364dadab0ea3e1261d"
+    },
+    {
+      "bytes": 102,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/lean-correspondence-v0/cases/fc-leaneval-oeis-303656/frozen/generated/Challenge.lean",
+      "sha256": "sha256:4aaf71c4db3c4bb5f3933a618945b0db7d96fd1e18f3dc493da4e84d2f49ed9b"
+    },
+    {
+      "bytes": 592,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/lean-correspondence-v0/cases/fc-leaneval-oeis-303656/frozen/generated/ChallengeDeps.lean",
+      "sha256": "sha256:e01462e619bb6a63f6d37c7fe541dec22bd5756ffe5d83c2e9e747942d5e97c2"
+    },
+    {
+      "bytes": 492,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/lean-correspondence-v0/cases/fc-leaneval-oeis-303656/frozen/generated/lakefile.toml",
+      "sha256": "sha256:283c99ec4a1d9d6ca02d424f76599718b20d5f09ff940841aeb9855f17bb9ced"
+    },
+    {
+      "bytes": 25,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/lean-correspondence-v0/cases/fc-leaneval-oeis-303656/frozen/generated/lean-toolchain",
+      "sha256": "sha256:302cd63c54178885b89e669f33b38f12f4dd7ae7e5cac537b3203e3768d8fb2b"
+    },
+    {
+      "bytes": 3416,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/lean-correspondence-v0/cases/fc-leaneval-oeis-303656/frozen/request.json",
+      "sha256": "sha256:dfdbba45d7226a0773b6b855b3cd897824a89eaf65dbb3f2b944f145df2af987"
+    },
+    {
+      "bytes": 13053,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/lean-correspondence-v0/cases/fc-leaneval-oeis-303656/packet.json",
+      "sha256": "sha256:c2300410edf5aa255223d5685adc2ea4cad8ce95873f26b246c0bb125134e7cd"
+    },
+    {
+      "bytes": 25,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/lean-toolchain",
+      "sha256": "sha256:302cd63c54178885b89e669f33b38f12f4dd7ae7e5cac537b3203e3768d8fb2b"
+    },
+    {
+      "bytes": 642,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/ComparatorFacts.lean",
+      "sha256": "sha256:774618274d5f0bac18261cf6e8901f40752b91fd9aea26e9a7a0f4193fe38cee"
+    },
+    {
+      "bytes": 22800,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/ComparatorFacts/Binders.lean",
+      "sha256": "sha256:2f08deafdc7794a81abd43cf000ac8bb47004b3260a12c7cb83b7a7cc6d6c7a9"
+    },
+    {
+      "bytes": 5026,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/ComparatorFacts/Extract.lean",
+      "sha256": "sha256:d6858aa010d5dacbf3bacea18bdbc0c3a1198c67eba408888ef3f6ec17736d02"
+    },
+    {
+      "bytes": 24919,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/fc_leaneval_importer.py",
+      "sha256": "sha256:ce78bcdf203809f0aa39eddd2763f930f53bc1b2384f8530e0db09f75f04e457"
+    },
+    {
+      "bytes": 32580,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/fc_source.py",
+      "sha256": "sha256:748f9b69103a5c16615082c24ec812cfcb60e085a52a23e1e34cac905e3d6cdf"
+    },
+    {
+      "bytes": 3385,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/leaneval_generator_cli.py",
+      "sha256": "sha256:c97a2a5283c21ab5156c7d98abc3a0e7d0d0a042bf220bff6d783003b4701838"
+    },
+    {
+      "bytes": 23772,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/leaneval_interface.py",
+      "sha256": "sha256:facc953157c111381658e78cf6bd29a7eedb99c0b7660f6250e25dd2eeb53b73"
+    },
+    {
+      "bytes": 15407,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/make_comparator_workspace.py",
+      "sha256": "sha256:1ffd6c63d404d2df0d90abc6ddb3f378949607c780155936bc21d09b9be5dc25"
+    },
+    {
+      "bytes": 2703,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/known_failures.toml",
+      "sha256": "sha256:87233c6c35739ff5b99d7f822012c887a1f3ad1fcaa047d1cf56a3725d92cc25"
+    },
+    {
+      "bytes": 1337,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/templates/WorkspaceTest.lean",
+      "sha256": "sha256:ed5e47d43a6869f6213141c3d0214ab5741d9cbdac3d71b80289706fef635abd"
+    },
+    {
+      "bytes": 1599,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/tools.toml",
+      "sha256": "sha256:4c0897857bdac53c4b4d6c66c81f07d92be3382c70a47d0f5c441e2558e72f25"
+    },
+    {
+      "bytes": 2304,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/repositories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0/FormalConjectures/OEIS/303656.lean",
+      "sha256": "sha256:636de7115b068cf999ecca9c9df14046dc142e6744974b91d181074858ab8b19"
+    },
+    {
+      "bytes": 3129,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/repositories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0/lake-manifest.json",
+      "sha256": "sha256:5b99b5f4f807cbba67bbcd22e5e486c17d6a8d970ea218de08d05830ab350c26"
+    },
+    {
+      "bytes": 24,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/repositories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0/lean-toolchain",
+      "sha256": "sha256:e695e6e5d8e7a8be4d6cf159dfb995847993d26c6cc450353a86f387279025b9"
+    },
+    {
+      "bytes": 3808,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/repositories/lean-eval-generator@a726789593eeac5c32ad82760061cd5bf6cae662/schemas/request-v1.schema.json",
+      "sha256": "sha256:1e91942530fcadc5cb0fbd04a982b6a09ad0427302f3175e0d042d304a93cbc6"
+    },
+    {
+      "bytes": 812,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/repositories/lean-eval-generator@a726789593eeac5c32ad82760061cd5bf6cae662/schemas/response-v1.schema.json",
+      "sha256": "sha256:1819a8073d67f85d6420a4a2d287a75df30c41a5353ae0944990e57d59eefe01"
+    },
+    {
+      "bytes": 3188,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/repositories/lean-eval@7699436464052268e6c04b41554bfbc2c6908ec5/lake-manifest.json",
+      "sha256": "sha256:48a53853ec0b2af3aacebf0a8abc58411a4123e76b59fabeedf5f95aaaddbdb1"
+    },
+    {
+      "bytes": 25,
+      "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/workspace/repositories/lean-eval@7699436464052268e6c04b41554bfbc2c6908ec5/lean-toolchain",
+      "sha256": "sha256:302cd63c54178885b89e669f33b38f12f4dd7ae7e5cac537b3203e3768d8fb2b"
+    },
+    {
+      "bytes": 1123,
+      "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/config/compatibility.json",
+      "sha256": "sha256:9c5bc98883b140fce64f807683dfbf8a14b47048ffdf9158e41657c4b65b77b8"
+    },
+    {
+      "bytes": 1811,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/config/tool-boundary.json",
-      "sha256": "sha256:e0627a2c338a4b596436a3dc545850b466cc3540f3b6834ca6cde90ec6c35367"
+      "sha256": "sha256:8747b76c5aee254700785ef2523a40a17ec5853e66c7b3a109901a4ce51c19ef"
     },
     {
       "bytes": 782,
@@ -1070,52 +1705,57 @@
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/execution/launchability.json",
-      "sha256": "sha256:8f00c551b408ed74d25def730302c4b57eb7f5011c4a4a85c863adc4db47aa4f"
+      "sha256": "sha256:7417c04e2c1a8de6cc1b9de9602332241973f8b533565c08eacda38efa7450de"
     },
     {
       "bytes": 1171,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/execution/offline-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:21756e4edf7fb393c889c763b3a05f600342706b48083717382759f1d8c7e0ce"
+      "sha256": "sha256:afae1108e4fc6540f69651787135a5545119972038f94b65fe9687e8d7a2ad8f"
     },
     {
       "bytes": 569,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/execution/offline-evidence/packet-custody.json",
-      "sha256": "sha256:23c5ed71b7dda7a38744b9a9286f121e95590a6057f33582d3052dac71ea8e8e"
+      "sha256": "sha256:b1fedd3e9ed82cf6e43eaab9964a55b5fd3bace99522cc59f7bc93ff2b315ee2"
     },
     {
       "bytes": 439,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/execution/offline-evidence/request-transport-custody.json",
-      "sha256": "sha256:e11cbd604a50273823b4dcbe0c5300bab5f727643f12eca0a9b6900428a9108f"
+      "sha256": "sha256:df9d485e5c66b2eafb543e3166085f49dd7da3ecf4dfc107bfe12944b7da2790"
     },
     {
-      "bytes": 7199,
+      "bytes": 7063,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/execution/offline-evidence/request.raw.json",
-      "sha256": "sha256:262d51a88dfe644fd411826e3f4cedc712dc71509b1c0438612449b53750dec5"
+      "sha256": "sha256:c607c2ddecd3879b788f7899a2de6bdfd190be248493fdddb1c1e6fb68fb375e"
     },
     {
-      "bytes": 4703,
+      "bytes": 1091,
+      "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/execution/offline-evidence/workspace-bridge-preflight.json",
+      "sha256": "sha256:a469c8597f5e5ba9910f90560d5d7ccf405491b106a386d0a8c6eaf63707256b"
+    },
+    {
+      "bytes": 5420,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/execution/qualification-receipt.json",
-      "sha256": "sha256:c60d757dd45dd9e82391230eabc0f8520a33128ece499d62a69bb32c9fa94137"
+      "sha256": "sha256:4174f18d23a3e2c6224a8e4224b5c427af0d9db509613c224a59d2096a5e02fd"
     },
     {
-      "bytes": 2029,
+      "bytes": 2034,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/fixture/capture-manifest.json",
-      "sha256": "sha256:a3d5c59cd2a098ed18b91f221d2457420427baaea6b127ebba52fe11174efb54"
+      "sha256": "sha256:2c98dc7d470621a267527c3fb01f6b5332e9ad55bcade9069060365abc5174d0"
     },
     {
-      "bytes": 716,
+      "bytes": 1124,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/fixture/evidence/launch.json",
-      "sha256": "sha256:93b562096bbdbb1910ca50390b8e93d72f7359a22c6243d7b34b20c8015da39a"
+      "sha256": "sha256:397c4ebdcc41bb34d849a3c6cf61e30127050d601271a5e135a274e8657dba76"
     },
     {
-      "bytes": 2556,
+      "bytes": 2447,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/fixture/evidence/provider-events.jsonl",
-      "sha256": "sha256:9a885be7ca6a8b6ecbe0033a256709f353de7882a5c61b0f520bb4061d90e3a5"
+      "sha256": "sha256:56de4b598b27f7d5788c3589d89bfbb336cda6dba74e86aa38b9a928a39b3408"
     },
     {
-      "bytes": 1846,
+      "bytes": 1774,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/fixture/evidence/provider-events.raw.jsonl",
-      "sha256": "sha256:887b76771bbf16fde341c1f5963303255f910bc30e5129e5cd5ceea8249ec031"
+      "sha256": "sha256:6b6effd4b56be43d6a803476dfeed509069e200e88b88d779151609dc902dad0"
     },
     {
       "bytes": 0,
@@ -1128,19 +1768,19 @@
       "sha256": "sha256:6e87719bca647b009b3f9e49105478b9690a14d83a637d5bfbbc72ebc30f47a3"
     },
     {
-      "bytes": 781,
+      "bytes": 1189,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/fixture/evidence/teardown.json",
-      "sha256": "sha256:bfe5eef4bf5c45cf368064f4a89704799218214e2674827f15e122612383a754"
+      "sha256": "sha256:d6fa2b2acef1211ccb2a7fca9195277dc3f74c8d10ecbf0eb7cd804b5497372f"
     },
     {
-      "bytes": 2251,
+      "bytes": 2659,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/fixture/evidence/terminal-receipt.json",
-      "sha256": "sha256:afc85e9ecdbdacc702201bcdfc7dfe65eea6077904871422baf16e3ca7e5d041"
+      "sha256": "sha256:bcbc9d5dd08904e1c1e5583f63d28eef4c2271d8f6ee79aa92b37be899303393"
     },
     {
-      "bytes": 911,
+      "bytes": 883,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/fixture/evidence/tool-receipts.json",
-      "sha256": "sha256:166c37eb2e65bdfd66cbd6825c02d08a29a506fe4b39fc97cc2d9be8cc80c97b"
+      "sha256": "sha256:e4993c6099007595c5d7d4e5dcf38149db18bfb3a9ac78198df4f788535d6a10"
     },
     {
       "bytes": 0,
@@ -1148,24 +1788,24 @@
       "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
-      "bytes": 6,
+      "bytes": 4830,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/fixture/evidence/tool.stdout",
-      "sha256": "sha256:2e22da2ab13713309ac75219e525b8e06ed02f3f1963b8feef203fa25827f93d"
+      "sha256": "sha256:f07d133a17f161d7fb619768b779ff230f16579160a8c3a7932364ad2803ae49"
     },
     {
-      "bytes": 1132,
+      "bytes": 1639,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/fixture/permit/neutral-qualification-01.permit.consumed.json",
-      "sha256": "sha256:a80de795d864a7ed08369226fb0be9edf2e4b9c3cd9e44407f84ef7863e418a7"
+      "sha256": "sha256:724e72c00b7c2718d8743caba05b8801477d814d49ec04b4e76e55221a3b706d"
     },
     {
-      "bytes": 1110,
+      "bytes": 1617,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/fixture/permit/neutral-qualification-01.permit.template.json",
-      "sha256": "sha256:3d6cec0175af85a1985263d33ed64d6c9e166d5b4ba50c27940d076ca1ffb4c5"
+      "sha256": "sha256:e809a90ead42646a6ffe19ec15f90666b3590f2adbad8345b189c67121ee500d"
     },
     {
       "bytes": 2229,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/fixture/provider-equivalence.json",
-      "sha256": "sha256:0f83bc7da440f248daf9fa6ee34bfe57afd1acd3337b80e4c3993610c9b8dc95"
+      "sha256": "sha256:f1a210127cedf218078e006384d87a4cf33e505b9cb56873c3ac8437d7c08fd2"
     },
     {
       "bytes": 503,
@@ -1178,9 +1818,9 @@
       "sha256": "sha256:455a8417546cf04e37743fc9b61e0960ded39fb97076e3551ca7d0ecdf6f008d"
     },
     {
-      "bytes": 1173,
+      "bytes": 1680,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/permit/anthropic-diag-6cccc41b01c2e998.permit.json",
-      "sha256": "sha256:7d730439869306d15ec8fdbda31ecbc656798d901ef867c250412469491c8c3d"
+      "sha256": "sha256:fe9753e3ef28e0d893cbc6e34da9eabbc50cf78b0fb48268a269e88ca0f4c864"
     },
     {
       "bytes": 231,
@@ -1188,19 +1828,19 @@
       "sha256": "sha256:b68a866f41dfb8e1fbe13175e76a6ca29f3a23f56a4960c05b174686ae0c706b"
     },
     {
-      "bytes": 6249,
+      "bytes": 7570,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/qualification.json",
-      "sha256": "sha256:891dda874ddb1d39cff0589c532175a71fe75f4a4bdd4fbf1a9c3f36af01c0fd"
+      "sha256": "sha256:f5b0e27d14539be1cfdc2379f5410ad2c10ce4945441068455dc3727bcce2793"
     },
     {
-      "bytes": 10383360,
+      "bytes": 10321920,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/a.oci.tar",
-      "sha256": "sha256:646128f39c03260bdc72c191d91d3f96cc403a5f63ef3b3399c7dc3a6089d279"
+      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
     },
     {
-      "bytes": 10383360,
+      "bytes": 10321920,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/b.oci.tar",
-      "sha256": "sha256:646128f39c03260bdc72c191d91d3f96cc403a5f63ef3b3399c7dc3a6089d279"
+      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
     },
     {
       "bytes": 477,
@@ -1210,37 +1850,37 @@
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/independent-a.json",
-      "sha256": "sha256:9ca078e9ebb19982c7a72299a07d62762b8b68192b962f1d9aaf8120b33eda6b"
+      "sha256": "sha256:f85e2e45ac2df889064736f22fbc3f92dc4fcee094822e6b4aa488b3197595e3"
     },
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/independent-b.json",
-      "sha256": "sha256:2fb0f8bdfa83fee902e2931ee488b30cf2442df344008aeb5f485eea579de60d"
+      "sha256": "sha256:cddf2b64d9b081216bbf3f29b0acfced9d9cd961fa4766a96d041ecc7eef0c11"
     },
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/launchability.json",
-      "sha256": "sha256:ec5c90a7b8e885d7a7e679ae2ea8c1989b772a218ce7074a7418acd8709cae3b"
+      "sha256": "sha256:a180d19a49287c6271fc7aea61da8f041aaf3c0e3db4a9e309559f84dc4c2ff8"
     },
     {
       "bytes": 1186,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/preflight-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:1f857493dbecf40001dbc3a9e1b5be17ac46dd166096b48e7906a1da7451fddd"
+      "sha256": "sha256:f558beec700c9339c0fd7f1ffdc5a81ab1334d6eb15e4e99b56a20c1b26d79c9"
     },
     {
       "bytes": 568,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/preflight-evidence/packet-custody.json",
-      "sha256": "sha256:addd9b8641a13227d387bbc4590b7b5e2a5df7be1e3691a1f4184d2b686bf124"
+      "sha256": "sha256:df12e08ed5d119001cf5e2801a838544ce85bca309f10bc517fb6515aa4bf02c"
     },
     {
       "bytes": 439,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/preflight-evidence/request-transport-custody.json",
-      "sha256": "sha256:d1813ba1ad996442e38efe92ec8556210ddc11ffc8037a23ebb0c5b007157fb6"
+      "sha256": "sha256:fe9a30521be317f05404aef6e239605021aa8877f87b0bc1e40cb5062c396dcd"
     },
     {
-      "bytes": 4278,
+      "bytes": 4142,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/preflight-evidence/request.raw.json",
-      "sha256": "sha256:cf67944d1872244c9d89ed3f7ad9cc27c3a37a4deba665f47a939985e2c62e8c"
+      "sha256": "sha256:2ed4af49e6876d6d5dd30da47f7bac6f7db0df083b6908b4c7b2d01bf3326783"
     },
     {
       "bytes": 781,
@@ -1273,9 +1913,9 @@
       "sha256": "sha256:541f1ba02181456e8f467205fd7bd58a6f89402a982f2be773f191b66b171c88"
     },
     {
-      "bytes": 2051,
+      "bytes": 2052,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/source-manifest.json",
-      "sha256": "sha256:775d51b5a2ab72da95c4c8f4a062074132de8584c8e5ebe2b2e012c2c4289ff9"
+      "sha256": "sha256:fb4a4b70407c6a3c856265a029b8ff0dee74cbb11c83213a65bb18e0d454291c"
     },
     {
       "bytes": 433,
@@ -1288,19 +1928,19 @@
       "sha256": "sha256:41410d43956d68e40171c7fa7458ab51f2101f5a17939203a69b8c60a4f31309"
     },
     {
-      "bytes": 5832830,
+      "bytes": 5767294,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/source/bridge",
-      "sha256": "sha256:ecab9c565b399170f8f0f9990927cc689f7c669a37d42cd775bc31e25532b442"
+      "sha256": "sha256:f5d60e7eca4fbf2e511f101514febf457919dc521e75ef749bae985911475bdb"
     },
     {
-      "bytes": 25642,
+      "bytes": 34830,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/source/cmd/bridge/main.go",
-      "sha256": "sha256:b7f2d0c679fd06b04aea08aa0d22823c75c35fd06be185565b6c55ac06bad471"
+      "sha256": "sha256:6ba3e14df83e00e0f550b33051df47fb1fc34635979f6d12f9ceee5c3d84a8de"
     },
     {
-      "bytes": 8718,
+      "bytes": 11968,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/source/cmd/bridge/main_test.go",
-      "sha256": "sha256:500feab03dd6f92f6c911807477ca607bc70a3c20ebcfeaa95aaf366c47de1cb"
+      "sha256": "sha256:86bc96e892f3becd6188c1d3ff31342a48758a037c8d3220e42c8d3a55a3c7c2"
     },
     {
       "bytes": 1985,
@@ -1313,14 +1953,14 @@
       "sha256": "sha256:92779b1c6d6a7154d7f183403bb87fa65682677549927d5e5f2758955dd2073a"
     },
     {
-      "bytes": 44490,
+      "bytes": 43821,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/source/main.go",
-      "sha256": "sha256:884e46d5095ad25fc0dbf621bd8272efdab9f5f0596448c57eff1408c948fa7a"
+      "sha256": "sha256:7e3dcd1f2eddd202c4f29d4f8c4eaa788bd7c4c9da83213094728ac5d273161f"
     },
     {
       "bytes": 14067,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/source/main_test.go",
-      "sha256": "sha256:06ff28006e3c6b8d565e5b2d5acd694120c25e1e4f3e4ee79c9125f5d21749b5"
+      "sha256": "sha256:75320d34e2e148d28f04b7b951c3fe26c96f4edfe6bf1215c58395bff92ad6a8"
     },
     {
       "bytes": 1900670,
@@ -1328,14 +1968,14 @@
       "sha256": "sha256:27ccb0e45ae8927a574a05f561f634171921bff29b68e3c27e19dcfa3dfe091d"
     },
     {
-      "bytes": 2391,
+      "bytes": 2491,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/source/provider-contract.json",
-      "sha256": "sha256:0c9bdde3bfba9b2964d8f81601ed59f956f3e5e49bda42bcb9a55606f0d91da4"
+      "sha256": "sha256:9629b9a7467eda0a3991a718f3b652c9b90dd8d0ea049da31f19510510a4857c"
     },
     {
       "bytes": 2293886,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/source/runner",
-      "sha256": "sha256:f28ab18c0669630e68f5195bc2f8f2fc0027f0e5d316c8b1abaa37bde9387e44"
+      "sha256": "sha256:b0163f2d02e1102013b2c6fb63d97b983f80ba9ce6c457e752e26fb8540da0fe"
     },
     {
       "bytes": 333483,
@@ -1363,14 +2003,74 @@
       "sha256": "sha256:6e87719bca647b009b3f9e49105478b9690a14d83a637d5bfbbc72ebc30f47a3"
     },
     {
-      "bytes": 929,
-      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/config/compatibility.json",
-      "sha256": "sha256:6b2b152fcd731366f6ebf9e8626b9e0c4a95014234180b4ebab8d436b8f61abc"
+      "bytes": 4830,
+      "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/workspace/assignment-manifest.json",
+      "sha256": "sha256:f07d133a17f161d7fb619768b779ff230f16579160a8c3a7932364ad2803ae49"
     },
     {
-      "bytes": 2487,
+      "bytes": 2572,
+      "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/workspace/invalid-fixture/candidate-relation.json",
+      "sha256": "sha256:5b16164816153d49060a314332b42665c2121ccbe6a0695cb4ed5ebe9b761bba"
+    },
+    {
+      "bytes": 2883,
+      "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/workspace/invalid-fixture/fixture.json",
+      "sha256": "sha256:9bc39cea4fcd4e1b552aeabfc5c9a427d6a8ba97e85292f56987acd917d4afab"
+    },
+    {
+      "bytes": 572,
+      "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/workspace/invalid-fixture/impact.json",
+      "sha256": "sha256:bcfefc3c9b9825420af8265e12ea7a30334ebcc6f04525907e3d5aea13a47493"
+    },
+    {
+      "bytes": 56,
+      "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/workspace/invalid-fixture/source-repo/Basic.lean",
+      "sha256": "sha256:9a9971567a72494e3d8d95a1df556c2c6a7c04250a514043849a41dcbc30789c"
+    },
+    {
+      "bytes": 39,
+      "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/workspace/invalid-fixture/source-repo/InvalidWitness.lean",
+      "sha256": "sha256:6951a45f2893213e6ec04eb7b96920c765dcc26ef2c882530607950c9a9555e1"
+    },
+    {
+      "bytes": 79,
+      "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/workspace/invalid-fixture/source-repo/lakefile.toml",
+      "sha256": "sha256:f3bed256c9760a28b5aeb0725ca8b6dc15b309c437ad7b0a74420a91346e62e2"
+    },
+    {
+      "bytes": 25,
+      "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/workspace/invalid-fixture/source-repo/lean-toolchain",
+      "sha256": "sha256:55e97be96000b5e9e290c9e74482e5e317861499a5540353ce845471bded8cea"
+    },
+    {
+      "bytes": 56,
+      "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/workspace/invalid-fixture/target-repo/Basic.lean",
+      "sha256": "sha256:0a0c06095d3c434b28c98de8fb651907083df13e34d457eba11dd9f8fcf214f9"
+    },
+    {
+      "bytes": 79,
+      "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/workspace/invalid-fixture/target-repo/lakefile.toml",
+      "sha256": "sha256:ad144c0b74770d65380eb3c4cc8b03e1ad364be5b9270e77c06662730df49941"
+    },
+    {
+      "bytes": 25,
+      "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/workspace/invalid-fixture/target-repo/lean-toolchain",
+      "sha256": "sha256:55e97be96000b5e9e290c9e74482e5e317861499a5540353ce845471bded8cea"
+    },
+    {
+      "bytes": 589,
+      "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/workspace/invalid-fixture/witness-failure-receipt.json",
+      "sha256": "sha256:fae594cf35937d4ed939bf8b2a23f5eb37b13312a06b95fb50ddbfc61500f823"
+    },
+    {
+      "bytes": 1123,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/config/compatibility.json",
+      "sha256": "sha256:899d33bdad7273c2512c50b3b2ca8b0a739250b1aa57f510af2ce747ac88ec2b"
+    },
+    {
+      "bytes": 1811,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/config/tool-boundary.json",
-      "sha256": "sha256:e0627a2c338a4b596436a3dc545850b466cc3540f3b6834ca6cde90ec6c35367"
+      "sha256": "sha256:8cba0a57ad77559301456aef2e2d05196ac1e82270237abdd352b013241f9180"
     },
     {
       "bytes": 782,
@@ -1400,52 +2100,57 @@
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/execution/launchability.json",
-      "sha256": "sha256:32b1f64c8fe4c7dab2a18548e1537999f61d59a8023594ad943183e74236697e"
+      "sha256": "sha256:148407e0e7a5fd005d41ad0f2ec44f38cfcd6270926d15cda0abc16a8562c122"
     },
     {
       "bytes": 1171,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/execution/offline-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:61211ffb9b8bf2fde2023d99b9d31214d920dfeda5c88d288c316cee0ebb1538"
+      "sha256": "sha256:50f4392626bef59cf107bbe773cccef4bee2526350e59c1de3653e2e13777071"
     },
     {
       "bytes": 569,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/execution/offline-evidence/packet-custody.json",
-      "sha256": "sha256:a9249f4a54ccb723a4547a489301b0e9fe418bdb258dfdeda0e95c0bf43f1891"
+      "sha256": "sha256:c2193355940764a65644f9997c3e8df35c9e9a2d8f3d806376f8c31c1bbcac80"
     },
     {
       "bytes": 439,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/execution/offline-evidence/request-transport-custody.json",
-      "sha256": "sha256:dad9429e9115da5530f86ff6e46bd67d2e4ed050f29fc97dfd3d862d5b58e2ab"
+      "sha256": "sha256:e95a2c917e56306bece27b3766234cc6a69e539f65fd2290643d6353fe671932"
     },
     {
-      "bytes": 8259,
+      "bytes": 8123,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/execution/offline-evidence/request.raw.json",
-      "sha256": "sha256:9f4a0f8de9d7789bd659752d5ba1736671adb50a56541eb31f0bd8a3f0945076"
+      "sha256": "sha256:03fae3b9b00ae122ce79b4ae7d8e78f71e27d1bf2b4e098714cb6c4f0742110f"
     },
     {
-      "bytes": 4703,
+      "bytes": 1091,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/execution/offline-evidence/workspace-bridge-preflight.json",
+      "sha256": "sha256:2b8abc91b372638096e0254c0a1dbcab83e1938f9cb456ee9d2db474c9c540cd"
+    },
+    {
+      "bytes": 5420,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/execution/qualification-receipt.json",
-      "sha256": "sha256:4b88ff8e5102a6cfcf1b57da6f0230cbe1f738b39f45b1f3da2106d946a13b77"
+      "sha256": "sha256:d7483135569f706777f477b4a86ff2f77f03017222af21e6b4f1c0eccb452bfd"
     },
     {
-      "bytes": 2029,
+      "bytes": 2035,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/fixture/capture-manifest.json",
-      "sha256": "sha256:a3d5c59cd2a098ed18b91f221d2457420427baaea6b127ebba52fe11174efb54"
+      "sha256": "sha256:dfa88b452df752d1406db05f27618d54895432cc75eefa4e138d49d1d26b442c"
     },
     {
-      "bytes": 716,
+      "bytes": 1124,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/fixture/evidence/launch.json",
-      "sha256": "sha256:93b562096bbdbb1910ca50390b8e93d72f7359a22c6243d7b34b20c8015da39a"
+      "sha256": "sha256:f23ed819a6596ffba02577f353916e9db451bf5bfa2f663653140bc17534d77d"
     },
     {
-      "bytes": 2556,
+      "bytes": 2448,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/fixture/evidence/provider-events.jsonl",
-      "sha256": "sha256:9a885be7ca6a8b6ecbe0033a256709f353de7882a5c61b0f520bb4061d90e3a5"
+      "sha256": "sha256:d4fc035cf6e21cb0943b9dc1c294fc8be27d8bda898a19568f956db25cf3a291"
     },
     {
-      "bytes": 1846,
+      "bytes": 1774,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/fixture/evidence/provider-events.raw.jsonl",
-      "sha256": "sha256:887b76771bbf16fde341c1f5963303255f910bc30e5129e5cd5ceea8249ec031"
+      "sha256": "sha256:f1654f3bfa8c1affe6ead49f89835fb3617bc400292964a8687314b055cd9dff"
     },
     {
       "bytes": 0,
@@ -1458,19 +2163,19 @@
       "sha256": "sha256:6e87719bca647b009b3f9e49105478b9690a14d83a637d5bfbbc72ebc30f47a3"
     },
     {
-      "bytes": 781,
+      "bytes": 1189,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/fixture/evidence/teardown.json",
-      "sha256": "sha256:bfe5eef4bf5c45cf368064f4a89704799218214e2674827f15e122612383a754"
+      "sha256": "sha256:3c82cd8a8e0e0c6c3bbc7f0ad5100983a3a578f12eec415dee359dc8abc5ce73"
     },
     {
-      "bytes": 2251,
+      "bytes": 2659,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/fixture/evidence/terminal-receipt.json",
-      "sha256": "sha256:afc85e9ecdbdacc702201bcdfc7dfe65eea6077904871422baf16e3ca7e5d041"
+      "sha256": "sha256:3c86be72cb0ef55c7566b4bf1b876b31fc970cca65f3640f9cb3b0a7907aea00"
     },
     {
-      "bytes": 911,
+      "bytes": 884,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/fixture/evidence/tool-receipts.json",
-      "sha256": "sha256:166c37eb2e65bdfd66cbd6825c02d08a29a506fe4b39fc97cc2d9be8cc80c97b"
+      "sha256": "sha256:88c15a3d5554e5bedc05109ebd213bb2e01d79800dba4422cfc7366bd50ad6cb"
     },
     {
       "bytes": 0,
@@ -1478,24 +2183,24 @@
       "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
-      "bytes": 6,
+      "bytes": 20351,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/fixture/evidence/tool.stdout",
-      "sha256": "sha256:2e22da2ab13713309ac75219e525b8e06ed02f3f1963b8feef203fa25827f93d"
+      "sha256": "sha256:d5b4ea97602fb58db8b63a7a00ad71d2098c5776abd74feda2e32927ac344bf0"
     },
     {
-      "bytes": 1132,
+      "bytes": 1639,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/fixture/permit/neutral-qualification-01.permit.consumed.json",
-      "sha256": "sha256:a80de795d864a7ed08369226fb0be9edf2e4b9c3cd9e44407f84ef7863e418a7"
+      "sha256": "sha256:a24192192774c669c0f8a14f733b3eb966d818f95f43bf5dbe1ba6e6efd068b2"
     },
     {
-      "bytes": 1110,
+      "bytes": 1617,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/fixture/permit/neutral-qualification-01.permit.template.json",
-      "sha256": "sha256:3d6cec0175af85a1985263d33ed64d6c9e166d5b4ba50c27940d076ca1ffb4c5"
+      "sha256": "sha256:5b2e321d70c16564911212f0877c9c1a3036a5cf22f400de13dd3e289ba49aca"
     },
     {
       "bytes": 2229,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/fixture/provider-equivalence.json",
-      "sha256": "sha256:0f83bc7da440f248daf9fa6ee34bfe57afd1acd3337b80e4c3993610c9b8dc95"
+      "sha256": "sha256:dac6e87a2ddc552018f2aa41a6afceb129b4bfee11fe7a98ed86186c6687b2f8"
     },
     {
       "bytes": 503,
@@ -1508,9 +2213,9 @@
       "sha256": "sha256:455a8417546cf04e37743fc9b61e0960ded39fb97076e3551ca7d0ecdf6f008d"
     },
     {
-      "bytes": 1173,
+      "bytes": 1680,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/permit/anthropic-diag-7981a902f25c4abe.permit.json",
-      "sha256": "sha256:910742b420b93265c2eccaa31678c70cfd25c79db298f05ff3c1c50c00fdaa81"
+      "sha256": "sha256:82135898620f559070e4dac3c7c2ab73754b863975cacef05d3d6d95536f4f03"
     },
     {
       "bytes": 231,
@@ -1518,19 +2223,19 @@
       "sha256": "sha256:271a7671b69dec74a2015d8de9c3ae6749dde55c99e8124e846a1d422c8f04be"
     },
     {
-      "bytes": 6249,
+      "bytes": 7570,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/qualification.json",
-      "sha256": "sha256:ad3e028b67e517836358b3be525969b32bd027be002ed07998a4f273a4719077"
+      "sha256": "sha256:844d87dcb765216b066b43367cd80de1a5f34e6c204c05426883fdc0f456e5b4"
     },
     {
-      "bytes": 10383360,
+      "bytes": 10321920,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/a.oci.tar",
-      "sha256": "sha256:646128f39c03260bdc72c191d91d3f96cc403a5f63ef3b3399c7dc3a6089d279"
+      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
     },
     {
-      "bytes": 10383360,
+      "bytes": 10321920,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/b.oci.tar",
-      "sha256": "sha256:646128f39c03260bdc72c191d91d3f96cc403a5f63ef3b3399c7dc3a6089d279"
+      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
     },
     {
       "bytes": 477,
@@ -1540,37 +2245,37 @@
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/independent-a.json",
-      "sha256": "sha256:9ca078e9ebb19982c7a72299a07d62762b8b68192b962f1d9aaf8120b33eda6b"
+      "sha256": "sha256:f85e2e45ac2df889064736f22fbc3f92dc4fcee094822e6b4aa488b3197595e3"
     },
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/independent-b.json",
-      "sha256": "sha256:2fb0f8bdfa83fee902e2931ee488b30cf2442df344008aeb5f485eea579de60d"
+      "sha256": "sha256:cddf2b64d9b081216bbf3f29b0acfced9d9cd961fa4766a96d041ecc7eef0c11"
     },
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/launchability.json",
-      "sha256": "sha256:ec5c90a7b8e885d7a7e679ae2ea8c1989b772a218ce7074a7418acd8709cae3b"
+      "sha256": "sha256:a180d19a49287c6271fc7aea61da8f041aaf3c0e3db4a9e309559f84dc4c2ff8"
     },
     {
       "bytes": 1186,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/preflight-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:1f857493dbecf40001dbc3a9e1b5be17ac46dd166096b48e7906a1da7451fddd"
+      "sha256": "sha256:f558beec700c9339c0fd7f1ffdc5a81ab1334d6eb15e4e99b56a20c1b26d79c9"
     },
     {
       "bytes": 568,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/preflight-evidence/packet-custody.json",
-      "sha256": "sha256:addd9b8641a13227d387bbc4590b7b5e2a5df7be1e3691a1f4184d2b686bf124"
+      "sha256": "sha256:df12e08ed5d119001cf5e2801a838544ce85bca309f10bc517fb6515aa4bf02c"
     },
     {
       "bytes": 439,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/preflight-evidence/request-transport-custody.json",
-      "sha256": "sha256:d1813ba1ad996442e38efe92ec8556210ddc11ffc8037a23ebb0c5b007157fb6"
+      "sha256": "sha256:fe9a30521be317f05404aef6e239605021aa8877f87b0bc1e40cb5062c396dcd"
     },
     {
-      "bytes": 4278,
+      "bytes": 4142,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/preflight-evidence/request.raw.json",
-      "sha256": "sha256:cf67944d1872244c9d89ed3f7ad9cc27c3a37a4deba665f47a939985e2c62e8c"
+      "sha256": "sha256:2ed4af49e6876d6d5dd30da47f7bac6f7db0df083b6908b4c7b2d01bf3326783"
     },
     {
       "bytes": 781,
@@ -1603,9 +2308,9 @@
       "sha256": "sha256:541f1ba02181456e8f467205fd7bd58a6f89402a982f2be773f191b66b171c88"
     },
     {
-      "bytes": 2051,
+      "bytes": 2052,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/source-manifest.json",
-      "sha256": "sha256:775d51b5a2ab72da95c4c8f4a062074132de8584c8e5ebe2b2e012c2c4289ff9"
+      "sha256": "sha256:fb4a4b70407c6a3c856265a029b8ff0dee74cbb11c83213a65bb18e0d454291c"
     },
     {
       "bytes": 433,
@@ -1618,19 +2323,19 @@
       "sha256": "sha256:41410d43956d68e40171c7fa7458ab51f2101f5a17939203a69b8c60a4f31309"
     },
     {
-      "bytes": 5832830,
+      "bytes": 5767294,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/source/bridge",
-      "sha256": "sha256:ecab9c565b399170f8f0f9990927cc689f7c669a37d42cd775bc31e25532b442"
+      "sha256": "sha256:f5d60e7eca4fbf2e511f101514febf457919dc521e75ef749bae985911475bdb"
     },
     {
-      "bytes": 25642,
+      "bytes": 34830,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/source/cmd/bridge/main.go",
-      "sha256": "sha256:b7f2d0c679fd06b04aea08aa0d22823c75c35fd06be185565b6c55ac06bad471"
+      "sha256": "sha256:6ba3e14df83e00e0f550b33051df47fb1fc34635979f6d12f9ceee5c3d84a8de"
     },
     {
-      "bytes": 8718,
+      "bytes": 11968,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/source/cmd/bridge/main_test.go",
-      "sha256": "sha256:500feab03dd6f92f6c911807477ca607bc70a3c20ebcfeaa95aaf366c47de1cb"
+      "sha256": "sha256:86bc96e892f3becd6188c1d3ff31342a48758a037c8d3220e42c8d3a55a3c7c2"
     },
     {
       "bytes": 1985,
@@ -1643,14 +2348,14 @@
       "sha256": "sha256:92779b1c6d6a7154d7f183403bb87fa65682677549927d5e5f2758955dd2073a"
     },
     {
-      "bytes": 44490,
+      "bytes": 43821,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/source/main.go",
-      "sha256": "sha256:884e46d5095ad25fc0dbf621bd8272efdab9f5f0596448c57eff1408c948fa7a"
+      "sha256": "sha256:7e3dcd1f2eddd202c4f29d4f8c4eaa788bd7c4c9da83213094728ac5d273161f"
     },
     {
       "bytes": 14067,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/source/main_test.go",
-      "sha256": "sha256:06ff28006e3c6b8d565e5b2d5acd694120c25e1e4f3e4ee79c9125f5d21749b5"
+      "sha256": "sha256:75320d34e2e148d28f04b7b951c3fe26c96f4edfe6bf1215c58395bff92ad6a8"
     },
     {
       "bytes": 1900670,
@@ -1658,14 +2363,14 @@
       "sha256": "sha256:27ccb0e45ae8927a574a05f561f634171921bff29b68e3c27e19dcfa3dfe091d"
     },
     {
-      "bytes": 2391,
+      "bytes": 2491,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/source/provider-contract.json",
-      "sha256": "sha256:0c9bdde3bfba9b2964d8f81601ed59f956f3e5e49bda42bcb9a55606f0d91da4"
+      "sha256": "sha256:9629b9a7467eda0a3991a718f3b652c9b90dd8d0ea049da31f19510510a4857c"
     },
     {
       "bytes": 2293886,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/source/runner",
-      "sha256": "sha256:f28ab18c0669630e68f5195bc2f8f2fc0027f0e5d316c8b1abaa37bde9387e44"
+      "sha256": "sha256:b0163f2d02e1102013b2c6fb63d97b983f80ba9ce6c457e752e26fb8540da0fe"
     },
     {
       "bytes": 333483,
@@ -1693,14 +2398,204 @@
       "sha256": "sha256:6e87719bca647b009b3f9e49105478b9690a14d83a637d5bfbbc72ebc30f47a3"
     },
     {
-      "bytes": 929,
-      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/config/compatibility.json",
-      "sha256": "sha256:6b2b152fcd731366f6ebf9e8626b9e0c4a95014234180b4ebab8d436b8f61abc"
+      "bytes": 20351,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/assignment-manifest.json",
+      "sha256": "sha256:d5b4ea97602fb58db8b63a7a00ad71d2098c5776abd74feda2e32927ac344bf0"
     },
     {
-      "bytes": 2487,
+      "bytes": 1408,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/cases/receipts/oeis-303656.fc-to-leaneval-generated-lineage.receipt.json",
+      "sha256": "sha256:d54b37832c3626a8d3e3efcb00b68bec0db62c88606f1ef1ee113b43160b2785"
+    },
+    {
+      "bytes": 9715,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/cases/records/oeis-303656.fc-to-leaneval-generated-lineage.relation.json",
+      "sha256": "sha256:7e0d91f2fe323b594d2dba95b858d89b62bff413219c31f211f0a406e08f203b"
+    },
+    {
+      "bytes": 856,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/cases/reports/oeis-303656.impact.json",
+      "sha256": "sha256:3704efb480b6fafe07309a5f40ddb30322b0ce4a58b238e8addcd4820fa5b9bc"
+    },
+    {
+      "bytes": 248,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/histories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa.json",
+      "sha256": "sha256:75531bdb2d5983ee032344547bda9295c353044cc66ef54ace137adc0d51d694"
+    },
+    {
+      "bytes": 240,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/histories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0.json",
+      "sha256": "sha256:bf91d981b78760af99224e4b32fba0524bad18c58344d9b08994939072c5350f"
+    },
+    {
+      "bytes": 241,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/histories/lean-eval-generator@a726789593eeac5c32ad82760061cd5bf6cae662.json",
+      "sha256": "sha256:3cc331019952035f8c3623e0511e9bfcf0d9ad108ce3c37242893585c33ef730"
+    },
+    {
+      "bytes": 231,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/histories/lean-eval@7699436464052268e6c04b41554bfbc2c6908ec5.json",
+      "sha256": "sha256:97ef4e34fb6e425ad0ccd22343ec703f37cb4e461f1425b2bae1f42a5c321357"
+    },
+    {
+      "bytes": 250,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/histories/lean-proofs-candidate-packet@148e18cce542f397ccb60b21a896ba063f6d6cca.json",
+      "sha256": "sha256:bda699588ea5398992e387a30bac370ec8a327775722a3f52773e3057dde867b"
+    },
+    {
+      "bytes": 4722,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/lake-manifest.json",
+      "sha256": "sha256:a81ef40554be38a473d0339b81e220c9d013226aae49d29305417f2e091bf482"
+    },
+    {
+      "bytes": 819,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/lean-correspondence-v0/cases/fc-leaneval-oeis-303656/HistoricalRenameWitness.lean",
+      "sha256": "sha256:62bf6f59d69c01027863404aeeae0b8604a33a0b331a8c49ee6e9cde959e6ea6"
+    },
+    {
+      "bytes": 655,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/lean-correspondence-v0/cases/fc-leaneval-oeis-303656/frozen/context/OeisA303656_conjecture.lean",
+      "sha256": "sha256:e893b5dd9bc7be54d042a8123ddd60dbc5476181e5d3e3e77b3ecb844a594cbe"
+    },
+    {
+      "bytes": 895,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/lean-correspondence-v0/cases/fc-leaneval-oeis-303656/frozen/generated-files.sha256",
+      "sha256": "sha256:964e18f829bbcf6c25d0c6204e8d79bce8e3c919de714a364dadab0ea3e1261d"
+    },
+    {
+      "bytes": 102,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/lean-correspondence-v0/cases/fc-leaneval-oeis-303656/frozen/generated/Challenge.lean",
+      "sha256": "sha256:4aaf71c4db3c4bb5f3933a618945b0db7d96fd1e18f3dc493da4e84d2f49ed9b"
+    },
+    {
+      "bytes": 592,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/lean-correspondence-v0/cases/fc-leaneval-oeis-303656/frozen/generated/ChallengeDeps.lean",
+      "sha256": "sha256:e01462e619bb6a63f6d37c7fe541dec22bd5756ffe5d83c2e9e747942d5e97c2"
+    },
+    {
+      "bytes": 492,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/lean-correspondence-v0/cases/fc-leaneval-oeis-303656/frozen/generated/lakefile.toml",
+      "sha256": "sha256:283c99ec4a1d9d6ca02d424f76599718b20d5f09ff940841aeb9855f17bb9ced"
+    },
+    {
+      "bytes": 25,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/lean-correspondence-v0/cases/fc-leaneval-oeis-303656/frozen/generated/lean-toolchain",
+      "sha256": "sha256:302cd63c54178885b89e669f33b38f12f4dd7ae7e5cac537b3203e3768d8fb2b"
+    },
+    {
+      "bytes": 3416,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/lean-correspondence-v0/cases/fc-leaneval-oeis-303656/frozen/request.json",
+      "sha256": "sha256:dfdbba45d7226a0773b6b855b3cd897824a89eaf65dbb3f2b944f145df2af987"
+    },
+    {
+      "bytes": 13053,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/lean-correspondence-v0/cases/fc-leaneval-oeis-303656/packet.json",
+      "sha256": "sha256:c2300410edf5aa255223d5685adc2ea4cad8ce95873f26b246c0bb125134e7cd"
+    },
+    {
+      "bytes": 25,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/lean-toolchain",
+      "sha256": "sha256:302cd63c54178885b89e669f33b38f12f4dd7ae7e5cac537b3203e3768d8fb2b"
+    },
+    {
+      "bytes": 642,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/ComparatorFacts.lean",
+      "sha256": "sha256:774618274d5f0bac18261cf6e8901f40752b91fd9aea26e9a7a0f4193fe38cee"
+    },
+    {
+      "bytes": 22800,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/ComparatorFacts/Binders.lean",
+      "sha256": "sha256:2f08deafdc7794a81abd43cf000ac8bb47004b3260a12c7cb83b7a7cc6d6c7a9"
+    },
+    {
+      "bytes": 5026,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/ComparatorFacts/Extract.lean",
+      "sha256": "sha256:d6858aa010d5dacbf3bacea18bdbc0c3a1198c67eba408888ef3f6ec17736d02"
+    },
+    {
+      "bytes": 24919,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/fc_leaneval_importer.py",
+      "sha256": "sha256:ce78bcdf203809f0aa39eddd2763f930f53bc1b2384f8530e0db09f75f04e457"
+    },
+    {
+      "bytes": 32580,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/fc_source.py",
+      "sha256": "sha256:748f9b69103a5c16615082c24ec812cfcb60e085a52a23e1e34cac905e3d6cdf"
+    },
+    {
+      "bytes": 3385,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/leaneval_generator_cli.py",
+      "sha256": "sha256:c97a2a5283c21ab5156c7d98abc3a0e7d0d0a042bf220bff6d783003b4701838"
+    },
+    {
+      "bytes": 23772,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/leaneval_interface.py",
+      "sha256": "sha256:facc953157c111381658e78cf6bd29a7eedb99c0b7660f6250e25dd2eeb53b73"
+    },
+    {
+      "bytes": 15407,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/adapter/make_comparator_workspace.py",
+      "sha256": "sha256:1ffd6c63d404d2df0d90abc6ddb3f378949607c780155936bc21d09b9be5dc25"
+    },
+    {
+      "bytes": 2703,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/known_failures.toml",
+      "sha256": "sha256:87233c6c35739ff5b99d7f822012c887a1f3ad1fcaa047d1cf56a3725d92cc25"
+    },
+    {
+      "bytes": 1337,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/templates/WorkspaceTest.lean",
+      "sha256": "sha256:ed5e47d43a6869f6213141c3d0214ab5741d9cbdac3d71b80289706fef635abd"
+    },
+    {
+      "bytes": 1599,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/repositories/formal-conjectures-adapter@2654e42de2026de6cdb248ad5ed0f1c7d659c8fa/comparator/tools.toml",
+      "sha256": "sha256:4c0897857bdac53c4b4d6c66c81f07d92be3382c70a47d0f5c441e2558e72f25"
+    },
+    {
+      "bytes": 2304,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/repositories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0/FormalConjectures/OEIS/303656.lean",
+      "sha256": "sha256:636de7115b068cf999ecca9c9df14046dc142e6744974b91d181074858ab8b19"
+    },
+    {
+      "bytes": 3129,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/repositories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0/lake-manifest.json",
+      "sha256": "sha256:5b99b5f4f807cbba67bbcd22e5e486c17d6a8d970ea218de08d05830ab350c26"
+    },
+    {
+      "bytes": 24,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/repositories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0/lean-toolchain",
+      "sha256": "sha256:e695e6e5d8e7a8be4d6cf159dfb995847993d26c6cc450353a86f387279025b9"
+    },
+    {
+      "bytes": 3808,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/repositories/lean-eval-generator@a726789593eeac5c32ad82760061cd5bf6cae662/schemas/request-v1.schema.json",
+      "sha256": "sha256:1e91942530fcadc5cb0fbd04a982b6a09ad0427302f3175e0d042d304a93cbc6"
+    },
+    {
+      "bytes": 812,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/repositories/lean-eval-generator@a726789593eeac5c32ad82760061cd5bf6cae662/schemas/response-v1.schema.json",
+      "sha256": "sha256:1819a8073d67f85d6420a4a2d287a75df30c41a5353ae0944990e57d59eefe01"
+    },
+    {
+      "bytes": 3188,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/repositories/lean-eval@7699436464052268e6c04b41554bfbc2c6908ec5/lake-manifest.json",
+      "sha256": "sha256:48a53853ec0b2af3aacebf0a8abc58411a4123e76b59fabeedf5f95aaaddbdb1"
+    },
+    {
+      "bytes": 25,
+      "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/workspace/repositories/lean-eval@7699436464052268e6c04b41554bfbc2c6908ec5/lean-toolchain",
+      "sha256": "sha256:302cd63c54178885b89e669f33b38f12f4dd7ae7e5cac537b3203e3768d8fb2b"
+    },
+    {
+      "bytes": 1123,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/config/compatibility.json",
+      "sha256": "sha256:015f81cf0047e70da5d2deb54fa506a46c19871ac8bde80111b7bdac3554aaee"
+    },
+    {
+      "bytes": 1811,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/config/tool-boundary.json",
-      "sha256": "sha256:e0627a2c338a4b596436a3dc545850b466cc3540f3b6834ca6cde90ec6c35367"
+      "sha256": "sha256:ad5c9ac5979117cc8e099b9c04e50b815cfbd11d632f2f09a198166a02e2840c"
     },
     {
       "bytes": 782,
@@ -1730,52 +2625,57 @@
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/execution/launchability.json",
-      "sha256": "sha256:439bc32389a21933843e3952292f7f62c4239c6b944c800fa1eac5254f8c03e0"
+      "sha256": "sha256:77567425c721d432d08deb5574bb9d10dea0a5c30037211ee8efd373da023b9b"
     },
     {
       "bytes": 1171,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/execution/offline-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:ded601476208ce77b21da46fa0148437735654614fcf8321ee414d833da65a64"
+      "sha256": "sha256:4e1eb199d3ddc4719392a188f4a26e3dcbd4b06be70958f8a6ebe29278312836"
     },
     {
       "bytes": 569,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/execution/offline-evidence/packet-custody.json",
-      "sha256": "sha256:8f8a1975f8903a33f719c28c1ff5fa469d11c4aa517c004242ce34c203493299"
+      "sha256": "sha256:b5b1d6c0ab36e99befc28835adcdc1d3bd525ff68928d474e6612d32b67b8a7c"
     },
     {
       "bytes": 439,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/execution/offline-evidence/request-transport-custody.json",
-      "sha256": "sha256:11d283ebf76a252c32245f1cb3bf8a66bee31dca2b4ebd29f14d8ec539492cae"
+      "sha256": "sha256:55663e0cac4ee27d5843bb3b792ff9581b5693e11f42be425e2ae105a9cbeb3c"
     },
     {
-      "bytes": 6568,
+      "bytes": 6432,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/execution/offline-evidence/request.raw.json",
-      "sha256": "sha256:88ddb7ac58d120bd25607b3d1787df4a17c39ea45f3d42015847dcd2a3543774"
+      "sha256": "sha256:97777ae1eb29c9c07937317cc88760bc810f2f4174cf88ea135f9f5d96f72bfd"
     },
     {
-      "bytes": 4703,
+      "bytes": 1091,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/execution/offline-evidence/workspace-bridge-preflight.json",
+      "sha256": "sha256:11097438fca518624446c271516bb08c39df226bf76f207d21d8c6317f4a3b50"
+    },
+    {
+      "bytes": 5420,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/execution/qualification-receipt.json",
-      "sha256": "sha256:1d00004eeebfe3ef5b8ce951a848bc93c99304406ea9118a711b3dd4a352d0c1"
+      "sha256": "sha256:3023d5eec831859a1111a3a16b040affcd8c0f2f8c7510fd256ee8057cd97345"
     },
     {
-      "bytes": 2029,
+      "bytes": 2035,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/fixture/capture-manifest.json",
-      "sha256": "sha256:a3d5c59cd2a098ed18b91f221d2457420427baaea6b127ebba52fe11174efb54"
+      "sha256": "sha256:592851759f5c7428e2464eeecedb77c5cdcbd7157ca9dcc906274778af6d6165"
     },
     {
-      "bytes": 716,
+      "bytes": 1124,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/fixture/evidence/launch.json",
-      "sha256": "sha256:93b562096bbdbb1910ca50390b8e93d72f7359a22c6243d7b34b20c8015da39a"
+      "sha256": "sha256:73ab98e8c0f56bc8acddc5122bd0229249fb6ca3bfadbca2a29a59c677c8e1c7"
     },
     {
-      "bytes": 2556,
+      "bytes": 2448,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/fixture/evidence/provider-events.jsonl",
-      "sha256": "sha256:9a885be7ca6a8b6ecbe0033a256709f353de7882a5c61b0f520bb4061d90e3a5"
+      "sha256": "sha256:23ab32dae1f861545ec023d936533381f098e8efafa72ab2d07917d85a2991ca"
     },
     {
-      "bytes": 1846,
+      "bytes": 1774,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/fixture/evidence/provider-events.raw.jsonl",
-      "sha256": "sha256:887b76771bbf16fde341c1f5963303255f910bc30e5129e5cd5ceea8249ec031"
+      "sha256": "sha256:25e675d8d2209e5340d6d51afe855bf598adf3d1b02c23090e9b96d8361a66a8"
     },
     {
       "bytes": 0,
@@ -1788,19 +2688,19 @@
       "sha256": "sha256:6e87719bca647b009b3f9e49105478b9690a14d83a637d5bfbbc72ebc30f47a3"
     },
     {
-      "bytes": 781,
+      "bytes": 1189,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/fixture/evidence/teardown.json",
-      "sha256": "sha256:bfe5eef4bf5c45cf368064f4a89704799218214e2674827f15e122612383a754"
+      "sha256": "sha256:322ebcb398954d69772166f24b55364e1ecfa0a804fe8a89d138fba120c1987b"
     },
     {
-      "bytes": 2251,
+      "bytes": 2659,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/fixture/evidence/terminal-receipt.json",
-      "sha256": "sha256:afc85e9ecdbdacc702201bcdfc7dfe65eea6077904871422baf16e3ca7e5d041"
+      "sha256": "sha256:0a771703c2db206733c0bdd2ca1ccd522d0fdfdc77fbd671218a3ceb50be16a0"
     },
     {
-      "bytes": 911,
+      "bytes": 884,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/fixture/evidence/tool-receipts.json",
-      "sha256": "sha256:166c37eb2e65bdfd66cbd6825c02d08a29a506fe4b39fc97cc2d9be8cc80c97b"
+      "sha256": "sha256:30c32f8dd90c2b5955c8236d87e5029e4fd0a939a4fa26c30025496b210862f5"
     },
     {
       "bytes": 0,
@@ -1808,24 +2708,24 @@
       "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
-      "bytes": 6,
+      "bytes": 11284,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/fixture/evidence/tool.stdout",
-      "sha256": "sha256:2e22da2ab13713309ac75219e525b8e06ed02f3f1963b8feef203fa25827f93d"
+      "sha256": "sha256:08533e51c5fe9d5491a46987ba13e6070284cc3b5ccbd5e1de05b0057099a66a"
     },
     {
-      "bytes": 1132,
+      "bytes": 1639,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/fixture/permit/neutral-qualification-01.permit.consumed.json",
-      "sha256": "sha256:a80de795d864a7ed08369226fb0be9edf2e4b9c3cd9e44407f84ef7863e418a7"
+      "sha256": "sha256:5a8695bc743761601d4fef6f96d1032e74ebbe0869ec80c9deb22d756401aebd"
     },
     {
-      "bytes": 1110,
+      "bytes": 1617,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/fixture/permit/neutral-qualification-01.permit.template.json",
-      "sha256": "sha256:3d6cec0175af85a1985263d33ed64d6c9e166d5b4ba50c27940d076ca1ffb4c5"
+      "sha256": "sha256:ec96e2a862a0ff4c19f21aa1c7df2bc19ae20a5cb0bdbe3d6eb577bc66c5181d"
     },
     {
       "bytes": 2229,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/fixture/provider-equivalence.json",
-      "sha256": "sha256:0f83bc7da440f248daf9fa6ee34bfe57afd1acd3337b80e4c3993610c9b8dc95"
+      "sha256": "sha256:def0b823ecd4312c25f5285f262a9e81a12e8844a00002dcc5b17c5a4a419780"
     },
     {
       "bytes": 503,
@@ -1838,9 +2738,9 @@
       "sha256": "sha256:455a8417546cf04e37743fc9b61e0960ded39fb97076e3551ca7d0ecdf6f008d"
     },
     {
-      "bytes": 1173,
+      "bytes": 1680,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/permit/anthropic-diag-fa6a2181a9a7b010.permit.json",
-      "sha256": "sha256:0fea5ff4ac882ebeecde955807b50c1b95abd877b866976046cb569d968671d9"
+      "sha256": "sha256:f6a4db8bb9c1f5f13b87329951a5d5e5e967f7671b70d50896fdf9c194699660"
     },
     {
       "bytes": 231,
@@ -1848,19 +2748,19 @@
       "sha256": "sha256:08e1a75a8a71ba502a6691d65499d0e5fa38ff27af77e19cbdfaac926606efec"
     },
     {
-      "bytes": 6249,
+      "bytes": 7570,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/qualification.json",
-      "sha256": "sha256:0be3aa4a59ab9a03cb7bafa0a8d99dca12c40f9c358053b17c246dc5d438f645"
+      "sha256": "sha256:e2ffca29c62eedc3b59c7c88a6c299f1ab56ea5466bbeeed8eb63d36645593d3"
     },
     {
-      "bytes": 10383360,
+      "bytes": 10321920,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/a.oci.tar",
-      "sha256": "sha256:646128f39c03260bdc72c191d91d3f96cc403a5f63ef3b3399c7dc3a6089d279"
+      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
     },
     {
-      "bytes": 10383360,
+      "bytes": 10321920,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/b.oci.tar",
-      "sha256": "sha256:646128f39c03260bdc72c191d91d3f96cc403a5f63ef3b3399c7dc3a6089d279"
+      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
     },
     {
       "bytes": 477,
@@ -1870,37 +2770,37 @@
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/independent-a.json",
-      "sha256": "sha256:9ca078e9ebb19982c7a72299a07d62762b8b68192b962f1d9aaf8120b33eda6b"
+      "sha256": "sha256:f85e2e45ac2df889064736f22fbc3f92dc4fcee094822e6b4aa488b3197595e3"
     },
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/independent-b.json",
-      "sha256": "sha256:2fb0f8bdfa83fee902e2931ee488b30cf2442df344008aeb5f485eea579de60d"
+      "sha256": "sha256:cddf2b64d9b081216bbf3f29b0acfced9d9cd961fa4766a96d041ecc7eef0c11"
     },
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/launchability.json",
-      "sha256": "sha256:ec5c90a7b8e885d7a7e679ae2ea8c1989b772a218ce7074a7418acd8709cae3b"
+      "sha256": "sha256:a180d19a49287c6271fc7aea61da8f041aaf3c0e3db4a9e309559f84dc4c2ff8"
     },
     {
       "bytes": 1186,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/preflight-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:1f857493dbecf40001dbc3a9e1b5be17ac46dd166096b48e7906a1da7451fddd"
+      "sha256": "sha256:f558beec700c9339c0fd7f1ffdc5a81ab1334d6eb15e4e99b56a20c1b26d79c9"
     },
     {
       "bytes": 568,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/preflight-evidence/packet-custody.json",
-      "sha256": "sha256:addd9b8641a13227d387bbc4590b7b5e2a5df7be1e3691a1f4184d2b686bf124"
+      "sha256": "sha256:df12e08ed5d119001cf5e2801a838544ce85bca309f10bc517fb6515aa4bf02c"
     },
     {
       "bytes": 439,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/preflight-evidence/request-transport-custody.json",
-      "sha256": "sha256:d1813ba1ad996442e38efe92ec8556210ddc11ffc8037a23ebb0c5b007157fb6"
+      "sha256": "sha256:fe9a30521be317f05404aef6e239605021aa8877f87b0bc1e40cb5062c396dcd"
     },
     {
-      "bytes": 4278,
+      "bytes": 4142,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/preflight-evidence/request.raw.json",
-      "sha256": "sha256:cf67944d1872244c9d89ed3f7ad9cc27c3a37a4deba665f47a939985e2c62e8c"
+      "sha256": "sha256:2ed4af49e6876d6d5dd30da47f7bac6f7db0df083b6908b4c7b2d01bf3326783"
     },
     {
       "bytes": 781,
@@ -1933,9 +2833,9 @@
       "sha256": "sha256:541f1ba02181456e8f467205fd7bd58a6f89402a982f2be773f191b66b171c88"
     },
     {
-      "bytes": 2051,
+      "bytes": 2052,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/source-manifest.json",
-      "sha256": "sha256:775d51b5a2ab72da95c4c8f4a062074132de8584c8e5ebe2b2e012c2c4289ff9"
+      "sha256": "sha256:fb4a4b70407c6a3c856265a029b8ff0dee74cbb11c83213a65bb18e0d454291c"
     },
     {
       "bytes": 433,
@@ -1948,19 +2848,19 @@
       "sha256": "sha256:41410d43956d68e40171c7fa7458ab51f2101f5a17939203a69b8c60a4f31309"
     },
     {
-      "bytes": 5832830,
+      "bytes": 5767294,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/source/bridge",
-      "sha256": "sha256:ecab9c565b399170f8f0f9990927cc689f7c669a37d42cd775bc31e25532b442"
+      "sha256": "sha256:f5d60e7eca4fbf2e511f101514febf457919dc521e75ef749bae985911475bdb"
     },
     {
-      "bytes": 25642,
+      "bytes": 34830,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/source/cmd/bridge/main.go",
-      "sha256": "sha256:b7f2d0c679fd06b04aea08aa0d22823c75c35fd06be185565b6c55ac06bad471"
+      "sha256": "sha256:6ba3e14df83e00e0f550b33051df47fb1fc34635979f6d12f9ceee5c3d84a8de"
     },
     {
-      "bytes": 8718,
+      "bytes": 11968,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/source/cmd/bridge/main_test.go",
-      "sha256": "sha256:500feab03dd6f92f6c911807477ca607bc70a3c20ebcfeaa95aaf366c47de1cb"
+      "sha256": "sha256:86bc96e892f3becd6188c1d3ff31342a48758a037c8d3220e42c8d3a55a3c7c2"
     },
     {
       "bytes": 1985,
@@ -1973,14 +2873,14 @@
       "sha256": "sha256:92779b1c6d6a7154d7f183403bb87fa65682677549927d5e5f2758955dd2073a"
     },
     {
-      "bytes": 44490,
+      "bytes": 43821,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/source/main.go",
-      "sha256": "sha256:884e46d5095ad25fc0dbf621bd8272efdab9f5f0596448c57eff1408c948fa7a"
+      "sha256": "sha256:7e3dcd1f2eddd202c4f29d4f8c4eaa788bd7c4c9da83213094728ac5d273161f"
     },
     {
       "bytes": 14067,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/source/main_test.go",
-      "sha256": "sha256:06ff28006e3c6b8d565e5b2d5acd694120c25e1e4f3e4ee79c9125f5d21749b5"
+      "sha256": "sha256:75320d34e2e148d28f04b7b951c3fe26c96f4edfe6bf1215c58395bff92ad6a8"
     },
     {
       "bytes": 1900670,
@@ -1988,14 +2888,14 @@
       "sha256": "sha256:27ccb0e45ae8927a574a05f561f634171921bff29b68e3c27e19dcfa3dfe091d"
     },
     {
-      "bytes": 2391,
+      "bytes": 2491,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/source/provider-contract.json",
-      "sha256": "sha256:0c9bdde3bfba9b2964d8f81601ed59f956f3e5e49bda42bcb9a55606f0d91da4"
+      "sha256": "sha256:9629b9a7467eda0a3991a718f3b652c9b90dd8d0ea049da31f19510510a4857c"
     },
     {
       "bytes": 2293886,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/source/runner",
-      "sha256": "sha256:f28ab18c0669630e68f5195bc2f8f2fc0027f0e5d316c8b1abaa37bde9387e44"
+      "sha256": "sha256:b0163f2d02e1102013b2c6fb63d97b983f80ba9ce6c457e752e26fb8540da0fe"
     },
     {
       "bytes": 333483,
@@ -2023,9 +2923,119 @@
       "sha256": "sha256:6e87719bca647b009b3f9e49105478b9690a14d83a637d5bfbbc72ebc30f47a3"
     },
     {
-      "bytes": 5110,
+      "bytes": 11284,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/assignment-manifest.json",
+      "sha256": "sha256:08533e51c5fe9d5491a46987ba13e6070284cc3b5ccbd5e1de05b0057099a66a"
+    },
+    {
+      "bytes": 1321,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/cases/receipts/erdos-730.affirmative-rhs-defeq.receipt.json",
+      "sha256": "sha256:6bb0b4156316c5f3b8f3f4792d8e60a6cce5f9f20e4829e32bd13a3918391b2e"
+    },
+    {
+      "bytes": 5968,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/cases/records/erdos-730.affirmative-rhs-defeq.relation.json",
+      "sha256": "sha256:b1279ec663fc2a923cc96b86ee60cbca5f321b456fdc6e01be8e1ceb7e3c16d8"
+    },
+    {
+      "bytes": 240,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/histories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0.json",
+      "sha256": "sha256:bf91d981b78760af99224e4b32fba0524bad18c58344d9b08994939072c5350f"
+    },
+    {
+      "bytes": 250,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/histories/lean-proofs-candidate-packet@148e18cce542f397ccb60b21a896ba063f6d6cca.json",
+      "sha256": "sha256:bda699588ea5398992e387a30bac370ec8a327775722a3f52773e3057dde867b"
+    },
+    {
+      "bytes": 276,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/histories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460.json",
+      "sha256": "sha256:464a52ea97c03bfcaa65714796aab92be41ceb1c9555a89db85aac71b31fae32"
+    },
+    {
+      "bytes": 4722,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/lake-manifest.json",
+      "sha256": "sha256:a81ef40554be38a473d0339b81e220c9d013226aae49d29305417f2e091bf482"
+    },
+    {
+      "bytes": 1012,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/lean-correspondence-v0/cases/erdos-730/Witness.lean",
+      "sha256": "sha256:4a13ff3e935cf64e54f63164e2ef39b3bf85c122dd84d3c32c5ab9440f7efc2c"
+    },
+    {
+      "bytes": 7346,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/lean-correspondence-v0/cases/erdos-730/packet.json",
+      "sha256": "sha256:3276bfe9762ed81cf2cd700eb1e75a7dd67e68308659d499209879b16758b0ed"
+    },
+    {
+      "bytes": 25,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/lean-toolchain",
+      "sha256": "sha256:302cd63c54178885b89e669f33b38f12f4dd7ae7e5cac537b3203e3768d8fb2b"
+    },
+    {
+      "bytes": 1967,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/repositories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0/FormalConjectures/ErdosProblems/730.lean",
+      "sha256": "sha256:c8e532aa2916312501375df4e30ca4770fdeb3968d39622dda5cdfc5f9fa26e7"
+    },
+    {
+      "bytes": 3129,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/repositories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0/lake-manifest.json",
+      "sha256": "sha256:5b99b5f4f807cbba67bbcd22e5e486c17d6a8d970ea218de08d05830ab350c26"
+    },
+    {
+      "bytes": 24,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/repositories/formal-conjectures@9f5ee773841921f460b4a26a3552f5eca4accaa0/lean-toolchain",
+      "sha256": "sha256:e695e6e5d8e7a8be4d6cf159dfb995847993d26c6cc450353a86f387279025b9"
+    },
+    {
+      "bytes": 4628,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/Audit.lean",
+      "sha256": "sha256:9fcc8078dbdefdac2acceccf24d832b22f7038a6c303f4b67721d45b2a5a87aa"
+    },
+    {
+      "bytes": 17116,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/ErdosProblems/Erdos730/FullDensityCore.lean",
+      "sha256": "sha256:0efbd59fc28ee6263e9be959643986a5ed0b40eb2920216676f26e302d6a61fa"
+    },
+    {
+      "bytes": 1969,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/ErdosProblems/Erdos730/FullDensityTheorem.lean",
+      "sha256": "sha256:4ab6fb660d93fa1da1f9fbfc89c018a3152845f9ba167c3486c73ac13eaa9e38"
+    },
+    {
+      "bytes": 1979,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/Palomar/Erdos730/Challenge.lean",
+      "sha256": "sha256:589175e4b54f9438a3f67f58f6c319c71f106083ca3a2295da7c60e6bee470c4"
+    },
+    {
+      "bytes": 260,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/Palomar/Erdos730/comparator.json",
+      "sha256": "sha256:a3de92effd6e1140648bd738d1cc207de6be54b31e519e91b6f384c5f98c539e"
+    },
+    {
+      "bytes": 291,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/PalomarSolutions/Erdos730.lean",
+      "sha256": "sha256:8f1103c1db48e9c8776ed4fe2416f67447e0e3426b6203d4690ddf1a95cf1294"
+    },
+    {
+      "bytes": 4722,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/lake-manifest.json",
+      "sha256": "sha256:a81ef40554be38a473d0339b81e220c9d013226aae49d29305417f2e091bf482"
+    },
+    {
+      "bytes": 25,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/lean-toolchain",
+      "sha256": "sha256:302cd63c54178885b89e669f33b38f12f4dd7ae7e5cac537b3203e3768d8fb2b"
+    },
+    {
+      "bytes": 2266,
+      "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/workspace/repositories/lean-proofs@03729c9cbb0b602f5a828bb850c85e84c5a6d460/scripts/check_axioms.sh",
+      "sha256": "sha256:01abf748a6edd4e6e2b27213b8ab5be21cea2fadd0d76af6c152d1c8d9084fda"
+    },
+    {
+      "bytes": 8332,
       "path": "execution-bundles/bundle-index.json",
-      "sha256": "sha256:35b84b323812f0e9fe9fc9bf0b4c5ad1e2859783b71bb7deed7793421e2f61d0"
+      "sha256": "sha256:52eb3b89a735860c26648fcb446d8f82717ad7a38a4a5d8d1039a3255e65a0a3"
     },
     {
       "bytes": 1621,
@@ -2058,19 +3068,24 @@
       "sha256": "sha256:ef1bf1a9dfadcf9c31ec643638eca9595c76c6042688bb44da4f5e82e923bbf2"
     },
     {
-      "bytes": 43082,
+      "bytes": 12807,
+      "path": "freeze_evidence_sources.py",
+      "sha256": "sha256:04cf6154ee811cc21722777d8b77df5c54f41290b9e52514b783c212261ff59a"
+    },
+    {
+      "bytes": 45199,
       "path": "generate.py",
-      "sha256": "sha256:8978505212606888d3a552e42788e11f9901c2001a2fc80d6495598ea95255d0"
+      "sha256": "sha256:c883b0ee5c8423d8f13354b239e6742714461f7bae2ad101fc711b5d2c66e502"
     },
     {
       "bytes": 2370,
       "path": "hold-state.json",
-      "sha256": "sha256:d6924b2cf827e37b04916ad697a816a35806d5e0c086af054e5e2b263255e1d5"
+      "sha256": "sha256:9cce9795f12f2263781fd06bbb6a77d13742465b2ea7e51cefc1021836f19b97"
     },
     {
-      "bytes": 3559,
+      "bytes": 4339,
       "path": "open-adjudication.json",
-      "sha256": "sha256:534c674f0e02de0641cb7e821f0a5bc8e577f6e12d4afad3158cd79143618be7"
+      "sha256": "sha256:98ad691c4485388c49aa2cf02c860565e5b8266ee23dae2aa773be85547a488f"
     },
     {
       "bytes": 4145,
@@ -2138,49 +3153,49 @@
       "sha256": "sha256:c41dbe9353981b90c8e96aee7ab8f4e8f809e1e50dd5bd8dd87f4e36e6187bdb"
     },
     {
-      "bytes": 1353,
+      "bytes": 1359,
       "path": "participant-configuration.json",
-      "sha256": "sha256:8924b91f4f62e7b158f7e0170924a8246ae4d95d3c04f1831a58dea346656162"
+      "sha256": "sha256:e3df8462b171ce9869425d0308ba3b9f99e4c47e82695206acf4f608a1052eb5"
     },
     {
-      "bytes": 1160,
+      "bytes": 1667,
       "path": "permits/anthropic-diag-2f719af4c655ef77.permit.json",
-      "sha256": "sha256:c9d76c3e6c3d4627ca0097eea54addec0a0eb174b39ca69bc37257ceee299ee9"
+      "sha256": "sha256:dbdd0b790e3c4151bdc6df3125946b72e2e1869f87f5d4f1cbd5eb1fd04e9cf0"
     },
     {
-      "bytes": 1160,
+      "bytes": 1667,
       "path": "permits/anthropic-diag-395839ae5418ff4d.permit.json",
-      "sha256": "sha256:291d2a589366ea191588afb64c722acdb853038ae2424a017de9b12a54a18006"
+      "sha256": "sha256:d8bfcd04ba4ab78ac7cd9e86146d43282c7e3683a39f9cb37f634045dddd73cc"
     },
     {
-      "bytes": 1160,
+      "bytes": 1667,
       "path": "permits/anthropic-diag-563bdd90a8c7df7a.permit.json",
-      "sha256": "sha256:150631b920e7b0da6dfe4b9a672d223ebc4675ef331fa16fde70387387905199"
+      "sha256": "sha256:349995dcb665d517d8f4c3cfe9ddc8abd82a6641b63659e2582345adf379d7bf"
     },
     {
-      "bytes": 1173,
+      "bytes": 1680,
       "path": "permits/anthropic-diag-6cccc41b01c2e998.permit.json",
-      "sha256": "sha256:7d730439869306d15ec8fdbda31ecbc656798d901ef867c250412469491c8c3d"
+      "sha256": "sha256:fe9753e3ef28e0d893cbc6e34da9eabbc50cf78b0fb48268a269e88ca0f4c864"
     },
     {
-      "bytes": 1173,
+      "bytes": 1680,
       "path": "permits/anthropic-diag-7981a902f25c4abe.permit.json",
-      "sha256": "sha256:910742b420b93265c2eccaa31678c70cfd25c79db298f05ff3c1c50c00fdaa81"
+      "sha256": "sha256:82135898620f559070e4dac3c7c2ab73754b863975cacef05d3d6d95536f4f03"
     },
     {
-      "bytes": 1173,
+      "bytes": 1680,
       "path": "permits/anthropic-diag-fa6a2181a9a7b010.permit.json",
-      "sha256": "sha256:0fea5ff4ac882ebeecde955807b50c1b95abd877b866976046cb569d968671d9"
+      "sha256": "sha256:f6a4db8bb9c1f5f13b87329951a5d5e5e967f7671b70d50896fdf9c194699660"
     },
     {
       "bytes": 887,
       "path": "prelaunch-state.json",
-      "sha256": "sha256:932013dd6f45f01e9dffb423118c5b462437cc321cfa4b45579507df53c74024"
+      "sha256": "sha256:3f8891be2f5fc0afd57f3cadc63b0453831a559265f9203c210f1a2c76071e15"
     },
     {
       "bytes": 1083,
       "path": "preregistration.json",
-      "sha256": "sha256:5aff81da9144d2f71e48da7a325c9a9a4021313a25cfb5ca22426e9c7f61a03a"
+      "sha256": "sha256:5d4e1071ab82bbda0071b78a812a99c19b5702c25bbbd5bec774adf873f14018"
     },
     {
       "bytes": 5541,
@@ -2218,9 +3233,9 @@
       "sha256": "sha256:a4ae0592b31fe8f131fcc9454866ff86683b76962fca9800c55a68b31ed5cecb"
     },
     {
-      "bytes": 2972,
+      "bytes": 3085,
       "path": "registration.json",
-      "sha256": "sha256:3391207223f77b22bf11fd78a07588936991388e2810800e6dd326f94adb5f0e"
+      "sha256": "sha256:e5bdbb470503af383c3321a732b51208b15087ddfe006f75be4c036389326719"
     },
     {
       "bytes": 2498,
@@ -2233,19 +3248,19 @@
       "sha256": "sha256:96c6d8838759cecd45d5a6f51989c078dd5ee85b6906a388a95591b705c68519"
     },
     {
-      "bytes": 3569,
+      "bytes": 3748,
       "path": "runtime-binding.json",
-      "sha256": "sha256:bbf7a280de802302ca60935e77648dae5913c746ceb64b9ef2158136b7ff3577"
+      "sha256": "sha256:b97d866142469aeab44322b7b402c831da42406cb56da78779195c877d25968a"
     },
     {
-      "bytes": 20420,
+      "bytes": 25232,
       "path": "scorer.py",
-      "sha256": "sha256:4afa1b3c28a6d2b8002c634bd590eaea90de330b75e7010532485d5997a720f6"
+      "sha256": "sha256:02f2ebf18c39d9cbf8042c503e052a947a1b13aa0de963495c84bddba18b9cb4"
     },
     {
-      "bytes": 2184,
+      "bytes": 2411,
       "path": "scoring-contract.json",
-      "sha256": "sha256:ceff8ba0e1d2bc65e781189c6e52ebafb3b37b06ec39a9da4b5a485d6eeee260"
+      "sha256": "sha256:db452f1b401e255c74125d0c45090c83da5d1c2b11405a906419c37161b0b893"
     },
     {
       "bytes": 2499,
@@ -2253,14 +3268,24 @@
       "sha256": "sha256:1cd4a44cd454d02c920a61d9c6594c46c1f3c4fab1720d9744bd379eb4037a77"
     },
     {
-      "bytes": 20538,
-      "path": "test_verify.py",
-      "sha256": "sha256:e255ad4b6545d7a548dba45eac3e05b143e650ee2deb17fad9d696ff45c8a1a9"
+      "bytes": 3605,
+      "path": "test_evidence_tree.py",
+      "sha256": "sha256:3b308641244446b13ceb3afebab20d0aa41a4b369ead7af78695c8bc3ae4bee4"
     },
     {
-      "bytes": 22118,
+      "bytes": 25848,
+      "path": "test_verify.py",
+      "sha256": "sha256:7379157c2548447577579ee038fd30001a47203f3f4ed36d48bffa45ae5a9a02"
+    },
+    {
+      "bytes": 22741,
       "path": "verify.py",
-      "sha256": "sha256:3de4188f3c134afdf03b47dbd7f0a22a6349ba6b8f3b30c379fc9ed23c7ec0ee"
+      "sha256": "sha256:7e057100cd9dd9ddb44547b9eecdfb5f16196cfbd5303a8d6e6029b630cf320d"
+    },
+    {
+      "bytes": 5023,
+      "path": "verify_bundle_adversaries.py",
+      "sha256": "sha256:988bdd4c2f716bbd255c1e9cea940d8f71e72dbe76a2ff55c850e79567e6197a"
     }
   ],
   "schema": "vela.lean-correspondence-anthropic-open-diagnostic-manifest.v1"
