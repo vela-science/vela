@@ -23,14 +23,15 @@ source directories are byte-identical to upstream
 google-deepmind/formal-conjectures at `9f5ee773` (checkout commit
 `e51535ae` on `williamjblair/formal-conjectures`, branch
 `comparator-workspaces`) — 9,894
-built declarations, of which 6,248 are authored and 3,646 compiler-generated —
-finds that among the 2,863 authored declarations whose closure contains
-`sorryAx`, **851 (29.7%) are statement holes**: the statement itself, not
+built declarations, of which 5,924 are authored and 3,970 compiler-generated
+under the environment's own classification — finds that among the 2,862
+authored declarations whose closure contains `sorryAx`, **850 (29.7%) are
+statement holes**: the statement itself, not
 merely the proof, is incomplete. 835 are directly visible in the
-declaration's type. **16 are hidden**: the statement reads as fully stated
+declaration's type. **15 are hidden**: the statement reads as fully stated
 but transitively rests on an object *defined by choice from an unproved
-existence lemma* — a single mechanism we verify in the source of all six
-affected problem families. A further 234 authored declarations rest on
+existence lemma* — one mechanism, verified in the source of every one of the
+six affected problem families. A further 231 authored declarations rest on
 compiler trust, and 3 combine both: concrete numerical facts, proved by
 native evaluation, about a sequence whose defining existence proof is
 `sorry`.
@@ -114,7 +115,7 @@ running it at scale.
 
 The sharp class is statements whose type does **not** mention `sorryAx` yet
 transitively reaches it. After excluding compiler-generated declarations
-(Section 6.2), the corpus contains **16**, spanning six problem families —
+(Section 6.2), the corpus contains **15**, spanning six problem families —
 and every one instantiates the same pattern:
 
 > **An object is defined by `Exists.choose`, `ExistsUnique.choose`, or
@@ -133,9 +134,10 @@ Source-verified instances, one per family:
 | `OEIS/87719` | `a_exists (n) := by sorry` | `def a (n) : ℕ := Nat.find (a_exists n)` | `a_1`, `a_2`, `a_3`, `a_formula` |
 | `Wikipedia/MovingSofa` | `ABφθSpec.existsUnique := sorry` | `def A : ℝ := ABφθSpec.existsUnique.choose.1` (Gerver's constants) | `sofaConstant_eq`, `sofaConstant_eq_volume_gerversSofa`, `volume_eq_sofaConstant_iff_congruent_gerversSofa` |
 
-(The sixteenth is `HartshorneConjecture...Splitting.iso`, a field accessor of
-an authored structure whose type transitively reaches a sorried upstream
-declaration — the same mechanism one level removed.)
+(A sixteenth candidate, `HartshorneConjecture...Splitting.iso`, reaches a
+sorried upstream declaration through the same mechanism, but is a
+compiler-generated field projection — flagged by the environment's own
+`isProjectionFn` — and is therefore classified as generated, not authored.)
 
 An important nuance for fairness: several of these existence lemmas are
 tagged `research solved` — the mathematics is *known*, the formal proof is
@@ -259,29 +261,36 @@ closure, the direct and transitive statement-hole flags, and compiler trust.
 ### 6.2 Authored versus generated
 
 Environments contain compiler-generated machinery — recursors, `noConfusion`,
-constructor lemmas, equation lemmas — that inherits trust properties from its
-parent and must not inflate counts of *authored* mathematics. We separate the
-two with a disclosed name-pattern filter (recursor/cases/`noConfusion`/
-constructor/equation-lemma suffixes and `._`-prefixed internals; exact regex
-in the repository), and report both views:
+constructor lemmas, equation lemmas, projections — that inherits trust
+properties from its parent and must not inflate counts of *authored*
+mathematics. We classify semantically, using the environment's own
+predicates recorded per declaration by the census (`ConstantInfo` kind,
+`Name.isInternalDetail`, `isAuxRecursor`, `isNoConfusion`,
+`isProjectionFn`), plus disclosed residual name rules for equation, match,
+and structure lemmas. One boundary case is disclosed: Lean's
+`isInternalDetail` classifies a handful of authored declarations whose names
+begin with an underscore-led component (a corpus idiom for numeral-leading
+names) as internal; the raw census rows carry every flag, so any alternative
+classification recomputes from the committed data. Both views:
 
 | Population | All | Authored | Generated |
 |---|---:|---:|---:|
-| Declarations | 9,894 | 6,248 | 3,646 |
-| `sorryAx` in closure | 2,885 | 2,863 | 22 |
-| — statement holes | 864 | **851** | 13 |
+| Declarations | 9,894 | 5,924 | 3,970 |
+| `sorryAx` in closure | 2,885 | 2,862 | 23 |
+| — statement holes | 864 | **850** | 14 |
 | —— direct | 837 | 835 | 2 |
-| —— hidden (transitive only) | 27 | **16** | 11 |
+| —— hidden (transitive only) | 27 | **15** | 12 |
 | — proof-only (stated, unproved) | 2,021 | 2,012 | 9 |
-| Compiler trust | 890 | 234 | 656 |
+| Compiler trust | 890 | 231 | 659 |
 | Mixed (`sorryAx` + compiler trust) | 3 | 3 | 0 |
 
-The headline survives the filter in both directions: statement holes are
-29.7% of authored sorry-bearing declarations (851/2,863), and the hidden
-class remains — 16 authored theorems across six families, every one
-mechanism-verified in source (§3). The filter matters most for compiler
-trust, where 656 of 890 carriers are generated machinery; the authored
-surface is 234.
+The headline is robust to the classification: under a name-pattern filter,
+an adversarial reviewer's corrected filter, and the semantic filter, the
+statement-hole share of authored sorry-bearing declarations is 29.7% in all
+three (850/2,862 semantic). The hidden class is 15 authored theorems across
+six families, every one mechanism-verified in source (§3). Classification
+matters most for compiler trust, where 659 of 890 carriers are generated
+machinery; the authored surface is 231.
 
 ### 6.3 What the numbers mean, read honestly
 
@@ -344,9 +353,11 @@ profile the effective closure exists to capture.
 
 ## 8. Threats to validity
 
-**8.1 Generated-declaration inflation.** Addressed by the authored/generated
-split (§6.2), with both views reported and the filter disclosed. The headline
-ratios are computed on the authored view.
+**8.1 Generated-declaration inflation.** Addressed by the semantic
+authored/generated split (§6.2), validated adversarially in both directions,
+with both views reported, all flags committed in the raw rows, and boundary
+cases disclosed. The headline ratio is identical under three independent
+classifications.
 
 **8.2 "The statement holes are deliberate."** They are, mostly, and §6.3
 says so. The claim is representational: the distinction the authors
@@ -431,9 +442,10 @@ upstream google-deepmind/formal-conjectures @ `9f5ee773`), toolchain
 
 Scripts (in `vela-evals/adapters/lean-axiom-audit/`):
 
-- `trust-closure-census.lean` — the full census; writes
-  `fc-trust-closure.jsonl` (9,894 rows; committed as
-  `fc-trust-closure.e51535ae.jsonl`).
+- `trust-closure-census.lean` — the full census with semantic classification
+  flags; writes 9,894 rows, committed as
+  `fc-trust-closure-v2.e51535ae.jsonl` (the earlier flagless run is retained
+  as `fc-trust-closure.e51535ae.jsonl`).
 - `stmt-hole-probe.lean` — discriminator validation, positive and negative
   controls.
 - `erdos730.lean` — the three Erdős 730 closures against Palomar's policy.
