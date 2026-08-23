@@ -1,0 +1,135 @@
+{
+  "schema": "vela.independent-inherited-correction-order-result-verdict.v1",
+  "review_id": "inherited-correction-order-result-2026-08-22",
+  "subject": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "ref": "refs/heads/codex/inherited-correction-study",
+    "result_commit": "4524c8f776943a267e04e03e9a237ecaed14bc2c",
+    "result_tree": "4d5650a999ac0be59e71d5bd664e885cad5192c7",
+    "sealed_capture_parent": "5694bebac03b062d6acdce5a2a900551850e6a1c",
+    "sealed_capture_tree": "feec0ff21b9b13be8cbb97083f441ef66bdd48f2",
+    "pre_score_pass_review_commit": "b634523ea1c85dce697404968cf7492f09a6412f"
+  },
+  "verdict": "PASS",
+  "failed_gates": [],
+  "scope": {
+    "result_delta_files": 4,
+    "result_delta_confined_to_result_artifact": true,
+    "participant_or_capture_bytes_changed_after_seal": false,
+    "producer_commit_has_single_parent": true,
+    "merged_to_main": false
+  },
+  "roots": {
+    "complete_capture_root": "sha256:4a592d88b43dc02d5495d7679834535d6fa97f20759600400253677a946f87fd",
+    "complete_custody_root": "sha256:ccf69e70a3887c8a9f9ddffa2d62051e114a8974b2d2ae83c72366a1eb98dcef",
+    "score_capture_root": "sha256:f74229b3346cf56e2128d78b366f5fb99380872c27285d196c13862738bc8e98",
+    "score_capture_manifest_bytes": "sha256:e96cd9f29b8c58434480080e3f52d6e10eb2dea8147d83beede131fdf5a56a85",
+    "registration_root": "sha256:60acdfa31d25f9df5f342b75caf8e65426c5b71fa320c36fe5568de9fbf13b10",
+    "assignment_root": "sha256:64a356db4800b6fb04090ae81a6c2d33bf37ad8b71e92e01567edc5fa6362e72",
+    "result_bytes": "sha256:ae0c980a18633832a83b73e0c715ee11e702aeb56660c4e027d5ece03425f372",
+    "result_canonical_root": "sha256:92eed5bcb9e6b647d52a53282563077d3829b28c426e0dd9898a073f2590b8a5",
+    "scoring_access_receipt_bytes": "sha256:a93ade57ea0c53dddd49c8a28ab9b10de0004760069075ab72c558572481eb6c",
+    "scoring_access_receipt_root": "sha256:b63efee54976a9d6da866a49f12c956621e4da4540a04306d3d0f81ca2d7b3b3",
+    "validation_receipt_bytes": "sha256:ab4bf91b02502849840bb1c470796c611db5c410603ef86874cee9eb64f6677e",
+    "result_evidence_root": "sha256:d9f017734d1c58ca9ecaba2621a7ddec12e178a78bf6b2d228dc2542aa71a104"
+  },
+  "execution": {
+    "fixed_denominator": 36,
+    "terminal_completed_runs": 36,
+    "conditions": {
+      "git-documents": 12,
+      "state-wrapper": 12,
+      "vela": 12
+    },
+    "families": {
+      "method-version-correction": 12,
+      "provenance-revocation": 12,
+      "taxonomy-remap": 12
+    },
+    "per_family_condition": 4,
+    "strictly_sequential": true,
+    "authorized_consumed_permits": 36,
+    "unique_participant_ids": 36,
+    "unique_runtime_custody_roots": 36,
+    "attempt": 1,
+    "retries": 0,
+    "substitutions": 0,
+    "turns_per_run": 1,
+    "responses_per_run": 1,
+    "tool_calls": 0,
+    "compactions": 0,
+    "timeouts": 0,
+    "validation_errors": 0,
+    "credential_retained_runs": 0
+  },
+  "excluded_from_denominator": {
+    "stopped_predecessor_non_results": 2,
+    "stopped_predecessor_replacement_credit": false,
+    "neutral_calibration_denominator_credit": false,
+    "all_capture_run_ids_are_orderfix_successor_ids": true
+  },
+  "scoring_custody": {
+    "scoring_processes": 1,
+    "scoring_attempts": 1,
+    "protected_key_openings_recorded": 1,
+    "provider_calls_during_scoring": 0,
+    "capture_mutations": 0,
+    "participant_mutations": 0,
+    "gate_mutations": 0,
+    "temporary_plaintext_copy_retained": false,
+    "protected_plaintext_committed": false,
+    "reviewer_rescored": false,
+    "reviewer_protected_key_access": false
+  },
+  "aggregate": {
+    "git-documents": {
+      "sessions": 12,
+      "exact_successes": 12,
+      "correction_impact_complete_sessions": 12,
+      "authority_errors": 0,
+      "restricted_mean_seconds": 12.800895867
+    },
+    "state-wrapper": {
+      "sessions": 12,
+      "exact_successes": 12,
+      "correction_impact_complete_sessions": 12,
+      "authority_errors": 0,
+      "restricted_mean_seconds": 13.98268798558333
+    },
+    "vela": {
+      "sessions": 12,
+      "exact_successes": 11,
+      "correction_impact_complete_sessions": 12,
+      "authority_errors": 1,
+      "restricted_mean_seconds": 63.252235329
+    }
+  },
+  "gates": {
+    "structure": false,
+    "governance_inheritance": false,
+    "total": false,
+    "governance_strict_increment": false,
+    "positive_gate": "not_supported"
+  },
+  "authority_effect": "none",
+  "focused_checks": {
+    "remote_identity": "PASS",
+    "sealed_capture_immutability": "PASS",
+    "complete_custody_byte_reconstruction": "PASS",
+    "capture_manifest_file_set_and_hashes": "PASS",
+    "run_chronology_and_one_shot_custody": "PASS",
+    "result_and_receipt_hashes": "PASS",
+    "decimal_aggregate_and_gate_arithmetic": "PASS",
+    "benchmark_verify": "PASS",
+    "custody_verify_prelaunch": "PASS",
+    "benchmark_tests": "24 PASS",
+    "provider_runtime_tests": "9 PASS",
+    "ruff_lint": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "claim_ceiling": "One fixed synthetic internally run 36-cell held-out benchmark whose preregistered positive gates are not supported; no positive Vela lift, scientific acceptance, external replication, broad productivity, Protocol/Core, Repository authority, Standing, or Decision claim.",
+  "nonclaims": [
+    "This PASS does not authorize a rerun, rescore, provider call, permit release, or protected-key access.",
+    "This PASS does not authorize a merge or establish scientific acceptance, Protocol/Core validity, Repository authority, Standing, or a Decision effect."
+  ]
+}
