@@ -1,0 +1,42 @@
+{
+  "artifact": {
+    "assignment_root": "sha256:cd53dcfcc0293b7ec2bb88297b146f8868ba34ea6b354867bde5a646cd3732d1",
+    "custody_root": "sha256:6979783a9df63cf9614e77a17917566b5577fb65090ea59dada0efdaaa47913e",
+    "path": "paper/artifacts/lean-correspondence-anthropic-open-diagnostic-pilot",
+    "permit_set_root": "sha256:352930210c092f4ac51d10c90512b24d945ca794ab2fec6609c03b099316db10",
+    "registration_contract_root": "sha256:c1793b548823dacfa2b471a0c4e52ac246440c4d330aa7e4500c3b9b75c7f324",
+    "registration_root": "sha256:9ce35870648a6eacf0f7b2c3970c7151227620c3d884aad54e7d30e208abcf96",
+    "root": "sha256:d453622eeb3afb1eaeef5b0aaf5e323194df352681221146d42901993c9bb110"
+  },
+  "authority_effect": "none",
+  "execution_authorized": false,
+  "findings": [
+    {
+      "code": "AD-01",
+      "disposition": "blocking",
+      "summary": "The six bespoke permits are rejected by the maintained closed permit validator and no exact per-cell materialization or qualification receipts are frozen."
+    },
+    {
+      "code": "AD-02",
+      "disposition": "blocking",
+      "summary": "The scorer accepts asserted component booleans without immutable response, custody, or adjudication bindings and omits its registered time and tool secondary estimands."
+    }
+  ],
+  "independence": {
+    "credential_accesses": 0,
+    "permit_releases": 0,
+    "producer_bytes_modified": false,
+    "provider_calls": 0,
+    "scoring_attempts": 0
+  },
+  "producer": {
+    "commit": "3a497e75e85690a7bf03563e00d81fe0dbc339e5",
+    "tree": "d64396fe72b04833d78a594e33576123b284fdba"
+  },
+  "report": {
+    "path": "reviews/lean-correspondence-anthropic-open-diagnostic-3a497e75-report.md",
+    "sha256": "sha256:40c75bd1adea99b0458c89ae456a79066157ffb3c2a7851da6dac4f21faa1b91"
+  },
+  "schema": "vela.review.lean-correspondence-anthropic-open-diagnostic-prelaunch.v1",
+  "verdict": "BLOCKED"
+}
