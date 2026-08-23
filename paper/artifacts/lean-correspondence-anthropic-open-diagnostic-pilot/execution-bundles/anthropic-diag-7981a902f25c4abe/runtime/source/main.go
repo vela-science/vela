@@ -30,6 +30,7 @@ type frame struct {
 	Endpoint        string           `json:"endpoint,omitempty"`
 	Body            json.RawMessage  `json:"body,omitempty"`
 	Payload         *requestPayload  `json:"payload,omitempty"`
+	Response        *responsePayload `json:"response,omitempty"`
 	RequestCustody  *requestCustody  `json:"request_custody,omitempty"`
 	Raw             string           `json:"raw,omitempty"`
 	Name            string           `json:"name,omitempty"`
@@ -39,6 +40,16 @@ type frame struct {
 	Result          json.RawMessage  `json:"result,omitempty"`
 	Error           string           `json:"error,omitempty"`
 	ProviderCalls   int              `json:"provider_calls,omitempty"`
+	StopReason      string           `json:"stop_reason,omitempty"`
+}
+
+type responsePayload struct {
+	Schema     string `json:"schema"`
+	Encoding   string `json:"encoding"`
+	Bytes      int    `json:"bytes"`
+	SHA256     string `json:"sha256"`
+	Base64     string `json:"base64"`
+	HTTPStatus int    `json:"http_status"`
 }
 
 type requestPayload struct {
@@ -100,6 +111,12 @@ type runInput struct {
 	ProviderSchemaSHA256       string          `json:"provider_schema_sha256"`
 	MaterializationReceiptPath string          `json:"materialization_receipt_path"`
 	OutputDir                  string          `json:"output_dir"`
+	PermitRoot                 string          `json:"permit_root"`
+	WorkspaceContentRoot       string          `json:"workspace_content_root"`
+	EvidenceCatalogRoot        string          `json:"evidence_catalog_root"`
+	ToolBoundaryRoot           string          `json:"tool_boundary_root"`
+	ToolPolicyRoot             string          `json:"tool_policy_root"`
+	WorkspacePreflightRoot     string          `json:"workspace_preflight_root"`
 }
 
 type preparedRun struct {
@@ -356,7 +373,7 @@ func strictRunInput(raw []byte) (runInput, error) {
 		return input, errors.New("strict run input invalid")
 	}
 	var extra any
-	if err := decoder.Decode(&extra); err != io.EOF || input.OutputDir != "/evidence" || input.RunID == "" || input.Model == "" {
+	if err := decoder.Decode(&extra); err != io.EOF || input.OutputDir != "/evidence" || input.RunID == "" || input.Model == "" || input.PermitRoot == "" || input.WorkspaceContentRoot == "" || input.EvidenceCatalogRoot == "" || input.ToolBoundaryRoot == "" || input.ToolPolicyRoot == "" || input.WorkspacePreflightRoot == "" {
 		return input, errors.New("strict run input invalid")
 	}
 	return input, nil
@@ -755,6 +772,35 @@ func makeRequestPayload(body, schema []byte) (requestPayload, error) {
 	}, nil
 }
 
+func decodeRequestPayload(payload *requestPayload, expectedSchema []byte) ([]byte, error) {
+	if payload == nil || payload.Schema != "vela.lossless-provider-request-payload.v1" || payload.Encoding != "base64-rfc4648-canonical" || payload.ContentType != "application/json" {
+		return nil, errors.New("bridge request payload identity invalid")
+	}
+	body, err := base64.StdEncoding.Strict().DecodeString(payload.Base64)
+	if err != nil || base64.StdEncoding.EncodeToString(body) != payload.Base64 {
+		return nil, errors.New("bridge request payload base64 invalid")
+	}
+	schema, err := base64.StdEncoding.Strict().DecodeString(payload.ProviderSchemaBase64)
+	if err != nil || base64.StdEncoding.EncodeToString(schema) != payload.ProviderSchemaBase64 {
+		return nil, errors.New("bridge schema payload base64 invalid")
+	}
+	if !bytes.Equal(schema, expectedSchema) || payload.Bytes != len(body) || payload.SHA256 != digestBytes(body) || payload.ProviderSchemaBytes != len(schema) || payload.ProviderSchemaSHA256 != digestBytes(schema) || payload.ProviderSchemaOccurrences != 1 || bytes.Count(body, schema) != 1 || !json.Valid(body) {
+		return nil, errors.New("bridge request payload custody invalid")
+	}
+	return body, nil
+}
+
+func decodeResponsePayload(payload *responsePayload) ([]byte, int, error) {
+	if payload == nil || payload.Schema != "vela.lossless-provider-response-payload.v1" || payload.Encoding != "base64-rfc4648-canonical" || payload.HTTPStatus < 100 || payload.HTTPStatus > 599 {
+		return nil, 0, errors.New("bridge response payload identity invalid")
+	}
+	raw, err := base64.StdEncoding.Strict().DecodeString(payload.Base64)
+	if err != nil || base64.StdEncoding.EncodeToString(raw) != payload.Base64 || payload.Bytes != len(raw) || payload.SHA256 != digestBytes(raw) {
+		return nil, 0, errors.New("bridge response payload custody invalid")
+	}
+	return raw, payload.HTTPStatus, nil
+}
+
 func expectedRequestCustody(body, schema []byte) requestCustody {
 	return requestCustody{
 		Schema:                    "vela.lossless-provider-request-custody.v1",
@@ -938,11 +984,18 @@ func run() error {
 	scanner := bufio.NewScanner(bridge)
 	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
 	var rawEvents bytes.Buffer
+	var normalizedEvents bytes.Buffer
 	var argumentCustodyBytes bytes.Buffer
 	argumentCustodyCount := 0
 	providerCalls := 0
+	requestBodies := 0
+	providerResponses := 0
+	toolResults := 0
 	transportReceiptWritten := false
 	var finalResponse []byte
+	terminalStatus := "response"
+	terminalStopReason := ""
+	terminalError := ""
 	for scanner.Scan() {
 		line := append([]byte(nil), scanner.Bytes()...)
 		rawEvents.Write(line)
@@ -952,8 +1005,25 @@ func run() error {
 			return errors.New("bridge frame invalid")
 		}
 		switch event.Type {
+		case "request_body":
+			requestBody, err := decodeRequestPayload(event.Payload, prepared.schema)
+			if err != nil {
+				return err
+			}
+			if requestBodies == 0 && !bytes.Equal(requestBody, body) {
+				return errors.New("initial request payload drift")
+			}
+			if err := validateRequestCustody(event.RequestCustody, requestBody, prepared.schema); err != nil {
+				return err
+			}
+			requestBodies++
+			if err := appendCustody(input.OutputDir, fmt.Sprintf("provider-request-%04d.raw.json", requestBodies), requestBody); err != nil {
+				return err
+			}
+			normalized, _ := canonical(map[string]any{"schema": "vela.stage-a-runtime-lifecycle-event.v1", "sequence": requestBodies*10 - 9, "type": "request.prepared", "provider_call_ordinal": requestBodies, "request_sha256": digestBytes(requestBody)})
+			normalizedEvents.Write(normalized)
 		case "endpoint_attempt":
-			if event.ProviderCalls != providerCalls+1 {
+			if event.ProviderCalls != providerCalls+1 || requestBodies != event.ProviderCalls {
 				return errors.New("provider call receipt count drift")
 			}
 			if providerCalls == 0 {
@@ -972,8 +1042,20 @@ func run() error {
 				return errors.New("continuation request custody absent")
 			}
 			providerCalls++
+			normalized, _ := canonical(map[string]any{"schema": "vela.stage-a-runtime-lifecycle-event.v1", "sequence": providerCalls*10 - 8, "type": "endpoint.attempt", "provider_call_ordinal": providerCalls, "request_sha256": event.RequestCustody.SHA256})
+			normalizedEvents.Write(normalized)
 		case "provider_event":
 			// Raw provider bytes are retained before any normalization.
+			providerRaw, httpStatus, err := decodeResponsePayload(event.Response)
+			if err != nil || providerResponses+1 != providerCalls {
+				return errors.New("provider response sequence drift")
+			}
+			providerResponses++
+			if err := appendCustody(input.OutputDir, fmt.Sprintf("provider-response-%04d.raw.json", providerResponses), providerRaw); err != nil {
+				return err
+			}
+			normalized, _ := canonical(map[string]any{"schema": "vela.stage-a-runtime-lifecycle-event.v1", "sequence": providerResponses*10 - 7, "type": "provider.response", "provider_call_ordinal": providerResponses, "response_sha256": digestBytes(providerRaw), "http_status": httpStatus})
+			normalizedEvents.Write(normalized)
 		case "tool_request":
 			if providerAdapter == "openai-responses-v1" {
 				if err := validateOpenAIArgumentCustody(event.Arguments, event.ArgumentCustody); err != nil {
@@ -1002,6 +1084,8 @@ func run() error {
 			if event.CallID == "" {
 				return errors.New("tool call id absent")
 			}
+			normalized, _ := canonical(map[string]any{"schema": "vela.stage-a-runtime-lifecycle-event.v1", "sequence": providerCalls*10 - 6, "type": "tool.use", "provider_call_ordinal": providerCalls, "tool_call_ordinal": toolResults + 1, "call_id": event.CallID, "tool_name": event.Name, "arguments_sha256": digestBytes(event.Arguments)})
+			normalizedEvents.Write(normalized)
 			if err := encoder.Encode(frame{Type: "execute_offline_tool", Name: event.Name, CallID: event.CallID, Arguments: event.Arguments, ArgumentCustody: event.ArgumentCustody}); err != nil {
 				return err
 			}
@@ -1009,14 +1093,25 @@ func run() error {
 			if len(event.Result) == 0 {
 				return errors.New("empty tool result")
 			}
+			toolResults++
+			if err := appendCustody(input.OutputDir, fmt.Sprintf("tool-result-%04d.raw.json", toolResults), event.Result); err != nil {
+				return err
+			}
+			normalized, _ := canonical(map[string]any{"schema": "vela.stage-a-runtime-lifecycle-event.v1", "sequence": providerCalls*10 - 5, "type": "tool.result", "provider_call_ordinal": providerCalls, "tool_call_ordinal": toolResults, "call_id": event.CallID, "tool_name": event.Name, "structured_output_sha256": digestBytes(event.Result), "stdout_sha256": digestBytes(nil), "stderr_sha256": digestBytes(nil)})
+			normalizedEvents.Write(normalized)
 		case "terminal":
 			if event.ProviderCalls != providerCalls {
 				return errors.New("bridge terminal provider call count drift")
 			}
+			terminalStopReason = event.StopReason
 			if event.Error != "" {
-				return errors.New(event.Error)
+				terminalStatus = "failure"
+				terminalError = event.Error
+			} else {
+				finalResponse = append([]byte(nil), event.Body...)
 			}
-			finalResponse = append([]byte(nil), event.Body...)
+			normalized, _ := canonical(map[string]any{"schema": "vela.stage-a-runtime-lifecycle-event.v1", "sequence": providerCalls*10 - 4, "type": "terminal", "provider_call_ordinal": providerCalls, "response_sha256": digestBytes(finalResponse), "stop_reason": terminalStopReason, "status": terminalStatus})
+			normalizedEvents.Write(normalized)
 		default:
 			return errors.New("unknown bridge frame")
 		}
@@ -1033,21 +1128,40 @@ func run() error {
 	if err := appendCustody(input.OutputDir, "provider-events.raw.jsonl", rawEvents.Bytes()); err != nil {
 		return err
 	}
-	if err := validateStageA(finalResponse); err != nil {
+	if err := appendCustody(input.OutputDir, "provider-events.jsonl", normalizedEvents.Bytes()); err != nil {
 		return err
 	}
-	if err := appendCustody(input.OutputDir, "response.raw.json", finalResponse); err != nil {
+	if terminalStatus == "response" {
+		if err := validateStageA(finalResponse); err != nil {
+			return err
+		}
+		if err := appendCustody(input.OutputDir, "response.raw.json", finalResponse); err != nil {
+			return err
+		}
+	} else if err := appendCustody(input.OutputDir, "response.raw.json", nil); err != nil {
 		return err
 	}
 	sum := sha256.Sum256(finalResponse)
 	receipt, _ := canonical(map[string]any{
-		"schema": "vela.stage-a-runner-terminal.v1", "status": "completed",
+		"schema": "vela.stage-a-runner-terminal.v2", "status": terminalStatus,
 		"adapter": providerAdapter, "run_id": input.RunID,
-		"response_sha256":     "sha256:" + hex.EncodeToString(sum[:]),
-		"packet_sha256":       input.PacketSHA256,
-		"request_sha256":      digestBytes(body),
-		"provider_calls":      providerCalls,
-		"credential_retained": false,
+		"response_sha256":             "sha256:" + hex.EncodeToString(sum[:]),
+		"packet_sha256":               input.PacketSHA256,
+		"request_sha256":              digestBytes(body),
+		"provider_calls":              providerCalls,
+		"provider_responses":          providerResponses,
+		"tool_call_count":             toolResults,
+		"stop_reason":                 terminalStopReason,
+		"exit_reason":                 terminalError,
+		"provider_events_raw_sha256":  digestBytes(rawEvents.Bytes()),
+		"normalized_lifecycle_sha256": digestBytes(normalizedEvents.Bytes()),
+		"permit_root":                 input.PermitRoot,
+		"workspace_content_root":      input.WorkspaceContentRoot,
+		"evidence_catalog_root":       input.EvidenceCatalogRoot,
+		"tool_boundary_root":          input.ToolBoundaryRoot,
+		"tool_policy_root":            input.ToolPolicyRoot,
+		"workspace_preflight_root":    input.WorkspacePreflightRoot,
+		"credential_retained":         false,
 	})
 	if providerAdapter == "openai-responses-v1" {
 		if err := appendCustody(input.OutputDir, "tool-arguments-custody.jsonl", argumentCustodyBytes.Bytes()); err != nil {
@@ -1061,7 +1175,13 @@ func run() error {
 		terminal["tool_arguments_custody_count"] = argumentCustodyCount
 		receipt, _ = canonical(terminal)
 	}
-	return appendCustody(input.OutputDir, "terminal.json", receipt)
+	if err := appendCustody(input.OutputDir, "terminal.json", receipt); err != nil {
+		return err
+	}
+	if terminalError != "" {
+		return errors.New(terminalError)
+	}
+	return nil
 }
 
 func validateInputOffline() error {

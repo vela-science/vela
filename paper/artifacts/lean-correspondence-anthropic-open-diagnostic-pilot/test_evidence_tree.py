@@ -7,13 +7,14 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.dont_write_bytecode = True
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
-import evidence_tree  # noqa: E402
+import evidence_tree
 
 
 class EvidenceTreeTests(unittest.TestCase):
@@ -94,6 +95,39 @@ class EvidenceTreeTests(unittest.TestCase):
         evidence_tree.write_json(catalog_path, catalog)
         with self.assertRaises(ValueError):
             self.materialize()
+
+    def test_regular_reader_rejects_replacement_between_named_stat_and_open(
+        self,
+    ) -> None:
+        victim = self.root / "victim"
+        retained = self.root / "retained"
+        victim.write_bytes(b"ORIGINAL")
+        original_open = os.open
+        replaced = False
+
+        def replace_then_open(
+            path: object, flags: int, *args: object, **kwargs: object
+        ) -> int:
+            nonlocal replaced
+            if path == "victim" and not replaced:
+                replaced = True
+                victim.rename(retained)
+                victim.write_bytes(b"FORGED")
+            return original_open(path, flags, *args, **kwargs)
+
+        with (
+            patch("secure_reader.os.open", side_effect=replace_then_open),
+            self.assertRaises(ValueError),
+        ):
+            evidence_tree.regular_bytes(victim, "replacement victim")
+
+    def test_regular_reader_rejects_external_hardlink(self) -> None:
+        victim = self.root / "hardlinked-victim"
+        alias = self.root / "hardlinked-alias"
+        victim.write_bytes(b"BOUND")
+        os.link(victim, alias)
+        with self.assertRaises(ValueError):
+            evidence_tree.regular_bytes(victim, "hardlinked victim")
 
 
 if __name__ == "__main__":

@@ -12,12 +12,12 @@
   {
     "bytes": 5767294,
     "path": "bridge",
-    "sha256": "sha256:f5d60e7eca4fbf2e511f101514febf457919dc521e75ef749bae985911475bdb"
+    "sha256": "sha256:9c159b013640fbc9676eae828233f06b198d3afbfe564a01012c921fddf711de"
   },
   {
-    "bytes": 34830,
+    "bytes": 36475,
     "path": "cmd/bridge/main.go",
-    "sha256": "sha256:6ba3e14df83e00e0f550b33051df47fb1fc34635979f6d12f9ceee5c3d84a8de"
+    "sha256": "sha256:4261847ed51a35dc5a409a896b476f324145586994acc5d22cee108917d9dc20"
   },
   {
     "bytes": 11968,
@@ -35,14 +35,14 @@
     "sha256": "sha256:92779b1c6d6a7154d7f183403bb87fa65682677549927d5e5f2758955dd2073a"
   },
   {
-    "bytes": 43821,
+    "bytes": 51248,
     "path": "main.go",
-    "sha256": "sha256:7e3dcd1f2eddd202c4f29d4f8c4eaa788bd7c4c9da83213094728ac5d273161f"
+    "sha256": "sha256:4990a00d636dc999cb85ae0668b0f1045a9252fd4d57c10cfe2298c64bd651f2"
   },
   {
-    "bytes": 14067,
+    "bytes": 14263,
     "path": "main_test.go",
-    "sha256": "sha256:75320d34e2e148d28f04b7b951c3fe26c96f4edfe6bf1215c58395bff92ad6a8"
+    "sha256": "sha256:d7be79f18f5c24d7ac67bb7d4b5fbdfe7d11437fbdb82228c12e6b8f0c061d50"
   },
   {
     "bytes": 1900670,
@@ -55,9 +55,9 @@
     "sha256": "sha256:9629b9a7467eda0a3991a718f3b652c9b90dd8d0ea049da31f19510510a4857c"
   },
   {
-    "bytes": 2293886,
+    "bytes": 2359422,
     "path": "runner",
-    "sha256": "sha256:b0163f2d02e1102013b2c6fb63d97b983f80ba9ce6c457e752e26fb8540da0fe"
+    "sha256": "sha256:fded48fc1d556d6b8d12aa1bf9b3233dc3a0872050a7b60f1cea22d6f897eede"
   },
   {
     "bytes": 333483,

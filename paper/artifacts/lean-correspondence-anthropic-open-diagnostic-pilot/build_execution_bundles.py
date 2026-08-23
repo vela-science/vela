@@ -27,6 +27,7 @@ QUALIFIER = Path(
     "tools/evidence_qualification/qualification.py"
 )
 QUALIFIER_SOURCE = VELA / "tools/evidence_qualification/qualification.py"
+SECURE_READER_SOURCE = VELA / "tools/evidence_qualification/secure_reader.py"
 QUALIFIER_PYTHON = Path(
     "/private/tmp/vela-stage-a-runtime-qualification-python-v1/.venv/bin/python"
 )
@@ -609,6 +610,18 @@ def stage_cell(
             str(input_dir / "prompt.txt"),
             "--packet-file",
             str(input_dir / "packet.json"),
+            "--permit-root",
+            canonical_root(permit),
+            "--workspace-content-root",
+            boundary["workspace_content_root"],
+            "--evidence-catalog-root",
+            evidence["evidence_manifest_root"],
+            "--tool-boundary-root",
+            boundary["tool_boundary_root"],
+            "--tool-policy-root",
+            boundary["tool_policy_root"],
+            "--workspace-preflight-root",
+            workspace_preflight_root,
         ],
         check=True,
     )
@@ -625,6 +638,7 @@ def main() -> int:
     output = args.output.resolve()
     QUALIFIER.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(QUALIFIER_SOURCE, QUALIFIER)
+    shutil.copyfile(SECURE_READER_SOURCE, QUALIFIER.with_name("secure_reader.py"))
     if not base.is_dir() or not QUALIFIER.is_file() or not QUALIFIER_PYTHON.is_file():
         raise ValueError(
             "maintained base bundle or fixed qualifier environment missing"

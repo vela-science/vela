@@ -43,55 +43,55 @@ METHOD_ARTIFACT_ROOT = (
     "sha256:2d909b874eedc765546010e799d6fde709c88f3fcc623b45ab46130c3dfa68e4"
 )
 RUNTIME_ARTIFACT_ROOT = (
-    "sha256:6151d3a546514d5255f2792495e5da86bb77b4f81ad6c23e784052e0b9a70bca"
+    "sha256:ff310cd5c3bcefa5ece6589df441b1c0c2f115333013b1c42fa92629853f4a64"
 )
 RUNTIME_RECORD_ROOT = (
-    "sha256:51df9fe89d649e5fbb6519d2f02eefaaf5dc672c350de1fcc58fab5047944e3f"
+    "sha256:c8b0126bb69c69d48836d3c36652dd64608f4596347577a1b6b0c91657e01db2"
 )
 RUNTIME_REGISTRATION_ROOT = (
-    "sha256:f84bd9dcd6f9de6f8765c1ad25361f6579d7721cdc8d57937ad55c4205988ed4"
+    "sha256:ce4330143a091a2602ad74287fac510fad8e687fba4af23d561c118d833b46fd"
 )
 RUNTIME_SOURCE_ROOT = (
-    "sha256:4a44868aaf4a5d00dd7c21aa9e95ced13c9674b659b3e24aca6bac90d15ad460"
+    "sha256:e37927ac5eb1085eeb47b4ee7fc60d63ba95b1a3c7b8876a5746f35ec3233614"
 )
 ANTHROPIC_CONFIGURATION_ROOT = (
     "sha256:fe8c8a8f320f8179f343202403d3cf37b50f77c2b38495d2dc9ef739ab34f4fa"
 )
 ANTHROPIC_QUALIFICATION_ROOT = (
-    "sha256:74e07177b119edf0e9fcf18940cce9fa06757526092bc38f18595471debb623e"
+    "sha256:cfcfa46ba16d8c20b80ef8170867c3b55aa76a1bbfa88816b32219d2121bcf7b"
 )
 ANTHROPIC_TOOL_POLICY_ROOT = (
     "sha256:c98932d0d5bcd5956b8c578f0f42bd3c94e827d5c5ca5b8034ca9bfd1799ffd2"
 )
 ANTHROPIC_IMAGE_DIGEST = (
-    "sha256:315fd2ae42a140f3be8dd05d34031f83aca6fa29e421f86ca335a4dfafd6b2f6"
+    "sha256:3a8ee2d16720fc4ff91f6fd54ad698cd18aa7e387e3ce78a0ea751f7cf78dda7"
 )
 ANTHROPIC_IMAGE_ARCHIVE = (
-    "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
+    "sha256:779b51ed33cacbb2df756a0068c26f2b05fb4b8823f4b4bd04e1fd825374f5eb"
 )
 ANTHROPIC_IMAGE_CONFIG = (
-    "sha256:01af93cac3a59af00245c7f34201b211b266d1209afe126f6e8543750b9eb412"
+    "sha256:3754bc0e038435c0eba42764209740fc76299d6e99a29c716680d4562a79c066"
 )
 ANTHROPIC_PROVIDER_SCHEMA = (
     "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7"
 )
 ANTHROPIC_RUNNER = (
-    "sha256:b0163f2d02e1102013b2c6fb63d97b983f80ba9ce6c457e752e26fb8540da0fe"
+    "sha256:fded48fc1d556d6b8d12aa1bf9b3233dc3a0872050a7b60f1cea22d6f897eede"
 )
 ANTHROPIC_BRIDGE = (
-    "sha256:f5d60e7eca4fbf2e511f101514febf457919dc521e75ef749bae985911475bdb"
+    "sha256:9c159b013640fbc9676eae828233f06b198d3afbfe564a01012c921fddf711de"
 )
 ANTHROPIC_CONTRACT = (
     "sha256:9629b9a7467eda0a3991a718f3b652c9b90dd8d0ea049da31f19510510a4857c"
 )
 ANTHROPIC_LAUNCHABILITY = (
-    "sha256:a180d19a49287c6271fc7aea61da8f041aaf3c0e3db4a9e309559f84dc4c2ff8"
+    "sha256:2ec169cafa34959cb0e8457530a0afee80c3647b47431e24469a5f1311a3f9a3"
 )
 ANTHROPIC_OFFLINE_VALIDATION = (
-    "sha256:f558beec700c9339c0fd7f1ffdc5a81ab1334d6eb15e4e99b56a20c1b26d79c9"
+    "sha256:5464cd11e3c1300eae021325363a138e4af796cac23efa7d8d1db5bd418926fe"
 )
 ANTHROPIC_MATERIALIZATION = (
-    "sha256:328dace8aee7d4cea3c2532e4e0012b01ad07b73ca6ce9b528d774fa62306028"
+    "sha256:54b7114d81fe8f09c90a548065c23cc80bb9d31a1086341e446dd0d67df82628"
 )
 ANTHROPIC_TRANSPORT_CUSTODY = (
     "sha256:fe9a30521be317f05404aef6e239605021aa8877f87b0bc1e40cb5062c396dcd"
@@ -156,6 +156,8 @@ STATIC_FILES = [
     "freeze_evidence_sources.py",
     "generate.py",
     "scorer.py",
+    "secure_reader.py",
+    "runtime_capture.py",
     "test_evidence_tree.py",
     "test_verify.py",
     "verify.py",
@@ -1081,8 +1083,18 @@ def write_manifest(destination: Path) -> dict[str, Any]:
 
 def generate(destination: Path) -> dict[str, Any]:
     destination.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(
+        VELA / "tools" / "evidence_qualification" / "secure_reader.py",
+        destination / "secure_reader.py",
+    )
+    shutil.copyfile(
+        VELA / "tools" / "evidence_qualification" / "runtime_capture.py",
+        destination / "runtime_capture.py",
+    )
     if destination.resolve() != ROOT:
         for name in STATIC_FILES:
+            if name in {"runtime_capture.py", "secure_reader.py"}:
+                continue
             shutil.copyfile(ROOT / name, destination / name)
         shutil.copytree(ROOT / "execution-bundles", destination / "execution-bundles")
         shutil.copytree(ROOT / "evidence-sources", destination / "evidence-sources")

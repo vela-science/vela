@@ -11,9 +11,8 @@ import json
 import os
 import subprocess
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
-
 
 BUNDLE_ROOT = Path(
     "/private/tmp/vela-anthropic-open-diagnostic-held-v2/"

@@ -11,6 +11,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from secure_reader import read_absolute_regular
+
 sys.dont_write_bytecode = True
 
 ROOT_RE = "sha256:"
@@ -69,29 +71,10 @@ def safe_relative(value: Any, label: str) -> Path:
 
 
 def regular_bytes(path: Path, label: str) -> bytes:
-    metadata = os.lstat(path)
-    if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
-        raise ValueError(f"{label} must be one regular single-link file")
-    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
-    try:
-        opened = os.fstat(descriptor)
-        raw = b""
-        while True:
-            chunk = os.read(descriptor, 1024 * 1024)
-            if not chunk:
-                break
-            raw += chunk
-        after = os.fstat(descriptor)
-    finally:
-        os.close(descriptor)
-    if (
-        (opened.st_dev, opened.st_ino, opened.st_nlink, opened.st_size)
-        != (after.st_dev, after.st_ino, after.st_nlink, after.st_size)
-        or after.st_nlink != 1
-        or len(raw) != after.st_size
-    ):
-        raise ValueError(f"{label} custody drift")
-    return raw
+    result = read_absolute_regular(path, label)
+    if not isinstance(result, bytes):
+        raise TypeError(f"{label} reader contract invalid")
+    return result
 
 
 def inventory(directory: Path) -> list[dict[str, Any]]:

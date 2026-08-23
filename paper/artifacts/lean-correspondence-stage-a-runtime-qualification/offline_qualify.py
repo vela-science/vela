@@ -114,6 +114,14 @@ def write_json(path: Path, value: Any) -> None:
     write(path, encoded(value))
 
 
+def canonical_object_root(value: Any) -> str:
+    raw = (
+        json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        + "\n"
+    ).encode()
+    return digest(raw)
+
+
 def checked_workspace(path: Path) -> Path:
     resolved = path.resolve()
     if not resolved.is_absolute() or resolved in {Path("/"), Path.home()}:
@@ -148,11 +156,11 @@ def stage_qualifier(repository: Path, workspace: Path) -> Path:
         != QUALIFIER_TREE
     ):
         raise ValueError("qualifier_tree_drift")
-    qualifier_raw = exact_git_bytes(
+    merged_qualifier_raw = exact_git_bytes(
         repository,
         f"{QUALIFIER_COMMIT}:tools/evidence_qualification/qualification.py",
     )
-    if hashlib.sha256(qualifier_raw).hexdigest() != QUALIFIER_SHA256:
+    if hashlib.sha256(merged_qualifier_raw).hexdigest() != QUALIFIER_SHA256:
         raise ValueError("qualifier_sha256_drift")
     del workspace
     staged = CANONICAL_QUALIFIER / "tools/evidence_qualification"
@@ -161,13 +169,20 @@ def stage_qualifier(repository: Path, workspace: Path) -> Path:
     staged.mkdir(parents=True)
     write(staged.parent / "__init__.py", b"")
     write(staged / "__init__.py", b"")
-    for name in ("qualification.py", "test_qualification.py"):
+    # The merged qualifier remains the immutable baseline. This prospective
+    # branch adds the generic secure reader and runtime-capture compiler under
+    # the same maintained package; stage those exact working-tree bytes for
+    # independent review rather than silently running the predecessor.
+    for name in (
+        "qualification.py",
+        "runtime_capture.py",
+        "secure_reader.py",
+        "test_qualification.py",
+        "test_runtime_capture.py",
+    ):
         write(
             staged / name,
-            exact_git_bytes(
-                repository,
-                f"{QUALIFIER_COMMIT}:tools/evidence_qualification/{name}",
-            ),
+            (repository / "tools/evidence_qualification" / name).read_bytes(),
         )
     return staged.parent.parent
 
@@ -836,7 +851,7 @@ def hold_neutral_permit(bundle: Path, adapter: str, q: Any) -> None:
     write_json(config_path, config)
 
 
-def materialize_provider_input(bundle: Path, adapter: str) -> tuple[Path, Path]:
+def materialize_provider_input(bundle: Path, adapter: str, q: Any) -> tuple[Path, Path]:
     _provider, model, run_id = PROVIDERS[adapter]
     input_dir = bundle / "runtime/preflight-input"
     evidence_dir = bundle / "runtime/preflight-evidence"
@@ -853,6 +868,21 @@ def materialize_provider_input(bundle: Path, adapter: str) -> tuple[Path, Path]:
         shutil.copyfile(source, input_dir / name)
         os.chmod(input_dir / name, 0o444)
     materializer = RUNNER_SOURCE.parent / "run_input_materialize.py"
+    config = load(bundle / "qualification.json")
+    participant = config["participant_permit"]
+    permit = load(bundle / participant["permit"])
+    tool_boundary = q.validate_tool_boundary(
+        load(bundle / config["configuration"]["tool_boundary"])
+    )
+    preflight = bundle / participant.get(
+        "workspace_preflight",
+        "runtime/offline-evidence/workspace-bridge-preflight.json",
+    )
+    workspace_preflight_root = (
+        digest(preflight.read_bytes())
+        if preflight.is_file()
+        else digest(b"runtime-neutral-workspace-preflight")
+    )
     subprocess.run(
         [
             sys.executable,
@@ -871,6 +901,18 @@ def materialize_provider_input(bundle: Path, adapter: str) -> tuple[Path, Path]:
             str(NEUTRAL_INPUTS / "prompt.txt"),
             "--packet-file",
             str(NEUTRAL_INPUTS / "packet.json"),
+            "--permit-root",
+            canonical_object_root(permit),
+            "--workspace-content-root",
+            tool_boundary["workspace_content_root"],
+            "--evidence-catalog-root",
+            permit.get("evidence_manifest_root", digest(b"runtime-neutral-evidence")),
+            "--tool-boundary-root",
+            tool_boundary["tool_boundary_root"],
+            "--tool-policy-root",
+            tool_boundary["tool_policy_root"],
+            "--workspace-preflight-root",
+            workspace_preflight_root,
         ],
         check=True,
     )
@@ -1106,7 +1148,7 @@ def run(repository: Path, workspace: Path, output: Path, trust_bundle: Path) -> 
         provider, model, run_id = PROVIDERS[adapter]
         prefix = provider.lower()
         retained = {}
-        input_dir, evidence_dir = materialize_provider_input(bundle, adapter)
+        input_dir, evidence_dir = materialize_provider_input(bundle, adapter, q)
         launchability = verify_launchable_image(
             (bundle / "runtime/a.oci.tar").read_bytes(),
             adapter,
@@ -1195,7 +1237,8 @@ def run(repository: Path, workspace: Path, output: Path, trust_bundle: Path) -> 
         "qualifier": {
             "commit": QUALIFIER_COMMIT,
             "tree": QUALIFIER_TREE,
-            "sha256": "sha256:" + QUALIFIER_SHA256,
+            "sha256": digest(q.QUALIFIER.read_bytes()),
+            "merged_baseline_sha256": "sha256:" + QUALIFIER_SHA256,
         },
         "trust_bundle_sha256": digest(trust_raw),
         "prior_consumed_non_call": prior_consumed_non_call(),
@@ -1269,7 +1312,7 @@ def main() -> int:
             receipt = q.qualify_bundle(bundle)
             provider, model, run_id = PROVIDERS[adapter]
             retained = {}
-            input_dir, evidence_dir = materialize_provider_input(bundle, adapter)
+            input_dir, evidence_dir = materialize_provider_input(bundle, adapter, q)
             launchability = verify_launchable_image(
                 (bundle / "runtime/a.oci.tar").read_bytes(),
                 adapter,
@@ -1365,7 +1408,8 @@ def main() -> int:
             "qualifier": {
                 "commit": QUALIFIER_COMMIT,
                 "tree": QUALIFIER_TREE,
-                "sha256": "sha256:" + QUALIFIER_SHA256,
+                "sha256": digest(q.QUALIFIER.read_bytes()),
+                "merged_baseline_sha256": "sha256:" + QUALIFIER_SHA256,
             },
             "trust_bundle_sha256": digest(trust_raw),
             "prior_consumed_non_call": prior_consumed_non_call(),

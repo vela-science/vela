@@ -4,13 +4,13 @@
   "entrypoint": [
     "/opt/vela/runner"
   ],
-  "image_digest": "sha256:315fd2ae42a140f3be8dd05d34031f83aca6fa29e421f86ca335a4dfafd6b2f6",
-  "layer_digest": "sha256:98c4ece1acfab06f3995766794b2e065519ffe80c8b39f17fc0de9ed7717c6cf",
-  "oci_archive_sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799",
+  "image_digest": "sha256:3a8ee2d16720fc4ff91f6fd54ad698cd18aa7e387e3ce78a0ea751f7cf78dda7",
+  "layer_digest": "sha256:ea1ed030faa199ad73f1b30201443a99e34bdb763e243c5cfc686184fb056673",
+  "oci_archive_sha256": "sha256:779b51ed33cacbb2df756a0068c26f2b05fb4b8823f4b4bd04e1fd825374f5eb",
   "offline_pre_request_validation": {
     "dummy_non_secret_credential_fd": true,
     "network": "none",
-    "receipt_sha256": "sha256:60504548ff1ab607b68aa859fc4b54c3396e062273d0e61c8ca2b1850286a44a",
+    "receipt_sha256": "sha256:ba4578d7ada8f5ea44113b30b7468abb249f62c74aa167c5a4e0768e509a39fe",
     "same_run_input": true,
     "status": "pass"
   },

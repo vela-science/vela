@@ -5,11 +5,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
 PACKAGE = Path(__file__).resolve().parent
 ARTIFACT_ROOT = PACKAGE / "artifact-root.json"
+MAINTAINED_SECURE_READER = (
+    PACKAGE.parents[2] / "tools/evidence_qualification/secure_reader.py"
+)
 
 
 def canonical_bytes(value: Any) -> bytes:
@@ -29,6 +33,7 @@ def pretty_bytes(value: Any) -> bytes:
 
 
 def main() -> None:
+    shutil.copyfile(MAINTAINED_SECURE_READER, PACKAGE / "secure_reader.py")
     entries = []
     for path in sorted(PACKAGE.rglob("*")):
         if (

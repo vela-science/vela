@@ -14,9 +14,10 @@ sys.dont_write_bytecode = True
 SCRIPT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_ROOT))
 
-import generate  # noqa: E402
-import scorer  # noqa: E402
-import verify  # noqa: E402
+import generate
+import runtime_capture
+import scorer
+import verify
 
 ROOT = SCRIPT_ROOT
 
@@ -333,98 +334,153 @@ def scoring_document(
         write_json(response_path, response)
         seconds = "9.5" if assignment["arm"] == "correspondence-assisted" else "10.5"
         tool_count = 1 if assignment["arm"] == "correspondence-assisted" else 2
+        provider_calls = tool_count + 1
         permit = json.loads((root / "permits" / f"{cell_id}.permit.json").read_text())
-        permit_root = scorer.maintained_root(permit)
-        launch = {
-            "attempt": 1,
-            "cell_id": cell_id,
-            "permit_root": permit_root,
-            "provider_calls": 1,
-            "run_id": permit["run_id"],
-            "schema": "vela.lean-correspondence-anthropic-open-diagnostic-launch.v3",
-            "status": "started",
-        }
-        terminal = {
-            "attempt": 1,
-            "cell_id": cell_id,
-            "provider_calls": 1,
-            "restricted_seconds": seconds,
-            "run_id": permit["run_id"],
-            "schema": "vela.lean-correspondence-anthropic-open-diagnostic-terminal.v2",
-            "status": "response",
-        }
+        permit_root = generate.raw_root((cell_id + "-consumed").encode())
         usage = {
             "cell_id": cell_id,
             "input_tokens": 100,
             "output_tokens": 50,
+            "provider_calls": provider_calls,
+            "restricted_seconds": seconds,
             "schema": "vela.lean-correspondence-anthropic-open-diagnostic-usage.v2",
             "tool_call_count": tool_count,
         }
-        terminal_path = directory / "terminal.json"
-        usage_path = directory / "usage.json"
-        launch_path = directory / "launch.json"
-        write_json(launch_path, launch)
-        write_json(terminal_path, terminal)
-        write_json(usage_path, usage)
-        custody = {
-            "attempt": 1,
-            "cell_id": cell_id,
-            "participant_id": assignment["participant_id"],
-            "permit_root": permit_root,
-            "provider_calls": 1,
-            "raw_response_root": generate.raw_root(response_path.read_bytes()),
-            "restricted_seconds": seconds,
-            "run_id": permit["run_id"],
-            "schema": "vela.lean-correspondence-anthropic-open-diagnostic-custody-receipt.v2",
-            "terminal_root": generate.raw_root(terminal_path.read_bytes()),
-            "terminal_status": "response",
-            "tool_call_count": tool_count,
-            "usage_root": generate.raw_root(usage_path.read_bytes()),
-        }
-        custody_path = directory / "custody.json"
-        write_json(custody_path, custody)
-        teardown = {
-            "cell_id": cell_id,
-            "credential_retained": False,
-            "process_reaped": True,
-            "provider_calls": 1,
-            "run_id": permit["run_id"],
-            "schema": "vela.lean-correspondence-anthropic-open-diagnostic-teardown.v3",
-            "status": "completed",
-            "terminal_status": "response",
-        }
-        teardown_path = directory / "teardown.json"
-        write_json(teardown_path, teardown)
-        entries = []
-        for role, path in (
-            ("custody", custody_path),
-            ("launch", launch_path),
-            ("raw_response", response_path),
-            ("teardown", teardown_path),
-            ("terminal", terminal_path),
-            ("usage", usage_path),
-        ):
-            raw = path.read_bytes()
-            entries.append(
+        empty_root = generate.raw_root(b"")
+        tools = []
+        for ordinal in range(1, tool_count + 1):
+            result = {
+                "content": "bounded fixture",
+                "path": "/workspace/assignment-manifest.json",
+            }
+            result_root = generate.raw_root(runtime_capture.canonical_bytes(result))
+            tools.append(
                 {
-                    "bytes": len(raw),
-                    "path": path.relative_to(root).as_posix(),
-                    "role": role,
-                    "sha256": generate.raw_root(raw),
+                    "arguments": {
+                        "operation": "read",
+                        "path": "/workspace/assignment-manifest.json",
+                        "query": "",
+                    },
+                    "call_id": f"call-{ordinal}",
+                    "ordinal": ordinal,
+                    "provider_response_root": generate.raw_root(
+                        f"provider-{cell_id}-{ordinal}".encode()
+                    ),
+                    "result": result,
+                    "result_root": result_root,
+                    "stderr_bytes": 0,
+                    "stderr_root": empty_root,
+                    "stdout_bytes": 0,
+                    "stdout_root": empty_root,
+                    "structured_output_bytes": len(
+                        runtime_capture.canonical_bytes(result)
+                    ),
+                    "structured_output_root": result_root,
+                    "tool_name": "read_file",
                 }
             )
+        source_evidence = [
+            {
+                "bytes": 1,
+                "path": f"captures/{cell_id}/{role}.raw",
+                "role": role,
+                "sha256": generate.raw_root(f"{cell_id}-{role}".encode()),
+            }
+            for role in sorted(runtime_capture.FILE_KEYS)
+        ]
+        source_evidence.extend(
+            {
+                "bytes": 1,
+                "path": f"captures/{cell_id}/{role}_{ordinal:04d}.raw",
+                "role": f"{role}_{ordinal:04d}",
+                "sha256": generate.raw_root(f"{cell_id}-{role}-{ordinal}".encode()),
+            }
+            for role, count in (
+                ("provider_requests", provider_calls),
+                ("provider_responses", provider_calls),
+                ("tool_results", tool_count),
+            )
+            for ordinal in range(1, count + 1)
+        )
+        source_evidence.sort(key=lambda item: item["role"])
+        provider_request_roots = [
+            generate.raw_root(f"request-{cell_id}-{index}".encode())
+            for index in range(provider_calls)
+        ]
+        provider_response_roots = [
+            generate.raw_root(f"response-{cell_id}-{index}".encode())
+            for index in range(provider_calls)
+        ]
+        for entry in source_evidence:
+            role = entry["role"]
+            if role.startswith("provider_requests_"):
+                entry["sha256"] = provider_request_roots[int(role[-4:]) - 1]
+            elif role.startswith("provider_responses_"):
+                entry["sha256"] = provider_response_roots[int(role[-4:]) - 1]
+            elif role.startswith("tool_results_"):
+                entry["sha256"] = tools[int(role[-4:]) - 1]["result_root"]
+        source_evidence.sort(key=lambda item: item["role"])
+        lifecycle = []
+        for ordinal in range(1, provider_calls + 1):
+            lifecycle.extend(
+                (
+                    {
+                        "ordinal": ordinal,
+                        "request_root": provider_request_roots[ordinal - 1],
+                        "type": "endpoint_attempt",
+                    },
+                    {
+                        "ordinal": ordinal,
+                        "response_root": provider_response_roots[ordinal - 1],
+                        "type": "provider_event",
+                    },
+                )
+            )
+            if ordinal <= tool_count:
+                tools[ordinal - 1]["provider_response_root"] = provider_response_roots[
+                    ordinal - 1
+                ]
+                lifecycle.extend(
+                    (
+                        {
+                            "call_id": tools[ordinal - 1]["call_id"],
+                            "ordinal": ordinal,
+                            "type": "tool_use",
+                        },
+                        {
+                            "call_id": tools[ordinal - 1]["call_id"],
+                            "ordinal": ordinal,
+                            "result_root": tools[ordinal - 1]["result_root"],
+                            "type": "tool_result",
+                        },
+                    )
+                )
+        lifecycle.append({"ordinal": provider_calls, "type": "terminal"})
         body = {
             "attempt": 1,
             "cell_id": cell_id,
-            "entries": entries,
+            "compiled_once": True,
+            "evidence_catalog_root": permit["evidence_manifest_root"],
+            "final_response": response,
+            "lifecycle": lifecycle,
             "participant_id": assignment["participant_id"],
             "permit_root": permit_root,
-            "provider_calls": 1,
+            "provider_calls": provider_calls,
+            "provider_request_roots": provider_request_roots,
+            "provider_response_roots": provider_response_roots,
             "run_id": permit["run_id"],
-            "schema": "vela.lean-correspondence-anthropic-open-diagnostic-capture.v2",
+            "schema": "vela.tooling.compiled-runtime-capture.v1",
+            "source_evidence": source_evidence,
+            "source_evidence_root": runtime_capture.canonical_root(source_evidence),
             "terminal_status": "response",
+            "tool_boundary_root": permit["tool_boundary_root"],
+            "tool_call_count": tool_count,
+            "tool_calls": tools,
+            "tool_policy_root": permit["tool_policy_root"],
+            "usage": usage,
+            "workspace_content_root": permit["workspace_content_root"],
         }
-        manifest = dict(body, capture_root=scorer.canonical_root(body))
+        manifest = dict(body, capture_root=runtime_capture.canonical_root(body))
         manifest_path = directory / "capture.json"
         write_json(manifest_path, manifest)
         relative = manifest_path.relative_to(root).as_posix()
@@ -480,41 +536,41 @@ class ScorerTests(unittest.TestCase):
         document = self.document()
         manifest_path = self.root / document["capture_manifests"][0]
         manifest = json.loads(manifest_path.read_text())
-        paths = {
-            entry["role"]: self.root / entry["path"] for entry in manifest["entries"]
-        }
-        paths["raw_response"].write_bytes(b"")
-        launch = json.loads(paths["launch"].read_text())
-        launch["provider_calls"] = 0
-        write_json(paths["launch"], launch)
-        terminal = json.loads(paths["terminal"].read_text())
-        terminal.update(
-            {"provider_calls": 0, "restricted_seconds": "1200", "status": "failure"}
-        )
-        write_json(paths["terminal"], terminal)
-        usage = json.loads(paths["usage"].read_text())
-        usage.update({"input_tokens": 0, "output_tokens": 0, "tool_call_count": 0})
-        write_json(paths["usage"], usage)
-        teardown = json.loads(paths["teardown"].read_text())
-        teardown.update({"provider_calls": 0, "terminal_status": "failure"})
-        write_json(paths["teardown"], teardown)
-        custody = json.loads(paths["custody"].read_text())
-        custody.update(
+        manifest.update(
             {
+                "final_response": None,
+                "lifecycle": [],
                 "provider_calls": 0,
-                "raw_response_root": generate.raw_root(b""),
-                "restricted_seconds": "1200",
-                "terminal_root": generate.raw_root(paths["terminal"].read_bytes()),
+                "provider_request_roots": [],
+                "provider_response_roots": [],
                 "terminal_status": "failure",
                 "tool_call_count": 0,
-                "usage_root": generate.raw_root(paths["usage"].read_bytes()),
+                "tool_calls": [],
             }
         )
-        write_json(paths["custody"], custody)
-        for entry in manifest["entries"]:
-            raw = (self.root / entry["path"]).read_bytes()
-            entry.update({"bytes": len(raw), "sha256": generate.raw_root(raw)})
-        manifest.update({"provider_calls": 0, "terminal_status": "failure"})
+        manifest["usage"].update(
+            {
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "provider_calls": 0,
+                "restricted_seconds": "1200",
+                "tool_call_count": 0,
+            }
+        )
+        raw_receipt = next(
+            item
+            for item in manifest["source_evidence"]
+            if item["role"] == "raw_response"
+        )
+        raw_receipt.update({"bytes": 0, "sha256": generate.raw_root(b"")})
+        manifest["source_evidence"] = [
+            item
+            for item in manifest["source_evidence"]
+            if item["role"] in runtime_capture.FILE_KEYS
+        ]
+        manifest["source_evidence_root"] = runtime_capture.canonical_root(
+            manifest["source_evidence"]
+        )
         body = {key: value for key, value in manifest.items() if key != "capture_root"}
         manifest["capture_root"] = scorer.canonical_root(body)
         write_json(manifest_path, manifest)
@@ -554,12 +610,10 @@ class ScorerTests(unittest.TestCase):
         document = self.document()
         first = self.root / document["capture_manifests"][0]
         manifest = json.loads(first.read_text())
-        response = self.root / next(
-            item["path"]
-            for item in manifest["entries"]
-            if item["role"] == "raw_response"
-        )
-        response.write_bytes(response.read_bytes() + b" ")
+        manifest["tool_calls"][0]["result"]["content"] = "forged"
+        body = {key: value for key, value in manifest.items() if key != "capture_root"}
+        manifest["capture_root"] = runtime_capture.canonical_root(body)
+        write_json(first, manifest)
         with self.assertRaises(ValueError):
             scorer.score_document(document, self.root)
 
@@ -578,14 +632,10 @@ class ScorerTests(unittest.TestCase):
         document = self.document()
         first = self.root / document["capture_manifests"][0]
         manifest = json.loads(first.read_text())
-        response = self.root / next(
-            item["path"]
-            for item in manifest["entries"]
-            if item["role"] == "raw_response"
-        )
-        value = json.loads(response.read_text())
-        value["assignment_id"] = "lc-wrong-case-arm"
-        write_json(response, value)
+        manifest["final_response"]["assignment_id"] = "lc-wrong-case-arm"
+        body = {key: value for key, value in manifest.items() if key != "capture_root"}
+        manifest["capture_root"] = runtime_capture.canonical_root(body)
+        write_json(first, manifest)
         with self.assertRaises(ValueError):
             scorer.score_document(document, self.root)
 
@@ -593,12 +643,10 @@ class ScorerTests(unittest.TestCase):
         document = self.document()
         first = self.root / document["capture_manifests"][0]
         manifest = json.loads(first.read_text())
-        usage = self.root / next(
-            item["path"] for item in manifest["entries"] if item["role"] == "usage"
-        )
-        value = json.loads(usage.read_text())
-        del value["tool_call_count"]
-        write_json(usage, value)
+        del manifest["usage"]["tool_call_count"]
+        body = {key: value for key, value in manifest.items() if key != "capture_root"}
+        manifest["capture_root"] = runtime_capture.canonical_root(body)
+        write_json(first, manifest)
         with self.assertRaises(ValueError):
             scorer.score_document(document, self.root)
 
@@ -608,6 +656,13 @@ class ScorerTests(unittest.TestCase):
             document["score_attempt"] = value
             with self.assertRaises(ValueError):
                 scorer.score_document(document, self.root)
+
+    def test_score_result_is_published_exactly_once(self) -> None:
+        document = self.document()
+        output = Path(self.temporary.name) / "score-result.json"
+        scorer.score_to_file(document, output, self.root)
+        with self.assertRaises(FileExistsError):
+            scorer.score_to_file(document, output, self.root)
 
     def test_descriptor_reader_rejects_external_hardlink(self) -> None:
         path = self.root / "hardlink-target.json"

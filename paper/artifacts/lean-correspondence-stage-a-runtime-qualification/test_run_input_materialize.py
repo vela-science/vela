@@ -49,7 +49,9 @@ class MaterializerTests(unittest.TestCase):
             schema.write_bytes(b"{}\n")
             link = root / "link.json"
             link.symlink_to(schema)
-            with self.assertRaisesRegex(ValueError, "symlink"):
+            with self.assertRaisesRegex(
+                ValueError, "(?:symlink|not_regular_single_link)"
+            ):
                 MATERIALIZER.materialize(
                     link, root / "run.json", root / "receipt.json", self.fields()
                 )
@@ -71,7 +73,9 @@ class MaterializerTests(unittest.TestCase):
             def swap() -> None:
                 os.replace(replacement, schema)
 
-            with self.assertRaisesRegex(ValueError, "post_read_inode_drift"):
+            with self.assertRaisesRegex(
+                ValueError, "(?:post_read_inode_drift|custody_drift)"
+            ):
                 MATERIALIZER.materialize(
                     schema,
                     root / "run.json",

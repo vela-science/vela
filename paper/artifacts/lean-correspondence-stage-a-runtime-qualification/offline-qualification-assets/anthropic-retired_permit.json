@@ -13,5 +13,5 @@
   "run_id": "neutral-calibration-anthropic",
   "schema": "vela.stage-a-neutral-permit-retirement.v1",
   "status": "retired_non_releasable",
-  "successor_permit_root": "sha256:1db30a246b6727cf1e01f923b80f4247defab2318e63483c5d6efd58689c1e36"
+  "successor_permit_root": "sha256:28e24923dac0d83bee34350918274cb2fba9417ea44fcc3de3180cd259779816"
 }

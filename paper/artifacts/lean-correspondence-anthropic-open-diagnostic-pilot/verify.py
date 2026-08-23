@@ -14,8 +14,8 @@ from typing import Any
 
 sys.dont_write_bytecode = True
 
-import generate  # noqa: E402
-import scorer  # noqa: E402
+import generate
+import scorer
 
 ROOT = Path(__file__).resolve().parent
 QUALIFIER_ROOT = Path("/private/tmp/vela-anthropic-open-diagnostic-held-v2")

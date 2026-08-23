@@ -30,6 +30,7 @@ type frame struct {
 	Endpoint        string           `json:"endpoint,omitempty"`
 	Body            json.RawMessage  `json:"body,omitempty"`
 	Payload         *requestPayload  `json:"payload,omitempty"`
+	Response        *responsePayload `json:"response,omitempty"`
 	RequestCustody  *requestCustody  `json:"request_custody,omitempty"`
 	Raw             string           `json:"raw,omitempty"`
 	Name            string           `json:"name,omitempty"`
@@ -39,6 +40,16 @@ type frame struct {
 	Result          json.RawMessage  `json:"result,omitempty"`
 	Error           string           `json:"error,omitempty"`
 	ProviderCalls   int              `json:"provider_calls,omitempty"`
+	StopReason      string           `json:"stop_reason,omitempty"`
+}
+
+type responsePayload struct {
+	Schema     string `json:"schema"`
+	Encoding   string `json:"encoding"`
+	Bytes      int    `json:"bytes"`
+	SHA256     string `json:"sha256"`
+	Base64     string `json:"base64"`
+	HTTPStatus int    `json:"http_status"`
 }
 
 type requestPayload struct {
@@ -511,10 +522,10 @@ func client() *http.Client {
 	}
 }
 
-func contact(ctx context.Context, url string, credential []byte, body json.RawMessage) ([]byte, error) {
+func contact(ctx context.Context, url string, credential []byte, body json.RawMessage) ([]byte, int, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	request.Header.Set("Content-Type", "application/json")
 	if providerAdapter == "openai-responses-v1" {
@@ -525,17 +536,14 @@ func contact(ctx context.Context, url string, credential []byte, body json.RawMe
 	}
 	response, err := client().Do(request)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer response.Body.Close()
 	raw, err := io.ReadAll(io.LimitReader(response.Body, 64*1024*1024+1))
 	if err != nil || len(raw) > 64*1024*1024 {
-		return nil, errors.New("provider response exceeds custody bound")
+		return nil, response.StatusCode, errors.New("provider response exceeds custody bound")
 	}
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return nil, fmt.Errorf("provider returned HTTP status %d", response.StatusCode)
-	}
-	return raw, nil
+	return raw, response.StatusCode, nil
 }
 
 func parseResponse(raw []byte) (json.RawMessage, []frame, error) {
@@ -715,22 +723,41 @@ func serve(workspace string) error {
 		if providerCalls == 1 && *writeCustody != *initialCustody {
 			return errors.New("initial endpoint write custody drift")
 		}
+		requestPayload := requestPayload{
+			Schema: "vela.lossless-provider-request-payload.v1", Encoding: "base64-rfc4648-canonical",
+			ContentType: "application/json", Bytes: len(body), SHA256: digestBytes(body), Base64: base64.StdEncoding.EncodeToString(body),
+			ProviderSchemaBytes: len(schema), ProviderSchemaSHA256: digestBytes(schema), ProviderSchemaBase64: base64.StdEncoding.EncodeToString(schema),
+			ProviderSchemaOccurrences: bytes.Count(body, schema),
+		}
+		// Every initial and continuation body crosses the bridge boundary as an
+		// explicit lossless payload before its endpoint-attempt receipt. RawMessage
+		// is intentionally not used because outer JSON encoding may compact it.
+		if err := encoder.Encode(frame{Type: "request_body", Payload: &requestPayload, RequestCustody: writeCustody}); err != nil {
+			return err
+		}
 		if err := encoder.Encode(frame{Type: "endpoint_attempt", ProviderCalls: providerCalls, RequestCustody: writeCustody}); err != nil {
 			return err
 		}
-		raw, err := contact(context.Background(), exactEndpoint, credential, body)
+		raw, httpStatus, err := contact(context.Background(), exactEndpoint, credential, body)
 		if err != nil {
 			return err
 		}
-		if err := encoder.Encode(frame{Type: "provider_event", Raw: string(raw)}); err != nil {
+		responsePayload := responsePayload{
+			Schema: "vela.lossless-provider-response-payload.v1", Encoding: "base64-rfc4648-canonical",
+			Bytes: len(raw), SHA256: digestBytes(raw), Base64: base64.StdEncoding.EncodeToString(raw), HTTPStatus: httpStatus,
+		}
+		if err := encoder.Encode(frame{Type: "provider_event", Response: &responsePayload}); err != nil {
 			return err
+		}
+		if httpStatus < 200 || httpStatus >= 300 {
+			return encoder.Encode(frame{Type: "terminal", Error: fmt.Sprintf("provider returned HTTP status %d", httpStatus), ProviderCalls: providerCalls, StopReason: "http_error"})
 		}
 		terminal, tools, err := parseResponse(raw)
 		if err != nil {
 			return err
 		}
 		if len(tools) == 0 {
-			return encoder.Encode(frame{Type: "terminal", Body: terminal, ProviderCalls: providerCalls})
+			return encoder.Encode(frame{Type: "terminal", Body: terminal, ProviderCalls: providerCalls, StopReason: "end_turn"})
 		}
 		if len(tools) != 1 {
 			return errors.New("parallel tool calls are forbidden")

@@ -299,7 +299,7 @@ func TestLosslessRequestPayloadAndCustodyBinding(t *testing.T) {
 }
 
 func TestStrictRunInputRejectsUnknownAndBooleanNumericFields(t *testing.T) {
-	base := `{"run_id":"r","model":"m","prompt":"p","packet_path":"/input/packet.json","packet_bytes":3,"packet_sha256":"sha256:x","provider_schema":{},"provider_schema_path":"/input/provider-schema.json","provider_schema_bytes":3,"provider_schema_sha256":"sha256:y","materialization_receipt_path":"/input/materialization-receipt.json","output_dir":"/evidence"}`
+	base := `{"run_id":"r","model":"m","prompt":"p","packet_path":"/input/packet.json","packet_bytes":3,"packet_sha256":"sha256:x","provider_schema":{},"provider_schema_path":"/input/provider-schema.json","provider_schema_bytes":3,"provider_schema_sha256":"sha256:y","materialization_receipt_path":"/input/materialization-receipt.json","output_dir":"/evidence","permit_root":"sha256:p","workspace_content_root":"sha256:w","evidence_catalog_root":"sha256:e","tool_boundary_root":"sha256:b","tool_policy_root":"sha256:t","workspace_preflight_root":"sha256:f"}`
 	if _, err := strictRunInput([]byte(base)); err != nil {
 		t.Fatal(err)
 	}

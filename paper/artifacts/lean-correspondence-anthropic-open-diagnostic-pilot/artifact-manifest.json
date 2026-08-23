@@ -1,5 +1,5 @@
 {
-  "artifact_root": "sha256:dbee02128aad44b896dca57a80bb262c45eaa3b8a7fd7716181b128b0ab385ae",
+  "artifact_root": "sha256:648cb5c2707e3e59921b27f29b9d91de585ef31dbd1fa680def514d99a1b0ee3",
   "authority_effect": "none",
   "entries": [
     {
@@ -13,9 +13,9 @@
       "sha256": "sha256:7797f1469e8877c68e484f98f82079072ef37f275616fd3c3591c5e29017c559"
     },
     {
-      "bytes": 25080,
+      "bytes": 25717,
       "path": "build_execution_bundles.py",
-      "sha256": "sha256:6ed5c3be6c7ed71123db94dca966640b7b88694c67327d27d2e43992a2488414"
+      "sha256": "sha256:7abc61e436fb21fa26c1064c43a0fbfbd012c1734796247a4c7ab087d3b7aafc"
     },
     {
       "bytes": 10493,
@@ -30,7 +30,7 @@
     {
       "bytes": 1076,
       "path": "custody-contract.json",
-      "sha256": "sha256:ba571013a52718a0a0886fcf5abd5e955157fd94f599410a85444341fc05d09d"
+      "sha256": "sha256:8e58fb0bba1b5b5f6289b793241f247398b3da90e554195563612ee09f5bfd3c"
     },
     {
       "bytes": 4175,
@@ -333,19 +333,19 @@
       "sha256": "sha256:fae594cf35937d4ed939bf8b2a23f5eb37b13312a06b95fb50ddbfc61500f823"
     },
     {
-      "bytes": 8461,
+      "bytes": 7843,
       "path": "evidence_tree.py",
-      "sha256": "sha256:0d8df40c4afec53aeb8beec57003337704f7c10252db26e8408e5cf2d3b88921"
+      "sha256": "sha256:b7164ca6b9f4b12b520ea944b808c832236740a46c73ee3a3514e938b86737cd"
     },
     {
       "bytes": 11459,
       "path": "execution-bundle-registry.json",
-      "sha256": "sha256:2348b6cb6087ab93cf0c3e40fff6b9e5414ec489b0d2bafd819ff06f81970b0d"
+      "sha256": "sha256:35729e4d86f9885d373fed24bfedc0dca967ed2077c36f3199d9bab5c5201d2f"
     },
     {
       "bytes": 1123,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/config/compatibility.json",
-      "sha256": "sha256:3e4c9e24fcd3c5cce7438772ec98599a0985049bd847c77a6cb2ed46b3e1dcce"
+      "sha256": "sha256:4dcb3b773ea64a5db970b64686d089a014524ca038fc80a6690bd24a22c9edca"
     },
     {
       "bytes": 1811,
@@ -355,7 +355,7 @@
     {
       "bytes": 782,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/execution/input/materialization-receipt.json",
-      "sha256": "sha256:c9783138a53a35f43f3e123142c12a37e7623a1fe339b709cc67f77ca6aee447"
+      "sha256": "sha256:166f6b8a7d43d3bc0bf966fc71684f8daf1dda8a9d69f347158070edec556b06"
     },
     {
       "bytes": 1621,
@@ -373,19 +373,19 @@
       "sha256": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7"
     },
     {
-      "bytes": 4630,
+      "bytes": 5204,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/execution/input/run.json",
-      "sha256": "sha256:258d69f0579d8c2b08a1fd593668883bdc3ada6e05c03221b8a9456d2ec9f963"
+      "sha256": "sha256:fa68d30931b45ee5164d7c4cea68f063d55b60727f9059c74f1fedfa0f652776"
     },
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/execution/launchability.json",
-      "sha256": "sha256:603363b6ee7bb8e07ff467c4a333f806566aa2df6a57e308f532ee0f242fd8f5"
+      "sha256": "sha256:694c57d3e541ffeaa842b94d766353b77a306170cd6e6098e3f9815761ce48b2"
     },
     {
       "bytes": 1171,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/execution/offline-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:9458041d7478a5558d8f86edfa58e46acdf73c5f8a64d28c5fe12c5e22dd37eb"
+      "sha256": "sha256:a47c0d850c93ad93d73ef19e6890241793612473391a065e637e6a3396264687"
     },
     {
       "bytes": 569,
@@ -410,17 +410,17 @@
     {
       "bytes": 5407,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/execution/qualification-receipt.json",
-      "sha256": "sha256:6bf0da5af680cf3985942607ef65e5a213bdccd63e77fd4d644fe4883697073f"
+      "sha256": "sha256:bd6cccee33582785ab356834b64ca9b4b80caabb05b26c432c16aa7ca5ea823f"
     },
     {
       "bytes": 2034,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/fixture/capture-manifest.json",
-      "sha256": "sha256:5758cc4e30a5993e1d0819fa3a63063ee39073111d43d9062fcc85a66fb1516c"
+      "sha256": "sha256:ce7269295a0ba67078f60801db90addea28e3d8c93a13f70308cd0c1360865e3"
     },
     {
       "bytes": 1124,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/fixture/evidence/launch.json",
-      "sha256": "sha256:aa22b5a9292dfb3fe250b5f2f7c5a85a275029f465c7aa7297bebbd7f56bfd53"
+      "sha256": "sha256:80a0a3d31b9a72e03eced769f94ed68f0eb81d7faa52516aee645f4d78193545"
     },
     {
       "bytes": 2447,
@@ -445,12 +445,12 @@
     {
       "bytes": 1189,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/fixture/evidence/teardown.json",
-      "sha256": "sha256:4641ed2bf61d257ebdbb9f9598be146ceddc6109bf1468b68e1c4610254179d2"
+      "sha256": "sha256:011a3b2d2f5b82e1571dddac980c69d506a9a462461594bf758e33b3df68d950"
     },
     {
       "bytes": 2659,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/fixture/evidence/terminal-receipt.json",
-      "sha256": "sha256:98b504cf969435852434952b403aad58ba9504fdbbe7505e00392a3f694b26c6"
+      "sha256": "sha256:c8f19f8cdd5b8b39a2553b588cc377795ca2f7a96c78064f7386a999c0a1e5d0"
     },
     {
       "bytes": 883,
@@ -470,12 +470,12 @@
     {
       "bytes": 1639,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/fixture/permit/neutral-qualification-01.permit.consumed.json",
-      "sha256": "sha256:2c96f29f2f5b8e6306a6a4bd34c22223ffa5871d833790970fce15f880e52b65"
+      "sha256": "sha256:dde81a85337d452e141fd5dfd85cfc336e27ce9f3d0c522428f64356d6711ed1"
     },
     {
       "bytes": 1617,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/fixture/permit/neutral-qualification-01.permit.template.json",
-      "sha256": "sha256:1c9f72d9599e0926d1514abf4e9f88ad8045746af2847aca5c7f0b9575476644"
+      "sha256": "sha256:6d797b482fd5783ff7db88695488d1757f8de743f2c54b7e623275e27a40f8c0"
     },
     {
       "bytes": 2229,
@@ -495,7 +495,7 @@
     {
       "bytes": 1667,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/permit/anthropic-diag-2f719af4c655ef77.permit.json",
-      "sha256": "sha256:dbdd0b790e3c4151bdc6df3125946b72e2e1869f87f5d4f1cbd5eb1fd04e9cf0"
+      "sha256": "sha256:0494aa86eb305fffc7d925f39a63ecae6e22ef887d208c548e069b47954fbe4d"
     },
     {
       "bytes": 231,
@@ -505,17 +505,17 @@
     {
       "bytes": 7557,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/qualification.json",
-      "sha256": "sha256:ac28b6d8a762fc53aa8bb16c2e4e06fc2a47e195ea0ec083564daba24100924d"
+      "sha256": "sha256:abf1abc4f5d5e5ccc5c94cd998220cd7a7ab3490b0cd765cd5655cc45dcfde15"
     },
     {
-      "bytes": 10321920,
+      "bytes": 10383360,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/a.oci.tar",
-      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
+      "sha256": "sha256:779b51ed33cacbb2df756a0068c26f2b05fb4b8823f4b4bd04e1fd825374f5eb"
     },
     {
-      "bytes": 10321920,
+      "bytes": 10383360,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/b.oci.tar",
-      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
+      "sha256": "sha256:779b51ed33cacbb2df756a0068c26f2b05fb4b8823f4b4bd04e1fd825374f5eb"
     },
     {
       "bytes": 477,
@@ -525,22 +525,22 @@
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/independent-a.json",
-      "sha256": "sha256:f85e2e45ac2df889064736f22fbc3f92dc4fcee094822e6b4aa488b3197595e3"
+      "sha256": "sha256:4889510267bf916047be056224443e8ba066a54a6b2636206a1ed9e0fba0c4ca"
     },
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/independent-b.json",
-      "sha256": "sha256:cddf2b64d9b081216bbf3f29b0acfced9d9cd961fa4766a96d041ecc7eef0c11"
+      "sha256": "sha256:27a972e926564ac3d5d4be71ad853129c59e70086804a82815bc4831aadbcdaf"
     },
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/launchability.json",
-      "sha256": "sha256:a180d19a49287c6271fc7aea61da8f041aaf3c0e3db4a9e309559f84dc4c2ff8"
+      "sha256": "sha256:2ec169cafa34959cb0e8457530a0afee80c3647b47431e24469a5f1311a3f9a3"
     },
     {
       "bytes": 1186,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/preflight-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:f558beec700c9339c0fd7f1ffdc5a81ab1334d6eb15e4e99b56a20c1b26d79c9"
+      "sha256": "sha256:5464cd11e3c1300eae021325363a138e4af796cac23efa7d8d1db5bd418926fe"
     },
     {
       "bytes": 568,
@@ -560,7 +560,7 @@
     {
       "bytes": 781,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/preflight-input/materialization-receipt.json",
-      "sha256": "sha256:328dace8aee7d4cea3c2532e4e0012b01ad07b73ca6ce9b528d774fa62306028"
+      "sha256": "sha256:54b7114d81fe8f09c90a548065c23cc80bb9d31a1086341e446dd0d67df82628"
     },
     {
       "bytes": 657,
@@ -573,9 +573,9 @@
       "sha256": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7"
     },
     {
-      "bytes": 3232,
+      "bytes": 3806,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/preflight-input/run.json",
-      "sha256": "sha256:ab8b5541536e3c5c88df7783150973cee1d3ba7dd75ebd79efa389973e2813bd"
+      "sha256": "sha256:b0c51e41b6d519aa7ef1ffc44a2c50f3ef3f83e42e72112ec518a7f055c10fe5"
     },
     {
       "bytes": 59,
@@ -590,7 +590,7 @@
     {
       "bytes": 2052,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/source-manifest.json",
-      "sha256": "sha256:fb4a4b70407c6a3c856265a029b8ff0dee74cbb11c83213a65bb18e0d454291c"
+      "sha256": "sha256:44373c92216046cf8c6c09eac6cbfa331e47349f47ba22df48096fcf76987715"
     },
     {
       "bytes": 433,
@@ -605,12 +605,12 @@
     {
       "bytes": 5767294,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/source/bridge",
-      "sha256": "sha256:f5d60e7eca4fbf2e511f101514febf457919dc521e75ef749bae985911475bdb"
+      "sha256": "sha256:9c159b013640fbc9676eae828233f06b198d3afbfe564a01012c921fddf711de"
     },
     {
-      "bytes": 34830,
+      "bytes": 36475,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/source/cmd/bridge/main.go",
-      "sha256": "sha256:6ba3e14df83e00e0f550b33051df47fb1fc34635979f6d12f9ceee5c3d84a8de"
+      "sha256": "sha256:4261847ed51a35dc5a409a896b476f324145586994acc5d22cee108917d9dc20"
     },
     {
       "bytes": 11968,
@@ -628,14 +628,14 @@
       "sha256": "sha256:92779b1c6d6a7154d7f183403bb87fa65682677549927d5e5f2758955dd2073a"
     },
     {
-      "bytes": 43821,
+      "bytes": 51248,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/source/main.go",
-      "sha256": "sha256:7e3dcd1f2eddd202c4f29d4f8c4eaa788bd7c4c9da83213094728ac5d273161f"
+      "sha256": "sha256:4990a00d636dc999cb85ae0668b0f1045a9252fd4d57c10cfe2298c64bd651f2"
     },
     {
-      "bytes": 14067,
+      "bytes": 14263,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/source/main_test.go",
-      "sha256": "sha256:75320d34e2e148d28f04b7b951c3fe26c96f4edfe6bf1215c58395bff92ad6a8"
+      "sha256": "sha256:d7be79f18f5c24d7ac67bb7d4b5fbdfe7d11437fbdb82228c12e6b8f0c061d50"
     },
     {
       "bytes": 1900670,
@@ -648,9 +648,9 @@
       "sha256": "sha256:9629b9a7467eda0a3991a718f3b652c9b90dd8d0ea049da31f19510510a4857c"
     },
     {
-      "bytes": 2293886,
+      "bytes": 2359422,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/runtime/source/runner",
-      "sha256": "sha256:b0163f2d02e1102013b2c6fb63d97b983f80ba9ce6c457e752e26fb8540da0fe"
+      "sha256": "sha256:fded48fc1d556d6b8d12aa1bf9b3233dc3a0872050a7b60f1cea22d6f897eede"
     },
     {
       "bytes": 333483,
@@ -725,7 +725,7 @@
     {
       "bytes": 1123,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/config/compatibility.json",
-      "sha256": "sha256:5cec0c5c8201b926df3e5ce120b2c9ec0efabbdbdd333492857efbceab6ded26"
+      "sha256": "sha256:8959cb9d9cd15aefe54fb0761b44ac060e67c3886360dc2d7de12914ff6f36a0"
     },
     {
       "bytes": 1811,
@@ -735,7 +735,7 @@
     {
       "bytes": 782,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/execution/input/materialization-receipt.json",
-      "sha256": "sha256:181168ecc00d9c5b0c8299693d6c1827f1775a4e247ce956c18861d38f396ab0"
+      "sha256": "sha256:1701e52f70476fd15bbf599298cb6ec73c0521e1d5fa0f4a6e7bae302ef8e840"
     },
     {
       "bytes": 1128,
@@ -753,19 +753,19 @@
       "sha256": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7"
     },
     {
-      "bytes": 4630,
+      "bytes": 5204,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/execution/input/run.json",
-      "sha256": "sha256:fe98a83c4707c0432e79dd9b098f982c93b02d9bba2ba45a6ec710c4513624f0"
+      "sha256": "sha256:70ed03073ef860e0934a1796721a73417bc7dcdef33625b7db1bfb12eace9a51"
     },
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/execution/launchability.json",
-      "sha256": "sha256:ddb1523a50c7064c06f3a31676a4d45d01b5a9a3308e9d13215986c812740aa0"
+      "sha256": "sha256:8e9fbbcad474608d267ebfb7b8b2af5ab36de9f5b27faab3d08901e837457aa8"
     },
     {
       "bytes": 1171,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/execution/offline-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:60504548ff1ab607b68aa859fc4b54c3396e062273d0e61c8ca2b1850286a44a"
+      "sha256": "sha256:ba4578d7ada8f5ea44113b30b7468abb249f62c74aa167c5a4e0768e509a39fe"
     },
     {
       "bytes": 569,
@@ -790,17 +790,17 @@
     {
       "bytes": 5407,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/execution/qualification-receipt.json",
-      "sha256": "sha256:e623c3f9489ffb8ecae02acbf06799e11074bbd0ab8c1ca4cb527a15388c59c6"
+      "sha256": "sha256:29ba9cb8f78dae041438e9cd4e9299819f0044d0dce14304b379f6a5cd945dd5"
     },
     {
       "bytes": 2035,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/fixture/capture-manifest.json",
-      "sha256": "sha256:b45a508e96dc0584df9feb9102c616cf5bdb0cb8381529599e7ddb2a02ede5a9"
+      "sha256": "sha256:81db5284c099dc615abf09452b573adc4534060bc100ffef01ba69c599eecba2"
     },
     {
       "bytes": 1124,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/fixture/evidence/launch.json",
-      "sha256": "sha256:a299de3eac0a85eb0613a94c3ba68a7c2ba04a8ed2c2780e46602656e3f61bb7"
+      "sha256": "sha256:7ac581a4f91cac83a58b1b4dc321e6fb13d48cac4d50115136551c9fcd97ab92"
     },
     {
       "bytes": 2448,
@@ -825,12 +825,12 @@
     {
       "bytes": 1189,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/fixture/evidence/teardown.json",
-      "sha256": "sha256:f0b10996d6304f7f3002ae7e40a7d36bc20460cb503fb29b0541162db55a8089"
+      "sha256": "sha256:419d19f0602b13f2bada346c033401cfd85b9a5d7fe51bdc3463f12dde7cddbc"
     },
     {
       "bytes": 2659,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/fixture/evidence/terminal-receipt.json",
-      "sha256": "sha256:579efa20b4ca3bba8b0b2ad0a58c23e7e1ebcab2617b615cee07bac5b4fe2bb5"
+      "sha256": "sha256:f6846ab4dbc15f7a969d2594651be61af3cd4481d3ca81b6c438c9c16e3126e5"
     },
     {
       "bytes": 884,
@@ -850,12 +850,12 @@
     {
       "bytes": 1639,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/fixture/permit/neutral-qualification-01.permit.consumed.json",
-      "sha256": "sha256:1b61ae9213e257aca1532a76233f93bc10eda877371b64bf9b001fd5b4fc9b89"
+      "sha256": "sha256:f4af85e2d84e009d6adcb1bfdb30a41a618ebb6463a141b7d8b3efce2cdba759"
     },
     {
       "bytes": 1617,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/fixture/permit/neutral-qualification-01.permit.template.json",
-      "sha256": "sha256:e72edffcbed7f05ca7e14c780272b714437dc0ebf3736078d0d74c572c053e74"
+      "sha256": "sha256:a66dd57b7a1cc0dad359ec4474c2c94ada0070b7268f13cc7d7439ec81cd0105"
     },
     {
       "bytes": 2229,
@@ -875,7 +875,7 @@
     {
       "bytes": 1667,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/permit/anthropic-diag-395839ae5418ff4d.permit.json",
-      "sha256": "sha256:d8bfcd04ba4ab78ac7cd9e86146d43282c7e3683a39f9cb37f634045dddd73cc"
+      "sha256": "sha256:f82b7d5b30892050350d1083ab90d6be8ddbeaeef3cda965a6c20b4ba444362a"
     },
     {
       "bytes": 231,
@@ -885,17 +885,17 @@
     {
       "bytes": 7557,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/qualification.json",
-      "sha256": "sha256:5e883f9280a27fe592e914aba8b762a7e88480ac039c0cb39e337a2639006144"
+      "sha256": "sha256:4309c4c2f4565dd9b0df372dc89cd57d9c59cb8ca910d0f35c081b9f95f8a3a1"
     },
     {
-      "bytes": 10321920,
+      "bytes": 10383360,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/a.oci.tar",
-      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
+      "sha256": "sha256:779b51ed33cacbb2df756a0068c26f2b05fb4b8823f4b4bd04e1fd825374f5eb"
     },
     {
-      "bytes": 10321920,
+      "bytes": 10383360,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/b.oci.tar",
-      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
+      "sha256": "sha256:779b51ed33cacbb2df756a0068c26f2b05fb4b8823f4b4bd04e1fd825374f5eb"
     },
     {
       "bytes": 477,
@@ -905,22 +905,22 @@
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/independent-a.json",
-      "sha256": "sha256:f85e2e45ac2df889064736f22fbc3f92dc4fcee094822e6b4aa488b3197595e3"
+      "sha256": "sha256:4889510267bf916047be056224443e8ba066a54a6b2636206a1ed9e0fba0c4ca"
     },
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/independent-b.json",
-      "sha256": "sha256:cddf2b64d9b081216bbf3f29b0acfced9d9cd961fa4766a96d041ecc7eef0c11"
+      "sha256": "sha256:27a972e926564ac3d5d4be71ad853129c59e70086804a82815bc4831aadbcdaf"
     },
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/launchability.json",
-      "sha256": "sha256:a180d19a49287c6271fc7aea61da8f041aaf3c0e3db4a9e309559f84dc4c2ff8"
+      "sha256": "sha256:2ec169cafa34959cb0e8457530a0afee80c3647b47431e24469a5f1311a3f9a3"
     },
     {
       "bytes": 1186,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/preflight-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:f558beec700c9339c0fd7f1ffdc5a81ab1334d6eb15e4e99b56a20c1b26d79c9"
+      "sha256": "sha256:5464cd11e3c1300eae021325363a138e4af796cac23efa7d8d1db5bd418926fe"
     },
     {
       "bytes": 568,
@@ -940,7 +940,7 @@
     {
       "bytes": 781,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/preflight-input/materialization-receipt.json",
-      "sha256": "sha256:328dace8aee7d4cea3c2532e4e0012b01ad07b73ca6ce9b528d774fa62306028"
+      "sha256": "sha256:54b7114d81fe8f09c90a548065c23cc80bb9d31a1086341e446dd0d67df82628"
     },
     {
       "bytes": 657,
@@ -953,9 +953,9 @@
       "sha256": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7"
     },
     {
-      "bytes": 3232,
+      "bytes": 3806,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/preflight-input/run.json",
-      "sha256": "sha256:ab8b5541536e3c5c88df7783150973cee1d3ba7dd75ebd79efa389973e2813bd"
+      "sha256": "sha256:b0c51e41b6d519aa7ef1ffc44a2c50f3ef3f83e42e72112ec518a7f055c10fe5"
     },
     {
       "bytes": 59,
@@ -970,7 +970,7 @@
     {
       "bytes": 2052,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/source-manifest.json",
-      "sha256": "sha256:fb4a4b70407c6a3c856265a029b8ff0dee74cbb11c83213a65bb18e0d454291c"
+      "sha256": "sha256:44373c92216046cf8c6c09eac6cbfa331e47349f47ba22df48096fcf76987715"
     },
     {
       "bytes": 433,
@@ -985,12 +985,12 @@
     {
       "bytes": 5767294,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/source/bridge",
-      "sha256": "sha256:f5d60e7eca4fbf2e511f101514febf457919dc521e75ef749bae985911475bdb"
+      "sha256": "sha256:9c159b013640fbc9676eae828233f06b198d3afbfe564a01012c921fddf711de"
     },
     {
-      "bytes": 34830,
+      "bytes": 36475,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/source/cmd/bridge/main.go",
-      "sha256": "sha256:6ba3e14df83e00e0f550b33051df47fb1fc34635979f6d12f9ceee5c3d84a8de"
+      "sha256": "sha256:4261847ed51a35dc5a409a896b476f324145586994acc5d22cee108917d9dc20"
     },
     {
       "bytes": 11968,
@@ -1008,14 +1008,14 @@
       "sha256": "sha256:92779b1c6d6a7154d7f183403bb87fa65682677549927d5e5f2758955dd2073a"
     },
     {
-      "bytes": 43821,
+      "bytes": 51248,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/source/main.go",
-      "sha256": "sha256:7e3dcd1f2eddd202c4f29d4f8c4eaa788bd7c4c9da83213094728ac5d273161f"
+      "sha256": "sha256:4990a00d636dc999cb85ae0668b0f1045a9252fd4d57c10cfe2298c64bd651f2"
     },
     {
-      "bytes": 14067,
+      "bytes": 14263,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/source/main_test.go",
-      "sha256": "sha256:75320d34e2e148d28f04b7b951c3fe26c96f4edfe6bf1215c58395bff92ad6a8"
+      "sha256": "sha256:d7be79f18f5c24d7ac67bb7d4b5fbdfe7d11437fbdb82228c12e6b8f0c061d50"
     },
     {
       "bytes": 1900670,
@@ -1028,9 +1028,9 @@
       "sha256": "sha256:9629b9a7467eda0a3991a718f3b652c9b90dd8d0ea049da31f19510510a4857c"
     },
     {
-      "bytes": 2293886,
+      "bytes": 2359422,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/runtime/source/runner",
-      "sha256": "sha256:b0163f2d02e1102013b2c6fb63d97b983f80ba9ce6c457e752e26fb8540da0fe"
+      "sha256": "sha256:fded48fc1d556d6b8d12aa1bf9b3233dc3a0872050a7b60f1cea22d6f897eede"
     },
     {
       "bytes": 333483,
@@ -1160,7 +1160,7 @@
     {
       "bytes": 1123,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/config/compatibility.json",
-      "sha256": "sha256:9db7eec722f8ad1e10c12608410cf8d2ba529c603be8559843920fdedbbd8e8d"
+      "sha256": "sha256:c6e367b8414527bd09d23a1842b1cdabdeccc76faf14e0ae78384ff4f716795e"
     },
     {
       "bytes": 1811,
@@ -1170,7 +1170,7 @@
     {
       "bytes": 782,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/execution/input/materialization-receipt.json",
-      "sha256": "sha256:93331d6ff15180882dfa45ba427536e494879fba298bbf85cbbbbb6405ab0c65"
+      "sha256": "sha256:23b77c946b091742787a071d02fd15c0a29b2aee610d609cce81fb42d6fdb1b6"
     },
     {
       "bytes": 2567,
@@ -1188,19 +1188,19 @@
       "sha256": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7"
     },
     {
-      "bytes": 4630,
+      "bytes": 5204,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/execution/input/run.json",
-      "sha256": "sha256:63ebf3e447f2666809f8b47cbf6fd2cb39e2e41a113ffa862ab2d7d4024f2d9a"
+      "sha256": "sha256:43d325fba0371070553f9b8b968643310df92603701e846b62e790257ed2adfe"
     },
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/execution/launchability.json",
-      "sha256": "sha256:e53b53b69969cb3696951d781056576f896a069cce7d30a5431fcd470a20c49d"
+      "sha256": "sha256:bbf2adef095f78928749ffb2878d9b3e512b783da776829c9f3e7b408173f0d7"
     },
     {
       "bytes": 1171,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/execution/offline-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:9533217e1d9b28166148cda73353f8e895ef740954173f20b3dfbef498e9daf9"
+      "sha256": "sha256:3ef567c19f9bc5b36aecd1d463532e4542957d6555fd5c2fc60c09eac79ab95c"
     },
     {
       "bytes": 569,
@@ -1225,17 +1225,17 @@
     {
       "bytes": 5407,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/execution/qualification-receipt.json",
-      "sha256": "sha256:b0e65438dca1f802efc6d5e4b7fd9df5b9bb36553f4b3d1e28771aa318c3ac0a"
+      "sha256": "sha256:06bd8d54d8e924b74a6e80dc62daed9c3553ffee9cccc52aecfeadf589881e96"
     },
     {
       "bytes": 2035,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/fixture/capture-manifest.json",
-      "sha256": "sha256:2239d2dfe63708e3fd421df5eefdfd2346b97d077e2d49efab7dbbeed2dbc5f7"
+      "sha256": "sha256:4cc99abe56d24ab54ac3baf7ab40a5c8c0e5fe8c67ac549bff4cb49448af38bf"
     },
     {
       "bytes": 1124,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/fixture/evidence/launch.json",
-      "sha256": "sha256:62ad834e6bd1ae71da02122fc5bcff1b3c7872c9c5b66ae6c06bcfeeb6bfc6a8"
+      "sha256": "sha256:79e7ee0751dc5ca1f134200b8f4454b63f12420fced6a82a1c39677772c60929"
     },
     {
       "bytes": 2448,
@@ -1260,12 +1260,12 @@
     {
       "bytes": 1189,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/fixture/evidence/teardown.json",
-      "sha256": "sha256:087e1a0ace83268f1dafa71a57441de076929cd3a1df6eedee4bcc98db515e97"
+      "sha256": "sha256:ea028884694fffd1e6792f328b3dc41b4eb75d13b190e5ac2565989cc36a7d30"
     },
     {
       "bytes": 2659,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/fixture/evidence/terminal-receipt.json",
-      "sha256": "sha256:078051db870e37314fbc3c0f067833cb8d482c8595106b4beaca74572fbc84ce"
+      "sha256": "sha256:66db91e39bdcdd3ea1da9e00d5a5a0fd317ab658cf5912e5c85a935e3c61b5b4"
     },
     {
       "bytes": 884,
@@ -1285,12 +1285,12 @@
     {
       "bytes": 1639,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/fixture/permit/neutral-qualification-01.permit.consumed.json",
-      "sha256": "sha256:b00dd22bf223ba69079859b5275abaabedba4ec3a39f10979f8e7c9b6a9ed0d1"
+      "sha256": "sha256:699c0945dee2af9552657b6d3868b35e2071ed83f8a6f2e67281eeae71c3ba9b"
     },
     {
       "bytes": 1617,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/fixture/permit/neutral-qualification-01.permit.template.json",
-      "sha256": "sha256:f36bf893680fddeb68bcbb39c35a42f3dd7327a939cf9bf6c66106bad2aaabfd"
+      "sha256": "sha256:50021601b5a01ab53b3a4d343485a86709a681e4920b5956634853f2775961e1"
     },
     {
       "bytes": 2229,
@@ -1310,7 +1310,7 @@
     {
       "bytes": 1667,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/permit/anthropic-diag-563bdd90a8c7df7a.permit.json",
-      "sha256": "sha256:349995dcb665d517d8f4c3cfe9ddc8abd82a6641b63659e2582345adf379d7bf"
+      "sha256": "sha256:2d175e3415bdb67d93cfb70ce1da8994823dd20cd38ec702a071809182a63237"
     },
     {
       "bytes": 231,
@@ -1320,17 +1320,17 @@
     {
       "bytes": 7557,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/qualification.json",
-      "sha256": "sha256:c4716b0c9819979861533f060a673ed99343ec6a6c218b039e0f49ccac4560e7"
+      "sha256": "sha256:4ba97a2602c7e054b8bc98b322de5ea344716e90b4137f1fb3ac536274c39aa7"
     },
     {
-      "bytes": 10321920,
+      "bytes": 10383360,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/a.oci.tar",
-      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
+      "sha256": "sha256:779b51ed33cacbb2df756a0068c26f2b05fb4b8823f4b4bd04e1fd825374f5eb"
     },
     {
-      "bytes": 10321920,
+      "bytes": 10383360,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/b.oci.tar",
-      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
+      "sha256": "sha256:779b51ed33cacbb2df756a0068c26f2b05fb4b8823f4b4bd04e1fd825374f5eb"
     },
     {
       "bytes": 477,
@@ -1340,22 +1340,22 @@
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/independent-a.json",
-      "sha256": "sha256:f85e2e45ac2df889064736f22fbc3f92dc4fcee094822e6b4aa488b3197595e3"
+      "sha256": "sha256:4889510267bf916047be056224443e8ba066a54a6b2636206a1ed9e0fba0c4ca"
     },
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/independent-b.json",
-      "sha256": "sha256:cddf2b64d9b081216bbf3f29b0acfced9d9cd961fa4766a96d041ecc7eef0c11"
+      "sha256": "sha256:27a972e926564ac3d5d4be71ad853129c59e70086804a82815bc4831aadbcdaf"
     },
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/launchability.json",
-      "sha256": "sha256:a180d19a49287c6271fc7aea61da8f041aaf3c0e3db4a9e309559f84dc4c2ff8"
+      "sha256": "sha256:2ec169cafa34959cb0e8457530a0afee80c3647b47431e24469a5f1311a3f9a3"
     },
     {
       "bytes": 1186,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/preflight-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:f558beec700c9339c0fd7f1ffdc5a81ab1334d6eb15e4e99b56a20c1b26d79c9"
+      "sha256": "sha256:5464cd11e3c1300eae021325363a138e4af796cac23efa7d8d1db5bd418926fe"
     },
     {
       "bytes": 568,
@@ -1375,7 +1375,7 @@
     {
       "bytes": 781,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/preflight-input/materialization-receipt.json",
-      "sha256": "sha256:328dace8aee7d4cea3c2532e4e0012b01ad07b73ca6ce9b528d774fa62306028"
+      "sha256": "sha256:54b7114d81fe8f09c90a548065c23cc80bb9d31a1086341e446dd0d67df82628"
     },
     {
       "bytes": 657,
@@ -1388,9 +1388,9 @@
       "sha256": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7"
     },
     {
-      "bytes": 3232,
+      "bytes": 3806,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/preflight-input/run.json",
-      "sha256": "sha256:ab8b5541536e3c5c88df7783150973cee1d3ba7dd75ebd79efa389973e2813bd"
+      "sha256": "sha256:b0c51e41b6d519aa7ef1ffc44a2c50f3ef3f83e42e72112ec518a7f055c10fe5"
     },
     {
       "bytes": 59,
@@ -1405,7 +1405,7 @@
     {
       "bytes": 2052,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/source-manifest.json",
-      "sha256": "sha256:fb4a4b70407c6a3c856265a029b8ff0dee74cbb11c83213a65bb18e0d454291c"
+      "sha256": "sha256:44373c92216046cf8c6c09eac6cbfa331e47349f47ba22df48096fcf76987715"
     },
     {
       "bytes": 433,
@@ -1420,12 +1420,12 @@
     {
       "bytes": 5767294,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/source/bridge",
-      "sha256": "sha256:f5d60e7eca4fbf2e511f101514febf457919dc521e75ef749bae985911475bdb"
+      "sha256": "sha256:9c159b013640fbc9676eae828233f06b198d3afbfe564a01012c921fddf711de"
     },
     {
-      "bytes": 34830,
+      "bytes": 36475,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/source/cmd/bridge/main.go",
-      "sha256": "sha256:6ba3e14df83e00e0f550b33051df47fb1fc34635979f6d12f9ceee5c3d84a8de"
+      "sha256": "sha256:4261847ed51a35dc5a409a896b476f324145586994acc5d22cee108917d9dc20"
     },
     {
       "bytes": 11968,
@@ -1443,14 +1443,14 @@
       "sha256": "sha256:92779b1c6d6a7154d7f183403bb87fa65682677549927d5e5f2758955dd2073a"
     },
     {
-      "bytes": 43821,
+      "bytes": 51248,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/source/main.go",
-      "sha256": "sha256:7e3dcd1f2eddd202c4f29d4f8c4eaa788bd7c4c9da83213094728ac5d273161f"
+      "sha256": "sha256:4990a00d636dc999cb85ae0668b0f1045a9252fd4d57c10cfe2298c64bd651f2"
     },
     {
-      "bytes": 14067,
+      "bytes": 14263,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/source/main_test.go",
-      "sha256": "sha256:75320d34e2e148d28f04b7b951c3fe26c96f4edfe6bf1215c58395bff92ad6a8"
+      "sha256": "sha256:d7be79f18f5c24d7ac67bb7d4b5fbdfe7d11437fbdb82228c12e6b8f0c061d50"
     },
     {
       "bytes": 1900670,
@@ -1463,9 +1463,9 @@
       "sha256": "sha256:9629b9a7467eda0a3991a718f3b652c9b90dd8d0ea049da31f19510510a4857c"
     },
     {
-      "bytes": 2293886,
+      "bytes": 2359422,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/runtime/source/runner",
-      "sha256": "sha256:b0163f2d02e1102013b2c6fb63d97b983f80ba9ce6c457e752e26fb8540da0fe"
+      "sha256": "sha256:fded48fc1d556d6b8d12aa1bf9b3233dc3a0872050a7b60f1cea22d6f897eede"
     },
     {
       "bytes": 333483,
@@ -1670,7 +1670,7 @@
     {
       "bytes": 1123,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/config/compatibility.json",
-      "sha256": "sha256:9c5bc98883b140fce64f807683dfbf8a14b47048ffdf9158e41657c4b65b77b8"
+      "sha256": "sha256:25f70939a7b6ca7a226aecec48123056107b51aec8d27ff2af7cc8be48e68ff0"
     },
     {
       "bytes": 1811,
@@ -1680,7 +1680,7 @@
     {
       "bytes": 782,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/execution/input/materialization-receipt.json",
-      "sha256": "sha256:d243f1bb71ba1230e3314b9853c50845719719a41111b0324eda9901122223b7"
+      "sha256": "sha256:ff3657a1d953808f3c66daaf7a4f9b80806404158c4bd8722c3ed268e4e4df12"
     },
     {
       "bytes": 2052,
@@ -1698,19 +1698,19 @@
       "sha256": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7"
     },
     {
-      "bytes": 4674,
+      "bytes": 5248,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/execution/input/run.json",
-      "sha256": "sha256:b94499ff1f9181828e80740c4e9a6275f31a417f8eaf1d38bd31c142181be4e6"
+      "sha256": "sha256:6daf6c91cfeae8288743bccad919d7636ef83cce17e75958254558fb88d51c3f"
     },
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/execution/launchability.json",
-      "sha256": "sha256:7417c04e2c1a8de6cc1b9de9602332241973f8b533565c08eacda38efa7450de"
+      "sha256": "sha256:433cae9c6849355b6672ee701901e490a4e32195f9ab81f3f7ea55cd5a0e652c"
     },
     {
       "bytes": 1171,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/execution/offline-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:afae1108e4fc6540f69651787135a5545119972038f94b65fe9687e8d7a2ad8f"
+      "sha256": "sha256:3d2ab5110ebbd8e76fdd17f7b67ca7cd90444d7ce5f5f0e7d0aa2ae81199838b"
     },
     {
       "bytes": 569,
@@ -1735,17 +1735,17 @@
     {
       "bytes": 5420,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/execution/qualification-receipt.json",
-      "sha256": "sha256:4174f18d23a3e2c6224a8e4224b5c427af0d9db509613c224a59d2096a5e02fd"
+      "sha256": "sha256:78d7be097a241c2cf5f3ce5e06f34f7b1a127be0c69be7b54b49a431856089a8"
     },
     {
       "bytes": 2034,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/fixture/capture-manifest.json",
-      "sha256": "sha256:2c98dc7d470621a267527c3fb01f6b5332e9ad55bcade9069060365abc5174d0"
+      "sha256": "sha256:7420ed788e94379a83989492a744d4914630b5bc81fbdf12e8001f01246da362"
     },
     {
       "bytes": 1124,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/fixture/evidence/launch.json",
-      "sha256": "sha256:397c4ebdcc41bb34d849a3c6cf61e30127050d601271a5e135a274e8657dba76"
+      "sha256": "sha256:ce9cf5a6b0c4a6cd573e3c2445f6e2500564f74ae483a5aa5aaa62198e89d68b"
     },
     {
       "bytes": 2447,
@@ -1770,12 +1770,12 @@
     {
       "bytes": 1189,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/fixture/evidence/teardown.json",
-      "sha256": "sha256:d6fa2b2acef1211ccb2a7fca9195277dc3f74c8d10ecbf0eb7cd804b5497372f"
+      "sha256": "sha256:d8e2ffcb285e4ed6191e9b9e521aad360c5f387b1a15e73c81e3e3807bc52fbb"
     },
     {
       "bytes": 2659,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/fixture/evidence/terminal-receipt.json",
-      "sha256": "sha256:bcbc9d5dd08904e1c1e5583f63d28eef4c2271d8f6ee79aa92b37be899303393"
+      "sha256": "sha256:61297d8126f49a1234639a52fb6f313382b9af8ac582ffefdb25a5fc66c67fab"
     },
     {
       "bytes": 883,
@@ -1795,12 +1795,12 @@
     {
       "bytes": 1639,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/fixture/permit/neutral-qualification-01.permit.consumed.json",
-      "sha256": "sha256:724e72c00b7c2718d8743caba05b8801477d814d49ec04b4e76e55221a3b706d"
+      "sha256": "sha256:9e709c192087f4cd901a5e860588f3ee30065788a2d652e73f9df00e31235c99"
     },
     {
       "bytes": 1617,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/fixture/permit/neutral-qualification-01.permit.template.json",
-      "sha256": "sha256:e809a90ead42646a6ffe19ec15f90666b3590f2adbad8345b189c67121ee500d"
+      "sha256": "sha256:8628dfa3ae131d1bf1a0e6c02e120eb3bb6cdb7b9d3bbe81fadec402cf38fe84"
     },
     {
       "bytes": 2229,
@@ -1820,7 +1820,7 @@
     {
       "bytes": 1680,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/permit/anthropic-diag-6cccc41b01c2e998.permit.json",
-      "sha256": "sha256:fe9753e3ef28e0d893cbc6e34da9eabbc50cf78b0fb48268a269e88ca0f4c864"
+      "sha256": "sha256:3fc4788b4498fa0479bfd6e2b2794a36f4096ee3e0fd77a153da9e34ae0b43a4"
     },
     {
       "bytes": 231,
@@ -1830,17 +1830,17 @@
     {
       "bytes": 7570,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/qualification.json",
-      "sha256": "sha256:f5b0e27d14539be1cfdc2379f5410ad2c10ce4945441068455dc3727bcce2793"
+      "sha256": "sha256:6e0883d3357a00f45e58f134aaea66bc83256ab13a4ceb79bed5802c9a9a7eac"
     },
     {
-      "bytes": 10321920,
+      "bytes": 10383360,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/a.oci.tar",
-      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
+      "sha256": "sha256:779b51ed33cacbb2df756a0068c26f2b05fb4b8823f4b4bd04e1fd825374f5eb"
     },
     {
-      "bytes": 10321920,
+      "bytes": 10383360,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/b.oci.tar",
-      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
+      "sha256": "sha256:779b51ed33cacbb2df756a0068c26f2b05fb4b8823f4b4bd04e1fd825374f5eb"
     },
     {
       "bytes": 477,
@@ -1850,22 +1850,22 @@
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/independent-a.json",
-      "sha256": "sha256:f85e2e45ac2df889064736f22fbc3f92dc4fcee094822e6b4aa488b3197595e3"
+      "sha256": "sha256:4889510267bf916047be056224443e8ba066a54a6b2636206a1ed9e0fba0c4ca"
     },
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/independent-b.json",
-      "sha256": "sha256:cddf2b64d9b081216bbf3f29b0acfced9d9cd961fa4766a96d041ecc7eef0c11"
+      "sha256": "sha256:27a972e926564ac3d5d4be71ad853129c59e70086804a82815bc4831aadbcdaf"
     },
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/launchability.json",
-      "sha256": "sha256:a180d19a49287c6271fc7aea61da8f041aaf3c0e3db4a9e309559f84dc4c2ff8"
+      "sha256": "sha256:2ec169cafa34959cb0e8457530a0afee80c3647b47431e24469a5f1311a3f9a3"
     },
     {
       "bytes": 1186,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/preflight-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:f558beec700c9339c0fd7f1ffdc5a81ab1334d6eb15e4e99b56a20c1b26d79c9"
+      "sha256": "sha256:5464cd11e3c1300eae021325363a138e4af796cac23efa7d8d1db5bd418926fe"
     },
     {
       "bytes": 568,
@@ -1885,7 +1885,7 @@
     {
       "bytes": 781,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/preflight-input/materialization-receipt.json",
-      "sha256": "sha256:328dace8aee7d4cea3c2532e4e0012b01ad07b73ca6ce9b528d774fa62306028"
+      "sha256": "sha256:54b7114d81fe8f09c90a548065c23cc80bb9d31a1086341e446dd0d67df82628"
     },
     {
       "bytes": 657,
@@ -1898,9 +1898,9 @@
       "sha256": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7"
     },
     {
-      "bytes": 3232,
+      "bytes": 3806,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/preflight-input/run.json",
-      "sha256": "sha256:ab8b5541536e3c5c88df7783150973cee1d3ba7dd75ebd79efa389973e2813bd"
+      "sha256": "sha256:b0c51e41b6d519aa7ef1ffc44a2c50f3ef3f83e42e72112ec518a7f055c10fe5"
     },
     {
       "bytes": 59,
@@ -1915,7 +1915,7 @@
     {
       "bytes": 2052,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/source-manifest.json",
-      "sha256": "sha256:fb4a4b70407c6a3c856265a029b8ff0dee74cbb11c83213a65bb18e0d454291c"
+      "sha256": "sha256:44373c92216046cf8c6c09eac6cbfa331e47349f47ba22df48096fcf76987715"
     },
     {
       "bytes": 433,
@@ -1930,12 +1930,12 @@
     {
       "bytes": 5767294,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/source/bridge",
-      "sha256": "sha256:f5d60e7eca4fbf2e511f101514febf457919dc521e75ef749bae985911475bdb"
+      "sha256": "sha256:9c159b013640fbc9676eae828233f06b198d3afbfe564a01012c921fddf711de"
     },
     {
-      "bytes": 34830,
+      "bytes": 36475,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/source/cmd/bridge/main.go",
-      "sha256": "sha256:6ba3e14df83e00e0f550b33051df47fb1fc34635979f6d12f9ceee5c3d84a8de"
+      "sha256": "sha256:4261847ed51a35dc5a409a896b476f324145586994acc5d22cee108917d9dc20"
     },
     {
       "bytes": 11968,
@@ -1953,14 +1953,14 @@
       "sha256": "sha256:92779b1c6d6a7154d7f183403bb87fa65682677549927d5e5f2758955dd2073a"
     },
     {
-      "bytes": 43821,
+      "bytes": 51248,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/source/main.go",
-      "sha256": "sha256:7e3dcd1f2eddd202c4f29d4f8c4eaa788bd7c4c9da83213094728ac5d273161f"
+      "sha256": "sha256:4990a00d636dc999cb85ae0668b0f1045a9252fd4d57c10cfe2298c64bd651f2"
     },
     {
-      "bytes": 14067,
+      "bytes": 14263,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/source/main_test.go",
-      "sha256": "sha256:75320d34e2e148d28f04b7b951c3fe26c96f4edfe6bf1215c58395bff92ad6a8"
+      "sha256": "sha256:d7be79f18f5c24d7ac67bb7d4b5fbdfe7d11437fbdb82228c12e6b8f0c061d50"
     },
     {
       "bytes": 1900670,
@@ -1973,9 +1973,9 @@
       "sha256": "sha256:9629b9a7467eda0a3991a718f3b652c9b90dd8d0ea049da31f19510510a4857c"
     },
     {
-      "bytes": 2293886,
+      "bytes": 2359422,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/runtime/source/runner",
-      "sha256": "sha256:b0163f2d02e1102013b2c6fb63d97b983f80ba9ce6c457e752e26fb8540da0fe"
+      "sha256": "sha256:fded48fc1d556d6b8d12aa1bf9b3233dc3a0872050a7b60f1cea22d6f897eede"
     },
     {
       "bytes": 333483,
@@ -2065,7 +2065,7 @@
     {
       "bytes": 1123,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/config/compatibility.json",
-      "sha256": "sha256:899d33bdad7273c2512c50b3b2ca8b0a739250b1aa57f510af2ce747ac88ec2b"
+      "sha256": "sha256:43d98fff5a085ad136f1ef494fb569b772c36906d9b11ffa47bff10f43e3a39e"
     },
     {
       "bytes": 1811,
@@ -2075,7 +2075,7 @@
     {
       "bytes": 782,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/execution/input/materialization-receipt.json",
-      "sha256": "sha256:230fe27e3255a90c4f16ce128e04826adac5f2e870b919515d62bbd2e16e56ad"
+      "sha256": "sha256:e8324bb70a50710d66ce4bb6009b9c003e9dbf60aeecbc7eb476897517c21b46"
     },
     {
       "bytes": 3070,
@@ -2093,19 +2093,19 @@
       "sha256": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7"
     },
     {
-      "bytes": 4674,
+      "bytes": 5248,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/execution/input/run.json",
-      "sha256": "sha256:cda331a5af681701ad285e622db722ea58a320523592f003b05b4a73d4ed7cf2"
+      "sha256": "sha256:6cce085f574fdd002825095eff1a54ccbf10a84fa692fef2cd163b817b3694d7"
     },
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/execution/launchability.json",
-      "sha256": "sha256:148407e0e7a5fd005d41ad0f2ec44f38cfcd6270926d15cda0abc16a8562c122"
+      "sha256": "sha256:cd8e05a5a07f1895346583cd6b561ea4a9687bf159c0677bcced1b574ad90959"
     },
     {
       "bytes": 1171,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/execution/offline-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:50f4392626bef59cf107bbe773cccef4bee2526350e59c1de3653e2e13777071"
+      "sha256": "sha256:6885e270bddd8434cbac4a26f93a142831b7ac012de83edc67a430020fdc09dd"
     },
     {
       "bytes": 569,
@@ -2130,17 +2130,17 @@
     {
       "bytes": 5420,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/execution/qualification-receipt.json",
-      "sha256": "sha256:d7483135569f706777f477b4a86ff2f77f03017222af21e6b4f1c0eccb452bfd"
+      "sha256": "sha256:01bcbbf7bc64b11b0ef558eca04284f33acce47d1dd0a7edee8076cc805e33e5"
     },
     {
       "bytes": 2035,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/fixture/capture-manifest.json",
-      "sha256": "sha256:dfa88b452df752d1406db05f27618d54895432cc75eefa4e138d49d1d26b442c"
+      "sha256": "sha256:dc1d42f21e3da2c204299199a511848ea13e5e218e0b048372e929b73d650769"
     },
     {
       "bytes": 1124,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/fixture/evidence/launch.json",
-      "sha256": "sha256:f23ed819a6596ffba02577f353916e9db451bf5bfa2f663653140bc17534d77d"
+      "sha256": "sha256:300390daea042b9376c54b3768f28ceeab9296d01e9bf74a33863ddb2382015f"
     },
     {
       "bytes": 2448,
@@ -2165,12 +2165,12 @@
     {
       "bytes": 1189,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/fixture/evidence/teardown.json",
-      "sha256": "sha256:3c82cd8a8e0e0c6c3bbc7f0ad5100983a3a578f12eec415dee359dc8abc5ce73"
+      "sha256": "sha256:b54d8cf8d53bef22ad510aabd0b4d990d82b4b11e17520dd5156887ff753a555"
     },
     {
       "bytes": 2659,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/fixture/evidence/terminal-receipt.json",
-      "sha256": "sha256:3c86be72cb0ef55c7566b4bf1b876b31fc970cca65f3640f9cb3b0a7907aea00"
+      "sha256": "sha256:4564e1b7258a4d23b586f9e1af0f9ee6257d17e72fc69b0de2d381519eec146b"
     },
     {
       "bytes": 884,
@@ -2190,12 +2190,12 @@
     {
       "bytes": 1639,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/fixture/permit/neutral-qualification-01.permit.consumed.json",
-      "sha256": "sha256:a24192192774c669c0f8a14f733b3eb966d818f95f43bf5dbe1ba6e6efd068b2"
+      "sha256": "sha256:371a582b5f8c7a08ce615cf77b9bb02e2fe9f506f4c420de511362e8a0eac05c"
     },
     {
       "bytes": 1617,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/fixture/permit/neutral-qualification-01.permit.template.json",
-      "sha256": "sha256:5b2e321d70c16564911212f0877c9c1a3036a5cf22f400de13dd3e289ba49aca"
+      "sha256": "sha256:35d3e3985e662c2e80c69daf97b3ff2a29001d889879445986584fcb6af85c09"
     },
     {
       "bytes": 2229,
@@ -2215,7 +2215,7 @@
     {
       "bytes": 1680,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/permit/anthropic-diag-7981a902f25c4abe.permit.json",
-      "sha256": "sha256:82135898620f559070e4dac3c7c2ab73754b863975cacef05d3d6d95536f4f03"
+      "sha256": "sha256:ecb3279d6f030eafbb7b94f8d450408f34ceec1d1d1bbdce15be3d5daf6236c4"
     },
     {
       "bytes": 231,
@@ -2225,17 +2225,17 @@
     {
       "bytes": 7570,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/qualification.json",
-      "sha256": "sha256:844d87dcb765216b066b43367cd80de1a5f34e6c204c05426883fdc0f456e5b4"
+      "sha256": "sha256:dd8fc6f4cb44b0eccb02fde08c0062bee219e04349fa66519aa8c21d07da2bf7"
     },
     {
-      "bytes": 10321920,
+      "bytes": 10383360,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/a.oci.tar",
-      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
+      "sha256": "sha256:779b51ed33cacbb2df756a0068c26f2b05fb4b8823f4b4bd04e1fd825374f5eb"
     },
     {
-      "bytes": 10321920,
+      "bytes": 10383360,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/b.oci.tar",
-      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
+      "sha256": "sha256:779b51ed33cacbb2df756a0068c26f2b05fb4b8823f4b4bd04e1fd825374f5eb"
     },
     {
       "bytes": 477,
@@ -2245,22 +2245,22 @@
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/independent-a.json",
-      "sha256": "sha256:f85e2e45ac2df889064736f22fbc3f92dc4fcee094822e6b4aa488b3197595e3"
+      "sha256": "sha256:4889510267bf916047be056224443e8ba066a54a6b2636206a1ed9e0fba0c4ca"
     },
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/independent-b.json",
-      "sha256": "sha256:cddf2b64d9b081216bbf3f29b0acfced9d9cd961fa4766a96d041ecc7eef0c11"
+      "sha256": "sha256:27a972e926564ac3d5d4be71ad853129c59e70086804a82815bc4831aadbcdaf"
     },
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/launchability.json",
-      "sha256": "sha256:a180d19a49287c6271fc7aea61da8f041aaf3c0e3db4a9e309559f84dc4c2ff8"
+      "sha256": "sha256:2ec169cafa34959cb0e8457530a0afee80c3647b47431e24469a5f1311a3f9a3"
     },
     {
       "bytes": 1186,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/preflight-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:f558beec700c9339c0fd7f1ffdc5a81ab1334d6eb15e4e99b56a20c1b26d79c9"
+      "sha256": "sha256:5464cd11e3c1300eae021325363a138e4af796cac23efa7d8d1db5bd418926fe"
     },
     {
       "bytes": 568,
@@ -2280,7 +2280,7 @@
     {
       "bytes": 781,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/preflight-input/materialization-receipt.json",
-      "sha256": "sha256:328dace8aee7d4cea3c2532e4e0012b01ad07b73ca6ce9b528d774fa62306028"
+      "sha256": "sha256:54b7114d81fe8f09c90a548065c23cc80bb9d31a1086341e446dd0d67df82628"
     },
     {
       "bytes": 657,
@@ -2293,9 +2293,9 @@
       "sha256": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7"
     },
     {
-      "bytes": 3232,
+      "bytes": 3806,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/preflight-input/run.json",
-      "sha256": "sha256:ab8b5541536e3c5c88df7783150973cee1d3ba7dd75ebd79efa389973e2813bd"
+      "sha256": "sha256:b0c51e41b6d519aa7ef1ffc44a2c50f3ef3f83e42e72112ec518a7f055c10fe5"
     },
     {
       "bytes": 59,
@@ -2310,7 +2310,7 @@
     {
       "bytes": 2052,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/source-manifest.json",
-      "sha256": "sha256:fb4a4b70407c6a3c856265a029b8ff0dee74cbb11c83213a65bb18e0d454291c"
+      "sha256": "sha256:44373c92216046cf8c6c09eac6cbfa331e47349f47ba22df48096fcf76987715"
     },
     {
       "bytes": 433,
@@ -2325,12 +2325,12 @@
     {
       "bytes": 5767294,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/source/bridge",
-      "sha256": "sha256:f5d60e7eca4fbf2e511f101514febf457919dc521e75ef749bae985911475bdb"
+      "sha256": "sha256:9c159b013640fbc9676eae828233f06b198d3afbfe564a01012c921fddf711de"
     },
     {
-      "bytes": 34830,
+      "bytes": 36475,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/source/cmd/bridge/main.go",
-      "sha256": "sha256:6ba3e14df83e00e0f550b33051df47fb1fc34635979f6d12f9ceee5c3d84a8de"
+      "sha256": "sha256:4261847ed51a35dc5a409a896b476f324145586994acc5d22cee108917d9dc20"
     },
     {
       "bytes": 11968,
@@ -2348,14 +2348,14 @@
       "sha256": "sha256:92779b1c6d6a7154d7f183403bb87fa65682677549927d5e5f2758955dd2073a"
     },
     {
-      "bytes": 43821,
+      "bytes": 51248,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/source/main.go",
-      "sha256": "sha256:7e3dcd1f2eddd202c4f29d4f8c4eaa788bd7c4c9da83213094728ac5d273161f"
+      "sha256": "sha256:4990a00d636dc999cb85ae0668b0f1045a9252fd4d57c10cfe2298c64bd651f2"
     },
     {
-      "bytes": 14067,
+      "bytes": 14263,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/source/main_test.go",
-      "sha256": "sha256:75320d34e2e148d28f04b7b951c3fe26c96f4edfe6bf1215c58395bff92ad6a8"
+      "sha256": "sha256:d7be79f18f5c24d7ac67bb7d4b5fbdfe7d11437fbdb82228c12e6b8f0c061d50"
     },
     {
       "bytes": 1900670,
@@ -2368,9 +2368,9 @@
       "sha256": "sha256:9629b9a7467eda0a3991a718f3b652c9b90dd8d0ea049da31f19510510a4857c"
     },
     {
-      "bytes": 2293886,
+      "bytes": 2359422,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/runtime/source/runner",
-      "sha256": "sha256:b0163f2d02e1102013b2c6fb63d97b983f80ba9ce6c457e752e26fb8540da0fe"
+      "sha256": "sha256:fded48fc1d556d6b8d12aa1bf9b3233dc3a0872050a7b60f1cea22d6f897eede"
     },
     {
       "bytes": 333483,
@@ -2590,7 +2590,7 @@
     {
       "bytes": 1123,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/config/compatibility.json",
-      "sha256": "sha256:015f81cf0047e70da5d2deb54fa506a46c19871ac8bde80111b7bdac3554aaee"
+      "sha256": "sha256:f403c0d686d8c1ea9af701487aa68faf3188f3e2b872862f8a813e236b8c7691"
     },
     {
       "bytes": 1811,
@@ -2600,7 +2600,7 @@
     {
       "bytes": 782,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/execution/input/materialization-receipt.json",
-      "sha256": "sha256:62cbd90f84f388e66693352d7acfb123eb1700b63df2c065ea09db1740355bc0"
+      "sha256": "sha256:45ccc13ae68dff6f8b66c51f0e649a9c687ed06af6a76f52e4dd9d7b980640f0"
     },
     {
       "bytes": 1461,
@@ -2618,19 +2618,19 @@
       "sha256": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7"
     },
     {
-      "bytes": 4674,
+      "bytes": 5248,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/execution/input/run.json",
-      "sha256": "sha256:e1bc6b6747073c7b6fe00f6d237241380389cd6b8db0582064c0fd8cec5fb35b"
+      "sha256": "sha256:5f1e259bbd7e23f39bfbbf3a12fc7d3268d405369e9d9900029add6799d6750f"
     },
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/execution/launchability.json",
-      "sha256": "sha256:77567425c721d432d08deb5574bb9d10dea0a5c30037211ee8efd373da023b9b"
+      "sha256": "sha256:64b880b1f2bb4b0d2a5b2f64de119a1feddad005c894d1fc623a525ebc076543"
     },
     {
       "bytes": 1171,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/execution/offline-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:4e1eb199d3ddc4719392a188f4a26e3dcbd4b06be70958f8a6ebe29278312836"
+      "sha256": "sha256:754c3a4be0bbc6c7e70596f9a39623042ad6e85b75a4dd9010418508e1d7d0d5"
     },
     {
       "bytes": 569,
@@ -2655,17 +2655,17 @@
     {
       "bytes": 5420,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/execution/qualification-receipt.json",
-      "sha256": "sha256:3023d5eec831859a1111a3a16b040affcd8c0f2f8c7510fd256ee8057cd97345"
+      "sha256": "sha256:fda1ce4968a507b880242883c60808e578d9b7d8a46008596b8a8f7070dc303a"
     },
     {
       "bytes": 2035,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/fixture/capture-manifest.json",
-      "sha256": "sha256:592851759f5c7428e2464eeecedb77c5cdcbd7157ca9dcc906274778af6d6165"
+      "sha256": "sha256:2c9496c64ebf9c50a5cb385cb298b045e1fa4c991d15d8bff4802cb3fd2eb668"
     },
     {
       "bytes": 1124,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/fixture/evidence/launch.json",
-      "sha256": "sha256:73ab98e8c0f56bc8acddc5122bd0229249fb6ca3bfadbca2a29a59c677c8e1c7"
+      "sha256": "sha256:ac7794ea9438331c712c753b6f7b79be7e17593a5570cffc5cb97a5da705c021"
     },
     {
       "bytes": 2448,
@@ -2690,12 +2690,12 @@
     {
       "bytes": 1189,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/fixture/evidence/teardown.json",
-      "sha256": "sha256:322ebcb398954d69772166f24b55364e1ecfa0a804fe8a89d138fba120c1987b"
+      "sha256": "sha256:0e92f6b1565913ac0169af8378f9382c6222748281e618ee80fef6cc5a69debb"
     },
     {
       "bytes": 2659,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/fixture/evidence/terminal-receipt.json",
-      "sha256": "sha256:0a771703c2db206733c0bdd2ca1ccd522d0fdfdc77fbd671218a3ceb50be16a0"
+      "sha256": "sha256:83d66a530e2e9310e50a98f5ce97aba3c4ea1382d3ae0a6227d7aec0bbec7752"
     },
     {
       "bytes": 884,
@@ -2715,12 +2715,12 @@
     {
       "bytes": 1639,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/fixture/permit/neutral-qualification-01.permit.consumed.json",
-      "sha256": "sha256:5a8695bc743761601d4fef6f96d1032e74ebbe0869ec80c9deb22d756401aebd"
+      "sha256": "sha256:050f3400e8f29bf7c023168783ff7b368e825993ca60408623547b49db953a5e"
     },
     {
       "bytes": 1617,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/fixture/permit/neutral-qualification-01.permit.template.json",
-      "sha256": "sha256:ec96e2a862a0ff4c19f21aa1c7df2bc19ae20a5cb0bdbe3d6eb577bc66c5181d"
+      "sha256": "sha256:9b4206f6c10a7ad66265717a51c2cc63072da4c3275e0912d939b216355e38b7"
     },
     {
       "bytes": 2229,
@@ -2740,7 +2740,7 @@
     {
       "bytes": 1680,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/permit/anthropic-diag-fa6a2181a9a7b010.permit.json",
-      "sha256": "sha256:f6a4db8bb9c1f5f13b87329951a5d5e5e967f7671b70d50896fdf9c194699660"
+      "sha256": "sha256:aa8dbaaf0d7bb713457c62154827ecb0b0d3fe071b5de733803bc652f82dc362"
     },
     {
       "bytes": 231,
@@ -2750,17 +2750,17 @@
     {
       "bytes": 7570,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/qualification.json",
-      "sha256": "sha256:e2ffca29c62eedc3b59c7c88a6c299f1ab56ea5466bbeeed8eb63d36645593d3"
+      "sha256": "sha256:9f9c25e7b100c794e1fdc122ab5ed1ab14e2b695ac02f47c6d1d939bdfa9eae7"
     },
     {
-      "bytes": 10321920,
+      "bytes": 10383360,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/a.oci.tar",
-      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
+      "sha256": "sha256:779b51ed33cacbb2df756a0068c26f2b05fb4b8823f4b4bd04e1fd825374f5eb"
     },
     {
-      "bytes": 10321920,
+      "bytes": 10383360,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/b.oci.tar",
-      "sha256": "sha256:5f168fb3cef351ee983fa7fe12926acc3e6de3aa79bc194c61721bc9503b7799"
+      "sha256": "sha256:779b51ed33cacbb2df756a0068c26f2b05fb4b8823f4b4bd04e1fd825374f5eb"
     },
     {
       "bytes": 477,
@@ -2770,22 +2770,22 @@
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/independent-a.json",
-      "sha256": "sha256:f85e2e45ac2df889064736f22fbc3f92dc4fcee094822e6b4aa488b3197595e3"
+      "sha256": "sha256:4889510267bf916047be056224443e8ba066a54a6b2636206a1ed9e0fba0c4ca"
     },
     {
       "bytes": 991,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/independent-b.json",
-      "sha256": "sha256:cddf2b64d9b081216bbf3f29b0acfced9d9cd961fa4766a96d041ecc7eef0c11"
+      "sha256": "sha256:27a972e926564ac3d5d4be71ad853129c59e70086804a82815bc4831aadbcdaf"
     },
     {
       "bytes": 1248,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/launchability.json",
-      "sha256": "sha256:a180d19a49287c6271fc7aea61da8f041aaf3c0e3db4a9e309559f84dc4c2ff8"
+      "sha256": "sha256:2ec169cafa34959cb0e8457530a0afee80c3647b47431e24469a5f1311a3f9a3"
     },
     {
       "bytes": 1186,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/preflight-evidence/offline-pre-request-validation.json",
-      "sha256": "sha256:f558beec700c9339c0fd7f1ffdc5a81ab1334d6eb15e4e99b56a20c1b26d79c9"
+      "sha256": "sha256:5464cd11e3c1300eae021325363a138e4af796cac23efa7d8d1db5bd418926fe"
     },
     {
       "bytes": 568,
@@ -2805,7 +2805,7 @@
     {
       "bytes": 781,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/preflight-input/materialization-receipt.json",
-      "sha256": "sha256:328dace8aee7d4cea3c2532e4e0012b01ad07b73ca6ce9b528d774fa62306028"
+      "sha256": "sha256:54b7114d81fe8f09c90a548065c23cc80bb9d31a1086341e446dd0d67df82628"
     },
     {
       "bytes": 657,
@@ -2818,9 +2818,9 @@
       "sha256": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7"
     },
     {
-      "bytes": 3232,
+      "bytes": 3806,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/preflight-input/run.json",
-      "sha256": "sha256:ab8b5541536e3c5c88df7783150973cee1d3ba7dd75ebd79efa389973e2813bd"
+      "sha256": "sha256:b0c51e41b6d519aa7ef1ffc44a2c50f3ef3f83e42e72112ec518a7f055c10fe5"
     },
     {
       "bytes": 59,
@@ -2835,7 +2835,7 @@
     {
       "bytes": 2052,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/source-manifest.json",
-      "sha256": "sha256:fb4a4b70407c6a3c856265a029b8ff0dee74cbb11c83213a65bb18e0d454291c"
+      "sha256": "sha256:44373c92216046cf8c6c09eac6cbfa331e47349f47ba22df48096fcf76987715"
     },
     {
       "bytes": 433,
@@ -2850,12 +2850,12 @@
     {
       "bytes": 5767294,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/source/bridge",
-      "sha256": "sha256:f5d60e7eca4fbf2e511f101514febf457919dc521e75ef749bae985911475bdb"
+      "sha256": "sha256:9c159b013640fbc9676eae828233f06b198d3afbfe564a01012c921fddf711de"
     },
     {
-      "bytes": 34830,
+      "bytes": 36475,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/source/cmd/bridge/main.go",
-      "sha256": "sha256:6ba3e14df83e00e0f550b33051df47fb1fc34635979f6d12f9ceee5c3d84a8de"
+      "sha256": "sha256:4261847ed51a35dc5a409a896b476f324145586994acc5d22cee108917d9dc20"
     },
     {
       "bytes": 11968,
@@ -2873,14 +2873,14 @@
       "sha256": "sha256:92779b1c6d6a7154d7f183403bb87fa65682677549927d5e5f2758955dd2073a"
     },
     {
-      "bytes": 43821,
+      "bytes": 51248,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/source/main.go",
-      "sha256": "sha256:7e3dcd1f2eddd202c4f29d4f8c4eaa788bd7c4c9da83213094728ac5d273161f"
+      "sha256": "sha256:4990a00d636dc999cb85ae0668b0f1045a9252fd4d57c10cfe2298c64bd651f2"
     },
     {
-      "bytes": 14067,
+      "bytes": 14263,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/source/main_test.go",
-      "sha256": "sha256:75320d34e2e148d28f04b7b951c3fe26c96f4edfe6bf1215c58395bff92ad6a8"
+      "sha256": "sha256:d7be79f18f5c24d7ac67bb7d4b5fbdfe7d11437fbdb82228c12e6b8f0c061d50"
     },
     {
       "bytes": 1900670,
@@ -2893,9 +2893,9 @@
       "sha256": "sha256:9629b9a7467eda0a3991a718f3b652c9b90dd8d0ea049da31f19510510a4857c"
     },
     {
-      "bytes": 2293886,
+      "bytes": 2359422,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/runtime/source/runner",
-      "sha256": "sha256:b0163f2d02e1102013b2c6fb63d97b983f80ba9ce6c457e752e26fb8540da0fe"
+      "sha256": "sha256:fded48fc1d556d6b8d12aa1bf9b3233dc3a0872050a7b60f1cea22d6f897eede"
     },
     {
       "bytes": 333483,
@@ -3035,7 +3035,7 @@
     {
       "bytes": 8332,
       "path": "execution-bundles/bundle-index.json",
-      "sha256": "sha256:52eb3b89a735860c26648fcb446d8f82717ad7a38a4a5d8d1039a3255e65a0a3"
+      "sha256": "sha256:bb60dc881f1315413e657f8cdee568ba898275be676aab4de98c51a2ff2e258f"
     },
     {
       "bytes": 1621,
@@ -3073,14 +3073,14 @@
       "sha256": "sha256:04cf6154ee811cc21722777d8b77df5c54f41290b9e52514b783c212261ff59a"
     },
     {
-      "bytes": 45199,
+      "bytes": 45627,
       "path": "generate.py",
-      "sha256": "sha256:c883b0ee5c8423d8f13354b239e6742714461f7bae2ad101fc711b5d2c66e502"
+      "sha256": "sha256:386d6ce456f790bdbe5f9eed65b3cd22b9e98e09654533f0c0a420de366d0f99"
     },
     {
       "bytes": 2370,
       "path": "hold-state.json",
-      "sha256": "sha256:9cce9795f12f2263781fd06bbb6a77d13742465b2ea7e51cefc1021836f19b97"
+      "sha256": "sha256:3625ef37c1b7fabe5fe942cd9bb5ff60babf229d041c45c4c51f7387e4a7d2b5"
     },
     {
       "bytes": 4339,
@@ -3155,42 +3155,42 @@
     {
       "bytes": 1359,
       "path": "participant-configuration.json",
-      "sha256": "sha256:e3df8462b171ce9869425d0308ba3b9f99e4c47e82695206acf4f608a1052eb5"
+      "sha256": "sha256:6708ec764456d770fc37a5dff79d6ab55b1b43962bcc00a601237b4f5b195eec"
     },
     {
       "bytes": 1667,
       "path": "permits/anthropic-diag-2f719af4c655ef77.permit.json",
-      "sha256": "sha256:dbdd0b790e3c4151bdc6df3125946b72e2e1869f87f5d4f1cbd5eb1fd04e9cf0"
+      "sha256": "sha256:0494aa86eb305fffc7d925f39a63ecae6e22ef887d208c548e069b47954fbe4d"
     },
     {
       "bytes": 1667,
       "path": "permits/anthropic-diag-395839ae5418ff4d.permit.json",
-      "sha256": "sha256:d8bfcd04ba4ab78ac7cd9e86146d43282c7e3683a39f9cb37f634045dddd73cc"
+      "sha256": "sha256:f82b7d5b30892050350d1083ab90d6be8ddbeaeef3cda965a6c20b4ba444362a"
     },
     {
       "bytes": 1667,
       "path": "permits/anthropic-diag-563bdd90a8c7df7a.permit.json",
-      "sha256": "sha256:349995dcb665d517d8f4c3cfe9ddc8abd82a6641b63659e2582345adf379d7bf"
+      "sha256": "sha256:2d175e3415bdb67d93cfb70ce1da8994823dd20cd38ec702a071809182a63237"
     },
     {
       "bytes": 1680,
       "path": "permits/anthropic-diag-6cccc41b01c2e998.permit.json",
-      "sha256": "sha256:fe9753e3ef28e0d893cbc6e34da9eabbc50cf78b0fb48268a269e88ca0f4c864"
+      "sha256": "sha256:3fc4788b4498fa0479bfd6e2b2794a36f4096ee3e0fd77a153da9e34ae0b43a4"
     },
     {
       "bytes": 1680,
       "path": "permits/anthropic-diag-7981a902f25c4abe.permit.json",
-      "sha256": "sha256:82135898620f559070e4dac3c7c2ab73754b863975cacef05d3d6d95536f4f03"
+      "sha256": "sha256:ecb3279d6f030eafbb7b94f8d450408f34ceec1d1d1bbdce15be3d5daf6236c4"
     },
     {
       "bytes": 1680,
       "path": "permits/anthropic-diag-fa6a2181a9a7b010.permit.json",
-      "sha256": "sha256:f6a4db8bb9c1f5f13b87329951a5d5e5e967f7671b70d50896fdf9c194699660"
+      "sha256": "sha256:aa8dbaaf0d7bb713457c62154827ecb0b0d3fe071b5de733803bc652f82dc362"
     },
     {
       "bytes": 887,
       "path": "prelaunch-state.json",
-      "sha256": "sha256:3f8891be2f5fc0afd57f3cadc63b0453831a559265f9203c210f1a2c76071e15"
+      "sha256": "sha256:bd66f3536fc992c17e978dbed65d133be85ce28083b754e88530526db142f4ab"
     },
     {
       "bytes": 1083,
@@ -3235,7 +3235,7 @@
     {
       "bytes": 3085,
       "path": "registration.json",
-      "sha256": "sha256:e5bdbb470503af383c3321a732b51208b15087ddfe006f75be4c036389326719"
+      "sha256": "sha256:8165a67f7f4c30d9adc75202677073943dc3fab8c72b0da296edb687758474e9"
     },
     {
       "bytes": 2498,
@@ -3250,12 +3250,17 @@
     {
       "bytes": 3748,
       "path": "runtime-binding.json",
-      "sha256": "sha256:b97d866142469aeab44322b7b402c831da42406cb56da78779195c877d25968a"
+      "sha256": "sha256:826855cb24997bd8717531f52a6c16452cd90f4a7b8217a6511c03bb9e003f41"
     },
     {
-      "bytes": 25232,
+      "bytes": 35631,
+      "path": "runtime_capture.py",
+      "sha256": "sha256:7333aabfa041fdfea948b88f390acd025108aa550222c6a191640f68be8186aa"
+    },
+    {
+      "bytes": 16276,
       "path": "scorer.py",
-      "sha256": "sha256:02f2ebf18c39d9cbf8042c503e052a947a1b13aa0de963495c84bddba18b9cb4"
+      "sha256": "sha256:dc957eafeb27f036958ef169119723e1fa7debd02a94ae5e2dfe2decf27e2a6e"
     },
     {
       "bytes": 2411,
@@ -3263,29 +3268,34 @@
       "sha256": "sha256:db452f1b401e255c74125d0c45090c83da5d1c2b11405a906419c37161b0b893"
     },
     {
+      "bytes": 4954,
+      "path": "secure_reader.py",
+      "sha256": "sha256:6a7a7f1c6a3723447e5d5489fe12a6de627599e4bc3d400da6b02767087de8e7"
+    },
+    {
       "bytes": 2499,
       "path": "source-bindings.json",
       "sha256": "sha256:1cd4a44cd454d02c920a61d9c6594c46c1f3c4fab1720d9744bd379eb4037a77"
     },
     {
-      "bytes": 3605,
+      "bytes": 4850,
       "path": "test_evidence_tree.py",
-      "sha256": "sha256:3b308641244446b13ceb3afebab20d0aa41a4b369ead7af78695c8bc3ae4bee4"
+      "sha256": "sha256:54d7f69cf007399725d6527cbe5071728e4931e6329ba5103b86a8b2ecc29040"
     },
     {
-      "bytes": 25848,
+      "bytes": 28319,
       "path": "test_verify.py",
-      "sha256": "sha256:7379157c2548447577579ee038fd30001a47203f3f4ed36d48bffa45ae5a9a02"
+      "sha256": "sha256:115f56be13fdd343711bbd577338ae987328fd4007264cf49b70faff488678ec"
     },
     {
-      "bytes": 22741,
+      "bytes": 22713,
       "path": "verify.py",
-      "sha256": "sha256:7e057100cd9dd9ddb44547b9eecdfb5f16196cfbd5303a8d6e6029b630cf320d"
+      "sha256": "sha256:43f863576c9132bf67451ea812871e208974c4d9e5053692456466db03c7db27"
     },
     {
-      "bytes": 5023,
+      "bytes": 5031,
       "path": "verify_bundle_adversaries.py",
-      "sha256": "sha256:988bdd4c2f716bbd255c1e9cea940d8f71e72dbe76a2ff55c850e79567e6197a"
+      "sha256": "sha256:451413d7960b7651ec7602440654fc1db06bb55278d20ab11cdff8eeebe0d071"
     }
   ],
   "schema": "vela.lean-correspondence-anthropic-open-diagnostic-manifest.v1"

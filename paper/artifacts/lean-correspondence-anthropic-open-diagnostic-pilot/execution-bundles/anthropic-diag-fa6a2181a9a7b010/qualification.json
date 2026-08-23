@@ -170,7 +170,7 @@
     ],
     "environment_prefix": "/private/tmp/vela-stage-a-runtime-qualification-python-v1/.venv",
     "jsonschema_module": "/private/tmp/vela-stage-a-runtime-qualification-python-v1/.venv/lib/python3.13/site-packages/jsonschema/__init__.py",
-    "qualifier_sha256": "sha256:23a66702d895762bc84d802bd60f3832d46a8d798dae269283c09d346ed26023"
+    "qualifier_sha256": "sha256:3dd348d8795152da74e79547296661897f873a4be3d2502c28f656b9ebddd9f4"
   },
   "status": "hold"
 }

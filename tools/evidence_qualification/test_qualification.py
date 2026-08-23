@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import subprocess
 import sys
 import tarfile
@@ -31,6 +32,7 @@ from tools.evidence_qualification.qualification import (
     TOOL_INPUT_SCHEMAS,
     TOOL_RECEIPT_SCHEMA,
     QualificationError,
+    _read_bundle_regular,
     canonical_json_bytes,
     canonical_root,
     consume_permit,
@@ -2491,6 +2493,32 @@ class EvidenceQualificationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as outside_directory:
             alias = Path(outside_directory) / "registered-alias.json"
             alias.hardlink_to(self.root / "schemas/registered.json")
+
+    def test_bundle_reader_rejects_replacement_between_named_stat_and_open(
+        self,
+    ) -> None:
+        victim = self.root / "reader-victim.json"
+        retained = self.root / "reader-retained.json"
+        victim.write_bytes(b'{"original":true}\n')
+        original_open = os.open
+        replaced = False
+
+        def replace_then_open(path, flags, *args, **kwargs):
+            nonlocal replaced
+            if path == victim.name and not replaced:
+                replaced = True
+                victim.rename(retained)
+                victim.write_bytes(b'{"forged":true}\n')
+            return original_open(path, flags, *args, **kwargs)
+
+        with (
+            patch(
+                "tools.evidence_qualification.secure_reader.os.open",
+                side_effect=replace_then_open,
+            ),
+            self.assertRaises(QualificationError),
+        ):
+            _read_bundle_regular(self.root, Path(victim.name), "reader_victim")
             self.assertEqual((self.root / "schemas/registered.json").stat().st_nlink, 2)
             self.assertBlocked("bundle_file_link_count_invalid")
 

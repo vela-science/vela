@@ -4,12 +4,22 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import stat
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+
+_reader_spec = importlib.util.spec_from_file_location(
+    "vela_runtime_secure_reader", Path(__file__).with_name("secure_reader.py")
+)
+if _reader_spec is None or _reader_spec.loader is None:
+    raise RuntimeError("maintained secure reader unavailable")
+_reader_module = importlib.util.module_from_spec(_reader_spec)
+_reader_spec.loader.exec_module(_reader_module)
+read_absolute_regular = _reader_module.read_absolute_regular
 
 SENTINEL = "__VELA_EXACT_PROVIDER_SCHEMA_BYTES__"
 
@@ -25,40 +35,15 @@ def canonical(value: Any) -> bytes:
 def read_exact_regular(
     path: Path, after_open: Callable[[], None] | None = None
 ) -> tuple[bytes, os.stat_result]:
-    absolute = path.absolute()
-    current = Path(absolute.anchor)
-    for part in absolute.parts[1:]:
-        current /= part
-        info = os.lstat(current)
-        if stat.S_ISLNK(info.st_mode):
-            raise ValueError("schema_path_contains_symlink")
-    before = os.lstat(absolute)
-    if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
-        raise ValueError("schema_not_single_link_regular_file")
-    fd = os.open(absolute, os.O_RDONLY | os.O_NOFOLLOW)
-    try:
-        opened = os.fstat(fd)
-        if (before.st_dev, before.st_ino) != (opened.st_dev, opened.st_ino):
-            raise ValueError("schema_open_inode_drift")
+    def validate(_raw: bytes) -> None:
         if after_open:
             after_open()
-        raw = b""
-        while True:
-            chunk = os.read(fd, 1024 * 1024)
-            if not chunk:
-                break
-            raw += chunk
-    finally:
-        os.close(fd)
-    after = os.lstat(absolute)
-    if (
-        (opened.st_dev, opened.st_ino) != (after.st_dev, after.st_ino)
-        or after.st_nlink != 1
-        or not stat.S_ISREG(after.st_mode)
-        or len(raw) != opened.st_size
-    ):
-        raise ValueError("schema_post_read_inode_drift")
-    return raw, opened
+
+    result = read_absolute_regular(path, "schema", validator=validate)
+    if not isinstance(result, tuple):
+        raise TypeError("schema_reader_contract_invalid")
+    raw, _validated = result
+    return raw, os.stat_result((stat.S_IFREG, 0, 0, 1, 0, 0, len(raw), 0, 0, 0))
 
 
 def materialize(
@@ -120,6 +105,12 @@ def main() -> int:
     parser.add_argument("--model", required=True)
     parser.add_argument("--prompt-file", type=Path, required=True)
     parser.add_argument("--packet-file", type=Path, required=True)
+    parser.add_argument("--permit-root", required=True)
+    parser.add_argument("--workspace-content-root", required=True)
+    parser.add_argument("--evidence-catalog-root", required=True)
+    parser.add_argument("--tool-boundary-root", required=True)
+    parser.add_argument("--tool-policy-root", required=True)
+    parser.add_argument("--workspace-preflight-root", required=True)
     args = parser.parse_args()
     packet = args.packet_file.read_bytes()
     fields = {
@@ -130,6 +121,12 @@ def main() -> int:
         "packet_bytes": len(packet),
         "packet_sha256": digest(packet),
         "output_dir": "/evidence",
+        "permit_root": args.permit_root,
+        "workspace_content_root": args.workspace_content_root,
+        "evidence_catalog_root": args.evidence_catalog_root,
+        "tool_boundary_root": args.tool_boundary_root,
+        "tool_policy_root": args.tool_policy_root,
+        "workspace_preflight_root": args.workspace_preflight_root,
     }
     materialize(args.schema, args.run, args.receipt, fields)
     return 0

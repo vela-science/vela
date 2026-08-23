@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import contextvars
 import hashlib
+import importlib.util
 import io
 import json
 import os
@@ -27,6 +28,21 @@ from typing import Any
 
 import jsonschema
 from jsonschema import Draft202012Validator, FormatChecker
+
+try:
+    from tools.evidence_qualification.secure_reader import (
+        read_regular as secure_read_regular,
+    )
+except ModuleNotFoundError:  # Standalone frozen qualifier beside secure_reader.py.
+    _reader_path = Path(__file__).with_name("secure_reader.py")
+    _reader_spec = importlib.util.spec_from_file_location(
+        "vela_secure_reader", _reader_path
+    )
+    if _reader_spec is None or _reader_spec.loader is None:
+        raise RuntimeError("maintained secure reader unavailable")
+    _reader_module = importlib.util.module_from_spec(_reader_spec)
+    _reader_spec.loader.exec_module(_reader_module)
+    secure_read_regular = _reader_module.read_regular
 
 SCHEMA = "vela.tooling.evidence-qualification.v1"
 RECEIPT_SCHEMA = "vela.tooling.evidence-qualification-receipt.v1"
@@ -360,47 +376,10 @@ def read_regular(path: Path, label: str) -> bytes:
 
 
 def _read_bundle_regular(root: Path, relative: Path, label: str) -> bytes:
-    if relative.is_absolute() or any(
-        part in {"", ".", ".."} for part in relative.parts
-    ):
-        raise QualificationError(f"{label}_path_unsafe")
-    nofollow = getattr(os, "O_NOFOLLOW", 0)
-    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | nofollow
-    try:
-        directory = os.open(root, directory_flags)
-    except OSError as error:
-        raise QualificationError(f"{label}_root_missing_or_unsafe") from error
-    descriptor = -1
-    try:
-        for part in relative.parts[:-1]:
-            next_directory = os.open(part, directory_flags, dir_fd=directory)
-            os.close(directory)
-            directory = next_directory
-        descriptor = os.open(
-            relative.parts[-1], os.O_RDONLY | nofollow, dir_fd=directory
-        )
-        metadata = os.fstat(descriptor)
-        if not stat.S_ISREG(metadata.st_mode):
-            raise QualificationError(f"{label}_not_regular")
-        if metadata.st_nlink != 1:
-            raise QualificationError(f"{label}_link_count_invalid")
-        with os.fdopen(descriptor, "rb") as handle:
-            descriptor = -1
-            raw = handle.read()
-            final_metadata = os.fstat(handle.fileno())
-            if (
-                final_metadata.st_dev != metadata.st_dev
-                or final_metadata.st_ino != metadata.st_ino
-                or final_metadata.st_nlink != 1
-            ):
-                raise QualificationError(f"{label}_custody_changed_during_read")
-            return raw
-    except OSError as error:
-        raise QualificationError(f"{label}_missing_or_unsafe") from error
-    finally:
-        if descriptor >= 0:
-            os.close(descriptor)
-        os.close(directory)
+    result = secure_read_regular(root, relative, label, error_type=QualificationError)
+    if not isinstance(result, bytes):
+        raise QualificationError(f"{label}_reader_contract_invalid")
+    return result
 
 
 def tree_manifest(directory: Path) -> list[dict[str, Any]]:
@@ -1433,12 +1412,9 @@ def validate_raw_provider_events(
         "openai-responses-v1": [
             "response.created",
             "response.in_progress",
-            *sum(
-                (
-                    ["response.function_call_arguments.done", "runner.tool_result"]
-                    for _ in range(tool_count)
-                ),
-                [],
+            *(
+                ["response.function_call_arguments.done", "runner.tool_result"]
+                * tool_count
             ),
             "response.output_text.done",
             "response.completed",
@@ -1446,13 +1422,7 @@ def validate_raw_provider_events(
         "anthropic-messages-v1": [
             "message_start",
             "message_delta.start",
-            *sum(
-                (
-                    ["content_block_stop.tool_use", "runner.tool_result"]
-                    for _ in range(tool_count)
-                ),
-                [],
-            ),
+            *(["content_block_stop.tool_use", "runner.tool_result"] * tool_count),
             "content_block_stop.text",
             "message_stop",
         ],

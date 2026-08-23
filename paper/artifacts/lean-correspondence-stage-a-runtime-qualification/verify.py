@@ -30,10 +30,10 @@ STOPPED_V3 = (
 )
 SHA256 = re.compile(r"sha256:[0-9a-f]{64}\Z")
 EXPECTED_REGISTRATION_ROOT = (
-    "sha256:f84bd9dcd6f9de6f8765c1ad25361f6579d7721cdc8d57937ad55c4205988ed4"
+    "sha256:ce4330143a091a2602ad74287fac510fad8e687fba4af23d561c118d833b46fd"
 )
 EXPECTED_OFFLINE_RECORD_ROOT = (
-    "sha256:51df9fe89d649e5fbb6519d2f02eefaaf5dc672c350de1fcc58fab5047944e3f"
+    "sha256:c8b0126bb69c69d48836d3c36652dd64608f4596347577a1b6b0c91657e01db2"
 )
 EXPECTED_QUALIFIER = {
     "git_commit": "cc3b88d8bfcfd7b4f720a023f049d5c365be9423",
@@ -68,26 +68,26 @@ EXPECTED_PROVIDER = {
         "model": "gpt-5.6-sol",
         "run_id": "neutral-calibration-openai-json-v2",
         "configuration_root": "sha256:96555c45c33ed2a106cfb261025b752a4eeb1514aa180985ecd5ea0551a6616d",
-        "qualification_root": "sha256:f5f4892ae2ddd6e871f8e3eeb8f8faeb34a7137fc6070df8b023815a6505e4f6",
-        "image_digest": "sha256:f0ce5175fe6f72bb44f355f7f443e814bec91efb75c28326b3d97fee54aef4fb",
+        "qualification_root": "sha256:c489c6633f37aa60a94200066295398ae593a2adb33be7a72d1a85edb1755587",
+        "image_digest": "sha256:670a21eedcf7b37f347e587960a95c711396932e2a9971f73a98ffc50083579f",
         "tool_boundary_root": "sha256:0b2e1fb701f70b02f9cc7ad79201f84374dfeb904299b59a6667d36eb4e59c69",
-        "runtime_source_root": "sha256:5ec5d345bd9ecc8828ffbf5aa7da60b10164d5ac1a821fd8e7bf37e63c7fd8b6",
-        "participant_permit_root": "sha256:b41826ce2a5897f854f4c9116fc40c5ef189e5f17bad1ea8979c90c946ad04ea",
+        "runtime_source_root": "sha256:b075dd06e3ca297cf0200e793f70d34ca7b9018932d20c624a5cf891bb936568",
+        "participant_permit_root": "sha256:f2ebbde26f029b105dbc799e3e74541dc22032d76290bb723995525c0a0afd2a",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
-        "launchability_sha256": "sha256:790bbf9505e21503118bab52fcd132a4e365c2c571f244fcb1d450bd6145d231",
+        "launchability_sha256": "sha256:928fdcff10ff8cff7c900b31ecb07c8d65e240546cb3f2e2f02df6a01c6bbc56",
     },
     "anthropic-messages-v1": {
         "organization": "Anthropic",
         "model": "claude-opus-5",
         "run_id": "neutral-calibration-anthropic-json-v4-lossless",
         "configuration_root": "sha256:10a9a0569f63a523e7dd6dab768c9dc255aa244c026337f217142cd2a1483163",
-        "qualification_root": "sha256:74e07177b119edf0e9fcf18940cce9fa06757526092bc38f18595471debb623e",
-        "image_digest": "sha256:315fd2ae42a140f3be8dd05d34031f83aca6fa29e421f86ca335a4dfafd6b2f6",
+        "qualification_root": "sha256:cfcfa46ba16d8c20b80ef8170867c3b55aa76a1bbfa88816b32219d2121bcf7b",
+        "image_digest": "sha256:3a8ee2d16720fc4ff91f6fd54ad698cd18aa7e387e3ce78a0ea751f7cf78dda7",
         "tool_boundary_root": "sha256:01dfbda69c1c7760423fdba41eaac18687a73d9fe683a8a5f207fdc8abe2a7d9",
-        "runtime_source_root": "sha256:4a44868aaf4a5d00dd7c21aa9e95ced13c9674b659b3e24aca6bac90d15ad460",
-        "participant_permit_root": "sha256:1db30a246b6727cf1e01f923b80f4247defab2318e63483c5d6efd58689c1e36",
+        "runtime_source_root": "sha256:e37927ac5eb1085eeb47b4ee7fc60d63ba95b1a3c7b8876a5746f35ec3233614",
+        "participant_permit_root": "sha256:28e24923dac0d83bee34350918274cb2fba9417ea44fcc3de3180cd259779816",
         "provider_schema_bytes": "sha256:f34dc8c6ded17e94d2f3a9389112eb1bdfa59e3b9977f7a5f994e473bef70ad7",
-        "launchability_sha256": "sha256:a180d19a49287c6271fc7aea61da8f041aaf3c0e3db4a9e309559f84dc4c2ff8",
+        "launchability_sha256": "sha256:2ec169cafa34959cb0e8457530a0afee80c3647b47431e24469a5f1311a3f9a3",
     },
 }
 EXPECTED_FROZEN_CONFIGURATION = {
@@ -869,12 +869,16 @@ def validate_offline(value: dict[str, Any]) -> dict[str, dict[str, Any]]:
     observed_root = body.pop("record_root", None)
     require(observed_root == canonical_root(body), "offline_inner_root")
     qualifier = value.get("qualifier")
+    maintained_qualifier_sha256 = digest(
+        (REPOSITORY / EXPECTED_QUALIFIER["path"]).read_bytes()
+    )
     require(
         qualifier
         == {
             "commit": EXPECTED_QUALIFIER["git_commit"],
             "tree": EXPECTED_QUALIFIER["git_tree"],
-            "sha256": EXPECTED_QUALIFIER["sha256"],
+            "merged_baseline_sha256": EXPECTED_QUALIFIER["sha256"],
+            "sha256": maintained_qualifier_sha256,
         },
         "offline_qualifier_binding",
     )
