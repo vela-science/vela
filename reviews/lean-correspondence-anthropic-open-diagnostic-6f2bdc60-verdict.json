@@ -1,0 +1,76 @@
+{
+  "artifact": {
+    "assignment_root": "sha256:99df881e189024c6c134ea3e521e5748cc901f56a1a5e25a8b49042b27e6bb79",
+    "custody_root": "sha256:347bc20241ba104d5d9fb4ef4947b4f0d31eaf7c32641b3a1a6048d3e38045bb",
+    "evidence_source_catalog_root": "sha256:0ac4cc728cda49da0e12a1407737d4731aad6b13a7ef53be482d289ad6dc1fa1",
+    "path": "paper/artifacts/lean-correspondence-anthropic-open-diagnostic-pilot",
+    "permit_set_root": "sha256:2af4b9ac91254429e313a7f03ec61da4f718574964a55908409eef4bd8766d07",
+    "registration_root": "sha256:56ee9300334cc85d6dc85e5edacad249b2627d48f9a9ddb155b01b3cd8ebcf40",
+    "root": "sha256:dbee02128aad44b896dca57a80bb262c45eaa3b8a7fd7716181b128b0ab385ae",
+    "runtime_artifact_root": "sha256:6151d3a546514d5255f2792495e5da86bb77b4f81ad6c23e784052e0b9a70bca",
+    "runtime_offline_record_root": "sha256:51df9fe89d649e5fbb6519d2f02eefaaf5dc672c350de1fcc58fab5047944e3f",
+    "runtime_registration_root": "sha256:f84bd9dcd6f9de6f8765c1ad25361f6579d7721cdc8d57937ad55c4205988ed4"
+  },
+  "authority_effect": "none",
+  "direct_repairs": {
+    "content_addressed_workspace_and_real_tool_bridge": "PASS",
+    "conservative_safety_mapping": "PASS",
+    "go_bridge_descriptor_custody": "PASS",
+    "scorer_descriptor_custody": "PASS",
+    "zero_provider_terminal_retention": "PASS"
+  },
+  "execution_authorized": false,
+  "findings": [
+    {
+      "code": "AD-F1",
+      "disposition": "blocking",
+      "summary": "A tool-using response necessarily has N+1 provider calls, but the scorer accepts at most one and consumes no raw provider/tool lifecycle evidence or runtime-to-score capture compiler."
+    },
+    {
+      "code": "AD-F2",
+      "disposition": "blocking",
+      "summary": "The evidence materializer and generic maintained qualifier readers accept deterministic pathname substitution because they do not bind the pre-open name to the opened descriptor and post-read name."
+    },
+    {
+      "code": "SQ-F1",
+      "disposition": "blocking",
+      "summary": "Locked Ruff checks fail on two maintained-qualifier findings and ten focused authored diagnostic-source findings."
+    }
+  ],
+  "independence": {
+    "credential_accesses": 0,
+    "permit_releases": 0,
+    "producer_bytes_modified": false,
+    "provider_calls": 0,
+    "scoring_attempts": 0
+  },
+  "prior_review": {
+    "commit": "5743c4f58f7a91ec3bb67ccaf28c5e3701c1d96a",
+    "verdict": "BLOCKED"
+  },
+  "producer": {
+    "commit": "6f2bdc6007c1cc1bde60b433da947dbcb7935368",
+    "corrective_merge": "b24acf82e9597424d75ca20ca5f5873c6fdece77",
+    "corrective_merge_tree": "2d548124e03ef87385ef561b6679686b059f4d86",
+    "parents": [
+      "b24acf82e9597424d75ca20ca5f5873c6fdece77",
+      "66e33872e3901d2a24ff1730c0273b2dc7e19e0e"
+    ],
+    "tree": "c666e41452cddcc9c3124a6f603d46396ee3eaa9"
+  },
+  "report": {
+    "path": "reviews/lean-correspondence-anthropic-open-diagnostic-6f2bdc60-report.md",
+    "sha256": "sha256:4e361acfdf84509776ac462eb96884d472b3707b5e8ad776280b0010cc49fab4"
+  },
+  "schema": "vela.review.lean-correspondence-anthropic-open-diagnostic-final-corrective.v1",
+  "state": {
+    "diagnostic_permits_held": 6,
+    "diagnostic_responses": 0,
+    "original_stage_a_permits_held": 12,
+    "provider_calls": 0,
+    "released_permits": 0,
+    "scoring_attempts": 0,
+    "stage_b_families_selected": 0
+  },
+  "verdict": "BLOCKED"
+}
