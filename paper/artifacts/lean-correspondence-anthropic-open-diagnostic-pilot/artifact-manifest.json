@@ -1,5 +1,5 @@
 {
-  "artifact_root": "sha256:e4f4b44cba1cd7f1cd953d7869e6a6193e57858476e34fac72e7908d1562fc78",
+  "artifact_root": "sha256:2b49e47f07bd4df32d389190094797c6ed31d73c7cdf1116f558cbb11b603089",
   "authority_effect": "none",
   "entries": [
     {
@@ -30,7 +30,7 @@
     {
       "bytes": 1076,
       "path": "custody-contract.json",
-      "sha256": "sha256:90c23904bf48480d48e4dbbe4360169a58711cd57efb9ce016bacfcd94137900"
+      "sha256": "sha256:e82431dde2d2c4beb4bde80b00fedfb31d3f3e77e4d382406ae9ce7f2cbac9c1"
     },
     {
       "bytes": 4175,
@@ -340,7 +340,7 @@
     {
       "bytes": 11459,
       "path": "execution-bundle-registry.json",
-      "sha256": "sha256:de97e9637480d409ca7d97b2cf66295283f1cd938daa34054da30a24fc363729"
+      "sha256": "sha256:50662f9ab9d3c29f97437ce259cd4e016beb39b90aa224e7cc70e0e7bf00ee29"
     },
     {
       "bytes": 1123,
@@ -410,7 +410,7 @@
     {
       "bytes": 5407,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/execution/qualification-receipt.json",
-      "sha256": "sha256:bd6cccee33582785ab356834b64ca9b4b80caabb05b26c432c16aa7ca5ea823f"
+      "sha256": "sha256:868bb61219b012156881a8e7a23857f841b4e383aaed4f52eb8001948f0f04b8"
     },
     {
       "bytes": 2034,
@@ -505,7 +505,7 @@
     {
       "bytes": 7557,
       "path": "execution-bundles/anthropic-diag-2f719af4c655ef77/qualification.json",
-      "sha256": "sha256:abf1abc4f5d5e5ccc5c94cd998220cd7a7ab3490b0cd765cd5655cc45dcfde15"
+      "sha256": "sha256:939ef7045efa278ad4ee4d54953c586b53e0e4bc1315194ad4e5bb1bfb9cffca"
     },
     {
       "bytes": 10383360,
@@ -790,7 +790,7 @@
     {
       "bytes": 5407,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/execution/qualification-receipt.json",
-      "sha256": "sha256:29ba9cb8f78dae041438e9cd4e9299819f0044d0dce14304b379f6a5cd945dd5"
+      "sha256": "sha256:3eb8cac90b06bf52a74ac426ed9d08f42992054b2d49e2961016d9f9c24ad6b6"
     },
     {
       "bytes": 2035,
@@ -885,7 +885,7 @@
     {
       "bytes": 7557,
       "path": "execution-bundles/anthropic-diag-395839ae5418ff4d/qualification.json",
-      "sha256": "sha256:4309c4c2f4565dd9b0df372dc89cd57d9c59cb8ca910d0f35c081b9f95f8a3a1"
+      "sha256": "sha256:d36fb47f5b9d0e3535e076e8995c828a6dfe3ac6fc6f18539eee9e53aeb71604"
     },
     {
       "bytes": 10383360,
@@ -1225,7 +1225,7 @@
     {
       "bytes": 5407,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/execution/qualification-receipt.json",
-      "sha256": "sha256:06bd8d54d8e924b74a6e80dc62daed9c3553ffee9cccc52aecfeadf589881e96"
+      "sha256": "sha256:fc3ab391244950d5e0488b5dc0dd3340ac4b02717cd5a15706a8a6acbd87e10a"
     },
     {
       "bytes": 2035,
@@ -1320,7 +1320,7 @@
     {
       "bytes": 7557,
       "path": "execution-bundles/anthropic-diag-563bdd90a8c7df7a/qualification.json",
-      "sha256": "sha256:4ba97a2602c7e054b8bc98b322de5ea344716e90b4137f1fb3ac536274c39aa7"
+      "sha256": "sha256:4f45e1c96fab628cfd648ef0455555efb98966753220bad0b782acbcde2e5b46"
     },
     {
       "bytes": 10383360,
@@ -1735,7 +1735,7 @@
     {
       "bytes": 5420,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/execution/qualification-receipt.json",
-      "sha256": "sha256:78d7be097a241c2cf5f3ce5e06f34f7b1a127be0c69be7b54b49a431856089a8"
+      "sha256": "sha256:dfd9e9f10241df827b458a0d8783c9b0905808329778a7775cd2527215c420b8"
     },
     {
       "bytes": 2034,
@@ -1830,7 +1830,7 @@
     {
       "bytes": 7570,
       "path": "execution-bundles/anthropic-diag-6cccc41b01c2e998/qualification.json",
-      "sha256": "sha256:6e0883d3357a00f45e58f134aaea66bc83256ab13a4ceb79bed5802c9a9a7eac"
+      "sha256": "sha256:f97b0b4b0eb4e3ae6266982efb320a326504597570c109567020c02dbd2a7df2"
     },
     {
       "bytes": 10383360,
@@ -2130,7 +2130,7 @@
     {
       "bytes": 5420,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/execution/qualification-receipt.json",
-      "sha256": "sha256:01bcbbf7bc64b11b0ef558eca04284f33acce47d1dd0a7edee8076cc805e33e5"
+      "sha256": "sha256:172249535fc49b5cc815611eb7a41c3654b5ae05763ef39926ef9cfe871c7f8d"
     },
     {
       "bytes": 2035,
@@ -2225,7 +2225,7 @@
     {
       "bytes": 7570,
       "path": "execution-bundles/anthropic-diag-7981a902f25c4abe/qualification.json",
-      "sha256": "sha256:dd8fc6f4cb44b0eccb02fde08c0062bee219e04349fa66519aa8c21d07da2bf7"
+      "sha256": "sha256:65cabca979b2ba55bc6be5c0e9e6e2444e58bbc069e351cd3c0811e93d28089e"
     },
     {
       "bytes": 10383360,
@@ -2655,7 +2655,7 @@
     {
       "bytes": 5420,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/execution/qualification-receipt.json",
-      "sha256": "sha256:fda1ce4968a507b880242883c60808e578d9b7d8a46008596b8a8f7070dc303a"
+      "sha256": "sha256:e023b10163344a141d3e849191f339de7728f18a890aea046d07a3b4bdd43ad4"
     },
     {
       "bytes": 2035,
@@ -2750,7 +2750,7 @@
     {
       "bytes": 7570,
       "path": "execution-bundles/anthropic-diag-fa6a2181a9a7b010/qualification.json",
-      "sha256": "sha256:9f9c25e7b100c794e1fdc122ab5ed1ab14e2b695ac02f47c6d1d939bdfa9eae7"
+      "sha256": "sha256:90ebc510a1d9aae8bd63e8b3616239606916d1096e399a93b61b069329edcbf2"
     },
     {
       "bytes": 10383360,
@@ -3035,7 +3035,7 @@
     {
       "bytes": 8332,
       "path": "execution-bundles/bundle-index.json",
-      "sha256": "sha256:bb60dc881f1315413e657f8cdee568ba898275be676aab4de98c51a2ff2e258f"
+      "sha256": "sha256:3e709275f83c4dfa0121dde9124d4cfb7aa9d7cb16be40ddf9e691e4256e8144"
     },
     {
       "bytes": 1621,
@@ -3190,7 +3190,7 @@
     {
       "bytes": 887,
       "path": "prelaunch-state.json",
-      "sha256": "sha256:22f4cd5de0ae3e6ea71f206e40da55cd7650b505c7daff6046c8a4efbb564a06"
+      "sha256": "sha256:452e82ba75aa209b0a0dcec34b56b4dc09867212b87247585ae8b70704d57e46"
     },
     {
       "bytes": 1083,
@@ -3235,7 +3235,7 @@
     {
       "bytes": 5979,
       "path": "registration.json",
-      "sha256": "sha256:896b0c9b12230915308be2c40486c17e9626babc5c2a357b48d94f03bd400ec7"
+      "sha256": "sha256:f022a6749c1435f1f69003dfc9c294c2e84b9f68fa0728d811196fe70c0744f5"
     },
     {
       "bytes": 2498,
@@ -3283,14 +3283,14 @@
       "sha256": "sha256:36a16ec45bbd5b036dfd890ec9d99b342b0c441d611ba3c4792766e45b1d15fc"
     },
     {
-      "bytes": 29595,
+      "bytes": 30680,
       "path": "test_verify.py",
-      "sha256": "sha256:1caae0cfd2b3144c1c8c6cf82ceef9073b3b2b46ae5bf7d5611d992dae1631d7"
+      "sha256": "sha256:b9f8c7f7c5cc7d1467b636f0694b95dce2dfd3ee7001529f7dfd18d25fabd5de"
     },
     {
-      "bytes": 22713,
+      "bytes": 23755,
       "path": "verify.py",
-      "sha256": "sha256:43f863576c9132bf67451ea812871e208974c4d9e5053692456466db03c7db27"
+      "sha256": "sha256:c0629cdb1c3ea23d472b2abe7a746640ed1aa46453a7c7d736a4fa1dd6870e33"
     },
     {
       "bytes": 5031,

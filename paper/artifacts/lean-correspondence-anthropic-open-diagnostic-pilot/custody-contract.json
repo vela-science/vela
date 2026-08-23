@@ -7,7 +7,7 @@
   "participant_network": false,
   "provider_calls": 0,
   "raw_provider_bytes_retained_before_normalization": true,
-  "registration_root": "sha256:d18bb4ef8aa79b3c8fb2ef59c5cc434bd6146211a26320ae5f7632aa6fb02ac0",
+  "registration_root": "sha256:17932e34904e7edcef5873be082024bce6425295ea0915a1479c1237b2cf9c70",
   "required_terminal_files": [
     "consumed-permit.json",
     "launch.json",

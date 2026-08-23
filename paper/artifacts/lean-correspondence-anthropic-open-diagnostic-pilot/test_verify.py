@@ -30,7 +30,9 @@ def write_json(path: Path, value: Any) -> None:
 
 def refresh_manifest(root: Path) -> None:
     entries = []
-    for path in sorted(root.rglob("*")):
+    for path in sorted(
+        root.rglob("*"), key=lambda item: item.relative_to(root).as_posix()
+    ):
         if path.is_file() and path.name != "artifact-manifest.json":
             raw = path.read_bytes()
             entries.append(
@@ -240,6 +242,28 @@ class PackageTests(unittest.TestCase):
         refresh_manifest(self.root)
         with self.assertRaises((verify.VerificationError, ValueError)):
             verify.verify_package(self.root, check_external=False)
+
+
+class QualifierTargetTests(unittest.TestCase):
+    def test_current_target_passes_and_predecessor_target_fails(self) -> None:
+        registry = json.loads((ROOT / "execution-bundle-registry.json").read_text())
+        item = registry["bundles"][0]
+        qualification = json.loads(
+            (ROOT / item["bundle_path"] / "qualification.json").read_text()
+        )
+        current = qualification["self_verification"]
+        current_sha256 = registry["maintained_qualifier_successor_sha256"]
+        verify.verify_bundle_self_verification(current, item["cell_id"], current_sha256)
+        predecessor = dict(current)
+        predecessor["qualifier_sha256"] = (
+            "sha256:3dd348d8795152da74e79547296661897f873a4be3d2502c28f656b9ebddd9f4"
+        )
+        with self.assertRaisesRegex(
+            verify.VerificationError, "bundle self-verification target drift"
+        ):
+            verify.verify_bundle_self_verification(
+                predecessor, item["cell_id"], current_sha256
+            )
 
 
 class PacketDerivationTests(unittest.TestCase):

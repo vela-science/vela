@@ -455,9 +455,16 @@ def verify_package(root: Path = ROOT, *, check_external: bool = True) -> str:
         cell_id = item["cell_id"]
         bundle = root / item["bundle_path"]
         observed_root, entries = generate.inventory_root(bundle)
+        qualification = load_json(bundle / "qualification.json")
+        self_verification = qualification.get("self_verification")
         receipt = load_json(bundle / "execution/qualification-receipt.json")
         offline = load_json(
             bundle / "execution/offline-evidence/offline-pre-request-validation.json"
+        )
+        verify_bundle_self_verification(
+            self_verification,
+            cell_id,
+            registry["maintained_qualifier_successor_sha256"],
         )
         if (
             cell_id not in permit_roots
@@ -539,6 +546,32 @@ def verify_maintained_qualifier(root: Path = ROOT) -> None:
             typed_equal(observed, frozen, f"maintained qualifier {item['cell_id']}")
     finally:
         shutil.rmtree(QUALIFIER_ROOT)
+
+
+def verify_bundle_self_verification(
+    value: Any, cell_id: str, qualifier_sha256: str
+) -> None:
+    expected_bundle = QUALIFIER_ROOT / cell_id
+    if (
+        type(value) is not dict
+        or set(value)
+        != {
+            "command",
+            "environment_prefix",
+            "jsonschema_module",
+            "qualifier_sha256",
+        }
+        or value["command"]
+        != [
+            str(QUALIFIER_PYTHON),
+            str(QUALIFIER),
+            "--bundle",
+            str(expected_bundle),
+        ]
+        or value["environment_prefix"] != str(QUALIFIER_PYTHON.parent.parent)
+        or value["qualifier_sha256"] != qualifier_sha256
+    ):
+        raise VerificationError("bundle self-verification target drift")
 
 
 def main() -> int:

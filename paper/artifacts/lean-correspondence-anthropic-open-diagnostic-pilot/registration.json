@@ -30,7 +30,7 @@
       "credential_metadata_root": "sha256:a3429f1828d4aca8b58cfc4aef5a1c19400ce0c88ef15ef3323a68918a2f8e4b",
       "custody_contract_template_root": "sha256:73c124eee9e80a15b233918f32b8033031bf3c76fccbb135e3b2f4e1b0ed5a61",
       "evidence_source_catalog_root": "sha256:0ac4cc728cda49da0e12a1407737d4731aad6b13a7ef53be482d289ad6dc1fa1",
-      "execution_bundle_registry_root": "sha256:f7bb0dfe2efb57be76d84e0140bc1a03b526a602b33042b80b7f86c9c2bb8afd",
+      "execution_bundle_registry_root": "sha256:ecb6fd214d76571966d1cbc2b4e2d72ee21b702d1a0e9d326d2fe86e57fb2545",
       "open_adjudication_root": "sha256:7988305fffe5a42880b515fc89f01f4e18676dbf734847274a2f798bbe90983e",
       "packet_derivations_root": "sha256:76a7e52f4ec6cf9838e90d28034cf6476197565541b99337135aa315b6924c61",
       "participant_configuration_root": "sha256:d32282f18791e7791d2891fc8e245552e49924a7c5aa334eaff01dd4ac34304c",
@@ -121,7 +121,7 @@
     "zero_retries": true,
     "zero_substitutions": true
   },
-  "registration_contract_root": "sha256:c01339eef3c437fb06c8148f47ca0129f76324973ee0a6ec48c2567200148daa",
-  "registration_root": "sha256:d18bb4ef8aa79b3c8fb2ef59c5cc434bd6146211a26320ae5f7632aa6fb02ac0",
+  "registration_contract_root": "sha256:1fd5ef793af33d1b3901c10ef88c5798d5ea852daa5d0698dfe497848d52f536",
+  "registration_root": "sha256:17932e34904e7edcef5873be082024bce6425295ea0915a1479c1237b2cf9c70",
   "schema": "vela.lean-correspondence-anthropic-open-diagnostic-registration.v1"
 }

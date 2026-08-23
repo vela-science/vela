@@ -1,7 +1,7 @@
 {
   "authority_effect": "none",
   "credential_content_accesses": 0,
-  "custody_root": "sha256:cb8da1b113d23d616b619e59234bda6857897fa9acae409aa595d95a2dbba73f",
+  "custody_root": "sha256:66ff705d54f7100e4008f107024465b08988a1d4a1ef0c938a67f4cad5517764",
   "execution_authorized": false,
   "fixed_denominator": 6,
   "held_permits": 6,
@@ -11,7 +11,7 @@
   "participant_responses": 0,
   "permit_set_root": "sha256:2197f871508416c8acafba676b57686ce79b9c1a50657a645943ec9aff72220a",
   "provider_calls": 0,
-  "registration_root": "sha256:d18bb4ef8aa79b3c8fb2ef59c5cc434bd6146211a26320ae5f7632aa6fb02ac0",
+  "registration_root": "sha256:17932e34904e7edcef5873be082024bce6425295ea0915a1479c1237b2cf9c70",
   "released_permits": 0,
   "schema": "vela.lean-correspondence-anthropic-open-diagnostic-prelaunch.v1",
   "scoring_attempts": 0,
