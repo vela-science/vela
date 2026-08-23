@@ -1,0 +1,42 @@
+{
+  "artifact_root": "sha256:e4f4b44cba1cd7f1cd953d7869e6a6193e57858476e34fac72e7908d1562fc78",
+  "authority_effect": "none",
+  "execution_authorized": false,
+  "findings": [
+    {
+      "gate": "fixture_compatibility",
+      "outcome": "PASS",
+      "summary": "ordinary and canonical-root maintained runtime-capture executions pass 7 of 7"
+    },
+    {
+      "gate": "AD-F1",
+      "outcome": "PASS",
+      "summary": "runtime capture and lifecycle gate preserved"
+    },
+    {
+      "gate": "AD-F2",
+      "outcome": "PASS",
+      "summary": "complete trusted-root and registered scorer-input custody preserved"
+    },
+    {
+      "gate": "SQ-F1",
+      "outcome": "PASS",
+      "summary": "locked lint and formatting preserved"
+    }
+  ],
+  "no_call_state": {
+    "credential_content_accesses": 0,
+    "diagnostic_permits_held": 6,
+    "diagnostic_permits_released": 0,
+    "original_stage_a_permits_held": 12,
+    "participant_responses": 0,
+    "provider_calls": 0,
+    "scoring_attempts": 0,
+    "terminal_captures": 0
+  },
+  "producer_commit": "9d95834f75ae8e698cb223ff5faf3f75173b9797",
+  "producer_parent": "1da7c53a3f7a5bce172aa50f0a069964c1b67b15",
+  "producer_tree": "6fee587ab66e3b07395ed1b9c646552b1aac468a",
+  "schema": "vela.independent-review-verdict.v1",
+  "verdict": "PASS"
+}
