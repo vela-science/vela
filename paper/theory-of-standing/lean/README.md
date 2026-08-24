@@ -39,12 +39,14 @@ From this directory:
 ```bash
 lake build
 lake env lean TheoryOfStanding.lean
+lake env lean AdversarialSamples.lean
 ```
 
 The package pins `leanprover/lean4:v4.19.0`, matching the existing isolated
 Lean fixture convention in this repository, and has no external dependency.
-Both commands check every theorem and execute the rejection and separation
-examples.
+These commands check every theorem and execute the rejection and separation
+examples. The additional P1.3 file checks 16 stratified adversarial histories
+through 14 theorem groups without extending the model.
 
 For the focused placeholder scan from the Vela repository root:
 

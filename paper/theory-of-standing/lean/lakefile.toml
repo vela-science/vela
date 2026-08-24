@@ -4,4 +4,4 @@ defaultTargets = ["TheoryOfStanding"]
 
 [[lean_lib]]
 name = "TheoryOfStanding"
-roots = ["TheoryOfStanding"]
+roots = ["TheoryOfStanding", "AdversarialSamples"]

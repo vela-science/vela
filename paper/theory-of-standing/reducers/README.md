@@ -107,3 +107,12 @@ Agreement among three small implementations is evidence that the reviewed
 semantics are not an incidental property of one language or evaluator. It is
 not evidence of universal scientific truth, productivity, completeness,
 security of the shipping Vela implementation, or suitability as a public API.
+
+## Adversarial extension
+
+Phase III P1.3 adds a deterministic bounded model corpus in
+[`adversarial/`](adversarial/README.md). It commits the generator, aggregate
+manifest, named P1.2 regression links, and coverage summary rather than
+thousands of generated inputs or outputs. Its separate Core/wire inventory
+maps concepts intentionally absent from this proof format to their existing
+authoritative tests; the proof-history format remains unchanged.
