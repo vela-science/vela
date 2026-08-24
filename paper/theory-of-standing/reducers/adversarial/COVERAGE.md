@@ -64,6 +64,10 @@ integration test. The independent authority-chain verifier accepted 6 records
 and 11 authority events and rejected all 13 named negative vectors. The
 correction verifier reported
 `sha256:935e084f8c5c45bcee234d2e9752062ba54493aa1b14f731e0efbbb1ecc01df6`.
+Portable-divergence bundle verification now runs against an explicitly
+initialized empty bare repository in both its Rust integration test and the
+matching Python reference-flow check, so neither check can borrow objects from
+an ambient source checkout.
 
 ## Boundaries and transfer
 

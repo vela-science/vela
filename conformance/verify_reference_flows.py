@@ -29,10 +29,10 @@ def digest(path: Path) -> str:
     return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def run(command: list[str]) -> subprocess.CompletedProcess[str]:
+def run(command: list[str], *, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         command,
-        cwd=ROOT,
+        cwd=cwd,
         capture_output=True,
         text=True,
         timeout=60,
@@ -222,31 +222,53 @@ def check_portable_divergence_flow() -> None:
         "repository_root",
         "sequence_one_record_root",
     )
-    for name in ("accept", "reject"):
-        history = roots[name]
-        bundle_path = ROOT / frozen[f"{name}_bundle_path"]
-        if history["bundle"] != bundle_path.name:
-            raise AssertionError(f"portable divergence {name} bundle path drift")
-        if digest(bundle_path) != history["bundle_root"]:
-            raise AssertionError(f"portable divergence {name} bundle drift")
-        if history["bundle_root"] != frozen[f"{name}_bundle_root"]:
-            raise AssertionError(f"portable divergence {name} bundle binding drift")
-        verified = run(["git", "bundle", "verify", str(bundle_path)])
-        if verified.returncode != 0:
-            raise AssertionError(verified.stderr)
-        for key in root_fields:
-            value = history[key]
-            if not isinstance(value, str) or len(value) != 71 or not value.startswith(
-                "sha256:"
-            ):
-                raise AssertionError(f"portable divergence {name} {key} malformed")
-        if history["git_commit"] == history["git_tree"]:
-            raise AssertionError(f"portable divergence {name} Git binding malformed")
-        if not history["events"]:
-            raise AssertionError(f"portable divergence {name} events missing")
-        for event in history["events"]:
-            if len(event["root"]) != 71 or not event["root"].startswith("sha256:"):
-                raise AssertionError(f"portable divergence {name} Event root malformed")
+    with tempfile.TemporaryDirectory(
+        prefix="vela-portable-bundle-verification-"
+    ) as temporary:
+        verification_repository = Path(temporary) / "empty.git"
+        initialized = run(
+            ["git", "init", "--bare", "-q", str(verification_repository)],
+            cwd=Path(temporary),
+        )
+        if initialized.returncode != 0:
+            raise AssertionError(initialized.stderr)
+
+        for name in ("accept", "reject"):
+            history = roots[name]
+            bundle_path = ROOT / frozen[f"{name}_bundle_path"]
+            if history["bundle"] != bundle_path.name:
+                raise AssertionError(f"portable divergence {name} bundle path drift")
+            if digest(bundle_path) != history["bundle_root"]:
+                raise AssertionError(f"portable divergence {name} bundle drift")
+            if history["bundle_root"] != frozen[f"{name}_bundle_root"]:
+                raise AssertionError(
+                    f"portable divergence {name} bundle binding drift"
+                )
+            verified = run(
+                ["git", "bundle", "verify", str(bundle_path)],
+                cwd=verification_repository,
+            )
+            if verified.returncode != 0:
+                raise AssertionError(verified.stderr)
+            for key in root_fields:
+                value = history[key]
+                if (
+                    not isinstance(value, str)
+                    or len(value) != 71
+                    or not value.startswith("sha256:")
+                ):
+                    raise AssertionError(
+                        f"portable divergence {name} {key} malformed"
+                    )
+            if history["git_commit"] == history["git_tree"]:
+                raise AssertionError(f"portable divergence {name} Git binding malformed")
+            if not history["events"]:
+                raise AssertionError(f"portable divergence {name} events missing")
+            for event in history["events"]:
+                if len(event["root"]) != 71 or not event["root"].startswith("sha256:"):
+                    raise AssertionError(
+                        f"portable divergence {name} Event root malformed"
+                    )
 
     if roots["accept"]["principal_id"] == roots["reject"]["principal_id"]:
         raise AssertionError("portable divergence principals must be distinct")

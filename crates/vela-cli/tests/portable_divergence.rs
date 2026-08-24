@@ -187,6 +187,17 @@ fn frozen_distinct_principal_histories_match_every_bound_root() {
     let temporary = tempfile::tempdir().expect("frozen replay directory");
     let home = temporary.path().join("home");
     std::fs::create_dir(&home).expect("frozen replay home");
+    let verification_repository = temporary.path().join("bundle-verification.git");
+    let initialized = Command::new("git")
+        .args(["init", "--bare", "-q"])
+        .arg(&verification_repository)
+        .output()
+        .expect("initialize bundle verification repository");
+    assert!(
+        initialized.status.success(),
+        "git init --bare: {}",
+        String::from_utf8_lossy(&initialized.stderr)
+    );
 
     let mut retained_submissions = Vec::new();
     let mut retained_claims = Vec::new();
@@ -200,6 +211,7 @@ fn frozen_distinct_principal_histories_match_every_bound_root() {
             history["bundle_root"]
         );
         let verified = Command::new("git")
+            .current_dir(&verification_repository)
             .args(["bundle", "verify"])
             .arg(&bundle)
             .output()
