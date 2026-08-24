@@ -1,0 +1,7415 @@
+{
+ "totals": {
+  "prove": 2012,
+  "state": 835,
+  "repair": 16,
+  "proved_kernel": 3154,
+  "proved_compiler": 231
+ },
+ "declarations_authored": 6248,
+ "families": {
+  "Arxiv.\u00ab0912.2382\u00bb.CurlingNumberConjecture": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "Arxiv.\u00ab1308.0994\u00bb.BoxdotConjecture": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 69,
+   "proved_compiler": 0
+  },
+  "Arxiv.\u00ab1601.03081\u00bb.UniqueCrystalComponents": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "Arxiv.\u00ab1609.08688\u00bb.sIncreasingrTuples": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 38,
+   "proved_compiler": 0
+  },
+  "Arxiv.\u00ab2501.03234\u00bb.ArithmeticSumS": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "Arxiv.\u00ab2602.05192\u00bb.FirstProof4": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "Books.BorweinSineSeries": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Books.BugeaudDistributionModuloOne.IntDistanceDistribution": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Books.BugeaudDistributionModuloOne.Problem10_4": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Books.BugeaudDistributionModuloOne.Problem10_5": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Books.BugeaudDistributionModuloOne.Problem10_6": {
+   "prove": 6,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "Books.BugeaudDistributionModuloOne.Problem10_7": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Books.BugeaudDistributionModuloOne.Problem10_8": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Books.BugeaudDistributionModuloOne.Problem10_9": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Books.UniformDistributionOfSequences.Equidistribution": {
+   "prove": 5,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1000\u00bb": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1002\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1003\u00bb": {
+   "prove": 1,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1004\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1007\u00bb": {
+   "prove": 4,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1008\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab100\u00bb": {
+   "prove": 4,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1014\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab101\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1022\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1023\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1026\u00bb": {
+   "prove": 5,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1028\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1034\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1036\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1037\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1038\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1041\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1043\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1044\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1047\u00bb": {
+   "prove": 5,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1048\u00bb": {
+   "prove": 8,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1049\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1051\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1052\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1054\u00bb": {
+   "prove": 0,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1055\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 2,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1056\u00bb": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1057\u00bb": {
+   "prove": 5,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1059\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 13,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab105\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1060\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1061\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1062\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1063\u00bb": {
+   "prove": 4,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1064\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1065\u00bb": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1067\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1068\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1071\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1072\u00bb": {
+   "prove": 1,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1073\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1074\u00bb": {
+   "prove": 5,
+   "state": 4,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1077\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab107\u00bb": {
+   "prove": 4,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1080\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1082\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1084\u00bb": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1085\u00bb": {
+   "prove": 6,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab108\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1090\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1092\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1093\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1094\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1095\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1096\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1097\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1098\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab109\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab10\u00bb": {
+   "prove": 5,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1101\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1102\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1104\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1105\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1106\u00bb": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1107\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1108\u00bb": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1109\u00bb": {
+   "prove": 4,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1110\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1113\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1119\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1121\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1125\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1126\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1128\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1133\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1135\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1136\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1137\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1138\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1139\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1141\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1142\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 11,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1145\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1146\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1148\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 1
+  },
+  "ErdosProblems.\u00ab1150\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab115\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1167\u00bb": {
+   "prove": 4,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1175\u00bb": {
+   "prove": 0,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1176\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1188\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1190\u00bb": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1192\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1193\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1196\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1199\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab119\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab11\u00bb": {
+   "prove": 6,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1201\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1203\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1209\u00bb": {
+   "prove": 3,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab120\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1210\u00bb": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1212\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 9,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1214\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab123\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab124\u00bb": {
+   "prove": 4,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab125\u00bb": {
+   "prove": 3,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab126\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab128\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab12\u00bb": {
+   "prove": 8,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab130\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab134\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab137\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab138\u00bb": {
+   "prove": 6,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab139\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab13\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab141\u00bb": {
+   "prove": 1,
+   "state": 4,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab142\u00bb": {
+   "prove": 1,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab143\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab145\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab146\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab14\u00bb": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab150\u00bb": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab152\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab153\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab154\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab155\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab156\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab158\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab15\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab160\u00bb": {
+   "prove": 2,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab164\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab168\u00bb": {
+   "prove": 1,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 9,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab16\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab170\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab172\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab178\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab17\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab180\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab183\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab184\u00bb": {
+   "prove": 5,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab188\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab189\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab18\u00bb": {
+   "prove": 2,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 10,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab193\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab194\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab195\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab196\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab197\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab198\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab199\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab1\u00bb": {
+   "prove": 6,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab200\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab202\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab203\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab204\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab205\u00bb": {
+   "prove": 4,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab206\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab208\u00bb": {
+   "prove": 1,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab209\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab20\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab212\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab213\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab214\u00bb": {
+   "prove": 6,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab218\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab219\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab221\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab224\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab226\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab228\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab229\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab22\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab233\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab234\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab236\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab238\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab239\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab23\u00bb": {
+   "prove": 5,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab241\u00bb": {
+   "prove": 4,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab242\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab243\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab244\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab245\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab246\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab247\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab248\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab249\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab24\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab250\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab251\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab252\u00bb": {
+   "prove": 7,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab253\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab254\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab257\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab258\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab259\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab25\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab260\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab263\u00bb": {
+   "prove": 4,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab264\u00bb": {
+   "prove": 4,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab266\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab267\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab268\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab269\u00bb": {
+   "prove": 1,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab26\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 11,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab272\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab273\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab274\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab275\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab276\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab277\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab279\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab280\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab281\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab282\u00bb": {
+   "prove": 2,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab283\u00bb": {
+   "prove": 8,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab285\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab287\u00bb": {
+   "prove": 1,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 1
+  },
+  "ErdosProblems.\u00ab288\u00bb": {
+   "prove": 0,
+   "state": 4,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab289\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab28\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab290\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab291\u00bb": {
+   "prove": 5,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab295\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 1,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab296\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab298\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab299\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab302\u00bb": {
+   "prove": 4,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab303\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab304\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 15,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab306\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab307\u00bb": {
+   "prove": 1,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab30\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab312\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab313\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 1
+  },
+  "ErdosProblems.\u00ab314\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab315\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab316\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab317\u00bb": {
+   "prove": 1,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab318\u00bb": {
+   "prove": 6,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab319\u00bb": {
+   "prove": 1,
+   "state": 4,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab31\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab321\u00bb": {
+   "prove": 2,
+   "state": 4,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab323\u00bb": {
+   "prove": 1,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab324\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab325\u00bb": {
+   "prove": 1,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab326\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab328\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab329\u00bb": {
+   "prove": 5,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab32\u00bb": {
+   "prove": 3,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab330\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab331\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab332\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab333\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab337\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab33\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab340\u00bb": {
+   "prove": 3,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 8
+  },
+  "ErdosProblems.\u00ab341\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab342\u00bb": {
+   "prove": 0,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 10,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab346\u00bb": {
+   "prove": 4,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab347\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab348\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab349\u00bb": {
+   "prove": 9,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab34\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab350\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab351\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab352\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab353\u00bb": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab354\u00bb": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab355\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab357\u00bb": {
+   "prove": 7,
+   "state": 10,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab358\u00bb": {
+   "prove": 6,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab359\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab361\u00bb": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 1
+  },
+  "ErdosProblems.\u00ab363\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab364\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab366\u00bb": {
+   "prove": 0,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab369\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab36\u00bb": {
+   "prove": 10,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 23,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab370\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab371\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab373\u00bb": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab375\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab376\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab377\u00bb": {
+   "prove": 4,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab379\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab383\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab385\u00bb": {
+   "prove": 0,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab386\u00bb": {
+   "prove": 0,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab387\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab389\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 1
+  },
+  "ErdosProblems.\u00ab38\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab390\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab392\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab394\u00bb": {
+   "prove": 5,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 1
+  },
+  "ErdosProblems.\u00ab396\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab397\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab398\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab399\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab39\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab3\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab400\u00bb": {
+   "prove": 1,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab401\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab402\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab403\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab406\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab409\u00bb": {
+   "prove": 1,
+   "state": 11,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab40\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab410\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab412\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab413\u00bb": {
+   "prove": 2,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab414\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab416\u00bb": {
+   "prove": 3,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab417\u00bb": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab418\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab419\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab41\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab421\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab422\u00bb": {
+   "prove": 0,
+   "state": 4,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab424\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab426\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab427\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab428\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab429\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab42\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab434\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab435\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab43\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab442\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab443\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab445\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 1
+  },
+  "ErdosProblems.\u00ab447\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab448\u00bb": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab44\u00bb": {
+   "prove": 2,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab450\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab453\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab454\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab455\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab456\u00bb": {
+   "prove": 2,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab457\u00bb": {
+   "prove": 1,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab458\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab459\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab45\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab463\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab464\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab469\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab46\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab470\u00bb": {
+   "prove": 5,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab476\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab477\u00bb": {
+   "prove": 4,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab479\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab47\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab480\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab481\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab484\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab486\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab487\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab488\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab489\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab48\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab493\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab494\u00bb": {
+   "prove": 9,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab495\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab497\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab498\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab499\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab4\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab501\u00bb": {
+   "prove": 5,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab502\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab503\u00bb": {
+   "prove": 4,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab505\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab506\u00bb": {
+   "prove": 2,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab507\u00bb": {
+   "prove": 4,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab508\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab509\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 9,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab50\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab510\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab512\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab513\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab516\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab517\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab519\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab51\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab520\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab521\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 9,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab522\u00bb": {
+   "prove": 2,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 10,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab52\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab532\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab533\u00bb": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab535\u00bb": {
+   "prove": 7,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab536\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab537\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab538\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab539\u00bb": {
+   "prove": 7,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab540\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab541\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab562\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab564\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab566\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab567\u00bb": {
+   "prove": 0,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab56\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 14,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab579\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab582\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab587\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab590\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab591\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab592\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab593\u00bb": {
+   "prove": 2,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab594\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab595\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab596\u00bb": {
+   "prove": 6,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab598\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab599\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab5\u00bb": {
+   "prove": 11,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 9,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab600\u00bb": {
+   "prove": 1,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab602\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 14,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab60\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab613\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab615\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab617\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab618\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab619\u00bb": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab61\u00bb": {
+   "prove": 4,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab621\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab623\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab624\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab628\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab633\u00bb": {
+   "prove": 5,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab639\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab645\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab646\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab647\u00bb": {
+   "prove": 0,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab648\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab649\u00bb": {
+   "prove": 4,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab64\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab650\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab653\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab655\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab659\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab660\u00bb": {
+   "prove": 1,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab666\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab66\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab672\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab674\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab677\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab678\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab67\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab680\u00bb": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab681\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab683\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab686\u00bb": {
+   "prove": 1,
+   "state": 4,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 1
+  },
+  "ErdosProblems.\u00ab688\u00bb": {
+   "prove": 1,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab689\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab68\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab692\u00bb": {
+   "prove": 4,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab694\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab695\u00bb": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab697\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 3,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab698\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab699\u00bb": {
+   "prove": 1,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab69\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab6\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab700\u00bb": {
+   "prove": 0,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 9,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab701\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab705\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab707\u00bb": {
+   "prove": 8,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab70\u00bb": {
+   "prove": 2,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab71\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab723\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab726\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab727\u00bb": {
+   "prove": 2,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab728\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab729\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab730\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 1
+  },
+  "ErdosProblems.\u00ab740\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab741\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab742\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab749\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab74\u00bb": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab750\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab751\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab753\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab755\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab756\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab757\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab75\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab760\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab762\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab769\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 10,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab770\u00bb": {
+   "prove": 3,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab774\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab775\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab779\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab785\u00bb": {
+   "prove": 9,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab786\u00bb": {
+   "prove": 1,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab789\u00bb": {
+   "prove": 6,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab794\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab796\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab798\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab7\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab80\u00bb": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab812\u00bb": {
+   "prove": 1,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab817\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab818\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab821\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab822\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab825\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab826\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab828\u00bb": {
+   "prove": 1,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab829\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 1
+  },
+  "ErdosProblems.\u00ab82\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab830\u00bb": {
+   "prove": 3,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab835\u00bb": {
+   "prove": 9,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab844\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab845\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab846\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab847\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab848\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab849\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab850\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab851\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab853\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab855\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab857\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab859\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab85\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab862\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab865\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab867\u00bb": {
+   "prove": 6,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab868\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab871\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab872\u00bb": {
+   "prove": 0,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 14,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab873\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab881\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab884\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab885\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab886\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab887\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab888\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab889\u00bb": {
+   "prove": 3,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab890\u00bb": {
+   "prove": 2,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab891\u00bb": {
+   "prove": 2,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab893\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab897\u00bb": {
+   "prove": 3,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab898\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab899\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab89\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab904\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab905\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab906\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab907\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab90\u00bb": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab912\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab913\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab914\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab918\u00bb": {
+   "prove": 5,
+   "state": 4,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab91\u00bb": {
+   "prove": 12,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 9,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab920\u00bb": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab923\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab92\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab930\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab931\u00bb": {
+   "prove": 1,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab932\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab933\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab936\u00bb": {
+   "prove": 0,
+   "state": 4,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab937\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab938\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab939\u00bb": {
+   "prove": 2,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab93\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab940\u00bb": {
+   "prove": 2,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab942\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab943\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab944\u00bb": {
+   "prove": 4,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab945\u00bb": {
+   "prove": 3,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab946\u00bb": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab949\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab94\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab950\u00bb": {
+   "prove": 2,
+   "state": 5,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab951\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab952\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab955\u00bb": {
+   "prove": 6,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab958\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab959\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab961\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 2,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab962\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab965\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab966\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab967\u00bb": {
+   "prove": 3,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab968\u00bb": {
+   "prove": 2,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab96\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab971\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab972\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab973\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab974\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab975\u00bb": {
+   "prove": 4,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab978\u00bb": {
+   "prove": 4,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab979\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab97\u00bb": {
+   "prove": 3,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab982\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab985\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab987\u00bb": {
+   "prove": 10,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab98\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab990\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab996\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab997\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab99\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "ErdosProblems.\u00ab9\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab12\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab14\u00bb": {
+   "prove": 19,
+   "state": 28,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab15\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab16\u00bb": {
+   "prove": 3,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab18\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab19\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab1\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab21\u00bb": {
+   "prove": 2,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab22\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab23\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab24\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab25\u00bb": {
+   "prove": 3,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab26\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab27\u00bb": {
+   "prove": 4,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab28\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab29\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab2\u00bb": {
+   "prove": 4,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab31\u00bb": {
+   "prove": 4,
+   "state": 7,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab32\u00bb": {
+   "prove": 5,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab33\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab35\u00bb": {
+   "prove": 4,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab36\u00bb": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab37\u00bb": {
+   "prove": 0,
+   "state": 5,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab38\u00bb": {
+   "prove": 2,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab39\u00bb": {
+   "prove": 0,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 8
+  },
+  "GreensOpenProblems.\u00ab3\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab40\u00bb": {
+   "prove": 4,
+   "state": 5,
+   "repair": 0,
+   "proved_kernel": 10,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab41\u00bb": {
+   "prove": 2,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab42\u00bb": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab44\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab46\u00bb": {
+   "prove": 3,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab47\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab49\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab4\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab50\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab51\u00bb": {
+   "prove": 4,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab52\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab53\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab54\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab57\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab58\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab5\u00bb": {
+   "prove": 2,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab60\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab61\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab62\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab64\u00bb": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab66\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab72\u00bb": {
+   "prove": 5,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab77\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab7\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab85\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab94\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "GreensOpenProblems.\u00ab9\u00bb": {
+   "prove": 1,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "HilbertProblems.\u00ab17\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "HilbertProblems.\u00ab5\u00bb": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "Kourovka.\u00ab19_25\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Kourovka.\u00ab1_40\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "Kourovka.\u00ab1_74\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Kourovka.\u00ab20_76\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "LittProblems.\u00ab1\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "Mathoverflow.\u00ab10799\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 14,
+   "proved_compiler": 0
+  },
+  "Mathoverflow.\u00ab17560\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Mathoverflow.\u00ab1973\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Mathoverflow.\u00ab21003\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Mathoverflow.\u00ab235893\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "Mathoverflow.\u00ab31809\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Mathoverflow.\u00ab339137\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Mathoverflow.\u00ab34145\u00bb": {
+   "prove": 2,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 22,
+   "proved_compiler": 0
+  },
+  "Mathoverflow.\u00ab347178\u00bb": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Mathoverflow.\u00ab434111\u00bb": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "Mathoverflow.\u00ab486451\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Mathoverflow.\u00ab507128\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Mathoverflow.\u00ab75792\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 27,
+   "proved_compiler": 0
+  },
+  "Millenium.NavierStokes": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 41,
+   "proved_compiler": 0
+  },
+  "Millenium.Poincare": {
+   "prove": 9,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "Millenium.PvsNP": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "Millenium.RiemannHypothesis": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab100434\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 14,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab100474\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 16,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab100475\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 10,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab100478\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab100800\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab101779\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab102371\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab102722\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 12,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab102847\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab103151\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab103311\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab103425\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab103662\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab103885\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 10,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab104320\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 5
+  },
+  "OEIS.\u00ab105020\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab105033\u00bb": {
+   "prove": 0,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab105210\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 5
+  },
+  "OEIS.\u00ab105565\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 10,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab105720\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 10,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab105751\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab105801\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab107247\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab108081\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 17,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab108129\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab108211\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab108301\u00bb": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 5
+  },
+  "OEIS.\u00ab108306\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 10,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab108569\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab108864\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab108866\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab108\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 10,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab109074\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 5
+  },
+  "OEIS.\u00ab109227\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab109671\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 5
+  },
+  "OEIS.\u00ab109845\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab109905\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab109908\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab109909\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab110475\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab110566\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 6
+  },
+  "OEIS.\u00ab110835\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab110854\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 11,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab111114\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab111291\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 1
+  },
+  "OEIS.\u00ab112521\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab112970\u00bb": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab113010\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 5
+  },
+  "OEIS.\u00ab113019\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 5
+  },
+  "OEIS.\u00ab113213\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab113250\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab113252\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab113254\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab113255\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab113257\u00bb": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab113258\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab113271\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab113609\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 5
+  },
+  "OEIS.\u00ab114137\u00bb": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 5
+  },
+  "OEIS.\u00ab114216\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 5
+  },
+  "OEIS.\u00ab114362\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab1146\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab114831\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab115257\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab115366\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 2
+  },
+  "OEIS.\u00ab11545\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab1157\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab116150\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab117027\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 15,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab167604\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab175386\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 5
+  },
+  "OEIS.\u00ab194806\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab211417\u00bb": {
+   "prove": 7,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab224515\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab227582\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 5
+  },
+  "OEIS.\u00ab228143\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 5
+  },
+  "OEIS.\u00ab228828\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab231201\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab232174\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab237271\u00bb": {
+   "prove": 7,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 5
+  },
+  "OEIS.\u00ab239957\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab243106\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab248802\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 5
+  },
+  "OEIS.\u00ab256012\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 4
+  },
+  "OEIS.\u00ab258667\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 11,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab267581\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 10,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab271591\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab278070\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab280831\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab281976\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 10,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab282779\u00bb": {
+   "prove": 6,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab287616\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab28859\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 5
+  },
+  "OEIS.\u00ab289411\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 5
+  },
+  "OEIS.\u00ab2897\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 10,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab300997\u00bb": {
+   "prove": 6,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab303639\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab303656\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab306424\u00bb": {
+   "prove": 6,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab306477\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab307865\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab308734\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab309132\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab317940\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 16,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab323557\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab325046\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab340737\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab341254\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab34693\u00bb": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab357513\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 9,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab358684\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 11,
+   "proved_compiler": 1
+  },
+  "OEIS.\u00ab363102\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab363347\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab368692\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab37274\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 9,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab372761\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab382590\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab41\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 4
+  },
+  "OEIS.\u00ab51293\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab56777\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab62567\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 9,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab63880\u00bb": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 9,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab6697\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 15,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab67720\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab80170\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab81091\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 5
+  },
+  "OEIS.\u00ab87719\u00bb": {
+   "prove": 2,
+   "state": 0,
+   "repair": 4,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab91669\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "OEIS.\u00ab945\u00bb": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 11,
+   "proved_compiler": 0
+  },
+  "OpenQuantumProblems.\u00ab13\u00bb": {
+   "prove": 1,
+   "state": 6,
+   "repair": 0,
+   "proved_kernel": 47,
+   "proved_compiler": 0
+  },
+  "OpenQuantumProblems.\u00ab23\u00bb": {
+   "prove": 4,
+   "state": 12,
+   "repair": 0,
+   "proved_kernel": 35,
+   "proved_compiler": 0
+  },
+  "OpenQuantumProblems.\u00ab35\u00bb": {
+   "prove": 8,
+   "state": 16,
+   "repair": 0,
+   "proved_kernel": 66,
+   "proved_compiler": 0
+  },
+  "OptimizationConstants.\u00ab1a\u00bb": {
+   "prove": 2,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Other.BeaverMathOlympiad": {
+   "prove": 4,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Other.EquationalTheories_677_255": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "Other.SchurTruncatedExponential": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Other.SuffixPrefixAvoidance": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "Other.VCDimConvex": {
+   "prove": 6,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Paper.BranchingVAS": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 19,
+   "proved_compiler": 0
+  },
+  "Paper.CardinalityLindelof": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Paper.CasasAlvero": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "Paper.CatchUpConjecture": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 30,
+   "proved_compiler": 0
+  },
+  "Paper.Chvatal": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "Paper.ClaudesCycles": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 9,
+   "proved_compiler": 0
+  },
+  "Paper.ConjugacyClassSizes": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "Paper.DeGiorgi": {
+   "prove": 9,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 10,
+   "proved_compiler": 0
+  },
+  "Paper.DegreeSequencesTriangleFree": {
+   "prove": 8,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 9,
+   "proved_compiler": 0
+  },
+  "Paper.Dubner": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "Paper.FusibleNumber": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "Paper.Gourevitch": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Paper.HartshorneConjecture": {
+   "prove": 7,
+   "state": 0,
+   "repair": 1,
+   "proved_kernel": 9,
+   "proved_compiler": 0
+  },
+  "Paper.Homogenous": {
+   "prove": 0,
+   "state": 5,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "Paper.KotzigConjecture": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Paper.Kurepa": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 10,
+   "proved_compiler": 0
+  },
+  "Paper.LatinSquare": {
+   "prove": 1,
+   "state": 8,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 2
+  },
+  "Paper.LatinTableau": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Paper.MonochromaticQuantumGraph": {
+   "prove": 11,
+   "state": 34,
+   "repair": 0,
+   "proved_kernel": 28,
+   "proved_compiler": 3
+  },
+  "Paper.PrimeTuples": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Paper.ReedOmegaDeltaChi": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Paper.RingelConjecture": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Paper.Rupert": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "Paper.StrongSensitivityConjecture": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "Paper.VoronovskajaTypeFormula": {
+   "prove": 2,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "Paper.WeakTiling": {
+   "prove": 0,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "Paper.WeaklyFirstCountable": {
+   "prove": 3,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "Paper.ZagierMZV": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 16,
+   "proved_compiler": 0
+  },
+  "Subsets.FC100OpenSet1": {
+   "prove": 0,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Subsets.FC100SolvedSet1": {
+   "prove": 0,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.ABC": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "Wikipedia.AgohGiuga": {
+   "prove": 9,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Agrawal": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.AlgebraicNormality": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "Wikipedia.AlmostPerfectNumbers": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.AmicableNumbers": {
+   "prove": 0,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Andrica": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.ArtinPrimitiveRootsConjecture": {
+   "prove": 9,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "Wikipedia.BalancedPrimes": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.BatemanHornConjecture": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "Wikipedia.BealConjecture": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "Wikipedia.BeckFialaConjecture": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.BetrothedNumbers": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "Wikipedia.BingBorsuk": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Bloch": {
+   "prove": 7,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 11,
+   "proved_compiler": 0
+  },
+  "Wikipedia.BoundedBurnsideProblem": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Brennanconjecture": {
+   "prove": 6,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 9,
+   "proved_compiler": 0
+  },
+  "Wikipedia.BrocardConjecture": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Buchi": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Bunyakovsky": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.BusyBeaver": {
+   "prove": 6,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 16,
+   "proved_compiler": 0
+  },
+  "Wikipedia.CarmichaelTotient": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Catalan": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "Wikipedia.CernyConjecture": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.ClassNumberProblem": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.CollatzConjecture": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.CongruentNumber": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 9,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Conway99Graph": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 10,
+   "proved_compiler": 0
+  },
+  "Wikipedia.DedekindNumber": {
+   "prove": 1,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 24,
+   "proved_compiler": 9
+  },
+  "Wikipedia.DeterminantalConjecture": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.DiameterSimpleFiniteGroups": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Dickson": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.ElliottHalberstamConjecture": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "Wikipedia.EllipticCurveRank": {
+   "prove": 12,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 16,
+   "proved_compiler": 0
+  },
+  "Wikipedia.ErdosMoser": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Euclid": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.EulerBrick": {
+   "prove": 4,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 9,
+   "proved_compiler": 0
+  },
+  "Wikipedia.EulerSumOfPowers": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Exponentials": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.FactorialPrime": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "Wikipedia.FeitThompsonPrimeConjecture": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Fermat": {
+   "prove": 0,
+   "state": 4,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.FermatCatalanConjecture": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "Wikipedia.FibonacciPrimes": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Firoozbakht": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.FlintCooksonHills": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.FortuneConjecture": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Fuglede": {
+   "prove": 1,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.GapConjecture": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.GaussCircleProblem": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Gilbreath": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.GoldbachConjecture": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Goormaghtigh": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "Wikipedia.GracefulLabeling": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Grimm": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.GromovPolynomialGrowth": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Hadamard": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Hall": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "Wikipedia.HardyLittlewood": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "Wikipedia.IdonealCompleteness": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 1
+  },
+  "Wikipedia.InscribedSquare": {
+   "prove": 3,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "Wikipedia.InvariantSubspaceProblem": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "Wikipedia.InverseGalois": {
+   "prove": 6,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Irrational": {
+   "prove": 0,
+   "state": 9,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.JacobianConjecture": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 19,
+   "proved_compiler": 0
+  },
+  "Wikipedia.JugglerConjecture": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Kakeya": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Kaplansky": {
+   "prove": 7,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Koethe": {
+   "prove": 6,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "Wikipedia.KomlosConjecture": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.KummerVandiver": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.LanderParkinAndSelfridgeConjecture": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.LegendreConjecture": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.LehmerMahlerMeasureProblem": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "Wikipedia.LehmerTotient": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.LeinsterGroup": {
+   "prove": 4,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Lemoine": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.LittlewoodConjecture": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.LonelyRunnerConjecture": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "Wikipedia.LychrelNumbers": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 4
+  },
+  "Wikipedia.MagicSquares": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Mahler32": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Mandelbrot": {
+   "prove": 6,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 12,
+   "proved_compiler": 0
+  },
+  "Wikipedia.MeanValueProblem": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Mersenne": {
+   "prove": 2,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Mills": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "Wikipedia.ModularityConjecture": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 9,
+   "proved_compiler": 0
+  },
+  "Wikipedia.MoserWorm": {
+   "prove": 4,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "Wikipedia.MovingSofa": {
+   "prove": 10,
+   "state": 0,
+   "repair": 3,
+   "proved_kernel": 22,
+   "proved_compiler": 0
+  },
+  "Wikipedia.NoetherProblem": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "Wikipedia.NormalityOfPi": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Oppermann": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "Wikipedia.PebblingNumberConjecture": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 21,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Pell": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "Wikipedia.PerfectNumbers": {
+   "prove": 3,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.PierceBirkhoff": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "Wikipedia.PierpontPrime": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "Wikipedia.PollocksConjecture": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "Wikipedia.PompeiuProblem": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 11,
+   "proved_compiler": 0
+  },
+  "Wikipedia.PowerfulNumbersDensity": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "Wikipedia.PrimeTriplets": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.PrimesAndPerfectSquares": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.QuasiperfectNumbers": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.RamanujanTau": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "Wikipedia.RamseyNumbers": {
+   "prove": 2,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "Wikipedia.RationalDistanceProblem": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.RegularPrimes": {
+   "prove": 6,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 4,
+   "proved_compiler": 0
+  },
+  "Wikipedia.RiemannZetaValues": {
+   "prove": 8,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.RudinsConjecture": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Schanuel": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Schinzel": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.ScholzConjecture": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Selfridge": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 13,
+   "proved_compiler": 4
+  },
+  "Wikipedia.Sendov": {
+   "prove": 3,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "Wikipedia.SidorenkoConjecture": {
+   "prove": 1,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 13,
+   "proved_compiler": 0
+  },
+  "Wikipedia.SierpinskiNumber": {
+   "prove": 0,
+   "state": 3,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 1
+  },
+  "Wikipedia.Singmaster": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.SixStandardDeviations": {
+   "prove": 2,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.SnakeInTheBox": {
+   "prove": 3,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "Wikipedia.SolitaryNumber": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "Wikipedia.SparseRuler": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 8,
+   "proved_compiler": 0
+  },
+  "Wikipedia.SquarePacking": {
+   "prove": 5,
+   "state": 5,
+   "repair": 0,
+   "proved_kernel": 9,
+   "proved_compiler": 0
+  },
+  "Wikipedia.SteinerSystem": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 16,
+   "proved_compiler": 2
+  },
+  "Wikipedia.SumOfThreeCubes": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 6,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Superperfectnumbers": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.SurjunctiveGroup": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Taxicab": {
+   "prove": 0,
+   "state": 2,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Toronto": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 3,
+   "proved_compiler": 0
+  },
+  "Wikipedia.Transcendental": {
+   "prove": 22,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.TwinPrimes": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.UnionClosed": {
+   "prove": 5,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 7,
+   "proved_compiler": 0
+  },
+  "Wikipedia.VaughtConjecture": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.WallSunSun": {
+   "prove": 11,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "Wikipedia.WilsonPrime": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "Wikipedia.WolstenholmePrime": {
+   "prove": 4,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 2
+  },
+  "Wikipedia.WoodalPrimes": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "Wikipedia.conjecture_1_3_to_2_3": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture1": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture100": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture101": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture103": {
+   "prove": 0,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 2,
+   "proved_compiler": 5
+  },
+  "WrittenOnTheWallII.GraphConjecture109": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture13": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture133": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture141": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture142": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture143": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture144": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture145": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture146": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture16": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture17": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture18": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture19": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture194": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture198a": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture2": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture20": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture200": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture217": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture23": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture291": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 5,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture3": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture31": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture314": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture315": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture316": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture32": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture322": {
+   "prove": 0,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture327": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture33": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture34": {
+   "prove": 0,
+   "state": 1,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture36": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture4": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture40": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture5": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture58": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture59": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture6": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture61": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture63": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture65": {
+   "prove": 0,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 10,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture7": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.GraphConjecture85": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 0,
+   "proved_compiler": 0
+  },
+  "WrittenOnTheWallII.Test": {
+   "prove": 7,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 20,
+   "proved_compiler": 64
+  },
+  "WrittenOnTheWallII.\u00ab160\u00bb": {
+   "prove": 1,
+   "state": 0,
+   "repair": 0,
+   "proved_kernel": 1,
+   "proved_compiler": 0
+  }
+ },
+ "repair_declarations": [
+  "Erdos1055.erdos_1055.variants.erdos_limit",
+  "Erdos1055.erdos_1055.variants.selfridge_limit",
+  "Erdos295.erdos_295.variants.erdos_straus",
+  "Erdos697.erdos_697.parts.i",
+  "Erdos697.erdos_697.parts.ii",
+  "Erdos697.erdos_697.variants.delta_lt",
+  "Erdos961.erdos_961.variants.erdos_upper_bound",
+  "Erdos961.erdos_961.variants.jutila_ramachandra_shorey_upper_bound",
+  "HartshorneConjecture.AlgebraicGeometry.Scheme.VectorBundles.Splitting.iso",
+  "MovingSofa.sofaConstant_eq",
+  "MovingSofa.sofaConstant_eq_volume_gerversSofa",
+  "MovingSofa.volume_eq_sofaConstant_iff_congruent_gerversSofa",
+  "OeisA87719.a_1",
+  "OeisA87719.a_2",
+  "OeisA87719.a_3",
+  "OeisA87719.a_formula"
+ ]
+}
