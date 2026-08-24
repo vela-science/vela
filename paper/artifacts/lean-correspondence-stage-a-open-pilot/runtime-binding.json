@@ -1,0 +1,42 @@
+{
+  "authority_effect": "none",
+  "configuration_slots": [
+    {
+      "configuration_root": null,
+      "immutable_model_snapshot": null,
+      "provider_organization": null,
+      "qualification_receipt_root": null,
+      "slot_id": "configuration-a",
+      "status": "unbound"
+    },
+    {
+      "configuration_root": null,
+      "immutable_model_snapshot": null,
+      "provider_organization": null,
+      "qualification_receipt_root": null,
+      "slot_id": "configuration-b",
+      "status": "unbound"
+    }
+  ],
+  "execution_authorized": false,
+  "independent_runtime_review_receipt_root": null,
+  "maintained_qualifier_receipt_root": null,
+  "participant_calls": 0,
+  "provider_calls": 0,
+  "rejected_runtime_evidence": {
+    "prior_image_digest": "sha256:f75ed4428ee3ab3f3275db0378e7375c1364f8b9f06d2f1bb4158502a84d4fc1",
+    "prior_review_commit": "4a06ac8aa9a5f07abd019a375d755bfe5f0031aa",
+    "reason": "single OpenAI/Codex provider, tools disabled, different prompt and response contract; transitive reuse would violate the reviewed Stage A method"
+  },
+  "required_capabilities": [
+    "cold_fresh_session",
+    "read_only_offline_shell_and_file_tools",
+    "closed_json_response",
+    "1200_second_hard_timeout",
+    "raw_provider_events_usage_stderr_terminal_teardown_custody"
+  ],
+  "required_distinct_provider_organizations": 2,
+  "required_participant_configuration_count": 2,
+  "schema": "vela.lean-correspondence-stage-a-runtime-binding.v1",
+  "status": "blocked_missing_exact_two_provider_tool_runtime_qualification"
+}

@@ -1,0 +1,17 @@
+{
+  "assignment_id": "lc-a-12-5860f79941fb",
+  "assignment_root": "sha256:11fbe1785066cdc4183028cb71b26e2eedf9cb5fb35163440237f83470930b48",
+  "attempt": 1,
+  "authority_effect": "none",
+  "configuration_slot_root": "sha256:c00d3ee6335f79e2b70a060ff3985393df4484b461b1789a7ef762e1e26a8b7d",
+  "consumed": false,
+  "packet_root": "sha256:cd45eb0ce432545844752a98b72c4a65ef6c5d9df627a7ce94a8d71e6931cc14",
+  "prompt_root": "sha256:807b4465c374013238f3aec4cef504fe099236aa5ca214b0fe64c3dbe067a278",
+  "registration_contract_root": "sha256:a291bc126e4bbd599d24ca87c111d8ce640daf9f48c67325b907a48f4457ca7c",
+  "releasable": false,
+  "response_schema_sha256": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
+  "runtime_qualification_receipt_root": null,
+  "schema": "vela.lean-correspondence-stage-a-held-permit.v1",
+  "status": "held",
+  "timeout_seconds": 1200
+}

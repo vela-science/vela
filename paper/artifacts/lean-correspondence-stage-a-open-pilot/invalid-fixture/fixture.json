@@ -1,0 +1,72 @@
+{
+  "authority_effect": "none",
+  "both_declarations_compile": true,
+  "case_id": "deliberately-invalid-byte-identity",
+  "claimed_relation": "byte_identity",
+  "distinct_numerals": true,
+  "impact_root": "sha256:52f36cd6aa3200a54a361974fa9450337615bffde0b28af878303eada3b67362",
+  "participant_visible_id": "open-calibration-03",
+  "relation_record_root": "sha256:c8497ebfb029520813723f12072bd9a96c5df23f8367fa860d5ab1d4a44a99ab",
+  "repositories": {
+    "source": {
+      "commit": "f9ec0bfb99a9b2ea018e5778736b9e4ccb81b32d",
+      "files": [
+        {
+          "bytes": 56,
+          "git_blob": "eb1cd51f5384b028873dc3fcae6e671872863f61",
+          "path": "Basic.lean",
+          "sha256": "sha256:9a9971567a72494e3d8d95a1df556c2c6a7c04250a514043849a41dcbc30789c"
+        },
+        {
+          "bytes": 39,
+          "git_blob": "6866e6a8b94ac2cfc2776805302d6436d6f34ad6",
+          "path": "InvalidWitness.lean",
+          "sha256": "sha256:6951a45f2893213e6ec04eb7b96920c765dcc26ef2c882530607950c9a9555e1"
+        },
+        {
+          "bytes": 79,
+          "git_blob": "e6dc304653f595a83abadac600e357cdcdaf776e",
+          "path": "lakefile.toml",
+          "sha256": "sha256:f3bed256c9760a28b5aeb0725ca8b6dc15b309c437ad7b0a74420a91346e62e2"
+        },
+        {
+          "bytes": 25,
+          "git_blob": "7aca1d8a939cc24c413eddd793671cdce7070b74",
+          "path": "lean-toolchain",
+          "sha256": "sha256:55e97be96000b5e9e290c9e74482e5e317861499a5540353ce845471bded8cea"
+        }
+      ],
+      "repository_id": "fixture/stage-a-invalid-source",
+      "tree": "9cc07e06a1261b453a7c30e0e01ae3d28b10b59f"
+    },
+    "target": {
+      "commit": "654546a053bf0b392f4b265a4ea1fe8c9f86aa4a",
+      "files": [
+        {
+          "bytes": 56,
+          "git_blob": "dd387251e6205876e1fd235bc16c96f7cb071c02",
+          "path": "Basic.lean",
+          "sha256": "sha256:0a0c06095d3c434b28c98de8fb651907083df13e34d457eba11dd9f8fcf214f9"
+        },
+        {
+          "bytes": 79,
+          "git_blob": "5e663305386c51141840d06b0611c376205b36b3",
+          "path": "lakefile.toml",
+          "sha256": "sha256:ad144c0b74770d65380eb3c4cc8b03e1ad364be5b9270e77c06662730df49941"
+        },
+        {
+          "bytes": 25,
+          "git_blob": "7aca1d8a939cc24c413eddd793671cdce7070b74",
+          "path": "lean-toolchain",
+          "sha256": "sha256:55e97be96000b5e9e290c9e74482e5e317861499a5540353ce845471bded8cea"
+        }
+      ],
+      "repository_id": "fixture/stage-a-invalid-target",
+      "tree": "a7c4ac384070c41e8fec5505efe84a31351ced74"
+    }
+  },
+  "schema": "vela.lean-correspondence-stage-a-invalid-fixture.v1",
+  "witness_failure_receipt_root": "sha256:6140775fa18dff992c01d2e2189c60c58ae26d0742e8ff18842b7526e4efcb49",
+  "witness_must_fail": true,
+  "witness_source_sha256": "sha256:6951a45f2893213e6ec04eb7b96920c765dcc26ef2c882530607950c9a9555e1"
+}

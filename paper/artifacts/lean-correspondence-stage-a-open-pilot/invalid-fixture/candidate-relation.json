@@ -1,0 +1,85 @@
+{
+  "adapters": [],
+  "assumptions": [],
+  "depends_on": [],
+  "invalidation": {
+    "reason": null,
+    "status": "current"
+  },
+  "relation": "byte_identity",
+  "relation_id": "stage-a-open-calibration.distinct-numerals-byte-identity",
+  "schema_version": "lean-correspondence/relation/v0.2",
+  "source": {
+    "declaration": {
+      "end_line": 1,
+      "kind": "def",
+      "name": "calibrationValue",
+      "start_line": 1
+    },
+    "declaration_sha256": "476a3f0d42121341ec50343027e9a252b1ab0e142c20403347f7581c3af4ddfd",
+    "environment": {
+      "environment_root": "157b87707fd890d628b254585c566b77b9cf80f29caf0c56bd7d31ee2d5d0a3c",
+      "lean_toolchain": "leanprover/lean4:v4.19.0",
+      "locked_files": [
+        {
+          "path": "lakefile.toml",
+          "sha256": "f3bed256c9760a28b5aeb0725ca8b6dc15b309c437ad7b0a74420a91346e62e2"
+        },
+        {
+          "path": "lean-toolchain",
+          "sha256": "55e97be96000b5e9e290c9e74482e5e317861499a5540353ce845471bded8cea"
+        }
+      ]
+    },
+    "file": "Basic.lean",
+    "file_sha256": "9a9971567a72494e3d8d95a1df556c2c6a7c04250a514043849a41dcbc30789c",
+    "repository": {
+      "commit": "f9ec0bfb99a9b2ea018e5778736b9e4ccb81b32d",
+      "repository_id": "fixture/stage-a-invalid-source"
+    }
+  },
+  "state": "candidate",
+  "target": {
+    "declaration": {
+      "end_line": 1,
+      "kind": "def",
+      "name": "calibrationValue",
+      "start_line": 1
+    },
+    "declaration_sha256": "1257c5b157b10640944c7bd4928f5a920efa805f70baf345cd697ed3e282d219",
+    "environment": {
+      "environment_root": "c6f8cf856b6e6608e7fa7ea7da6b0bd3ea60dbae65c0fde0ead617f3351850ad",
+      "lean_toolchain": "leanprover/lean4:v4.19.0",
+      "locked_files": [
+        {
+          "path": "lakefile.toml",
+          "sha256": "ad144c0b74770d65380eb3c4cc8b03e1ad364be5b9270e77c06662730df49941"
+        },
+        {
+          "path": "lean-toolchain",
+          "sha256": "55e97be96000b5e9e290c9e74482e5e317861499a5540353ce845471bded8cea"
+        }
+      ]
+    },
+    "file": "Basic.lean",
+    "file_sha256": "0a0c06095d3c434b28c98de8fb651907083df13e34d457eba11dd9f8fcf214f9",
+    "repository": {
+      "commit": "654546a053bf0b392f4b265a4ea1fe8c9f86aa4a",
+      "repository_id": "fixture/stage-a-invalid-target"
+    }
+  },
+  "witness": {
+    "command": [
+      "lake",
+      "env",
+      "lean",
+      "InvalidWitness.lean"
+    ],
+    "expected_stdout_sha256": null,
+    "kind": "lean_command",
+    "repositories": [],
+    "repository_role": "source",
+    "scope": null,
+    "timeout_seconds": 120
+  }
+}

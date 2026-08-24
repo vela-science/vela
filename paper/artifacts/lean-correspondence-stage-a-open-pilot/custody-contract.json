@@ -1,0 +1,40 @@
+{
+  "authority_effect": "none",
+  "capture_commit_before_next_release": true,
+  "closed_response_schema": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
+  "maintained_qualifier": {
+    "blob": "be1982fc09c8d859b7da131c242de243e6f989b8",
+    "copied": false,
+    "path": "tools/evidence_qualification/qualification.py",
+    "sha256": "sha256:628ac203a48ef19c649dd64dedc010d104d728eb0edbb66392e93955fab872b9"
+  },
+  "one_permit_outstanding": true,
+  "protected_stage_b_key_created": false,
+  "provider_calls": 0,
+  "raw_response_preserved": true,
+  "registration_root": "sha256:e81364536f46675c623b8d6952561324e82b375511e53fa9e94f8256f23732ee",
+  "required_terminal_files": [
+    "consumed-permit.json",
+    "launch.json",
+    "provider-events.jsonl",
+    "provider-stderr.txt",
+    "participant-response.raw.json",
+    "usage.json",
+    "terminal-receipt.json",
+    "teardown.json"
+  ],
+  "schema": "vela.lean-correspondence-stage-a-custody-contract.v1",
+  "scoring_semantics": {
+    "change_classification": "exact closed label against the fixed open calibration adjudication",
+    "composite_exact": "all three correctness components and no false inference",
+    "decimal_rounding": "ROUND_HALF_EVEN",
+    "failure_timeout_malformed": "retained in the fixed denominator",
+    "false_inference": "any authority or scientific claim above the registered case ceiling is an error",
+    "impact_closure": "closed unique set: every allowed item exactly once, no missing duplicate or unknown id, exact disposition and nonempty supplied evidence bindings",
+    "one_scoring_attempt": true,
+    "relation_validation": "exact closed label against the fixed open calibration adjudication",
+    "restricted_seconds": "min(actual_elapsed_seconds, 1200); missing or nonterminal failure assigned 1200"
+  },
+  "zero_retries": true,
+  "zero_substitutions": true
+}

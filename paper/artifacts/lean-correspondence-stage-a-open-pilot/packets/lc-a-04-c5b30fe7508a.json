@@ -1,0 +1,48 @@
+{
+  "allowed_impact_ids": [
+    "erdos-730.affirmative-rhs-defeq"
+  ],
+  "answer_key_present": false,
+  "arm_exposed_to_participant": false,
+  "assignment_id": "lc-a-04-c5b30fe7508a",
+  "authority_effect": "none",
+  "base_semantic_atoms": [
+    {
+      "bytes": 1012,
+      "path": "lean-correspondence-v0/cases/erdos-730/Witness.lean",
+      "sha256": "sha256:4a13ff3e935cf64e54f63164e2ef39b3bf85c122dd84d3c32c5ab9440f7efc2c"
+    },
+    {
+      "bytes": 7346,
+      "path": "lean-correspondence-v0/cases/erdos-730/packet.json",
+      "sha256": "sha256:3276bfe9762ed81cf2cd700eb1e75a7dd67e68308659d499209879b16758b0ed"
+    },
+    {
+      "bytes": 25,
+      "path": "lean-toolchain",
+      "sha256": "sha256:302cd63c54178885b89e669f33b38f12f4dd7ae7e5cac537b3203e3768d8fb2b"
+    },
+    {
+      "bytes": 4722,
+      "path": "lake-manifest.json",
+      "sha256": "sha256:a81ef40554be38a473d0339b81e220c9d013226aae49d29305417f2e091bf482"
+    }
+  ],
+  "derived_mechanism_atoms": [
+    {
+      "bytes": 5968,
+      "path": "cases/records/erdos-730.affirmative-rhs-defeq.relation.json",
+      "sha256": "sha256:b1279ec663fc2a923cc96b86ee60cbca5f321b456fdc6e01be8e1ceb7e3c16d8"
+    },
+    {
+      "bytes": 1321,
+      "path": "cases/receipts/erdos-730.affirmative-rhs-defeq.receipt.json",
+      "sha256": "sha256:6bb0b4156316c5f3b8f3f4792d8e60a6cce5f9f20e4829e32bd13a3918391b2e"
+    }
+  ],
+  "participant_visible_case_id": "open-calibration-01",
+  "read_only": true,
+  "response_schema_sha256": "sha256:b2d9bee1c76bc1f25f134fd50697f4e4a820a36bd61a84081edd5c542d749268",
+  "schema": "vela.lean-correspondence-stage-a-packet-manifest.v1",
+  "semantic_atom_root": "sha256:f28bd220c5614804d1899db2ffb647b0ea57a85f27106963200b4e0fe14b0719"
+}

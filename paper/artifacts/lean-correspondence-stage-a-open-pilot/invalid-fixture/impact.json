@@ -1,0 +1,17 @@
+{
+  "affected": [
+    {
+      "distance": 0,
+      "record_root": "c8497ebfb029520813723f12072bd9a96c5df23f8367fa860d5ab1d4a44a99ab",
+      "relation_id": "stage-a-open-calibration.distinct-numerals-byte-identity",
+      "source_commit": "f9ec0bfb99a9b2ea018e5778736b9e4ccb81b32d",
+      "source_repository_id": "fixture/stage-a-invalid-source"
+    }
+  ],
+  "authority_claim": "none",
+  "changed": [
+    "stage-a-open-calibration.distinct-numerals-byte-identity"
+  ],
+  "schema_version": "lean-correspondence/impact/v0.1",
+  "scope": "explicit_record_dependencies_only"
+}

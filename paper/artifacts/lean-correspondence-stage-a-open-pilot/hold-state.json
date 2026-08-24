@@ -1,0 +1,77 @@
+{
+  "assignment_root": "sha256:11fbe1785066cdc4183028cb71b26e2eedf9cb5fb35163440237f83470930b48",
+  "authority_effect": "none",
+  "consumed": 0,
+  "fixed_denominator": 12,
+  "held": 12,
+  "key_accesses": 0,
+  "permit_set_root": "sha256:75bfa627a70465ae7b1ffe8dbf07d980db1f58ed3e68d7745fae22f851c12f1c",
+  "permits": [
+    {
+      "assignment_id": "lc-a-01-fc0bf9967908",
+      "permit_root": "sha256:c8ec10a241e0e81b9025f92ee28321defae8038ff4d8b6bb16e44427cb68a54b",
+      "status": "held"
+    },
+    {
+      "assignment_id": "lc-a-02-9a7f3df519ce",
+      "permit_root": "sha256:1563e186e0ddff66201c60bc47a055ec88836ed6307a96ebf4cb4c45d9ce7d20",
+      "status": "held"
+    },
+    {
+      "assignment_id": "lc-a-03-8a1be64f7e1d",
+      "permit_root": "sha256:1a166f7737835f87d41702400b13d11ff2d8d0339f77c973f225a373bc7e0620",
+      "status": "held"
+    },
+    {
+      "assignment_id": "lc-a-04-c5b30fe7508a",
+      "permit_root": "sha256:5829727a72db930db1567821e5f5f811c22f6485a35ce4621154c6b4bc249229",
+      "status": "held"
+    },
+    {
+      "assignment_id": "lc-a-05-33811bf4a8b5",
+      "permit_root": "sha256:e1c04290067bebb0ce12a8913864234c513eca0d904baa3ee88f47c4d69a31a3",
+      "status": "held"
+    },
+    {
+      "assignment_id": "lc-a-06-08d458a94d1f",
+      "permit_root": "sha256:18b5caa269b8e22974fead6bdfa48fb96aa938c25824cad735d8653e7126d0cd",
+      "status": "held"
+    },
+    {
+      "assignment_id": "lc-a-07-376a146ca138",
+      "permit_root": "sha256:65730da6a076538113e5c439f5632db8262628a3ba8e394842c32f33bda7721e",
+      "status": "held"
+    },
+    {
+      "assignment_id": "lc-a-08-f948f6ada044",
+      "permit_root": "sha256:8d69fa4f666c33a131be92ce170f615a212ae07d220726acf8811f912557af60",
+      "status": "held"
+    },
+    {
+      "assignment_id": "lc-a-09-d068b7b99349",
+      "permit_root": "sha256:542140a42f17e4c5b9c4d1c0764ebf541b9b480c3b32315680f523a5b283a151",
+      "status": "held"
+    },
+    {
+      "assignment_id": "lc-a-10-3abef0f4c151",
+      "permit_root": "sha256:05301c1fb2f67507dc1db751fffe528ee92d0a1a702e4465c59f8bca5f08c206",
+      "status": "held"
+    },
+    {
+      "assignment_id": "lc-a-11-a2f10ee0acd2",
+      "permit_root": "sha256:5e06f06cb6306b67d50ab8a7762db33d76e5ad6e43397ee6d41acb6f761f94f4",
+      "status": "held"
+    },
+    {
+      "assignment_id": "lc-a-12-5860f79941fb",
+      "permit_root": "sha256:7322976e5ad66c1d34af7f89b6a16d9f9dfccafdeb10e368e4f8e5c0b1f17e93",
+      "status": "held"
+    }
+  ],
+  "provider_calls": 0,
+  "registration_contract_root": "sha256:a291bc126e4bbd599d24ca87c111d8ce640daf9f48c67325b907a48f4457ca7c",
+  "released": 0,
+  "schema": "vela.lean-correspondence-stage-a-hold-state.v1",
+  "scoring_attempts": 0,
+  "terminal": 0
+}

@@ -1,0 +1,30 @@
+{
+  "authority_effect": "none",
+  "information_boundary": {
+    "network_from_participant": false,
+    "same_prompt_schema_token_timeout_and_semantic_atoms": true,
+    "same_shell_file_tools": true,
+    "source_mounts": "read_only"
+  },
+  "provider_calls": 0,
+  "schema": "vela.lean-correspondence-stage-a-participant-configurations.v1",
+  "slots": [
+    {
+      "configuration_root": null,
+      "immutable_model_snapshot": null,
+      "provider_organization": null,
+      "qualification_receipt_root": null,
+      "slot_id": "configuration-a",
+      "status": "unbound"
+    },
+    {
+      "configuration_root": null,
+      "immutable_model_snapshot": null,
+      "provider_organization": null,
+      "qualification_receipt_root": null,
+      "slot_id": "configuration-b",
+      "status": "unbound"
+    }
+  ],
+  "status": "blocked_unbound"
+}

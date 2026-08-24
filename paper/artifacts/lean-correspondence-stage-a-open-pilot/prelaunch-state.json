@@ -1,0 +1,23 @@
+{
+  "assignment_root": "sha256:11fbe1785066cdc4183028cb71b26e2eedf9cb5fb35163440237f83470930b48",
+  "authority_effect": "none",
+  "custody_contract_root": "sha256:896c88eda5f57425e2d76b7ab1b6254ae711a070e3b099f9e45c67e9a628c952",
+  "execution_authorized": false,
+  "fixed_denominator": 12,
+  "held_permits": 12,
+  "independent_prelaunch_review": "not_requested",
+  "key_accesses": 0,
+  "participant_configurations_bound": 0,
+  "participant_responses": 0,
+  "permit_set_root": "sha256:75bfa627a70465ae7b1ffe8dbf07d980db1f58ed3e68d7745fae22f851c12f1c",
+  "protected_stage_b_key_created": false,
+  "provider_calls": 0,
+  "registration_root": "sha256:e81364536f46675c623b8d6952561324e82b375511e53fa9e94f8256f23732ee",
+  "released_permits": 0,
+  "runtime_qualification_receipt_root": null,
+  "schema": "vela.lean-correspondence-stage-a-prelaunch-state.v1",
+  "scoring_attempts": 0,
+  "stage_b_families_selected": 0,
+  "state": "blocked_missing_exact_two_provider_tool_runtime_qualification",
+  "terminal_captures": 0
+}
