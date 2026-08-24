@@ -144,6 +144,10 @@ Repositories, verifiers, package ecosystems, the CLI, and read products. An
 ecosystem component does not enter the Protocol merely because Vela ships or
 links to it.
 
+The [standards disposition](STANDARDS_DISPOSITION.md) maps the explanatory
+conceptual waist to these current objects and records which generic facts stay
+owned by native systems and existing standards.
+
 First-party products are ordinary components with the same boundaries as
 third-party ones. The Problems surface is a rebuildable root-bound projection;
 source registries and generated graphs are disposable readers; and any
