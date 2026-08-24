@@ -1,0 +1,93 @@
+{
+  "schema": "vela.inherited-correction-run-authorization.v1",
+  "registration_root": "sha256:7391c3c6adb74633886fd9fb2d35a257e7501bd37153acfb3e19ac850d0e9157",
+  "status": "authorized",
+  "authorized_by": "user explicit Yeah relayed by coordinator task 01a024dc-f015-7950-be0f-181931282ebc",
+  "authorized_at": "2026-08-21T16:13:52.644954Z",
+  "participant_class": "openai-codex-cli-cold-model-session:gpt-5.6-sol:high",
+  "participant_configuration_root": "sha256:ba006bae3cb7eee61a37298512690a1e9aab9d3813d0d89f959e9f632981c9f2",
+  "assignment_seed_commitment": "sha256:0acc500fdbe9e89e45887d508631fa41d934b8220821efb446b25e63c792d7f0",
+  "max_sessions": 16,
+  "assignments": [
+    {
+      "run_id": "run-01",
+      "participant_instance_id": "cold-01",
+      "condition": "git-documents"
+    },
+    {
+      "run_id": "run-02",
+      "participant_instance_id": "cold-02",
+      "condition": "vela"
+    },
+    {
+      "run_id": "run-03",
+      "participant_instance_id": "cold-03",
+      "condition": "git-documents"
+    },
+    {
+      "run_id": "run-04",
+      "participant_instance_id": "cold-04",
+      "condition": "git-documents"
+    },
+    {
+      "run_id": "run-05",
+      "participant_instance_id": "cold-05",
+      "condition": "git-documents"
+    },
+    {
+      "run_id": "run-06",
+      "participant_instance_id": "cold-06",
+      "condition": "vela"
+    },
+    {
+      "run_id": "run-07",
+      "participant_instance_id": "cold-07",
+      "condition": "vela"
+    },
+    {
+      "run_id": "run-08",
+      "participant_instance_id": "cold-08",
+      "condition": "vela"
+    },
+    {
+      "run_id": "run-09",
+      "participant_instance_id": "cold-09",
+      "condition": "vela"
+    },
+    {
+      "run_id": "run-10",
+      "participant_instance_id": "cold-10",
+      "condition": "git-documents"
+    },
+    {
+      "run_id": "run-11",
+      "participant_instance_id": "cold-11",
+      "condition": "vela"
+    },
+    {
+      "run_id": "run-12",
+      "participant_instance_id": "cold-12",
+      "condition": "vela"
+    },
+    {
+      "run_id": "run-13",
+      "participant_instance_id": "cold-13",
+      "condition": "git-documents"
+    },
+    {
+      "run_id": "run-14",
+      "participant_instance_id": "cold-14",
+      "condition": "vela"
+    },
+    {
+      "run_id": "run-15",
+      "participant_instance_id": "cold-15",
+      "condition": "git-documents"
+    },
+    {
+      "run_id": "run-16",
+      "participant_instance_id": "cold-16",
+      "condition": "git-documents"
+    }
+  ]
+}

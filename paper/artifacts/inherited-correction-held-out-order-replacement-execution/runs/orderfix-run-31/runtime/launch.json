@@ -1,0 +1,8 @@
+{
+  "schema": "vela.inherited-correction-launch.v1",
+  "run_id": "orderfix-run-31",
+  "participant_instance_id": "orderfix-sol-31",
+  "condition": "git-documents",
+  "permit_bytes": "sha256:42210699ee030485a24c5eb9751ee38f9105d7a7502809d4632bb70cec21cd9a",
+  "consumed_at": "2026-08-22T02:07:15.917Z"
+}

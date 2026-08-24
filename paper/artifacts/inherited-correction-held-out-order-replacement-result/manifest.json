@@ -1,0 +1,25 @@
+{
+  "access_receipt_root": "sha256:b63efee54976a9d6da866a49f12c956621e4da4540a04306d3d0f81ca2d7b3b3",
+  "entries": [
+    {
+      "bytes": 11145,
+      "path": "scored-result.json",
+      "sha256": "sha256:ae0c980a18633832a83b73e0c715ee11e702aeb56660c4e027d5ece03425f372"
+    },
+    {
+      "bytes": 3262,
+      "path": "scoring-access-receipt.json",
+      "sha256": "sha256:a93ade57ea0c53dddd49c8a28ab9b10de0004760069075ab72c558572481eb6c"
+    },
+    {
+      "bytes": 1843,
+      "path": "validation-receipt.json",
+      "sha256": "sha256:ab4bf91b02502849840bb1c470796c611db5c410603ef86874cee9eb64f6677e"
+    }
+  ],
+  "registration_root": "sha256:60acdfa31d25f9df5f342b75caf8e65426c5b71fa320c36fe5568de9fbf13b10",
+  "result_canonical_root": "sha256:92eed5bcb9e6b647d52a53282563077d3829b28c426e0dd9898a073f2590b8a5",
+  "result_evidence_root": "sha256:d9f017734d1c58ca9ecaba2621a7ddec12e178a78bf6b2d228dc2542aa71a104",
+  "schema": "vela.inherited-correction-held-out-order-result-manifest.v1",
+  "score_capture_root": "sha256:f74229b3346cf56e2128d78b366f5fb99380872c27285d196c13862738bc8e98"
+}

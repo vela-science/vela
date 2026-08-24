@@ -1,0 +1,8 @@
+{
+  "schema": "vela.inherited-correction-launch.v1",
+  "run_id": "neutral-canary-03",
+  "participant_instance_id": "neutral-oci-03",
+  "condition": "neutral-runtime-calibration",
+  "permit_bytes": "sha256:fb743190202f9b8b654ff92b1247598e36f1d8733a12dceaed96716278bf1f7c",
+  "consumed_at": "2026-08-21T17:32:36.575Z"
+}

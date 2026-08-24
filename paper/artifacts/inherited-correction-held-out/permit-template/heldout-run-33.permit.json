@@ -1,0 +1,16 @@
+{
+  "assignment_root": "sha256:ffd6f8f4cda599bf2314b65d08bd5b7ddcdd387ef58fdb28aa536553946d56bb",
+  "attempt": 1,
+  "condition": "git-documents",
+  "expires_at": "not_authorized",
+  "image_digest": "sha256:1dee2374077c83e3dbdb2e09d32ef4fa3a414d200b800839857353e13d3c4e09",
+  "packet_root": "sha256:ac0d9bf28ad6eb291cdf98c969ab9a3c425f49dcd9648ab1703fe745dc100a74",
+  "participant_configuration_root": "sha256:43525455ba6f2e407bbf945147486a51501706b5dce7c1b34a77527ef2391fec",
+  "participant_instance_id": "heldout-sol-33",
+  "prompt_root": "sha256:d986b56f435b2d588820a47b1496f8198adcb34ddf0a102f50db3f2c8aab9f2e",
+  "registration_root": "sha256:b5dadb5ff20a664c1a0ead6e7c0be73de0c2f7389820654032d12f55e0471d16",
+  "run_id": "heldout-run-33",
+  "schema": "vela.inherited-correction-launch-permit.v1",
+  "status": "held",
+  "trust_bundle_bytes": "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5"
+}

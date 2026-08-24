@@ -1,0 +1,24 @@
+{
+  "claim": {
+    "assertion": "Process P remains stable under the adjusted-yield method.",
+    "claim_id": "stability-c",
+    "evidence_path": "evidence/stability-c-method.md",
+    "next_action": "Rerun the documented stability method after yield-b is recalculated."
+  },
+  "evidence_binding": {
+    "bytes": 374,
+    "path": "evidence/stability-c-method.md",
+    "sha256": "sha256:2b84dbae5224b6dedd1f0d991a31f4032b7ff0c41f200aec25b4a136331589f6"
+  },
+  "incoming_relations": [
+    {
+      "kind": "requires_result",
+      "meaning": "stability-c consumes yield-b, but its retained method does not determine the post-correction outcome without a rerun.",
+      "relation_id": "stability-c-requires-yield-b",
+      "source_claim_id": "stability-c",
+      "target_claim_id": "yield-b"
+    }
+  ],
+  "schema": "vela.inherited-correction-why.v1",
+  "standing_effect": "none"
+}

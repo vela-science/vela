@@ -1,0 +1,424 @@
+#!/usr/bin/env python3
+"""Offline qualification for the one-shot container and frozen canary."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import shutil
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+CANARY = ROOT / "neutral-canary"
+CANARY_02 = ROOT / "neutral-canary-02"
+CANARY_03 = ROOT / "neutral-canary-03"
+RUNTIME = ROOT / "container-runtime"
+IMAGE_01 = "sha256:0ce56e0a4d72dc6ab26cdfcfc1d0280ac0c419dd687e26dda9312d4a09257285"
+IMAGE_02 = "sha256:13b753749787d68d628cea899f6b9875c0fc51c43877599b9aabf2009fe83388"
+IMAGE_03 = "sha256:6274d83356076640d6e4bc810b97d37ac2d1b5ab02546dd7c2ebed16f915b547"
+IMAGE_04 = "sha256:1dee2374077c83e3dbdb2e09d32ef4fa3a414d200b800839857353e13d3c4e09"
+TRUST_BUNDLE = "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5"
+
+
+def digest(data: bytes) -> str:
+    return "sha256:" + hashlib.sha256(data).hexdigest()
+
+
+def canonical_root(value: object) -> str:
+    return digest(json.dumps(value, sort_keys=True, separators=(",", ":")).encode())
+
+
+def load(path: Path) -> object:
+    return json.loads(path.read_text())
+
+
+class RuntimeTests(unittest.TestCase):
+    def test_all_frozen_roots_recompute(self) -> None:
+        freeze = load(CANARY / "prelaunch-freeze.json")
+        self.assertEqual(
+            freeze["registration_root"],
+            canonical_root(load(CANARY / "registration.json")),
+        )
+        self.assertEqual(
+            freeze["participant_configuration_root"],
+            canonical_root(load(CANARY / "input/participant-configuration.json")),
+        )
+        self.assertEqual(
+            freeze["assignment_root"],
+            canonical_root(load(CANARY / "input/assignment.json")),
+        )
+        self.assertEqual(
+            freeze["authorization_root"],
+            canonical_root(load(CANARY / "authorization.json")),
+        )
+        self.assertEqual(
+            freeze["permit_root"],
+            canonical_root(
+                load(CANARY / "permit-template/neutral-canary-01.permit.json")
+            ),
+        )
+        self.assertEqual(
+            freeze["prompt_root"], digest((CANARY / "input/prompt.txt").read_bytes())
+        )
+        self.assertEqual(freeze["image_digest"], IMAGE_01)
+
+    def test_canary_02_frozen_roots_recompute(self) -> None:
+        freeze = load(CANARY_02 / "prelaunch-freeze.json")
+        self.assertEqual(
+            freeze["amendment_root"], canonical_root(load(CANARY_02 / "amendment.json"))
+        )
+        self.assertEqual(
+            freeze["registration_root"],
+            canonical_root(load(CANARY_02 / "registration.json")),
+        )
+        self.assertEqual(
+            freeze["participant_configuration_root"],
+            canonical_root(load(CANARY_02 / "input/participant-configuration.json")),
+        )
+        self.assertEqual(
+            freeze["assignment_root"],
+            canonical_root(load(CANARY_02 / "input/assignment.json")),
+        )
+        self.assertEqual(
+            freeze["authorization_root"],
+            canonical_root(load(CANARY_02 / "authorization.json")),
+        )
+        self.assertEqual(
+            freeze["permit_root"],
+            canonical_root(
+                load(CANARY_02 / "permit-template/neutral-canary-02.permit.json")
+            ),
+        )
+        self.assertEqual(
+            freeze["prompt_root"], digest((CANARY_02 / "input/prompt.txt").read_bytes())
+        )
+        self.assertEqual(freeze["image_digest"], IMAGE_02)
+        amendment = load(CANARY_02 / "amendment.json")
+        self.assertEqual(
+            amendment["parent_canary_commit"],
+            "2c7aed112f9701b58b8373c156c244b68e616886",
+        )
+        self.assertEqual(
+            amendment["parent_canary_disposition"],
+            "terminal calibration evidence; unchanged; no retry",
+        )
+
+    def test_canary_02_terminal_capture_is_closed(self) -> None:
+        result = load(CANARY_02 / "canary-result.json")
+        self.assertEqual(result["status"], "non_result_timeout_before_model_response")
+        self.assertEqual(result["attempt"], 1)
+        self.assertEqual(result["retries"], 0)
+        self.assertTrue(result["permit_consumed"])
+        self.assertTrue(result["provider_execution_started"])
+        self.assertEqual(result["model_responses"], 0)
+        self.assertEqual(result["tool_calls"], 0)
+        self.assertFalse(result["confirmatory_denominator_credit"])
+        self.assertFalse(result["confirmatory_registration_frozen"])
+        self.assertFalse(result["credential_retained"])
+        self.assertEqual(result["container_teardown"], "clean")
+        for item in result["capture_files"]:
+            self.assertEqual(
+                item["bytes"], digest((CANARY_02 / item["path"]).read_bytes())
+            )
+        receipt = load(CANARY_02 / "capture/evidence/terminal-receipt.json")
+        self.assertEqual(receipt["status"], "non_result")
+        self.assertEqual(receipt["validation_error"], "timeout")
+        self.assertTrue(receipt["process_timed_out"])
+        self.assertEqual(receipt["timeout_seconds"], 600)
+        self.assertIsNone(receipt["response_bytes"])
+        self.assertFalse(receipt["credential_retained"])
+
+    def test_canary_03_frozen_roots_and_manifest_recompute(self) -> None:
+        freeze = load(CANARY_03 / "prelaunch-freeze.json")
+        self.assertEqual(
+            freeze["amendment_root"], canonical_root(load(CANARY_03 / "amendment.json"))
+        )
+        self.assertEqual(
+            freeze["registration_root"],
+            canonical_root(load(CANARY_03 / "registration.json")),
+        )
+        self.assertEqual(
+            freeze["participant_configuration_root"],
+            canonical_root(load(CANARY_03 / "input/participant-configuration.json")),
+        )
+        self.assertEqual(
+            freeze["assignment_root"],
+            canonical_root(load(CANARY_03 / "input/assignment.json")),
+        )
+        self.assertEqual(
+            freeze["authorization_root"],
+            canonical_root(load(CANARY_03 / "authorization.json")),
+        )
+        self.assertEqual(
+            freeze["permit_root"],
+            canonical_root(
+                load(CANARY_03 / "permit-template/neutral-canary-03.permit.json")
+            ),
+        )
+        self.assertEqual(
+            freeze["prompt_root"], digest((CANARY_03 / "input/prompt.txt").read_bytes())
+        )
+        self.assertEqual(freeze["image_digest"], IMAGE_03)
+        self.assertEqual(freeze["trust_bundle_bytes"], TRUST_BUNDLE)
+        self.assertEqual(
+            freeze["trust_provenance_root"],
+            canonical_root(load(CANARY_03 / "trust-material/provenance.json")),
+        )
+        self.assertEqual(
+            freeze["diagnosis_root"],
+            canonical_root(load(CANARY_03 / "trust-material/diagnosis.json")),
+        )
+        for item in freeze["files"]:
+            content = (CANARY_03 / item["path"]).read_bytes()
+            self.assertEqual(item["bytes"], len(content))
+            self.assertEqual(item["sha256"], digest(content))
+        amendment = load(CANARY_03 / "amendment.json")
+        self.assertEqual(
+            amendment["parent_canary_commit"],
+            "70be21e2404af68daf5673f8094c47563224a11e",
+        )
+        self.assertEqual(
+            amendment["parent_canary_disposition"],
+            "terminal calibration evidence; unchanged; no retry",
+        )
+
+    def test_canary_03_terminal_capture_passes_exact_contract(self) -> None:
+        result = load(CANARY_03 / "canary-result.json")
+        self.assertEqual(result["status"], "completed_calibration_contract_pass")
+        self.assertEqual(result["attempt"], 1)
+        self.assertEqual(result["retries"], 0)
+        self.assertTrue(result["permit_consumed"])
+        self.assertTrue(result["provider_execution_started"])
+        self.assertTrue(result["expected_response_matched"])
+        self.assertEqual(result["model_responses"], 1)
+        self.assertEqual(result["turns_started"], 1)
+        self.assertEqual(result["tool_calls"], 0)
+        self.assertEqual(result["compactions"], 0)
+        self.assertFalse(result["confirmatory_denominator_credit"])
+        self.assertFalse(result["confirmatory_registration_frozen"])
+        self.assertFalse(result["credential_retained"])
+        self.assertEqual(result["container_teardown"], "clean")
+        for item in result["capture_files"]:
+            self.assertEqual(
+                item["bytes"], digest((CANARY_03 / item["path"]).read_bytes())
+            )
+        receipt = load(CANARY_03 / "capture/evidence/terminal-receipt.json")
+        self.assertEqual(receipt["status"], "completed")
+        self.assertIsNone(receipt["validation_error"])
+        self.assertFalse(receipt["process_timed_out"])
+        self.assertEqual(receipt["process_exit_code"], 0)
+        self.assertEqual(receipt["event_receipt"]["response_count"], 1)
+        self.assertEqual(receipt["event_receipt"]["tool_calls"], 0)
+        self.assertEqual(receipt["event_receipt"]["compactions"], 0)
+        self.assertEqual(receipt["response_bytes"], result["capture_files"][1]["bytes"])
+        self.assertFalse(receipt["credential_retained"])
+
+    def test_strict_preflight_and_legacy_regression_are_offline(self) -> None:
+        for mode, expected_exit in (("corrected", 0), ("legacy", 1)):
+            receipt = load(CANARY_02 / f"offline-preflight/{mode}/receipt.json")
+            self.assertTrue(receipt["strict_parse_passed"])
+            self.assertFalse(receipt["provider_contact_possible"])
+            self.assertEqual(receipt["process_exit_code"], expected_exit)
+            self.assertEqual(
+                (
+                    CANARY_02 / f"offline-preflight/{mode}/provider-events.jsonl"
+                ).read_bytes(),
+                b"",
+            )
+        with tempfile.TemporaryDirectory() as temporary:
+            temporary_path = Path(temporary)
+            for mode in ("corrected", "legacy"):
+                output = temporary_path / mode
+                output.mkdir()
+                subprocess.run(
+                    [str(RUNTIME / "preflight-config.sh"), mode, IMAGE_02, str(output)],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual((output / "provider-events.jsonl").read_bytes(), b"")
+                self.assertTrue(load(output / "receipt.json")["strict_parse_passed"])
+
+    def test_canary_03_trust_preflights_are_offline_and_fail_closed(self) -> None:
+        for mode in ("positive", "missing", "corrupt"):
+            receipt = load(CANARY_03 / f"offline-preflight/trust/{mode}/receipt.json")
+            self.assertTrue(receipt["trust_check_passed"])
+            self.assertFalse(receipt["provider_contact_possible"])
+            self.assertEqual(receipt["container_network"], "none")
+            self.assertEqual(
+                (
+                    CANARY_03 / f"offline-preflight/trust/{mode}/provider-events.jsonl"
+                ).read_bytes(),
+                b"",
+            )
+            if mode == "positive":
+                self.assertTrue(receipt["expected_success"])
+                self.assertIsNone(receipt["validation_error"])
+                self.assertEqual(receipt["observed_trust_bundle_bytes"], TRUST_BUNDLE)
+                self.assertEqual(receipt["certificate_count"], 150)
+            else:
+                self.assertFalse(receipt["expected_success"])
+                self.assertIsNotNone(receipt["validation_error"])
+                self.assertEqual(receipt["certificate_count"], 0)
+        with tempfile.TemporaryDirectory() as temporary:
+            temporary_path = Path(temporary)
+            for mode in ("positive", "missing", "corrupt"):
+                output = temporary_path / mode
+                output.mkdir()
+                subprocess.run(
+                    [
+                        str(RUNTIME / "preflight-trust.sh"),
+                        mode,
+                        IMAGE_03,
+                        TRUST_BUNDLE,
+                        str(output),
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual((output / "provider-events.jsonl").read_bytes(), b"")
+                self.assertTrue(load(output / "receipt.json")["trust_check_passed"])
+
+    def test_neutral_prompt_excludes_study_facts(self) -> None:
+        for canary in (CANARY, CANARY_02, CANARY_03):
+            prompt = (canary / "input/prompt.txt").read_text().lower()
+            for forbidden in (
+                "git-documents",
+                "bounded-calibration",
+                "calibration-a",
+                "yield-b",
+                "stability-c",
+                "installation-d",
+                "aggregate-e",
+            ):
+                self.assertNotIn(forbidden, prompt)
+        self.assertNotEqual(
+            (CANARY_02 / "input/prompt.txt").read_bytes(),
+            (CANARY_03 / "input/prompt.txt").read_bytes(),
+        )
+
+    def test_pilot_manifest_and_stop_are_closed(self) -> None:
+        manifest = load(ROOT / "pilot-capture-manifest.json")
+        self.assertEqual(manifest["started_runs"], 6)
+        self.assertFalse(manifest["confirmatory_credit"])
+        self.assertFalse(manifest["scoring_authorized"])
+        self.assertEqual(len(manifest["files"]), 138)
+        for item in manifest["files"]:
+            content = (ROOT / "pilot-capture" / item["path"]).read_bytes()
+            self.assertEqual(item["bytes"], len(content))
+            self.assertEqual(item["sha256"], digest(content))
+        stop = load(ROOT / "pilot-stop-record.json")
+        self.assertEqual(stop["status"], "stopped_before_run_07")
+        self.assertEqual(stop["unstarted_first_run_id"], "run-07")
+
+    def test_source_has_one_shot_consume_before_spawn_and_no_scheduler(self) -> None:
+        runner = (RUNTIME / "run-once.mjs").read_text()
+        launcher = (RUNTIME / "launch-one.sh").read_text()
+        self.assertLess(
+            runner.index("renameSync(permitPath, consumedPath)"),
+            runner.index('spawn("codex"'),
+        )
+        self.assertNotIn("run-01 through run-16", runner + launcher)
+        self.assertNotIn("for assignment", runner + launcher)
+        self.assertIn('args.length !== 2 || args[0] !== "--run-id"', runner)
+        self.assertIn('if [ "$#" -ne 6 ] || [ "$1" != "--run-id" ]', launcher)
+        self.assertIn("SSL_CERT_FILE: TRUST_BUNDLE_PATH", runner)
+        self.assertIn("config.trust_bundle_bytes !== sha(trustBundleBytes)", runner)
+
+    def test_exact_confirmatory_schema_uses_draft_2020_validator(self) -> None:
+        runner = (RUNTIME / "run-once.mjs").read_text()
+        self.assertIn('import Ajv2020 from "ajv/dist/2020.js"', runner)
+        self.assertIn("new Ajv2020({ allErrors: true, strict: true })", runner)
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            subprocess.run(
+                [str(RUNTIME / "preflight-schema.sh"), IMAGE_04, str(output)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            receipt = load(output / "receipt.json")
+            self.assertEqual(receipt["validator"], "ajv/dist/2020.js@8.17.1")
+            self.assertEqual(
+                receipt["cases"],
+                {
+                    "valid": True,
+                    "unknown-field": False,
+                    "missing-required": False,
+                    "invalid-enum": False,
+                    "invalid-shape": False,
+                },
+            )
+            self.assertFalse(receipt["provider_contact_possible"])
+            self.assertEqual(receipt["container_network"], "none")
+            self.assertEqual((output / "provider-events.jsonl").read_bytes(), b"")
+            self.assertEqual((output / "stderr.txt").read_bytes(), b"")
+
+    def test_default_hold_and_binding_failure_do_not_consume(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            input_dir = base / "input"
+            permit_dir = base / "permit"
+            evidence_dir = base / "evidence"
+            shutil.copytree(CANARY_02 / "input", input_dir)
+            shutil.copytree(CANARY_02 / "permit-template", permit_dir)
+            evidence_dir.mkdir()
+            shutil.copy(
+                permit_dir / "hold-state.default.json", permit_dir / "hold-state.json"
+            )
+            result = subprocess.run(
+                [
+                    str(RUNTIME / "launch-one.sh"),
+                    "--run-id",
+                    "neutral-canary-02",
+                    IMAGE_02,
+                    str(input_dir),
+                    str(permit_dir),
+                    str(evidence_dir),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("launch_on_hold", result.stderr)
+            self.assertTrue((permit_dir / "neutral-canary-02.permit.json").exists())
+            self.assertFalse(
+                (permit_dir / "neutral-canary-02.permit.consumed.json").exists()
+            )
+
+            shutil.copy(
+                CANARY_02 / "permit-template/hold-state.json",
+                permit_dir / "hold-state.json",
+            )
+            (input_dir / "prompt.txt").write_bytes(
+                (input_dir / "prompt.txt").read_bytes() + b"drift"
+            )
+            result = subprocess.run(
+                [
+                    str(RUNTIME / "launch-one.sh"),
+                    "--run-id",
+                    "neutral-canary-02",
+                    IMAGE_02,
+                    str(input_dir),
+                    str(permit_dir),
+                    str(evidence_dir),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("permit_prompt_root", result.stderr)
+            self.assertTrue((permit_dir / "neutral-canary-02.permit.json").exists())
+            self.assertFalse(
+                (permit_dir / "neutral-canary-02.permit.consumed.json").exists()
+            )
+
+
+if __name__ == "__main__":
+    unittest.main()

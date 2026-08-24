@@ -1,0 +1,6 @@
+{
+  "reason": "supervisor release for exact confirm-run-01 only after independent F05 PASS 59c104efefd163d2e4c86e1bd535ac5f7c03f17d",
+  "schema": "vela.inherited-correction-hold.v1",
+  "status": "release",
+  "updated_at": "2026-08-21T19:10:10Z"
+}

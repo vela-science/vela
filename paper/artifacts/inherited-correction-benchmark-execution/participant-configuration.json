@@ -1,0 +1,88 @@
+{
+  "schema": "vela.inherited-correction-participant-configuration.v1",
+  "participant_class": "openai-codex-cli-cold-model-session",
+  "provider": "openai",
+  "interface": "codex-cli-0.149.0",
+  "authentication": {
+    "method": "chatgpt-oauth-subscription",
+    "status_command": "codex login status",
+    "verified_status": "Logged in using ChatGPT",
+    "api_key_used": false
+  },
+  "availability_evidence": {
+    "catalog_fetched_at": "2026-08-21T16:11:43.251258Z",
+    "catalog_client_version": "0.148.0",
+    "catalog_entry_root": "sha256:c65cef4821465885009f3bf98fe996174c18c4a93235ac8edbce376506fd9ee9",
+    "model_visibility": "list",
+    "supports_reasoning_effort": "high"
+  },
+  "model": "gpt-5.6-sol",
+  "reasoning_effort": "high",
+  "service_tier": "default",
+  "combined_context_token_ceiling": 32768,
+  "input_token_ceiling": 24576,
+  "output_token_ceiling": 8192,
+  "tool_output_token_limit": 4096,
+  "timeout_seconds": 600,
+  "sessions": 16,
+  "execution": {
+    "sequential": true,
+    "attempt": 1,
+    "retries": 0,
+    "substitutions": 0,
+    "ephemeral": true,
+    "history_persistence": "none",
+    "predecessor_context": "none",
+    "user_configuration": "ignored",
+    "project_rules": "ignored",
+    "packet_working_directory": "isolated outside the source checkout"
+  },
+  "tools": {
+    "allowed": [
+      "local shell reads inside the assigned packet"
+    ],
+    "sandbox": "read-only",
+    "network": "disabled",
+    "web_search": "disabled",
+    "mcp": "disabled by ignored user configuration",
+    "plugins": "disabled by ignored user configuration",
+    "memory": "disabled",
+    "multi_agent": "disabled",
+    "view_image": "disabled",
+    "shell_environment_inheritance": "none"
+  },
+  "response": {
+    "format": "structured JSON",
+    "schema_bytes": "sha256:6e5e1e35285f4a0bc7ac929bd50f0e1cc3b8cd0b7541e1cabcc90565cc1e30e7",
+    "invalid_refusal_failure_or_timeout": "retain raw provider bytes and freeze the prespecified non-result response for zero exact-success credit"
+  },
+  "runner": {
+    "bytes": "sha256:71347ab41f06374368542603811db2de4bda9bba1cce6af77505203142dc3d5f",
+    "raw_provider_events": true,
+    "raw_provider_stderr": true,
+    "provider_usage": true,
+    "tool_count": true,
+    "wall_time": true
+  },
+  "billing": {
+    "path": "existing ChatGPT OAuth subscription allowance or already-attached credits",
+    "expected_platform_api_cost_usd": 0,
+    "hard_total_contingency_ceiling_usd": 25,
+    "automatic_purchase_or_top_up": false,
+    "provider_dollar_telemetry": "not exposed by the authenticated Codex CLI; record null with this reason"
+  },
+  "command_contract": {
+    "executable": "codex exec",
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "high",
+    "service_tier": "default",
+    "approval_policy": "never",
+    "sandbox": "read-only",
+    "web_search": "disabled",
+    "model_context_window": 32768,
+    "model_auto_compact_token_limit": 24576,
+    "model_auto_compact_token_limit_scope": "total",
+    "tool_output_token_limit": 4096,
+    "prompt": "You are one context-isolated cold successor. Read TASK.md first, then use only files inside the current packet directory. Do not access parent directories, environment variables, a network, or external context. Return only the JSON response required by TASK.md and response-template.json. Do not reveal reasoning or commentary."
+  }
+}

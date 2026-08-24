@@ -1,0 +1,6 @@
+{
+  "reason": "default; independent prelaunch PASS and one explicit exact-run release required before any permit consumption",
+  "schema": "vela.inherited-correction-hold.v1",
+  "status": "hold",
+  "updated_at": "2026-08-21T19:21:13Z"
+}

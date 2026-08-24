@@ -1,0 +1,35 @@
+{
+  "expected_metrics": {
+    "git_documents_restricted_mean_seconds": 600.0,
+    "restricted_mean_ratio_vela_over_git_documents": 0.388463730674583,
+    "vela_restricted_mean_seconds": 233.07823840475
+  },
+  "expected_metrics_bytes": "sha256:0edc8b9adea2302c60ac988c9a27c0b5e7c3148152ecbae4dcb41fb613159473",
+  "mean_quantum": "0.00000000000001",
+  "ratio_quantum": "0.000000000000001",
+  "restricted_seconds": {
+    "git-documents": [
+      "600",
+      "600",
+      "600",
+      "600",
+      "600",
+      "600",
+      "600",
+      "600"
+    ],
+    "vela": [
+      "15.592438382",
+      "13.723074048",
+      "12.586077922",
+      "11.777694964",
+      "600",
+      "10.946621922",
+      "600",
+      "600"
+    ]
+  },
+  "rounding": "ROUND_HALF_EVEN",
+  "schema": "vela.inherited-correction-post-result-serialization-fixture.v1",
+  "supported_cpython": ">=3.10,<3.15"
+}

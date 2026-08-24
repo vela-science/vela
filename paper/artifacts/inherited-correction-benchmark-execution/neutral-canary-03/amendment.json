@@ -1,0 +1,15 @@
+{
+  "confirmatory_effect": "none; replacement registration remains unfrozen and 0/16",
+  "defect": "the pinned canary-02 image omitted an operating-system CA bundle",
+  "diagnosis_root": "sha256:2e84796bbc748cfe8669b92ff92e610910c411888de45ec4cd06f3410c7b816c",
+  "local_cli_evidence_root": "sha256:f0b8b9ae7278ba0f420d50f170a8a3fa00d82ebfe7b986b375bd48631bdcdb37",
+  "offline_preflight_root": "sha256:fefd9cfb8cc606f522a60231739be12bca2483a715dd8a339365fa138ed50098",
+  "parent_canary_commit": "70be21e2404af68daf5673f8094c47563224a11e",
+  "parent_canary_disposition": "terminal calibration evidence; unchanged; no retry",
+  "parent_canary_result_root": "sha256:f608681e98eb7e4a49c48c5948dd24e118e74eb7d03754f77307a441ac202349",
+  "repair": "copy only the deterministic CA bundle extracted from the hash-pinned Debian ca-certificates package into the newly pinned image",
+  "runtime_source_root": "sha256:42ecc2f27d6758c0fa6cd20d19e02a20dd90935b82526a43b190c96a75896549",
+  "schema": "vela.inherited-correction-neutral-canary-amendment.v2",
+  "status": "prospective_before_canary_03",
+  "trust_provenance_root": "sha256:4cf369b944b78e938b4a8b2c824bc40fea0853ee1e8df0eced381429c3f00fa8"
+}

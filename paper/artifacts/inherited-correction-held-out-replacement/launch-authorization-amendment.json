@@ -1,0 +1,53 @@
+{
+  "schema": "vela.inherited-correction-held-out-schema-compatibility-amendment.v1",
+  "status": "authorized_held_pending_schema_compatibility_review",
+  "authorization": {
+    "basis": "explicit user authorization relayed by the coordinator to implement the exact prospective compatibility repair and freeze a fresh held registration",
+    "source_task_id": "01a024dc-f015-7950-be0f-181931282ebc",
+    "scope": "provider-only uniqueItems compatibility repair and fresh held 36-cell replacement; zero provider calls before independent prelaunch PASS"
+  },
+  "stopped_registration": {
+    "producer_commit": "d3bff9206609c53a0dc9b2ef7f85bbdc894a9904",
+    "review_commit": "cc823bc1987d2dbc915f8aaf5b3b8f9b72f4014a",
+    "stop_record_bytes": "sha256:f6814ac506063e67777d81f5df11996c21e1c76fea06efbac7f93d2e4cf92d40",
+    "run_01_runtime_custody_root": "sha256:ab00eb1cb19474a3ed1306eaa20ceaa8ab784f62ffed268e1e97b4f6a9ea017f",
+    "disposition": "terminal calibration/failed launch; one non-result; no retry, substitution, score, or replacement credit"
+  },
+  "evaluator_commitment": {
+    "adjudication_root": "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d",
+    "adjudication_bytes_sha256": "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d",
+    "adjudication_bytes_length": 5883,
+    "private_validation_receipt_root": "sha256:581b944cdfdb82a2f9730ffd3d60fba13c3e4916bbf344ab1d495565dafccf11",
+    "public_commitment_root": "sha256:cf22cc93f1b882e85327943e074ef6d0cd60f90c3989f0801c46d60f5fad721a",
+    "frozen_at": "2026-08-21T21:51:33Z",
+    "family_count": 3,
+    "consequence_count": 12,
+    "plaintext_disclosed": false,
+    "answer_bytes_present_in_producer_artifact": false
+  },
+  "repair": {
+    "registered_schema_disposition": "byte-exact and participant-visible",
+    "provider_schema_transform": "delete exactly /properties/evidence_bindings/uniqueItems",
+    "local_validation": "locked ajv/dist/2020.js@8.17.1 against the unchanged registered schema plus benchmark.validate_response uniqueness and completeness",
+    "dual_schema_root_custody": true
+  },
+  "execution_state": {
+    "sessions_completed": 0,
+    "fixed_denominator": 36,
+    "permits_held": 36,
+    "permits_consumed": 0,
+    "provider_calls": 0,
+    "protected_key_accesses": 0
+  },
+  "invariants": {
+    "participant_packets_unchanged": true,
+    "participant_prompts_unchanged": true,
+    "registered_response_schema_unchanged": true,
+    "semantic_response_contract_unchanged": true,
+    "family_cells_and_balance_unchanged": true,
+    "estimands_unchanged": true,
+    "gates_unchanged": true,
+    "model_and_reasoning_unchanged": true,
+    "zero_retries_substitutions": true
+  }
+}

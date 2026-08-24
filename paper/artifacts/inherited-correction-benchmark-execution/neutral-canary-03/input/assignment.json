@@ -1,0 +1,13 @@
+{
+  "assignments": [
+    {
+      "condition": "neutral-runtime-calibration",
+      "packet_root": "sha256:eb3c28fc40910a36569aca7572c68b8ac4d5e733288e3866c16d2731176f343e",
+      "participant_instance_id": "neutral-oci-03",
+      "run_id": "neutral-canary-03"
+    }
+  ],
+  "image_digest": "sha256:6274d83356076640d6e4bc810b97d37ac2d1b5ab02546dd7c2ebed16f915b547",
+  "registration_root": "sha256:87c4a6e3e230fa719417a349a3ed0f1c1843ec87daa80f9e32927bd3ed03aed0",
+  "schema": "vela.inherited-correction-neutral-canary-assignment.v3"
+}

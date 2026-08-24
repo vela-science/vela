@@ -1,0 +1,64 @@
+{
+  "schema": "vela.inherited-correction-held-out-order-scoring-access-receipt.v1",
+  "receipt_root": "sha256:b63efee54976a9d6da866a49f12c956621e4da4540a04306d3d0f81ca2d7b3b3",
+  "accessed_at": "2026-08-22T02:29:21Z",
+  "custody": {
+    "protected_object_file": "adjudication.canonical.json",
+    "protected_object_bytes": 5883,
+    "protected_object_sha256": "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d",
+    "protected_object_canonical_root": "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d",
+    "public_commitment_root": "sha256:cf22cc93f1b882e85327943e074ef6d0cd60f90c3989f0801c46d60f5fad721a",
+    "private_validation_receipt_bytes": "sha256:581b944cdfdb82a2f9730ffd3d60fba13c3e4916bbf344ab1d495565dafccf11",
+    "directory_owner_only": true,
+    "object_owner_only": true,
+    "plaintext_disclosed": false
+  },
+  "bindings": {
+    "producer_commit": "5694bebac03b062d6acdce5a2a900551850e6a1c",
+    "producer_tree": "feec0ff21b9b13be8cbb97083f441ef66bdd48f2",
+    "pre_score_pass_review_commit": "b634523ea1c85dce697404968cf7492f09a6412f",
+    "complete_capture_root": "sha256:4a592d88b43dc02d5495d7679834535d6fa97f20759600400253677a946f87fd",
+    "complete_custody_root": "sha256:ccf69e70a3887c8a9f9ddffa2d62051e114a8974b2d2ae83c72366a1eb98dcef",
+    "score_capture_root": "sha256:f74229b3346cf56e2128d78b366f5fb99380872c27285d196c13862738bc8e98",
+    "score_capture_manifest_bytes": "sha256:e96cd9f29b8c58434480080e3f52d6e10eb2dea8147d83beede131fdf5a56a85",
+    "registration_root": "sha256:60acdfa31d25f9df5f342b75caf8e65426c5b71fa320c36fe5568de9fbf13b10",
+    "assignment_root": "sha256:64a356db4800b6fb04090ae81a6c2d33bf37ad8b71e92e01567edc5fa6362e72",
+    "scorer_bytes": "sha256:1c3f45a7517c8437d32bb7007ab5989de7392ee5769ed90d673b7dc17a530e37",
+    "custody_verifier_bytes": "sha256:dbff023b721d3236d8dee0ce877724a012dba6dfbadcc34cbd384c13783caf73"
+  },
+  "exclusion": {
+    "wrong_benchmark_object_bytes": 1407,
+    "wrong_benchmark_object_sha256": "sha256:a7af895d0e85dafe8cd35b624dd7a54a8da583ac52421fd993431296928f3971",
+    "wrong_benchmark_object_used": false
+  },
+  "action": {
+    "authorization": "coordinator-authorized one-time scoring action after independent sealed-capture pre-score PASS",
+    "scoring_processes": 1,
+    "scoring_attempts": 1,
+    "scoring_completed": true,
+    "scorer_read_from_evaluator_custody": true,
+    "temporary_plaintext_copy_retained": false,
+    "provider_calls": 0,
+    "capture_mutations": 0,
+    "participant_mutations": 0,
+    "gate_mutations": 0,
+    "authority_effect": "none"
+  },
+  "output": {
+    "file": "orderfix-score-result.json",
+    "owner_only": true,
+    "schema": "vela.inherited-correction-held-out-scored-result.v1",
+    "bytes": 11145,
+    "sha256": "sha256:ae0c980a18633832a83b73e0c715ee11e702aeb56660c4e027d5ece03425f372",
+    "canonical_root": "sha256:92eed5bcb9e6b647d52a53282563077d3829b28c426e0dd9898a073f2590b8a5",
+    "capture_root": "sha256:f74229b3346cf56e2128d78b366f5fb99380872c27285d196c13862738bc8e98",
+    "fixed_denominator": 36,
+    "positive_gate": "not_supported",
+    "gates": {
+      "governance_inheritance": false,
+      "structure": false,
+      "total": false
+    },
+    "authority_effect": "none"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "schema": "vela.inherited-correction-held-out-teardown.v1",
+  "run_id": "orderfix-run-30",
+  "released_at": "2026-08-22T02:07:00Z",
+  "observed_at": "2026-08-22T02:07:13Z",
+  "terminal_receipt_status": "completed",
+  "launch_exit_code": 0,
+  "container_present_after_launch": false,
+  "credential_retained": false
+}

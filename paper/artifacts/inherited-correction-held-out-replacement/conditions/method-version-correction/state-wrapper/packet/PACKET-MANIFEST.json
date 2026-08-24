@@ -1,0 +1,43 @@
+{
+  "atomic_facts_root": "sha256:acefe76182e70973d4647445d0084464ecfc260bc2b7875deb75e8433b0220ae",
+  "condition": "state-wrapper",
+  "family_id": "method-version-correction",
+  "schema": "inherited-correction-held-out-packet-manifest.v1",
+  "source_and_evidence": [
+    {
+      "bytes": 78,
+      "path": "evidence/analyzer-service.json",
+      "sha256": "sha256:b63600caeaafa03442572f041e49237b80908d38fe60dfb75d24468511027598"
+    },
+    {
+      "bytes": 104,
+      "path": "evidence/batch-concentration.json",
+      "sha256": "sha256:e6598604f4453239a999676c7649a01e82543d17c4d7484973fc626fa8e5d582"
+    },
+    {
+      "bytes": 152,
+      "path": "evidence/blended-release.md",
+      "sha256": "sha256:ef0cc7b3aab4cd42c255a8b316fcfc9595a6eadf3b826b3c9d82140fd054db46"
+    },
+    {
+      "bytes": 143,
+      "path": "evidence/release-risk.md",
+      "sha256": "sha256:618bd7d25ff9cb8d4b46d5661588ecb56e41d55b36e3d1848f4b9153b0491fa8"
+    },
+    {
+      "bytes": 160,
+      "path": "evidence/scope-mv-04.json",
+      "sha256": "sha256:70489b1900c0b120af906e77f7a8c0a38af3c0830b77b2b93dee6ecf593f801e"
+    },
+    {
+      "bytes": 84,
+      "path": "source/method-m3.md",
+      "sha256": "sha256:b1cac0834f4f302632cd32106e058629ae9e7a0b0d5041c7943decf680303af3"
+    },
+    {
+      "bytes": 202,
+      "path": "source/method-m4.md",
+      "sha256": "sha256:444a6400262425a388b4fe7c199bc6c19ad193ce87071aba142a6d488f3b7288"
+    }
+  ]
+}

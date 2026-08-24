@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "binding": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "identifiers": {
+      "items": {
+        "enum": [
+          "ember",
+          "fjord",
+          "garnet",
+          "hollow"
+        ],
+        "type": "string"
+      },
+      "maxItems": 4,
+      "minItems": 4,
+      "type": "array"
+    },
+    "schema": {
+      "const": "neutral.runtime-canary-response.v1",
+      "type": "string"
+    },
+    "sum": {
+      "const": 39,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema",
+    "identifiers",
+    "sum",
+    "binding"
+  ],
+  "type": "object"
+}

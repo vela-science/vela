@@ -1,0 +1,8 @@
+{
+  "schema": "vela.inherited-correction-launch.v1",
+  "run_id": "replacement-run-06",
+  "participant_instance_id": "replacement-sol-06",
+  "condition": "vela",
+  "permit_bytes": "sha256:279b2f85481073f0bf27b0b2d9c0412a97cdadea03058f4ee510e49c740dff02",
+  "consumed_at": "2026-08-21T19:45:21.137Z"
+}

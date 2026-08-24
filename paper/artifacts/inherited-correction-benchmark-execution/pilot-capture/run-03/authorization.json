@@ -1,0 +1,93 @@
+{
+  "assignment_seed_commitment": "sha256:0acc500fdbe9e89e45887d508631fa41d934b8220821efb446b25e63c792d7f0",
+  "assignments": [
+    {
+      "condition": "git-documents",
+      "participant_instance_id": "cold-01",
+      "run_id": "run-01"
+    },
+    {
+      "condition": "vela",
+      "participant_instance_id": "cold-02",
+      "run_id": "run-02"
+    },
+    {
+      "condition": "git-documents",
+      "participant_instance_id": "cold-03",
+      "run_id": "run-03"
+    },
+    {
+      "condition": "git-documents",
+      "participant_instance_id": "cold-04",
+      "run_id": "run-04"
+    },
+    {
+      "condition": "git-documents",
+      "participant_instance_id": "cold-05",
+      "run_id": "run-05"
+    },
+    {
+      "condition": "vela",
+      "participant_instance_id": "cold-06",
+      "run_id": "run-06"
+    },
+    {
+      "condition": "vela",
+      "participant_instance_id": "cold-07",
+      "run_id": "run-07"
+    },
+    {
+      "condition": "vela",
+      "participant_instance_id": "cold-08",
+      "run_id": "run-08"
+    },
+    {
+      "condition": "vela",
+      "participant_instance_id": "cold-09",
+      "run_id": "run-09"
+    },
+    {
+      "condition": "git-documents",
+      "participant_instance_id": "cold-10",
+      "run_id": "run-10"
+    },
+    {
+      "condition": "vela",
+      "participant_instance_id": "cold-11",
+      "run_id": "run-11"
+    },
+    {
+      "condition": "vela",
+      "participant_instance_id": "cold-12",
+      "run_id": "run-12"
+    },
+    {
+      "condition": "git-documents",
+      "participant_instance_id": "cold-13",
+      "run_id": "run-13"
+    },
+    {
+      "condition": "vela",
+      "participant_instance_id": "cold-14",
+      "run_id": "run-14"
+    },
+    {
+      "condition": "git-documents",
+      "participant_instance_id": "cold-15",
+      "run_id": "run-15"
+    },
+    {
+      "condition": "git-documents",
+      "participant_instance_id": "cold-16",
+      "run_id": "run-16"
+    }
+  ],
+  "authorized_at": "2026-08-21T16:13:52.644954Z",
+  "authorized_by": "user explicit Yeah relayed by coordinator task 01a024dc-f015-7950-be0f-181931282ebc",
+  "max_sessions": 16,
+  "participant_class": "openai-codex-cli-cold-model-session:gpt-5.6-sol:high",
+  "participant_configuration_root": "sha256:ba006bae3cb7eee61a37298512690a1e9aab9d3813d0d89f959e9f632981c9f2",
+  "registration_root": "sha256:7391c3c6adb74633886fd9fb2d35a257e7501bd37153acfb3e19ac850d0e9157",
+  "schema": "vela.inherited-correction-run-authorization.v1",
+  "status": "authorized"
+}

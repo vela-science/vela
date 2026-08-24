@@ -1,0 +1,85 @@
+{
+  "assignment_root": "sha256:4e601864d5dd802bcb820899ae72d3b435c1c0da169aca7e7e0ae378f04b0fb2",
+  "authorization_root": "sha256:4feaf14555bbe883da82e5346c98f281d29de0f75c596e0281baca25ecf6b2bb",
+  "confirmatory_status": "stopped_0_of_16_replacement_not_registered",
+  "files": [
+    {
+      "bytes": 623,
+      "path": "authorization.json",
+      "sha256": "sha256:b921ef1276809d362de6be9c1d231c1277394540e8a174fe1b750ad17bab016d"
+    },
+    {
+      "bytes": 533,
+      "path": "input/assignment.json",
+      "sha256": "sha256:8af8150345d9af3253a3e68f3ffe735b1a0a5840b79bab4da1b9fef6e7439f07"
+    },
+    {
+      "bytes": 1069,
+      "path": "input/participant-configuration.json",
+      "sha256": "sha256:d4716776406b72a096b30e941a425d669d2934d4cc44bdbef6fc119cc2b124d6"
+    },
+    {
+      "bytes": 3446,
+      "path": "input/prompt.txt",
+      "sha256": "sha256:4a96a6d4ce291a3b260d11d832e235b1cadbe2f68b50149ac498c19faa90a684"
+    },
+    {
+      "bytes": 711,
+      "path": "input/response-schema.json",
+      "sha256": "sha256:45cea4563ecd77eb8434b22915cb3ca1c342171d21da0952e2adea423a1f1282"
+    },
+    {
+      "bytes": 377,
+      "path": "packet/TASK.md",
+      "sha256": "sha256:5b7cc48834aec28cd4f0b1c60b888ff82c20a2cfd09c11f90c6ef16d05d7bc14"
+    },
+    {
+      "bytes": 164,
+      "path": "packet/notes/layout.md",
+      "sha256": "sha256:1fc97ee650e282c094dd5dba4f26e4fcb0358f202293b1459ed29847eeeb3921"
+    },
+    {
+      "bytes": 72,
+      "path": "packet/records/binding.txt",
+      "sha256": "sha256:61af2cdb8f70753249c5c938728685d9243de514c76573e3fdbf554b72407dda"
+    },
+    {
+      "bytes": 185,
+      "path": "packet/records/items.json",
+      "sha256": "sha256:585d9c50a569ecc7ff3b4926238d6b8a9d66437c838f207e905b7402f58e6919"
+    },
+    {
+      "bytes": 711,
+      "path": "packet/response-schema.json",
+      "sha256": "sha256:45cea4563ecd77eb8434b22915cb3ca1c342171d21da0952e2adea423a1f1282"
+    },
+    {
+      "bytes": 185,
+      "path": "permit-template/hold-state.default.json",
+      "sha256": "sha256:9573564e66ecbbd03dfa3a6416b8c216b74d46ef93b0d0b048d4475d003c709a"
+    },
+    {
+      "bytes": 206,
+      "path": "permit-template/hold-state.json",
+      "sha256": "sha256:d47d9e6f08e3ecfed56221e2106bd4ed094b3e06c3571533577d891264c2dac2"
+    },
+    {
+      "bytes": 851,
+      "path": "permit-template/neutral-canary-01.permit.json",
+      "sha256": "sha256:aff9499f2ab062b349a75dc43b43ee4a79bf252837742a8b8ff9a5f70e8d739c"
+    },
+    {
+      "bytes": 1169,
+      "path": "registration.json",
+      "sha256": "sha256:4eb4d8caf819b5b18fd978956e13e27b3f1761b240d50fd4850c27e236c9265b"
+    }
+  ],
+  "image_digest": "sha256:0ce56e0a4d72dc6ab26cdfcfc1d0280ac0c419dd687e26dda9312d4a09257285",
+  "packet_root": "sha256:e8758bd13390f91b6d16f12ed2ac522ff04cba3ea05a5241a8bc93689b09cf37",
+  "participant_configuration_root": "sha256:2cdfb9b0c5e27e6f918791b9eb384e3c1fc3a22fe93f8262cd8137e0bc24b716",
+  "permit_root": "sha256:68d5c6f0e39080b2ff71842cfb5f37ed22e744971506093d9ae54b288aacf156",
+  "prompt_root": "sha256:4a96a6d4ce291a3b260d11d832e235b1cadbe2f68b50149ac498c19faa90a684",
+  "registration_root": "sha256:ee2a043089b42fec5e705b26a9b3f687d8e5566ec7f45115679eb26ae2734f87",
+  "schema": "vela.inherited-correction-neutral-canary-freeze.v1",
+  "status": "frozen_prelaunch_0_of_1"
+}

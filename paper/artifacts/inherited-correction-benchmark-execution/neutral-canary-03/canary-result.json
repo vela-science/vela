@@ -1,0 +1,61 @@
+{
+  "attempt": 1,
+  "capture_files": [
+    {
+      "bytes": "sha256:32a2ef659495ec9d029a468f5c0714d9522b0520d88bd89b7df6a676a2a11536",
+      "path": "capture/evidence/launch.json"
+    },
+    {
+      "bytes": "sha256:b1b4a168daaf505456e9e099e8499aa9e7ee16f3e2e9a9550a34213e6ac16ecd",
+      "path": "capture/evidence/participant-response.raw.json"
+    },
+    {
+      "bytes": "sha256:d505272aa4b10e768e762c9439921bab88ad8f1beecc2cfaf53769822a3d1ef1",
+      "path": "capture/evidence/provider-events.jsonl"
+    },
+    {
+      "bytes": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "path": "capture/evidence/provider-stderr.txt"
+    },
+    {
+      "bytes": "sha256:3bd7107b49bc5a92cac1a767c92d250b9efa072627cdbcdf24995d2f8917aab3",
+      "path": "capture/evidence/terminal-receipt.json"
+    },
+    {
+      "bytes": "sha256:531d2ff75d969bcc96e1d629632ac2778d185fd927241649db5be05cdc92610d",
+      "path": "capture/permit/hold-state.json"
+    },
+    {
+      "bytes": "sha256:fb743190202f9b8b654ff92b1247598e36f1d8733a12dceaed96716278bf1f7c",
+      "path": "capture/permit/neutral-canary-03.permit.consumed.json"
+    }
+  ],
+  "compactions": 0,
+  "confirmatory_denominator_credit": false,
+  "confirmatory_registration_frozen": false,
+  "container_teardown": "clean",
+  "credential_retained": false,
+  "duration_seconds": 4.58358096,
+  "expected_response_matched": true,
+  "model_responses": 1,
+  "permit_consumed": true,
+  "provider_events": 4,
+  "provider_execution_started": true,
+  "provider_thread_id": "01a02561-bae1-7e51-b7b4-5b26f5caa38f",
+  "registration_root": "sha256:87c4a6e3e230fa719417a349a3ed0f1c1843ec87daa80f9e32927bd3ed03aed0",
+  "replacement_confirmatory_status": "blocked_0_of_16_not_registered_pending_independent_review",
+  "retries": 0,
+  "run_id": "neutral-canary-03",
+  "schema": "vela.inherited-correction-neutral-canary-result.v1",
+  "standing_or_authority_effect": "none",
+  "status": "completed_calibration_contract_pass",
+  "tool_calls": 0,
+  "trust_bundle_bytes": "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5",
+  "turns_started": 1,
+  "usage": {
+    "cached_input_tokens": 0,
+    "input_tokens": 7816,
+    "output_tokens": 78,
+    "reasoning_output_tokens": 0
+  }
+}

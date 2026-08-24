@@ -1,0 +1,117 @@
+{
+  "assignment": {
+    "allocation": "Externally generated seed; eight labels of each condition; assignment recorded before packet access.",
+    "failed_or_timed_out_sessions": "Retained in the fixed denominator and assigned zero exact-success credit.",
+    "repeat_participants": false,
+    "retries": 0,
+    "sessions_per_condition": 8,
+    "substitutions": 0,
+    "timeout_seconds": 600,
+    "total_sessions": 16,
+    "unit": "one context-isolated cold successor"
+  },
+  "benchmark": "Bounded inherited-correction cold-successor evaluation",
+  "bindings": {
+    "adjudication_root": "sha256:6b2e94c7bfce7c41353eb48cd4962243e3f177fdaccb8c7da48567d99dfca557",
+    "authorization_template_root": "sha256:2c0600b3f4c09b75544e6293a692c96ddf06d485faab40c1703481ada5d8c440",
+    "benchmark_implementation_bytes": "sha256:b14e955c9d77510f0c3b961c054440fbb23179137349e64ca9e7a301ac55071d",
+    "benchmark_tests_bytes": "sha256:2947908b9efdf3b6a1007ed5ae3c5941890ffa7a9d9a26845319ef92c7923e58",
+    "condition_packet_roots": {
+      "git-documents": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+      "vela": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97"
+    },
+    "input_equivalence_root": "sha256:649cec9ed991172ac4303a78e76e893750a250c2392e93e0a45e8cc44440e014",
+    "participant_task_bytes": "sha256:7a2fb1ff3097da8d09ca6e8cde3790caadcc864fe105666079912845c205225a",
+    "public_facts_bytes": "sha256:8ce51888eef75883ba238cb06faf21f7d324ed3b1a73bc244ba9e22b2e589e42",
+    "public_facts_root": "sha256:fe8b3363ec9a8305743ca55144a59885a73623b712a32fe0c9050227350bac2a",
+    "response_template_root": "sha256:78d4d59eedf87b612be8c7845546baebd2a9c85d56aa92f7084c255550c4972b",
+    "runtime_custody_bridge_bytes": "sha256:a4e0ecc3c5d9497ef2046168637802dd1ec90a01cc6f8db69fd7ec4dee20232d",
+    "runtime_custody_tests_bytes": "sha256:1e92e7b610901730c8c562b37e5d61e03ca33ba71d3d658c956e7c468d4c73ea"
+  },
+  "conditions": [
+    {
+      "condition_id": "git-documents",
+      "description": "Git-style history, claims, dependency, source, and evidence documents."
+    },
+    {
+      "condition_id": "vela",
+      "description": "The same atomic facts organized as a Vela-style correction, replay, and why projection."
+    }
+  ],
+  "current_authorization_gate": {
+    "allowed_now": [
+      "deterministic build",
+      "fixture and packet verification",
+      "capture-tool tests",
+      "independent methodological and protocol review"
+    ],
+    "blocked_now": [
+      "paid model sessions",
+      "human participant sessions",
+      "scientific validation",
+      "Standing or authority mutation"
+    ],
+    "status": "not_authorized"
+  },
+  "environment": {
+    "human_or_scientific_validation": "not_authorized_by_this_preregistration",
+    "model_or_participant_policy": "Freeze one participant class and, for models, one exact provider/model/reasoning/tool configuration before assignment.",
+    "paid_inference": "not_authorized_by_this_preregistration",
+    "tools": "Local packet reads only; no network, Vela authority, source mutation, or hidden predecessor context."
+  },
+  "fixture_policy": {
+    "case_count": 1,
+    "classification_vocabulary": [
+      "affected",
+      "must_reassess",
+      "presently_unprovable",
+      "unaffected"
+    ],
+    "does_not_establish": [
+      "scientific truth or source fidelity",
+      "a Vela Decision or Standing change",
+      "external validation, adoption, or general productivity",
+      "that the existing synthetic correction-impact reducer models all scientific dependencies"
+    ],
+    "fixture_kind": "synthetic_non_scientific",
+    "listed_consequences": 4,
+    "upstream_corrections": 1
+  },
+  "hypothesis": "The Vela-organized presentation lowers cold-successor continuation and reassessment cost relative to an information-matched Git-and-documents presentation.",
+  "information_matching": {
+    "network": "denied",
+    "predecessor_context": "none",
+    "protected_material": "Scorer adjudication classifications and Claim-to-action-code mappings are absent from both condition packets until the frozen capture manifest exists.",
+    "rule": "Every substantive case fact and every source/evidence byte is present in both conditions; only organization, derived navigation metadata, and read affordances differ."
+  },
+  "outcomes": {
+    "cost": "Restricted mean wall time with every wrong, invalid, failed, or timed-out session assigned the 600-second cap.",
+    "interpretation": "Passing is a bounded descriptive signal for this synthetic packet. Failure or an incomplete denominator does not support lower continuation cost. No aggregate scientific or adoption claim is permitted.",
+    "positive_gate": "Both arms contain exactly eight sessions; Vela exact successes are at least six and no fewer than Git/documents; Vela has zero authority errors; and Vela restricted mean cost is at most 0.80 of Git/documents.",
+    "primary": "Exact continuation success: exact correction pair, all four classifications, all four closed first-safe-action codes, no Standing error, and one exact source/evidence digest.",
+    "secondary": [
+      "17-point component score",
+      "raw wall time",
+      "tool-call count",
+      "authority-error count"
+    ]
+  },
+  "prospective_amendment": {
+    "amended_at": "2026-08-21T15:51:01Z",
+    "experimental_sessions_observed_before_amendment": 0,
+    "independent_review_commit": "c377e99e2c982211be7ecb9cba8998c848cf18c2",
+    "independent_review_verdict": "BLOCKED",
+    "previous_producer_commit": "366b610eec75a1520a97b4a7817fde3a4fbbfc7b",
+    "previous_registration_root": "sha256:40a05a33a760404cb606dc218d6deafb1d358916a9fa7954e58973ab1a6d67b1",
+    "reason": "Replace unsafe keyword action scoring and incomplete capture custody before any experimental session.",
+    "result_access_before_amendment": "none"
+  },
+  "registered_at": "2026-08-21T00:00:00Z",
+  "registration_root": "sha256:a8b4b729e7b2be4f371d4831caa9214959514cb51222da9e422b0634c408a575",
+  "schema": "vela.inherited-correction-preregistration.v1",
+  "scoring_freeze": {
+    "adjudication_access": "Only after all 16 responses, run records, packet roots, durations, and tool counts are frozen into capture-manifest.json.",
+    "amendments": "Any post-output change to facts, packets, task, scoring, denominator, timeout, or gate invalidates confirmatory credit and must retain the previous registration root.",
+    "manual_rescoring": "not_permitted for the registered result"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "schema": "vela.inherited-correction-trust-preflight.v1",
+  "mode": "missing",
+  "expected_success": false,
+  "trust_check_passed": true,
+  "trust_bundle_path": "/etc/ssl/certs/ca-certificates.crt",
+  "expected_trust_bundle_bytes": "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5",
+  "observed_trust_bundle_bytes": null,
+  "certificate_count": 0,
+  "validation_error": "ENOENT",
+  "provider_contact_possible": false,
+  "container_network": "none",
+  "provider_events_bytes": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

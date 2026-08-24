@@ -1,0 +1,6 @@
+{
+  "reason": "Exact adjudication-binding review PASS required; no permit release or provider call authorized before PASS.",
+  "schema": "vela.inherited-correction-hold.v1",
+  "status": "hold",
+  "updated_at": "2026-08-21T21:03:34Z"
+}

@@ -1,0 +1,108 @@
+{
+  "canonical_derived": {
+    "consequence_order": [
+      "neutral-a",
+      "neutral-b",
+      "neutral-c",
+      "neutral-d"
+    ],
+    "consequence_rule": "sort by claim_id after exact closed-set validation",
+    "evidence_binding_order": [
+      "neutral-a",
+      "neutral-b",
+      "neutral-c",
+      "neutral-d"
+    ],
+    "evidence_binding_rule": "sort by path-derived claim_id after exact closed-set validation",
+    "response_root": "sha256:9748c08fee1cc90f44c8c50bfd28e8911edd1ca819a0f0a224e209cb04158372"
+  },
+  "closed_set_contract": {
+    "consequence_exact_fields": true,
+    "consequence_ids_complete": true,
+    "consequence_ids_unique": true,
+    "duplicate_id_adversary_rejected": true,
+    "evidence_bindings_complete": true,
+    "evidence_bindings_unique": true,
+    "expected_claim_ids": [
+      "neutral-a",
+      "neutral-b",
+      "neutral-c",
+      "neutral-d"
+    ],
+    "missing_id_adversary_rejected": true,
+    "registered_schema_valid": true,
+    "unknown_id_adversary_rejected": true
+  },
+  "order_contract_root": "sha256:51ad6f205e15dd828a3a5614b436a4ed1bc0a12dc7ef5f465e59b852c7359532",
+  "permutation_checks": [
+    {
+      "derived_response_root": "sha256:9748c08fee1cc90f44c8c50bfd28e8911edd1ca819a0f0a224e209cb04158372",
+      "input_consequence_order": [
+        "neutral-a",
+        "neutral-b",
+        "neutral-c",
+        "neutral-d"
+      ],
+      "input_evidence_binding_order": [
+        "neutral-d",
+        "neutral-c",
+        "neutral-b",
+        "neutral-a"
+      ],
+      "input_response_root": "sha256:3734ee29decba6d85b47263dce62fe4612b55e02b7d622637e39bc605e3a9049",
+      "label": "packet"
+    },
+    {
+      "derived_response_root": "sha256:9748c08fee1cc90f44c8c50bfd28e8911edd1ca819a0f0a224e209cb04158372",
+      "input_consequence_order": [
+        "neutral-d",
+        "neutral-c",
+        "neutral-b",
+        "neutral-a"
+      ],
+      "input_evidence_binding_order": [
+        "neutral-a",
+        "neutral-b",
+        "neutral-c",
+        "neutral-d"
+      ],
+      "input_response_root": "sha256:b4812201c6321056a1f794695b1e9c8023dce80a5bd1785fe985c3284d09b4f6",
+      "label": "reverse"
+    },
+    {
+      "derived_response_root": "sha256:9748c08fee1cc90f44c8c50bfd28e8911edd1ca819a0f0a224e209cb04158372",
+      "input_consequence_order": [
+        "neutral-c",
+        "neutral-a",
+        "neutral-d",
+        "neutral-b"
+      ],
+      "input_evidence_binding_order": [
+        "neutral-b",
+        "neutral-d",
+        "neutral-a",
+        "neutral-c"
+      ],
+      "input_response_root": "sha256:d105edf3bbb1158cb00bbd111ec45e36fb08494c4db69e18a73833cfbc98c251",
+      "label": "fixed_random"
+    }
+  ],
+  "raw_consequence_order": [
+    "neutral-a",
+    "neutral-b",
+    "neutral-c",
+    "neutral-d"
+  ],
+  "raw_evidence_binding_order": [
+    "neutral-a",
+    "neutral-b",
+    "neutral-c",
+    "neutral-d"
+  ],
+  "raw_response_bytes": "sha256:9748c08fee1cc90f44c8c50bfd28e8911edd1ca819a0f0a224e209cb04158372",
+  "raw_response_retained_exactly": true,
+  "raw_response_root": "sha256:9748c08fee1cc90f44c8c50bfd28e8911edd1ca819a0f0a224e209cb04158372",
+  "response_order_semantically_relevant": false,
+  "schema": "vela.inherited-correction-neutral-order-calibration-validation.v1",
+  "status": "pass"
+}

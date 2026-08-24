@@ -1,0 +1,88 @@
+{
+  "custody_root": "sha256:9f2f97766c2bd2d04e7fb3b99b69bd831a8e11c8c719ab60d535dabf6f2d19df",
+  "files": [
+    {
+      "bytes": 2109,
+      "path": "calibration-result.json",
+      "sha256": "sha256:267e9427fa1d2971030ad6fc287824db7b956305eda88efce7984380b96bf61e"
+    },
+    {
+      "bytes": 967,
+      "path": "runtime/consumed-permit.json",
+      "sha256": "sha256:67cf3e74b1f7bfe4abaee741bc872577899dad0bebdfaf1a8baa73ea3ef6b85c"
+    },
+    {
+      "bytes": 335,
+      "path": "runtime/launch.json",
+      "sha256": "sha256:49a52a3ffc75df378f3dac1d2df23224e523be6e0a6e6bd6ad0b472461367220"
+    },
+    {
+      "bytes": 1179,
+      "path": "runtime/participant-response.raw.json",
+      "sha256": "sha256:9748c08fee1cc90f44c8c50bfd28e8911edd1ca819a0f0a224e209cb04158372"
+    },
+    {
+      "bytes": 1627,
+      "path": "runtime/provider-events.jsonl",
+      "sha256": "sha256:6b0bc40ab39d08b25da5b4848f647bea642ed8725ee5cb695d7f7c82b5eac52b"
+    },
+    {
+      "bytes": 0,
+      "path": "runtime/provider-stderr.txt",
+      "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 256,
+      "path": "runtime/release-state.json",
+      "sha256": "sha256:2b8665213789e4903db476502ba284c27f4aab489a0e7bee1d83618ceba3e297"
+    },
+    {
+      "bytes": 2110,
+      "path": "runtime/terminal-receipt.json",
+      "sha256": "sha256:b93531a77f63b515ea3e7154922b733c46e95431e0f7c9263b1873a58b671e95"
+    }
+  ],
+  "frozen_inputs": [
+    {
+      "bytes": 562,
+      "path": "paper/artifacts/inherited-correction-held-out-replacement/calibration/input/assignment.json",
+      "sha256": "sha256:b14c64cde90416148a3379541834b6d5af5d9910feecdc20ca353fa8da75d4d3"
+    },
+    {
+      "bytes": 1801,
+      "path": "paper/artifacts/inherited-correction-held-out-replacement/calibration/input/participant-configuration.json",
+      "sha256": "sha256:908d4e46acce29a093ff5fc7fde5bde23f9bf4ce5546256ac4b55dd8355a380a"
+    },
+    {
+      "bytes": 1795,
+      "path": "paper/artifacts/inherited-correction-held-out-replacement/calibration/input/prompt.txt",
+      "sha256": "sha256:eed8ad5804e999b60457ae959b316a5047c1b310661dcb59a4a7460b1292396e"
+    },
+    {
+      "bytes": 2537,
+      "path": "paper/artifacts/inherited-correction-held-out-replacement/calibration/input/provider-response-schema.json",
+      "sha256": "sha256:896f242086805d3b51e81ed04e6d50f33eb2b7deb71b7a1689e9abeba3b67eaf"
+    },
+    {
+      "bytes": 2564,
+      "path": "paper/artifacts/inherited-correction-held-out-replacement/calibration/input/response-schema.json",
+      "sha256": "sha256:ac96be686e749792956dfa1dfe9560f85c53d55c27fe2e8fd32bcc2a96a634ba"
+    },
+    {
+      "bytes": 1459,
+      "path": "paper/artifacts/inherited-correction-held-out-replacement/calibration/input/valid-response.json",
+      "sha256": "sha256:f08e3ba2d767009a0d6553b71690e7cacaa933fcf28ca8cfd4234568a24d9d9f"
+    }
+  ],
+  "independent_review_commit": "4a06ac8aa9a5f07abd019a375d755bfe5f0031aa",
+  "issued_permit_root": "sha256:007795635b658e136e3a7e3c35d8f56920916ba4304a236eba2890a548c52e7a",
+  "participant_permits_consumed": 0,
+  "participant_permits_held": 36,
+  "producer_commit": "04717caf38ca2581aca5c9905baf14ed9c2a21e0",
+  "producer_tree": "33457d30d827363efa58c2b6c8765d4ce924824d",
+  "provider_calls": 1,
+  "run_id": "neutral-schemafix-calibration-01",
+  "schema": "vela.inherited-correction-neutral-schema-calibration-custody.v1",
+  "status": "frozen_terminal_pass",
+  "teardown_state": "clean"
+}

@@ -1,0 +1,32 @@
+{
+  "adjudication_root": "sha256:6b2e94c7bfce7c41353eb48cd4962243e3f177fdaccb8c7da48567d99dfca557",
+  "authority_effect": "none",
+  "capture_root": "sha256:0e5f60fa1dc78e531d44cb8fff626e73c6b2c0017bbcec52e41220cbfac686fd",
+  "conditions": {
+    "git-documents": {
+      "authority_errors": 8,
+      "exact_successes": 0,
+      "median_tool_calls": 0.0,
+      "points": 112,
+      "restricted_mean_seconds": 600.0,
+      "sessions": 8
+    },
+    "vela": {
+      "authority_errors": 3,
+      "exact_successes": 5,
+      "median_tool_calls": 0.0,
+      "points": 130,
+      "restricted_mean_seconds": 233.07823840475,
+      "sessions": 8
+    }
+  },
+  "fixed_denominator": 16,
+  "limitations": [
+    "One synthetic case cannot establish scientific truth or general productivity.",
+    "The result is internal unless separately and independently reproduced."
+  ],
+  "positive_gate": "not_supported",
+  "registration_root": "sha256:a8b4b729e7b2be4f371d4831caa9214959514cb51222da9e422b0634c408a575",
+  "restricted_mean_ratio_vela_over_git_documents": 0.388463730674583,
+  "schema": "vela.inherited-correction-scored-result.v1"
+}

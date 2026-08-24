@@ -1,0 +1,17 @@
+{
+  "base_image_digest": "sha256:cadbfafeb6baf87eaaffa40b3640209c4b7fd38cebde65059d15bc39cd636b85",
+  "bundle_bytes": "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5",
+  "bundle_generation": "dpkg-deb extract; concatenate usr/share/ca-certificates/mozilla/*.crt in LC_ALL=C path order",
+  "bundle_path": "/etc/ssl/certs/ca-certificates.crt",
+  "certificate_count": 150,
+  "insecure_overrides": [],
+  "oauth_boundary": "unchanged read-only auth.json mount into disposable CODEX_HOME",
+  "package": "ca-certificates",
+  "package_bytes": "sha256:62b08a77d985d4253894b1f69aebda5925034ca4e294add364167fad8cb64a44",
+  "package_version": "20250419~deb12u1",
+  "repaired_image_digest": "sha256:6274d83356076640d6e4bc810b97d37ac2d1b5ab02546dd7c2ebed16f915b547",
+  "schema": "vela.inherited-correction-ca-provenance.v1",
+  "source_distribution": "Debian 12 bookworm-security",
+  "source_url": "https://deb.debian.org/debian-security/pool/updates/main/c/ca-certificates/ca-certificates_20250419~deb12u1_all.deb",
+  "tls_verification_disabled": false
+}

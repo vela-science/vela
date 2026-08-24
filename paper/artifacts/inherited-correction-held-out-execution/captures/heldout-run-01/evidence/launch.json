@@ -1,0 +1,8 @@
+{
+  "schema": "vela.inherited-correction-launch.v1",
+  "run_id": "heldout-run-01",
+  "participant_instance_id": "heldout-sol-01",
+  "condition": "vela",
+  "permit_bytes": "sha256:6df5c117bad32ab60c3785195970ceaefe006ed4ec5be5b310f03aa141fdacf8",
+  "consumed_at": "2026-08-21T22:39:57.072Z"
+}

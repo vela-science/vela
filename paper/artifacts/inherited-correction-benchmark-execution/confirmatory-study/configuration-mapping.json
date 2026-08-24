@@ -1,0 +1,10 @@
+{
+  "authorization_root": "sha256:468ffca20b33f489859b7173bc4e96e012c1385032abca0457e115b5675e4f2e",
+  "condition_runtime_configuration_roots": {
+    "git-documents": "sha256:1cb24f2e2881614adf070e2894e098afb3a1fdb21088ae33e1d73f1bf110a509",
+    "vela": "sha256:b4a7b621424fe98a44d848a23aa34fa6f622367c9e55f2a2b1a5697f209748f9"
+  },
+  "schema": "vela.inherited-correction-authorized-configuration-mapping.v1",
+  "shared_study_configuration_root": "sha256:ed944c27285871bb39eb6ef80085824fa7dd1245d792a6a509b4723a882abaf4",
+  "status": "authorized"
+}

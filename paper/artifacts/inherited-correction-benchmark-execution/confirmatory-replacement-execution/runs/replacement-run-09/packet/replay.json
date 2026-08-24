@@ -1,0 +1,31 @@
+{
+  "decision_present": false,
+  "derived_current_upstream_claim_id": "calibration-a-v2",
+  "does_not_establish": [
+    "scientific truth",
+    "acceptance",
+    "Standing"
+  ],
+  "event_chain_root": "sha256:ae39c3c4ff623deb5be261fad654afa6ac19c44d364b18e5aad5899b8b9c0d52",
+  "events": [
+    {
+      "claim_id": "calibration-a-v1",
+      "event_root": "sha256:e8f44ca512ace686113b024cb99f6b1ed74d8184d3f9e76ee242524a59b0ff20",
+      "kind": "fixture_claim_recorded",
+      "previous_event_root": null,
+      "sequence": 1
+    },
+    {
+      "event_root": "sha256:ae39c3c4ff623deb5be261fad654afa6ac19c44d364b18e5aad5899b8b9c0d52",
+      "kind": "fixture_correction_observed",
+      "predecessor_claim_id": "calibration-a-v1",
+      "previous_event_root": "sha256:e8f44ca512ace686113b024cb99f6b1ed74d8184d3f9e76ee242524a59b0ff20",
+      "sequence": 2,
+      "successor_claim_id": "calibration-a-v2"
+    }
+  ],
+  "fixture_id": "bounded-calibration-correction-v1",
+  "replay": "matched",
+  "schema": "vela.inherited-correction-replay.v1",
+  "standing_effect": "none"
+}

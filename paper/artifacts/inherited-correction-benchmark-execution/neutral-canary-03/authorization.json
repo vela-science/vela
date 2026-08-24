@@ -1,0 +1,10 @@
+{
+  "assignment_root": "sha256:dfd634e93fc75d3a4cc1f1173a040961f36f0861c4c144fc50371cad2a306bb4",
+  "authorization_source": "supervisor task 01a02473-9465-76e2-ac9b-ae41379a3aa6 explicit canary-03 authorization",
+  "confirmatory_sessions_authorized": 0,
+  "max_sessions": 1,
+  "participant_configuration_root": "sha256:54251d2cc114b13db1c981ab08e8718023335f694c0fc02ca6eb92a9cf8291da",
+  "registration_root": "sha256:87c4a6e3e230fa719417a349a3ed0f1c1843ec87daa80f9e32927bd3ed03aed0",
+  "schema": "vela.inherited-correction-neutral-canary-authorization.v3",
+  "status": "authorized_calibration_only"
+}

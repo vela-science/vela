@@ -1,0 +1,62 @@
+{
+  "files": [
+    {
+      "content": "# Acceptance scope\n\nRegime: `independently_authorized_acceptance_action`.\n\nAcceptance action present: `true`.\n\nAuthorization verified: `true`.\n\nEvidence: `evidence/scope-tr-08.json`.\n\nAn independently authorized acceptance action is present; authoritative status changes only through that separate action.\n",
+      "path": "AUTHORITY.md"
+    },
+    {
+      "content": "# Consequence Claims\n\n## cohort-count\n\nCohort C contains 64 qualifying specimens.\n\nEvidence: `evidence/cohort-count.json`\n\n## trend-model\n\nThe longitudinal trend remains increasing.\n\nEvidence: `evidence/trend-model.md`\n\n## freezer-commissioning\n\nFreezer F was commissioned on 2023-11-02.\n\nEvidence: `evidence/freezer-commissioning.json`\n\n## combined-incidence\n\nCombined incidence across cohorts C and D is under 4 percent.\n\nEvidence: `evidence/combined-incidence.md`\n",
+      "path": "CLAIMS.md"
+    },
+    {
+      "content": "# Dependency notes\n\n## cohort-count -> taxonomy-t7\n\nKind: `requires_exact`. The cohort count used the predecessor category map exactly.\n\n## trend-model -> cohort-count\n\nKind: `requires_result`. The trend model consumes cohort-count and must be rerun after a corrected count.\n\n## freezer-commissioning -> taxonomy-t7\n\nKind: `discovery_only`. The taxonomy map helped locate the commissioning record but is not a premise for the date.\n\n## combined-incidence -> cohort-count\n\nKind: `requires_result`. Combined incidence consumes cohort-count.\n\n## combined-incidence -> cohort-d-denominator\n\nKind: `requires_unavailable`. The exact cohort D denominator and binding are absent.\n",
+      "path": "DEPENDENCIES.md"
+    },
+    {
+      "content": "# Correction history\n\n`taxonomy-t8` supersedes `taxonomy-t7`. The predecessor reversed the documented boundary rule for marker M-low.\n\nPredecessor: Specimens with marker M-low belong to category K.\n\nSuccessor: Specimens with marker M-low belong to category L.\n",
+      "path": "HISTORY.md"
+    },
+    {
+      "content": "{\n  \"atomic_facts_root\": \"sha256:340f390e77e60015026759ba7da35c51b4c68b9eb8612767501c5aaee5336464\",\n  \"condition\": \"git-documents\",\n  \"family_id\": \"taxonomy-remap\",\n  \"schema\": \"inherited-correction-held-out-packet-manifest.v1\",\n  \"source_and_evidence\": [\n    {\n      \"bytes\": 73,\n      \"path\": \"evidence/cohort-count.json\",\n      \"sha256\": \"sha256:fca4c6a82a5fded07b46a5b977a6e3609f2b66877e8e9a6c3471392c8ea4d81e\"\n    },\n    {\n      \"bytes\": 146,\n      \"path\": \"evidence/combined-incidence.md\",\n      \"sha256\": \"sha256:c6f11fa287ee71eb03474ab33bfaa312810d4e717289a59b73f761161e0f7417\"\n    },\n    {\n      \"bytes\": 87,\n      \"path\": \"evidence/freezer-commissioning.json\",\n      \"sha256\": \"sha256:a00e88127de3c207d720dc634928249ec47fb5e6b90fc2c957e928e87b539e39\"\n    },\n    {\n      \"bytes\": 155,\n      \"path\": \"evidence/scope-tr-08.json\",\n      \"sha256\": \"sha256:7b9aeccb0149f6c3471790012c6ff47f6fe93c2896ce797e82314647e43d4187\"\n    },\n    {\n      \"bytes\": 133,\n      \"path\": \"evidence/trend-model.md\",\n      \"sha256\": \"sha256:899be5f752871d108a61739d8b3c64e4be0658582555e474cc9fe37668188b0b\"\n    },\n    {\n      \"bytes\": 97,\n      \"path\": \"source/taxonomy-t7.md\",\n      \"sha256\": \"sha256:3138a9e3935629163318f728ffb81a688930bda36a6c1b57ab8dc45e15779e25\"\n    },\n    {\n      \"bytes\": 175,\n      \"path\": \"source/taxonomy-t8.md\",\n      \"sha256\": \"sha256:c35f0474df48d88daf95cb0c2e57bd8201a7539363972272879facdd85692b3e\"\n    }\n  ]\n}\n",
+      "path": "PACKET-MANIFEST.json"
+    },
+    {
+      "content": "# Held-out cold-successor task\n\nYou are the first successor to receive this packet. Use only the assigned\nfamily packet.\n\n1. Identify the exact predecessor and successor.\n2. Classify every listed consequence as `affected`, `unaffected`,\n   `must_reassess`, or `presently_unprovable`.\n3. Select one closed first-safe-action code for each consequence.\n4. Select the correction's closed authority-effect and authority-action codes.\n5. Return one exact evidence binding for each listed consequence, containing\n   both its packet path and SHA-256 digest.\n\nReturn only JSON matching `response-schema.json`. Do not contact anyone, use a\nnetwork or tool, issue an acceptance action, or alter authoritative status.\n",
+      "path": "TASK.md"
+    },
+    {
+      "content": "{\"claim_id\":\"cohort-count\",\"map_id\":\"taxonomy-t7\",\"qualifying_count\":64}\n",
+      "path": "evidence/cohort-count.json"
+    },
+    {
+      "content": "# Combined incidence\n\nThis Claim requires the corrected cohort C count and cohort D's exact denominator. Cohort D's denominator source is absent.\n",
+      "path": "evidence/combined-incidence.md"
+    },
+    {
+      "content": "{\"claim_id\":\"freezer-commissioning\",\"commissioned_on\":\"2023-11-02\",\"record_id\":\"F-19\"}\n",
+      "path": "evidence/freezer-commissioning.json"
+    },
+    {
+      "content": "{\"acceptance_action_present\":true,\"authorization_verified\":true,\"authority_regime\":\"independently_authorized_acceptance_action\",\"record_id\":\"scope-tr-08\"}\n",
+      "path": "evidence/scope-tr-08.json"
+    },
+    {
+      "content": "# Trend model\n\nThe retained model consumes cohort-count. Its post-remap direction cannot be established without rerunning the model.\n",
+      "path": "evidence/trend-model.md"
+    },
+    {
+      "content": "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"additionalProperties\": false,\n  \"properties\": {\n    \"authority_action_code\": {\n      \"enum\": [\n        \"record_no_status_change\",\n        \"accept_authorized_status_change\",\n        \"withhold_status_change\"\n      ],\n      \"type\": \"string\"\n    },\n    \"authority_effect_code\": {\n      \"enum\": [\n        \"no_authoritative_status_change\",\n        \"authorized_status_change\",\n        \"status_change_unprovable\"\n      ],\n      \"type\": \"string\"\n    },\n    \"consequences\": {\n      \"items\": {\n        \"additionalProperties\": false,\n        \"properties\": {\n          \"action_code\": {\n            \"enum\": [\n              \"retrieve_missing_premise\",\n              \"no_correction_reassessment\",\n              \"rerun_dependent_method\",\n              \"recompute_with_successor\"\n            ],\n            \"type\": \"string\"\n          },\n          \"claim_id\": {\n            \"minLength\": 1,\n            \"type\": \"string\"\n          },\n          \"classification\": {\n            \"enum\": [\n              \"affected\",\n              \"unaffected\",\n              \"must_reassess\",\n              \"presently_unprovable\"\n            ],\n            \"type\": \"string\"\n          }\n        },\n        \"required\": [\n          \"claim_id\",\n          \"classification\",\n          \"action_code\"\n        ],\n        \"type\": \"object\"\n      },\n      \"maxItems\": 4,\n      \"minItems\": 4,\n      \"type\": \"array\"\n    },\n    \"evidence_bindings\": {\n      \"items\": {\n        \"additionalProperties\": false,\n        \"properties\": {\n          \"path\": {\n            \"pattern\": \"^(source|evidence)/[a-z0-9][a-z0-9._-]*$\",\n            \"type\": \"string\"\n          },\n          \"sha256\": {\n            \"pattern\": \"^sha256:[0-9a-f]{64}$\",\n            \"type\": \"string\"\n          }\n        },\n        \"required\": [\n          \"path\",\n          \"sha256\"\n        ],\n        \"type\": \"object\"\n      },\n      \"maxItems\": 4,\n      \"minItems\": 4,\n      \"uniqueItems\": true,\n      \"type\": \"array\"\n    },\n    \"family_id\": {\n      \"minLength\": 1,\n      \"type\": \"string\"\n    },\n    \"predecessor_claim_id\": {\n      \"minLength\": 1,\n      \"type\": \"string\"\n    },\n    \"schema\": {\n      \"const\": \"inherited-correction-held-out-response.v1\",\n      \"type\": \"string\"\n    },\n    \"successor_claim_id\": {\n      \"minLength\": 1,\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"schema\",\n    \"family_id\",\n    \"predecessor_claim_id\",\n    \"successor_claim_id\",\n    \"consequences\",\n    \"authority_effect_code\",\n    \"authority_action_code\",\n    \"evidence_bindings\"\n  ],\n  \"type\": \"object\"\n}\n",
+      "path": "response-schema.json"
+    },
+    {
+      "content": "# Taxonomy t7\n\nSpecimens with marker M-low belong to category K.\n\nSource revision: `taxonomy-t7`\n",
+      "path": "source/taxonomy-t7.md"
+    },
+    {
+      "content": "# Taxonomy t8\n\nSpecimens with marker M-low belong to category L. This revision supersedes `taxonomy-t7`; it does not decide downstream Claims.\n\nSource revision: `taxonomy-t8`\n",
+      "path": "source/taxonomy-t8.md"
+    }
+  ],
+  "instruction": "Use only this immutable virtual filesystem and return one schema-valid JSON response without tools.",
+  "schema": "inherited-correction-held-out-virtual-filesystem.v1"
+}

@@ -1,0 +1,93 @@
+{
+  "assignment_policy": "fresh 16 context-isolated participant instances; 8 per arm; fixed before provider access",
+  "assignment_seed_commitment": "sha256:ee8fd882e47989e508c0f663931dfab102424adbda3659809333b9a965c1f1c2",
+  "authentication": {
+    "automatic_purchase_or_top_up": false,
+    "expected_platform_api_charge_usd": 0,
+    "hard_contingency_ceiling_usd": 25,
+    "mode": "read-only ChatGPT OAuth auth.json mount into disposable CODEX_HOME",
+    "secret_retention": false
+  },
+  "base_image_digest": "sha256:cadbfafeb6baf87eaaffa40b3640209c4b7fd38cebde65059d15bc39cd636b85",
+  "benchmark_registration_root": "sha256:a18f067652883680b39aea269e66fb4a833b8466790d7031abf2e4ab3748a3d2",
+  "calibration_only_bytes": {
+    "canary_01_prelaunch": "sha256:d392ded1b1fe82abcc522ef92248de8b8b3c442bb9a825d83ecc6ed66bfa741a",
+    "canary_01_result": "sha256:9fa7cce6b30abce0c156e8225315e3590c05dcfeff6c221e9f720f8e189cd701",
+    "canary_02_prelaunch": "sha256:de9da5cf0b1ef92f0ac177ce707c4da3ec99db442fc3614d1cdcb3d88b6b479a",
+    "canary_02_result": "sha256:ab6edf787916aedaf734cfc0ad0e8dda90a006097e81b3e7ed5beab0157ea702",
+    "canary_03_prelaunch": "sha256:1405e33a4c5627c510d85174f602b6951c7b2c17e3903a28708867299682e1c4",
+    "canary_03_result": "sha256:ea6c2a8c3da7aa3b09f32f7eb23414316f6ee1df6158e0eba44d4ac9c54bc1d7",
+    "pilot_capture_manifest": "sha256:b9fd90197c99960f201053803e270beaf83e837afac9ef78268f958865d6e679",
+    "pilot_stop_record": "sha256:68a2816861f942fc105d60a7985c6dd9e8f5758e800d71dbdaafa9bac91498a5"
+  },
+  "condition_packet_roots": {
+    "git-documents": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+    "vela": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97"
+  },
+  "condition_prompt_roots": {
+    "git-documents": "sha256:430b48e3e11a202ab4f8d9c41f6bc89dd682b2e18ef180cfc69545bbfd74cbbe",
+    "vela": "sha256:d2392a7f4bbcca0e153c01f842459d7721696fa552acb8b783f6ce3f88572ad8"
+  },
+  "confirmatory_calls_before_freeze": 0,
+  "execution": {
+    "attempt": 1,
+    "default_state": "hold",
+    "failures": "retained in fixed denominator without retry or substitution",
+    "one_model_turn": true,
+    "one_prompt": true,
+    "output_token_ceiling": 8192,
+    "permit_policy": "one root-bound single-use permit per predetermined cell",
+    "provider_usage": "telemetry only except genuine provider context/output-limit failure",
+    "retries": 0,
+    "scheduler": "none",
+    "sessions": 16,
+    "sessions_per_condition": 8,
+    "substitutions": 0,
+    "timeout_seconds": 600,
+    "tools": "none"
+  },
+  "f04_blocked_disposition": "terminal held prelaunch evidence; zero calls; prospectively superseded only by the custody bridge",
+  "f04_blocked_freeze_root": "sha256:56eaacf7a1dc30402d86740744e42312deee9103eee7af78cce237e990156659",
+  "f04_blocked_producer_commit": "b4bd2542b2fb71944a0d1e7e487b007392c008b6",
+  "f04_blocked_registration_root": "sha256:1ae5d204c369bdd71fc502192cafbbd17db89dc5544ee4cd2ebe3b75ac8147ec",
+  "f04_blocked_review_commit": "23986b9b02ea5ba1324cd9aad91545f969db8a56",
+  "f05_blocked_disposition": "terminal held prelaunch evidence; zero calls; prospectively superseded only by capture-bound immutable scoring bytes",
+  "f05_blocked_freeze_root": "sha256:db5f37730f8f0d0291c9bab467acc58a1c3f58210d662fa748ad8990f7aba37b",
+  "f05_blocked_producer_commit": "f919654a7e55d336c5588719e962e2d67a699710",
+  "f05_blocked_registration_root": "sha256:78cc6e0154ec1baaa4eb86a15131ad9910802a5a2aeae2b82779de3c3ba6e67b",
+  "f05_blocked_review_commit": "4dd3efc45d222e3d41defef38a5ce8306a1c6391",
+  "frozen_at": "2026-08-21T17:55:04Z",
+  "image_digest": "sha256:6274d83356076640d6e4bc810b97d37ac2d1b5ab02546dd7c2ebed16f915b547",
+  "participant": {
+    "codex_cli_version": "0.149.0",
+    "model": "gpt-5.6-sol",
+    "provider": "openai-chatgpt-oauth-codex",
+    "reasoning_effort": "high",
+    "service_tier": "default"
+  },
+  "prospective_custody_repair": "require exact consumed permit, terminal receipt, provider events, runtime response, and authorized shared-to-condition configuration mapping before capture or scoring",
+  "prospective_score_snapshot_repair": "buffer and digest-check all 16 capture-bound run and response bytes before protected adjudication access; derive the scored capture root from and score only that immutable snapshot",
+  "protected_scoring": "outside participant container; inaccessible until all 16 terminal captures and capture root freeze",
+  "response_schema_bytes": "sha256:6e5e1e35285f4a0bc7ac929bd50f0e1cc3b8cd0b7541e1cabcc90565cc1e30e7",
+  "runtime_pass_canary_result_root": "sha256:53d7b376ca90b0dc33db2c53703a63e0700068159b991c8250ce8f1f47fba018",
+  "runtime_pass_producer_commit": "4c7bd6a811bbd0cf1ebd357d3ad72abb9127442a",
+  "runtime_pass_review_commit": "2ebf1ad8cb0f5d16b7bcee8e5510f3aed5dc1395",
+  "runtime_source_root": "sha256:42ecc2f27d6758c0fa6cd20d19e02a20dd90935b82526a43b190c96a75896549",
+  "schema": "vela.inherited-correction-confirmatory-registration.v2",
+  "scientific_or_authority_effect": "none",
+  "scoring_bindings": {
+    "adjudication_root": "sha256:6b2e94c7bfce7c41353eb48cd4962243e3f177fdaccb8c7da48567d99dfca557",
+    "benchmark_implementation_bytes": "sha256:b14e955c9d77510f0c3b961c054440fbb23179137349e64ca9e7a301ac55071d",
+    "benchmark_registration_root": "sha256:a18f067652883680b39aea269e66fb4a833b8466790d7031abf2e4ab3748a3d2",
+    "benchmark_tests_bytes": "sha256:2947908b9efdf3b6a1007ed5ae3c5941890ffa7a9d9a26845319ef92c7923e58",
+    "positive_gate": "registered unchanged in benchmark preregistration",
+    "response_schema_bytes": "sha256:6e5e1e35285f4a0bc7ac929bd50f0e1cc3b8cd0b7541e1cabcc90565cc1e30e7",
+    "runtime_custody_bridge_bytes": "sha256:06b1501911fbb351ea6285f3bcd3a354b06b7e2dce1f4ea23536883aeff7be8b",
+    "runtime_custody_tests_bytes": "sha256:239009922dd7580ee3b117de8ee335429af5b4b02a054ac481ff75765ca56c77"
+  },
+  "status": "frozen_prelaunch_independent_review_required",
+  "strict_overrides_root": "sha256:7b70dd58746b35a014550167fe7dc3f7a00fd5f5ee5e3058aa4207d41e3dc830",
+  "trust_bundle_bytes": "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5",
+  "trust_bundle_path": "/etc/ssl/certs/ca-certificates.crt",
+  "trust_provenance_root": "sha256:4cf369b944b78e938b4a8b2c824bc40fea0853ee1e8df0eced381429c3f00fa8"
+}

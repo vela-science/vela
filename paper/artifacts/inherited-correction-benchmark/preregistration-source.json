@@ -1,0 +1,99 @@
+{
+  "schema": "vela.inherited-correction-preregistration.v1",
+  "registered_at": "2026-08-21T00:00:00Z",
+  "prospective_amendment": {
+    "amended_at": "2026-08-21T15:51:01Z",
+    "previous_registration_root": "sha256:40a05a33a760404cb606dc218d6deafb1d358916a9fa7954e58973ab1a6d67b1",
+    "previous_producer_commit": "366b610eec75a1520a97b4a7817fde3a4fbbfc7b",
+    "independent_review_commit": "c377e99e2c982211be7ecb9cba8998c848cf18c2",
+    "independent_review_verdict": "BLOCKED",
+    "reason": "Replace unsafe keyword action scoring and incomplete capture custody before any experimental session.",
+    "experimental_sessions_observed_before_amendment": 0,
+    "result_access_before_amendment": "none"
+  },
+  "benchmark": "Bounded inherited-correction cold-successor evaluation",
+  "hypothesis": "The Vela-organized presentation lowers cold-successor continuation and reassessment cost relative to an information-matched Git-and-documents presentation.",
+  "fixture_policy": {
+    "case_count": 1,
+    "fixture_kind": "synthetic_non_scientific",
+    "upstream_corrections": 1,
+    "listed_consequences": 4,
+    "classification_vocabulary": [
+      "affected",
+      "must_reassess",
+      "presently_unprovable",
+      "unaffected"
+    ],
+    "does_not_establish": [
+      "scientific truth or source fidelity",
+      "a Vela Decision or Standing change",
+      "external validation, adoption, or general productivity",
+      "that the existing synthetic correction-impact reducer models all scientific dependencies"
+    ]
+  },
+  "conditions": [
+    {
+      "condition_id": "git-documents",
+      "description": "Git-style history, claims, dependency, source, and evidence documents."
+    },
+    {
+      "condition_id": "vela",
+      "description": "The same atomic facts organized as a Vela-style correction, replay, and why projection."
+    }
+  ],
+  "information_matching": {
+    "rule": "Every substantive case fact and every source/evidence byte is present in both conditions; only organization, derived navigation metadata, and read affordances differ.",
+    "protected_material": "Scorer adjudication classifications and Claim-to-action-code mappings are absent from both condition packets until the frozen capture manifest exists.",
+    "network": "denied",
+    "predecessor_context": "none"
+  },
+  "assignment": {
+    "unit": "one context-isolated cold successor",
+    "total_sessions": 16,
+    "sessions_per_condition": 8,
+    "allocation": "Externally generated seed; eight labels of each condition; assignment recorded before packet access.",
+    "repeat_participants": false,
+    "retries": 0,
+    "substitutions": 0,
+    "timeout_seconds": 600,
+    "failed_or_timed_out_sessions": "Retained in the fixed denominator and assigned zero exact-success credit."
+  },
+  "environment": {
+    "model_or_participant_policy": "Freeze one participant class and, for models, one exact provider/model/reasoning/tool configuration before assignment.",
+    "tools": "Local packet reads only; no network, Vela authority, source mutation, or hidden predecessor context.",
+    "paid_inference": "not_authorized_by_this_preregistration",
+    "human_or_scientific_validation": "not_authorized_by_this_preregistration"
+  },
+  "outcomes": {
+    "primary": "Exact continuation success: exact correction pair, all four classifications, all four closed first-safe-action codes, no Standing error, and one exact source/evidence digest.",
+    "cost": "Restricted mean wall time with every wrong, invalid, failed, or timed-out session assigned the 600-second cap.",
+    "secondary": [
+      "17-point component score",
+      "raw wall time",
+      "tool-call count",
+      "authority-error count"
+    ],
+    "positive_gate": "Both arms contain exactly eight sessions; Vela exact successes are at least six and no fewer than Git/documents; Vela has zero authority errors; and Vela restricted mean cost is at most 0.80 of Git/documents.",
+    "interpretation": "Passing is a bounded descriptive signal for this synthetic packet. Failure or an incomplete denominator does not support lower continuation cost. No aggregate scientific or adoption claim is permitted."
+  },
+  "scoring_freeze": {
+    "adjudication_access": "Only after all 16 responses, run records, packet roots, durations, and tool counts are frozen into capture-manifest.json.",
+    "amendments": "Any post-output change to facts, packets, task, scoring, denominator, timeout, or gate invalidates confirmatory credit and must retain the previous registration root.",
+    "manual_rescoring": "not_permitted for the registered result"
+  },
+  "current_authorization_gate": {
+    "status": "not_authorized",
+    "allowed_now": [
+      "deterministic build",
+      "fixture and packet verification",
+      "capture-tool tests",
+      "independent methodological and protocol review"
+    ],
+    "blocked_now": [
+      "paid model sessions",
+      "human participant sessions",
+      "scientific validation",
+      "Standing or authority mutation"
+    ]
+  }
+}

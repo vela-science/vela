@@ -1,0 +1,62 @@
+{
+  "files": [
+    {
+      "content": "# Acceptance scope\n\nRegime: `authorization_presently_unprovable`.\n\nAcceptance action present: `true`.\n\nAuthorization verified: `none`.\n\nEvidence: `evidence/scope-mv-04.json`.\n\nAn acceptance action is referenced, but its authorization credential is absent; authoritative status change is presently unprovable and must be withheld.\n",
+      "path": "AUTHORITY.md"
+    },
+    {
+      "content": "# Consequence Claims\n\n## batch-concentration\n\nBatch B has corrected concentration 7.8 mg/L.\n\nEvidence: `evidence/batch-concentration.json`\n\n## release-risk\n\nThe release-risk conclusion remains low.\n\nEvidence: `evidence/release-risk.md`\n\n## analyzer-service\n\nAnalyzer A was serviced on 2025-02-10.\n\nEvidence: `evidence/analyzer-service.json`\n\n## blended-release\n\nThe blended release concentration is below 9 mg/L.\n\nEvidence: `evidence/blended-release.md`\n",
+      "path": "CLAIMS.md"
+    },
+    {
+      "content": "# Dependency notes\n\n## batch-concentration -> method-m3\n\nKind: `requires_exact`. The concentration calculation used method-m3 exactly.\n\n## release-risk -> batch-concentration\n\nKind: `requires_result`. The risk method consumes batch-concentration; the new conclusion is unknown until rerun.\n\n## analyzer-service -> method-m3\n\nKind: `discovery_only`. The method file helped locate the service ticket but supplies no premise for its date.\n\n## blended-release -> batch-concentration\n\nKind: `requires_result`. The blend consumes batch-concentration.\n\n## blended-release -> batch-c-volume\n\nKind: `requires_unavailable`. The exact Batch C volume and source binding are unavailable.\n",
+      "path": "DEPENDENCIES.md"
+    },
+    {
+      "content": "# Correction history\n\n`method-m4` supersedes `method-m3`. The method transcription omitted the mandatory blank-subtraction step.\n\nPredecessor: Method m3 requires no blank subtraction.\n\nSuccessor: Method m4 requires blank subtraction before concentration conversion.\n",
+      "path": "HISTORY.md"
+    },
+    {
+      "content": "{\n  \"atomic_facts_root\": \"sha256:acefe76182e70973d4647445d0084464ecfc260bc2b7875deb75e8433b0220ae\",\n  \"condition\": \"git-documents\",\n  \"family_id\": \"method-version-correction\",\n  \"schema\": \"inherited-correction-held-out-packet-manifest.v1\",\n  \"source_and_evidence\": [\n    {\n      \"bytes\": 78,\n      \"path\": \"evidence/analyzer-service.json\",\n      \"sha256\": \"sha256:b63600caeaafa03442572f041e49237b80908d38fe60dfb75d24468511027598\"\n    },\n    {\n      \"bytes\": 104,\n      \"path\": \"evidence/batch-concentration.json\",\n      \"sha256\": \"sha256:e6598604f4453239a999676c7649a01e82543d17c4d7484973fc626fa8e5d582\"\n    },\n    {\n      \"bytes\": 152,\n      \"path\": \"evidence/blended-release.md\",\n      \"sha256\": \"sha256:ef0cc7b3aab4cd42c255a8b316fcfc9595a6eadf3b826b3c9d82140fd054db46\"\n    },\n    {\n      \"bytes\": 143,\n      \"path\": \"evidence/release-risk.md\",\n      \"sha256\": \"sha256:618bd7d25ff9cb8d4b46d5661588ecb56e41d55b36e3d1848f4b9153b0491fa8\"\n    },\n    {\n      \"bytes\": 160,\n      \"path\": \"evidence/scope-mv-04.json\",\n      \"sha256\": \"sha256:70489b1900c0b120af906e77f7a8c0a38af3c0830b77b2b93dee6ecf593f801e\"\n    },\n    {\n      \"bytes\": 84,\n      \"path\": \"source/method-m3.md\",\n      \"sha256\": \"sha256:b1cac0834f4f302632cd32106e058629ae9e7a0b0d5041c7943decf680303af3\"\n    },\n    {\n      \"bytes\": 202,\n      \"path\": \"source/method-m4.md\",\n      \"sha256\": \"sha256:444a6400262425a388b4fe7c199bc6c19ad193ce87071aba142a6d488f3b7288\"\n    }\n  ]\n}\n",
+      "path": "PACKET-MANIFEST.json"
+    },
+    {
+      "content": "# Held-out cold-successor task\n\nYou are the first successor to receive this packet. Use only the assigned\nfamily packet.\n\n1. Identify the exact predecessor and successor.\n2. Classify every listed consequence as `affected`, `unaffected`,\n   `must_reassess`, or `presently_unprovable`.\n3. Select one closed first-safe-action code for each consequence.\n4. Select the correction's closed authority-effect and authority-action codes.\n5. Return one exact evidence binding for each listed consequence, containing\n   both its packet path and SHA-256 digest.\n\nReturn only JSON matching `response-schema.json`. Do not contact anyone, use a\nnetwork or tool, issue an acceptance action, or alter authoritative status.\n",
+      "path": "TASK.md"
+    },
+    {
+      "content": "{\"claim_id\":\"analyzer-service\",\"service_date\":\"2025-02-10\",\"ticket\":\"SV-441\"}\n",
+      "path": "evidence/analyzer-service.json"
+    },
+    {
+      "content": "{\"blank_subtracted\":false,\"claim_id\":\"batch-concentration\",\"method_id\":\"method-m3\",\"reported_mg_l\":7.8}\n",
+      "path": "evidence/batch-concentration.json"
+    },
+    {
+      "content": "# Blended release\n\nThe blend requires corrected Batch B concentration and an exact Batch C volume. Batch C's volume source and binding are unavailable.\n",
+      "path": "evidence/blended-release.md"
+    },
+    {
+      "content": "# Release-risk method\n\nThe retained risk method consumes batch-concentration and must be rerun after the corrected concentration is available.\n",
+      "path": "evidence/release-risk.md"
+    },
+    {
+      "content": "{\"acceptance_action_present\":true,\"authorization_credential_available\":false,\"authority_regime\":\"authorization_presently_unprovable\",\"record_id\":\"scope-mv-04\"}\n",
+      "path": "evidence/scope-mv-04.json"
+    },
+    {
+      "content": "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"additionalProperties\": false,\n  \"properties\": {\n    \"authority_action_code\": {\n      \"enum\": [\n        \"record_no_status_change\",\n        \"accept_authorized_status_change\",\n        \"withhold_status_change\"\n      ],\n      \"type\": \"string\"\n    },\n    \"authority_effect_code\": {\n      \"enum\": [\n        \"no_authoritative_status_change\",\n        \"authorized_status_change\",\n        \"status_change_unprovable\"\n      ],\n      \"type\": \"string\"\n    },\n    \"consequences\": {\n      \"items\": {\n        \"additionalProperties\": false,\n        \"properties\": {\n          \"action_code\": {\n            \"enum\": [\n              \"retrieve_missing_premise\",\n              \"no_correction_reassessment\",\n              \"rerun_dependent_method\",\n              \"recompute_with_successor\"\n            ],\n            \"type\": \"string\"\n          },\n          \"claim_id\": {\n            \"minLength\": 1,\n            \"type\": \"string\"\n          },\n          \"classification\": {\n            \"enum\": [\n              \"affected\",\n              \"unaffected\",\n              \"must_reassess\",\n              \"presently_unprovable\"\n            ],\n            \"type\": \"string\"\n          }\n        },\n        \"required\": [\n          \"claim_id\",\n          \"classification\",\n          \"action_code\"\n        ],\n        \"type\": \"object\"\n      },\n      \"maxItems\": 4,\n      \"minItems\": 4,\n      \"type\": \"array\"\n    },\n    \"evidence_bindings\": {\n      \"items\": {\n        \"additionalProperties\": false,\n        \"properties\": {\n          \"path\": {\n            \"pattern\": \"^(source|evidence)/[a-z0-9][a-z0-9._-]*$\",\n            \"type\": \"string\"\n          },\n          \"sha256\": {\n            \"pattern\": \"^sha256:[0-9a-f]{64}$\",\n            \"type\": \"string\"\n          }\n        },\n        \"required\": [\n          \"path\",\n          \"sha256\"\n        ],\n        \"type\": \"object\"\n      },\n      \"maxItems\": 4,\n      \"minItems\": 4,\n      \"uniqueItems\": true,\n      \"type\": \"array\"\n    },\n    \"family_id\": {\n      \"minLength\": 1,\n      \"type\": \"string\"\n    },\n    \"predecessor_claim_id\": {\n      \"minLength\": 1,\n      \"type\": \"string\"\n    },\n    \"schema\": {\n      \"const\": \"inherited-correction-held-out-response.v1\",\n      \"type\": \"string\"\n    },\n    \"successor_claim_id\": {\n      \"minLength\": 1,\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"schema\",\n    \"family_id\",\n    \"predecessor_claim_id\",\n    \"successor_claim_id\",\n    \"consequences\",\n    \"authority_effect_code\",\n    \"authority_action_code\",\n    \"evidence_bindings\"\n  ],\n  \"type\": \"object\"\n}\n",
+      "path": "response-schema.json"
+    },
+    {
+      "content": "# Method m3\n\nMethod m3 requires no blank subtraction.\n\nSource revision: `method-m3`\n",
+      "path": "source/method-m3.md"
+    },
+    {
+      "content": "# Method m4\n\nMethod m4 requires subtracting the measured blank before concentration conversion. This revision supersedes `method-m3`; it does not decide downstream Claims.\n\nSource revision: `method-m4`\n",
+      "path": "source/method-m4.md"
+    }
+  ],
+  "instruction": "Use only this immutable virtual filesystem and return one schema-valid JSON response without tools.",
+  "schema": "inherited-correction-held-out-virtual-filesystem.v1"
+}

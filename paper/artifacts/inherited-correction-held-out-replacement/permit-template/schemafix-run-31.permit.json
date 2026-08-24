@@ -1,0 +1,16 @@
+{
+  "assignment_root": "sha256:cf69793d6ed3489b17690088e8f004d95b04859ec60d5aa5cf7e558cbb012b80",
+  "attempt": 1,
+  "condition": "git-documents",
+  "expires_at": "not_authorized",
+  "image_digest": "sha256:f75ed4428ee3ab3f3275db0378e7375c1364f8b9f06d2f1bb4158502a84d4fc1",
+  "packet_root": "sha256:ac0d9bf28ad6eb291cdf98c969ab9a3c425f49dcd9648ab1703fe745dc100a74",
+  "participant_configuration_root": "sha256:93af7475125133d5813a516fcfc894739246b5cd19114af46200d0c3b6cec1a7",
+  "participant_instance_id": "schemafix-sol-31",
+  "prompt_root": "sha256:d986b56f435b2d588820a47b1496f8198adcb34ddf0a102f50db3f2c8aab9f2e",
+  "registration_root": "sha256:820b725d04cd3780e4bbdb6a89f3ee980a5bf993259c1f089984a3e7f7407f2b",
+  "run_id": "schemafix-run-31",
+  "schema": "vela.inherited-correction-launch-permit.v1",
+  "status": "held",
+  "trust_bundle_bytes": "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5"
+}

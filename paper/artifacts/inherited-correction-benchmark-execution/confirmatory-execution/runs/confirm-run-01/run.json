@@ -1,0 +1,21 @@
+{
+  "attempt": 1,
+  "authorization_root": "sha256:468ffca20b33f489859b7173bc4e96e012c1385032abca0457e115b5675e4f2e",
+  "authorized_configuration_mapping_root": "sha256:b061605a16c9c3c1dbb78f746c28dbd87d6b065ad5c5daa7f5b19ea6e81944e0",
+  "completed_at": "2026-08-21T19:11:12.461Z",
+  "condition": "vela",
+  "condition_runtime_configuration_root": "sha256:b4a7b621424fe98a44d848a23aa34fa6f622367c9e55f2a2b1a5697f209748f9",
+  "duration_seconds": 13.87045259,
+  "packet_root": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97",
+  "participant_configuration_root": "sha256:ed944c27285871bb39eb6ef80085824fa7dd1245d792a6a509b4723a882abaf4",
+  "participant_instance_id": "confirm-sol-01",
+  "registration_root": "sha256:a18f067652883680b39aea269e66fb4a833b8466790d7031abf2e4ab3748a3d2",
+  "run_id": "confirm-run-01",
+  "runtime_custody_root": "sha256:717415534787f48d68206c2e8b8de1bfc21742c333944277519021797b10f76c",
+  "runtime_registration_root": "sha256:345d54e2bc8c76eb66a8938a03f26001ea4f953c04bf58d9c8cd7f8ad039d1b2",
+  "schema": "vela.inherited-correction-run.v2",
+  "started_at": "2026-08-21T19:10:58.585Z",
+  "status": "failed",
+  "timeout_seconds": 600,
+  "tool_calls": 0
+}

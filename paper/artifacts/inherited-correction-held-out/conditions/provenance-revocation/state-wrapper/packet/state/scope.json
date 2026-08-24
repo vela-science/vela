@@ -1,0 +1,1 @@
+{"acceptance_action_present":false,"authorization_verified":false,"evidence_path":"evidence/scope-pr-17.json","family_id":"provenance-revocation","instruction":"Classify and propose bounded next actions only; no acceptance action is present and authoritative status remains unchanged.","regime":"no_acceptance_action","schema":"structured-state-scope.v1"}

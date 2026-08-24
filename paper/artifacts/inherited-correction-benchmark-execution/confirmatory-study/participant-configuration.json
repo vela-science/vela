@@ -1,0 +1,31 @@
+{
+  "condition_runtime_configuration_roots": {
+    "git-documents": "sha256:1cb24f2e2881614adf070e2894e098afb3a1fdb21088ae33e1d73f1bf110a509",
+    "vela": "sha256:b4a7b621424fe98a44d848a23aa34fa6f622367c9e55f2a2b1a5697f209748f9"
+  },
+  "condition_specific_fields": [
+    "packet_root",
+    "prompt_root",
+    "condition_runtime_configuration_root"
+  ],
+  "fixed_across_all_sessions": true,
+  "registration_root": "sha256:345d54e2bc8c76eb66a8938a03f26001ea4f953c04bf58d9c8cd7f8ad039d1b2",
+  "schema": "vela.inherited-correction-fixed-participant-configuration.v2",
+  "shared_runtime": {
+    "attempt": 1,
+    "codex_cli_version": "0.149.0",
+    "image_digest": "sha256:6274d83356076640d6e4bc810b97d37ac2d1b5ab02546dd7c2ebed16f915b547",
+    "model": "gpt-5.6-sol",
+    "one_model_turn": true,
+    "output_token_ceiling": 8192,
+    "provider": "openai-chatgpt-oauth-codex",
+    "reasoning_effort": "high",
+    "retries": 0,
+    "service_tier": "default",
+    "strict_overrides_root": "sha256:7b70dd58746b35a014550167fe7dc3f7a00fd5f5ee5e3058aa4207d41e3dc830",
+    "substitutions": 0,
+    "timeout_seconds": 600,
+    "tools": "none",
+    "trust_bundle_bytes": "sha256:714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5"
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "bindings": {
+    "adjudication_commitment": {
+      "adjudication_bytes_length": 5883,
+      "adjudication_bytes_sha256": "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d",
+      "adjudication_root": "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d",
+      "answer_bytes_present_in_producer_artifact": false,
+      "consequence_count": 12,
+      "family_count": 3,
+      "frozen_at": "2026-08-21T21:51:33Z",
+      "plaintext_disclosed": false,
+      "private_validation_receipt_root": "sha256:581b944cdfdb82a2f9730ffd3d60fba13c3e4916bbf344ab1d495565dafccf11",
+      "public_commitment_root": "sha256:cf22cc93f1b882e85327943e074ef6d0cd60f90c3989f0801c46d60f5fad721a",
+      "required_before_permit_release": true,
+      "schema": "vela.inherited-correction-held-out-adjudication-commitment.v1",
+      "status": "frozen"
+    },
+    "assignment_plan_root": "sha256:c4766ba7692a839f26d643ae2c9afdf31f1af8021fc7805ab0c89ca125006df7",
+    "assignment_seed_commitment": "sha256:0e84fc038d88c80ffb422bd50c27162cd3be67426d48f868d19ddbcc3ad48bb9",
+    "benchmark_bytes": "sha256:fa4cdfcfe778aca72a4094301f702d6d0ae19c47fe8fe8ed52840f2035546ff2",
+    "custody_bytes": "sha256:b15a81d5c3c374e904047ca8ce3b14a4a58c279444812217afb8140202cbc0a3",
+    "equivalence_root": "sha256:12904756aa4683934eb925ae856d6afd50897dc1d855f3b55ce4e51ce6391bc1",
+    "launch_authorization_amendment": {
+      "authorization": {
+        "basis": "explicit user launch authorization relayed by the supervising task",
+        "bound_prior_artifact_root": "sha256:17f113d16aa7b474d91b9f09e4314dce133367b7274187ce7bef87a1bbf7c735",
+        "bound_prior_assignment_root": "sha256:77c81b88813716466f5c935eb79b986874ed132a5986be34152bd8ac70da0205",
+        "bound_prior_producer_commit": "8cc1a89d7b1ae47cb6cabb36bfd79b46c3f4db81",
+        "bound_prior_registration_root": "sha256:185e781cd0b1a06d89488266e9e7147f42834d960063818f0cdf56209c6d3306",
+        "bound_prior_review_commit": "f9b5d67a55c1ad41fcb67cc1d7ebe86d03d37782",
+        "scope": "exact frozen 36-session inherited-correction held-out study only",
+        "source_task_id": "01a02473-9465-76e2-ac9b-ae41379a3aa6"
+      },
+      "evaluator_commitment": {
+        "adjudication_bytes_length": 5883,
+        "adjudication_bytes_sha256": "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d",
+        "adjudication_root": "sha256:26f5a7fb4ae0afcd4f0143e7efb9087b9dd05ff264590450d4361473deb2c39d",
+        "answer_bytes_present_in_producer_artifact": false,
+        "consequence_count": 12,
+        "family_count": 3,
+        "frozen_at": "2026-08-21T21:51:33Z",
+        "plaintext_disclosed": false,
+        "private_validation_receipt_root": "sha256:581b944cdfdb82a2f9730ffd3d60fba13c3e4916bbf344ab1d495565dafccf11",
+        "public_commitment_root": "sha256:cf22cc93f1b882e85327943e074ef6d0cd60f90c3989f0801c46d60f5fad721a"
+      },
+      "execution_state": {
+        "fixed_denominator": 36,
+        "permits_consumed": 0,
+        "permits_held": 36,
+        "protected_key_accesses": 0,
+        "provider_calls": 0,
+        "sessions_completed": 0
+      },
+      "invariants": {
+        "assignment_cells_unchanged": true,
+        "gates_unchanged": true,
+        "packets_unchanged": true,
+        "prompts_unchanged": true,
+        "runtime_unchanged": true,
+        "zero_retries_substitutions": true
+      },
+      "schema": "vela.inherited-correction-held-out-launch-authorization-amendment.v1",
+      "status": "authorized_held_pending_binding_review"
+    },
+    "packet_roots": {
+      "method-version-correction": {
+        "git-documents": "sha256:3dbabf9a56f3f30a7cb368aa059766fbed16ec5647903493d5135dd14c147c10",
+        "state-wrapper": "sha256:12900bf1ddcd06ce2c5dddbcb1bcabe8a02548a43b95097cbe916a541b2c9b12",
+        "vela": "sha256:076e4acac58d1dddba30e3e35d9536a644642ab2b10f45d43358e641f1fe0381"
+      },
+      "provenance-revocation": {
+        "git-documents": "sha256:5e3983b3a5e8fefdff5bf0abc1a9db1216ec97dd2a0401a13f49ff4f1fea9c64",
+        "state-wrapper": "sha256:544936885c62f00b297aa712f2a278f326b74d88d453d7965d0376c0c88374ae",
+        "vela": "sha256:f12d8d0898f7c9e81ec2855c724a1d37c807afefccd9da20886e17c2eb34ef75"
+      },
+      "taxonomy-remap": {
+        "git-documents": "sha256:ac0d9bf28ad6eb291cdf98c969ab9a3c425f49dcd9648ab1703fe745dc100a74",
+        "state-wrapper": "sha256:bbe1233c52197b76199ad355f5281093f8b3ec16a14807c645241f814445bfbc",
+        "vela": "sha256:7bef1b55dc0c32934dfa1f08ab5765d56de8f96ca7088b20df32956f8f1f18ba"
+      }
+    },
+    "participant_configuration_root": "sha256:adb7aef1966a25631077dd3466a04a785e369698fdbae0e8f09ace5ca995380e",
+    "prompt_roots": {
+      "method-version-correction": {
+        "git-documents": "sha256:0cdb1987b360859a756ae60dfeec363b5e13cd1f5bf217e903d07c4f692e8033",
+        "state-wrapper": "sha256:7b9787742269c571bad07e3cff7043cf1fe378cd13bbee28fb77624bcd5fc71c",
+        "vela": "sha256:a6893d7fcfeb4fb477824598cf93c285f5c472eb03f9137aa6c8fa9c8d0bb984"
+      },
+      "provenance-revocation": {
+        "git-documents": "sha256:7ea3e9f06623b70d4ad0eb29e0140b8fa7d499d1fbddb69787149f6399b8685e",
+        "state-wrapper": "sha256:cc8ed4a4f06fc0a79a84cc731afc5d758716cd78c87f98f9b5453d201d87cd9b",
+        "vela": "sha256:28ac36a3af7a55016c82f964fc2189d73520a5f2ba99887c9fcae3602166136f"
+      },
+      "taxonomy-remap": {
+        "git-documents": "sha256:d986b56f435b2d588820a47b1496f8198adcb34ddf0a102f50db3f2c8aab9f2e",
+        "state-wrapper": "sha256:7fb4318687b6bafae10b94905a3cd727fcc640300d9577fafd30de485ec6c91b",
+        "vela": "sha256:de4aaa6b139d4401bab048fa4f551b910eea7143356fd97919893539820cdd7f"
+      }
+    },
+    "response_schema_bytes": "sha256:ac96be686e749792956dfa1dfe9560f85c53d55c27fe2e8fd32bcc2a96a634ba",
+    "runtime_root": "sha256:33f0d3b40e674a4c0934f27080e28325be9a30edfbd11682801066c22911ee6a",
+    "task_bytes": "sha256:df1d1aab35634b5cc732cfe098530336cbb234a85388817d0d323dc5fe7eef1b",
+    "test_bytes": "sha256:a8de76f3a22b64aa3b85eeb49c1efef6159a924b97899d620110999cd56e0006"
+  },
+  "claim_ceiling": "A passing result would be bounded descriptive evidence for these synthetic families only, not scientific acceptance, general productivity, or authority.",
+  "design": {
+    "attempt": 1,
+    "conditions": [
+      "git-documents",
+      "state-wrapper",
+      "vela"
+    ],
+    "sessions": 36,
+    "sessions_per_family_condition": 4,
+    "timeout_seconds": 600,
+    "zero_retries_substitutions": true
+  },
+  "families": [
+    "method-version-correction",
+    "provenance-revocation",
+    "taxonomy-remap"
+  ],
+  "purpose": "Test continuation and reassessment cost across three unseen consequential-correction families without assuming lift.",
+  "registration_root": "sha256:b5dadb5ff20a664c1a0ead6e7c0be73de0c2f7389820654032d12f55e0471d16",
+  "schema": "vela.inherited-correction-held-out-preregistration.v1",
+  "scoring": {
+    "aggregate_gates": {
+      "governance_inheritance": "All family governance noninferiority gates pass; Vela >=9/12 exact and >=9/12 correction-impact-complete with zero authority errors; and Vela has a strict aggregate increment of at least two exact successes, two impact-complete sessions, two avoided authority errors, or a restricted-time ratio <=0.90 versus state-wrapper. Equality alone cannot pass.",
+      "structure": "All family structure gates pass; state-wrapper >=9/12 exact and >=9/12 correction-impact-complete, zero authority errors, and restricted mean <=0.80 of Git/documents.",
+      "total": "The preserved Vela-versus-Git aggregate gate: all family total gates pass; Vela >=9/12 exact and >=9/12 correction-impact-complete with zero authority errors; restricted mean <=0.80 of Git/documents."
+    },
+    "estimands": {
+      "governance_inheritance": "Vela minus state-wrapper for exact-success rate and correction-impact-complete rate; state-wrapper minus Vela for authority-error-rate reduction and restricted seconds saved; time ratio Vela/state-wrapper is secondary. Equal-denominator count deltas are also reported.",
+      "structure": "state-wrapper minus Git/documents for exact-success rate and correction-impact-complete rate; Git/documents minus state-wrapper for authority-error-rate reduction and restricted seconds saved; time ratio state-wrapper/Git-documents is secondary. Equal-denominator count deltas are also reported.",
+      "total": "Vela minus Git/documents for exact-success rate and correction-impact-complete rate; Git/documents minus Vela for authority-error-rate reduction and restricted seconds saved; time ratio Vela/Git-documents is secondary. Equal-denominator count deltas are also reported."
+    },
+    "exact_success": "Exact pair, all four classifications and actions, both authority codes, and all four exact consequence path/digest bindings.",
+    "family_gates": {
+      "governance_inheritance": "Vela is noninferior to state-wrapper on exact success, correction-impact completeness, authority errors, and restricted mean within every family.",
+      "structure": "State-wrapper >=3/4 exact and >=3/4 correction-impact-complete, zero authority errors, no fewer exact or impact-complete than Git/documents, and restricted mean <=0.80 of Git/documents.",
+      "total": "The preserved Vela-versus-Git gate: Vela >=3/4 exact and >=3/4 correction-impact-complete, zero authority errors, no fewer exact or impact-complete than Git/documents, and restricted mean <=0.80 of Git/documents."
+    },
+    "positive_gate": "Pass only when structure, governance/inheritance, and preserved total gates all pass. These are bounded descriptive gates, not broad significance tests.",
+    "restricted_seconds": "Actual duration for exact success; otherwise 600 seconds.",
+    "rounding": "Decimal ROUND_HALF_EVEN; means 1e-14 and ratios 1e-15.",
+    "threshold_rationale": "Fixed prospectively at 75 percent exact, the preserved 0.80 total time ratio, analogous 0.80 structure ratio, family governance noninferiority, and a strict aggregate governance increment before external adjudication is frozen; not tuned to held-out answers."
+  },
+  "status": "held_pending_adjudication_binding_review"
+}

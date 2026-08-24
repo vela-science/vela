@@ -1,0 +1,284 @@
+#!/usr/bin/env python3
+"""Offline qualification for the provider-only schema adapter."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import shutil
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+REPO = ROOT.parents[2]
+RUNTIME = (
+    REPO
+    / "paper/artifacts/inherited-correction-benchmark-execution/container-runtime-provider-schema-v2"
+)
+PRIOR = REPO / "paper/artifacts/inherited-correction-held-out"
+
+
+def digest(raw: bytes) -> str:
+    return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
+def canonical_root(value: object) -> str:
+    return digest(json.dumps(value, sort_keys=True, separators=(",", ":")).encode())
+
+
+class ProviderSchemaRuntimeTests(unittest.TestCase):
+    def test_registered_schema_and_participant_prompts_are_byte_exact(self) -> None:
+        self.assertEqual(
+            (ROOT / "response-schema.json").read_bytes(),
+            (PRIOR / "response-schema.json").read_bytes(),
+        )
+        for current in (ROOT / "conditions").glob("*/*/input/prompt.txt"):
+            relative = current.relative_to(ROOT)
+            self.assertEqual(current.read_bytes(), (PRIOR / relative).read_bytes())
+
+    def test_provider_schema_has_exactly_one_deleted_keyword(self) -> None:
+        registered = json.loads((ROOT / "response-schema.json").read_text())
+        provider = json.loads(
+            (ROOT / "calibration/input/provider-response-schema.json").read_text()
+        )
+        self.assertTrue(
+            registered["properties"]["evidence_bindings"].pop("uniqueItems")
+        )
+        self.assertEqual(provider, registered)
+
+    def test_runtime_source_root_and_dual_validation_are_bound(self) -> None:
+        entries = []
+        for path in sorted(
+            item
+            for item in RUNTIME.rglob("*")
+            if item.is_file() and "node_modules" not in item.parts
+        ):
+            raw = path.read_bytes()
+            entries.append(
+                {
+                    "path": path.relative_to(RUNTIME).as_posix(),
+                    "bytes": len(raw),
+                    "sha256": digest(raw),
+                }
+            )
+        runtime = json.loads((ROOT / "runtime-binding.json").read_text())
+        self.assertEqual(runtime["runtime_source_root"], canonical_root(entries))
+        source = (RUNTIME / "run-once.mjs").read_text()
+        self.assertIn('bytes("/input/response-schema.json")', source)
+        self.assertIn('bytes("/input/provider-response-schema.json")', source)
+        self.assertIn(
+            '"--output-schema", "/input/provider-response-schema.json"', source
+        )
+        self.assertIn("const validate = compileResponseSchema(schema);", source)
+
+    def test_reproducible_oci_build_contract_is_exact_and_held(self) -> None:
+        dockerfile = (RUNTIME / "Dockerfile").read_text()
+        self.assertIn("ARG SOURCE_DATE_EPOCH=1757289600", dockerfile)
+        self.assertIn("fixed_last_change_days=$((SOURCE_DATE_EPOCH / 86400))", dockerfile)
+        self.assertIn(
+            "./normalize-account-database.sh /etc/shadow \"$fixed_last_change_days\"",
+            dockerfile,
+        )
+        self.assertNotIn("apt-get", dockerfile)
+        self.assertIn("RUN --network=none", dockerfile)
+        self.assertIn("COPY vendor/${CA_CERTIFICATES_DEB}", dockerfile)
+        self.assertEqual(
+            dockerfile.count("rm -rf /root/.npm /tmp/node-compile-cache"), 2
+        )
+        provenance = json.loads((RUNTIME / "vendor/PROVENANCE.json").read_text())
+        package = RUNTIME / "vendor" / provenance["package"]["filename"]
+        notice = RUNTIME / "vendor" / provenance["copyright_notice"]["path"]
+        self.assertEqual(provenance["package"]["bytes"], len(package.read_bytes()))
+        self.assertEqual(
+            "sha256:" + provenance["package"]["sha256"],
+            digest(package.read_bytes()),
+        )
+        self.assertEqual(
+            provenance["copyright_notice"]["bytes"], len(notice.read_bytes())
+        )
+        self.assertEqual(
+            "sha256:" + provenance["copyright_notice"]["sha256"],
+            digest(notice.read_bytes()),
+        )
+        self.assertEqual(provenance["build_use"]["network"], "none")
+        self.assertFalse(provenance["build_use"]["installed_as_debian_package"])
+        self.assertFalse(provenance["build_use"]["maintainer_scripts_executed"])
+        build = (RUNTIME / "build-reproducible-oci.sh").read_text()
+        for control in (
+            "--platform linux/arm64",
+            "--no-cache",
+            "--provenance=false",
+            "--pull=false",
+            "SOURCE_DATE_EPOCH=1757289600",
+            "rewrite-timestamp=true",
+        ):
+            self.assertIn(control, build)
+        runtime = json.loads((ROOT / "runtime-binding.json").read_text())
+        amendment = json.loads(
+            (ROOT / "runtime-reproducibility-amendment.json").read_text()
+        )
+        evidence = amendment["clean_build_evidence"]
+        self.assertEqual(
+            amendment["repair"]["dockerfile_bytes"],
+            digest((RUNTIME / "Dockerfile").read_bytes()),
+        )
+        self.assertEqual(
+            amendment["repair"]["build_contract_bytes"],
+            digest((RUNTIME / "build-reproducible-oci.sh").read_bytes()),
+        )
+        self.assertEqual(
+            amendment["repair"]["verification_contract_bytes"],
+            digest((RUNTIME / "verify-reproducible-oci.sh").read_bytes()),
+        )
+        self.assertEqual(evidence["independent_builder_count"], 2)
+        self.assertTrue(evidence["byte_identical_oci_layouts"])
+        self.assertEqual(
+            [receipt["builder"] for receipt in evidence["builder_receipts"]],
+            ["independent-a", "independent-b"],
+        )
+        self.assertEqual(evidence["image_digest"], runtime["container_image_digest"])
+        self.assertEqual(
+            evidence["image_config_digest"], runtime["container_image_config_digest"]
+        )
+        self.assertEqual(
+            evidence["oci_tar_bytes"], runtime["container_image_oci_tar_bytes"]
+        )
+        self.assertEqual(
+            {
+                (
+                    receipt["image_digest"],
+                    receipt["image_config_digest"],
+                    receipt["oci_tar_bytes"],
+                )
+                for receipt in evidence["builder_receipts"]
+            },
+            {
+                (
+                    runtime["container_image_digest"],
+                    runtime["container_image_config_digest"],
+                    runtime["container_image_oci_tar_bytes"],
+                )
+            },
+        )
+        self.assertEqual(
+            amendment["execution_state"],
+            {
+                "sessions_completed": 0,
+                "fixed_denominator": 36,
+                "participant_permits_held": 36,
+                "participant_permits_consumed": 0,
+                "calibration_permits_held": 1,
+                "calibration_permits_consumed": 0,
+                "provider_calls": 0,
+                "protected_key_accesses": 0,
+                "scoring_runs": 0,
+            },
+        )
+
+    def test_account_database_normalization_removes_utc_day_dependency(self) -> None:
+        fixtures = RUNTIME / "account-database-fixtures"
+        normalizer = RUNTIME / "normalize-account-database.sh"
+        expected = (fixtures / "shadow-fixed.txt").read_bytes()
+        with tempfile.TemporaryDirectory() as temporary:
+            temporary_path = Path(temporary)
+            outputs = []
+            for name in ("shadow-day-a.txt", "shadow-day-b.txt"):
+                shadow = temporary_path / name
+                shutil.copyfile(fixtures / name, shadow)
+                subprocess.run(
+                    [str(normalizer), str(shadow), "20339"],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                outputs.append(shadow.read_bytes())
+            self.assertEqual(outputs, [expected, expected])
+
+    def test_account_database_normalization_fails_closed_on_shape_drift(self) -> None:
+        fixtures = RUNTIME / "account-database-fixtures"
+        normalizer = RUNTIME / "normalize-account-database.sh"
+        with tempfile.TemporaryDirectory() as temporary:
+            shadow = Path(temporary) / "shadow"
+            shadow.write_text(
+                (fixtures / "shadow-day-a.txt")
+                .read_text()
+                .replace("participant:!:", "participant:*:")
+            )
+            result = subprocess.run(
+                [str(normalizer), str(shadow), "20339"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(
+                shadow.read_bytes(),
+                (fixtures / "shadow-day-a.txt")
+                .read_text()
+                .replace("participant:!:", "participant:*:")
+                .encode(),
+            )
+
+    def test_account_database_normalization_rejects_nonnumeric_existing_day(
+        self,
+    ) -> None:
+        fixtures = RUNTIME / "account-database-fixtures"
+        normalizer = RUNTIME / "normalize-account-database.sh"
+        invalid = (fixtures / "shadow-notaday.txt").read_bytes()
+        self.assertIn(b"participant:!:notaday:", invalid)
+        with tempfile.TemporaryDirectory() as temporary:
+            shadow = Path(temporary) / "shadow"
+            shadow.write_bytes(invalid)
+            result = subprocess.run(
+                [str(normalizer), str(shadow), "20339"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(shadow.read_bytes(), invalid)
+
+    def test_account_database_normalization_rejects_duplicate_and_extra_fields(
+        self,
+    ) -> None:
+        fixtures = RUNTIME / "account-database-fixtures"
+        normalizer = RUNTIME / "normalize-account-database.sh"
+        original = (fixtures / "shadow-day-a.txt").read_text()
+        participant = next(
+            line for line in original.splitlines() if line.startswith("participant:")
+        )
+        adversaries = {
+            "duplicate": original + participant + "\n",
+            "extra-field": original.replace(participant, participant + ":extra"),
+        }
+        for name, invalid in adversaries.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as temporary:
+                shadow = Path(temporary) / "shadow"
+                shadow.write_text(invalid)
+                result = subprocess.run(
+                    [str(normalizer), str(shadow), "20339"],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(shadow.read_text(), invalid)
+
+    def test_frozen_offline_provider_surface_receipt_is_closed(self) -> None:
+        base = ROOT / "offline-preflight/provider-schema"
+        self.assertEqual((base / "provider-events.jsonl").read_bytes(), b"")
+        self.assertEqual((base / "stderr.txt").read_bytes(), b"")
+        receipt = json.loads((base / "receipt.json").read_text())
+        self.assertFalse(receipt["provider_contact_possible"])
+        self.assertEqual(receipt["container_network"], "none")
+        self.assertEqual(
+            receipt["exact_deleted_json_pointers"],
+            ["/properties/evidence_bindings/uniqueItems"],
+        )
+        self.assertTrue(all(receipt["checks"].values()))
+
+
+if __name__ == "__main__":
+    unittest.main()

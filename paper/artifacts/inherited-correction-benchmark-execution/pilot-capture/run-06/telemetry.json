@@ -1,0 +1,49 @@
+{
+  "command_contract": {
+    "approval_policy": "never",
+    "executable": "codex exec",
+    "model": "gpt-5.6-sol",
+    "model_auto_compact_token_limit": 24576,
+    "model_auto_compact_token_limit_scope": "total",
+    "model_context_window": 32768,
+    "prompt": "You are one context-isolated cold successor. Read TASK.md first, then use only files inside the current packet directory. Do not access parent directories, environment variables, a network, or external context. Return only the JSON response required by TASK.md and response-template.json. Do not reveal reasoning or commentary.",
+    "reasoning_effort": "high",
+    "sandbox": "read-only",
+    "service_tier": "default",
+    "tool_output_token_limit": 4096,
+    "web_search": "disabled"
+  },
+  "condition": "vela",
+  "cost": {
+    "amount": null,
+    "basis": "not_exposed_by_chatgpt_authenticated_codex_cli",
+    "currency": "USD"
+  },
+  "frozen_response_bytes": "sha256:0f750a43551290c827934bb60c4e6dccef2bd693c07cb2f75f5b5b46baa537d8",
+  "interface": "codex-cli-0.149.0",
+  "model": "gpt-5.6-sol",
+  "monotonic_elapsed_seconds": 24.051606083055958,
+  "normalization_reason": "ValueError",
+  "participant_instance_id": "cold-06",
+  "participant_response_bytes": "sha256:871367701c6012906b6404b90795671da769e8ec03094ca9f3e8aabdef919edb",
+  "process_exit_code": 0,
+  "process_timed_out": false,
+  "provider": "openai",
+  "provider_completed_at": "2026-08-21T16:21:25.418172Z",
+  "provider_events_bytes": "sha256:25aa08f5216af7579603cbaf751f6523d76184f7025ae5af4f9aa544f29678c4",
+  "provider_started_at": "2026-08-21T16:21:01.366367Z",
+  "provider_stderr_bytes": "sha256:2b571d1b63d0fb0c981b08236a1d49a6fe3fbc76b552d0dd2d37faee064aaecc",
+  "reasoning_effort": "high",
+  "response_source": "prespecified_non_result",
+  "run_id": "run-06",
+  "schema": "vela.inherited-correction-provider-telemetry.v1",
+  "service_tier": "default",
+  "tool_calls": 15,
+  "usage": {
+    "cache_write_input_tokens": 0,
+    "cached_input_tokens": 30976,
+    "input_tokens": 48304,
+    "output_tokens": 877,
+    "reasoning_output_tokens": 288
+  }
+}

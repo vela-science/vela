@@ -1,0 +1,8 @@
+{
+  "authority_effect": "none",
+  "fixed_denominator": 36,
+  "positive_gate": "not_evaluated",
+  "schema": "vela.inherited-correction-held-out-result.v1",
+  "sessions_completed": 0,
+  "status": "not_run"
+}

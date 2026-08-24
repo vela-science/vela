@@ -1,0 +1,103 @@
+{
+  "schema": "vela.inherited-correction-public-facts.v1",
+  "fixture_id": "bounded-calibration-correction-v1",
+  "scope": "One synthetic calibration correction and its explicitly bounded downstream consequences.",
+  "correction": {
+    "kind": "supersedes",
+    "predecessor": {
+      "claim_id": "calibration-a-v1",
+      "assertion": "The instrument scale factor is 10 units per count.",
+      "source_path": "source/calibration-a-v1.md"
+    },
+    "successor": {
+      "claim_id": "calibration-a-v2",
+      "assertion": "The instrument scale factor is 12 units per count.",
+      "source_path": "source/calibration-a-v2.md"
+    },
+    "reason": "The v1 calculation omitted the documented 1.2 temperature compensation factor."
+  },
+  "claims": [
+    {
+      "claim_id": "yield-b",
+      "assertion": "Sample S has adjusted yield 50 units.",
+      "evidence_path": "evidence/yield-b.json",
+      "next_action": "Recalculate the adjusted yield from the retained raw count using calibration-a-v2."
+    },
+    {
+      "claim_id": "stability-c",
+      "assertion": "Process P remains stable under the adjusted-yield method.",
+      "evidence_path": "evidence/stability-c-method.md",
+      "next_action": "Rerun the documented stability method after yield-b is recalculated."
+    },
+    {
+      "claim_id": "installation-d",
+      "assertion": "Instrument I was installed on 2025-01-15.",
+      "evidence_path": "evidence/installation-d.json",
+      "next_action": "No correction-driven reassessment is required."
+    },
+    {
+      "claim_id": "aggregate-e",
+      "assertion": "The two-site aggregate adjusted yield is at most 100 units.",
+      "evidence_path": "evidence/aggregate-e.md",
+      "next_action": "Recover the exact Site Q input and its source binding before assessing aggregate-e."
+    }
+  ],
+  "relations": [
+    {
+      "relation_id": "yield-b-requires-calibration-a-v1",
+      "kind": "requires_exact",
+      "source_claim_id": "yield-b",
+      "target_claim_id": "calibration-a-v1",
+      "meaning": "yield-b used the exact predecessor scale factor and must be recalculated when that input is superseded."
+    },
+    {
+      "relation_id": "stability-c-requires-yield-b",
+      "kind": "requires_result",
+      "source_claim_id": "stability-c",
+      "target_claim_id": "yield-b",
+      "meaning": "stability-c consumes yield-b, but its retained method does not determine the post-correction outcome without a rerun."
+    },
+    {
+      "relation_id": "installation-d-discovered-with-calibration-a-v1",
+      "kind": "discovery_only",
+      "source_claim_id": "installation-d",
+      "target_claim_id": "calibration-a-v1",
+      "meaning": "The calibration file helped locate the installation record but supplies no premise for its date."
+    },
+    {
+      "relation_id": "aggregate-e-requires-yield-b",
+      "kind": "requires_result",
+      "source_claim_id": "aggregate-e",
+      "target_claim_id": "yield-b",
+      "meaning": "aggregate-e consumes the corrected Site P yield and an exact Site Q input."
+    },
+    {
+      "relation_id": "aggregate-e-requires-site-q",
+      "kind": "requires_unavailable",
+      "source_claim_id": "aggregate-e",
+      "target_claim_id": "site-q-yield",
+      "meaning": "The Site Q source and content binding are absent from the bounded packet."
+    }
+  ],
+  "bounds": {
+    "complete_claim_set": false,
+    "complete_relation_set_for_listed_claims": true,
+    "listed_consequence_claim_ids": [
+      "aggregate-e",
+      "installation-d",
+      "stability-c",
+      "yield-b"
+    ],
+    "known_missing_claim_ids": [
+      "site-q-yield"
+    ],
+    "max_claims": 8,
+    "max_relations": 8
+  },
+  "authority": {
+    "standing_effect": "none",
+    "decision_present": false,
+    "scientific_validation_present": false,
+    "instruction": "Classify and propose next actions only; do not change Standing or infer acceptance."
+  }
+}

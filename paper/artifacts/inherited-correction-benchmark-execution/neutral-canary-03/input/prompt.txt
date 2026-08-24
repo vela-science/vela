@@ -1,0 +1,40 @@
+You are one context-isolated participant. The complete immutable virtual filesystem follows. Decode it mentally; do not call or request any tool, file, shell, network, continuation, or compaction. Follow TASK.md and return only one JSON object matching response-schema.json.
+
+{
+  "condition": "neutral-runtime-calibration",
+  "encoding": "base64 of exact file bytes",
+  "ordering": "lexicographic POSIX relative path",
+  "schema": "neutral.immutable-virtual-filesystem-prompt.v1",
+  "virtual_files": [
+    {
+      "bytes": 377,
+      "content_base64": "IyBOZXV0cmFsIG9uZS1yZXNwb25zZSBjYWxpYnJhdGlvbgoKVXNpbmcgb25seSB0aGUgdmlydHVhbCBmaWxlcyBpbiB0aGlzIHByb21wdCwgcmV0dXJuIHRoZSBpZGVudGlmaWVycyBpbgpsZXhpY29ncmFwaGljIG9yZGVyLCB0aGUgc3VtIG9mIHRoZWlyIGludGVnZXIgbWVhc3VyZW1lbnRzLCBhbmQgdGhlIGV4YWN0ClNIQS0yNTYgYmluZGluZyB3cml0dGVuIGluIGByZWNvcmRzL2JpbmRpbmcudHh0YC4KClJldHVybiBleGFjdGx5IG9uZSBKU09OIG9iamVjdCBtYXRjaGluZyBgcmVzcG9uc2Utc2NoZW1hLmpzb25gLiBEbyBub3QgcmVxdWVzdApvciBjYWxsIGFueSB0b29sLCBjb250aW51ZSBhIHNlc3Npb24sIG9yIHVzZSBvdXRzaWRlIGluZm9ybWF0aW9uLgo=",
+      "path": "TASK.md",
+      "sha256": "sha256:5b7cc48834aec28cd4f0b1c60b888ff82c20a2cfd09c11f90c6ef16d05d7bc14"
+    },
+    {
+      "bytes": 164,
+      "content_base64": "IyBMYXlvdXQgbm90ZQoKVGhlIHJlY29yZCBsaXN0IGlzIGludGVudGlvbmFsbHkgbmVzdGVkIGFuZCBub3Qgb3JkZXJlZCBieSBpZGVudGlmaWVyLiBUaGUKYmluZGluZyBpcyBhbiBpbmRlcGVuZGVudGx5IHJldGFpbmVkIGxpdGVyYWwgdGhhdCBtdXN0IGJlIGNvcGllZCBleGFjdGx5Lgo=",
+      "path": "notes/layout.md",
+      "sha256": "sha256:1fc97ee650e282c094dd5dba4f26e4fcb0358f202293b1459ed29847eeeb3921"
+    },
+    {
+      "bytes": 72,
+      "content_base64": "c2hhMjU2Ojg3ZmQ1YTAyODYyYzE3MWJjNjE5YTVlY2Q2NjQxMTNhMjkxMzQ5MjhkMTMzM2Q1MjUzNjFkZTBkMzQzZDA3ZGYK",
+      "path": "records/binding.txt",
+      "sha256": "sha256:2dbc6dd0523aa78e1ba18e4f177dbc3f410ac312b168418074535e3a5b804fe4"
+    },
+    {
+      "bytes": 235,
+      "content_base64": "WwogIHsKICAgICJpZGVudGlmaWVyIjogImdhcm5ldCIsCiAgICAibWVhc3VyZW1lbnQiOiAxNQogIH0sCiAgewogICAgImlkZW50aWZpZXIiOiAiZW1iZXIiLAogICAgIm1lYXN1cmVtZW50IjogNAogIH0sCiAgewogICAgImlkZW50aWZpZXIiOiAiaG9sbG93IiwKICAgICJtZWFzdXJlbWVudCI6IDgKICB9LAogIHsKICAgICJpZGVudGlmaWVyIjogImZqb3JkIiwKICAgICJtZWFzdXJlbWVudCI6IDEyCiAgfQpdCg==",
+      "path": "records/items.json",
+      "sha256": "sha256:de52a7e6654cd48a4a9ebc3250963581796ad82be954f9c83cf232921cd21ce0"
+    },
+    {
+      "bytes": 713,
+      "content_base64": "ewogICIkc2NoZW1hIjogImh0dHA6Ly9qc29uLXNjaGVtYS5vcmcvZHJhZnQtMDcvc2NoZW1hIyIsCiAgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2UsCiAgInByb3BlcnRpZXMiOiB7CiAgICAiYmluZGluZyI6IHsKICAgICAgInBhdHRlcm4iOiAiXnNoYTI1NjpbMC05YS1mXXs2NH0kIiwKICAgICAgInR5cGUiOiAic3RyaW5nIgogICAgfSwKICAgICJpZGVudGlmaWVycyI6IHsKICAgICAgIml0ZW1zIjogewogICAgICAgICJlbnVtIjogWwogICAgICAgICAgImVtYmVyIiwKICAgICAgICAgICJmam9yZCIsCiAgICAgICAgICAiZ2FybmV0IiwKICAgICAgICAgICJob2xsb3ciCiAgICAgICAgXSwKICAgICAgICAidHlwZSI6ICJzdHJpbmciCiAgICAgIH0sCiAgICAgICJtYXhJdGVtcyI6IDQsCiAgICAgICJtaW5JdGVtcyI6IDQsCiAgICAgICJ0eXBlIjogImFycmF5IgogICAgfSwKICAgICJzY2hlbWEiOiB7CiAgICAgICJjb25zdCI6ICJuZXV0cmFsLnJ1bnRpbWUtY2FuYXJ5LXJlc3BvbnNlLnYxIiwKICAgICAgInR5cGUiOiAic3RyaW5nIgogICAgfSwKICAgICJzdW0iOiB7CiAgICAgICJjb25zdCI6IDM5LAogICAgICAidHlwZSI6ICJpbnRlZ2VyIgogICAgfQogIH0sCiAgInJlcXVpcmVkIjogWwogICAgInNjaGVtYSIsCiAgICAiaWRlbnRpZmllcnMiLAogICAgInN1bSIsCiAgICAiYmluZGluZyIKICBdLAogICJ0eXBlIjogIm9iamVjdCIKfQo=",
+      "path": "response-schema.json",
+      "sha256": "sha256:5180afec8ffaf5464c84a6c10f0a6ce9cc0d8a69f8540fea49b52b15b56ca563"
+    }
+  ]
+}

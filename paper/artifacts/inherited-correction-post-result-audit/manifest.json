@@ -1,0 +1,16 @@
+{
+  "artifact_root": "sha256:8463024ee31116c33cee9e43262286bb78855654ecc974e77818bf4dfac581af",
+  "created_at": "2026-08-21T20:23:30Z",
+  "files": [
+    {
+      "path": "audit.json",
+      "sha256": "sha256:2bbff6b3d96cec8b17e84057c3ed50b37fc5504ee54faef29213f1b4cf52c1d6"
+    },
+    {
+      "path": "audit.md",
+      "sha256": "sha256:29af4fb78e08f83430d13004dbbba10010d69a611b4fc55a8be43e773ea14cc4"
+    }
+  ],
+  "root_scope": "Canonical JSON of the files field only, with sorted keys and compact separators.",
+  "schema": "vela.inherited-correction-post-result-audit-manifest.v1"
+}

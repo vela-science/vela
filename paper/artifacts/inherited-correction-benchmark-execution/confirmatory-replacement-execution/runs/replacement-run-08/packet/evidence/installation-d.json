@@ -1,0 +1,7 @@
+{
+  "schema": "example.installation-record.v1",
+  "claim_id": "installation-d",
+  "instrument_id": "I",
+  "installed_on": "2025-01-15",
+  "basis": "signed facilities ledger entry independent of calibration"
+}

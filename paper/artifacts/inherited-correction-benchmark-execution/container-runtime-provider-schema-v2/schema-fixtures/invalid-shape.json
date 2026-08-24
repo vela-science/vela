@@ -1,0 +1,9 @@
+{
+  "consequences": {"aggregate-e": "presently_unprovable"},
+  "fixture_id": "bounded-calibration-correction-v1",
+  "predecessor_claim_id": "calibration-a-v1",
+  "schema": "vela.inherited-correction-response.v1",
+  "source_or_evidence_binding": "binding",
+  "standing_effect": "none",
+  "successor_claim_id": "calibration-a-v2"
+}

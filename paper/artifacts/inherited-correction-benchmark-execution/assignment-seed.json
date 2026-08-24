@@ -1,0 +1,9 @@
+{
+  "schema": "vela.inherited-correction-assignment-seed.v1",
+  "generator": "OpenSSL 3.6.3 rand -hex 32",
+  "generated_before_participant_packet_access": true,
+  "seed": "79608ef2e18d7acb23c89495e71d15145f0876d9a95232b27e45fd4e25bb930f",
+  "seed_commitment": "sha256:0acc500fdbe9e89e45887d508631fa41d934b8220821efb446b25e63c792d7f0",
+  "commitment_rule": "SHA-256 of the 64 lowercase ASCII hexadecimal seed bytes without a trailing newline",
+  "allocation_rule": "Create eight git-documents labels and eight vela labels indexed 0..15; sort them by the raw SHA-256 digest of seed:index:label; assign the sorted labels in order to run-01..run-16."
+}

@@ -1,0 +1,43 @@
+{
+  "schema": "vela.inherited-correction-runtime-vendored-debian-input.v1",
+  "retrieved_at": "2026-08-22T00:32:09Z",
+  "package": {
+    "name": "ca-certificates",
+    "version": "20250419~deb12u1",
+    "architecture": "all",
+    "filename": "ca-certificates_20250419~deb12u1_all.deb",
+    "bytes": 161988,
+    "sha256": "62b08a77d985d4253894b1f69aebda5925034ca4e294add364167fad8cb64a44",
+    "source_url": "https://security.debian.org/debian-security/pool/updates/main/c/ca-certificates/ca-certificates_20250419~deb12u1_all.deb",
+    "source_package": "ca-certificates",
+    "source_package_version": "20250419~deb12u1",
+    "source_descriptor_url": "https://security.debian.org/debian-security/pool/updates/main/c/ca-certificates/ca-certificates_20250419~deb12u1.dsc",
+    "source_descriptor_bytes": 1769,
+    "source_descriptor_sha256": "72339e810ef8237a4c346540b52baf49607172cc849c2680328a608ce0f6a34b",
+    "source_archive": "ca-certificates_20250419~deb12u1.tar.xz",
+    "source_archive_bytes": 277244,
+    "source_archive_sha256": "b2a431cbab9a0ece921cffacbe238dc27a3e382ad4a1806dc8968c5eff30471d"
+  },
+  "build_use": {
+    "operation": "Verify the local .deb digest, extract it with dpkg-deb, sort the Mozilla .crt paths under usr/share/ca-certificates/mozilla, and concatenate their bytes into the runtime trust bundle.",
+    "network": "none",
+    "installed_as_debian_package": false,
+    "maintainer_scripts_executed": false,
+    "runtime_trust_bundle_sha256": "714d457d580922dbf1d0be8bd35ba236a842b50b0072ae791582a19adef772a5"
+  },
+  "licenses": [
+    {
+      "surface": "Debian packaging",
+      "license": "GPL-2.0-or-later"
+    },
+    {
+      "surface": "Mozilla certificate data and nssckbi source",
+      "license": "MPL-2.0"
+    }
+  ],
+  "copyright_notice": {
+    "path": "ca-certificates.copyright",
+    "bytes": 18940,
+    "sha256": "e85e1bcad3a915dc7e6f41412bc5bdeba275cadd817896ea0451f2140a93967c"
+  }
+}

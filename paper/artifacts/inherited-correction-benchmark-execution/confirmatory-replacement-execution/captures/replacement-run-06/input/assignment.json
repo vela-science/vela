@@ -1,0 +1,104 @@
+{
+  "assignments": [
+    {
+      "condition": "vela",
+      "packet_root": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97",
+      "participant_instance_id": "replacement-sol-01",
+      "run_id": "replacement-run-01"
+    },
+    {
+      "condition": "git-documents",
+      "packet_root": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+      "participant_instance_id": "replacement-sol-02",
+      "run_id": "replacement-run-02"
+    },
+    {
+      "condition": "vela",
+      "packet_root": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97",
+      "participant_instance_id": "replacement-sol-03",
+      "run_id": "replacement-run-03"
+    },
+    {
+      "condition": "git-documents",
+      "packet_root": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+      "participant_instance_id": "replacement-sol-04",
+      "run_id": "replacement-run-04"
+    },
+    {
+      "condition": "git-documents",
+      "packet_root": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+      "participant_instance_id": "replacement-sol-05",
+      "run_id": "replacement-run-05"
+    },
+    {
+      "condition": "vela",
+      "packet_root": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97",
+      "participant_instance_id": "replacement-sol-06",
+      "run_id": "replacement-run-06"
+    },
+    {
+      "condition": "git-documents",
+      "packet_root": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+      "participant_instance_id": "replacement-sol-07",
+      "run_id": "replacement-run-07"
+    },
+    {
+      "condition": "git-documents",
+      "packet_root": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+      "participant_instance_id": "replacement-sol-08",
+      "run_id": "replacement-run-08"
+    },
+    {
+      "condition": "vela",
+      "packet_root": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97",
+      "participant_instance_id": "replacement-sol-09",
+      "run_id": "replacement-run-09"
+    },
+    {
+      "condition": "vela",
+      "packet_root": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97",
+      "participant_instance_id": "replacement-sol-10",
+      "run_id": "replacement-run-10"
+    },
+    {
+      "condition": "git-documents",
+      "packet_root": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+      "participant_instance_id": "replacement-sol-11",
+      "run_id": "replacement-run-11"
+    },
+    {
+      "condition": "git-documents",
+      "packet_root": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+      "participant_instance_id": "replacement-sol-12",
+      "run_id": "replacement-run-12"
+    },
+    {
+      "condition": "git-documents",
+      "packet_root": "sha256:bdda8e39a17e50607a4587993dc7fe855fae9408dad2dd0ae11dc47ee281cb6e",
+      "participant_instance_id": "replacement-sol-13",
+      "run_id": "replacement-run-13"
+    },
+    {
+      "condition": "vela",
+      "packet_root": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97",
+      "participant_instance_id": "replacement-sol-14",
+      "run_id": "replacement-run-14"
+    },
+    {
+      "condition": "vela",
+      "packet_root": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97",
+      "participant_instance_id": "replacement-sol-15",
+      "run_id": "replacement-run-15"
+    },
+    {
+      "condition": "vela",
+      "packet_root": "sha256:2bc904703cfd47419846e0a9771c5e9c3933dba5465ec9f48440d1850ace4c97",
+      "participant_instance_id": "replacement-sol-16",
+      "run_id": "replacement-run-16"
+    }
+  ],
+  "image_digest": "sha256:1dee2374077c83e3dbdb2e09d32ef4fa3a414d200b800839857353e13d3c4e09",
+  "registration_root": "sha256:988326b2f9ef7232795a73070823993251fa0481450a792b51905ce85d7e31b4",
+  "schema": "vela.inherited-correction-runtime-assignment.v2",
+  "seed_commitment": "sha256:46aed8a87244d03f7edb8347cc0c7edf114c9c626d0595d80fbc46b92b0059c3"
+}

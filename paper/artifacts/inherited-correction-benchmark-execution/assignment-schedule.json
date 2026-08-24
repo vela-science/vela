@@ -1,0 +1,86 @@
+{
+  "schema": "vela.inherited-correction-assignment-schedule.v1",
+  "seed_commitment": "sha256:0acc500fdbe9e89e45887d508631fa41d934b8220821efb446b25e63c792d7f0",
+  "assignments": [
+    {
+      "run_id": "run-01",
+      "participant_instance_id": "cold-01",
+      "condition": "git-documents"
+    },
+    {
+      "run_id": "run-02",
+      "participant_instance_id": "cold-02",
+      "condition": "vela"
+    },
+    {
+      "run_id": "run-03",
+      "participant_instance_id": "cold-03",
+      "condition": "git-documents"
+    },
+    {
+      "run_id": "run-04",
+      "participant_instance_id": "cold-04",
+      "condition": "git-documents"
+    },
+    {
+      "run_id": "run-05",
+      "participant_instance_id": "cold-05",
+      "condition": "git-documents"
+    },
+    {
+      "run_id": "run-06",
+      "participant_instance_id": "cold-06",
+      "condition": "vela"
+    },
+    {
+      "run_id": "run-07",
+      "participant_instance_id": "cold-07",
+      "condition": "vela"
+    },
+    {
+      "run_id": "run-08",
+      "participant_instance_id": "cold-08",
+      "condition": "vela"
+    },
+    {
+      "run_id": "run-09",
+      "participant_instance_id": "cold-09",
+      "condition": "vela"
+    },
+    {
+      "run_id": "run-10",
+      "participant_instance_id": "cold-10",
+      "condition": "git-documents"
+    },
+    {
+      "run_id": "run-11",
+      "participant_instance_id": "cold-11",
+      "condition": "vela"
+    },
+    {
+      "run_id": "run-12",
+      "participant_instance_id": "cold-12",
+      "condition": "vela"
+    },
+    {
+      "run_id": "run-13",
+      "participant_instance_id": "cold-13",
+      "condition": "git-documents"
+    },
+    {
+      "run_id": "run-14",
+      "participant_instance_id": "cold-14",
+      "condition": "vela"
+    },
+    {
+      "run_id": "run-15",
+      "participant_instance_id": "cold-15",
+      "condition": "git-documents"
+    },
+    {
+      "run_id": "run-16",
+      "participant_instance_id": "cold-16",
+      "condition": "git-documents"
+    }
+  ]
+}
