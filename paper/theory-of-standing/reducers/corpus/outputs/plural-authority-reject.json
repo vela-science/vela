@@ -1,0 +1,1 @@
+{"events":[{"action":{"claim":10,"kind":"reject"},"authority_label":202,"decision_id":1,"performer":202,"repository":2}],"format":"theory-of-standing.proof-result.v1","reassessment":[{"claim":10,"status":"unaffected"}],"repository":2,"root":3,"standing":[{"claim":10,"status":"unassessed"}]}

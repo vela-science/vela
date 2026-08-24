@@ -176,3 +176,8 @@ modeled separately as a deterministic, non-authoritative projection that leaves
 canonical Standing unchanged. The mechanization changes no runtime or Protocol
 1 contract and makes no claim of universal scientific truth, productivity,
 adoption, or all-science sufficiency.
+
+The adjacent [independent reducer artifact](reducers/README.md) executes the
+reviewed finite semantics separately in Rust, Python, and JavaScript and
+cross-compares their canonical bytes. Its JSON is proof-artifact interchange,
+not a Vela Protocol schema or shipping API.
