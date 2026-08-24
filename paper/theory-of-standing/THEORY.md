@@ -164,3 +164,13 @@ Witness artifacts: `fc-trust-closure-v2.e51535ae.jsonl`,
 `stmtprobe.lean` (vela-evals); the Erdős 730 signed repository, root
 `sha256:bdd0f36e…4a85`; companion papers *The Effective Trust Closure* and
 *What Inherited Scientific State Is For*, same branch.
+
+## 7. Mechanized minimal state model
+
+The isolated [Lean proof artifact](lean/README.md) mechanizes the smaller
+Submission, scoped Verification, Repository-local Decision admission, Event,
+replay, correction, and Standing model that survived the later Phase III
+minimality fork. It includes fail-closed admission theorems and a finite
+C-versus-D lifecycle-freshness witness. The mechanization changes no runtime or
+Protocol 1 contract and makes no claim of universal scientific truth,
+productivity, adoption, or all-science sufficiency.
