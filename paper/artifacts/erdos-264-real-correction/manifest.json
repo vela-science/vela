@@ -1,0 +1,25 @@
+{
+  "schema": "vela.paper-artifact-manifest.v1",
+  "artifact": "erdos-264-real-correction",
+  "artifact_root": "sha256:3701349159f61b7bad887e6b066195d5f0a5ad20634a43c9445cf9a7a218a4bf",
+  "files": {
+    "README.md": {
+      "bytes": 2006,
+      "sha256": "sha256:e293156c3e383fb3da00faa61c361b7609e6e50bce155c89940fe97dccf1d539"
+    },
+    "case.json": {
+      "bytes": 8485,
+      "sha256": "sha256:06236c11c3d26cdd548a67ae58968b97066e554940837fd512f9b1348899a4f3"
+    },
+    "test_verify.py": {
+      "bytes": 4797,
+      "sha256": "sha256:04c90ddc310645d853af7c6a8b590f73b8b1adca4018747e2f507212b84958e3"
+    },
+    "verify.py": {
+      "bytes": 19590,
+      "sha256": "sha256:6d5beef0baeb072c67f5392dbeb1ef821cea49af289128d3ecfa12da8d939cb1"
+    }
+  },
+  "authority_effect": "none",
+  "standing_effect": "none"
+}
