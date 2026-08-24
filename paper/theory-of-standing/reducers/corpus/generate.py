@@ -126,6 +126,7 @@ def case_rows() -> list[dict[str, Any]]:
     ]
     duplicate = decision(2, 1, 101, 8, correct(1, 10, 11))
     accept_replacement = decision(4, 1, 101, 8, accept(11))
+    correct_after_stale = decision(4, 1, 101, 8, correct(1, 10, 11))
     reject_replacement = decision(4, 1, 101, 8, reject(11))
     second_rejection = decision(4, 1, 404, 8, correct(1, 10, 11))
     accept_after_two = decision(5, 1, 101, 8, accept(11))
@@ -250,13 +251,15 @@ def case_rows() -> list[dict[str, Any]]:
         {
             "id": "stale-root-continuation",
             "input": history(
-                [*PREFIX, stale, accept_replacement], dependencies=DEPENDENCY
+                [*PREFIX, stale, correct_after_stale], dependencies=DEPENDENCY
             ),
             "expectation": "result",
             "expected_event_ids": [1, 2, 4],
             "expected_rejections": [{"code": "stale_root", "record_index": 8}],
             "expected_root": 9,
-            "expected_standing": ["accepted", "accepted", "accepted"],
+            "expected_standing": ["superseded", "accepted", "accepted"],
+            "lean_reassessment": "needs_reassessment",
+            "lean_standing": ["superseded", "accepted", "accepted"],
         },
         {
             "id": "multiple-rejection-continuation",
