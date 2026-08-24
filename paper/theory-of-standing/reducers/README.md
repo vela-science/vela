@@ -14,11 +14,16 @@ into a Vela runtime crate.
 
 ## Frozen evidence
 
-The corpus has 13 cases and five successful histories:
+The corpus has 15 cases: 14 format-valid complete replays and one structural
+`invalid_format` case:
 
 - a fresh accepted correction and its stale-root twin;
 - unauthorized, wrong-Repository, misattributed, stale-read-set, ineligible,
   and invalid-correction-reference Decisions;
+- suffix-continuation variants that place every semantic rejection class
+  before a later admitted Decision;
+- a two-rejection history that preserves observation order and then admits a
+  valid suffix;
 - a syntactically invalid duplicate Decision id;
 - Submission and Verification records that leave Standing `unassessed`;
 - two local authorities binding the same Submission and Verification records;
@@ -31,14 +36,15 @@ replay, not an additional Decision admission predicate in the Lean model.
 
 For every case, the harness runs each reducer twice, requires byte-identical
 repetition, then cross-compares all three implementations byte-for-byte. That
-is 78 reducer invocations per harness run. Successful histories must emit the
-same canonical compact JSON; rejected Decisions must emit the same stable code
-and fail-closed state.
+is 90 reducer invocations per harness run. Format-valid histories emit the same
+canonical compact result after all records: each rejected Decision is a state
+no-op recorded by zero-based index and stable code, and later records continue.
+Only structural parse or validation failure terminates without replay.
 
 The frozen corpus aggregate is:
 
 ```text
-79704cc8c83b892fa380fef6c1b95f115de2d0ca7283bf106f90c95794bdfdc9
+5aabd16a164b78e978225dad1f32f170fbafac62abcab54c7269fb1f74bc4cc2
 ```
 
 It is SHA-256 over canonical JSON containing each case id, input SHA-256, and

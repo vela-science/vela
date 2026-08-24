@@ -41,7 +41,9 @@ root, current read set, action eligibility, and an earlier admitted correction
 reference. Authenticated Submissions and matching scoped Verifications advance
 the abstract root but never Standing; their invalid counterparts are no-ops.
 An admitted Decision appends one Event and advances the root. A rejected
-Decision stops reduction and returns the exact fail-closed state.
+Decision is a state no-op: root, Standing, Events, Submissions, and
+Verifications remain unchanged, an observation is appended to `rejections`,
+and reduction continues with the next record.
 
 Each emitted Event retains the Decision id, Repository, authority label,
 performer, and complete action. The compact output therefore preserves the
@@ -55,8 +57,11 @@ accepts its replacement; every unrelated Claim keeps its prior Standing.
 admission. After replay, it produces a separate `reassessment` array. It never
 changes root, Event history, admission, or Standing.
 
-Successful output is canonical compact JSON with format
-`theory-of-standing.proof-result.v1`. A rejected history uses
-`theory-of-standing.proof-rejection.v1`, adds one stable `code`, and carries the
-same fail-closed state fields. Object keys are lexicographically sorted, arrays
-have their specified order, and each output ends in one LF byte.
+Every format-valid replay emits canonical compact JSON with format
+`theory-of-standing.proof-result.v2`. Its `rejections` array contains zero or
+more `{record_index, code}` observations in record order; `record_index` is
+zero-based. The remaining fields contain the final state after the complete
+history. Structural parse or validation failure cannot be replayed and instead
+emits only `{code: "invalid_format", format:
+"theory-of-standing.proof-invalid.v1"}`. Object keys are lexicographically
+sorted, arrays have their specified order, and each output ends in one LF byte.

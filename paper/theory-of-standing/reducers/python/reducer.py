@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Any, NoReturn
 
 INPUT_FORMAT = "theory-of-standing.proof-history.v1"
-RESULT_FORMAT = "theory-of-standing.proof-result.v1"
-REJECTION_FORMAT = "theory-of-standing.proof-rejection.v1"
+RESULT_FORMAT = "theory-of-standing.proof-result.v2"
+INVALID_FORMAT = "theory-of-standing.proof-invalid.v1"
 STANDING = {"accepted", "unassessed", "superseded", "retracted"}
 MAX_NAT = 9_007_199_254_740_991
 
@@ -192,7 +192,7 @@ def projection(history: dict[str, Any], state: dict[str, Any]) -> list[dict[str,
     return result
 
 
-def output(history: dict[str, Any], state: dict[str, Any], code: str | None) -> bytes:
+def output(history: dict[str, Any], state: dict[str, Any]) -> bytes:
     standing = [
         {"claim": claim, "status": status}
         for claim, status in sorted(state["standing"].items())
@@ -202,33 +202,27 @@ def output(history: dict[str, Any], state: dict[str, Any], code: str | None) -> 
     events = state["events"]
     result = {
         "events": events,
-        "format": REJECTION_FORMAT if code is not None else RESULT_FORMAT,
+        "format": RESULT_FORMAT,
         "reassessment": projection(history, state),
+        "rejections": state["rejections"],
         "repository": history["repository"],
         "root": state["root"],
         "standing": standing,
     }
-    if code is not None:
-        result["code"] = code
     return (json.dumps(result, sort_keys=True, separators=(",", ":")) + "\n").encode()
-
-
-def rejection(
-    history: dict[str, Any], state: dict[str, Any], code: str
-) -> tuple[bytes, int]:
-    return output(history, state, code), 2
 
 
 def reduce_history(history: dict[str, Any]) -> tuple[bytes, int]:
     state: dict[str, Any] = {
         "events": [],
+        "rejections": [],
         "root": 0,
         "standing": {},
         "submissions": [],
         "verifications": [],
         "versions": history["initial_versions"],
     }
-    for record in history["records"]:
+    for record_index, record in enumerate(history["records"]):
         kind = record["kind"]
         if kind == "submission":
             if not record["authenticated"]:
@@ -245,19 +239,20 @@ def reduce_history(history: dict[str, Any]) -> tuple[bytes, int]:
             continue
 
         decision_id = record["id"]
+        code = None
         if record["repository"] != history["repository"]:
-            return rejection(history, state, "wrong_repository")
-        if record["performer"] not in history["authorized_performers"]:
-            return rejection(history, state, "unauthorized")
-        if record["authority_label"] != record["performer"]:
-            return rejection(history, state, "misattributed")
-        if record["expected_root"] != state["root"]:
-            return rejection(history, state, "stale_root")
-        if any(
+            code = "wrong_repository"
+        elif record["performer"] not in history["authorized_performers"]:
+            code = "unauthorized"
+        elif record["authority_label"] != record["performer"]:
+            code = "misattributed"
+        elif record["expected_root"] != state["root"]:
+            code = "stale_root"
+        elif any(
             state["versions"].get(resource) != version
             for resource, version in record["read_set"].items()
         ):
-            return rejection(history, state, "stale_read_set")
+            code = "stale_read_set"
 
         action = record["action"]
         action_kind = action["kind"]
@@ -274,10 +269,10 @@ def reduce_history(history: dict[str, Any]) -> tuple[bytes, int]:
             eligible = any(
                 item[0] == replacement for item in state["submissions"]
             ) and any(item == (replacement, "pass") for item in state["verifications"])
-        if not eligible:
-            return rejection(history, state, "ineligible")
+        if code is None and not eligible:
+            code = "ineligible"
 
-        if action_kind == "correct":
+        if code is None and action_kind == "correct":
             prior = action["prior_decision"]
             predecessor = action["predecessor"]
             valid_reference = (
@@ -290,7 +285,11 @@ def reduce_history(history: dict[str, Any]) -> tuple[bytes, int]:
                 and state["standing"].get(predecessor) == "accepted"
             )
             if not valid_reference:
-                return rejection(history, state, "invalid_correction_reference")
+                code = "invalid_correction_reference"
+
+        if code is not None:
+            state["rejections"].append({"code": code, "record_index": record_index})
+            continue
 
         if action_kind == "accept":
             state["standing"][action["claim"]] = "accepted"
@@ -306,7 +305,7 @@ def reduce_history(history: dict[str, Any]) -> tuple[bytes, int]:
         }
         state["events"].append(event)
         state["root"] += 1
-    return output(history, state, None), 0
+    return output(history, state), 0
 
 
 def main() -> int:
@@ -320,7 +319,7 @@ def main() -> int:
     except (OSError, json.JSONDecodeError, FormatError) as error:
         payload = (
             json.dumps(
-                {"code": "invalid_format", "format": REJECTION_FORMAT},
+                {"code": "invalid_format", "format": INVALID_FORMAT},
                 sort_keys=True,
                 separators=(",", ":"),
             )

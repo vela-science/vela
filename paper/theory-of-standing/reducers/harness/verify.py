@@ -13,10 +13,10 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "corpus" / "manifest.json"
-MANIFEST_FORMAT = "theory-of-standing.proof-corpus-manifest.v1"
-RESULT_FORMAT = "theory-of-standing.proof-result.v1"
-REJECTION_FORMAT = "theory-of-standing.proof-rejection.v1"
-AGGREGATE_FORMAT = "theory-of-standing.proof-corpus-aggregate.v1"
+MANIFEST_FORMAT = "theory-of-standing.proof-corpus-manifest.v2"
+RESULT_FORMAT = "theory-of-standing.proof-result.v2"
+INVALID_FORMAT = "theory-of-standing.proof-invalid.v1"
+AGGREGATE_FORMAT = "theory-of-standing.proof-corpus-aggregate.v2"
 
 
 def canonical_bytes(value: Any) -> bytes:
@@ -105,6 +105,21 @@ def check_lean_expectation(case: dict[str, Any], result: dict[str, Any]) -> None
             )
 
 
+def check_declared_result(case: dict[str, Any], result: dict[str, Any]) -> None:
+    if result.get("rejections") != case["expected_rejections"]:
+        raise AssertionError(f"{case['id']}: rejection observations differ")
+    if "expected_root" in case and result.get("root") != case["expected_root"]:
+        raise AssertionError(f"{case['id']}: final root differs")
+    if "expected_event_ids" in case:
+        actual_ids = [event["decision_id"] for event in result["events"]]
+        if actual_ids != case["expected_event_ids"]:
+            raise AssertionError(f"{case['id']}: admitted Event ids differ")
+    if "expected_standing" in case:
+        actual_standing = [item["status"] for item in result["standing"]]
+        if actual_standing != case["expected_standing"]:
+            raise AssertionError(f"{case['id']}: final Standing differs")
+
+
 def verify_cross_case_invariants(
     manifest: dict[str, Any], results: dict[str, dict[str, Any]]
 ) -> None:
@@ -123,6 +138,19 @@ def verify_cross_case_invariants(
             )
 
     cases = {case["id"]: case for case in manifest["cases"]}
+    continuation_codes = set()
+    for case in manifest["cases"]:
+        if case.get("expected_rejections") and "expected_event_ids" in case:
+            history = load_json(ROOT / "corpus" / case["input_path"])
+            last_rejection = case["expected_rejections"][-1]["record_index"]
+            if last_rejection >= len(history["records"]) - 1:
+                raise AssertionError(f"{case['id']}: rejection has no suffix record")
+            continuation_codes.update(
+                observation["code"] for observation in case["expected_rejections"]
+            )
+    if sorted(continuation_codes) != manifest["continuation_rejection_codes"]:
+        raise AssertionError("semantic rejection continuation coverage differs")
+
     for comparison in manifest["source_prefix_comparisons"]:
         count = comparison["record_count"]
         left_input = load_json(
@@ -165,7 +193,7 @@ def main() -> int:
                 command,
                 input_path,
                 expected_exit,
-                case.get("code") == "invalid_format",
+                case["expectation"] == "invalid_format",
             )
             for name, command in implementations.items()
         }
@@ -173,12 +201,15 @@ def main() -> int:
             raise AssertionError(f"{case['id']}: reducers disagree byte-for-byte")
         agreed = next(iter(outputs.values()))
         result = json.loads(agreed)
-        expected_format = RESULT_FORMAT if expected_exit == 0 else REJECTION_FORMAT
+        expected_format = RESULT_FORMAT if expected_exit == 0 else INVALID_FORMAT
         if result.get("format") != expected_format:
             raise AssertionError(f"{case['id']}: unexpected output format")
-        if expected_exit == 2 and result.get("code") != case["code"]:
-            raise AssertionError(f"{case['id']}: unexpected rejection code")
-        check_lean_expectation(case, result)
+        if expected_exit == 2:
+            if result != {"code": case["code"], "format": INVALID_FORMAT}:
+                raise AssertionError(f"{case['id']}: unexpected structural failure")
+        else:
+            check_declared_result(case, result)
+            check_lean_expectation(case, result)
         agreed_results[case["id"]] = result
 
         output_path = ROOT / "corpus" / case["output_path"]

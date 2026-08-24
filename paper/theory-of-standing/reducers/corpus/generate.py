@@ -122,70 +122,104 @@ def case_rows() -> list[dict[str, Any]]:
         submission(11),
         verification(11, 44),
         decision(3, 1, 101, 4, correct(1, 10, 11)),
+        decision(4, 1, 101, 4, accept(11)),
     ]
     duplicate = decision(2, 1, 101, 8, correct(1, 10, 11))
+    accept_replacement = decision(4, 1, 101, 8, accept(11))
+    reject_replacement = decision(4, 1, 101, 8, reject(11))
+    second_rejection = decision(4, 1, 404, 8, correct(1, 10, 11))
+    accept_after_two = decision(5, 1, 101, 8, accept(11))
     common_source = [submission(10), verification(10, 42)]
     rows = [
         {
             "id": "fresh-correction",
             "input": history([*PREFIX, FRESH], dependencies=DEPENDENCY),
             "expectation": "result",
+            "expected_rejections": [],
             "lean_standing": ["superseded", "accepted", "accepted"],
             "lean_reassessment": "needs_reassessment",
         },
         {
             "id": "stale-root-twin",
             "input": history([*PREFIX, stale], dependencies=DEPENDENCY),
-            "expectation": "rejection",
-            "code": "stale_root",
+            "expectation": "result",
+            "expected_rejections": [{"code": "stale_root", "record_index": 8}],
             "lean_standing": ["accepted", "unassessed", "accepted"],
         },
         {
             "id": "unauthorized",
-            "input": history([*PREFIX, unauthorized], dependencies=DEPENDENCY),
-            "expectation": "rejection",
-            "code": "unauthorized",
+            "input": history(
+                [*PREFIX, unauthorized, accept_replacement], dependencies=DEPENDENCY
+            ),
+            "expectation": "result",
+            "expected_event_ids": [1, 2, 4],
+            "expected_rejections": [{"code": "unauthorized", "record_index": 8}],
+            "expected_root": 9,
         },
         {
             "id": "wrong-repository",
-            "input": history([*PREFIX, wrong_repository], dependencies=DEPENDENCY),
-            "expectation": "rejection",
-            "code": "wrong_repository",
+            "input": history(
+                [*PREFIX, wrong_repository, accept_replacement],
+                dependencies=DEPENDENCY,
+            ),
+            "expectation": "result",
+            "expected_event_ids": [1, 2, 4],
+            "expected_rejections": [{"code": "wrong_repository", "record_index": 8}],
+            "expected_root": 9,
         },
         {
             "id": "misattributed",
-            "input": history([*PREFIX, misattributed], dependencies=DEPENDENCY),
-            "expectation": "rejection",
-            "code": "misattributed",
+            "input": history(
+                [*PREFIX, misattributed, accept_replacement], dependencies=DEPENDENCY
+            ),
+            "expectation": "result",
+            "expected_event_ids": [1, 2, 4],
+            "expected_rejections": [{"code": "misattributed", "record_index": 8}],
+            "expected_root": 9,
         },
         {
             "id": "stale-read-set",
-            "input": history([*PREFIX, stale_reads], dependencies=DEPENDENCY),
-            "expectation": "rejection",
-            "code": "stale_read_set",
+            "input": history(
+                [*PREFIX, stale_reads, accept_replacement], dependencies=DEPENDENCY
+            ),
+            "expectation": "result",
+            "expected_event_ids": [1, 2, 4],
+            "expected_rejections": [{"code": "stale_read_set", "record_index": 8}],
+            "expected_root": 9,
         },
         {
             "id": "ineligible",
-            "input": history([*ineligible_prefix, FRESH], dependencies=DEPENDENCY),
-            "expectation": "rejection",
-            "code": "ineligible",
+            "input": history(
+                [*ineligible_prefix, FRESH, reject_replacement],
+                dependencies=DEPENDENCY,
+            ),
+            "expectation": "result",
+            "expected_event_ids": [1, 2, 4],
+            "expected_rejections": [{"code": "ineligible", "record_index": 8}],
+            "expected_root": 9,
         },
         {
             "id": "invalid-correction-order",
             "input": history(invalid_order, dependencies=DEPENDENCY),
-            "expectation": "rejection",
-            "code": "invalid_correction_reference",
+            "expectation": "result",
+            "expected_event_ids": [4],
+            "expected_rejections": [
+                {"code": "invalid_correction_reference", "record_index": 4}
+            ],
+            "expected_root": 5,
         },
         {
             "id": "evidence-no-standing",
             "input": history(common_source),
             "expectation": "result",
+            "expected_rejections": [],
             "lean_standing": ["unassessed"],
         },
         {
             "id": "plural-authority-accept",
             "input": history([*common_source, decision(1, 1, 101, 2, accept(10))]),
             "expectation": "result",
+            "expected_rejections": [],
             "lean_standing": ["accepted"],
         },
         {
@@ -196,20 +230,48 @@ def case_rows() -> list[dict[str, Any]]:
                 authorized=[202],
             ),
             "expectation": "result",
+            "expected_rejections": [],
             "lean_standing": ["unassessed"],
         },
         {
             "id": "fresh-no-dependency",
             "input": history([*PREFIX, FRESH]),
             "expectation": "result",
+            "expected_rejections": [],
             "lean_standing": ["superseded", "accepted", "accepted"],
             "lean_reassessment": "unaffected",
         },
         {
             "id": "duplicate-decision-id",
             "input": history([*PREFIX, duplicate], dependencies=DEPENDENCY),
-            "expectation": "rejection",
+            "expectation": "invalid_format",
             "code": "invalid_format",
+        },
+        {
+            "id": "stale-root-continuation",
+            "input": history(
+                [*PREFIX, stale, accept_replacement], dependencies=DEPENDENCY
+            ),
+            "expectation": "result",
+            "expected_event_ids": [1, 2, 4],
+            "expected_rejections": [{"code": "stale_root", "record_index": 8}],
+            "expected_root": 9,
+            "expected_standing": ["accepted", "accepted", "accepted"],
+        },
+        {
+            "id": "multiple-rejection-continuation",
+            "input": history(
+                [*PREFIX, stale, second_rejection, accept_after_two],
+                dependencies=DEPENDENCY,
+            ),
+            "expectation": "result",
+            "expected_event_ids": [1, 2, 5],
+            "expected_rejections": [
+                {"code": "stale_root", "record_index": 8},
+                {"code": "unauthorized", "record_index": 9},
+            ],
+            "expected_root": 9,
+            "expected_standing": ["accepted", "accepted", "accepted"],
         },
     ]
     return rows
@@ -233,7 +295,16 @@ def main() -> None:
     manifest = {
         "aggregate_sha256": None,
         "cases": manifest_cases,
-        "format": "theory-of-standing.proof-corpus-manifest.v1",
+        "continuation_rejection_codes": [
+            "ineligible",
+            "invalid_correction_reference",
+            "misattributed",
+            "stale_read_set",
+            "stale_root",
+            "unauthorized",
+            "wrong_repository",
+        ],
+        "format": "theory-of-standing.proof-corpus-manifest.v2",
         "projection_comparisons": [
             {"left": "fresh-correction", "right": "fresh-no-dependency"}
         ],

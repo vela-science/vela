@@ -4,8 +4,8 @@
 import fs from "node:fs";
 
 const INPUT_FORMAT = "theory-of-standing.proof-history.v1";
-const RESULT_FORMAT = "theory-of-standing.proof-result.v1";
-const REJECTION_FORMAT = "theory-of-standing.proof-rejection.v1";
+const RESULT_FORMAT = "theory-of-standing.proof-result.v2";
+const INVALID_FORMAT = "theory-of-standing.proof-invalid.v1";
 const STANDING = new Set(["accepted", "unassessed", "superseded", "retracted"]);
 
 class FormatError extends Error {}
@@ -165,34 +165,35 @@ function projection(history, state) {
     }));
 }
 
-function emit(history, state, code = null) {
+function emit(history, state) {
   const standing = [...state.standing.entries()]
     .sort(([left], [right]) => left - right)
     .map(([claim, status]) => ({ claim, status }));
   if (standing.some((item) => !STANDING.has(item.status))) throw new Error("noncanonical Standing");
   const result = {
     events: state.events,
-    format: code === null ? RESULT_FORMAT : REJECTION_FORMAT,
+    format: RESULT_FORMAT,
     reassessment: projection(history, state),
+    rejections: state.rejections,
     repository: history.repository,
     root: state.root,
     standing,
   };
-  if (code !== null) result.code = code;
   return `${stableStringify(result)}\n`;
 }
 
 function reduceHistory(history) {
   const state = {
     events: [],
+    rejections: [],
     root: 0,
     standing: new Map(),
     submissions: [],
     verifications: [],
     versions: history.initial_versions,
   };
-  const reject = (code) => ({ bytes: emit(history, state, code), exitCode: 2 });
-  for (const record of history.records) {
+  for (let recordIndex = 0; recordIndex < history.records.length; recordIndex += 1) {
+    const record = history.records[recordIndex];
     if (record.kind === "submission") {
       if (!record.authenticated) continue;
       state.submissions.push([record.claim, record.scope]);
@@ -209,12 +210,18 @@ function reduceHistory(history) {
       continue;
     }
 
-    if (record.repository !== history.repository) return reject("wrong_repository");
-    if (!history.authorized_performers.includes(record.performer)) return reject("unauthorized");
-    if (record.authority_label !== record.performer) return reject("misattributed");
-    if (record.expected_root !== state.root) return reject("stale_root");
-    for (const [resource, version] of record.read_set) {
-      if (state.versions.get(resource) !== version) return reject("stale_read_set");
+    let code = null;
+    if (record.repository !== history.repository) code = "wrong_repository";
+    else if (!history.authorized_performers.includes(record.performer)) code = "unauthorized";
+    else if (record.authority_label !== record.performer) code = "misattributed";
+    else if (record.expected_root !== state.root) code = "stale_root";
+    else {
+      for (const [resource, version] of record.read_set) {
+        if (state.versions.get(resource) !== version) {
+          code = "stale_read_set";
+          break;
+        }
+      }
     }
 
     const action = record.action;
@@ -230,16 +237,21 @@ function reduceHistory(history) {
           ([claim, outcome]) => claim === action.replacement && outcome === "pass",
         );
     }
-    if (!eligible) return reject("ineligible");
+    if (code === null && !eligible) code = "ineligible";
 
-    if (action.kind === "correct") {
+    if (code === null && action.kind === "correct") {
       const validReference = state.events.some(
         (event) => event.decision_id === action.prior_decision
           && event.repository === record.repository
           && event.action.kind === "accept"
           && event.action.claim === action.predecessor,
       ) && state.standing.get(action.predecessor) === "accepted";
-      if (!validReference) return reject("invalid_correction_reference");
+      if (!validReference) code = "invalid_correction_reference";
+    }
+
+    if (code !== null) {
+      state.rejections.push({ code, record_index: recordIndex });
+      continue;
     }
 
     if (action.kind === "accept") state.standing.set(action.claim, "accepted");
@@ -272,7 +284,7 @@ function main() {
   } catch (error) {
     if (!(error instanceof FormatError) && !(error instanceof SyntaxError)) throw error;
     process.stderr.write(`${error.message}\n`);
-    process.stdout.write(`${stableStringify({ code: "invalid_format", format: REJECTION_FORMAT })}\n`);
+    process.stdout.write(`${stableStringify({ code: "invalid_format", format: INVALID_FORMAT })}\n`);
     return 2;
   }
 }

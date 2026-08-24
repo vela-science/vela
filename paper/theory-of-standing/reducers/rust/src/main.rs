@@ -8,8 +8,8 @@ use std::fs;
 use std::process::ExitCode;
 
 const INPUT_FORMAT: &str = "theory-of-standing.proof-history.v1";
-const RESULT_FORMAT: &str = "theory-of-standing.proof-result.v1";
-const REJECTION_FORMAT: &str = "theory-of-standing.proof-rejection.v1";
+const RESULT_FORMAT: &str = "theory-of-standing.proof-result.v2";
+const INVALID_FORMAT: &str = "theory-of-standing.proof-invalid.v1";
 const MAX_NAT: u64 = 9_007_199_254_740_991;
 
 #[derive(Deserialize)]
@@ -89,11 +89,17 @@ struct Event {
 
 struct State {
     events: Vec<Event>,
+    rejections: Vec<RejectionObservation>,
     root: u64,
     standing: BTreeMap<u64, &'static str>,
     submissions: Vec<(u64, u64)>,
     verifications: Vec<(u64, Outcome)>,
     versions: BTreeMap<u64, u64>,
+}
+
+struct RejectionObservation {
+    code: &'static str,
+    record_index: usize,
 }
 
 fn canonical_resource_map(input: &BTreeMap<String, u64>) -> Result<BTreeMap<u64, u64>, String> {
@@ -224,7 +230,7 @@ fn projection(history: &History, state: &State) -> Vec<Value> {
         .collect()
 }
 
-fn output(history: &History, state: &State, code: Option<&str>) -> String {
+fn output(history: &History, state: &State) -> String {
     let events: Vec<Value> = state
         .events
         .iter()
@@ -243,20 +249,25 @@ fn output(history: &History, state: &State, code: Option<&str>) -> String {
         .iter()
         .map(|(claim, status)| json!({"claim": claim, "status": status}))
         .collect();
-    let mut value = json!({
+    let rejections: Vec<Value> = state
+        .rejections
+        .iter()
+        .map(|observation| {
+            json!({
+                "code": observation.code,
+                "record_index": observation.record_index,
+            })
+        })
+        .collect();
+    let value = json!({
         "events": events,
-        "format": if code.is_some() { REJECTION_FORMAT } else { RESULT_FORMAT },
+        "format": RESULT_FORMAT,
         "reassessment": projection(history, state),
+        "rejections": rejections,
         "repository": history.repository,
         "root": state.root,
         "standing": standing,
     });
-    if let Some(rejection) = code {
-        value
-            .as_object_mut()
-            .expect("result is an object")
-            .insert("code".to_owned(), json!(rejection));
-    }
     format!(
         "{}\n",
         serde_json::to_string(&value).expect("result serializes")
@@ -292,16 +303,17 @@ fn eligible(state: &State, action: &Action) -> bool {
     }
 }
 
-fn reduce(history: &History, versions: BTreeMap<u64, u64>) -> (String, u8) {
+fn reduce(history: &History, versions: BTreeMap<u64, u64>) -> String {
     let mut state = State {
         events: Vec::new(),
+        rejections: Vec::new(),
         root: 0,
         standing: BTreeMap::new(),
         submissions: Vec::new(),
         verifications: Vec::new(),
         versions,
     };
-    for record in &history.records {
+    for (record_index, record) in history.records.iter().enumerate() {
         match record {
             Record::Submission {
                 claim,
@@ -382,7 +394,11 @@ fn reduce(history: &History, versions: BTreeMap<u64, u64>) -> (String, u8) {
                     None
                 };
                 if let Some(rejection) = code {
-                    return (output(history, &state, Some(rejection)), 2);
+                    state.rejections.push(RejectionObservation {
+                        code: rejection,
+                        record_index,
+                    });
+                    continue;
                 }
 
                 match action {
@@ -410,7 +426,7 @@ fn reduce(history: &History, versions: BTreeMap<u64, u64>) -> (String, u8) {
             }
         }
     }
-    (output(history, &state, None), 0)
+    output(history, &state)
 }
 
 fn invalid_format(error: impl std::fmt::Display) -> ExitCode {
@@ -419,7 +435,7 @@ fn invalid_format(error: impl std::fmt::Display) -> ExitCode {
         "{}",
         serde_json::to_string(&json!({
             "code": "invalid_format",
-            "format": REJECTION_FORMAT,
+            "format": INVALID_FORMAT,
         }))
         .expect("fixed error serializes")
     );
@@ -444,7 +460,7 @@ fn main() -> ExitCode {
         Ok(value) => value,
         Err(error) => return invalid_format(error),
     };
-    let (bytes, code) = reduce(&history, versions);
+    let bytes = reduce(&history, versions);
     print!("{bytes}");
-    ExitCode::from(code)
+    ExitCode::SUCCESS
 }
