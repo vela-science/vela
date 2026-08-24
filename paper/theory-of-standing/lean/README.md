@@ -12,11 +12,19 @@ The model retains only:
 - Repository-local authorization, performer attribution, expected-root and
   read-set freshness, and correction-reference validation for Decisions;
 - canonical admitted Events, deterministic replay, authority-indexed Standing,
-  and correction consequences; and
+  and the exact `accepted`, `unassessed`, `superseded`, and `retracted`
+  Standing vocabulary;
+- a separate deterministic, non-authoritative reassessment projection over
+  descriptive dependencies that never participates in admission or changes
+  Standing; and
 - one finite C-versus-D witness. C retains the same correction-aware semantic
   actions, Repository labels, and authority labels as D but omits Decision
   identity, performer, expected root, read set, and admission state. A fresh
   and stale correction therefore collapse under C while D distinguishes them.
+  The fresh branch replays to predecessor `superseded`, replacement `accepted`,
+  and dependent `accepted`; the stale branch replays to predecessor `accepted`,
+  replacement `unassessed`, and dependent `accepted`. The separate derived view
+  reports the dependent as `needsReassessment`, which is not a Standing token.
 
 The witness is constructed from small natural-number identifiers in
 `TheoryOfStanding.lean`. It does not encode, load, translate, or inspect any of
@@ -41,7 +49,7 @@ examples.
 For the focused placeholder scan from the Vela repository root:
 
 ```bash
-rg -n '\b(sorry|axiom|unsafe|admit)\b|declaration uses' \
+rg -n '\b(sorry|axiom|unsafe|admit|native_decide|Lean\.ofReduceBool)\b|declaration uses' \
   paper/theory-of-standing/lean --glob '*.lean'
 ```
 
@@ -61,7 +69,11 @@ The scan must return no matches.
 - `correction_history_preserved`
 - `correction_predecessor_is_superseded`
 - `correction_replacement_is_accepted`
-- `correction_consequence_updates_deterministically`
+- `correction_unrelated_standing_unchanged`
+- `derived_reassessment_determinism`
+- `changing_descriptive_dependencies_does_not_change_standing`
+- `dependent_reassessment_is_non_authoritative`
+- `descriptive_data_changes_projection_not_standing`
 - `finite_c_versus_d_separation`
 
 The model makes no statement about universal scientific truth, productivity,

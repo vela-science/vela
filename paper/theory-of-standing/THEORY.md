@@ -171,6 +171,8 @@ The isolated [Lean proof artifact](lean/README.md) mechanizes the smaller
 Submission, scoped Verification, Repository-local Decision admission, Event,
 replay, correction, and Standing model that survived the later Phase III
 minimality fork. It includes fail-closed admission theorems and a finite
-C-versus-D lifecycle-freshness witness. The mechanization changes no runtime or
-Protocol 1 contract and makes no claim of universal scientific truth,
-productivity, adoption, or all-science sufficiency.
+C-versus-D lifecycle-freshness witness. Descriptive dependency reassessment is
+modeled separately as a deterministic, non-authoritative projection that leaves
+canonical Standing unchanged. The mechanization changes no runtime or Protocol
+1 contract and makes no claim of universal scientific truth, productivity,
+adoption, or all-science sufficiency.

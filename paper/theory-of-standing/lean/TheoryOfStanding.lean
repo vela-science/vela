@@ -28,7 +28,7 @@ inductive Status where
   | unassessed
   | accepted
   | superseded
-  | mustReassess
+  | retracted
   deriving DecidableEq, Repr
 
 inductive VerificationOutcome where
@@ -56,7 +56,6 @@ inductive Action where
   | correct
       (priorDecision : DecisionId)
       (predecessor replacement : ClaimId)
-      (consequences : List ClaimId)
   deriving DecidableEq, Repr
 
 structure Decision where
@@ -118,12 +117,12 @@ def currentReadSet (s : State) (readSet : List (ResourceId × Version)) : Bool :
 def eligibleAction (s : State) : Action → Bool
   | .accept claim => submittedClaim s claim && passingVerification s claim
   | .reject claim => submittedClaim s claim
-  | .correct _ _ replacement _ =>
+  | .correct _ _ replacement =>
       submittedClaim s replacement && passingVerification s replacement
 
 def validCorrectionReference (s : State) (decision : Decision) : Bool :=
   match decision.action with
-  | .correct prior predecessor _ _ =>
+  | .correct prior predecessor _ =>
       (s.events.any fun event =>
         event.decisionId == prior &&
         event.repository == decision.repository &&
@@ -189,7 +188,7 @@ def setStatus
 
 def correctionStanding
     (standing : Standing) (repository : RepositoryId)
-    (predecessor replacement : ClaimId) (consequences : List ClaimId) : Standing :=
+    (predecessor replacement : ClaimId) : Standing :=
   fun otherRepository claim =>
     if otherRepository ≠ repository then
       standing otherRepository claim
@@ -197,8 +196,6 @@ def correctionStanding
       .superseded
     else if claim = replacement then
       .accepted
-    else if claim ∈ consequences then
-      .mustReassess
     else
       standing otherRepository claim
 
@@ -207,8 +204,8 @@ def admittedStanding
   match decision.action with
   | .accept claim => setStatus s.standing config.repository claim .accepted
   | .reject _ => s.standing
-  | .correct _ predecessor replacement consequences =>
-      correctionStanding s.standing config.repository predecessor replacement consequences
+  | .correct _ predecessor replacement =>
+      correctionStanding s.standing config.repository predecessor replacement
 
 def applyAdmitted
     (config : RepositoryConfig) (s : State) (decision : Decision) : State :=
@@ -382,22 +379,20 @@ theorem admitted_decision_appends_exact_event
 theorem correction_history_preserved
     (config : RepositoryConfig) (s : State) (decision : Decision)
     (prior : DecisionId) (predecessor replacement : ClaimId)
-    (consequences : List ClaimId)
     (isCorrection : decision.action =
-      .correct prior predecessor replacement consequences)
+      .correct prior predecessor replacement)
     (admitted : admissible config s decision = true) :
     (applyDecision config s decision).events = s.events ++ [toEvent decision] ∧
     (toEvent decision).action =
-      .correct prior predecessor replacement consequences := by
+      .correct prior predecessor replacement := by
   exact ⟨admitted_decision_appends_exact_event config s decision admitted,
     by simpa [toEvent] using isCorrection⟩
 
 theorem correction_predecessor_is_superseded
     (config : RepositoryConfig) (s : State) (decision : Decision)
     (prior : DecisionId) (predecessor replacement : ClaimId)
-    (consequences : List ClaimId)
     (isCorrection : decision.action =
-      .correct prior predecessor replacement consequences)
+      .correct prior predecessor replacement)
     (admitted : admissible config s decision = true) :
     (applyDecision config s decision).standing config.repository predecessor =
       .superseded := by
@@ -407,30 +402,75 @@ theorem correction_predecessor_is_superseded
 theorem correction_replacement_is_accepted
     (config : RepositoryConfig) (s : State) (decision : Decision)
     (prior : DecisionId) (predecessor replacement : ClaimId)
-    (consequences : List ClaimId)
     (distinct : replacement ≠ predecessor)
     (isCorrection : decision.action =
-      .correct prior predecessor replacement consequences)
+      .correct prior predecessor replacement)
     (admitted : admissible config s decision = true) :
     (applyDecision config s decision).standing config.repository replacement =
       .accepted := by
   simp [applyDecision, admitted, applyAdmitted, admittedStanding,
     isCorrection, correctionStanding, distinct]
 
-theorem correction_consequence_updates_deterministically
+theorem correction_unrelated_standing_unchanged
     (config : RepositoryConfig) (s : State) (decision : Decision)
-    (prior : DecisionId) (predecessor replacement consequence : ClaimId)
-    (consequences : List ClaimId)
-    (included : consequence ∈ consequences)
-    (notPredecessor : consequence ≠ predecessor)
-    (notReplacement : consequence ≠ replacement)
+    (prior : DecisionId) (predecessor replacement unrelated : ClaimId)
+    (notPredecessor : unrelated ≠ predecessor)
+    (notReplacement : unrelated ≠ replacement)
     (isCorrection : decision.action =
-      .correct prior predecessor replacement consequences)
+      .correct prior predecessor replacement)
     (admitted : admissible config s decision = true) :
-    (applyDecision config s decision).standing config.repository consequence =
-      .mustReassess := by
+    (applyDecision config s decision).standing config.repository unrelated =
+      s.standing config.repository unrelated := by
   simp [applyDecision, admitted, applyAdmitted, admittedStanding,
-    isCorrection, correctionStanding, included, notPredecessor, notReplacement]
+    isCorrection, correctionStanding, notPredecessor, notReplacement]
+
+/-! ## Non-authoritative descriptive dependency projection -/
+
+structure DescriptiveDependency where
+  dependent : ClaimId
+  dependsOn : ClaimId
+  deriving DecidableEq, Repr
+
+inductive Reassessment where
+  | unaffected
+  | needsReassessment
+  deriving DecidableEq, Repr
+
+structure DerivedProjection where
+  canonicalStanding : Standing
+  reassessment : ClaimId → Reassessment
+
+def deriveReassessment
+    (s : State) (dependencies : List DescriptiveDependency)
+    (correctedPredecessor : ClaimId) : DerivedProjection where
+  canonicalStanding := s.standing
+  reassessment := fun claim =>
+    if dependencies.any fun dependency =>
+        dependency.dependent == claim &&
+        dependency.dependsOn == correctedPredecessor then
+      .needsReassessment
+    else
+      .unaffected
+
+def DerivesReassessment
+    (s : State) (dependencies : List DescriptiveDependency)
+    (correctedPredecessor : ClaimId) (result : DerivedProjection) : Prop :=
+  deriveReassessment s dependencies correctedPredecessor = result
+
+theorem derived_reassessment_determinism
+    {s : State} {dependencies : List DescriptiveDependency}
+    {correctedPredecessor : ClaimId} {left right : DerivedProjection}
+    (hLeft : DerivesReassessment s dependencies correctedPredecessor left)
+    (hRight : DerivesReassessment s dependencies correctedPredecessor right) :
+    left = right :=
+  hLeft.symm.trans hRight
+
+theorem changing_descriptive_dependencies_does_not_change_standing
+    (s : State) (left right : List DescriptiveDependency)
+    (correctedPredecessor : ClaimId) :
+    (deriveReassessment s left correctedPredecessor).canonicalStanding =
+      (deriveReassessment s right correctedPredecessor).canonicalStanding :=
+  rfl
 
 /-! ## Concrete authority-local and C-versus-D witnesses -/
 
@@ -465,7 +505,7 @@ theorem plural_authority_consistency :
     (replay repositoryB authorityBHistory).standing 2 10 = .unassessed ∧
     (replay repositoryA authorityAHistory).standing 2 10 = .unassessed ∧
     (replay repositoryB authorityBHistory).standing 1 10 = .unassessed := by
-  native_decide
+  decide
 
 def dependentSubmission : Submission :=
   { claim := 20, producer := 900, scope := 7, authenticated := true }
@@ -486,7 +526,7 @@ def acceptDependent : Decision :=
 def freshCorrection : Decision :=
   { id := 3, repository := 1, authorityLabel := 101, performer := 101
     expectedRoot := 8, readSet := [(0, 0)]
-    action := .correct 1 10 11 [20] }
+    action := .correct 1 10 11 }
 
 def staleCorrection : Decision :=
   { freshCorrection with expectedRoot := 7 }
@@ -527,11 +567,38 @@ theorem finite_c_versus_d_separation :
     admissionError repositoryA prefixState staleCorrection = some .staleRoot ∧
     (replay repositoryA freshHistory).standing 1 10 = .superseded ∧
     (replay repositoryA freshHistory).standing 1 11 = .accepted ∧
-    (replay repositoryA freshHistory).standing 1 20 = .mustReassess ∧
+    (replay repositoryA freshHistory).standing 1 20 = .accepted ∧
     (replay repositoryA staleHistory).standing 1 10 = .accepted ∧
     (replay repositoryA staleHistory).standing 1 11 = .unassessed ∧
     (replay repositoryA staleHistory).standing 1 20 = .accepted := by
   decide
+
+def descriptiveDependencies : List DescriptiveDependency :=
+  [{ dependent := 20, dependsOn := 10 }]
+
+def freshDerivedReassessment : DerivedProjection :=
+  deriveReassessment (replay repositoryA freshHistory) descriptiveDependencies 10
+
+theorem dependent_reassessment_is_non_authoritative :
+    freshDerivedReassessment.reassessment 20 = .needsReassessment ∧
+    freshDerivedReassessment.canonicalStanding 1 20 = .accepted ∧
+    (replay repositoryA freshHistory).standing 1 20 = .accepted := by
+  decide
+
+theorem descriptive_data_changes_projection_not_standing :
+    (deriveReassessment (replay repositoryA freshHistory)
+      descriptiveDependencies 10).reassessment 20 = .needsReassessment ∧
+    (deriveReassessment (replay repositoryA freshHistory)
+      [] 10).reassessment 20 = .unaffected ∧
+    (deriveReassessment (replay repositoryA freshHistory)
+      descriptiveDependencies 10).canonicalStanding =
+    (deriveReassessment (replay repositoryA freshHistory)
+      [] 10).canonicalStanding := by
+  constructor
+  · decide
+  constructor
+  · decide
+  · rfl
 
 def unauthorizedCorrection : Decision :=
   { freshCorrection with authorityLabel := 404, performer := 404 }
@@ -543,22 +610,27 @@ def misattributedCorrection : Decision :=
   { freshCorrection with authorityLabel := 303 }
 
 def invalidReferenceCorrection : Decision :=
-  { freshCorrection with action := .correct 999 10 11 [20] }
+  { freshCorrection with action := .correct 999 10 11 }
 
-example : admissionError repositoryA prefixState unauthorizedCorrection =
-    some .unauthorized := by native_decide
+theorem unauthorized_admission_error_example :
+    admissionError repositoryA prefixState unauthorizedCorrection =
+    some .unauthorized := by decide
 
-example : admissionError repositoryA prefixState staleCorrection =
-    some .staleRoot := by native_decide
+theorem stale_root_admission_error_example :
+    admissionError repositoryA prefixState staleCorrection =
+    some .staleRoot := by decide
 
-example : admissionError repositoryA prefixState staleReadSetCorrection =
-    some .staleReadSet := by native_decide
+theorem stale_read_set_admission_error_example :
+    admissionError repositoryA prefixState staleReadSetCorrection =
+    some .staleReadSet := by decide
 
-example : admissionError repositoryA prefixState misattributedCorrection =
-    some .misattributed := by native_decide
+theorem misattributed_admission_error_example :
+    admissionError repositoryA prefixState misattributedCorrection =
+    some .misattributed := by decide
 
-example : admissionError repositoryA prefixState invalidReferenceCorrection =
-    some .invalidCorrectionReference := by native_decide
+theorem invalid_reference_admission_error_example :
+    admissionError repositoryA prefixState invalidReferenceCorrection =
+    some .invalidCorrectionReference := by decide
 
 #eval
   [ admissionError repositoryA prefixState unauthorizedCorrection
@@ -575,5 +647,7 @@ example : admissionError repositoryA prefixState invalidReferenceCorrection =
   , (replay repositoryA staleHistory).standing 1 10
   , (replay repositoryA staleHistory).standing 1 11
   , (replay repositoryA staleHistory).standing 1 20 )
+
+#eval freshDerivedReassessment.reassessment 20
 
 end TheoryOfStanding
