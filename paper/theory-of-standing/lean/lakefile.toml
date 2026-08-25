@@ -1,0 +1,7 @@
+name = "theory_of_standing"
+version = "0.1.0"
+defaultTargets = ["TheoryOfStanding"]
+
+[[lean_lib]]
+name = "TheoryOfStanding"
+roots = ["TheoryOfStanding", "AdversarialSamples"]
