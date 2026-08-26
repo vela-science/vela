@@ -1,0 +1,36 @@
+{
+  "authority_effect": "none",
+  "comparison_rules": {
+    "comparable": "Both branches measured the same unit under the same boundary.",
+    "incomparable": "A value exists but the frozen method does not support a numerical branch-to-branch inference.",
+    "unavailable": "The runner did not reliably capture the value.",
+    "not_used": "The scoped branch action did not invoke the resource; record zero."
+  },
+  "execution_boundary": {
+    "end": "The branch-local authorized accept or reject Decision returns.",
+    "excluded": [
+      "Common pre-branch Submission and Verification setup.",
+      "Post-Decision replay, comparison, and receipt persistence.",
+      "Campaign authoring and supervisor review."
+    ],
+    "start": "The branch-local Decision Inbox read begins."
+  },
+  "required_metrics": [
+    "model_calls",
+    "model_input_tokens",
+    "model_output_tokens",
+    "tool_invocations",
+    "verifier_invocations",
+    "solver_or_simulation_invocations",
+    "wall_time_ms",
+    "cpu_time_ms",
+    "gpu_time_ms",
+    "external_service_calls",
+    "artifact_count",
+    "artifact_bytes",
+    "persistent_state_files",
+    "persistent_state_bytes",
+    "human_interventions"
+  ],
+  "schema": "vela-compose-1.t3-metering-plan.v1"
+}

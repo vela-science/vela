@@ -1,0 +1,19 @@
+{
+  "authority_effect": "none",
+  "objective": "Apply one controlled Repository Decision to the exact pending Proposal inherited at the branch point.",
+  "schema": "vela-compose-1.t3-task.v1",
+  "subject": {
+    "submission_root": "sha256:f1669cdfa498ff85c162bce6173f04b39cdf7620fb198a19b45f6d932302204a",
+    "verification_requirement": "Recompute the result from the exact fixture bytes."
+  },
+  "variants": [
+    {
+      "branch": "counterfactual/accept",
+      "decision": "accept"
+    },
+    {
+      "branch": "counterfactual/reject",
+      "decision": "reject"
+    }
+  ]
+}

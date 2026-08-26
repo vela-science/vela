@@ -18,6 +18,7 @@ live Rust types and conformance vectors.
 - [T2 worker contract](threads/T2_REPLAY.md)
 - [T2 replay and receipt qualification](T2_REPLAY_REPORT.md)
 - [T3 worker contract](threads/T3_BRANCHING.md)
+- [T3 counterfactual branching and metering qualification](T3_BRANCHING_REPORT.md)
 - [T4 worker contract](threads/T4_LEAN.md)
 - [T5 worker contract](threads/T5_ALZHEIMER.md)
 - [T6 worker contract](threads/T6_HANDOFF.md)
