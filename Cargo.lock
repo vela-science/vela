@@ -1458,6 +1458,7 @@ dependencies = [
  "hex",
  "libc",
  "rand_core",
+ "regex",
  "rustix",
  "same-file",
  "serde",

@@ -269,8 +269,26 @@ fn current_replay_refuses_retired_repositories_before_parsing_them() {
     );
 }
 
+fn assert_status_and_replay_reject_sensitive_content(repository_path: &Path) {
+    for command in [["status", ".", "--json"], ["replay", ".", "--json"]] {
+        let output = run(repository_path, None, &command);
+        assert_eq!(
+            output.status.code(),
+            Some(1),
+            "{command:?} unexpectedly accepted sensitive content"
+        );
+        let payload: Value = serde_json::from_slice(&output.stdout).expect("decode error JSON");
+        assert!(
+            payload["error"]["message"]
+                .as_str()
+                .is_some_and(|message| message.contains("sensitive-looking files")),
+            "unexpected {command:?} error: {payload}"
+        );
+    }
+}
+
 #[test]
-fn current_replay_blocks_sensitive_local_files() {
+fn current_status_and_replay_share_sensitive_content_preflight() {
     let temporary = tempfile::tempdir().expect("temporary directory");
     let agent = EphemeralAgent::start(temporary.path(), "vela sensitive path test");
     let repository_path = temporary.path().join("repository_path");
@@ -300,20 +318,95 @@ fn current_replay_blocks_sensitive_local_files() {
             .as_str()
             .expect("local trust anchor path"),
     ));
+
+    let detailed_path = repository_path.join("CREDENTIAL-SCAN.json");
+    let portable_directory = repository_path.join("nested/elsewhere");
+    std::fs::create_dir_all(&portable_directory).expect("create portable scan directory");
+    let portable_path = portable_directory.join("credential-scan.json");
+    let valid_detailed = br#"{
+  "excluded": ["CREDENTIAL-SCAN.json"],
+  "files_scanned": 51,
+  "findings": [],
+  "patterns": ["provider key prefix", "Bearer credential", "private key PEM header"],
+  "schema": "vela.result-runner.credential-scan.v1",
+  "status": "pass"
+}"#;
+    let valid_portable = br#"{"findings":[],"scanned_files":3,"status":"pass"}"#;
+    std::fs::write(&detailed_path, valid_detailed).expect("write valid detailed scan");
+    std::fs::write(&portable_path, valid_portable).expect("write valid portable scan");
+
+    let status = success_json(&run(&repository_path, None, &["status", ".", "--json"]));
+    assert_eq!(status["integrity"]["replay"], "verified");
+    assert_eq!(status["integrity"]["strict"], "pass");
+    let replay = success_json(&run(&repository_path, None, &["replay", ".", "--json"]));
+    assert_eq!(replay["ok"], true);
+
+    let hostile_reports: [(&Path, &[u8]); 11] = [
+        (
+            &detailed_path,
+            br#"{"excluded":[],"files_scanned":1,"findings":[{"path":"secret"}],"patterns":[],"schema":"vela.result-runner.credential-scan.v1","status":"pass"}"#,
+        ),
+        (&detailed_path, br#"{"status":"pass","findings":[]"#),
+        (
+            &detailed_path,
+            br#"{"excluded":[],"files_scanned":1,"findings":[],"patterns":[],"schema":"vela.result-runner.credential-scan.v1","status":"pass","unexpected":true}"#,
+        ),
+        (
+            &detailed_path,
+            br#"{"excluded":["Bearer abcdefghijklmnopqrstuvwxyz"],"files_scanned":1,"findings":[],"patterns":[],"schema":"vela.result-runner.credential-scan.v1","status":"pass"}"#,
+        ),
+        (
+            &detailed_path,
+            br#"{"excluded":[],"files_scanned":1,"findings":[],"patterns":[],"schema":"vela.result-runner.credential-scan.v2","status":"pass"}"#,
+        ),
+        (
+            &detailed_path,
+            br#"{"excluded":[],"files_scanned":1,"findings":[],"patterns":[],"schema":"vela.result-runner.credential-scan.v1","status":"fail"}"#,
+        ),
+        (
+            &portable_path,
+            br#"{"findings":[{"path":"secret"}],"scanned_files":3,"status":"pass"}"#,
+        ),
+        (&portable_path, br#"{"status":"pass","findings":[]"#),
+        (
+            &portable_path,
+            br#"{"findings":[],"scanned_files":3,"status":"pass","unexpected":true}"#,
+        ),
+        (
+            &portable_path,
+            br#"{"api_key":"abcdefghijklmnopqrstuvwxyz","findings":[],"scanned_files":3,"status":"pass"}"#,
+        ),
+        (
+            &portable_path,
+            br#"{"findings":[],"scanned_files":3,"status":"fail"}"#,
+        ),
+    ];
+    for (report_path, hostile_bytes) in hostile_reports {
+        std::fs::write(report_path, hostile_bytes).expect("write hostile scan report");
+        assert_status_and_replay_reject_sensitive_content(&repository_path);
+        let valid = if report_path == detailed_path {
+            valid_detailed.as_slice()
+        } else {
+            valid_portable.as_slice()
+        };
+        std::fs::write(report_path, valid).expect("restore valid scan report");
+    }
+
+    std::fs::write(
+        repository_path.join("credential-scan.json.bak"),
+        valid_portable,
+    )
+    .expect("write filename lookalike");
+    assert_status_and_replay_reject_sensitive_content(&repository_path);
+    std::fs::remove_file(repository_path.join("credential-scan.json.bak"))
+        .expect("remove filename lookalike");
+
     std::fs::write(
         repository_path.join("accidental-private.key"),
         "not a real key",
     )
     .expect("write sensitive-looking file");
-
-    let output = run(&repository_path, None, &["replay", ".", "--json"]);
-    assert_eq!(output.status.code(), Some(1));
-    let payload: Value = serde_json::from_slice(&output.stdout).expect("decode error JSON");
-    assert!(
-        payload["error"]["message"]
-            .as_str()
-            .is_some_and(|message| message.contains("sensitive-looking files"))
-    );
+    assert_status_and_replay_reject_sensitive_content(&repository_path);
 }
 
 #[test]

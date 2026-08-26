@@ -29,6 +29,7 @@ vela-authority = { workspace = true }
 vela-repository = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+regex = { workspace = true }
 chrono.workspace = true
 toml = { workspace = true }
 colored = { workspace = true }

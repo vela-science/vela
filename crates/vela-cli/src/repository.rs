@@ -3,8 +3,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use vela_protocol::authority::AuthorityEventV1;
 use vela_protocol::authority_history::AuthorityInitializationV1;
@@ -46,23 +47,8 @@ pub(crate) struct ProposalDecision {
 pub(crate) fn cmd_replay_repository(repository_path: &Path, json_out: bool) {
     crate::ui::set_mode("replay", json_out);
     let repository_path = crate::ui::canonicalize_repo(repository_path);
-    let sensitive = sensitive_paths(&repository_path);
-    if !sensitive.is_empty() {
-        let listed = sensitive
-            .iter()
-            .take(10)
-            .map(|path| {
-                path.strip_prefix(&repository_path)
-                    .unwrap_or(path)
-                    .display()
-                    .to_string()
-            })
-            .collect::<Vec<_>>()
-            .join(", ");
-        crate::cli::fail_return::<()>(&format!(
-            "current repository contains sensitive-looking files: {listed}"
-        ));
-    }
+    replay_content_preflight(&repository_path)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let repository = verify_trusted_repository_at(&repository_path)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let origin = RepositoryOriginV1::parse(
@@ -117,6 +103,107 @@ pub(crate) fn cmd_replay_repository(repository_path: &Path, json_out: bool) {
     }
 }
 
+fn replay_content_preflight(root: &Path) -> Result<(), String> {
+    let sensitive = sensitive_paths(root);
+    if !sensitive.is_empty() {
+        let listed = sensitive
+            .iter()
+            .take(10)
+            .map(|path| {
+                path.strip_prefix(root)
+                    .unwrap_or(path)
+                    .display()
+                    .to_string()
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        return Err(format!(
+            "current repository contains sensitive-looking files: {listed}"
+        ));
+    }
+    Ok(())
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DetailedNegativeCredentialScan {
+    #[serde(rename = "excluded")]
+    _excluded: Vec<String>,
+    #[serde(rename = "files_scanned")]
+    _files_scanned: u64,
+    findings: Vec<Value>,
+    #[serde(rename = "patterns")]
+    _patterns: Vec<String>,
+    schema: String,
+    status: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PortableNegativeCredentialScan {
+    findings: Vec<Value>,
+    #[serde(rename = "scanned_files")]
+    _scanned_files: u64,
+    status: String,
+}
+
+fn is_valid_negative_credential_scan(path: &Path, name: &str) -> bool {
+    let Ok(metadata) = fs::symlink_metadata(path) else {
+        return false;
+    };
+    if !metadata.file_type().is_file() {
+        return false;
+    }
+    let Ok(bytes) = fs::read(path) else {
+        return false;
+    };
+    static CREDENTIAL_PATTERNS: OnceLock<regex::bytes::RegexSet> = OnceLock::new();
+    let credential_patterns = CREDENTIAL_PATTERNS.get_or_init(|| {
+        regex::bytes::RegexSet::new([
+            r"sk-[A-Za-z0-9_-]{20,}",
+            r"(?i)bearer\s+[A-Za-z0-9._~+/-]{20,}",
+            r#"(?i)"(?:access_token|refresh_token|api_key)"\s*:\s*"[^"\n]+""#,
+            r"-----BEGIN (?:OPENSSH|RSA|EC) PRIVATE KEY-----",
+        ])
+        .expect("static credential patterns")
+    });
+    if credential_patterns.is_match(&bytes) {
+        return false;
+    }
+    match name {
+        "CREDENTIAL-SCAN.json" => {
+            let Ok(report) = serde_json::from_slice::<DetailedNegativeCredentialScan>(&bytes)
+            else {
+                return false;
+            };
+            let DetailedNegativeCredentialScan {
+                _excluded: _,
+                _files_scanned: _,
+                findings,
+                _patterns: _,
+                schema,
+                status,
+            } = report;
+            schema == "vela.result-runner.credential-scan.v1"
+                && status == "pass"
+                && findings.is_empty()
+        }
+        "credential-scan.json" => {
+            let Ok(report) = serde_json::from_slice::<PortableNegativeCredentialScan>(&bytes)
+            else {
+                return false;
+            };
+            let PortableNegativeCredentialScan {
+                findings,
+                _scanned_files: _,
+                status,
+            } = report;
+            status == "pass" && findings.is_empty()
+        }
+        _ => false,
+    }
+}
+
 fn sensitive_paths(root: &Path) -> Vec<PathBuf> {
     let mut hits = Vec::new();
     let mut stack = vec![root.to_path_buf()];
@@ -153,6 +240,9 @@ fn sensitive_paths(root: &Path) -> Vec<PathBuf> {
                     .iter()
                     .any(|needle| lower.contains(needle))
             {
+                if is_valid_negative_credential_scan(&path, name) {
+                    continue;
+                }
                 hits.push(path);
             }
         }
@@ -286,6 +376,8 @@ pub(crate) fn cmd_status(repository_path: &Path, json_out: bool) {
         }
         return;
     }
+    replay_content_preflight(&repository_path)
+        .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let repository = load_trusted_repository_at(&repository_path)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let repository_root = repository
