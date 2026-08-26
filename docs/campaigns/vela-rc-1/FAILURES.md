@@ -29,3 +29,17 @@ bounded repair must make the public read/replay contract and implementation
 agree, fail closed on missing or mismatched external selection, add shipped-CLI
 negative coverage, and pass independent R1 requalification before downstream
 gates open.
+
+## VRC1-F005 — clean-path documentation friction
+
+Classification: `DOC BLOCKER INPUT`, subordinate to VRC1-F004.
+
+R2 found that the write journey assumes Git author identity, while the
+quickstart shows a Git commit without explicitly naming `user.name` and
+`user.email` setup. The signed installer also assumes ordinary download,
+archive, digest, OpenSSH, and writable-prefix tooling without a compact
+platform prerequisite table. Source builds assume a compiler linker and
+network access for missing pinned components/crates.
+
+Required disposition: retain for R3 after G1 is repaired and requalified. Do
+not open R3 while the semantic gate is on HOLD.

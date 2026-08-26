@@ -37,3 +37,12 @@ paper over the mismatch by weakening documentation or renaming the current
 read result. Any repair must preserve external authority selection, make the
 shipped CLI fail closed on a missing or mismatched anchor, add direct negative
 coverage, and rerun R1 before G1 can pass. R3-R7 remain blocked.
+
+## VRC1-D006 — accept R2 with documented platform limitations
+
+Decision: accept R2's clean signed install, exact-candidate source build,
+complete governed operator loop, deterministic clean-clone neutral replay, and
+missing-Artifact fail-closed fixture. Record Linux x86-64-under-emulation as the
+qualified clean platform; macOS disposable qualification remains untested.
+This R2 pass does not override VRC1-D005. The neutral fixture is release-facing
+evidence, not adoption, utility, or a new protocol root.

@@ -68,3 +68,23 @@ R1 worker commit `6501f687` was integrated as supervisor commit
 clean-install evidence, but R3-R7 remain blocked. No release-facing redesign,
 Protocol weakening, version change, tag, push, publication, or release is
 authorized.
+
+## VRC1-S005 — R2 clean-install gate accepted with limitations
+
+Recorded: 2026-08-26, America/Toronto.
+
+R2 independently exercised the signed `v0.977.4` install and public Math read
+path in a clean Debian x86-64 guest, then built exact RC-1 control commit
+`6d680eeb` in a separate clean Rust 1.97.1 guest and completed
+`init -> submit -> verify -> decide -> status -> replay`. A second pristine
+consumer reproduced the frozen neutral arithmetic history and exact Repository
+root; a sibling history with a missing required Artifact failed closed with no
+partial Standing. The focused checked-in regression passed independently under
+S0.
+
+R2 worker commit `e6e7bbcc1c48a1abea3a4ea427e7fac4e894d433` was integrated
+as supervisor commit `c2808440`. Gate G2 is
+`PASS WITH DOCUMENTED PLATFORM LIMITATIONS`: Linux x86-64 was tested under
+emulation; disposable macOS was not. R2 independently reproduced the R1
+unpinned-read blocker, so the overall candidate remains on HOLD and R3-R7 stay
+blocked.
