@@ -71,6 +71,17 @@ Protocol 1 release candidate with Submission v3.
 
 ## Current supervised campaign
 
+- [VELA-RC-1 release-qualification index](campaigns/vela-rc-1/README.md)
+- [VELA-RC-1 campaign charter](campaigns/vela-rc-1/CAMPAIGN.md)
+- [VELA-RC-1 frozen baseline](campaigns/vela-rc-1/BASELINE.md)
+- [VELA-RC-1 append-only state](campaigns/vela-rc-1/STATE.md)
+- [VELA-RC-1 append-only decisions](campaigns/vela-rc-1/DECISIONS.md)
+- [VELA-RC-1 qualification matrix](campaigns/vela-rc-1/QUALIFICATION.md)
+- [VELA-RC-1 failure ledger](campaigns/vela-rc-1/FAILURES.md)
+- [VELA-RC-1 release checklist](campaigns/vela-rc-1/RELEASE_CHECKLIST.md)
+- [VELA-RC-1 blind external-user test](campaigns/vela-rc-1/EXTERNAL_TEST.md)
+- [VELA-RC-1 final release decision](campaigns/vela-rc-1/FINAL.md)
+
 - [VELA-COMPOSE-1 campaign index](campaigns/vela-compose-1/README.md)
 - [Campaign charter](campaigns/vela-compose-1/CAMPAIGN.md)
 - [Repository baseline](campaigns/vela-compose-1/BASELINE.md)
