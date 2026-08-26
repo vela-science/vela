@@ -12,6 +12,7 @@ not a foundational-research campaign.
 - [R2 clean-install and replay qualification](R2_CLEAN_INSTALL_QUALIFICATION.md)
 - [Failure ledger](FAILURES.md)
 - [R1 protocol and semantic audit](R1_SEMANTIC_AUDIT.md)
+- [R1 independent requalification](R1_REQUALIFICATION.md)
 - [Release checklist](RELEASE_CHECKLIST.md)
 - [Blind external-user test](EXTERNAL_TEST.md)
 - [Final release decision](FINAL.md)
