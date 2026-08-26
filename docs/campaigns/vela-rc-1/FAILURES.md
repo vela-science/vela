@@ -60,6 +60,11 @@ not open R3 while the semantic gate is on HOLD.
 
 Gate update: R3 is now authorized and owns this documentation work.
 
+Resolution: `CLOSED`. R3 added the missing prerequisites and exact executable
+write contract; the focused first-user workflows and documentation contracts
+pass. The existing signed public binary remains an ancestor and is assigned to
+R6 rather than hidden by documentation.
+
 ## VRC1-F006 — Proposal-root catalogue overstates stored fields
 
 Classification: `DOC FIX REQUIRED`.
@@ -68,6 +73,9 @@ Classification: `DOC FIX REQUIRED`.
 status", although `vela.proposal.v1` has no status field. Status is derived
 from withdrawals and governed Decisions/Events. R3 must correct the catalogue
 without changing object bytes or semantics.
+
+Resolution: `CLOSED`. R3 now states that Proposal status is derived from
+withdrawals and governed Decision Events.
 
 ## VRC1-F007 — release checklist requests a nonexistent Standing digest
 
@@ -78,6 +86,8 @@ though Protocol 1 publishes no standalone `standing_root`. R3 must name the
 actual commitments: accepted set, Repository root, and authority Event-log
 root.
 
+Resolution: `CLOSED`. The checklist now names the actual commitments.
+
 ## VRC1-F008 — implementer semantic matrix is campaign-local
 
 Classification: `DOC FIX REQUIRED`.
@@ -85,3 +95,17 @@ Classification: `DOC FIX REQUIRED`.
 The complete scenario matrix exists in reviewed campaign evidence but is not
 yet a compact release-facing implementer index. R3 must publish or link an
 equivalent matrix without making campaign prose normative.
+
+Resolution: `CLOSED`. `conformance/README.md` now provides the informative
+scenario-to-fixture index and preserves the distinction between verification
+and acceptance.
+
+## VRC1-F009 — public installer identifies the ancestor release
+
+Classification: `PACKAGING / VERSION AUDIT INPUT`.
+
+The signed public `v0.977.4` artifact and tag predate the RC-1 repaired
+candidate even though the source version remains `0.977.4`. R3 verified the
+ancestor installer but did not treat it as candidate evidence. R6 must decide
+the exact release source identity and recommend KEEP VERSION, PATCH BUMP,
+MINOR/PRE-1.0 BUMP, PROTOCOL BUMP, or HOLD without publishing anything.

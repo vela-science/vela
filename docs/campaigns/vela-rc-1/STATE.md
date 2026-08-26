@@ -150,3 +150,31 @@ commit `ad2a4516078525025d05bd461b550ed5b8e35971`. G1 is
 `PASS WITH DOC FIXES`; G2 is `PASS WITH DOCUMENTED PLATFORM LIMITATIONS`.
 R3 and R4 are now authorized from the reviewed supervisor branch. R5-R7 remain
 blocked.
+
+## VRC1-S009 — external legibility qualified; product/release audits opened
+
+Recorded: 2026-08-26, America/Toronto.
+
+R3 returned `PASS WITH DOCUMENTED LIMITATIONS`. It corrected the Proposal-root
+catalogue, release-checklist commitments, public semantic scenario index,
+installation and Git prerequisites, Quickstart verification requirement, and
+stale trust-pin examples. S0 integrated the change and independently reran the
+documentation contract and portable verifier.
+
+R4 returned `PASS WITH DOCUMENTED LIMITATIONS`. It supplied two independently
+replayed public examples with no Core or schema fork: a finite formal verifier
+lifecycle preserving failure, rejection, correction, acceptance, and replay;
+and a heterogeneous computational-evidence lifecycle requiring two scoped
+checks before Decision. The exact example Repository roots are recorded in
+`R4_EXTERNAL_FIXTURES.md`.
+
+After additive R3/R4 integration, S0 regenerated the one authoritative
+informative manifest and passed the portable verifier, 14 documentation
+contracts, both focused R4 integration tests, and both public check scripts.
+The merged Protocol 1 manifest contains 77 normative and 67 informative files
+with root
+`sha256:553c2bf5b495506e5297027c47abd68e058f1a34136900fc4e4606c81d311a17`.
+
+G3 and G4 are accepted with their explicit unpublished-candidate, platform,
+and pending-blind-test limitations. R5 product legibility and R6 packaging /
+release integrity are now authorized. R7 remains blocked until S0 accepts both.

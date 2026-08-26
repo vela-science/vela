@@ -81,3 +81,16 @@ three recorded documentation issues plus independently observed first-user
 friction, and authorize R4 to qualify the two bounded release-facing examples
 without changing Vela Core. R5, R6, R7, versioning, tagging, publishing,
 pushing, signing, and release remain unauthorized.
+
+## VRC1-D010 — accept R3/R4 and open R5/R6
+
+Decision: accept R3 and R4 as `PASS WITH DOCUMENTED LIMITATIONS`. Their
+limitations are non-blocking at this phase: the candidate remains unpublished,
+disposable macOS candidate qualification and R7 are pending, and the fixture
+shell scripts temporarily install then remove public non-authority trust pins.
+The merged release-facing surface is bound by Protocol root
+`sha256:553c2bf5b495506e5297027c47abd68e058f1a34136900fc4e4606c81d311a17`.
+Authorize R5 to audit semantic product legibility and implement only
+semantically misleading or release-blocking corrections. Authorize R6 to audit
+packaging and release integrity without tagging, publishing, pushing, signing,
+or bumping a version. R7 remains blocked.
