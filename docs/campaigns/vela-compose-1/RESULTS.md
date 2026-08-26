@@ -72,3 +72,36 @@ Scientific experiments run: 0
 
 This is Level-1 internal protocol qualification. It is not a cumulative-science
 result, external validation, release qualification, or anomaly.
+
+## VC1-R003 — T3 counterfactual branching and metering qualification
+
+Date: 2026-08-26.
+
+T3 qualified controlled same-lineage counterfactual branches using Git plus the
+existing Vela CLI. No production command, protocol object, schema, state
+engine, workflow runner, or metering database was added. The fixture proves an
+identical governed branch point, divergent authorized accept/reject histories,
+bidirectional isolation, sealed task/evaluation/metering inputs, explicit
+resource availability/comparability, clean terminal replay, and deterministic
+comparison across fresh checkout paths.
+
+The supervisor reproduced the positive lifecycle but found that the original
+sealed JSON inputs were immutable yet advisory: the Rust test hardcoded their
+semantics separately. T3 was returned. Its strict-descendant correction parses
+and causally binds all three manifests, binds the evaluator to its exact source
+digest, binds each metering receipt to the frozen plan root, and adds negative
+manifest/implementation mismatch cases. The supervisor reproduced the amended
+lifecycle and the repository documentation contract before integration.
+
+```text
+Worker commits: 78ce635b95999744b881d304c17f1bdbbaa58b7c, e3cbc31cf1bae2d50de1be8033c23879b719235c
+Integrated commits: 344b048d, a5f5d9b3
+Production or wire changes: none
+Supervisor disposition: MERGE AFTER BOUNDED FIX
+Campaign anomaly: NONE
+Scientific experiments run: 0
+```
+
+The qualified comparator remains test-only and campaign-owned. It does not
+establish value for a scientific vertical or authorize a public `vela compare`
+surface.

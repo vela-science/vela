@@ -111,3 +111,19 @@ Affected components: T3; dependency state for T4–T7.
 Supersedes: None.
 Reason: T3 can now depend on one qualified kernel and one qualified replay boundary without semantic duplication.
 ```
+
+## VC1-D008 — Integrate T3 and authorize the Lean vertical
+
+```text
+Decision ID: VC1-D008
+Date: 2026-08-26
+Question: Does T3 prove enough controlled branch apparatus to begin a real verifier-rich vertical?
+Proposal: Integrate the test-only apparatus after manifest binding and launch T4 against a frozen real Lean source.
+Evidence: T3 worker commits 78ce635b and e3cbc31c; supervisor positive-path and docs-contract reruns; exact manifest/evaluator digest checks.
+Alternatives: Add public branch/metering commands now; begin T6 before a vertical; block T4 despite passing apparatus.
+Decision: T3 qualifies at Level 1. Authorize T4 only. Keep T5 substantive execution, T6, and T7 gated.
+Authority: S0.
+Affected components: T4; dependency state for T5–T7.
+Supersedes: None.
+Reason: Existing Git and Vela semantics suffice; the next uncertainty is end-to-end behavior in a real verifier-rich source workflow.
+```

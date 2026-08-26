@@ -110,3 +110,26 @@ T3 is active and attached to the exact qualified Phase-1 root. It is limited to
 source-owned branching, sealed evaluation, deterministic comparison, and
 honest metering qualification. T4–T7 remain blocked. Scientific experiments
 executed: none.
+
+## State 0006 — T3 qualified; T4 source selected
+
+```text
+Date: 2026-08-26
+Phase: PHASE_3_LEAN_VERTICAL
+Supervisor branch: campaign/compose1-supervisor
+Canonical integrated commit before state receipt: a5f5d9b3
+T4 source repository: /Users/williamblair/personal/lean-proofs
+T4 source commit: 06d1322e62aa28b860da1ec66465d913c1902c78
+T4 target: Erdos154.erdos_154_sumset
+Lean: leanprover/lean4:v4.29.1
+Mathlib commit: 5e932f97dd25535344f80f9dd8da3aab83df0fe6
+Lake manifest SHA-256: f4c3e1fea9e745548c15b78b91015489277625c3dee15ab1ebe8bf6acf57b320
+Foundational top-down search: CLOSED
+Campaign anomaly: NONE
+```
+
+T3 is integrated with disposition `MERGE AFTER BOUNDED FIX`. The proposed T4
+source checkout is clean, the exact target builds under its pinned environment,
+and its axiom audit reports only `propext`, `Classical.choice`, and
+`Quot.sound`. T4 is authorized; T5 substantive execution, T6, and T7 remain
+blocked. Scientific experiments executed: none.
