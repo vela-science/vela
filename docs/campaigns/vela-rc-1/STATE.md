@@ -49,3 +49,22 @@ selected by the Core union, as documented.
 The supervisor worktree remained clean before this state update. Phase 0 finds
 no inherited semantic or replay regression. R1 and R2 are active; their gates
 remain unadjudicated.
+
+## VRC1-S004 — R1 semantic gate accepted as HOLD
+
+Recorded: 2026-08-26, America/Toronto.
+
+S0 independently checked R1's cited normative text, production loader, status
+projection, informative profile caveat, and passing genesis test. The finding
+reproduces: Protocol 1 requires strict replay to verify an independently pinned
+sequence-one authority root, while `vela replay` and read/status paths validate
+the repository-retained authority history without loading the local pin and
+can report `strict: pass` after that pin is removed. Decision writes remain
+fail-closed, but this does not satisfy the normative read/replay contract.
+
+R1 worker commit `6501f687` was integrated as supervisor commit
+`d2ac9d88d232eb35fc7f3f575ebd9fd438b7daee`. Gate G1 is
+`HOLD — SEMANTIC BLOCKER`. R2 may finish its already authorized independent
+clean-install evidence, but R3-R7 remain blocked. No release-facing redesign,
+Protocol weakening, version change, tag, push, publication, or release is
+authorized.

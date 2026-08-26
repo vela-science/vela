@@ -28,3 +28,12 @@ Decision: `KEEP VERSION DURING QUALIFICATION`. Vela remains `0.977.4`, Protocol
 1 remains a release candidate, Submission remains v3, and migration remains
 none until evidence of an actual semantic, schema, wire, persisted-data, CLI,
 or release-facing change supports a later explicit version decision.
+
+## VRC1-D005 — accept R1 HOLD without reinterpretation
+
+Decision: accept R1's `HOLD — SEMANTIC BLOCKER`. The normative independent
+trust-anchor requirement and the shipped read/replay behavior disagree. Do not
+paper over the mismatch by weakening documentation or renaming the current
+read result. Any repair must preserve external authority selection, make the
+shipped CLI fail closed on a missing or mismatched anchor, add direct negative
+coverage, and rerun R1 before G1 can pass. R3-R7 remain blocked.

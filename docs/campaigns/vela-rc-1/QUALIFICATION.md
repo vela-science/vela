@@ -2,7 +2,7 @@
 
 | Gate | Status | Evidence | Blocking condition |
 | --- | --- | --- | --- |
-| Semantic integrity | `IN PROGRESS` | R1 not yet complete | Any B1, B3-B6, or B9 finding |
+| Semantic integrity | `HOLD — SEMANTIC BLOCKER` | R1 report and independent S0 reproduction | shipped replay does not enforce the normative independent sequence-one trust anchor |
 | Protocol conformance | `PASS AT PHASE 0` | portable verifier and complete locked Core union reproduced the frozen root and all current suites | independent R1 semantic matrix still pending |
 | Clean install | `UNTESTED` | R2 not yet complete | B7 |
 | Replay | `PARTIAL PASS` | T4/T5 exact roots reproduced locally | clean-environment public fixture pending |
@@ -36,3 +36,13 @@ The complete locked Core union subsequently passed from control commit
 `cargo clippy --locked --workspace --all-targets -- -D warnings` passed as
 well. This closes the inherited-code regression check but does not pre-judge
 R1's independent semantic audit or R2's clean-install gate.
+
+## R1 gate
+
+R1's report is [R1_SEMANTIC_AUDIT.md](R1_SEMANTIC_AUDIT.md). The supervisor
+accepted `HOLD — SEMANTIC BLOCKER` after independently confirming the exact
+contradiction. The current read path validates a self-consistent retained
+authority history but does not independently select that history with the
+local sequence-one pin required by Protocol 1. Because `status` can still emit
+`integrity.strict: pass`, this is B1/B4/B6 release-blocking behavior rather
+than an optional hardening improvement.
