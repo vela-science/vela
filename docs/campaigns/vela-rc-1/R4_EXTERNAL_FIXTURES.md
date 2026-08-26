@@ -181,6 +181,11 @@ weaken R3.
   `docs/QUICKSTART.md`, `docs/ROOTS.md`, `conformance/README.md`, R3's release
   contract test, and the edited existing example READMEs untouched.
 
+An exact `git merge-tree` audit over common base `431120a6`, R3 `1b44b6e7`,
+and R4 content commit `e6bef618` confirms those two index files are the only
+textual conflicts. `examples/README.md` auto-merges. The two conflict
+resolutions are additive: keep the R2, R3, and R4 links.
+
 ## Verification and handoff
 
 Passed on the isolated delegated base:
@@ -220,6 +225,59 @@ Two integration-only checks are intentionally left for S0 after merging R3:
   `examples/**/*` after R3's separate manifest regeneration. Per S0 direction,
   R4 did not bless a competing manifest root.
 
-The exact committed fixture tree and independent clean-clone receipt are
-appended in the handoff-only follow-up commit. No tag, push, publication,
+## Independent clean-clone receipt and committed handoff
+
+A separate read-only auditor cloned the local Git repository with
+`--no-hardlinks` into a fresh temporary directory and detached exactly at the
+committed R4 content:
+
+| Field | Exact result |
+| --- | --- |
+| R4 content commit | `e6bef618582658a467cd088a036d16fb8ca0bd29` |
+| R4 content tree | `bbcf0e30f4c988b2d87b6029977b2861bcb02cc6` |
+| Parent | `431120a6995d1b24ae2d50d6889878ce43efcd97` |
+| Host | macOS 27.0 (`26A5378n`), arm64 |
+| Rust / Cargo | `1.97.1` / `1.97.1` |
+| Python / Git | `3.11.2` / `2.53.0` |
+| Initial and final checkout | detached at exact commit, clean |
+| Source-root `.vela/` | absent |
+
+The independent clone ran:
+
+```text
+cargo build --locked --release -p vela-cli
+PASS; clone-local binary sha256:b23ffd6d...e16803d
+
+VELA_BIN=<clone>/target/release/vela \
+  examples/external-formal-verifier/check.sh
+PASS; bad 4-counterexample result, corrected pass, exact replay and negative path
+
+VELA_BIN=<clone>/target/release/vela \
+  examples/external-heterogeneous-evidence/check.sh
+PASS; exact analysis match, two-scope lifecycle, exact replay and negative path
+
+cargo test --locked -p vela-cli --test external_use_fixtures
+PASS; 2 passed, 0 failed
+
+git diff --check 431120a6..HEAD
+PASS
+```
+
+Both bundles independently passed `git bundle verify` and exposed only their
+documented three branches. The auditor found no Core `src/`, schema, Cargo
+manifest/lock, protocol, authority, repository, or CLI implementation change;
+no absolute user path, campaign script/state, network call, or hidden
+conformance dependency occurs in either runtime checker or the integration
+test. Both installed trust pins were absent after successful cleanup, and the
+clone remained clean.
+
+Independent classification: `PASS WITH DOCUMENTED LIMITATIONS`. In addition
+to the platform and unsigned-candidate limitations above, the shell checkers
+temporarily install an OS-account trust pin. Normal and trapped exits remove a
+pin created by the checker, as both local and independent runs demonstrated;
+an uncatchable process termination could leave that public fixture pin for
+manual removal. It grants no authority and changes no Repository byte.
+
+This handoff-only follow-up changes only this report to bind the immutable R4
+content commit/tree and independent receipt. No tag, push, publication,
 version bump, signing, packaging, or release is authorized.
