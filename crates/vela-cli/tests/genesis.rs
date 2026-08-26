@@ -269,7 +269,7 @@ fn current_replay_refuses_retired_repositories_before_parsing_them() {
     );
 }
 
-fn assert_status_and_replay_reject_sensitive_content(repository_path: &Path) {
+fn assert_status_and_replay_fail_content_preflight(repository_path: &Path, expected_message: &str) {
     for command in [["status", ".", "--json"], ["replay", ".", "--json"]] {
         let output = run(repository_path, None, &command);
         assert_eq!(
@@ -281,10 +281,14 @@ fn assert_status_and_replay_reject_sensitive_content(repository_path: &Path) {
         assert!(
             payload["error"]["message"]
                 .as_str()
-                .is_some_and(|message| message.contains("sensitive-looking files")),
+                .is_some_and(|message| message.contains(expected_message)),
             "unexpected {command:?} error: {payload}"
         );
     }
+}
+
+fn assert_status_and_replay_reject_sensitive_content(repository_path: &Path) {
+    assert_status_and_replay_fail_content_preflight(repository_path, "sensitive-looking files");
 }
 
 #[test]
@@ -341,7 +345,7 @@ fn current_status_and_replay_share_sensitive_content_preflight() {
     let replay = success_json(&run(&repository_path, None, &["replay", ".", "--json"]));
     assert_eq!(replay["ok"], true);
 
-    let hostile_reports: [(&Path, &[u8]); 11] = [
+    let hostile_reports: [(&Path, &[u8]); 15] = [
         (
             &detailed_path,
             br#"{"excluded":[],"files_scanned":1,"findings":[{"path":"secret"}],"patterns":[],"schema":"vela.result-runner.credential-scan.v1","status":"pass"}"#,
@@ -354,6 +358,22 @@ fn current_status_and_replay_share_sensitive_content_preflight() {
         (
             &detailed_path,
             br#"{"excluded":["Bearer abcdefghijklmnopqrstuvwxyz"],"files_scanned":1,"findings":[],"patterns":[],"schema":"vela.result-runner.credential-scan.v1","status":"pass"}"#,
+        ),
+        (
+            &detailed_path,
+            br#"{"excluded":["Bearer abcdefghij\u006blmnopqrstuvwxyz"],"files_scanned":1,"findings":[],"patterns":[],"schema":"vela.result-runner.credential-scan.v1","status":"pass"}"#,
+        ),
+        (
+            &detailed_path,
+            br#"{"excluded":[],"files_scanned":1,"findings":[],"patterns":["{\"api_key\":\"abcdefghijklmnopqrstuvwxyz\"}"],"schema":"vela.result-runner.credential-scan.v1","status":"pass"}"#,
+        ),
+        (
+            &detailed_path,
+            br#"{"excluded":["ghp_abcdefghijklmnopqrstuvwxyz"],"files_scanned":1,"findings":[],"patterns":[],"schema":"vela.result-runner.credential-scan.v1","status":"pass"}"#,
+        ),
+        (
+            &detailed_path,
+            br#"{"excluded":[],"files_scanned":1,"findings":[],"patterns":["-----BEGIN PRIVATE KEY-----"],"schema":"vela.result-runner.credential-scan.v1","status":"pass"}"#,
         ),
         (
             &detailed_path,
@@ -391,6 +411,64 @@ fn current_status_and_replay_share_sensitive_content_preflight() {
         };
         std::fs::write(report_path, valid).expect("restore valid scan report");
     }
+
+    let exact_scan_paths: [(&Path, &[u8]); 2] = [
+        (&detailed_path, valid_detailed),
+        (&portable_path, valid_portable),
+    ];
+    for (index, (scan_path, valid_bytes)) in exact_scan_paths.into_iter().enumerate() {
+        std::fs::remove_file(scan_path).expect("remove valid scan report");
+        std::fs::create_dir(scan_path).expect("create exact-basename directory");
+        assert_status_and_replay_reject_sensitive_content(&repository_path);
+        std::fs::remove_dir(scan_path).expect("remove exact-basename directory");
+
+        let target = scan_path
+            .parent()
+            .expect("scan parent")
+            .join(format!("scan-directory-target-{index}"));
+        std::fs::create_dir(&target).expect("create directory symlink target");
+        std::os::unix::fs::symlink(&target, scan_path)
+            .expect("create exact-basename directory symlink");
+        assert_status_and_replay_reject_sensitive_content(&repository_path);
+        std::fs::remove_file(scan_path).expect("remove exact-basename directory symlink");
+        std::fs::remove_dir(target).expect("remove directory symlink target");
+        std::fs::write(scan_path, valid_bytes).expect("restore valid scan report");
+    }
+
+    let unreadable_directory = repository_path.join("unreadable-directory");
+    std::fs::create_dir(&unreadable_directory).expect("create unreadable directory fixture");
+    std::fs::write(
+        unreadable_directory.join("ordinary-secret.txt"),
+        "not a real secret",
+    )
+    .expect("write unreadable directory fixture");
+    let original_permissions = std::fs::metadata(&unreadable_directory)
+        .expect("read fixture permissions")
+        .permissions();
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        let mut unreadable = original_permissions.clone();
+        unreadable.set_mode(0o000);
+        std::fs::set_permissions(&unreadable_directory, unreadable)
+            .expect("make directory unreadable");
+    }
+    if std::fs::read_dir(&unreadable_directory).is_err() {
+        eprintln!("unreadable-directory regression exercised read_dir failure");
+        assert_status_and_replay_fail_content_preflight(
+            &repository_path,
+            "read repository content directory",
+        );
+    } else {
+        /* Privileged test users can still traverse mode 000. The same fixture
+        must then fail because its sensitive file is visible, rather than
+        pretending the platform exercised an unreadable directory. */
+        eprintln!("privileged platform traversed mode-000 regression fixture");
+        assert_status_and_replay_reject_sensitive_content(&repository_path);
+    }
+    std::fs::set_permissions(&unreadable_directory, original_permissions)
+        .expect("restore directory permissions");
+    std::fs::remove_dir_all(&unreadable_directory).expect("remove unreadable fixture");
 
     std::fs::write(
         repository_path.join("credential-scan.json.bak"),

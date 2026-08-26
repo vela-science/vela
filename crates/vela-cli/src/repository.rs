@@ -104,7 +104,7 @@ pub(crate) fn cmd_replay_repository(repository_path: &Path, json_out: bool) {
 }
 
 fn replay_content_preflight(root: &Path) -> Result<(), String> {
-    let sensitive = sensitive_paths(root);
+    let sensitive = sensitive_paths(root)?;
     if !sensitive.is_empty() {
         let listed = sensitive
             .iter()
@@ -128,12 +128,12 @@ fn replay_content_preflight(root: &Path) -> Result<(), String> {
 #[serde(deny_unknown_fields)]
 struct DetailedNegativeCredentialScan {
     #[serde(rename = "excluded")]
-    _excluded: Vec<String>,
+    excluded: Vec<String>,
     #[serde(rename = "files_scanned")]
     _files_scanned: u64,
     findings: Vec<Value>,
     #[serde(rename = "patterns")]
-    _patterns: Vec<String>,
+    patterns: Vec<String>,
     schema: String,
     status: String,
 }
@@ -147,6 +147,22 @@ struct PortableNegativeCredentialScan {
     status: String,
 }
 
+fn contains_recognizable_credential(bytes: &[u8]) -> bool {
+    static CREDENTIAL_PATTERNS: OnceLock<regex::bytes::RegexSet> = OnceLock::new();
+    CREDENTIAL_PATTERNS
+        .get_or_init(|| {
+            regex::bytes::RegexSet::new([
+                r"sk-[A-Za-z0-9_-]{20,}",
+                r"ghp_[A-Za-z0-9]{20,}",
+                r"(?i)bearer\s+[A-Za-z0-9._~+/-]{20,}",
+                r#"(?i)"(?:access_token|refresh_token|api_key)"\s*:\s*"[^"\n]+""#,
+                r"-----BEGIN (?:(?:OPENSSH|RSA|EC) )?PRIVATE KEY-----",
+            ])
+            .expect("static credential patterns")
+        })
+        .is_match(bytes)
+}
+
 fn is_valid_negative_credential_scan(path: &Path, name: &str) -> bool {
     let Ok(metadata) = fs::symlink_metadata(path) else {
         return false;
@@ -157,17 +173,7 @@ fn is_valid_negative_credential_scan(path: &Path, name: &str) -> bool {
     let Ok(bytes) = fs::read(path) else {
         return false;
     };
-    static CREDENTIAL_PATTERNS: OnceLock<regex::bytes::RegexSet> = OnceLock::new();
-    let credential_patterns = CREDENTIAL_PATTERNS.get_or_init(|| {
-        regex::bytes::RegexSet::new([
-            r"sk-[A-Za-z0-9_-]{20,}",
-            r"(?i)bearer\s+[A-Za-z0-9._~+/-]{20,}",
-            r#"(?i)"(?:access_token|refresh_token|api_key)"\s*:\s*"[^"\n]+""#,
-            r"-----BEGIN (?:OPENSSH|RSA|EC) PRIVATE KEY-----",
-        ])
-        .expect("static credential patterns")
-    });
-    if credential_patterns.is_match(&bytes) {
+    if contains_recognizable_credential(&bytes) {
         return false;
     }
     match name {
@@ -177,16 +183,21 @@ fn is_valid_negative_credential_scan(path: &Path, name: &str) -> bool {
                 return false;
             };
             let DetailedNegativeCredentialScan {
-                _excluded: _,
+                excluded,
                 _files_scanned: _,
                 findings,
-                _patterns: _,
+                patterns,
                 schema,
                 status,
             } = report;
             schema == "vela.result-runner.credential-scan.v1"
                 && status == "pass"
                 && findings.is_empty()
+                && !excluded
+                    .iter()
+                    .chain(patterns.iter())
+                    .chain([&schema, &status])
+                    .any(|value| contains_recognizable_credential(value.as_bytes()))
         }
         "credential-scan.json" => {
             let Ok(report) = serde_json::from_slice::<PortableNegativeCredentialScan>(&bytes)
@@ -198,25 +209,48 @@ fn is_valid_negative_credential_scan(path: &Path, name: &str) -> bool {
                 _scanned_files: _,
                 status,
             } = report;
-            status == "pass" && findings.is_empty()
+            status == "pass"
+                && findings.is_empty()
+                && !contains_recognizable_credential(status.as_bytes())
         }
         _ => false,
     }
 }
 
-fn sensitive_paths(root: &Path) -> Vec<PathBuf> {
+fn sensitive_paths(root: &Path) -> Result<Vec<PathBuf>, String> {
     let mut hits = Vec::new();
     let mut stack = vec![root.to_path_buf()];
     while let Some(directory) = stack.pop() {
-        let Ok(entries) = fs::read_dir(directory) else {
-            continue;
-        };
-        for entry in entries.flatten() {
+        let entries = fs::read_dir(&directory).map_err(|error| {
+            format!(
+                "read repository content directory {}: {error}",
+                directory.display()
+            )
+        })?;
+        for entry in entries {
+            let entry = entry.map_err(|error| {
+                format!(
+                    "read repository content entry in {}: {error}",
+                    directory.display()
+                )
+            })?;
             let path = entry.path();
             let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
                 continue;
             };
-            if path.is_dir() {
+            let file_type = entry.file_type().map_err(|error| {
+                format!(
+                    "read repository content entry type {}: {error}",
+                    path.display()
+                )
+            })?;
+            let exact_scan_basename =
+                matches!(name, "CREDENTIAL-SCAN.json" | "credential-scan.json");
+            if exact_scan_basename && !file_type.is_file() {
+                hits.push(path);
+                continue;
+            }
+            if file_type.is_dir() || (file_type.is_symlink() && path.is_dir()) {
                 if !matches!(name, ".git" | "target" | "node_modules" | "dist" | "build") {
                     stack.push(path);
                 }
@@ -248,7 +282,7 @@ fn sensitive_paths(root: &Path) -> Vec<PathBuf> {
         }
     }
     hits.sort();
-    hits
+    Ok(hits)
 }
 
 fn decision_inbox_status_summary(
@@ -2680,6 +2714,31 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn credential_patterns_cover_reviewer_counterexamples() {
+        for credential in [
+            b"ghp_abcdefghijklmnopqrstuvwxyz".as_slice(),
+            b"-----BEGIN PRIVATE KEY-----".as_slice(),
+            b"Bearer abcdefghijklmnopqrstuvwxyz".as_slice(),
+            br#"{"api_key":"abcdefghijklmnopqrstuvwxyz"}"#.as_slice(),
+        ] {
+            assert!(contains_recognizable_credential(credential));
+        }
+
+        assert!(!contains_recognizable_credential(
+            br#"Bearer abcdefghij\u006blmnopqrstuvwxyz"#
+        ));
+        assert!(contains_recognizable_credential(
+            b"Bearer abcdefghijklmnopqrstuvwxyz"
+        ));
+        assert!(!contains_recognizable_credential(
+            br#"{\"api_key\":\"abcdefghijklmnopqrstuvwxyz\"}"#
+        ));
+        assert!(contains_recognizable_credential(
+            br#"{"api_key":"abcdefghijklmnopqrstuvwxyz"}"#
+        ));
+    }
 
     /* The four spellings a forge actually hands out, plus the case that has no
     answer. `human_remote` leads the status surface, so a remote it mangles
