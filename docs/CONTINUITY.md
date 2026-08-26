@@ -300,6 +300,52 @@ mirror run are retained in
 present step-1 gap after the Math replica was removed from the declared
 topology.
 
+## 8. Exact state replay is not a computational rerun
+
+`vela replay` reconstructs and validates scientific **state**. It does not
+execute the computation, model, proof checker, instrument, assay, or review
+method that produced evidence. The distinction is observable and intentional:
+a complete checkout can replay the same Standing while a source-owned method
+is unavailable, and a retained method can be available for a new attempt
+without that attempt recreating the historical Decision.
+
+The current implementation has no second materialized Standing database or
+Standing file. The accepted and pending Claim indexes live in the canonical
+repository manifest and are covered by its root. Strict replay validates those
+indexes against the admitted Events, authority history, exact object set, and
+Git ancestry. In campaign notation, the implemented invariant is:
+
+```text
+root(strict replay of authoritative history and exact objects)
+  == current canonical repository root, including its Standing indexes
+```
+
+The same authoritative history and exact object bytes therefore produce the
+same root and Standing projection on the original checkout and a complete
+clean clone. Missing or changed canonical Claim, Submission, Verification,
+Proposal, Withdrawal, Artifact, Event, authority, origin, or manifest bytes
+fail closed. A changed trust anchor, authority model, keyset, authorization
+request, Event linkage, or Git ancestry also fails closed.
+
+The operation-typed evidence boundary is deliberately smaller than a generic
+receipt system:
+
+| Retained binding | What can be reconstructed exactly | What remains a separate native rerun |
+| --- | --- | --- |
+| Submission DSSE envelope and derived Claim/Proposal | Authenticated producer bytes, requested change, exact Artifact roots, caveats, provenance, and pending relation | The producer's external session, workflow, or opaque `source_run` |
+| Canonical Artifact under `records/artifacts/sha256/` | The exact retained bytes, path, full SHA-256 identity, and every Claim or Verification reference to them | Interpretation or execution of those bytes by a native tool |
+| Verification Record DSSE envelope | Exact subject roots, Artifact inputs and outputs, verifier identity, scope, outcome, nonclaims, method profile/path/root, and times | Re-executing the declared check in its native environment |
+| Source-owned Review Method file | When present, the read projection verifies its bytes against `method.environment_root`; missing bytes are reported `unavailable`, and substituted bytes fail root resolution | Acquiring tools, models, dependencies, credentials, data, instruments, or physical conditions and attempting the method again |
+| Authority Record and semantic Events | The authenticated principal, authorization request and result, exact deltas, Decision attribution, transition order, and derived Standing | Repeating scientific judgment or creating another Decision |
+
+The Submission's `replayability` value is an authenticated producer disclosure
+about expected native re-execution. Even `exact` does not expand `vela replay`
+into a workflow runner or turn a producer claim into Verification. A
+computational rerun may be deterministic, stochastic, approximate, unavailable,
+or impossible; a physical rerun is necessarily a new attempt. Either may
+produce new evidence, but neither changes Standing without a new Verification
+Record where applicable and an attributed authorized Decision.
+
 ## What this document does not do
 
 It does not make GitHub availability a protected asset, and it does not add

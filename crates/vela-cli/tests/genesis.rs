@@ -1053,6 +1053,84 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let replayed = success_json(&run(&clone, None, &["replay", ".", "--json"]));
     assert_eq!(replayed["repository_root"], checked["repository_root"]);
     assert_eq!(replayed["counts"]["accepted_claims"], 0);
+
+    // Content-addressed evidence is part of exact state replay. Missing or
+    // changed retained bytes must fail before the same root can be reported.
+    let retained_artifact = clone.join("records/artifacts/sha256").join(&artifact_stem);
+    let retained_artifact_bytes =
+        std::fs::read(&retained_artifact).expect("clean-clone retained Artifact");
+    std::fs::write(&retained_artifact, b"{\"bounded\":false}\n")
+        .expect("corrupt retained Artifact");
+    let corrupt_artifact = run(&clone, None, &["replay", ".", "--json"]);
+    assert_eq!(corrupt_artifact.status.code(), Some(1));
+    let corrupt_artifact: Value =
+        serde_json::from_slice(&corrupt_artifact.stdout).expect("corrupt Artifact error JSON");
+    assert!(
+        corrupt_artifact["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("does not match its declared root"))
+    );
+    std::fs::remove_file(&retained_artifact).expect("remove retained Artifact");
+    let missing_artifact = run(&clone, None, &["replay", ".", "--json"]);
+    assert_eq!(missing_artifact.status.code(), Some(1));
+    let missing_artifact: Value =
+        serde_json::from_slice(&missing_artifact.stdout).expect("missing Artifact error JSON");
+    assert!(
+        missing_artifact["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("read object records/artifacts/sha256/"))
+    );
+    std::fs::write(&retained_artifact, &retained_artifact_bytes)
+        .expect("restore retained Artifact");
+    let restored = success_json(&run(&clone, None, &["replay", ".", "--json"]));
+    assert_eq!(restored["repository_root"], replayed["repository_root"]);
+
+    // A Review Method is a source-owned rerun reference, not input to the
+    // scientific-state reducer. State replay therefore keeps matching the
+    // exact recorded identity when the local method is unavailable, while the
+    // read projection exposes that unresolved rerun boundary. Substituted
+    // bytes fail their separately recorded environment root.
+    let retained_method = clone.join(method_path);
+    let retained_method_bytes = std::fs::read(&retained_method).expect("clean-clone Review Method");
+    std::fs::remove_file(&retained_method).expect("remove Review Method");
+    let state_without_method = success_json(&run(&clone, None, &["replay", ".", "--json"]));
+    assert_eq!(
+        state_without_method["repository_root"],
+        replayed["repository_root"]
+    );
+    let unresolved = success_json(&run(&clone, None, &["projection", ".", "--json"]));
+    assert!(
+        unresolved["verifications"]
+            .as_array()
+            .expect("projected Verifications")
+            .iter()
+            .all(|verification| verification["review_method"]["state"] == "unavailable")
+    );
+    std::fs::write(&retained_method, b"{\"substituted\":true}\n")
+        .expect("substitute Review Method");
+    let drifted = run(&clone, None, &["projection", ".", "--json"]);
+    assert_eq!(drifted.status.code(), Some(1));
+    let drifted: Value =
+        serde_json::from_slice(&drifted.stdout).expect("Review Method drift error JSON");
+    assert!(
+        drifted["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("Review Method root drift"))
+    );
+    let state_with_drift = success_json(&run(&clone, None, &["replay", ".", "--json"]));
+    assert_eq!(
+        state_with_drift["repository_root"],
+        replayed["repository_root"]
+    );
+    std::fs::write(&retained_method, &retained_method_bytes).expect("restore Review Method");
+    let resolved = success_json(&run(&clone, None, &["projection", ".", "--json"]));
+    assert!(
+        resolved["verifications"]
+            .as_array()
+            .expect("projected Verifications")
+            .iter()
+            .all(|verification| verification["review_method"]["state"] == "opaque")
+    );
     assert!(
         !clone.join(".vela/work").exists(),
         "obsolete private workflow scratch must not enter a clean clone"
