@@ -10,6 +10,8 @@
 | Downstream consumption is overclaimed as a canonical dependency edge | Disclose the current write-path limit and retain an exact source-owned receipt | Product/release claims a producer-authored `depends` relation or correction cascade |
 | Exact verifier streams are empty | Preserve zero-byte bytes in Git and bind their digest through a nonempty typed receipt | Any adapter mutates or drops an empty stream silently |
 | Historical Alzheimer’s summaries are mistaken for current scientific source material | Treat archived memo projections as planning leads only; select and hash a current source-owned repository plus primary evidence before T5 execution | Only summaries, deleted Core-era artifacts, or unverified reconstructions are available |
+| A source-stable T5 packet overstates statistical model role or subgroup specificity | Independent field-level review; distinguish separate adjustment from simultaneous adjustment and stratified significance from formal interaction | Any proposed Claim says simultaneous A+T adjustment or APOE effect modification without a decision-bearing source model |
+| A cached full-text transform is mislabeled as the version of record | Bind DOI article identity separately from the exact cached PMC/BioC representation and its manuscript status | Representation type remains inaccurate or ambiguous after correction |
 | T6 changes task or metrics after outcomes | Frozen registry and immutable interpretation table | Any retrospective denominator or gate change |
 | Neutral export is weaker than Vela information | Byte/content audit before cells | Information mismatch |
 | Vela overcompresses or hides uncertainty | Preserve rejected/superseded evidence and compare R/V/E | R beats V or systematic state-assumption errors |

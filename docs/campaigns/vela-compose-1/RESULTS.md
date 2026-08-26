@@ -142,3 +142,32 @@ capability, external validation, or cumulative-handoff value. The current CLI
 still cannot author the downstream canonical `depends` edge, so the dependency
 is exact source-owned evidence rather than a Claim relation. Exact zero-byte
 verifier streams also require hash-receipt indirection.
+
+## VC1-R005 — T5 v1 independent extraction rejection
+
+Date: 2026-08-26.
+
+The independent T5 reviewer retrieved and matched all twelve frozen PubMed XML
+and PMC BioC representations byte-for-byte, then found material semantic and
+provenance-label mismatches in the planning packet. Montagne 2020 used separate
+Aβ1-42-adjusted and pTau-adjusted post hoc longitudinal models; it did not fit
+one simultaneous A+T-adjusted model. Significant within-APOE4 estimates and
+nonsignificant within-APOE3 estimates do not by themselves prove formal effect
+modification. The S1/S2 cached PMC full-text representations are author
+manuscripts, and the Preis source contains an internally inconsistent reported
+F/df/p combination that cannot be decision-bearing.
+
+```text
+Planning commit/tree: b0eb6fc26c8deba2260a1326f5caf6a99153a2b2 / 9368d8ff58a771f9b410a97d9683ecf91e70dad6
+Review commit/tree: 5eb13c9bec3ecef051682b664ec6e4fa35f63491 / 587a8f3470a39f24a75cb7192d265193dfeaa064
+Review artifact hashes: PASS
+Fresh-clone and Git-integrity audit: PASS
+Review verdict: REJECT_EXTRACTION
+Scientific lifecycle: BLOCKED
+Scientific or medical conclusion: NONE
+Campaign anomaly: NONE
+```
+
+This is a successful rejection by the campaign’s evidence gate, not a negative
+result about blood-brain-barrier biology. The source corpus remains usable only
+after a strict-descendant corrected extraction passes independent re-review.

@@ -164,3 +164,23 @@ Affected components: T5.
 Supersedes: None.
 Reason: The selected question is real and bounded, but the exact extraction and strongest proportionate Claim require independent primary-source verification.
 ```
+
+## VC1-D011 — Reject T5 v1 extraction and authorize correction only
+
+```text
+Decision ID: VC1-D011
+Date: 2026-08-26
+Question: Does the independently reviewed T5 v1 planning packet support scientific lifecycle execution?
+Proposal: Accept the review verdict, preserve v1 unchanged, and permit one strict-descendant correction before any lifecycle execution.
+Evidence: Planning commit b0eb6fc26c8deba2260a1326f5caf6a99153a2b2; independent-review commit 5eb13c9bec3ecef051682b664ec6e4fa35f63491; supervisor clean-clone, hash, JSON, and Git-integrity audit.
+Alternatives: Execute the overstated Claim; treat the review as a negative biological result; discard the source corpus; weaken the independent-review gate.
+Decision: REJECT_EXTRACTION. Keep the T5 scientific lifecycle BLOCKED. Preserve v1 and authorize only a v1.1 correction that uses separate Aβ1-42-adjusted and pTau-adjusted model language, avoids formal APOE-effect-modification claims, corrects S1/S2 representation labels, preserves the Preis inconsistency, and binds source-level missingness and attrition. Require independent re-review before execution.
+Authority: S0.
+Affected components: T5; T7 release evidence.
+Supersedes: No prior artifact; narrows the execution authority granted by VC1-D010 after its required review.
+Reason: Source identity and retrieval integrity passed, but model role, group comparison, and representation-version fields were materially misstated.
+```
+
+The maximum permitted T5 Claim boundary during correction is the reviewer’s
+bounded literature statement. It is not a causal, diagnostic, prognostic,
+therapeutic, or medical conclusion and is not yet authorized Standing.

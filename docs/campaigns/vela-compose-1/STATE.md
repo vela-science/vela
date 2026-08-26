@@ -175,3 +175,27 @@ change. T5 planning selected one bounded longitudinal CSF sPDGFRbeta/APOE4/A-T
 question but created no scientific lifecycle or Standing. Only independent
 field-level primary-source review is active. T5 execution, T6, and T7 remain
 blocked on the next recorded supervisor gates.
+
+## State 0009 — T5 v1 extraction rejected; bounded correction active
+
+```text
+Date: 2026-08-26
+Phase: PHASE_4_ALZHEIMER_VERTICAL_QUALIFICATION
+Supervisor branch: campaign/compose1-supervisor
+T5 v1 planning commit/tree: b0eb6fc26c8deba2260a1326f5caf6a99153a2b2 / 9368d8ff58a771f9b410a97d9683ecf91e70dad6
+T5 independent-review commit/tree: 5eb13c9bec3ecef051682b664ec6e4fa35f63491 / 587a8f3470a39f24a75cb7192d265193dfeaa064
+T5 review verdict: REJECT_EXTRACTION
+T5 scientific lifecycle: BLOCKED
+T6 planning task: 01a03d6f-46ae-70e1-8873-902823313807
+Foundational top-down search: CLOSED
+Campaign anomaly: NONE
+```
+
+The supervisor reproduced the T5 review from a fresh clone, verified its
+artifact hashes, and accepted the rejection. The source representations are
+byte-stable; the failure is semantic. Montagne 2020 reports separate
+Aβ1-42-adjusted and pTau-adjusted post hoc models, not a simultaneous A+T model,
+and stratified significance does not establish formal APOE effect modification.
+The v1 packet remains immutable. A strict-descendant v1.1 correction is active;
+it may narrow the extraction and provenance labels but may not execute a Vela
+scientific lifecycle. T6 remains at pre-execution task-design qualification.
