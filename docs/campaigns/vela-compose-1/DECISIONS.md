@@ -80,3 +80,18 @@ Supersedes: None.
 Reason: Bound concurrency and prevent vertical/product work from driving semantics.
 ```
 
+## VC1-D006 — Integrate T2 without a semantic amendment
+
+```text
+Decision ID: VC1-D006
+Date: 2026-08-26
+Question: Does T2 require a new receipt object, replay engine, or protocol semantic change?
+Proposal: Integrate only the evidence-boundary tests, continuity documentation, and lane report.
+Evidence: Worker commits a7d78de1 and 415a3355; supervisor diff audit; reproduced genesis boundary test; reproduced documentation contract 11/11.
+Alternatives: Add a generic receipt ontology; add a native runner; reject the lane after the root-index defect.
+Decision: Integrate T2 after the bounded documentation-index fix. Preserve one state kernel and keep native reruns source-owned.
+Authority: S0.
+Affected components: T2; dependency evidence for T3–T7.
+Supersedes: None.
+Reason: The existing replay semantics qualify; the observed gap was evidence and documentation coverage, not a missing primitive.
+```

@@ -57,3 +57,20 @@ Active workers:
 T3 through T7 remain blocked by their frozen dependency gates. No scientific
 experiment has started. The supervisor will inspect the exact branch diffs and
 test receipts before any integration decision or downstream-lane launch.
+
+## State 0003 — T2 integrated; T1 remains active
+
+```text
+Date: 2026-08-26
+Phase: PHASE_1_KERNEL_AND_REPLAY
+Supervisor branch: campaign/compose1-supervisor
+Canonical integrated commit: b68f0b01
+Foundational top-down search: CLOSED
+Campaign anomaly: NONE
+```
+
+T2 is integrated with supervisor disposition `MERGE AFTER BOUNDED FIX`.
+Deterministic governed-state reconstruction qualifies without adding a second
+state engine, generic receipt ontology, or native runner. T1 remains active on
+kernel conformance. T3 through T7 remain blocked until the complete Phase-1
+gate is reviewed. Scientific experiments executed: none.
