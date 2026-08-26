@@ -178,3 +178,28 @@ with root
 G3 and G4 are accepted with their explicit unpublished-candidate, platform,
 and pending-blind-test limitations. R5 product legibility and R6 packaging /
 release integrity are now authorized. R7 remains blocked until S0 accepts both.
+
+## VRC1-S010 — R5/R6 holds accepted; bounded repairs opened
+
+Recorded: 2026-08-26, America/Toronto.
+
+R5 returned `HOLD — PRODUCT SEMANTICS`. Core and Workbench preserve the
+qualified distinctions, but the current Problems/Observatory projection calls
+a legacy Vela 0.977.3 result `strict pass` even though that generator predates
+the mandatory independent trust selection. Its Repository overview also labels
+an actor-neutral count containing agent Decisions as `Human authority`.
+
+R6 returned `HOLD — RELEASE INTEGRITY`. Artifact-to-source traceability,
+reproducibility machinery, installer verification, dependency policy, and the
+existing public ancestor's signatures/provenance pass. The distributable
+archives themselves contain only the executable: they omit Vela project
+license texts and deterministic third-party notice material, while the SPDX
+documents leave all package license/copyright fields `NOASSERTION`. R6
+recommends a later `PATCH BUMP` to 0.977.5; no version change is authorized now.
+
+S0 accepts both holds without broadening scope. One isolated Vela Web repair
+may make authority labels actor-neutral and prevent legacy/unpinned projections
+from presenting current Protocol 1 strict integrity. One isolated Vela release
+repair may stage deterministic project licenses and third-party notices and
+make smoke/reproducibility tests refuse omissions. R7 remains blocked pending
+fresh independent R5/R6 requalification.

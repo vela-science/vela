@@ -8,8 +8,8 @@
 | Replay | `PASS` | independent R1 trust matrix; R2 public Math and neutral clean-clone replay; missing/corrupt Artifact and pin failures | release packaging must preserve the qualified source identity |
 | Docs / first user | `PASS WITH DOCUMENTED LIMITATIONS` | `R3_FIRST_USER_QUALIFICATION.md`; 14 documentation contracts; focused workflows; portable conformance | blind external user pending; public installer still targets ancestor v0.977.4 |
 | Cross-domain examples | `PASS WITH DOCUMENTED LIMITATIONS` | `R4_EXTERNAL_FIXTURES.md`; formal failure/correction lifecycle; heterogeneous two-check lifecycle; independent clean-clone replay | candidate not yet a signed artifact; trust-pin cleanup after uncatchable termination is manual |
-| Product legibility | `ACTIVE — R5` | semantic hierarchy and existing product surfaces under audit | B9 |
-| Packaging | `ACTIVE — R6` | exact candidate/release lineage and artifact provenance under audit | B10 |
+| Product legibility | `HOLD — PRODUCT SEMANTICS` | `R5_PRODUCT_LEGIBILITY.md`; Core/Workbench pass; current Problems projection inspected at exact deployment | legacy 0.977.3 projection is labelled current strict pass; agent Decisions counted as Human authority |
+| Packaging | `HOLD — RELEASE INTEGRITY` | `R6_RELEASE_INTEGRITY.md`; traceability/reproducibility/signatures pass | archives omit project licenses and deterministic third-party notices; SPDX licensing fields are `NOASSERTION` |
 | Blind user | `BLOCKED` | requires R1-R4 pass | objective task or semantic failure |
 
 ## Initial reproduction receipts

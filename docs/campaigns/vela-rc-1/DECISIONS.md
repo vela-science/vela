@@ -94,3 +94,20 @@ Authorize R5 to audit semantic product legibility and implement only
 semantically misleading or release-blocking corrections. Authorize R6 to audit
 packaging and release integrity without tagging, publishing, pushing, signing,
 or bumping a version. R7 remains blocked.
+
+## VRC1-D011 — accept R5/R6 HOLD and authorize two bounded repairs
+
+Decision: accept the exact R5 and R6 blockers. Authorize a Vela Web source-only
+repair that (a) replaces the false human-only Decision label with an
+actor-neutral label and (b) prevents a projection generated without the
+qualified independent trust selection from being displayed as current strict
+Protocol 1 integrity. It may strengthen projection admission and tests but may
+not deploy, publish, add a second integrity mode, or weaken Core trust.
+
+Authorize a Vela packaging-only repair that deterministically includes exact
+project license texts and generated third-party notice material in both
+archives, binds the generator/tool/version to locked inputs, and makes archive
+smoke/reproducibility tests fail if required notice files disappear. It may
+not bump a version, change Protocol/schema/wire/persisted data, create release
+assets, sign, tag, publish, or push. Both repairs require fresh independent
+requalification before R7 can open.
