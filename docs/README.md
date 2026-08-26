@@ -82,6 +82,7 @@ Protocol 1 release candidate with Submission v3.
 - [Campaign risks](campaigns/vela-compose-1/RISKS.md)
 - [T1 Kernel contract](campaigns/vela-compose-1/threads/T1_KERNEL.md)
 - [T2 Replay contract](campaigns/vela-compose-1/threads/T2_REPLAY.md)
+- [T2 replay and receipt qualification](campaigns/vela-compose-1/T2_REPLAY_REPORT.md)
 - [T3 Branching contract](campaigns/vela-compose-1/threads/T3_BRANCHING.md)
 - [T4 Lean contract](campaigns/vela-compose-1/threads/T4_LEAN.md)
 - [T5 Alzheimer contract](campaigns/vela-compose-1/threads/T5_ALZHEIMER.md)
