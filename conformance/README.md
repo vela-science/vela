@@ -1,7 +1,7 @@
 # Vela conformance
 
 This directory contains the small, implementation-independent corpus for the
-Vela Protocol 1 release-candidate boundary. `protocol-1.json` is the
+released Vela Protocol 1 boundary. `protocol-1.json` is the
 machine-readable map from the specification to exact schemas, fixtures,
 vectors, independent implementations, and non-normative examples;
 `verify_protocol_1.py` checks its paths and SHA-256 bindings.

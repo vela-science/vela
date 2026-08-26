@@ -1,6 +1,6 @@
 # Vela reference flows
 
-These examples exercise the current Protocol 1 release-candidate boundary. They
+These examples exercise the released Protocol 1 boundary. They
 are small on purpose and add no protocol object, SDK, hosted service, or
 authority path.
 

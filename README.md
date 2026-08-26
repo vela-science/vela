@@ -58,8 +58,8 @@ or merge into an acceptance claim.
 Install the current signed release and inspect the public Math Repository:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.4/install.sh | \
-  VELA_VERSION=v0.977.4 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.5/install.sh | \
+  VELA_VERSION=v0.977.5 bash
 
 git clone https://github.com/vela-science/math.git math
 git -C math checkout 5de716c896065c03c0a470d015ba2a328a527f73

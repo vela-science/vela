@@ -1,7 +1,7 @@
 # Vela documentation
 
-Vela `v0.977.4` is the current signed pre-1.0 release. It reads and writes the
-Protocol 1 release candidate with Submission v3.
+Vela `v0.977.5` is the current signed pre-1.0 release. It reads and writes
+Protocol 1 with Submission v3.
 
 ## Start here
 

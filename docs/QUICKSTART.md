@@ -22,7 +22,7 @@ commit, or Web view into acceptance.
 
 ## 1. Install the signed CLI
 
-`v0.977.4` is the current signed pre-1.0 release for Linux x86-64 and macOS
+`v0.977.5` is the current signed pre-1.0 release for Linux x86-64 and macOS
 Apple silicon. The installer verifies the platform release manifest before it
 installs the binary.
 
@@ -40,8 +40,8 @@ The rest of this guide also uses a complete Git client. Repository writes use
 the standard OpenSSH agent as described in section 4.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.4/install.sh | \
-  VELA_VERSION=v0.977.4 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.5/install.sh | \
+  VELA_VERSION=v0.977.5 bash
 
 vela --version
 ```
@@ -49,7 +49,7 @@ vela --version
 Expected version:
 
 ```text
-vela 0.977.4
+vela 0.977.5
 ```
 
 ## 2. Replay a public Repository

@@ -2,16 +2,27 @@
 
 Vela has two related but distinct release surfaces:
 
-- **Protocol 1** is the current release-candidate specification, schemas,
+- **Protocol 1** is the current pre-1.0 specification, schemas,
   conformance vectors, and independent readers.
-- **Vela 0.977.4** is the current signed pre-1.0 implementation release. It
+- **Vela 0.977.5** is the current signed pre-1.0 implementation release. It
   retains the final planned pre-1.0 wire cut from 0.977.0: Submission v3 is the
   only current Submission shape, and the v2/execution-binding runtime is absent.
   It also retains the stable, deterministic, authority-neutral Repository
   projection and the static musl Linux bundle.
 
-The latest signed published release is `v0.977.4`. User-facing installer
+The latest signed published release is `v0.977.5`. User-facing installer
 examples pin that exact tag rather than following a moving branch.
+
+`v0.977.5` is the qualified Protocol 1 external-release patch. It preserves
+the Protocol object selection, schemas, canonical serialization, authority,
+Decision, Event, Standing, and replay semantics qualified in 0.977.4. Its
+release-facing conformance and fixtures make the governed lifecycle, clean
+installation, replay, rejection preservation, correction, supersession, and
+fail-closed Artifact integrity boundary independently exercisable. Replay
+reconstructs governed scientific state; it does not imply bit-for-bit rerun of
+external stochastic, model, instrument, or physical processes. This release
+makes no cumulative-intelligence, scientific-truth, workflow-productivity,
+autonomous-discovery, Level-2 cumulative-science, or external-adoption claim.
 
 `v0.977.4` is the compatible container and pre-lifecycle diagnostics patch. It
 preserves the Protocol 1 object selection, exact roots, replay, and authority

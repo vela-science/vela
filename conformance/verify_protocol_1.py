@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hold the Protocol 1 release-candidate surface to exact published bytes."""
+"""Hold the released Protocol 1 surface to exact published bytes."""
 
 from __future__ import annotations
 
@@ -137,8 +137,8 @@ def build() -> dict[str, object]:
     manifest: dict[str, object] = {
         "schema": "vela.protocol-conformance-manifest.v1",
         "protocol": "Vela Protocol 1",
-        "status": "release_candidate",
-        "software_release": None,
+        "status": "released",
+        "software_release": "0.977.5",
         "authority_effect": "none",
         "entries": entries,
         "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",

@@ -1,10 +1,10 @@
 # Vela Protocol 1
 
-Status: release candidate. This document is the normative Protocol 1
-specification; it does not publish a `v1.0.0` software release or claim external
-adoption.
+Status: current pre-1.0 protocol selection. This document is the normative
+Protocol 1 specification; it does not publish a `v1.0.0` software release or
+claim external adoption.
 
-Submission v3 is the final planned pre-1.0 wire cut. The signed Vela 0.977.4
+Submission v3 is the final planned pre-1.0 wire cut. The signed Vela 0.977.5
 release has no v2 reader, writer, alias, or execution-binding runtime. Published
 signed releases and tags retain development-era reproducibility history; the
 current runtime does not read those formats.

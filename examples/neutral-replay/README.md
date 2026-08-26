@@ -17,7 +17,7 @@ adoption, or a Protocol 1.0 release.
 
 The replay path needs only:
 
-- Vela `0.977.4`, installed from the signed release or built from an exact
+- Vela `0.977.5`, installed from the signed release or built from an exact
   source checkout;
 - a complete Git client; and
 - a supported platform: Linux x86-64 or macOS Apple silicon.
@@ -31,8 +31,8 @@ it afterward only when the script created it.
 Install the pinned signed release on a supported host:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.4/install.sh | \
-  VELA_VERSION=v0.977.4 VELA_REQUIRE_SIGNED_MANIFEST=1 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.5/install.sh | \
+  VELA_VERSION=v0.977.5 VELA_REQUIRE_SIGNED_MANIFEST=1 bash
 ```
 
 ## Replay the valid history
