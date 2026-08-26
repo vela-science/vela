@@ -1,0 +1,8 @@
+{
+  "checked_assignments": 4,
+  "counterexamples": [],
+  "outcome": "pass",
+  "statement_description": "For all Boolean p and q, NOT (p AND q) is equivalent to (NOT p) OR (NOT q).",
+  "statement_sha256": "fa193286398c4ac56e00dc242d8e32d90a37e386398db796aa0bb9c18f805830",
+  "verifier_sha256": "ec061da8d55dd7c69787af5225619471d18bf502b3c90dc777f14b4dcbf8f94c"
+}

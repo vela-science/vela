@@ -1,0 +1,79 @@
+{
+  "authority": {
+    "repository_id": "ea9a08ae-bfef-4893-aa36-8c23a1cd3548",
+    "sequence_one_record_root": "sha256:d0b5be6a10ba9feac7040ddf9e3a248f882197ac5db3a825ebd148bf5243a314"
+  },
+  "branches": {
+    "failed_proposal": {
+      "accepted_claim_count": 0,
+      "branch": "failed-proposal",
+      "git_commit": "a7cd1d91c24631d5ce87694d7bc63b0022d3cc70",
+      "git_tree": "00bb00745ad3b87fe017121aed616868df359f18",
+      "pending_claim_count": 1,
+      "protocol_gate": "blocked",
+      "repository_root": "sha256:1f251f51035e656c5cb3afe39a6d6433b9ad9be70bb7f4125b81971c6b4c9598",
+      "verification_count": 1
+    },
+    "missing_artifact": {
+      "branch": "missing-artifact",
+      "error_message": "read object records/artifacts/sha256/e414e339f7e39dbd83f0a6522c968aec53b7fef6f68df60a1df73ec20e89acfc: No such file or directory (os error 2)",
+      "git_commit": "4e3b432d90eb83325ee820fdfd90e02cfa2539b1",
+      "git_tree": "1ff8a301ec1592fa251752a59d4a7aae6164e077",
+      "replay_exit": 1
+    },
+    "valid": {
+      "accepted_claim_count": 1,
+      "accepted_set_fixture_commitment": "sha256:2576f7a444fe2b5bbfb0d6a3531948749bc857ede30067600752059be814501f",
+      "artifact_count": 5,
+      "branch": "valid",
+      "git_commit": "840702a681adfcc47e0354b07e1cea154157da33",
+      "git_tree": "ca7f3a9c868d60f477c4b202c62e7ae871f3f60c",
+      "pending_claim_count": 0,
+      "proposal_count": 2,
+      "repository_root": "sha256:792e6fe849303a4da0a7f6a14018b3da5884f1f41311d441215dadf93af31011",
+      "submission_count": 2,
+      "verification_count": 2
+    }
+  },
+  "bundle": "formal-verifier.git.bundle",
+  "bundle_root": "sha256:c5e25d570c03b3c0638b29745088184b37d08f1a6fcc18b7efd335259aa83645",
+  "format": "informative external-use fixture metadata",
+  "native_files": {
+    "bad_report": "sha256:906d971aabc0f5d29868b4f42167d8d1887384607a0b829248f2ed4d2bf76f59",
+    "bad_statement": "sha256:9ce0d5c68a3e4bdbcefef9994ae583c7148e1b0d1937b02f33fb7ab6c68b916a",
+    "corrected_report": "sha256:e414e339f7e39dbd83f0a6522c968aec53b7fef6f68df60a1df73ec20e89acfc",
+    "corrected_statement": "sha256:fa193286398c4ac56e00dc242d8e32d90a37e386398db796aa0bb9c18f805830",
+    "method": "sha256:0720e84b4178357e280f3be760fdf065275f3adbb4cda069aeceef00e59a088d",
+    "verifier": "sha256:ec061da8d55dd7c69787af5225619471d18bf502b3c90dc777f14b4dcbf8f94c"
+  },
+  "objects": {
+    "bad": {
+      "claim_id": "vcl_991c14480535ef573491e7b8b43d626af5147bc0bcb305633e9e64f0f7005d8b",
+      "decision_record_root": "sha256:a46e398c9c4c4df0a523ef5187053241eb33cb16ab40a20fba05adea5053f26c",
+      "proposal_id": "vpr_5a3dadd961d0b9cc",
+      "proposal_status": "rejected",
+      "standing": "unassessed",
+      "submission_id": "vsb_b0af2e1419344012",
+      "verification_outcome": "fail",
+      "verification_record_id": "vvr_fa502ad11e56aabb",
+      "verification_record_root": "sha256:fa502ad11e56aabb351ea460cfdf30c6d449eae6a59dfe55f95e4cd8001e469d"
+    },
+    "corrected": {
+      "claim_id": "vcl_36fa33468804142cabd939251c1a328965018565411c2ef51c3ba1211cbb7e09",
+      "decision_record_root": "sha256:cad741abec3e9ee64e6c69f493c019465ca06af6d66491b1b009ed1e4d16b6b4",
+      "proposal_id": "vpr_50b918b048e8d45c",
+      "proposal_status": "accepted",
+      "standing": "accepted",
+      "submission_id": "vsb_2a70d66aea0430a2",
+      "verification_outcome": "pass",
+      "verification_record_id": "vvr_ff9f97310aa8dd09",
+      "verification_record_root": "sha256:ff9f97310aa8dd092ee7a0ff990f1a2a4aa282a7eca100649ed03810a8f0b8e2"
+    }
+  },
+  "source": {
+    "generation_binary_sha256": "sha256:b23ffd6dd9f6d01235369386e4582b55350cd18af70a4129bd414b8b1e16803d",
+    "supervisor_commit": "431120a6995d1b24ae2d50d6889878ce43efcd97",
+    "supervisor_tree": "8fa55a2094569561d582629708f5588e4b5cc3ef",
+    "vela_version": "0.977.4"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "authority_effect": "none",
+  "checks": [
+    "Both branches name the same exact branch-point Git commit, tree, Repository root, origin, authority roots, and accepted-Standing commitment.",
+    "The task, evaluation, and metering-plan blobs are unchanged from the branch point in both terminal histories.",
+    "The accept branch has one accepted Claim and an accepted Proposal; the reject branch has no accepted Claim and a rejected Proposal.",
+    "Each branch replays from a clean clone to its own terminal Repository root.",
+    "A Decision in either branch does not change the other branch before its own Decision.",
+    "Every required resource category is measured, not used, unavailable, or explicitly incomparable under the frozen metering plan.",
+    "Comparison bytes and their SHA-256 root are identical across checkout paths."
+  ],
+  "does_not_establish": [
+    "Scientific truth for the synthetic Claim.",
+    "Cumulative-science value, external validation, or a campaign anomaly.",
+    "That branch-local activity or metering changes Standing."
+  ],
+  "implementation": {
+    "path": "crates/vela-cli/tests/counterfactual_branching.rs",
+    "sha256": "sha256:56ae6a514a72e5b43d07fbf4d9f924c5733c7804c481a9292524d0b50777c605"
+  },
+  "schema": "vela-compose-1.t3-evaluation.v1"
+}

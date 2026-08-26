@@ -1,18 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ARCHIVE="${1:?usage: .github/release/smoke-bundle.sh <archive> <version>}"
-EXPECTED_VERSION="${2:?usage: .github/release/smoke-bundle.sh <archive> <version>}"
+NOTICES_ONLY=false
+if [[ "${1:-}" == --notices-only ]]; then
+  NOTICES_ONLY=true
+  shift
+fi
+ARCHIVE="${1:?usage: .github/release/smoke-bundle.sh [--notices-only] <archive> <version>}"
+EXPECTED_VERSION="${2:?usage: .github/release/smoke-bundle.sh [--notices-only] <archive> <version>}"
+REPOSITORY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CARGO_ABOUT_VERSION="$(tr -d '\r\n' < "$REPOSITORY_ROOT/.github/release/cargo-about-version")"
+case "$CARGO_ABOUT_VERSION" in
+  ''|*[!0-9.]*) echo "invalid cargo-about version pin: $CARGO_ABOUT_VERSION" >&2; exit 1 ;;
+esac
 
 test -f "$ARCHIVE"
-test -f "$ARCHIVE.sha256"
-test -f "$ARCHIVE.spdx.json"
-test -f "$ARCHIVE.spdx.json.sha256"
-(
-  cd "$(dirname "$ARCHIVE")"
-  shasum -a 256 -c "$(basename "$ARCHIVE").sha256"
-  shasum -a 256 -c "$(basename "$ARCHIVE").spdx.json.sha256"
-)
+if [[ "$NOTICES_ONLY" == false ]]; then
+  test -f "$ARCHIVE.sha256"
+  test -f "$ARCHIVE.spdx.json"
+  test -f "$ARCHIVE.spdx.json.sha256"
+  (
+    cd "$(dirname "$ARCHIVE")"
+    shasum -a 256 -c "$(basename "$ARCHIVE").sha256"
+    shasum -a 256 -c "$(basename "$ARCHIVE").spdx.json.sha256"
+  )
+fi
 
 ROOT="$(mktemp -d)"
 agent_started=false
@@ -34,14 +46,33 @@ PREFIX="$ROOT/prefix"
 mkdir -p "$UNPACK" "$PREFIX/bin" "$ROOT/home"
 
 case "$ARCHIVE" in
-  *.zip) ditto -x -k "$ARCHIVE" "$UNPACK" ;;
-  *.tar.gz) tar -C "$UNPACK" -xzf "$ARCHIVE" ;;
+  *vela-macos-aarch64.zip)
+    TARGET_TRIPLE="aarch64-apple-darwin"
+    if command -v ditto >/dev/null 2>&1; then
+      ditto -x -k "$ARCHIVE" "$UNPACK"
+    else
+      unzip -q "$ARCHIVE" -d "$UNPACK"
+    fi
+    ;;
+  *vela-linux-x86_64.tar.gz)
+    TARGET_TRIPLE="x86_64-unknown-linux-musl"
+    tar -C "$UNPACK" -xzf "$ARCHIVE"
+    ;;
   *) echo "unsupported release archive: $ARCHIVE" >&2; exit 2 ;;
 esac
 
 test -f "$UNPACK/vela"
 test -x "$UNPACK/vela"
 test -z "$(find "$UNPACK" -type l -print -quit)"
+python_bin=python3
+command -v "$python_bin" >/dev/null 2>&1 || python_bin=python
+"$python_bin" "$REPOSITORY_ROOT/.github/release/check-notice-bundle.py" \
+  --bundle "$UNPACK" --source-root "$REPOSITORY_ROOT" \
+  --cargo-about-version "$CARGO_ABOUT_VERSION" --target "$TARGET_TRIPLE"
+if [[ "$NOTICES_ONLY" == true ]]; then
+  echo "release notice smoke passed: $(basename "$ARCHIVE") ($EXPECTED_VERSION)"
+  exit 0
+fi
 test "$("$UNPACK/vela" --version)" = "vela $EXPECTED_VERSION"
 
 # The 0.975 release exists to make the stable package-plane integration waist
@@ -58,8 +89,6 @@ done
 for executable in ssh-agent ssh-add ssh-keygen; do
   command -v "$executable" >/dev/null 2>&1
 done
-python_bin=python3
-command -v "$python_bin" >/dev/null 2>&1 || python_bin=python
 ssh-keygen -q -t ed25519 -N '' -C 'Vela release smoke' -f "$ROOT/authority"
 eval "$(ssh-agent -s)" >/dev/null
 agent_started=true

@@ -1,0 +1,21 @@
+{
+  "authority_effect": "frozen history only; replay has none",
+  "commands": [
+    "vela init <repository> --name \"Finite Boolean verification lifecycle\" --scope \"Do the retained two-variable Boolean equivalences hold under exhaustive evaluation?\" --json",
+    "vela submit --repo <repository> --claim \"For all Boolean p and q, p AND q is equivalent to (NOT p) OR (NOT q).\" --type theoretical --condition \"The Boolean operators and variables are exactly the retained closed statement.\" --replayability exact --artifact evidence/bad-statement.json:formal-statement --artifact evidence/verifier.py:deterministic-verifier --caveat \"This Proposal is expected to fail exhaustive Verification and establishes no Standing.\" --requires-verification finite_truth_table --source-run finite-boolean-bad-v1 --as agent:boolean-producer --json",
+    "python3 evidence/verifier.py evidence/bad-statement.json --output evidence/bad-report.json --expect-outcome fail",
+    "vela verification check verification/method.json --profile finite-boolean-exhaustive-v1 --property finite_truth_table --as verifier:truth-table --does-not-establish \"Truth outside the retained Boolean statement, novelty, significance, scientific acceptance, or Standing.\" --json",
+    "vela verification record . vpr_5a3dadd961d0b9cc --profile finite-boolean-exhaustive-v1 --method verification/method.json --property finite_truth_table --outcome fail --does-not-establish \"Truth outside the retained Boolean statement, novelty, significance, scientific acceptance, or Standing.\" --independent-of agent:boolean-producer --output evidence/bad-report.json --as verifier:truth-table --json",
+    "vela review inbox . --json",
+    "vela review accept . vpr_5a3dadd961d0b9cc --if-entry-root sha256:f9beabb372e38690bb38716879a9ac1600d4255793f0984b77c8769083cf5b09 --reason \"This intentionally false Proposal must fail closed.\" --as human:fixture-reviewer --json # exits 1; no mutation",
+    "vela review reject . vpr_5a3dadd961d0b9cc --if-entry-root sha256:f9beabb372e38690bb38716879a9ac1600d4255793f0984b77c8769083cf5b09 --reason \"Exhaustive evaluation found counterexamples; preserve the failed record and reject without Standing.\" --as human:fixture-reviewer --session-ref external-formal-fixture-bad --json",
+    "vela submit --repo <repository> --claim \"For all Boolean p and q, NOT (p AND q) is equivalent to (NOT p) OR (NOT q).\" --type theoretical --condition \"The Boolean operators and variables are exactly the retained closed statement.\" --replayability exact --artifact evidence/corrected-statement.json:formal-statement --artifact evidence/verifier.py:deterministic-verifier --caveat \"This establishes only the retained two-variable Boolean equivalence.\" --requires-verification finite_truth_table --source-run finite-boolean-corrected-v1 --as agent:boolean-producer --json",
+    "python3 evidence/verifier.py evidence/corrected-statement.json --output evidence/corrected-report.json --expect-outcome pass",
+    "vela verification record . vpr_50b918b048e8d45c --profile finite-boolean-exhaustive-v1 --method verification/method.json --property finite_truth_table --outcome pass --does-not-establish \"Truth outside the retained Boolean statement, novelty, significance, scientific acceptance, or Standing.\" --independent-of agent:boolean-producer --output evidence/corrected-report.json --as verifier:truth-table --json",
+    "vela review accept . vpr_50b918b048e8d45c --if-entry-root sha256:66780eea774f86a588860a19538745a6c7241743e4fbfcd7ee371fceb3414122 --reason \"Exhaustive evaluation covers all four assignments; accept only the corrected retained equivalence.\" --as human:fixture-reviewer --session-ref external-formal-fixture-corrected --json",
+    "vela status . --json",
+    "vela replay . --json"
+  ],
+  "format": "informative public-command lifecycle",
+  "name": "failed-then-corrected-finite-boolean-proposal"
+}

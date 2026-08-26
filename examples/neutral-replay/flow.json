@@ -1,0 +1,32 @@
+{
+  "schema": "vela.reference-flow.v1",
+  "name": "neutral-clean-install-replay",
+  "authority_effect": "none",
+  "source_control_commit": "6d680eebb4a17813e72b55685aa2eec6b34e5fae",
+  "commands": [
+    "vela init <repository> --name \"Neutral arithmetic fixture\" --scope \"Does the retained finite arithmetic calculation match its stated result?\" --check --json",
+    "vela init <repository> --name \"Neutral arithmetic fixture\" --scope \"Does the retained finite arithmetic calculation match its stated result?\" --json",
+    "vela submit --repo <repository> --claim \"The arithmetic mean of the retained values 1, 2, 3, and 4 is 2.5.\" --type computational --replayability exact --artifact evidence/arithmetic-mean.txt:calculation --caveat \"This establishes only the stated arithmetic over the retained four values.\" --requires-verification computational_or_formal_check --as agent:fixture-producer --json",
+    "vela verification check verification/method.json --profile computational-formal-verification-v1 --property computational_or_formal_check --as verifier:exact-checker --does-not-establish \"Statement faithfulness, empirical applicability, novelty, significance, scientific acceptance, or Standing.\" --json",
+    "vela verification record <repository> <proposal-id> --profile computational-formal-verification-v1 --method verification/method.json --property computational_or_formal_check --outcome pass --does-not-establish \"Statement faithfulness, empirical applicability, novelty, significance, scientific acceptance, or Standing.\" --independent-of agent:fixture-producer --as verifier:exact-checker --json",
+    "vela review inbox <repository> --json",
+    "vela review accept <repository> <proposal-id> --reason \"The retained arithmetic and exact scoped check support this bounded result.\" --if-entry-root <entry-root> --as human:fixture-reviewer --json",
+    "vela status <repository> --json",
+    "vela replay <repository> --json",
+    "vela claims <repository> --json",
+    "vela why <repository> <claim-id> --json",
+    "vela log <repository> --json"
+  ],
+  "frozen_history": {
+    "bundle": "examples/neutral-replay/neutral-replay.git.bundle",
+    "bundle_root": "sha256:7edc8297e79c995864b7a3e02bb046fdb47aed11a767a003c14395f5eaf4131c",
+    "valid_branch": "valid",
+    "corrupt_artifact_branch": "corrupt-artifact",
+    "expected": "examples/neutral-replay/expected.json"
+  },
+  "does_not_establish": [
+    "that Verification is acceptance",
+    "a standalone protocol Standing root",
+    "scientific utility or external adoption"
+  ]
+}

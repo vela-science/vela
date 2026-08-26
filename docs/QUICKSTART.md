@@ -1,18 +1,47 @@
 # Vela quickstart
 
-Vela is version control for scientific state. This guide starts with a real
-public scientific history, then walks through one Submission, one scoped
-Verification, and one attributed Decision.
+Vela is version control for scientific state: a protocol and toolchain for
+governed, replayable scientific-state transitions in ordinary Git repositories.
+This guide starts with a real public scientific history, then walks through one
+Submission, one scoped Verification, and one attributed Decision.
+
+The stages have separate authority effects:
+
+| Stage | Meaning | Effect on Standing |
+| --- | --- | --- |
+| Submission and pending Proposal | Authenticated producer input and one candidate transition | None |
+| Verification Record | One scoped check over exact retained inputs, including its outcome and nonclaims | None |
+| Decision | An attributed accept or reject action admitted through Repository authority | The only operation that can change Standing |
+| Standing | The derived accepted scientific state reconstructed from admitted Events | Result of replay, not a separate approval step |
+
+Replay verifies the retained objects, roots, signatures, authority history,
+Artifacts, and derived Standing. It does not rerun the source-owned scientific
+Method. Vela also does not choose or perform scientific work, replace native
+tools or scientific judgment, or turn a successful check, signature, Git
+commit, or Web view into acceptance.
 
 ## 1. Install the signed CLI
 
-`v0.977.4` is the current signed pre-1.0 release for Linux x86-64 and macOS
+`v0.977.5` is the current signed pre-1.0 release for Linux x86-64 and macOS
 Apple silicon. The installer verifies the platform release manifest before it
 installs the binary.
 
+Before installing, provide:
+
+| Requirement | Public install path |
+| --- | --- |
+| Platform | Linux x86-64 or macOS Apple silicon |
+| Download and verification | `bash`, `curl`, `ssh-keygen`, and either `sha256sum` or `shasum` |
+| Archive extraction | `tar` with gzip support on Linux; `ditto` on macOS |
+| Network | HTTPS access to the pinned installer and GitHub release assets, unless using a retained mirror |
+| Install location | A writable `/usr/local/bin`, `sudo`, or a writable `VELA_INSTALL_PREFIX` |
+
+The rest of this guide also uses a complete Git client. Repository writes use
+the standard OpenSSH agent as described in section 4.
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.4/install.sh | \
-  VELA_VERSION=v0.977.4 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.5/install.sh | \
+  VELA_VERSION=v0.977.5 bash
 
 vela --version
 ```
@@ -20,7 +49,7 @@ vela --version
 Expected version:
 
 ```text
-vela 0.977.4
+vela 0.977.5
 ```
 
 ## 2. Replay a public Repository
@@ -29,12 +58,19 @@ vela 0.977.4
 git clone https://github.com/vela-science/math.git math
 git -C math checkout 5de716c896065c03c0a470d015ba2a328a527f73
 
+vela authority trust pin math \
+  --record-root sha256:efae3e02b5be6dfccf6701ebe26f87f00bb64f5b4372674e572a633844d95469 \
+  --json
 vela status math
 vela claims math
 vela replay math
 ```
 
-This requires no account, daemon, hosted service, or Repository authority key.
+The root is independently published in Vela's
+[qualified authority fixture](../conformance/fixtures/authority/math-coh-00/trust-anchor.json),
+not derived from the cloned Math Repository. Pinning grants no authority and
+changes no Repository byte. This requires no Vela account, daemon, hosted
+service, or Repository authority key.
 Use a complete clone. Strict reads refuse shallow, partial, alternate, or
 grafted Git object stores because missing Git history can mean missing
 scientific history.
@@ -123,6 +159,15 @@ If the agent exposes more than one Ed25519 key, add
 authority record, local trust anchor, and initial Git commit. It creates no
 Claim, Verification, Decision, or scientific Standing.
 
+The manual evidence and Method commits later in this guide require a Git author
+identity. Configure it globally if that is your normal Git policy, or only for
+this Repository:
+
+```bash
+git -C my-repository config user.name "<your name>"
+git -C my-repository config user.email "<your email>"
+```
+
 Distribute the sequence-one authority-record root through an independent
 trusted channel. Do not forward the authority-agent socket to remote,
 untrusted, or proposal-supplied code.
@@ -147,6 +192,7 @@ vela submit --repo ./my-repository \
   --replayability exact \
   --artifact <path>:<kind> \
   --caveat "<what this does not establish>" \
+  --requires-verification "<exact property the independent check must establish>" \
   --as agent:<producer> \
   --json
 ```
@@ -250,8 +296,8 @@ A Git push publishes bytes. It does not itself create scientific acceptance.
 
 ## Trust pins and recovery
 
-Strict consumers can pin the sequence-one authority root obtained through an
-independent channel:
+Every governed read requires the sequence-one authority root obtained through
+an independent channel:
 
 ```bash
 vela authority trust pin ./my-repository \

@@ -134,8 +134,100 @@ fn current_math_acquisition_is_public_and_credential_free() {
             "{name} must show anonymous acquisition of the public Math source"
         );
         assert!(
+            guide.contains("vela authority trust pin math"),
+            "{name} must install the independently published trust root before governed Math reads"
+        );
+        assert!(
             !guide.contains("gh auth status") && !guide.contains("gh repo clone vela-science/math"),
             "{name} must not require a GitHub credential for the public Math source"
+        );
+    }
+}
+
+/// The first write journey is executable only when its prerequisite and
+/// semantic handoffs are visible in the guide itself.
+///
+/// The old recipe omitted both the Git author identity needed by its manual
+/// Method commit and the verification requirement that `verification record`
+/// later resolves. A reader reached a deterministic refusal only after doing
+/// all of the preceding setup.
+#[test]
+fn quickstart_carries_the_first_user_prerequisites_and_state_boundaries() {
+    const QUICKSTART: &str = include_str!("../../../docs/QUICKSTART.md");
+
+    for prerequisite in [
+        "Linux x86-64",
+        "macOS Apple silicon",
+        "`curl`",
+        "`ssh-keygen`",
+        "`sha256sum`",
+        "`shasum`",
+        "`tar`",
+        "`ditto`",
+        "user.name",
+        "user.email",
+        "--requires-verification",
+    ] {
+        assert!(
+            QUICKSTART.contains(prerequisite),
+            "docs/QUICKSTART.md omits first-user prerequisite {prerequisite}"
+        );
+    }
+
+    for boundary in [
+        "Submission and pending Proposal",
+        "Verification Record",
+        "The only operation that can change Standing",
+        "Replay verifies",
+        "does not rerun the source-owned scientific",
+    ] {
+        assert!(
+            QUICKSTART.contains(boundary),
+            "docs/QUICKSTART.md omits first-user semantic boundary {boundary}"
+        );
+    }
+}
+
+#[test]
+fn release_documents_name_the_roots_protocol_one_actually_publishes() {
+    const ROOTS: &str = include_str!("../../../docs/ROOTS.md");
+    const CHECKLIST: &str = include_str!("../../../docs/campaigns/vela-rc-1/RELEASE_CHECKLIST.md");
+
+    assert!(!ROOTS.contains("record and status"));
+    assert!(ROOTS.contains("Proposal status is not stored"));
+    assert!(!CHECKLIST.contains("Standing digest"));
+    for commitment in ["accepted", "Repository root", "authority Event-log root"] {
+        assert!(
+            CHECKLIST.contains(commitment),
+            "release checklist omits the actual {commitment} commitment"
+        );
+    }
+}
+
+#[test]
+fn release_facing_conformance_has_a_semantic_scenario_index() {
+    const INDEX: &str = include_str!("../../../conformance/README.md");
+    assert!(INDEX.contains("## Semantic scenario index"));
+
+    for scenario in [
+        "Submission",
+        "Passing Verification",
+        "Failed, contradictory, or incomplete Verification",
+        "Unauthorized Decision",
+        "Authorized accept and reject",
+        "Correction and supersession",
+        "Retraction and Proposal withdrawal",
+        "Rejected-history preservation",
+        "Clean-clone replay",
+        "Missing or corrupt Artifact",
+        "Missing, malformed, mismatched, or environment-supplied trust pin",
+        "Changed Method binding",
+        "Canonical bytes, schemas, and cross-reader roots",
+        "Portable input under local authority",
+    ] {
+        assert!(
+            INDEX.contains(scenario),
+            "conformance scenario index omits {scenario}"
         );
     }
 }

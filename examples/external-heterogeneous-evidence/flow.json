@@ -1,0 +1,19 @@
+{
+  "authority_effect": "frozen history only; replay has none",
+  "commands": [
+    "vela init <repository> --name \"Bounded heterogeneous evidence lifecycle\" --scope \"What exact median follows from the retained five-row calibration fixture?\" --json",
+    "python3 evidence/analysis.py evidence/observations.csv --check evidence/result.json",
+    "vela submit --repo <repository> --claim \"The exact median temperature in the five retained calibration-fixture rows is 20.5 degrees C.\" --type computational --condition \"Only the exact CSV rows and decimal method retained in this Repository are in scope.\" --replayability exact --artifact evidence/observations.csv:tabular-observations --artifact evidence/analysis.py:analysis-implementation --artifact evidence/result.json:computed-result --artifact evidence/method-note.md:method-note --caveat \"This makes no claim about instrument accuracy, measurement provenance, representativeness, causality, or external validity.\" --requires-verification exact_recomputation --requires-verification evidence_scope_review --source-run heterogeneous-evidence-fixture-v1 --as agent:evidence-producer --json",
+    "vela verification check verification/exact-method.json --profile deterministic-tabular-recompute-v1 --property exact_recomputation --as verifier:exact-recompute --does-not-establish \"Instrument accuracy, representativeness, causal inference, scientific acceptance, or Standing.\" --json",
+    "vela verification record . vpr_ca75cd93988142d0 --profile deterministic-tabular-recompute-v1 --method verification/exact-method.json --property exact_recomputation --outcome pass --does-not-establish \"Instrument accuracy, representativeness, causal inference, scientific acceptance, or Standing.\" --independent-of agent:evidence-producer --output evidence/result.json --as verifier:exact-recompute --json",
+    "vela review inbox . --json # blocked: evidence_scope_review is still missing",
+    "vela verification check verification/scope-method.json --profile bounded-evidence-review-v1 --property evidence_scope_review --as verifier:evidence-scope --does-not-establish \"Independent measurement, instrument calibration, external validity, scientific acceptance, or Standing.\" --json",
+    "vela verification record . vpr_ca75cd93988142d0 --profile bounded-evidence-review-v1 --method verification/scope-method.json --property evidence_scope_review --outcome pass --does-not-establish \"Independent measurement, instrument calibration, external validity, scientific acceptance, or Standing.\" --independent-of agent:evidence-producer --output evidence/scope-review.md --as verifier:evidence-scope --json",
+    "vela review accept . vpr_ca75cd93988142d0 --if-entry-root sha256:8c1a23115efeb06ac15444c888f50f264c24df39fa6673be3278fb9dbcf10375 --reason \"Exact recomputation and the separate evidence-scope review pass; accept only the median over these retained fixture rows.\" --as human:fixture-reviewer --session-ref external-heterogeneous-evidence-fixture --json",
+    "vela status . --json",
+    "vela replay . --json",
+    "vela why . vcl_e74720dcb9dc5a3925e29192a3e3a05ddc0dc62da1acc923f90f2042eaa43e50 --json"
+  ],
+  "format": "informative public-command lifecycle",
+  "name": "heterogeneous-bounded-evidence-lifecycle"
+}

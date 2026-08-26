@@ -28,5 +28,6 @@ Both must derive projection root
 
 The real Math correction currently has no producer-authored dependency edges,
 so its downstream cascade is empty. The diamond proves implementation
-agreement, not a real accepted dependency cascade. Vela 1.0 keeps that limit
-visible rather than relabeling synthetic conformance as scientific use.
+agreement, not a real accepted dependency cascade. The Protocol 1 release
+candidate keeps that limit visible rather than relabeling synthetic
+conformance as scientific use.

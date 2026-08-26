@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hold the Protocol 1 release-candidate surface to exact published bytes."""
+"""Hold the released Protocol 1 surface to exact published bytes."""
 
 from __future__ import annotations
 
@@ -43,11 +43,37 @@ def paths() -> list[tuple[str, str, bool]]:
         ("conformance/verify_correction_impact.py", "correction-vector-verifier", True),
         ("conformance/verify_reference_flows.py", "reference-flow-verifier", False),
         ("conformance/verify_release_reproducibility.py", "release-reproducibility-verifier", False),
+        (
+            "conformance/check-release-notice-fresh-cache.sh",
+            "release-notice-fresh-cache-verifier",
+            False,
+        ),
         ("conformance/test_release_install.py", "release-installation-verifier", False),
         ("docs/RELEASES.md", "release-qualification", False),
         ("LICENSE", "license-boundary", False),
         ("CITATION.cff", "citation-metadata", False),
         (".github/release/create-deterministic-archive.py", "release-archiver", False),
+        (".github/release/about.toml", "release-notice-policy", False),
+        (
+            ".github/release/cargo-about-version",
+            "release-notice-generator-pin",
+            False,
+        ),
+        (
+            ".github/release/check-notice-bundle.py",
+            "release-notice-gate",
+            False,
+        ),
+        (
+            ".github/release/generate-third-party-notices.py",
+            "release-notice-generator",
+            False,
+        ),
+        (
+            ".github/release/selected-release-packages.py",
+            "release-selected-graph-generator",
+            False,
+        ),
         (".github/release/check-sbom.py", "release-sbom-gate", False),
         (".github/release/smoke-bundle.sh", "release-smoke-gate", False),
         (".github/workflows/release.yml", "hosted-release-gate", False),
@@ -111,8 +137,8 @@ def build() -> dict[str, object]:
     manifest: dict[str, object] = {
         "schema": "vela.protocol-conformance-manifest.v1",
         "protocol": "Vela Protocol 1",
-        "status": "release_candidate",
-        "software_release": None,
+        "status": "released",
+        "software_release": "0.977.5",
         "authority_effect": "none",
         "entries": entries,
         "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",

@@ -1,10 +1,10 @@
 # Vela Protocol 1
 
-Status: release candidate. This document is the normative Protocol 1
-specification; it does not publish a `v1.0.0` software release or claim external
-adoption.
+Status: current pre-1.0 protocol selection. This document is the normative
+Protocol 1 specification; it does not publish a `v1.0.0` software release or
+claim external adoption.
 
-Submission v3 is the final planned pre-1.0 wire cut. The signed Vela 0.977.4
+Submission v3 is the final planned pre-1.0 wire cut. The signed Vela 0.977.5
 release has no v2 reader, writer, alias, or execution-binding runtime. Published
 signed releases and tags retain development-era reproducibility history; the
 current runtime does not read those formats.
@@ -432,7 +432,13 @@ vela.authority-trust-anchor.v1
 ```
 
 Repository bytes may not choose their own trust anchor. Pinning changes no
-repository byte and grants no authority.
+repository byte and grants no authority. The shipped governed-read boundary
+loads this document from the canonical operating-system-account home and
+ignores `HOME`. `replay`, `status`, `claims`, `show`, `why`, `log`, review
+reads, `projection`, and `correction impact` fail closed before reporting
+Standing or authority history when the pin is missing, malformed, or does not
+select the verified sequence-one record. Producer Submission, Verification,
+and withdrawal writes remain unprivileged and do not use this read boundary.
 
 ### 4.2 Principal and action
 
@@ -594,7 +600,9 @@ Strict replay verifies:
 Standing is derived only from valid admitted Events. It is never read from a
 database, Web page, mutable status field, verifier outcome, or Git branch name.
 
-`vela replay` fails closed on defects and grants no trust or exemption.
+`vela replay` fails closed on defects, including a missing, malformed, or
+mismatched operating-system-account trust pin, and grants no trust or
+exemption.
 
 ## 8. Correction
 

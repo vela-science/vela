@@ -84,6 +84,52 @@ fn tree_snapshot(root: &Path) -> Vec<(PathBuf, u32, Vec<u8>)> {
     entries
 }
 
+fn assert_governed_reads_fail_closed(
+    repository_path: &Path,
+    claim_id: &str,
+    proposal_id: &str,
+    expected_error: &str,
+) {
+    let commands = [
+        vec!["replay", ".", "--json"],
+        vec!["status", ".", "--json"],
+        vec!["claims", ".", "--json"],
+        vec!["show", ".", claim_id, "--json"],
+        vec!["why", ".", claim_id, "--json"],
+        vec!["log", ".", "--json"],
+        vec!["review", "list", ".", "--status", "all", "--json"],
+        vec!["review", "show", ".", proposal_id, "--json"],
+        vec!["review", "inbox", ".", "--json"],
+        vec!["projection", ".", "--json"],
+        vec!["correction", "impact", ".", claim_id, "--json"],
+    ];
+    let repository_before = tree_snapshot(&repository_path.join(".vela"));
+    for command in commands {
+        let output = run(repository_path, None, &command);
+        assert_eq!(
+            output.status.code(),
+            Some(1),
+            "governed read unexpectedly succeeded: {command:?}\nstdout={}\nstderr={}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let error: Value = serde_json::from_slice(&output.stdout)
+            .unwrap_or_else(|decode| panic!("decode {command:?} error JSON: {decode}"));
+        assert_eq!(error["ok"], false);
+        assert!(
+            error["error"]["message"]
+                .as_str()
+                .is_some_and(|message| message.contains(expected_error)),
+            "unexpected {command:?} error: {error}"
+        );
+    }
+    assert_eq!(
+        tree_snapshot(&repository_path.join(".vela")),
+        repository_before,
+        "refused governed reads must not mutate repository state"
+    );
+}
+
 #[test]
 fn fresh_current_repository_replays_from_a_clean_clone() {
     let temporary = tempfile::tempdir().expect("temporary directory");
@@ -340,6 +386,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             .expect("trust anchor path"),
     );
     let _anchor = RemoveOnDrop(anchor_path.clone());
+    let correct_anchor_bytes = std::fs::read(&anchor_path).expect("read correct trust anchor");
     std::fs::remove_file(&anchor_path).expect("remove routine writer trust pin");
     let actor = "agent:current-submission-regression";
     let artifact = b"{\"bounded\":true}\n";
@@ -867,7 +914,73 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         .expect("read after commit");
     assert!(after.status.success());
     assert_ne!(before.stdout, after.stdout);
+    let proposal_id = submitted["proposal_id"].as_str().expect("Proposal ID");
+    let claim_id = submitted["claim_id"].as_str().expect("Claim ID");
+    assert_governed_reads_fail_closed(
+        &repository_path,
+        claim_id,
+        proposal_id,
+        "independent sequence-one pin",
+    );
+
+    let mut mismatched_anchor: Value =
+        serde_json::from_slice(&correct_anchor_bytes).expect("parse correct trust anchor");
+    mismatched_anchor["first_authority_record_root"] =
+        Value::String(format!("sha256:{}", "0".repeat(64)));
+    let mut mismatched_anchor_bytes =
+        serde_json::to_vec_pretty(&mismatched_anchor).expect("encode mismatched trust anchor");
+    mismatched_anchor_bytes.push(b'\n');
+    std::fs::write(&anchor_path, mismatched_anchor_bytes).expect("write mismatched trust anchor");
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&anchor_path, std::fs::Permissions::from_mode(0o600))
+            .expect("set mismatched trust anchor permissions");
+    }
+    assert_governed_reads_fail_closed(
+        &repository_path,
+        claim_id,
+        proposal_id,
+        "installed authority trust anchor selects",
+    );
+    std::fs::write(&anchor_path, b"{not-json\n").expect("write malformed trust anchor");
+    assert_governed_reads_fail_closed(
+        &repository_path,
+        claim_id,
+        proposal_id,
+        "could not load the independent authority trust anchor",
+    );
+    std::fs::remove_file(&anchor_path).expect("remove malformed trust anchor");
+    let repinned_for_reads = success_json(&run(
+        &repository_path,
+        None,
+        &[
+            "authority",
+            "trust",
+            "pin",
+            ".",
+            "--record-root",
+            record_root,
+            "--json",
+        ],
+    ));
+    assert_eq!(repinned_for_reads["operation"], "installed");
     let checked = success_json(&run(&repository_path, None, &["replay", ".", "--json"]));
+    let hostile_home = temporary.path().join("hostile-read-home");
+    std::fs::create_dir_all(&hostile_home).expect("hostile HOME directory");
+    let checked_with_hostile_home = success_json(&run_with_home(
+        &repository_path,
+        None,
+        &hostile_home,
+        &["replay", ".", "--json"],
+    ));
+    assert_eq!(
+        checked_with_hostile_home["repository_root"],
+        checked["repository_root"]
+    );
+    assert!(
+        !hostile_home.join(".vela/trust").exists(),
+        "trusted reads must ignore HOME and must not create trust state"
+    );
     assert_eq!(checked["counts"]["accepted_claims"], 0);
     assert_eq!(checked["counts"]["pending_claims"], 1);
     assert_eq!(checked["counts"]["verifications"], 2);
@@ -942,7 +1055,6 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         .as_str()
         .expect("Decision Inbox entry root")
         .to_string();
-    let proposal_id = submitted["proposal_id"].as_str().expect("Proposal ID");
     let review = success_json(&run(
         &repository_path,
         None,
@@ -1053,6 +1165,84 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
     let replayed = success_json(&run(&clone, None, &["replay", ".", "--json"]));
     assert_eq!(replayed["repository_root"], checked["repository_root"]);
     assert_eq!(replayed["counts"]["accepted_claims"], 0);
+
+    // Content-addressed evidence is part of exact state replay. Missing or
+    // changed retained bytes must fail before the same root can be reported.
+    let retained_artifact = clone.join("records/artifacts/sha256").join(&artifact_stem);
+    let retained_artifact_bytes =
+        std::fs::read(&retained_artifact).expect("clean-clone retained Artifact");
+    std::fs::write(&retained_artifact, b"{\"bounded\":false}\n")
+        .expect("corrupt retained Artifact");
+    let corrupt_artifact = run(&clone, None, &["replay", ".", "--json"]);
+    assert_eq!(corrupt_artifact.status.code(), Some(1));
+    let corrupt_artifact: Value =
+        serde_json::from_slice(&corrupt_artifact.stdout).expect("corrupt Artifact error JSON");
+    assert!(
+        corrupt_artifact["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("does not match its declared root"))
+    );
+    std::fs::remove_file(&retained_artifact).expect("remove retained Artifact");
+    let missing_artifact = run(&clone, None, &["replay", ".", "--json"]);
+    assert_eq!(missing_artifact.status.code(), Some(1));
+    let missing_artifact: Value =
+        serde_json::from_slice(&missing_artifact.stdout).expect("missing Artifact error JSON");
+    assert!(
+        missing_artifact["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("read object records/artifacts/sha256/"))
+    );
+    std::fs::write(&retained_artifact, &retained_artifact_bytes)
+        .expect("restore retained Artifact");
+    let restored = success_json(&run(&clone, None, &["replay", ".", "--json"]));
+    assert_eq!(restored["repository_root"], replayed["repository_root"]);
+
+    // A Review Method is a source-owned rerun reference, not input to the
+    // scientific-state reducer. State replay therefore keeps matching the
+    // exact recorded identity when the local method is unavailable, while the
+    // read projection exposes that unresolved rerun boundary. Substituted
+    // bytes fail their separately recorded environment root.
+    let retained_method = clone.join(method_path);
+    let retained_method_bytes = std::fs::read(&retained_method).expect("clean-clone Review Method");
+    std::fs::remove_file(&retained_method).expect("remove Review Method");
+    let state_without_method = success_json(&run(&clone, None, &["replay", ".", "--json"]));
+    assert_eq!(
+        state_without_method["repository_root"],
+        replayed["repository_root"]
+    );
+    let unresolved = success_json(&run(&clone, None, &["projection", ".", "--json"]));
+    assert!(
+        unresolved["verifications"]
+            .as_array()
+            .expect("projected Verifications")
+            .iter()
+            .all(|verification| verification["review_method"]["state"] == "unavailable")
+    );
+    std::fs::write(&retained_method, b"{\"substituted\":true}\n")
+        .expect("substitute Review Method");
+    let drifted = run(&clone, None, &["projection", ".", "--json"]);
+    assert_eq!(drifted.status.code(), Some(1));
+    let drifted: Value =
+        serde_json::from_slice(&drifted.stdout).expect("Review Method drift error JSON");
+    assert!(
+        drifted["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("Review Method root drift"))
+    );
+    let state_with_drift = success_json(&run(&clone, None, &["replay", ".", "--json"]));
+    assert_eq!(
+        state_with_drift["repository_root"],
+        replayed["repository_root"]
+    );
+    std::fs::write(&retained_method, &retained_method_bytes).expect("restore Review Method");
+    let resolved = success_json(&run(&clone, None, &["projection", ".", "--json"]));
+    assert!(
+        resolved["verifications"]
+            .as_array()
+            .expect("projected Verifications")
+            .iter()
+            .all(|verification| verification["review_method"]["state"] == "opaque")
+    );
     assert!(
         !clone.join(".vela/work").exists(),
         "obsolete private workflow scratch must not enter a clean clone"
@@ -1078,6 +1268,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
 
     // Routine evidence does not depend on caller-local authority custody, but
     // a later attributed Decision still requires the independent sequence-one pin.
+    std::fs::remove_file(&anchor_path).expect("remove trust pin before Decision refusal");
     let unpinned_decision = run(
         &repository_path,
         Some(agent.socket()),

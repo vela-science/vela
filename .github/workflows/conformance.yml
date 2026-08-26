@@ -54,6 +54,12 @@ jobs:
         run: cargo install cargo-deny --version 0.20.2 --locked
       - name: enforce dependency advisories, licenses, bans, and sources
         run: cargo deny --locked check
+      - name: install the exact release-notice generator
+        run: |
+          version="$(tr -d '\r\n' < .github/release/cargo-about-version)"
+          cargo install cargo-about --version "$version" --locked
+      - name: prove frozen notices from a genuinely fresh Cargo cache
+        run: conformance/check-release-notice-fresh-cache.sh
       - name: sync the locked independent reader
         run: uv sync --project conformance --locked
       - name: format

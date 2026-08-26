@@ -58,12 +58,15 @@ or merge into an acceptance claim.
 Install the current signed release and inspect the public Math Repository:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.4/install.sh | \
-  VELA_VERSION=v0.977.4 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.5/install.sh | \
+  VELA_VERSION=v0.977.5 bash
 
 git clone https://github.com/vela-science/math.git math
 git -C math checkout 5de716c896065c03c0a470d015ba2a328a527f73
 
+vela authority trust pin math \
+  --record-root sha256:efae3e02b5be6dfccf6701ebe26f87f00bb64f5b4372674e572a633844d95469 \
+  --json
 vela status math
 vela claims math
 vela why math \
@@ -89,7 +92,11 @@ history behind them. The Erdős 321 example is a candidate answer for one exact
 Formal Conjectures occurrence. It does not prove the whole problem, and Vela
 keeps that limitation attached to the result.
 
-This read path needs no account, daemon, hosted service, or authority key.
+The sequence-one root above is independently published in Vela's
+[qualified authority fixture](conformance/fixtures/authority/math-coh-00/trust-anchor.json),
+not selected from the cloned Math Repository. The pin is local public trust
+configuration: it grants no authority and changes no Repository byte. This
+read path needs no Vela account, daemon, hosted service, or authority key.
 
 ## The idea
 

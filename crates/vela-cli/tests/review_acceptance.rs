@@ -136,6 +136,23 @@ fn authority_events(repository_path: &Path, ids: &[&str]) -> Vec<Value> {
         .collect()
 }
 
+/// Test-only canonical commitment to the accepted Claim slice that constitutes
+/// accepted Standing. The Repository root is intentionally broader: routine
+/// Submission and Verification intake changes it while leaving this slice
+/// unchanged.
+fn accepted_standing_commitment(repository_path: &Path) -> String {
+    let repository: Value = serde_json::from_slice(
+        &std::fs::read(repository_path.join(".vela/repository.json"))
+            .expect("repository manifest bytes"),
+    )
+    .expect("repository manifest JSON");
+    format!(
+        "sha256:{}",
+        vela_protocol::canonical::sha256_canonical(&repository["accepted_claims"])
+            .expect("accepted Standing commitment")
+    )
+}
+
 #[test]
 fn review_accept_admits_the_event_that_moves_standing() {
     let temporary = tempfile::tempdir().expect("temporary directory");
@@ -219,7 +236,10 @@ fn review_accept_admits_the_event_that_moves_standing() {
     )
     .expect("write fixture artifact");
     let producer = "agent:review-accept-regression";
-    let requirement = "Replay the retained artifact bytes.";
+    let requirements = [
+        "Replay the retained artifact bytes.",
+        "Inspect the retained caveat boundary.",
+    ];
     let submitted = success_json(&run(
         &repository_path,
         None,
@@ -239,7 +259,9 @@ fn review_accept_admits_the_event_that_moves_standing() {
             "--caveat",
             "This fixture makes no unrestricted scientific claim.",
             "--requires-verification",
-            requirement,
+            requirements[0],
+            "--requires-verification",
+            requirements[1],
             "--as",
             producer,
             "--json",
@@ -259,6 +281,7 @@ fn review_accept_admits_the_event_that_moves_standing() {
         .as_str()
         .expect("Claim ID")
         .to_string();
+    let standing_before_evidence = accepted_standing_commitment(&repository_path);
 
     let method_path = "verification/exact-replay-v1.json";
     std::fs::create_dir_all(repository_path.join("verification")).expect("method directory");
@@ -292,7 +315,7 @@ fn review_accept_admits_the_event_that_moves_standing() {
             "--method",
             method_path,
             "--property",
-            requirement,
+            requirements[0],
             "--outcome",
             "pass",
             "--does-not-establish",
@@ -310,6 +333,38 @@ fn review_accept_admits_the_event_that_moves_standing() {
         verified["publication"]["state"], "committed_local",
         "unexpected Verification publication: {verified}"
     );
+    let second_verified = success_json(&run(
+        &repository_path,
+        None,
+        &verifier_home,
+        &[
+            "verification",
+            "record",
+            ".",
+            &proposal_id,
+            "--profile",
+            "caveat-boundary-v1",
+            "--method",
+            method_path,
+            "--property",
+            requirements[1],
+            "--outcome",
+            "pass",
+            "--does-not-establish",
+            "Scientific acceptance.",
+            "--independent-of",
+            producer,
+            "--as",
+            &verifier,
+            "--json",
+        ],
+    ));
+    assert_eq!(second_verified["outcome"], "pass");
+    assert_eq!(second_verified["accepted_event_delta"], 0);
+    assert_ne!(
+        second_verified["verification_record_id"], verified["verification_record_id"],
+        "separate scoped checks must retain separate Verification Records"
+    );
 
     // The negative the protocol insists on. The Proposal now carries an
     // independent passing Verification Record covering its only stated
@@ -321,9 +376,14 @@ fn review_accept_admits_the_event_that_moves_standing() {
         &producer_home,
         &["replay", ".", "--json"],
     ));
-    assert_eq!(evidenced["counts"]["verifications"], 1);
+    assert_eq!(evidenced["counts"]["verifications"], 2);
     assert_eq!(evidenced["counts"]["accepted_claims"], 0);
     assert_eq!(evidenced["counts"]["pending_claims"], 1);
+    assert_eq!(
+        accepted_standing_commitment(&repository_path),
+        standing_before_evidence,
+        "multiple passing Verification Records must not change accepted Standing"
+    );
     assert_eq!(
         authority_bytes(&repository_path, "events"),
         events_before_evidence,
@@ -374,6 +434,32 @@ fn review_accept_admits_the_event_that_moves_standing() {
         &["review", "inbox", ".", "--json"],
     ));
     assert_eq!(inbox["entries"].as_array().map(Vec::len), Some(1));
+    assert_eq!(
+        inbox["entries"][0]["verification_requirements"],
+        serde_json::json!(requirements)
+    );
+    assert_eq!(
+        inbox["entries"][0]["verification_records"]
+            .as_array()
+            .map(Vec::len),
+        Some(2)
+    );
+    let mut satisfied = inbox["entries"][0]["verification_records"]
+        .as_array()
+        .expect("Verification Record views")
+        .iter()
+        .flat_map(|record| {
+            record["satisfies_requirements"]
+                .as_array()
+                .expect("satisfied requirements")
+                .iter()
+                .map(|value| value.as_str().expect("requirement").to_string())
+        })
+        .collect::<Vec<_>>();
+    satisfied.sort();
+    let mut expected_requirements = requirements.map(str::to_string).to_vec();
+    expected_requirements.sort();
+    assert_eq!(satisfied, expected_requirements);
     let entry_root = inbox["entries"][0]["entry_root"]
         .as_str()
         .expect("Decision Inbox entry root")
@@ -461,6 +547,10 @@ fn review_accept_admits_the_event_that_moves_standing() {
     assert_eq!(accepted["command"], "review.accept");
     assert_eq!(accepted["action"], "accept");
     assert_eq!(accepted["scientific_state_changed"], true);
+    assert_eq!(
+        accepted["verification_set_root"], inbox["entries"][0]["inputs"]["verification_set_root"],
+        "the authorized Decision must consume the exact rooted multi-Verification set shown to the reviewer"
+    );
     assert_eq!(accepted["claim_id"], claim_id.as_str());
     assert_eq!(accepted["reason"], reason);
     assert_eq!(accepted["actor_id"], decision_actor);
@@ -500,8 +590,13 @@ fn review_accept_admits_the_event_that_moves_standing() {
     assert_eq!(decided["counts"]["accepted_claims"], 1);
     assert_eq!(decided["counts"]["pending_claims"], 0);
     assert_eq!(
-        decided["counts"]["verifications"], 1,
+        decided["counts"]["verifications"], 2,
         "acceptance must not manufacture further evidence"
+    );
+    assert_ne!(
+        accepted_standing_commitment(&repository_path),
+        standing_before_evidence,
+        "only the admitted acceptance changes the accepted Standing commitment"
     );
     assert_ne!(
         git(&repository_path, &["rev-parse", "HEAD^{commit}"]),

@@ -1,0 +1,59 @@
+{
+  "schema": "vela.neutral-replay-fixture.v1",
+  "authority_effect": "none",
+  "bundle": "neutral-replay.git.bundle",
+  "bundle_root": "sha256:7edc8297e79c995864b7a3e02bb046fdb47aed11a767a003c14395f5eaf4131c",
+  "source": {
+    "control_commit": "6d680eebb4a17813e72b55685aa2eec6b34e5fae",
+    "control_tree": "9273cdaea323859fcd26beebeccc3f7b7fb1acfe",
+    "vela_version": "0.977.4"
+  },
+  "valid": {
+    "branch": "valid",
+    "git_commit": "0bd019a846902c8e3e7802d6150063b475f144dc",
+    "git_tree": "0983f52ac18e11897225087cf7aa919d459823cd",
+    "repository_id": "ced420cb-454a-42fb-b7d2-d62422c794b7",
+    "origin_id": "vro_58bd9e59e8b6fdb8",
+    "origin_root": "sha256:58bd9e59e8b6fdb8382c450c8acc95d988621f067341754949aa340bd84452b5",
+    "repository_root": "sha256:6e7c2d797352a70b9d102f79baa9f3431631aa6ca240233f3dcd37d13f938e6a",
+    "accepted_standing_fixture_commitment": "sha256:87e6791ebd481d977a0789b71f5fe523a1fe2799fb1015eb852f1f57da79ace1",
+    "accepted_claim_count": 1,
+    "pending_claim_count": 0,
+    "submission_count": 1,
+    "verification_count": 1,
+    "claim_id": "vcl_24df07004f63ce0c92a4fe12b06a08d0b777714642f4e9d613a92d8b3bdbb94b",
+    "claim_root": "sha256:08681bd2703e40313a741ec43db197c68c0f50783ab4c956978eb19184dcab5c",
+    "proposal_id": "vpr_af87deb2a3f1fc1c",
+    "submission_id": "vsb_bd6d2a308e91645f",
+    "verification_record_id": "vvr_b1037c94d49c849d",
+    "sequence_one_record_root": "sha256:317226ded44506c4010ebe073889d816eabd522b8f0870a83d02e01f93cc3753",
+    "decision_record_root": "sha256:8227d323019e13339afebc56d900d951a74dd319e9ca61d95fa48ccff1ee96c8",
+    "events": [
+      {
+        "id": "vev_90c8fa8488a3b087",
+        "kind": "authority.initialized"
+      },
+      {
+        "id": "vev_4ecce2945b20bd8c",
+        "kind": "review.accepted"
+      },
+      {
+        "id": "vev_f34be749c818c098",
+        "kind": "claim.asserted"
+      }
+    ]
+  },
+  "corrupt_artifact": {
+    "branch": "corrupt-artifact",
+    "git_commit": "1712f8189c66d49415ab3ab54a8ae96e605e505c",
+    "git_tree": "33e86984bf34100ee2335df74296dd39d0ec6714",
+    "missing_path": "records/artifacts/sha256/39feb3b6928d9d1ccf52fb14ad584c45d515cc3800f011388e7ca77c3dc6e1cb",
+    "replay_exit": 1,
+    "error_message": "read object records/artifacts/sha256/39feb3b6928d9d1ccf52fb14ad584c45d515cc3800f011388e7ca77c3dc6e1cb: No such file or directory (os error 2)"
+  },
+  "does_not_establish": [
+    "a standalone protocol Standing root",
+    "scientific truth beyond the retained four-value calculation",
+    "external adoption, productivity improvement, or a Protocol 1.0 release"
+  ]
+}

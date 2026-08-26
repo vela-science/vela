@@ -201,6 +201,7 @@ fn frozen_distinct_principal_histories_match_every_bound_root() {
 
     let mut retained_submissions = Vec::new();
     let mut retained_claims = Vec::new();
+    let mut installed_anchors = Vec::new();
     for name in ["accept", "reject"] {
         let history = &expected[name];
         let bundle = reference.join(history["bundle"].as_str().expect("bundle path"));
@@ -234,6 +235,30 @@ fn frozen_distinct_principal_histories_match_every_bound_root() {
             String::from_utf8_lossy(&cloned.stderr)
         );
 
+        let sequence_one_root = history["sequence_one_record_root"]
+            .as_str()
+            .expect("independently retained sequence-one root");
+        let pin = success_json(&run(
+            &repository,
+            None,
+            &home,
+            &[
+                "authority",
+                "trust",
+                "pin",
+                ".",
+                "--record-root",
+                sequence_one_root,
+                "--json",
+            ],
+        ));
+        if pin["operation"] == "installed" {
+            installed_anchors.push(RemoveAnchorOnDrop(PathBuf::from(
+                pin["authority_trust_anchor_path"]
+                    .as_str()
+                    .expect("installed trust anchor path"),
+            )));
+        }
         let replay = success_json(&run(&repository, None, &home, &["replay", ".", "--json"]));
         assert_eq!(replay["repository_id"], history["repository_id"]);
         assert_eq!(replay["origin_id"], history["origin_id"]);

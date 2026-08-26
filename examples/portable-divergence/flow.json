@@ -20,7 +20,7 @@
   },
   "frozen_histories": {
     "expected_path": "examples/portable-divergence/expected.json",
-    "expected_root": "sha256:858019d298f55295fe92989bb23a343ce73b6976338f36c7c637c82272274041",
+    "expected_root": "sha256:30c01d52755be5e35dc75f01d99562807185c63825e95a0ec5d7322c34a48c91",
     "accept_bundle_path": "examples/portable-divergence/accept.git.bundle",
     "accept_bundle_root": "sha256:2a92803cdb30e2f16d0f3a9b41fcbc24be39fc9693f7abc6f04f2f261a0dd0ba",
     "reject_bundle_path": "examples/portable-divergence/reject.git.bundle",

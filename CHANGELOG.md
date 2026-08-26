@@ -10,6 +10,27 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+## 0.977.5
+
+- **Protocol 1 is qualified for external use with explicit limitations.** The
+  public lifecycle is Submission → Verification → Decision → Event →
+  Standing: Verification alone cannot change Standing, Decision authority is
+  explicit, rejected work remains in history, correction and supersession add
+  governed history, and strict replay deterministically reconstructs current
+  Standing.
+
+- **Release-facing conformance and clean-use fixtures cover the governed
+  boundary.** Missing or corrupt required Artifacts, incomplete acceptance,
+  unauthorized Decisions, authority mismatch, and source or Method drift fail
+  closed. The public formal and neutral-evidence examples exercise the same
+  Core without domain-specific protocol forks.
+
+- **The qualification is intentionally bounded.** Replay reconstructs governed
+  scientific state; it does not imply bit-for-bit rerun of external stochastic,
+  model, instrument, or physical processes. This release makes no cumulative-
+  intelligence, autonomous-discovery, scientific-truth, workflow-productivity,
+  Level-2 cumulative-science, or external-adoption claim.
+
 ## 0.977.4
 
 - **Container bootstrap failures are actionable before any durable byte.**

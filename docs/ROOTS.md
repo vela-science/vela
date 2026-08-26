@@ -95,7 +95,8 @@ no reader can check, and the protocol does not carry one.
 
 The Proposal identity commits to the logical requested transition and exact
 subject objects. The full Proposal root covers the complete current canonical
-record and status, and `vpr_` derives from it.
+record, and `vpr_` derives from it. Proposal status is not stored in that
+record; it is derived from Proposal withdrawals and governed Decision Events.
 
 ### Authority Event
 

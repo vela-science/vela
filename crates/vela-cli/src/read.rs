@@ -75,7 +75,7 @@ fn read_value(repository_path: &Path, reference: &RepositoryObjectRefV1) -> Resu
 }
 
 fn load_context(repository_path: &Path) -> Result<ReadContext, String> {
-    let repository = crate::repository::load_repository_at(repository_path, true)?;
+    let repository = crate::repository::load_trusted_repository_at(repository_path)?;
     let repository_root = repository.canonical_root()?;
     let origin_bytes = fs::read(repository_path.join(".vela/origin.json"))
         .map_err(|error| format!("read current repository origin: {error}"))?;

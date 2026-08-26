@@ -27,6 +27,15 @@ arrive through a channel the checkout does not control, and
 `docs/THREAT_MODEL.md`, "Repository-authority substitution", states the reason —
 a checkout cannot be allowed to choose its own trust anchor.
 
+The current CLI enforces that separation for every governed read. It loads
+`vela.authority-trust-anchor.v1` from the canonical operating-system-account
+home, ignores `HOME`, and refuses replay, Standing, authority history, review,
+and projection output when the pin is missing, malformed, or selects another
+sequence-one record. The public Math value in the table is independently
+retained by Vela's
+[qualified authority fixture](../conformance/fixtures/authority/math-coh-00/trust-anchor.json);
+consumers do not derive it from a Math clone.
+
 The consequence for continuity is the whole point. A repository whose four
 bindings reproduce is the authority repository wherever its bytes are found. A
 repository that reproduces three of them and disagrees on the fourth is a fork,
@@ -270,7 +279,7 @@ provider-coupled fallback refused.
 `v0.968.0` is immutable and unsigned and cannot be repaired; it stands as the
 last unsigned release.
 
-The current `v0.977.4` release follows the same signed-before-publication path.
+The current `v0.977.5` release follows the same signed-before-publication path.
 Its two published manifests agree with their archives and SBOMs, both
 signatures verify under the out-of-band distribution identity, and a clean
 consumer installation with `VELA_REQUIRE_SIGNED_MANIFEST=1` reports
@@ -282,7 +291,7 @@ over the anonymous public URL and compares it to the SHA-256 committed in
 vela-web's `vela-release.v1.json`, rather than to the copy just uploaded. The
 last fully exercised replica path is `v0.975.1`: its retained assets and
 signatures pass anonymous Codeberg readback with no GitHub dependency in the
-retrieval or verification path. `v0.977.4` is not claimed replicated until the
+retrieval or verification path. `v0.977.5` is not claimed replicated until the
 Problems release advances that pin and completes the same readback.
 
 Mirroring stays scoped to the release the Problems projection pins rather than the
@@ -299,6 +308,52 @@ mirror run are retained in
 `docs/history/PROVIDER_LOSS_QUALIFICATION_2026-08-09.md`. That result does not close the
 present step-1 gap after the Math replica was removed from the declared
 topology.
+
+## 8. Exact state replay is not a computational rerun
+
+`vela replay` reconstructs and validates scientific **state**. It does not
+execute the computation, model, proof checker, instrument, assay, or review
+method that produced evidence. The distinction is observable and intentional:
+a complete checkout can replay the same Standing while a source-owned method
+is unavailable, and a retained method can be available for a new attempt
+without that attempt recreating the historical Decision.
+
+The current implementation has no second materialized Standing database or
+Standing file. The accepted and pending Claim indexes live in the canonical
+repository manifest and are covered by its root. Strict replay validates those
+indexes against the admitted Events, authority history, exact object set, and
+Git ancestry. In campaign notation, the implemented invariant is:
+
+```text
+root(strict replay of authoritative history and exact objects)
+  == current canonical repository root, including its Standing indexes
+```
+
+The same authoritative history and exact object bytes therefore produce the
+same root and Standing projection on the original checkout and a complete
+clean clone. Missing or changed canonical Claim, Submission, Verification,
+Proposal, Withdrawal, Artifact, Event, authority, origin, or manifest bytes
+fail closed. A changed trust anchor, authority model, keyset, authorization
+request, Event linkage, or Git ancestry also fails closed.
+
+The operation-typed evidence boundary is deliberately smaller than a generic
+receipt system:
+
+| Retained binding | What can be reconstructed exactly | What remains a separate native rerun |
+| --- | --- | --- |
+| Submission DSSE envelope and derived Claim/Proposal | Authenticated producer bytes, requested change, exact Artifact roots, caveats, provenance, and pending relation | The producer's external session, workflow, or opaque `source_run` |
+| Canonical Artifact under `records/artifacts/sha256/` | The exact retained bytes, path, full SHA-256 identity, and every Claim or Verification reference to them | Interpretation or execution of those bytes by a native tool |
+| Verification Record DSSE envelope | Exact subject roots, Artifact inputs and outputs, verifier identity, scope, outcome, nonclaims, method profile/path/root, and times | Re-executing the declared check in its native environment |
+| Source-owned Review Method file | When present, the read projection verifies its bytes against `method.environment_root`; missing bytes are reported `unavailable`, and substituted bytes fail root resolution | Acquiring tools, models, dependencies, credentials, data, instruments, or physical conditions and attempting the method again |
+| Authority Record and semantic Events | The authenticated principal, authorization request and result, exact deltas, Decision attribution, transition order, and derived Standing | Repeating scientific judgment or creating another Decision |
+
+The Submission's `replayability` value is an authenticated producer disclosure
+about expected native re-execution. Even `exact` does not expand `vela replay`
+into a workflow runner or turn a producer claim into Verification. A
+computational rerun may be deterministic, stochastic, approximate, unavailable,
+or impossible; a physical rerun is necessarily a new attempt. Either may
+produce new evidence, but neither changes Standing without a new Verification
+Record where applicable and an attributed authorized Decision.
 
 ## What this document does not do
 

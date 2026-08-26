@@ -114,12 +114,15 @@ three-Claim terminal state. Thirteen stable negative vectors exercise the proved
 without retaining corrupted history. The companion Rust test checks the same
 fixture through the public history verifier.
 
-This closes the independent-vector gap, not every authority implementation
-gap. Current CLI read and replay paths do not consult the local trust pin; the
-vector demonstrates verification from an externally supplied anchor rather
-than claiming read-side enforcement. The vector readers also assert some
-positive request, Event, delta, and terminal-state cross-links that the
-production history verifier does not itself enforce.
+The shipped CLI and the independent vector now enforce the same authority
+selection boundary. `replay`, Standing and authority-history reads, review
+reads, and projections load the independently installed pin from the canonical
+operating-system-account home and refuse a missing, malformed, or mismatched
+selection. Producer Submission, Verification, and withdrawal writes remain
+unprivileged; pinning grants no authority and changes no Repository byte. The
+vector readers additionally assert some positive request, Event, delta, and
+terminal-state cross-links that the production history verifier does not
+itself enforce.
 
 ### 5. Correction
 

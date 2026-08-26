@@ -44,6 +44,7 @@ fn stderr(output: &Output) -> String {
 struct Fixture {
     _temporary: tempfile::TempDir,
     _agent: EphemeralAgent,
+    _anchor: support::RemoveAnchorOnDrop,
     root: std::path::PathBuf,
     home: std::path::PathBuf,
     repository_path: std::path::PathBuf,
@@ -81,9 +82,10 @@ impl Fixture {
                 "--json",
             ],
         );
-        let _anchor = support::RemoveAnchorOnDrop::from_init_json(&String::from_utf8_lossy(
+        let anchor = support::RemoveAnchorOnDrop::from_init_json(&String::from_utf8_lossy(
             &initialized.stdout,
-        ));
+        ))
+        .expect("fixture init trust anchor");
         assert!(
             initialized.status.success(),
             "fixture init failed: {}",
@@ -139,6 +141,7 @@ impl Fixture {
                 .as_str()
                 .expect("claim id")
                 .to_string(),
+            _anchor: anchor,
             _agent: agent,
             _temporary: temporary,
         }

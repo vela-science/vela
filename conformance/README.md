@@ -1,7 +1,7 @@
 # Vela conformance
 
 This directory contains the small, implementation-independent corpus for the
-Vela Protocol 1 release-candidate boundary. `protocol-1.json` is the
+released Vela Protocol 1 boundary. `protocol-1.json` is the
 machine-readable map from the specification to exact schemas, fixtures,
 vectors, independent implementations, and non-normative examples;
 `verify_protocol_1.py` checks its paths and SHA-256 bindings.
@@ -65,3 +65,35 @@ Historical reducer cascades, AcceptancePolicy experiments, actor-registration
 previews, and their duplicate Python/TypeScript readers remain available in
 Git history. They are not current runtime contracts and are intentionally
 absent from this corpus.
+
+## Semantic scenario index
+
+The table maps Protocol 1 behavior to executable evidence. `PASS` means the
+test reproduced the expected state or refusal. It does not mean scientific
+acceptance or release readiness.
+
+| Scenario | Executable evidence | Required result |
+| --- | --- | --- |
+| Submission | `review_acceptance`; `genesis` | Authenticated Submission, Claim, Artifact, and pending Proposal are retained; no Event or accepted Standing is created. |
+| Passing Verification | `review_acceptance`; `genesis` | The scoped record is retained and changes no Standing before a Decision. |
+| Failed, contradictory, or incomplete Verification | `disposable_rejection_lifecycle` | Evidence remains visible; acceptance is unavailable and accepted Standing does not change. |
+| Unauthorized Decision | `review_acceptance`; `genesis` | Missing signer, authority, or trust selection refuses without Repository, Event-log, or Standing mutation. |
+| Authorized accept and reject | `review_acceptance`; `disposable_rejection_lifecycle` | Accept admits linked review and Claim Events; reject closes the Proposal while accepted Standing stays unchanged. |
+| Correction and supersession | `correction_impact`; `authority_chain_interop`; `repository_decision::tests::revise_replaces_exactly_one_predecessor` | The exact predecessor is retired, the successor may enter Standing, and predecessor history remains replayable. |
+| Retraction and Proposal withdrawal | `repository_decision::tests::withdrawal_accepts_only_the_exact_accepted_claim`; `claim_standing::tests::an_accepted_withdrawal_retracts_rather_than_accepts`; `wording_contract` | Authorized retraction removes only the exact accepted Claim; producer withdrawal closes only its pending Proposal and emits no Event. |
+| Rejected-history preservation | `disposable_rejection_lifecycle` | Submission, Proposal, Verification Records, attributed Decision, and rejection Event remain addressable. |
+| Clean-clone replay | `genesis`; `portable_divergence`; [`examples/neutral-replay/check.sh`](../examples/neutral-replay/check.sh) | Complete governed bytes reproduce the accepted set, Repository root, authority Event-log root, and Standing. Replay does not execute a scientific Method. |
+| Missing or corrupt Artifact | `genesis`; [`examples/neutral-replay/check.sh`](../examples/neutral-replay/check.sh) | Strict replay fails closed and emits no partial Standing. |
+| Missing, malformed, mismatched, or environment-supplied trust pin | `genesis`; `authority_chain_interop` | Every governed read requires the independently selected sequence-one root and ignores `HOME`. |
+| Changed Method binding | `review_method_check`; `genesis` | Changed profile, property, actor, nonclaim, or retained Method bytes refuse; source-owned Method execution remains outside replay. |
+| Canonical bytes, schemas, and cross-reader roots | `canonical_hashing_conformance`; `wire_schemas`; `verify.py` | Rust, Python, and JavaScript agree on exact bytes and roots and reject the negative vectors. |
+| Portable input under local authority | `portable_divergence` | The same authenticated Submission can receive different local Decisions and Standing without global consensus. |
+
+Run the focused Rust targets named above with `cargo test --locked -p
+vela-cli --features test-support --test <target>` or, for protocol targets,
+`cargo test --locked -p vela-protocol --test <target>`. Run the unit paths with
+their full names. The full portable corpus remains:
+
+```bash
+uv run --project conformance --locked python conformance/verify.py
+```

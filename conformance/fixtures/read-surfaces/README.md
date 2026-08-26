@@ -13,6 +13,6 @@ CLI envelope fields and are not part of `projection_root`.
 
 Consumers must require the exact supported schema, keep entry, Repository, and
 projection roots distinct, and treat `if_accept` and `if_reject` as
-hypothetical. Adding a field to this v2 read surface is compatible for readers
+hypothetical. Adding a field to this v3 read surface is compatible for readers
 that ignore unknown fields. Removing, renaming, or changing the type or meaning
 of a field requires a new schema version and a parallel fixture.

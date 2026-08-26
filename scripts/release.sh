@@ -22,6 +22,7 @@
 # usage:
 #   scripts/release.sh [--tag vX.Y.Z] [--out DIR] [--manifest-name NAME]
 #                      [--sign-key PATH] [--require-signature]
+#   scripts/release.sh --fetch-locked-graph-only
 #   scripts/release.sh --print-version
 #
 # environment:
@@ -39,6 +40,7 @@ cd "$ROOT"
 # request from the `anchore/sbom-action` marketplace Action; asserting it here is
 # what let that Action be removed.
 CARGO_AUDITABLE_VERSION="0.7.5"
+CARGO_ABOUT_VERSION="$(tr -d '\r\n' < "$ROOT/.github/release/cargo-about-version")"
 SYFT_VERSION="1.50.0"
 MANIFEST_SCHEMA="vela.release-bundle-manifest.v1"
 SIGNATURE_NAMESPACE="vela-release"
@@ -53,9 +55,13 @@ MANIFEST_NAME="release-manifest.json"
 SIGN_KEY="${VELA_RELEASE_SIGNING_KEY:-}"
 REQUIRE_SIGNATURE=false
 PRINT_VERSION=false
+FETCH_LOCKED_GRAPH_ONLY=false
 
 die() { echo "release: $*" >&2; exit 1; }
 step() { printf '\n== %s ==\n' "$1"; }
+case "$CARGO_ABOUT_VERSION" in
+  ''|*[!0-9.]*) die "invalid cargo-about version pin: $CARGO_ABOUT_VERSION" ;;
+esac
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -64,6 +70,7 @@ while [ $# -gt 0 ]; do
     --manifest-name) MANIFEST_NAME="${2:?--manifest-name needs a value}"; shift 2 ;;
     --sign-key) SIGN_KEY="${2:?--sign-key needs a value}"; shift 2 ;;
     --require-signature) REQUIRE_SIGNATURE=true; shift ;;
+    --fetch-locked-graph-only) FETCH_LOCKED_GRAPH_ONLY=true; shift ;;
     --print-version) PRINT_VERSION=true; shift ;;
     -h|--help) sed -n '1,30p' "$0"; exit 0 ;;
     *) die "unknown argument: $1" ;;
@@ -188,6 +195,19 @@ case "$CHANNEL" in
 esac
 echo "toolchain: $CHANNEL ($RUSTC_VERSION)"
 
+# cargo-about's frozen metadata pass can visit any selected lock entry, including
+# a target branch the host build did not compile. A prior build therefore does
+# not prove the required registry sources exist. Own the complete locked fetch
+# here so the provider workflow and a direct clean-checkout invocation have the
+# same explicit precondition and the later offline generator never depends on
+# ambient Cargo cache state.
+step "fetch complete locked dependency graph"
+cargo fetch --locked
+echo "locked dependency graph: fetched before frozen notice generation"
+if [ "$FETCH_LOCKED_GRAPH_ONLY" = true ]; then
+  exit 0
+fi
+
 HOST_TRIPLE="$(rustc -vV | sed -n 's/^host: //p')"
 [ -n "$HOST_TRIPLE" ] || die "rustc reported no host triple"
 TARGET_TRIPLE="${VELA_RELEASE_TARGET:-$HOST_TRIPLE}"
@@ -258,6 +278,63 @@ rm -rf "$STAGE"
 mkdir -p "$DIST" "$STAGE"
 cp "$BUILD_ONE/$BINARY_RELATIVE" "$STAGE/"
 test -x "$STAGE/vela"
+for license in LICENSE LICENSE-APACHE LICENSE-MIT; do
+  cp "$ROOT/$license" "$STAGE/$license"
+done
+
+# cargo-about harvests full license texts from the exact target-selected
+# Cargo.lock graph and
+# the checksummed crate sources Cargo already fetched for the locked build. It
+# is forced offline and normalized by repository-controlled code so source
+# paths, mtimes, and host state cannot enter the archive.
+installed_about="$(cargo install --list 2>/dev/null | sed -n 's/^cargo-about v\([0-9][^:]*\):$/\1/p' | head -n 1)"
+if [ "$installed_about" != "$CARGO_ABOUT_VERSION" ]; then
+  echo "installing cargo-about $CARGO_ABOUT_VERSION (found: ${installed_about:-none})"
+  cargo install cargo-about --version "$CARGO_ABOUT_VERSION" --locked
+fi
+observed_about="$(cargo about --version | awk '{print $2}')"
+[ "$observed_about" = "$CARGO_ABOUT_VERSION" ] ||
+  die "cargo-about $observed_about is not the pinned $CARGO_ABOUT_VERSION"
+
+NOTICE_NAME="THIRD-PARTY-LICENSES.txt"
+NOTICE_SCRATCH="$ROOT/target/release-notice-check"
+NOTICE_RAW_ONE="$NOTICE_SCRATCH/one.cargo-about.json"
+NOTICE_RAW_TWO="$NOTICE_SCRATCH/two.cargo-about.json"
+NOTICE_CHECK="$NOTICE_SCRATCH/$NOTICE_NAME"
+NOTICE_INVENTORY_ONE="$NOTICE_SCRATCH/one.inventory.json"
+NOTICE_INVENTORY_TWO="$NOTICE_SCRATCH/two.inventory.json"
+SELECTED_PACKAGES="$NOTICE_SCRATCH/selected-packages.json"
+rm -rf "$NOTICE_SCRATCH"
+mkdir -p "$NOTICE_SCRATCH"
+"$PYTHON" .github/release/selected-release-packages.py \
+  --cargo-lock Cargo.lock --target "$TARGET_TRIPLE" \
+  --output "$SELECTED_PACKAGES"
+generate_notices() {
+  local raw="$1"
+  local output="$2"
+  local inventory="$3"
+  cargo about -L error --color never generate \
+    --config .github/release/about.toml \
+    --target "$TARGET_TRIPLE" \
+    --format json --frozen --fail --locked --workspace \
+    --output-file "$raw"
+  "$PYTHON" .github/release/generate-third-party-notices.py \
+    --about-json "$raw" --cargo-lock Cargo.lock \
+    --config .github/release/about.toml --deny-config deny.toml \
+    --selected-graph "$SELECTED_PACKAGES" \
+    --cargo-about-version "$CARGO_ABOUT_VERSION" --output "$output" \
+    --inventory-output "$inventory"
+}
+generate_notices "$NOTICE_RAW_ONE" "$STAGE/$NOTICE_NAME" "$NOTICE_INVENTORY_ONE"
+generate_notices "$NOTICE_RAW_TWO" "$NOTICE_CHECK" "$NOTICE_INVENTORY_TWO"
+cmp "$STAGE/$NOTICE_NAME" "$NOTICE_CHECK" ||
+  die "two locked third-party notice generations produced different bytes"
+cmp "$NOTICE_INVENTORY_ONE" "$NOTICE_INVENTORY_TWO" ||
+  die "two locked third-party package inventories produced different bytes"
+"$PYTHON" .github/release/check-notice-bundle.py \
+  --bundle "$STAGE" --source-root "$ROOT" \
+  --cargo-about-version "$CARGO_ABOUT_VERSION" \
+  --target "$TARGET_TRIPLE" --selected-graph "$SELECTED_PACKAGES"
 
 refuse_private_path_bytes() {
   local artifact="$1"
@@ -273,7 +350,10 @@ refuse_private_path_bytes "$STAGE/vela" "$BUILD_ONE" "first target directory"
 refuse_private_path_bytes "$STAGE/vela" "$BUILD_TWO" "second target directory"
 refuse_private_path_bytes "$STAGE/vela" "$CARGO_HOME_RESOLVED" "Cargo home"
 refuse_private_path_bytes "$STAGE/vela" "$ACCOUNT_HOME_RESOLVED" "account home"
-echo "staged: $STAGE/vela"
+refuse_private_path_bytes "$STAGE/$NOTICE_NAME" "$ROOT" "notice source root"
+refuse_private_path_bytes "$STAGE/$NOTICE_NAME" "$CARGO_HOME_RESOLVED" "notice Cargo home"
+refuse_private_path_bytes "$STAGE/$NOTICE_NAME" "$ACCOUNT_HOME_RESOLVED" "notice account home"
+echo "staged: vela, exact project licenses, and deterministic third-party notices"
 
 # 5. SPDX SBOM, from syft invoked directly.
 #
@@ -340,13 +420,17 @@ canonicalize_sbom() {
     --input "$1" --output "$2" \
     --name "$SBOM_NAME" --namespace "$SBOM_NAMESPACE" \
     --created "$SBOM_CREATED" --root-name "$SBOM_ROOT_NAME" \
-    --root-id "$SBOM_ROOT_ID"
+    --root-id "$SBOM_ROOT_ID" \
+    --selected-graph "$SELECTED_PACKAGES" \
+    --notice-inventory "$NOTICE_INVENTORY_ONE"
 }
 canonicalize_sbom "$SBOM_RAW_ONE" "$SBOM"
 canonicalize_sbom "$SBOM_RAW_TWO" "$SBOM_CHECK"
 cmp "$SBOM" "$SBOM_CHECK" \
   || die "two independently generated SBOMs produced different canonical bytes"
-"$PYTHON" .github/release/check-sbom.py "$SBOM"
+"$PYTHON" .github/release/check-sbom.py "$SBOM" \
+  --selected-graph "$SELECTED_PACKAGES" \
+  --notice-inventory "$NOTICE_INVENTORY_ONE"
 refuse_private_path_bytes "$SBOM" "$STAGE" "SBOM stage directory"
 refuse_private_path_bytes "$SBOM" "$ROOT" "SBOM source root"
 refuse_private_path_bytes "$SBOM" "$BUILD_ONE" "SBOM first target directory"
@@ -401,6 +485,16 @@ manifest_arguments=(
   --binary-build-count 2
   --archive-build-count 2
   --cargo-auditable-version "$CARGO_AUDITABLE_VERSION"
+  --license-generator cargo-about
+  --license-generator-version "$CARGO_ABOUT_VERSION"
+  --license-notices "$STAGE/$NOTICE_NAME"
+  --license-input "Cargo.lock=$ROOT/Cargo.lock"
+  --license-input "about.toml=$ROOT/.github/release/about.toml"
+  --license-input "cargo-about-version=$ROOT/.github/release/cargo-about-version"
+  --license-input "deny.toml=$ROOT/deny.toml"
+  --license-input "normalizer=$ROOT/.github/release/generate-third-party-notices.py"
+  --license-input "selected-graph-generator=$ROOT/.github/release/selected-release-packages.py"
+  --license-input "selected-release-graph=$SELECTED_PACKAGES"
   --sbom-tool syft
   --sbom-tool-version "$SYFT_VERSION"
   --binary "$STAGE/vela"
