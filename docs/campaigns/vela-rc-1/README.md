@@ -10,6 +10,7 @@ not a foundational-research campaign.
 - [Append-only decisions](DECISIONS.md)
 - [Qualification matrix](QUALIFICATION.md)
 - [Failure ledger](FAILURES.md)
+- [R1 protocol and semantic audit](R1_SEMANTIC_AUDIT.md)
 - [Release checklist](RELEASE_CHECKLIST.md)
 - [Blind external-user test](EXTERNAL_TEST.md)
 - [Final release decision](FINAL.md)
