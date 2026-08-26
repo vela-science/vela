@@ -881,7 +881,7 @@
       "normative": false,
       "path": "examples/portable-divergence/flow.json",
       "role": "reference-flow",
-      "sha256": "sha256:8a4a2a09d6a84f565fc6d93e834f192367638a9c20681cd857a1ef6cc848009f"
+      "sha256": "sha256:54b9204728e3e3af747d2666b38953a90fbcfe97299b193fece3f513dcaad551"
     },
     {
       "bytes": 15959,
@@ -1052,7 +1052,7 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:a616f7ea3f39d9e674be3b7c3107b7d923771d2fb02481e5be83cc32d7804388",
+  "manifest_root": "sha256:d3af662374c2940329016ffdeccdc406f30a5cf412c4b0b565ee5ee58e223af5",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",
