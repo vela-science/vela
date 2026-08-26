@@ -84,6 +84,52 @@ fn tree_snapshot(root: &Path) -> Vec<(PathBuf, u32, Vec<u8>)> {
     entries
 }
 
+fn assert_governed_reads_fail_closed(
+    repository_path: &Path,
+    claim_id: &str,
+    proposal_id: &str,
+    expected_error: &str,
+) {
+    let commands = [
+        vec!["replay", ".", "--json"],
+        vec!["status", ".", "--json"],
+        vec!["claims", ".", "--json"],
+        vec!["show", ".", claim_id, "--json"],
+        vec!["why", ".", claim_id, "--json"],
+        vec!["log", ".", "--json"],
+        vec!["review", "list", ".", "--status", "all", "--json"],
+        vec!["review", "show", ".", proposal_id, "--json"],
+        vec!["review", "inbox", ".", "--json"],
+        vec!["projection", ".", "--json"],
+        vec!["correction", "impact", ".", claim_id, "--json"],
+    ];
+    let repository_before = tree_snapshot(&repository_path.join(".vela"));
+    for command in commands {
+        let output = run(repository_path, None, &command);
+        assert_eq!(
+            output.status.code(),
+            Some(1),
+            "governed read unexpectedly succeeded: {command:?}\nstdout={}\nstderr={}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let error: Value = serde_json::from_slice(&output.stdout)
+            .unwrap_or_else(|decode| panic!("decode {command:?} error JSON: {decode}"));
+        assert_eq!(error["ok"], false);
+        assert!(
+            error["error"]["message"]
+                .as_str()
+                .is_some_and(|message| message.contains(expected_error)),
+            "unexpected {command:?} error: {error}"
+        );
+    }
+    assert_eq!(
+        tree_snapshot(&repository_path.join(".vela")),
+        repository_before,
+        "refused governed reads must not mutate repository state"
+    );
+}
+
 #[test]
 fn fresh_current_repository_replays_from_a_clean_clone() {
     let temporary = tempfile::tempdir().expect("temporary directory");
@@ -340,6 +386,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
             .expect("trust anchor path"),
     );
     let _anchor = RemoveOnDrop(anchor_path.clone());
+    let correct_anchor_bytes = std::fs::read(&anchor_path).expect("read correct trust anchor");
     std::fs::remove_file(&anchor_path).expect("remove routine writer trust pin");
     let actor = "agent:current-submission-regression";
     let artifact = b"{\"bounded\":true}\n";
@@ -867,7 +914,73 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         .expect("read after commit");
     assert!(after.status.success());
     assert_ne!(before.stdout, after.stdout);
+    let proposal_id = submitted["proposal_id"].as_str().expect("Proposal ID");
+    let claim_id = submitted["claim_id"].as_str().expect("Claim ID");
+    assert_governed_reads_fail_closed(
+        &repository_path,
+        claim_id,
+        proposal_id,
+        "independent sequence-one pin",
+    );
+
+    let mut mismatched_anchor: Value =
+        serde_json::from_slice(&correct_anchor_bytes).expect("parse correct trust anchor");
+    mismatched_anchor["first_authority_record_root"] =
+        Value::String(format!("sha256:{}", "0".repeat(64)));
+    let mut mismatched_anchor_bytes =
+        serde_json::to_vec_pretty(&mismatched_anchor).expect("encode mismatched trust anchor");
+    mismatched_anchor_bytes.push(b'\n');
+    std::fs::write(&anchor_path, mismatched_anchor_bytes).expect("write mismatched trust anchor");
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&anchor_path, std::fs::Permissions::from_mode(0o600))
+            .expect("set mismatched trust anchor permissions");
+    }
+    assert_governed_reads_fail_closed(
+        &repository_path,
+        claim_id,
+        proposal_id,
+        "installed authority trust anchor selects",
+    );
+    std::fs::write(&anchor_path, b"{not-json\n").expect("write malformed trust anchor");
+    assert_governed_reads_fail_closed(
+        &repository_path,
+        claim_id,
+        proposal_id,
+        "could not load the independent authority trust anchor",
+    );
+    std::fs::remove_file(&anchor_path).expect("remove malformed trust anchor");
+    let repinned_for_reads = success_json(&run(
+        &repository_path,
+        None,
+        &[
+            "authority",
+            "trust",
+            "pin",
+            ".",
+            "--record-root",
+            record_root,
+            "--json",
+        ],
+    ));
+    assert_eq!(repinned_for_reads["operation"], "installed");
     let checked = success_json(&run(&repository_path, None, &["replay", ".", "--json"]));
+    let hostile_home = temporary.path().join("hostile-read-home");
+    std::fs::create_dir_all(&hostile_home).expect("hostile HOME directory");
+    let checked_with_hostile_home = success_json(&run_with_home(
+        &repository_path,
+        None,
+        &hostile_home,
+        &["replay", ".", "--json"],
+    ));
+    assert_eq!(
+        checked_with_hostile_home["repository_root"],
+        checked["repository_root"]
+    );
+    assert!(
+        !hostile_home.join(".vela/trust").exists(),
+        "trusted reads must ignore HOME and must not create trust state"
+    );
     assert_eq!(checked["counts"]["accepted_claims"], 0);
     assert_eq!(checked["counts"]["pending_claims"], 1);
     assert_eq!(checked["counts"]["verifications"], 2);
@@ -942,7 +1055,6 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
         .as_str()
         .expect("Decision Inbox entry root")
         .to_string();
-    let proposal_id = submitted["proposal_id"].as_str().expect("Proposal ID");
     let review = success_json(&run(
         &repository_path,
         None,
@@ -1156,6 +1268,7 @@ fn current_submission_and_verification_replay_without_changing_accepted_state() 
 
     // Routine evidence does not depend on caller-local authority custody, but
     // a later attributed Decision still requires the independent sequence-one pin.
+    std::fs::remove_file(&anchor_path).expect("remove trust pin before Decision refusal");
     let unpinned_decision = run(
         &repository_path,
         Some(agent.socket()),

@@ -93,6 +93,9 @@ the Repository manifest:
 git clone -b corrupt-artifact \
   examples/neutral-replay/neutral-replay.git.bundle neutral-replay-corrupt
 
+vela authority trust pin neutral-replay-corrupt \
+  --record-root sha256:317226ded44506c4010ebe073889d816eabd522b8f0870a83d02e01f93cc3753 \
+  --json
 vela replay neutral-replay-corrupt --json
 echo $?
 ```

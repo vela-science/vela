@@ -25,6 +25,10 @@ use vela_protocol::status::{
 use vela_protocol::submission::SubmissionRecordV3;
 use vela_protocol::verification_record::VerificationRecordEnvelopeV2;
 
+use crate::config::authority_trust::{
+    authority_trust_anchor_path, load_authority_trust_anchor_from_home,
+};
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub(crate) struct ProposalDecision {
     pub(crate) standing: String,
@@ -59,7 +63,7 @@ pub(crate) fn cmd_replay_repository(repository_path: &Path, json_out: bool) {
             "current repository contains sensitive-looking files: {listed}"
         ));
     }
-    let repository = verify_repository_at(&repository_path, true)
+    let repository = verify_trusted_repository_at(&repository_path)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let origin = RepositoryOriginV1::parse(
         &fs::read(repository_path.join(".vela/origin.json")).unwrap_or_else(|error| {
@@ -282,7 +286,7 @@ pub(crate) fn cmd_status(repository_path: &Path, json_out: bool) {
         }
         return;
     }
-    let repository = load_repository_at(&repository_path, true)
+    let repository = load_trusted_repository_at(&repository_path)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let repository_root = repository
         .canonical_root()
@@ -895,7 +899,7 @@ pub(crate) fn cmd_review_list(
         );
     }
     let repository_path = crate::ui::canonicalize_repo(repository_path);
-    let repository = load_repository_at(&repository_path, true)
+    let repository = load_trusted_repository_at(&repository_path)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let decisions = load_current_proposal_decisions(&repository_path, &repository)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
@@ -997,7 +1001,7 @@ pub(crate) fn cmd_review_show(repository_path: &Path, proposal_id: &str, json_ou
     crate::ui::set_mode("review show", json_out);
     crate::ui::require_initialized_repo(repository_path);
     let repository_path = crate::ui::canonicalize_repo(repository_path);
-    let repository = load_repository_at(&repository_path, true)
+    let repository = load_trusted_repository_at(&repository_path)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let decisions = load_current_proposal_decisions(&repository_path, &repository)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
@@ -1356,6 +1360,77 @@ pub(crate) fn load_repository_at(
             }))?;
         verify_routine_evidence_ancestry(root, &signed_repository_transitions, &repository)?;
     }
+    Ok(repository)
+}
+
+/// Require the independently held sequence-one authority selection for a
+/// governed repository read.
+///
+/// The retained chain proves that one lineage is internally valid. This
+/// boundary separately proves that the operating-system account selected that
+/// lineage without allowing repository bytes or `$HOME` to choose the pin.
+fn require_trusted_authority_read(root: &Path, repository: &RepositoryV4) -> Result<(), String> {
+    let origin_bytes = fs::read(root.join(".vela/origin.json"))
+        .map_err(|error| format!("read current repository origin: {error}"))?;
+    let origin = RepositoryOriginV1::parse(&origin_bytes)?;
+    let authority = crate::cli::load_repository_authority(root, repository, &origin)?;
+    let sequence_one_root = authority
+        .verification
+        .first_authority_record_root
+        .as_deref()
+        .ok_or_else(|| {
+            "trusted repository read requires a sequence-one authority record".to_string()
+        })?;
+
+    let account_home =
+        crate::repository_write_policy::operating_system_account_home().map_err(|error| {
+            format!("resolve operating-system account home for trusted repository read: {error}")
+        })?;
+    let account_home = fs::canonicalize(&account_home).map_err(|error| {
+        format!(
+            "canonicalize operating-system account home {} for trusted repository read: {error}",
+            account_home.display()
+        )
+    })?;
+    let anchor_path = authority_trust_anchor_path(&account_home, &repository.repository_id)?;
+    let anchor = load_authority_trust_anchor_from_home(&account_home, &repository.repository_id)
+        .map_err(|error| {
+            format!(
+                "trusted repository read could not load the independent authority trust anchor '{}': {error}; restore a valid vela.authority-trust-anchor.v1 from independently qualified evidence",
+                anchor_path.display()
+            )
+        })?
+        .ok_or_else(|| {
+            format!(
+                "trusted repository read requires an independent sequence-one pin at '{}'; obtain the authority-record root out of band, then run `vela authority trust pin <repo> --record-root <independently-qualified-sequence-one-root> --json`",
+                anchor_path.display()
+            )
+        })?;
+    anchor
+        .anchor
+        .verify_sequence_one(&repository.repository_id, sequence_one_root)
+        .map_err(|_| {
+            format!(
+                "trusted repository read refused: installed authority trust anchor selects {}, not the verified sequence-one authority record; verify the Repository and independent root, then intentionally rebind with `vela authority trust pin <repo> --record-root <independently-qualified-sequence-one-root> --previous-record-root {} --json`",
+                anchor.anchor.first_authority_record_root,
+                anchor.anchor.first_authority_record_root
+            )
+        })
+}
+
+/// Load current governed state only after selecting its authority lineage from
+/// the canonical operating-system-account trust store.
+pub(crate) fn load_trusted_repository_at(root: &Path) -> Result<RepositoryV4, String> {
+    let repository = load_repository_at(root, true)?;
+    require_trusted_authority_read(root, &repository)?;
+    Ok(repository)
+}
+
+/// Strictly verify every retained object and require the same independent
+/// authority selection used by all other governed read projections.
+pub(crate) fn verify_trusted_repository_at(root: &Path) -> Result<RepositoryV4, String> {
+    let repository = verify_repository_at(root, true)?;
+    require_trusted_authority_read(root, &repository)?;
     Ok(repository)
 }
 

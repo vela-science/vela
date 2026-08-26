@@ -577,7 +577,7 @@ fn sort_entries(entries: &mut [DecisionInboxEntry]) {
 /// Rebuild the complete pending scientific Decision Inbox from exact current
 /// repository state. This function performs no writes and has no side effects.
 pub(crate) fn project(repository_path: &Path) -> Result<DecisionInboxProjection, String> {
-    let repository = crate::repository::load_repository_at(repository_path, true)?;
+    let repository = crate::repository::load_trusted_repository_at(repository_path)?;
     let repository_root = repository.canonical_root()?;
     let origin = RepositoryOriginV1::parse(
         &fs::read(repository_path.join(".vela/origin.json"))

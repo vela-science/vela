@@ -27,6 +27,15 @@ arrive through a channel the checkout does not control, and
 `docs/THREAT_MODEL.md`, "Repository-authority substitution", states the reason —
 a checkout cannot be allowed to choose its own trust anchor.
 
+The current CLI enforces that separation for every governed read. It loads
+`vela.authority-trust-anchor.v1` from the canonical operating-system-account
+home, ignores `HOME`, and refuses replay, Standing, authority history, review,
+and projection output when the pin is missing, malformed, or selects another
+sequence-one record. The public Math value in the table is independently
+retained by Vela's
+[qualified authority fixture](../conformance/fixtures/authority/math-coh-00/trust-anchor.json);
+consumers do not derive it from a Math clone.
+
 The consequence for continuity is the whole point. A repository whose four
 bindings reproduce is the authority repository wherever its bytes are found. A
 repository that reproduces three of them and disagrees on the fourth is a fork,

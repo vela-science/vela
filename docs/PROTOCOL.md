@@ -432,7 +432,13 @@ vela.authority-trust-anchor.v1
 ```
 
 Repository bytes may not choose their own trust anchor. Pinning changes no
-repository byte and grants no authority.
+repository byte and grants no authority. The shipped governed-read boundary
+loads this document from the canonical operating-system-account home and
+ignores `HOME`. `replay`, `status`, `claims`, `show`, `why`, `log`, review
+reads, `projection`, and `correction impact` fail closed before reporting
+Standing or authority history when the pin is missing, malformed, or does not
+select the verified sequence-one record. Producer Submission, Verification,
+and withdrawal writes remain unprivileged and do not use this read boundary.
 
 ### 4.2 Principal and action
 
@@ -594,7 +600,9 @@ Strict replay verifies:
 Standing is derived only from valid admitted Events. It is never read from a
 database, Web page, mutable status field, verifier outcome, or Git branch name.
 
-`vela replay` fails closed on defects and grants no trust or exemption.
+`vela replay` fails closed on defects, including a missing, malformed, or
+mismatched operating-system-account trust pin, and grants no trust or
+exemption.
 
 ## 8. Correction
 

@@ -96,8 +96,9 @@ Advanced setup:
   roots through its single subcommand, `authority trust pin`. A consumer runs
   it at install time after obtaining the sequence-one authority-record root
   through a separate channel; it grants no authority and changes no repository
-  byte. See [Repository setup](#repository-setup). Writer initialization is
-  `vela init`, not `authority`.
+  byte. Governed reads load the pin from the canonical operating-system-account
+  home and ignore `HOME`. See [Repository setup](#repository-setup). Writer
+  initialization is `vela init`, not `authority`.
 
 Source-owning repositories and read products may expose exact next obligations
 and rooted work packets under their own contracts. Vela core owns no work
@@ -477,12 +478,19 @@ against the current sequence-one authority record.
 ## Repository verification
 
 ```bash
+vela authority trust pin <repo> \
+  --record-root sha256:<independently-qualified-sequence-one-root> \
+  --json
 vela replay <repo> --json
 ```
 
-The command verifies the current manifest and repository origin, retained
-authority chain, exact object roots, and rejection of retired active paths.
-The one-time migration writer is not part of the current binary.
+The command verifies the independently selected sequence-one record, current
+manifest and repository origin, retained authority chain, exact object roots,
+and rejection of retired active paths. The same fail-closed trusted-read
+boundary covers `status`, `claims`, `show`, `why`, `log`, `review
+inbox|list|show`, `projection`, and `correction impact`. Missing, malformed, or
+mismatched pins return an actionable error without Repository mutation. The
+one-time migration writer is not part of the current binary.
 
 ## Repository recovery
 

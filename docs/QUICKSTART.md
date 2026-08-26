@@ -29,12 +29,19 @@ vela 0.977.4
 git clone https://github.com/vela-science/math.git math
 git -C math checkout 5de716c896065c03c0a470d015ba2a328a527f73
 
+vela authority trust pin math \
+  --record-root sha256:efae3e02b5be6dfccf6701ebe26f87f00bb64f5b4372674e572a633844d95469 \
+  --json
 vela status math
 vela claims math
 vela replay math
 ```
 
-This requires no account, daemon, hosted service, or Repository authority key.
+The root is independently published in Vela's
+[qualified authority fixture](../conformance/fixtures/authority/math-coh-00/trust-anchor.json),
+not derived from the cloned Math Repository. Pinning grants no authority and
+changes no Repository byte. This requires no Vela account, daemon, hosted
+service, or Repository authority key.
 Use a complete clone. Strict reads refuse shallow, partial, alternate, or
 grafted Git object stores because missing Git history can mean missing
 scientific history.
@@ -250,8 +257,8 @@ A Git push publishes bytes. It does not itself create scientific acceptance.
 
 ## Trust pins and recovery
 
-Strict consumers can pin the sequence-one authority root obtained through an
-independent channel:
+Every governed read requires the sequence-one authority root obtained through
+an independent channel:
 
 ```bash
 vela authority trust pin ./my-repository \

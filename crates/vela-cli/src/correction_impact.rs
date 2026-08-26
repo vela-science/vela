@@ -186,7 +186,7 @@ pub(crate) fn correction_impact_payload(
 ) -> Result<(Value, reducer::CorrectionImpactProjectionV1), CorrectionImpactError> {
     let repository_path = crate::ui::canonicalize_repo(repository_path);
 
-    let repository = crate::repository::load_repository_at(&repository_path, true)?;
+    let repository = crate::repository::load_trusted_repository_at(&repository_path)?;
     let repository_root = repository.canonical_root()?;
 
     /* The successor is resolved over both lists so a correction can be asked
@@ -226,7 +226,7 @@ pub(crate) fn correction_impact_payload_at_transition(
     predecessor_claim_root: &str,
 ) -> Result<(Value, reducer::CorrectionImpactProjectionV1), CorrectionImpactError> {
     let repository_path = crate::ui::canonicalize_repo(repository_path);
-    let repository = crate::repository::load_repository_at(&repository_path, true)?;
+    let repository = crate::repository::load_trusted_repository_at(&repository_path)?;
     let repository_root = repository.canonical_root()?;
     let successor_reference =
         exact_retained_reference(successor_claim_id, successor_claim_root, successor_standing)?;

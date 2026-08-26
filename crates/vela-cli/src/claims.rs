@@ -142,7 +142,7 @@ pub(crate) fn cmd_claims(
     let repository_path = crate::ui::canonicalize_repo(repository_path);
     /* The same load `review list` uses: the manifest is only worth listing if
     repository authority covers it. */
-    let repository = crate::repository::load_repository_at(&repository_path, true)
+    let repository = crate::repository::load_trusted_repository_at(&repository_path)
         .unwrap_or_else(|error| crate::cli::fail_return(&error));
     let repository_root = repository
         .canonical_root()

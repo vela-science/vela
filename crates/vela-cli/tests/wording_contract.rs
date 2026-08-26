@@ -157,8 +157,9 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
             "--json",
         ],
     );
-    let _anchor =
-        support::RemoveAnchorOnDrop::from_init_json(&String::from_utf8_lossy(&initialized.stdout));
+    let anchor =
+        support::RemoveAnchorOnDrop::from_init_json(&String::from_utf8_lossy(&initialized.stdout))
+            .expect("init trust anchor");
     configure_git_identity(&repository_path);
 
     for verb in ["status", "replay"] {
@@ -237,6 +238,7 @@ fn the_cli_speaks_the_vocabulary_the_protocol_fixes() {
     let mut submit_json = submit.to_vec();
     submit_json.push("--json");
     submit_json[4] = "Second exact bounded fixture claim.";
+    std::fs::remove_file(&anchor.0).expect("remove trust pin before routine producer writes");
     let second = json(&run(temporary.path(), &home, socket, &submit_json));
     assert_eq!(second["ok"], true, "second submission failed: {second}");
     let proposal = second["proposal_id"].as_str().expect("proposal id");
