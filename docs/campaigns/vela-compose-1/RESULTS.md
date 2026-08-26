@@ -367,3 +367,43 @@ This result preserves the narrower T5 lifecycle qualification but rejects the
 stronger claim that the frozen package demonstrated efficient blind
 continuation. It is not evidence that such continuation is impossible in
 general.
+
+## VC1-R012 — T6 v1.1 Stage-0 terminal failure without scientific data
+
+Date: 2026-08-26.
+
+Candidate C did not qualify for participant execution. The hidden evaluator
+applied the single authorized binder correction to the sealed v1 reference
+candidate and verified that every proof-body byte remained unchanged. The
+corrected candidate nevertheless failed Lean at line 27:17; exact declaration
+type, introduced declarations, and axiom-set gates therefore did not run. The
+failure is an authorability failure of the frozen reference artifact, not a
+prover or treatment outcome.
+
+The independent public apparatus passed deterministic two-build package roots,
+byte-identical common Lean checkout and Git history across R/E/V, all 24 V/E
+scientific fields and 11 evidence blobs, native Vela status/why/replay, exact
+frozen-binary recovery, containment/custody, tamper controls, and 11 automated
+tests. It could not identify an exact tokenizer and version for the frozen
+runtime. The preregistered exact token counts, syntax overhead, and <=5%
+equivalence threshold therefore remain unevaluated; no proxy was substituted.
+
+```text
+Hidden-evaluator commit/tree: 75f3634443e69667b01768e3f195860df163f94f / f50adc3a2e3342abd11ec9bf3a5f4e52a9f92851
+Authorability receipt SHA-256: 348d904b41ef34fb2046f2a91d58b2ac6f49023cd9ba512f8be9621b20676084
+Authorability result: HIDDEN_EVALUATOR_AUTHORABILITY_FAIL
+Apparatus commit/tree: a835bcc23b468e9588f170a13db17cafd8b10b5d / 97c3ad0b2760e8b34a50e86227ab920203203cf4
+Apparatus receipt root: sha256:f774f8c4002e381bb5b47c9bedd5da47f50d98fe984515106d6baa0b3e449625
+Apparatus result: BLOCKED_RUNTIME_IDENTITY
+Supervisor fresh-clone tests: 4/4 evaluator; 11/11 apparatus
+Participant/model/scientific starts: 0 / 0 / 0
+Scientific denominator: 0
+Stage 1: CLOSED WITHOUT EXECUTION
+Scientific conclusion: NONE
+Campaign anomaly: NONE
+```
+
+T6 therefore provides no evidence for or against cumulative handoff value.
+The campaign may report only that the intended R/E/V screen was not executed
+because its frozen Stage-0 gates failed. Candidate C is terminal and no further
+correction or substitute target is authorized.

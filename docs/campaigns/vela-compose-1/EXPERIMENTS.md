@@ -246,3 +246,37 @@ campaign anomaly: NONE
 The lifecycle arm remains PASS; the full `lifecycle + blind continuation`
 interpretation is FAIL. No post-outcome screen or altered successor protocol is
 authorized.
+
+### VC1-E003 v1.1 Stage-0 terminal addendum
+
+The two independently authorized v1.1 Stage-0 outputs are terminal. The hidden
+evaluator mechanically applied only the authorized binder correction to the
+sealed v1 candidate. The proof body remained byte-identical, but the corrected
+candidate failed Lean at line 27:17. No proof repair, search, inspection, or
+rerun occurred. The public apparatus independently qualified every non-token
+component, but could not obtain an exact tokenizer identity/version for the
+frozen `gpt-5.6-sol` runtime; therefore the exact token counts and <=5% gate
+remain null.
+
+```text
+hidden-evaluator result: HIDDEN_EVALUATOR_AUTHORABILITY_FAIL
+hidden-evaluator commit/tree: 75f3634443e69667b01768e3f195860df163f94f / f50adc3a2e3342abd11ec9bf3a5f4e52a9f92851
+authorability receipt SHA-256: 348d904b41ef34fb2046f2a91d58b2ac6f49023cd9ba512f8be9621b20676084
+corrected candidate SHA-256: 26c4e002749944d2ea2909abf2f234fb7c9379d5f9612b5df490eb4b44267823
+proof-body SHA-256: 4d3f15525fe354aca5aa61533d5049a21456c53440f291d39b67721e1fe41578
+diagnostic stream SHA-256: 8e2d260178e5603601df81fb34c62c5093db3fd833bdf50ac8fee26a879cb4eb
+apparatus result: BLOCKED_RUNTIME_IDENTITY
+apparatus commit/tree: a835bcc23b468e9588f170a13db17cafd8b10b5d / 97c3ad0b2760e8b34a50e86227ab920203203cf4
+apparatus receipt root: sha256:f774f8c4002e381bb5b47c9bedd5da47f50d98fe984515106d6baa0b3e449625
+participant/model starts: 0
+scientific cells: 0
+scientific denominator: 0
+Stage 1: CLOSED WITHOUT EXECUTION
+scientific conclusion: NONE
+campaign anomaly: NONE
+```
+
+The experiment establishes no R/E/V comparison and no cumulative-handoff
+effect. VC1-D018 closes candidate C and forbids rescue, replacement, or proxy
+tokenization. The qualified apparatus components remain reusable evidence of
+instrument construction only.

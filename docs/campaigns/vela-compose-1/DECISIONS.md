@@ -303,3 +303,19 @@ Reason: The frozen gate required both bounded 10/10 comprehension and one useful
 This failure is ordinary bounded execution evidence, not a control-defeating
 anomaly. It does not reopen foundational search or weaken the qualified
 Submission -> Verification -> Decision -> Standing lifecycle.
+
+## VC1-D018 — Close T6 candidate C and authorize qualified T7 integration
+
+```text
+Decision ID: VC1-D018
+Date: 2026-08-26
+Question: Does corrected T6 candidate C pass Stage 0 and authorize R/E/V participant execution?
+Proposal: Bind both independent Stage-0 receipts, close candidate C without scientific data, and advance only qualified behavior to T7.
+Evidence: Hidden-evaluator commit/tree 75f3634443e69667b01768e3f195860df163f94f / f50adc3a2e3342abd11ec9bf3a5f4e52a9f92851 and authorability receipt SHA-256 348d904b41ef34fb2046f2a91d58b2ac6f49023cd9ba512f8be9621b20676084; apparatus commit/tree a835bcc23b468e9588f170a13db17cafd8b10b5d / 97c3ad0b2760e8b34a50e86227ab920203203cf4 and receipt root sha256:f774f8c4002e381bb5b47c9bedd5da47f50d98fe984515106d6baa0b3e449625; supervisor in-place and fresh-clone tests, Git integrity, and hash audits.
+Alternatives: Repair the hidden proof; substitute another task; waive exact tokenizer identity; use proxy token counts; run Stage 1 despite failed gates; keep T6 indefinitely open.
+Decision: Close candidate C at Stage 0. Do not run R/E/V cells. Do not authorize another correction, proof repair, replacement target, or proxy tokenizer. Authorize T7 to integrate only qualified Level-1 protocol, replay, branching, Lean, and Alzheimer lifecycle behavior, with the T5 clean-successor failure and T6 zero-denominator apparatus outcome as mandatory limitations. No release bump, tag, push, publication, or external validation is authorized.
+Authority: S0 under the frozen T6 and T7 gates.
+Affected components: T6; T7; terminal campaign interpretation.
+Supersedes: VC1-D016's Stage-0 execution authority after its required evidence was collected; all prior artifacts remain immutable.
+Reason: Hidden reference authorability failed and the frozen runtime/token equivalence gate remains blocked. Stage 0 therefore cannot pass, while the campaign already contains enough independently qualified Level-1 evidence for a bounded integration audit.
+```

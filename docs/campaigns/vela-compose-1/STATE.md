@@ -368,3 +368,35 @@ attempt that fails the successor gate through budget overrun and zero pending
 Proposal. It is not an apparatus invalidation and is not eligible for retry.
 The T5 lifecycle remains qualified; the stronger blind-continuation claim does
 not.
+
+## State 0016 — T6 candidate C closes at Stage 0; T7 authorized
+
+```text
+Date: 2026-08-26
+Phase: PHASE_6_QUALIFIED_RELEASE_INTEGRATION
+Supervisor branch: campaign/compose1-supervisor
+T6 hidden-evaluator commit/tree: 75f3634443e69667b01768e3f195860df163f94f / f50adc3a2e3342abd11ec9bf3a5f4e52a9f92851
+T6 apparatus commit/tree: a835bcc23b468e9588f170a13db17cafd8b10b5d / 97c3ad0b2760e8b34a50e86227ab920203203cf4
+T6 v1.1 hidden authorability: FAIL
+T6 v1.1 apparatus: BLOCKED_RUNTIME_IDENTITY
+T6 scientific denominator: 0
+T6 Stage 1 participant cells: CLOSED WITHOUT EXECUTION
+T7 qualified integration: AUTHORIZED
+Foundational top-down search: CLOSED
+Campaign anomaly: NONE
+```
+
+The corrected target proposition elaborates, but the mechanically corrected
+sealed reference candidate does not. Its proof body remained byte-identical;
+Lean exited nonzero at line 27:17 before exact-type, introduced-declaration, or
+axiom-set gates could run. The independent public apparatus qualified package
+determinism, common source history, V/E information equivalence, custody,
+native replay, binary recovery, and fail-closed controls, but the exact
+`gpt-5.6-sol` tokenizer identity/version is unavailable. The frozen token-count
+and <=5% surface-equivalence gate is therefore unevaluable. The supervisor
+reproduced both repositories from fresh no-local clones, passed 4/4 and 11/11
+tests respectively, ran Git integrity checks, and matched all canonical receipt
+hashes. No participant, model, or scientific cell started. Candidate C is
+closed; no further correction, proof repair, substitute target, or Stage-1 run
+is authorized. T7 may integrate only the qualified Level-1 behavior and must
+preserve the failed clean-successor and zero-denominator T6 limitations.
