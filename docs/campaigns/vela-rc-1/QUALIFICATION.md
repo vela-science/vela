@@ -2,10 +2,10 @@
 
 | Gate | Status | Evidence | Blocking condition |
 | --- | --- | --- | --- |
-| Semantic integrity | `HOLD — SEMANTIC BLOCKER` | R1 report and independent S0 reproduction | shipped replay does not enforce the normative independent sequence-one trust anchor |
-| Protocol conformance | `PASS AT PHASE 0` | portable verifier and complete locked Core union reproduced the frozen root and all current suites | independent R1 semantic matrix still pending |
-| Clean install | `PASS WITH DOCUMENTED PLATFORM LIMITATIONS` | R2 clean signed install and exact-candidate source build in pristine Debian x86-64 guests | disposable macOS not tested; R1 blocker remains independent |
-| Replay | `TECHNICAL PASS; SEMANTIC HOLD` | T4/T5 roots plus neutral clean-clone fixture and corrupt-Artifact refusal | unpinned read succeeds contrary to normative Protocol 1 |
+| Semantic integrity | `REQUALIFICATION PENDING` | bounded repair at `ad2a4516`; S0 direct negative/positive trust matrix and full Core union pass | fresh R1 must independently verify the repaired read boundary and normative match |
+| Protocol conformance | `PASS ON REPAIRED CANDIDATE` | portable verifier and complete locked Core union passed with root `sha256:6a9d475c...` | independent R1 semantic adjudication pending |
+| Clean install | `REQUALIFICATION PENDING` | prior R2 pass plus repaired neutral fixture under S0 | fresh R2 must exercise exact repaired candidate from a clean environment; disposable macOS remains untested |
+| Replay | `REQUALIFICATION PENDING` | repaired replay fails closed for missing/malformed/mismatched anchors and passes after explicit pin under S0 | fresh R1/R2 evidence pending |
 | Docs / first user | `BLOCKED` | awaits R1/R2 | contradiction or release-blocking ambiguity |
 | Cross-domain examples | `BLOCKED` | awaits R1/R2 | B8 |
 | Product legibility | `BLOCKED` | awaits R3/R4 | B9 |

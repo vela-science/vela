@@ -30,6 +30,13 @@ agree, fail closed on missing or mismatched external selection, add shipped-CLI
 negative coverage, and pass independent R1 requalification before downstream
 gates open.
 
+Repair status: `IMPLEMENTED; INDEPENDENT REQUALIFICATION PENDING`. Supervisor
+commit `ad2a4516078525025d05bd461b550ed5b8e35971` implements the existing
+normative trust selection across public governed-state reads. S0's direct
+missing/malformed/mismatch/positive matrix, portable verifier, clippy gate, and
+complete Core union pass. This entry remains open until fresh R1 and R2 audits
+accept the exact repaired tree.
+
 ## VRC1-F005 — clean-path documentation friction
 
 Classification: `DOC BLOCKER INPUT`, subordinate to VRC1-F004.

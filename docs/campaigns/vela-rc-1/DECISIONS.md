@@ -57,3 +57,15 @@ direct shipped-CLI coverage, and update public read instructions. It may not
 weaken Protocol 1, auto-trust Repository bytes, introduce a second replay mode,
 bump a version, or open R3-R7. Independent R1 and R2 requalification is required
 before the semantic gate can change.
+
+## VRC1-D008 — freeze repaired candidate for independent requalification
+
+Decision: accept commit/tree
+`ad2a4516078525025d05bd461b550ed5b8e35971` /
+`e08112922efbe59ef3b042d0a8f6b0f9557761ea` as the sole repaired candidate for
+fresh R1 semantic and R2 clean-install/replay requalification. S0's passing
+focused matrix, portable conformance verifier, clippy gate, and complete Core
+union establish implementation readiness for audit but do not adjudicate the
+release gates. R1 and R2 may inspect and test but may not repair, weaken, or
+reinterpret the candidate. R3-R7 remain blocked until both requalifications
+are reviewed and accepted by S0.

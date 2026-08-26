@@ -99,3 +99,26 @@ make the existing normative independent sequence-one selection real on shipped
 governed-state reads while preserving routine unprivileged evidence writes.
 R1/R2 requalification and every downstream gate remain closed pending a
 committed repair and independent supervisor audit.
+
+## VRC1-S007 — authority-read repair integrated and locally qualified
+
+Recorded: 2026-08-26, America/Toronto.
+
+The bounded repair was integrated at supervisor commit
+`ad2a4516078525025d05bd461b550ed5b8e35971`, tree
+`e08112922efbe59ef3b042d0a8f6b0f9557761ea`. It binds governed-state reads to
+the existing operating-system-account trust anchor, fails closed when that
+anchor is missing, malformed, or mismatched, and preserves ordinary
+unprivileged Submission, Verification, and withdrawal writes. Public read
+instructions and the neutral replay fixture now install the independently
+published sequence-one root explicitly.
+
+S0 independently passed formatting, diff hygiene, the direct trust-boundary
+matrix, the focused public fixture and authority suites, the portable
+conformance verifier, release-candidate clippy, and the complete locked Core
+union. The repaired Protocol 1 conformance root is
+`sha256:6a9d475c11db78faeb239a2f6c55b369b8b9a3f79c26c92cb59b7ae5eb2eb5d4`.
+
+This is implementation and supervisor evidence, not independent gate
+acceptance. G1 and G2 are `REQUALIFICATION PENDING`; fresh R1 and R2 auditors
+must qualify this exact commit/tree before R3 or R4 may start.
