@@ -1,0 +1,9 @@
+{
+  "analysis_sha256": "1533c8709cfc6cbfee783ab9cbf8ec1b4504751451454265185751f4228ad477",
+  "count": 5,
+  "input_sha256": "8f1277186ee9faa9db8923d71158b710a8a3c73916920f1827d411f350da0d00",
+  "maximum_temperature_c": "21.4",
+  "median_temperature_c": "20.5",
+  "minimum_temperature_c": "19.8",
+  "scope": "exact descriptive statistics over the retained fixture rows only"
+}

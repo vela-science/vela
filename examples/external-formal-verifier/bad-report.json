@@ -1,0 +1,41 @@
+{
+  "checked_assignments": 4,
+  "counterexamples": [
+    {
+      "assignment": {
+        "p": false,
+        "q": false
+      },
+      "left": false,
+      "right": true
+    },
+    {
+      "assignment": {
+        "p": false,
+        "q": true
+      },
+      "left": false,
+      "right": true
+    },
+    {
+      "assignment": {
+        "p": true,
+        "q": false
+      },
+      "left": false,
+      "right": true
+    },
+    {
+      "assignment": {
+        "p": true,
+        "q": true
+      },
+      "left": true,
+      "right": false
+    }
+  ],
+  "outcome": "fail",
+  "statement_description": "For all Boolean p and q, p AND q is equivalent to (NOT p) OR (NOT q).",
+  "statement_sha256": "9ce0d5c68a3e4bdbcefef9994ae583c7148e1b0d1937b02f33fb7ab6c68b916a",
+  "verifier_sha256": "ec061da8d55dd7c69787af5225619471d18bf502b3c90dc777f14b4dcbf8f94c"
+}

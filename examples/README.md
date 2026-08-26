@@ -22,5 +22,11 @@ authority path.
   history that replays genesis, Submission, scoped Verification, attributed
   Decision, admitted Events, and accepted Standing, plus a clean corrupt-
   Artifact branch that must fail closed.
+- [`external-formal-verifier/`](external-formal-verifier/) retains a failed
+  exhaustive Boolean Verification and rejection before a separate corrected
+  Proposal passes, is decided, enters Standing, and replays.
+- [`external-heterogeneous-evidence/`](external-heterogeneous-evidence/)
+  requires both exact recomputation and a separate evidence-scope review over
+  CSV, code, JSON, and prose evidence before an authorized Decision.
 
 For the shortest first experience, start with the [flagship quickstart](../docs/QUICKSTART.md).

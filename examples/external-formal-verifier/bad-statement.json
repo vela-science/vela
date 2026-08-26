@@ -1,0 +1,35 @@
+{
+  "description": "For all Boolean p and q, p AND q is equivalent to (NOT p) OR (NOT q).",
+  "left": {
+    "args": [
+      {
+        "var": "p"
+      },
+      {
+        "var": "q"
+      }
+    ],
+    "op": "and"
+  },
+  "right": {
+    "args": [
+      {
+        "arg": {
+          "var": "p"
+        },
+        "op": "not"
+      },
+      {
+        "arg": {
+          "var": "q"
+        },
+        "op": "not"
+      }
+    ],
+    "op": "or"
+  },
+  "variables": [
+    "p",
+    "q"
+  ]
+}
