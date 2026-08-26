@@ -4,27 +4,27 @@ No checklist item authorizes release.
 
 ## Candidate identity
 
-- [ ] exact qualifying HEAD and tree recorded
-- [ ] working tree clean
-- [ ] version decision recorded
-- [ ] Protocol and schema versions recorded
-- [ ] release bytes traceable to qualified source
+- [x] exact qualifying HEAD and tree recorded
+- [x] working tree clean
+- [x] version decision recorded
+- [x] Protocol and schema versions recorded
+- [x] release bytes traceable to qualified source
 
 ## Mandatory gates
 
-- [ ] R1 semantic audit passes
-- [ ] authoritative conformance matrix passes
-- [ ] full local Core union passes
-- [ ] clippy release-candidate gate passes
-- [ ] R2 clean install passes on a supported environment
-- [ ] deterministic public replay fixture passes with the expected accepted
+- [x] R1 semantic audit passes
+- [x] authoritative conformance matrix passes
+- [x] full local Core union passes
+- [x] clippy release-candidate gate passes
+- [x] R2 clean install passes on a supported environment
+- [x] deterministic public replay fixture passes with the expected accepted
       set, Repository root, and authority Event-log root
-- [ ] corrupt/missing Artifact fixture fails closed
-- [ ] R3 first-user documentation and CLI gate passes
-- [ ] R4 two-domain examples pass without a Core fork
-- [ ] R5 product surfaces do not misrepresent protocol semantics
-- [ ] R6 package, provenance, license, locks, CI, and migration audit passes
-- [ ] R7 blind test passes, if authorized by its dependency gate
+- [x] corrupt/missing Artifact fixture fails closed
+- [x] R3 first-user documentation and CLI gate passes
+- [x] R4 two-domain examples pass without a Core fork
+- [x] R5 product source does not misrepresent protocol semantics
+- [x] R6 package, provenance, license, locks, CI, and migration audit passes
+- [x] R7 blind test passes with recorded first-user limitations
 
 ## Release integrity, only after later user authorization
 
@@ -35,4 +35,4 @@ No checklist item authorizes release.
 - [ ] retain checksums, manifests, SBOMs, attestations, and supported signatures
 - [ ] verify released source digest equals the qualified source digest
 
-Current release status: `NOT AUTHORIZED`.
+Current release status: `READY FOR USER AUTHORIZATION WITH LIMITATIONS`.

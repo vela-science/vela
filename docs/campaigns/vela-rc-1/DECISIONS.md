@@ -127,3 +127,17 @@ semantic coaching. No version bump, tag, push, publication, signing,
 deployment, activation, or release is authorized. The tentative release
 version recommendation remains `PATCH BUMP` to `0.977.5`, to be executed and
 requalified only after later user authorization.
+
+## VRC1-D013 — final release-readiness verdict
+
+Decision: accept R7 `PASS WITH FIRST-USER LIMITATIONS` and set the RC-1 verdict
+to `RELEASE READY WITH EXPLICIT LIMITATIONS`. Return the candidate as
+`READY FOR USER AUTHORIZATION WITH LIMITATIONS`.
+
+This decision authorizes no external state change. The exact next authorized
+step, if the user chooses to release, is to prepare a bounded patch-version
+candidate `0.977.5`, rerun the exact hosted and clean-artifact gates on that
+tree, and return before publication. Vela Web release-record update,
+reprojection, live checks, activation, and deployment remain separate actions
+requiring explicit authority. No tag, push, publication, signature,
+deployment, or release is implied.

@@ -10,7 +10,7 @@
 | Cross-domain examples | `PASS WITH DOCUMENTED LIMITATIONS` | `R4_EXTERNAL_FIXTURES.md`; formal failure/correction lifecycle; heterogeneous two-check lifecycle; independent clean-clone replay | candidate not yet a signed artifact; trust-pin cleanup after uncatchable termination is manual |
 | Product legibility | `PASS WITH DEPLOYMENT/REPROJECTION ACTIONS` | `R5_REQUALIFICATION.md`; exact Vela Web repair and two independent audits | deployed legacy projection remains unqualified; release record, reprojection, live-reader checks, runtime checks, and deployment require later authorization |
 | Packaging | `PASS WITH DOCUMENTED RELEASE-TIME ACTIONS` | `R6_SECOND_REQUALIFICATION.md`; fresh-cache macOS/Linux artifacts; exact graph/notices/SPDX; hostile negatives | bounded 0.977.5 release commit, exact-tree hosted provenance, signing, and publication require later authorization |
-| Blind user | `AUTHORIZED / PENDING` | R1-R6 source gates accepted | objective task or semantic failure |
+| Blind user | `PASS WITH FIRST-USER LIMITATIONS` | `EXTERNAL_TEST.md`; uncoached full lifecycle, failed Verification, Decision, Standing, fresh-clone replay, corrupt Artifact | cold dependency download not measured; corrupt-fixture trust-pin ordering is awkward |
 
 ## Initial reproduction receipts
 

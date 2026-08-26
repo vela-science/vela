@@ -229,3 +229,28 @@ authorized against an exact clean release-facing snapshot. Version remains
 `0.977.4` during qualification; the later release recommendation is a bounded
 patch bump to `0.977.5`. No bump, tag, push, signature, publication,
 deployment, or release is authorized.
+
+## VRC1-S012 — blind user passed; release-ready verdict recorded
+
+Recorded: 2026-08-26, America/Toronto.
+
+R7 returned `PASS WITH FIRST-USER LIMITATIONS` on exact candidate commit/tree
+`41ec11750daf8268eba61f9307fe0bcbbd6ca044` /
+`233d4713bcc6112aa3a4b9fdf64cddd0a69d6e02`. Without campaign records or
+coaching, the participant built Vela, preserved and rejected a failed
+Verification, verified a correction, observed that passing Verification still
+left Standing empty, made the separate authorized Decision, inspected retained
+history, replayed the same governed state in a fresh clone, and diagnosed a
+missing Artifact as fail-closed.
+
+The participant correctly stated all six required semantics and identified a
+concrete value over ad hoc Git plus JSON plus logs. Its scope-selection restart,
+corrupt-fixture pin-order friction, account-scoped trust-anchor cleanup, and
+warm Cargo cache are preserved as first-user limitations.
+
+VELA-RC-1 therefore records `RELEASE READY WITH EXPLICIT LIMITATIONS` and
+returns `READY FOR USER AUTHORIZATION WITH LIMITATIONS`. This is a
+qualification verdict, not a release action. A later authorized release must
+prepare and requalify the bounded `0.977.5` tree and must separately authorize
+Vela Web reprojection and deployment. Foundational top-down search remains
+`CLOSED`.
