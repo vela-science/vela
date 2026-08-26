@@ -46,8 +46,18 @@ PREFIX="$ROOT/prefix"
 mkdir -p "$UNPACK" "$PREFIX/bin" "$ROOT/home"
 
 case "$ARCHIVE" in
-  *.zip) ditto -x -k "$ARCHIVE" "$UNPACK" ;;
-  *.tar.gz) tar -C "$UNPACK" -xzf "$ARCHIVE" ;;
+  *vela-macos-aarch64.zip)
+    TARGET_TRIPLE="aarch64-apple-darwin"
+    if command -v ditto >/dev/null 2>&1; then
+      ditto -x -k "$ARCHIVE" "$UNPACK"
+    else
+      unzip -q "$ARCHIVE" -d "$UNPACK"
+    fi
+    ;;
+  *vela-linux-x86_64.tar.gz)
+    TARGET_TRIPLE="x86_64-unknown-linux-musl"
+    tar -C "$UNPACK" -xzf "$ARCHIVE"
+    ;;
   *) echo "unsupported release archive: $ARCHIVE" >&2; exit 2 ;;
 esac
 
@@ -58,7 +68,7 @@ python_bin=python3
 command -v "$python_bin" >/dev/null 2>&1 || python_bin=python
 "$python_bin" "$REPOSITORY_ROOT/.github/release/check-notice-bundle.py" \
   --bundle "$UNPACK" --source-root "$REPOSITORY_ROOT" \
-  --cargo-about-version "$CARGO_ABOUT_VERSION"
+  --cargo-about-version "$CARGO_ABOUT_VERSION" --target "$TARGET_TRIPLE"
 if [[ "$NOTICES_ONLY" == true ]]; then
   echo "release notice smoke passed: $(basename "$ARCHIVE") ($EXPECTED_VERSION)"
   exit 0

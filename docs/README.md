@@ -84,6 +84,7 @@ Protocol 1 release candidate with Submission v3.
 - [VELA-RC-1 R5 product and Observatory semantic-legibility audit](campaigns/vela-rc-1/R5_PRODUCT_LEGIBILITY.md)
 - [VELA-RC-1 R6 packaging and release-integrity qualification](campaigns/vela-rc-1/R6_RELEASE_INTEGRITY.md)
 - [VELA-RC-1 independent R6 packaging requalification](campaigns/vela-rc-1/R6_REQUALIFICATION.md)
+- [VELA-RC-1 R6 packaging repair](campaigns/vela-rc-1/R6_PACKAGING_REPAIR.md)
 - [VELA-RC-1 append-only state](campaigns/vela-rc-1/STATE.md)
 - [VELA-RC-1 append-only decisions](campaigns/vela-rc-1/DECISIONS.md)
 - [VELA-RC-1 qualification matrix](campaigns/vela-rc-1/QUALIFICATION.md)

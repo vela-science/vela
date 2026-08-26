@@ -12,6 +12,7 @@ from pathlib import Path
 import tomllib
 
 FORMAT = "vela.third-party-notices.v1"
+INVENTORY_FORMAT = "vela.third-party-notice-inventory.v1"
 NOTICE_FILE = re.compile(
     r"^(?:NOTICE|COPYRIGHT|AUTHORS)(?:[._-].*)?$", re.IGNORECASE
 )
@@ -53,6 +54,7 @@ def render(arguments: argparse.Namespace) -> bytes:
     lock_path = Path(arguments.cargo_lock)
     config_path = Path(arguments.config)
     deny_path = Path(arguments.deny_config)
+    selected_path = Path(arguments.selected_graph)
     document = json.loads(about_path.read_text(encoding="utf-8"))
     raw_crates = document.get("crates")
     raw_licenses = document.get("licenses")
@@ -79,6 +81,26 @@ def render(arguments: argparse.Namespace) -> bytes:
         raise SystemExit(
             "third-party notices: about.toml accepted licenses differ from deny.toml"
         )
+
+    selected_document = json.loads(selected_path.read_text(encoding="utf-8"))
+    target = selected_document.get("target")
+    selected_rows = selected_document.get("packages")
+    if (
+        target not in targets
+        or not isinstance(selected_rows, list)
+        or selected_document.get("cargo_lock_sha256") != sha256_file(lock_path)
+    ):
+        raise SystemExit("third-party notices: invalid selected release graph")
+    selected_third_party = {}
+    for row in selected_rows:
+        if not isinstance(row, dict) or not isinstance(row.get("workspace"), bool):
+            raise SystemExit("third-party notices: malformed selected package")
+        if row["workspace"]:
+            continue
+        identity = (row.get("name"), row.get("version"), row.get("source"))
+        if not all(isinstance(value, str) for value in identity):
+            raise SystemExit("third-party notices: incomplete selected package identity")
+        selected_third_party[identity] = row
 
     locked = locked_packages(lock_path)
     packages: dict[str, dict[str, object]] = {}
@@ -133,6 +155,9 @@ def render(arguments: argparse.Namespace) -> bytes:
         package_rows.append(
             {
                 "checksum": checksum,
+                "classification": selected_third_party.get(
+                    (name, version, source), {}
+                ).get("classification"),
                 "declared": declared,
                 "evaluated": evaluated,
                 "name": name,
@@ -159,6 +184,25 @@ def render(arguments: argparse.Namespace) -> bytes:
                     "text": clean_text(text, f"{name} {version}/{path.name}"),
                     "version": version,
                 }
+            )
+
+    observed = {
+        (str(row["name"]), str(row["version"]), str(row["source"]))
+        for row in package_rows
+    }
+    expected = set(selected_third_party)
+    if observed != expected:
+        missing = sorted(expected - observed)
+        extra = sorted(observed - expected)
+        raise SystemExit(
+            "third-party notices: cargo-about differs from selected release graph; "
+            f"missing={missing}, extra={extra}"
+        )
+    for row in package_rows:
+        if row["classification"] not in {"contained", "build-contributor"}:
+            raise SystemExit(
+                "third-party notices: selected graph omitted classification for "
+                f"{row['name']} {row['version']}"
             )
 
     covered: set[str] = set()
@@ -218,14 +262,15 @@ def render(arguments: argparse.Namespace) -> bytes:
         f"Cargo.lock sha256: {sha256_file(lock_path)}",
         f"about.toml sha256: {sha256_file(config_path)}",
         f"deny.toml sha256: {sha256_file(deny_path)}",
+        f"Selected graph sha256: {sha256_file(selected_path)}",
         f"Dependency graph sha256: {sha256_bytes(graph_payload)}",
-        f"Targets: {', '.join(sorted(targets))}",
+        f"Target: {target}",
         f"Package count: {len(package_rows)}",
         f"License text count: {len(license_rows)}",
         f"Additional notice count: {len(notices)}",
         "",
-        "This material is generated from the exact locked normal-dependency union for",
-        "Vela's two supported release targets under the repository's accepted-license",
+        "This material is generated from the exact locked normal-dependency graph for",
+        "this Vela release target under the repository's accepted-license",
         "policy. It is distributable notice material, not a legal conclusion.",
         "",
         f"PACKAGE INVENTORY ({len(package_rows)})",
@@ -274,18 +319,56 @@ def render(arguments: argparse.Namespace) -> bytes:
     return ("\n".join(lines).rstrip() + "\n").encode()
 
 
+def inventory(arguments: argparse.Namespace) -> dict[str, object]:
+    selected = json.loads(Path(arguments.selected_graph).read_text(encoding="utf-8"))
+    about = json.loads(Path(arguments.about_json).read_text(encoding="utf-8"))
+    classifications = {
+        (row["name"], row["version"], row.get("source")): row["classification"]
+        for row in selected["packages"]
+        if not row["workspace"]
+    }
+    packages = []
+    for item in about["crates"]:
+        package = item["package"]
+        identity = (package["name"], package["version"], package["source"])
+        packages.append(
+            {
+                "classification": classifications[identity],
+                "declared": package["license"],
+                "evaluated": item["license"],
+                "name": package["name"],
+                "source": package["source"],
+                "version": package["version"],
+            }
+        )
+    packages.sort(key=lambda row: (row["name"], row["version"], row["source"]))
+    return {
+        "format": INVENTORY_FORMAT,
+        "target": selected["target"],
+        "packages": packages,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="generate-third-party-notices")
     parser.add_argument("--about-json", required=True)
     parser.add_argument("--cargo-lock", required=True)
     parser.add_argument("--config", required=True)
     parser.add_argument("--deny-config", required=True)
+    parser.add_argument("--selected-graph", required=True)
     parser.add_argument("--cargo-about-version", required=True)
     parser.add_argument("--output", required=True)
+    parser.add_argument("--inventory-output", required=True)
     arguments = parser.parse_args()
     output = Path(arguments.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_bytes(render(arguments))
+    inventory_output = Path(arguments.inventory_output)
+    inventory_output.parent.mkdir(parents=True, exist_ok=True)
+    inventory_output.write_text(
+        json.dumps(inventory(arguments), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     print(f"third-party notices: {output}")
     return 0
 

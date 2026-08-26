@@ -43,6 +43,11 @@ def paths() -> list[tuple[str, str, bool]]:
         ("conformance/verify_correction_impact.py", "correction-vector-verifier", True),
         ("conformance/verify_reference_flows.py", "reference-flow-verifier", False),
         ("conformance/verify_release_reproducibility.py", "release-reproducibility-verifier", False),
+        (
+            "conformance/check-release-notice-fresh-cache.sh",
+            "release-notice-fresh-cache-verifier",
+            False,
+        ),
         ("conformance/test_release_install.py", "release-installation-verifier", False),
         ("docs/RELEASES.md", "release-qualification", False),
         ("LICENSE", "license-boundary", False),
@@ -62,6 +67,11 @@ def paths() -> list[tuple[str, str, bool]]:
         (
             ".github/release/generate-third-party-notices.py",
             "release-notice-generator",
+            False,
+        ),
+        (
+            ".github/release/selected-release-packages.py",
+            "release-selected-graph-generator",
             False,
         ),
         (".github/release/check-sbom.py", "release-sbom-gate", False),

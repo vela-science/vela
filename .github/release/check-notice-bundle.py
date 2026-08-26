@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import re
 from pathlib import Path
 
@@ -27,6 +28,8 @@ def main() -> int:
     parser.add_argument("--bundle", required=True, type=Path)
     parser.add_argument("--source-root", required=True, type=Path)
     parser.add_argument("--cargo-about-version", required=True)
+    parser.add_argument("--target", required=True)
+    parser.add_argument("--selected-graph", type=Path)
     arguments = parser.parse_args()
     bundle = arguments.bundle.resolve()
     source = arguments.source_root.resolve()
@@ -57,6 +60,16 @@ def main() -> int:
         sha256(source / ".github/release/about.toml"),
     )
     require_line(payload, "deny.toml sha256", sha256(source / "deny.toml"))
+    require_line(payload, "Target", arguments.target)
+    if arguments.selected_graph is not None:
+        selected = json.loads(arguments.selected_graph.read_text(encoding="utf-8"))
+        if selected.get("target") != arguments.target:
+            raise SystemExit("notice bundle: selected graph target differs from archive")
+        require_line(
+            payload,
+            "Selected graph sha256",
+            sha256(arguments.selected_graph),
+        )
     for label in ("Package count", "License text count"):
         match = re.search(
             rf"^{re.escape(label)}: ([1-9][0-9]*)$", payload, re.MULTILINE

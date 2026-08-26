@@ -14,9 +14,9 @@ accepted = [
   "Zlib",
 ]
 
-# One notice bundle covers the union of the two release targets and is staged
-# unchanged in both archives. Development-only and build-only crates are not
-# linked into the distributed vela executable.
+# The release entry point overrides this list with its one exact target. Keeping
+# both supported targets here makes an un-overridden policy inspection cover
+# their union. Development-only and build-only crates are excluded.
 targets = [
   "aarch64-apple-darwin",
   "x86_64-unknown-linux-musl",

@@ -95,7 +95,8 @@ jobs:
         with:
           syft-version: v1.50.0
       # One entry point, in this order: version/tag agreement, toolchain
-      # channel, two path-remapped `cargo auditable build --locked` runs,
+      # channel, a complete `cargo fetch --locked` before frozen offline notice
+      # generation, two path-remapped `cargo auditable build --locked` runs,
       # staging, the SPDX SBOM, `check-sbom.py`, two deterministic archive runs,
       # checksums, `smoke-bundle.sh`, manifest.
       #
