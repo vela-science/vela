@@ -11,8 +11,8 @@ Cumulative workflow advantage: WEAK / INCONCLUSIVE
 Level 2 cumulative-science proof: NOT ESTABLISHED
 Control-defeating anomaly: NONE
 Foundational top-down search: CLOSED
-T7 candidate: QUALIFIED FOR SUPERVISOR AUDIT
-Campaign integration: NOT YET DECIDED
+T7 candidate: INTEGRATED AFTER SUPERVISOR AUDIT
+Campaign integration: INTERNAL QUALIFICATION COMPLETE
 Release: NOT RELEASED
 ```
 
@@ -225,8 +225,10 @@ commit/tree/root receipts that S0 audited and appended. It
 does not duplicate scientific objects into Vela Core or alter historical
 results.
 
-The supervisor must perform an independent audit of this task commit and decide
-whether to integrate it. Until then, the branch is only a local T7 candidate.
+The supervisor independently audited and integrated the T7 task commit. The
+exact receipt is recorded in `T7_RELEASE_QUALIFICATION.md`, VC1-D019, State
+0017, and VC1-R013. This internal integration is not a release or external
+validation.
 
 ## Claims explicitly not established
 
@@ -238,11 +240,11 @@ remains closed.
 
 ## Next actions
 
-1. S0 audits the T7 commit, exact tree, command receipts, and
-   matrix before deciding integration.
-2. If integrated, keep any later release task separate: recheck the exact
+1. Keep any later release task separate: recheck the exact
    candidate digest and hosted conformance before any version, tag, signing, or
    publication action is authorized.
-3. Keep T5 successor and T6 candidate C closed; any future continuation or
+2. Keep T5 successor and T6 candidate C closed; any future continuation or
    handoff experiment requires a new user-authorized preregistration rather
    than a rescue of these terminal attempts.
+3. Preserve the source-owned Lean and Alzheimer evidence roots and the
+   zero-denominator T6 receipts as the audit boundary for this campaign.

@@ -6,8 +6,8 @@ Recorded: 2026-08-26, America/Toronto.
 Lane: T7 Product/Release Integration
 Required supervisor commit: dc3d46a8c2ca7eeb03f22bfd1aee200f6cb11cb0
 Required supervisor tree: 5bf9caf80db1fff4360e95ed3eff214053d34b49
-Candidate status: QUALIFIED FOR SUPERVISOR AUDIT
-Integration status: NOT INTEGRATED
+Candidate status: INTEGRATED AFTER SUPERVISOR AUDIT
+Integration status: INTERNALLY QUALIFIED
 Release status: NOT RELEASED
 ```
 
@@ -130,3 +130,24 @@ The candidate supports this statement:
 It may not support Level 2, cumulative intelligence, productivity gain,
 external validation, adoption, theorem discovery, biological discovery,
 medical relevance, or a release claim.
+
+## Supervisor integration receipt
+
+S0 independently audited the task diff, preserved its documentation-only
+scope, and integrated it with disposition `MERGE`.
+
+```text
+T7 task commit/tree: f124f9b8c533ab9890eb0329eb0115793c799cd2 / fd2662f0dd825e92f878dc5c45687851728cde9f
+Integrated commit/tree: d0410cc0204e12b5f4167ebfee79bb0359389c66 / fd2662f0dd825e92f878dc5c45687851728cde9f
+Direct supervisor parent: dc3d46a8c2ca7eeb03f22bfd1aee200f6cb11cb0
+Independent fresh-clone focused CLI suite: PASS, 10 tests
+Independent fresh-clone documentation contract: PASS, 11 tests
+Independent fresh-clone Protocol 1 conformance: PASS
+Protocol 1 root: sha256:e7a6d288918692d6a6186cc3e612871f167ba954c4cc31de28cce182a66a0afd
+Independent full Core union on supervisor parent: PASS
+Independent T4/T5 strict replay roots: PASS
+Release, tag, push, publication, deployment: NONE
+```
+
+The integration changes campaign documentation only. It does not promote an
+unqualified item, alter an experiment, or authorize a release.

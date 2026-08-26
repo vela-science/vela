@@ -400,3 +400,33 @@ hashes. No participant, model, or scientific cell started. Candidate C is
 closed; no further correction, proof repair, substitute target, or Stage-1 run
 is authorized. T7 may integrate only the qualified Level-1 behavior and must
 preserve the failed clean-successor and zero-denominator T6 limitations.
+
+## State 0017 — VELA-COMPOSE-1 internally qualified and terminal
+
+```text
+Date: 2026-08-26
+Phase: TERMINAL_INTERNAL_QUALIFICATION
+Supervisor branch: campaign/compose1-supervisor
+T7 task commit/tree: f124f9b8c533ab9890eb0329eb0115793c799cd2 / fd2662f0dd825e92f878dc5c45687851728cde9f
+T7 integrated commit/tree: d0410cc0204e12b5f4167ebfee79bb0359389c66 / fd2662f0dd825e92f878dc5c45687851728cde9f
+Campaign classification: LEVEL_1_PROTOCOL_PROOF
+Cumulative workflow advantage: WEAK / INCONCLUSIVE
+Level 2 cumulative-science proof: NOT ESTABLISHED
+Clean downstream continuation: UNQUALIFIED
+R/E/V handoff result: UNQUALIFIED — SCIENTIFIC DENOMINATOR 0
+Release: NOT RELEASED
+External validation: NOT PERFORMED
+Foundational top-down search: CLOSED
+Campaign anomaly: NONE
+Active workers: NONE
+```
+
+T7 is integrated with disposition `MERGE` after an independent supervisor
+diff, ancestry, Git-integrity, clean-clone, focused-test, Protocol 1, full-Core,
+and source-owned vertical-replay audit. The campaign achieved the Level-1
+governed protocol result and preserved every negative gate. It did not show
+that a later machine continues more cheaply or effectively than competent
+ordinary artifacts or a neutral export. No schema, wire, protocol, CLI, or
+product behavior changed; migration notes are none. This bounded campaign is
+terminal. Any later release action or new handoff experiment requires separate
+user authorization and cannot reinterpret or rescue T5/T6.

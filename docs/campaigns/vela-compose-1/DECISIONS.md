@@ -319,3 +319,19 @@ Affected components: T6; T7; terminal campaign interpretation.
 Supersedes: VC1-D016's Stage-0 execution authority after its required evidence was collected; all prior artifacts remain immutable.
 Reason: Hidden reference authorability failed and the frozen runtime/token equivalence gate remains blocked. Stage 0 therefore cannot pass, while the campaign already contains enough independently qualified Level-1 evidence for a bounded integration audit.
 ```
+
+## VC1-D019 — Integrate T7 and close VELA-COMPOSE-1 at Level 1
+
+```text
+Decision ID: VC1-D019
+Date: 2026-08-26
+Question: Does the T7 candidate accurately integrate every qualified behavior and failed gate without changing semantics or overstating cumulative value?
+Proposal: Merge the documentation-only T7 candidate, bind the independent supervisor audit, and close the bounded campaign with its strongest supported terminal classification.
+Evidence: T7 task commit/tree f124f9b8c533ab9890eb0329eb0115793c799cd2 / fd2662f0dd825e92f878dc5c45687851728cde9f; integrated commit/tree d0410cc0204e12b5f4167ebfee79bb0359389c66 / fd2662f0dd825e92f878dc5c45687851728cde9f; direct parent dc3d46a8c2ca7eeb03f22bfd1aee200f6cb11cb0; supervisor full Core union PASS; fresh-clone focused 10-test CLI suite PASS; fresh-clone 11-test documentation contract PASS; fresh-clone Protocol 1 conformance PASS at root sha256:e7a6d288918692d6a6186cc3e612871f167ba954c4cc31de28cce182a66a0afd; current T4/T5 strict replay roots independently reproduced.
+Alternatives: Return the candidate for broader product work; reject the Level-1 classification; claim Level 2 despite absent data; treat local qualification as a release; keep the bounded campaign open without another authorized lane.
+Decision: MERGE. Classify VELA-COMPOSE-1 as LEVEL_1_PROTOCOL_PROOF with cumulative workflow advantage WEAK / INCONCLUSIVE. Mark Level 2 NOT ESTABLISHED, clean downstream continuation UNQUALIFIED, R/E/V cumulative handoff UNQUALIFIED with denominator 0, control-defeating anomaly NONE, and foundational top-down search CLOSED. No version bump, release, tag, push, publication, deployment, outreach, or external-validation act is authorized.
+Authority: S0 after independent worker-diff, clean-clone, conformance, vertical-replay, and claim-boundary audit.
+Affected components: T7; terminal VELA-COMPOSE-1 campaign status; internal release-qualification record.
+Supersedes: VC1-D018's T7 launch authority after the bounded integration completed; no historical scientific or apparatus disposition changes.
+Reason: The protocol, replay, branch, and two-domain governance evidence is strong enough for Level 1, while the failed T5 successor and unexecuted T6 cells prevent any honest Level-2 or cumulative-advantage claim.
+```

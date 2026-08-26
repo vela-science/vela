@@ -407,3 +407,43 @@ T6 therefore provides no evidence for or against cumulative handoff value.
 The campaign may report only that the intended R/E/V screen was not executed
 because its frozen Stage-0 gates failed. Candidate C is terminal and no further
 correction or substitute target is authorized.
+
+## VC1-R013 — Terminal Level-1 campaign qualification
+
+Date: 2026-08-26.
+
+VELA-COMPOSE-1 closes with the exact terminal classification
+`LEVEL_1_PROTOCOL_PROOF`. Current general Vela semantics passed kernel,
+authority, correction/supersession, receipt-integrity, replay, and controlled
+branch qualification. The same small protocol governed one real Lean lifecycle
+and one bounded Alzheimer literature lifecycle without a domain-specific Core
+fork.
+
+The six requested demonstration targets resolve as follows:
+
+| Demonstration | Disposition |
+| --- | --- |
+| Submission -> Verification -> Decision -> Event -> Standing | `QUALIFIED` |
+| Wrong, rejected, withdrawn, or superseded result retained while current Standing changes | `QUALIFIED` |
+| Identical governed branch root with isolated divergent histories and accountable differences | `QUALIFIED WITH LIMITATIONS` — synthetic test-only apparatus |
+| Clean reconstruction of governed Standing from history and receipts | `QUALIFIED WITH LIMITATIONS` — state replay, not native or physical rerun |
+| Later clean machine performs genuinely new work without reconstruction | `UNQUALIFIED` — T5 successor failed; T6 never executed |
+| Same general semantics across Lean and biological literature workflows | `QUALIFIED WITH LIMITATIONS` — one bounded lifecycle in each domain |
+
+```text
+T7 task commit/tree: f124f9b8c533ab9890eb0329eb0115793c799cd2 / fd2662f0dd825e92f878dc5c45687851728cde9f
+Integrated commit/tree: d0410cc0204e12b5f4167ebfee79bb0359389c66 / fd2662f0dd825e92f878dc5c45687851728cde9f
+Supervisor disposition: MERGE
+Protocol/software: Protocol 1 release candidate / Vela 0.977.4
+Protocol, schema, wire, CLI, product changes in T7: NONE
+Migration notes: NONE
+Level 2: NOT ESTABLISHED
+Control-defeating anomaly: NONE
+Release/publication/external validation: NONE
+```
+
+The evidence supports governed-state integrity and two-domain protocol use. It
+does not support improved cumulative machine-science productivity, reduced
+reconstruction cost, cumulative intelligence, external adoption, or a release.
+The failed successor and zero-denominator handoff experiment remain part of
+the terminal result, not work to be hidden or rescued.
