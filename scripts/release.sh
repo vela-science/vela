@@ -39,6 +39,7 @@ cd "$ROOT"
 # request from the `anchore/sbom-action` marketplace Action; asserting it here is
 # what let that Action be removed.
 CARGO_AUDITABLE_VERSION="0.7.5"
+CARGO_ABOUT_VERSION="$(tr -d '\r\n' < "$ROOT/.github/release/cargo-about-version")"
 SYFT_VERSION="1.50.0"
 MANIFEST_SCHEMA="vela.release-bundle-manifest.v1"
 SIGNATURE_NAMESPACE="vela-release"
@@ -56,6 +57,9 @@ PRINT_VERSION=false
 
 die() { echo "release: $*" >&2; exit 1; }
 step() { printf '\n== %s ==\n' "$1"; }
+case "$CARGO_ABOUT_VERSION" in
+  ''|*[!0-9.]*) die "invalid cargo-about version pin: $CARGO_ABOUT_VERSION" ;;
+esac
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -258,6 +262,50 @@ rm -rf "$STAGE"
 mkdir -p "$DIST" "$STAGE"
 cp "$BUILD_ONE/$BINARY_RELATIVE" "$STAGE/"
 test -x "$STAGE/vela"
+for license in LICENSE LICENSE-APACHE LICENSE-MIT; do
+  cp "$ROOT/$license" "$STAGE/$license"
+done
+
+# cargo-about harvests full license texts from the exact Cargo.lock graph and
+# the checksummed crate sources Cargo already fetched for the locked build. It
+# is forced offline and normalized by repository-controlled code so source
+# paths, mtimes, and host state cannot enter the archive. The union of the two
+# supported targets is deliberately identical in both release archives.
+installed_about="$(cargo install --list 2>/dev/null | sed -n 's/^cargo-about v\([0-9][^:]*\):$/\1/p' | head -n 1)"
+if [ "$installed_about" != "$CARGO_ABOUT_VERSION" ]; then
+  echo "installing cargo-about $CARGO_ABOUT_VERSION (found: ${installed_about:-none})"
+  cargo install cargo-about --version "$CARGO_ABOUT_VERSION" --locked
+fi
+observed_about="$(cargo about --version | awk '{print $2}')"
+[ "$observed_about" = "$CARGO_ABOUT_VERSION" ] ||
+  die "cargo-about $observed_about is not the pinned $CARGO_ABOUT_VERSION"
+
+NOTICE_NAME="THIRD-PARTY-LICENSES.txt"
+NOTICE_SCRATCH="$ROOT/target/release-notice-check"
+NOTICE_RAW_ONE="$NOTICE_SCRATCH/one.cargo-about.json"
+NOTICE_RAW_TWO="$NOTICE_SCRATCH/two.cargo-about.json"
+NOTICE_CHECK="$NOTICE_SCRATCH/$NOTICE_NAME"
+rm -rf "$NOTICE_SCRATCH"
+mkdir -p "$NOTICE_SCRATCH"
+generate_notices() {
+  local raw="$1"
+  local output="$2"
+  cargo about -L off --color never generate \
+    --config .github/release/about.toml \
+    --format json --frozen --fail --locked --workspace \
+    --output-file "$raw"
+  "$PYTHON" .github/release/generate-third-party-notices.py \
+    --about-json "$raw" --cargo-lock Cargo.lock \
+    --config .github/release/about.toml --deny-config deny.toml \
+    --cargo-about-version "$CARGO_ABOUT_VERSION" --output "$output"
+}
+generate_notices "$NOTICE_RAW_ONE" "$STAGE/$NOTICE_NAME"
+generate_notices "$NOTICE_RAW_TWO" "$NOTICE_CHECK"
+cmp "$STAGE/$NOTICE_NAME" "$NOTICE_CHECK" ||
+  die "two locked third-party notice generations produced different bytes"
+"$PYTHON" .github/release/check-notice-bundle.py \
+  --bundle "$STAGE" --source-root "$ROOT" \
+  --cargo-about-version "$CARGO_ABOUT_VERSION"
 
 refuse_private_path_bytes() {
   local artifact="$1"
@@ -273,7 +321,10 @@ refuse_private_path_bytes "$STAGE/vela" "$BUILD_ONE" "first target directory"
 refuse_private_path_bytes "$STAGE/vela" "$BUILD_TWO" "second target directory"
 refuse_private_path_bytes "$STAGE/vela" "$CARGO_HOME_RESOLVED" "Cargo home"
 refuse_private_path_bytes "$STAGE/vela" "$ACCOUNT_HOME_RESOLVED" "account home"
-echo "staged: $STAGE/vela"
+refuse_private_path_bytes "$STAGE/$NOTICE_NAME" "$ROOT" "notice source root"
+refuse_private_path_bytes "$STAGE/$NOTICE_NAME" "$CARGO_HOME_RESOLVED" "notice Cargo home"
+refuse_private_path_bytes "$STAGE/$NOTICE_NAME" "$ACCOUNT_HOME_RESOLVED" "notice account home"
+echo "staged: vela, exact project licenses, and deterministic third-party notices"
 
 # 5. SPDX SBOM, from syft invoked directly.
 #
@@ -401,6 +452,14 @@ manifest_arguments=(
   --binary-build-count 2
   --archive-build-count 2
   --cargo-auditable-version "$CARGO_AUDITABLE_VERSION"
+  --license-generator cargo-about
+  --license-generator-version "$CARGO_ABOUT_VERSION"
+  --license-notices "$STAGE/$NOTICE_NAME"
+  --license-input "Cargo.lock=$ROOT/Cargo.lock"
+  --license-input "about.toml=$ROOT/.github/release/about.toml"
+  --license-input "cargo-about-version=$ROOT/.github/release/cargo-about-version"
+  --license-input "deny.toml=$ROOT/deny.toml"
+  --license-input "normalizer=$ROOT/.github/release/generate-third-party-notices.py"
   --sbom-tool syft
   --sbom-tool-version "$SYFT_VERSION"
   --binary "$STAGE/vela"

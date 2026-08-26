@@ -48,6 +48,22 @@ def paths() -> list[tuple[str, str, bool]]:
         ("LICENSE", "license-boundary", False),
         ("CITATION.cff", "citation-metadata", False),
         (".github/release/create-deterministic-archive.py", "release-archiver", False),
+        (".github/release/about.toml", "release-notice-policy", False),
+        (
+            ".github/release/cargo-about-version",
+            "release-notice-generator-pin",
+            False,
+        ),
+        (
+            ".github/release/check-notice-bundle.py",
+            "release-notice-gate",
+            False,
+        ),
+        (
+            ".github/release/generate-third-party-notices.py",
+            "release-notice-generator",
+            False,
+        ),
         (".github/release/check-sbom.py", "release-sbom-gate", False),
         (".github/release/smoke-bundle.sh", "release-smoke-gate", False),
         (".github/workflows/release.yml", "hosted-release-gate", False),

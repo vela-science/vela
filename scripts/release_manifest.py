@@ -98,6 +98,16 @@ def main() -> int:
     parser.add_argument("--binary-build-count", required=True, type=int)
     parser.add_argument("--archive-build-count", required=True, type=int)
     parser.add_argument("--cargo-auditable-version", required=True)
+    parser.add_argument("--license-generator", required=True)
+    parser.add_argument("--license-generator-version", required=True)
+    parser.add_argument("--license-notices", required=True)
+    parser.add_argument(
+        "--license-input",
+        action="append",
+        required=True,
+        metavar="NAME=PATH",
+        help="one exact input to third-party notice generation",
+    )
     parser.add_argument("--sbom-tool", required=True)
     parser.add_argument("--sbom-tool-version", required=True)
     parser.add_argument("--binary", required=True)
@@ -140,6 +150,24 @@ def main() -> int:
     architecture, _, _ = arguments.target_triple.partition("-")
     platform = "macos" if "apple-darwin" in arguments.target_triple else "linux"
 
+    if not arguments.license_generator.strip() or not arguments.license_generator_version.strip():
+        raise SystemExit("release_manifest: notice generator identity must be nonempty")
+    license_inputs = []
+    license_input_names = set()
+    for entry in arguments.license_input:
+        name, _, raw = entry.partition("=")
+        path = pathlib.Path(raw)
+        if not name or not raw or not path.is_file():
+            raise SystemExit(f"release_manifest: malformed --license-input {entry!r}")
+        if name in license_input_names:
+            raise SystemExit(f"release_manifest: duplicate --license-input {name!r}")
+        license_input_names.add(name)
+        license_inputs.append({"name": name, "sha256": digest(path)})
+    license_inputs.sort(key=lambda item: item["name"])
+    notices = pathlib.Path(arguments.license_notices)
+    if not notices.is_file():
+        raise SystemExit(f"release_manifest: no notice bundle: {notices}")
+
     manifest = {
         "schema": arguments.schema,
         "assets": assets,
@@ -174,6 +202,15 @@ def main() -> int:
         "generated_at": dt.datetime.fromtimestamp(
             arguments.source_date_epoch, dt.UTC
         ).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "licenses": {
+            "generator": arguments.license_generator,
+            "generator_version": arguments.license_generator_version,
+            "inputs": license_inputs,
+            "notices": {
+                "name": notices.name,
+                "sha256": digest(notices),
+            },
+        },
         "release": {
             "tag": arguments.tag,
             "version": arguments.version,

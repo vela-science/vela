@@ -3,8 +3,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -14,9 +16,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 ARCHIVER = ROOT / ".github/release/create-deterministic-archive.py"
+NOTICE_CHECKER = ROOT / ".github/release/check-notice-bundle.py"
+NOTICE_GENERATOR = ROOT / ".github/release/generate-third-party-notices.py"
+SMOKE = ROOT / ".github/release/smoke-bundle.sh"
 SBOM_CANONICALIZER = ROOT / ".github/release/check-sbom.py"
 MANIFEST = ROOT / "scripts/release_manifest.py"
 EPOCH = 1_786_406_400
+PROJECT_LICENSES = ("LICENSE", "LICENSE-APACHE", "LICENSE-MIT")
+NOTICE_NAME = "THIRD-PARTY-LICENSES.txt"
+
+
+def sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def run(command: list[str], cwd: Path = ROOT) -> None:
@@ -32,11 +43,46 @@ def run(command: list[str], cwd: Path = ROOT) -> None:
         raise AssertionError(result.stderr)
 
 
+def expect_failure(command: list[str], expected: str, cwd: Path = ROOT) -> None:
+    result = subprocess.run(
+        command,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    if result.returncode == 0 or expected not in result.stderr:
+        raise AssertionError(
+            f"expected failure containing {expected!r}:\n{result.stdout}\n{result.stderr}"
+        )
+
+
+def notice_fixture() -> bytes:
+    version = (ROOT / ".github/release/cargo-about-version").read_text().strip()
+    return (
+        "Vela Third-Party License and Notice Material\n"
+        "Format: vela.third-party-notices.v1\n"
+        f"Generator: cargo-about {version} (--frozen --fail)\n"
+        f"Cargo.lock sha256: {sha256(ROOT / 'Cargo.lock')}\n"
+        f"about.toml sha256: {sha256(ROOT / '.github/release/about.toml')}\n"
+        f"deny.toml sha256: {sha256(ROOT / 'deny.toml')}\n"
+        "Package count: 1\n"
+        "License text count: 1\n"
+        "LICENSE TEXTS (1)\n"
+        "fixture license text\n"
+        "ADDITIONAL PACKAGE NOTICES (0)\n"
+    ).encode()
+
+
 def stage(path: Path) -> Path:
     path.mkdir(parents=True)
     binary = path / "vela"
     binary.write_bytes(b"#!/bin/sh\necho vela-reproducibility-fixture\n")
     binary.chmod(0o755)
+    for name in PROJECT_LICENSES:
+        shutil.copyfile(ROOT / name, path / name)
+    (path / NOTICE_NAME).write_bytes(notice_fixture())
     os.utime(binary, (EPOCH + len(str(path)), EPOCH + len(str(path))))
     return binary
 
@@ -66,15 +112,195 @@ def check_archives(root: Path) -> None:
         if suffix == "tar.gz":
             with tarfile.open(first, "r:gz") as archive:
                 members = archive.getmembers()
-                if [
+                observed = [
                     (item.name, item.mtime, item.uid, item.gid) for item in members
-                ] != [("vela", EPOCH, 0, 0)]:
+                ]
+                expected = [
+                    (name, EPOCH, 0, 0)
+                    for name in (*PROJECT_LICENSES, NOTICE_NAME, "vela")
+                ]
+                if observed != expected:
                     raise AssertionError("tar metadata is not deterministic")
         else:
             with zipfile.ZipFile(first) as archive:
                 entries = archive.infolist()
-                if len(entries) != 1 or entries[0].filename != "vela":
+                if [entry.filename for entry in entries] != [
+                    *PROJECT_LICENSES,
+                    NOTICE_NAME,
+                    "vela",
+                ]:
                     raise AssertionError("zip inventory is not deterministic")
+
+
+def notice_generator_arguments(directory: Path, *, covered: bool = True) -> list[str]:
+    source = "registry+https://github.com/rust-lang/crates.io-index"
+    package_id = f"{source}#fixture-crate@1.2.3"
+    package_root = directory / "registry/fixture-crate-1.2.3"
+    package_root.mkdir(parents=True)
+    (package_root / "Cargo.toml").write_text(
+        '[package]\nname = "fixture-crate"\nversion = "1.2.3"\n',
+        encoding="utf-8",
+    )
+    (package_root / "COPYRIGHT").write_text(
+        "Copyright 2026 Fixture Authors\n", encoding="utf-8"
+    )
+    lock = directory / "Cargo.lock"
+    lock.write_text(
+        "version = 4\n\n"
+        "[[package]]\n"
+        'name = "fixture-crate"\n'
+        'version = "1.2.3"\n'
+        f'source = "{source}"\n'
+        f'checksum = "{"a" * 64}"\n',
+        encoding="utf-8",
+    )
+    config = directory / "about.toml"
+    config.write_text(
+        'accepted = ["MIT"]\n'
+        'targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-musl"]\n',
+        encoding="utf-8",
+    )
+    deny = directory / "deny.toml"
+    deny.write_text(
+        '[licenses]\nallow = ["MIT"]\n',
+        encoding="utf-8",
+    )
+    package = {
+        "id": package_id,
+        "license": "MIT",
+        "manifest_path": str(package_root / "Cargo.toml"),
+        "name": "fixture-crate",
+        "repository": "https://example.invalid/fixture-crate",
+        "source": source,
+        "version": "1.2.3",
+    }
+    about = directory / "cargo-about.json"
+    about.write_text(
+        json.dumps(
+            {
+                "crates": [{"license": "MIT", "package": package}],
+                "licenses": [
+                    {
+                        "id": "MIT",
+                        "text": "Fixture MIT license text\n",
+                        "used_by": [{"crate": package, "path": None}]
+                        if covered
+                        else [],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return [
+        sys.executable,
+        str(NOTICE_GENERATOR),
+        "--about-json",
+        str(about),
+        "--cargo-lock",
+        str(lock),
+        "--config",
+        str(config),
+        "--deny-config",
+        str(deny),
+        "--cargo-about-version",
+        "0.8.4",
+        "--output",
+        str(directory / NOTICE_NAME),
+    ]
+
+
+def check_notice_generation(root: Path) -> None:
+    directories = [root / "left-notices", root / "right-notices"]
+    outputs = []
+    for directory in directories:
+        run(notice_generator_arguments(directory))
+        outputs.append((directory / NOTICE_NAME).read_bytes())
+    if outputs[0] != outputs[1]:
+        raise AssertionError("third-party notices depend on package source path")
+    payload = outputs[0].decode()
+    for expected in (
+        "Package count: 1",
+        "License text count: 1",
+        "Additional notice count: 1",
+        "Copyright 2026 Fixture Authors",
+    ):
+        if expected not in payload:
+            raise AssertionError(f"third-party notices omitted {expected!r}")
+
+    uncovered = root / "uncovered-notices"
+    expect_failure(
+        notice_generator_arguments(uncovered, covered=False),
+        "MIT applies to no crate",
+    )
+    absent = root / "unlocked-notices"
+    command = notice_generator_arguments(absent)
+    (absent / "Cargo.lock").write_text("version = 4\n", encoding="utf-8")
+    expect_failure(command, "Cargo.lock has no package list")
+
+
+def check_notice_gates(root: Path) -> None:
+    version = (ROOT / ".github/release/cargo-about-version").read_text().strip()
+    valid = root / "valid-notice-stage"
+    stage(valid)
+    checker = [
+        sys.executable,
+        str(NOTICE_CHECKER),
+        "--bundle",
+        str(valid),
+        "--source-root",
+        str(ROOT),
+        "--cargo-about-version",
+        version,
+    ]
+    run(checker)
+    archive = root / "valid-notices.tar.gz"
+    run(
+        [
+            sys.executable,
+            str(ARCHIVER),
+            "--source",
+            str(valid),
+            "--output",
+            str(archive),
+            "--epoch",
+            str(EPOCH),
+        ]
+    )
+    run([str(SMOKE), "--notices-only", str(archive), "0.0.0"])
+
+    for name in (*PROJECT_LICENSES, NOTICE_NAME):
+        broken = root / f"missing-{name.lower()}"
+        shutil.copytree(valid, broken)
+        (broken / name).unlink()
+        expected = f"missing required regular file {name}"
+        broken_checker = checker.copy()
+        broken_checker[broken_checker.index(str(valid))] = str(broken)
+        expect_failure(broken_checker, expected)
+        broken_archive = root / f"missing-{name.lower()}.tar.gz"
+        run(
+            [
+                sys.executable,
+                str(ARCHIVER),
+                "--source",
+                str(broken),
+                "--output",
+                str(broken_archive),
+                "--epoch",
+                str(EPOCH),
+            ]
+        )
+        expect_failure(
+            [str(SMOKE), "--notices-only", str(broken_archive), "0.0.0"],
+            expected,
+        )
+
+    changed = root / "changed-project-license"
+    shutil.copytree(valid, changed)
+    (changed / "LICENSE-MIT").write_text("changed\n", encoding="utf-8")
+    changed_checker = checker.copy()
+    changed_checker[changed_checker.index(str(valid))] = str(changed)
+    expect_failure(changed_checker, "packaged LICENSE-MIT differs from source")
 
 
 def sbom_fixture(path: Path, stage: Path, created: str, nonce: str) -> None:
@@ -157,6 +383,19 @@ def manifest_arguments(directory: Path, binary: Path) -> list[str]:
     archive.write_bytes(b"archive\n")
     sbom = directory / "vela-linux-x86_64.tar.gz.spdx.json"
     sbom.write_bytes(b'{"spdxVersion":"SPDX-2.3"}\n')
+    notices = directory / NOTICE_NAME
+    notices.write_bytes(notice_fixture())
+    license_inputs = []
+    for name, content in (
+        ("Cargo.lock", b"fixture lock\n"),
+        ("about.toml", b"accepted = [\"MIT\"]\n"),
+        ("cargo-about-version", b"0.8.4\n"),
+        ("deny.toml", b'[licenses]\nallow = ["MIT"]\n'),
+        ("normalizer", b"fixture normalizer\n"),
+    ):
+        path = directory / f"input-{name.replace('.', '-')}"
+        path.write_bytes(content)
+        license_inputs.extend(["--license-input", f"{name}={path}"])
     return [
         sys.executable,
         str(MANIFEST),
@@ -184,6 +423,13 @@ def manifest_arguments(directory: Path, binary: Path) -> list[str]:
         "2",
         "--cargo-auditable-version",
         "0.7.5",
+        "--license-generator",
+        "cargo-about",
+        "--license-generator-version",
+        "0.8.4",
+        "--license-notices",
+        str(notices),
+        *license_inputs,
         "--sbom-tool",
         "syft",
         "--sbom-tool-version",
@@ -212,6 +458,10 @@ def check_manifests(root: Path) -> None:
         raise AssertionError("manifest timestamp does not come from SOURCE_DATE_EPOCH")
     if document["build"]["reproducibility"]["binary_builds_compared"] != 2:
         raise AssertionError("manifest omitted the two-build gate")
+    if document["licenses"]["generator_version"] != "0.8.4":
+        raise AssertionError("manifest omitted the pinned notice generator")
+    if len(document["licenses"]["inputs"]) != 5:
+        raise AssertionError("manifest omitted a notice-generation input")
 
 
 def main() -> int:
@@ -220,9 +470,13 @@ def main() -> int:
     ) as temporary:
         root = Path(temporary)
         check_archives(root)
+        check_notice_generation(root)
+        check_notice_gates(root)
         check_sbom_normalization(root)
         check_manifests(root)
-    print("release-reproducibility: deterministic tar.gz, zip, SBOM, and manifest")
+    print(
+        "release-reproducibility: deterministic tar.gz, zip, notices, SBOM, and manifest"
+    )
     return 0
 
 

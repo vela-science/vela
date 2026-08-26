@@ -2,6 +2,27 @@
   "authority_effect": "none",
   "entries": [
     {
+      "bytes": 1041,
+      "normative": false,
+      "path": ".github/release/about.toml",
+      "role": "release-notice-policy",
+      "sha256": "sha256:cc4db808b781ba1e38b0b8307a75884ad6fcc43fbf962362ca66955ab889e881"
+    },
+    {
+      "bytes": 6,
+      "normative": false,
+      "path": ".github/release/cargo-about-version",
+      "role": "release-notice-generator-pin",
+      "sha256": "sha256:cf6a05db55c83ecdf0b3323be40d441e20f4bbd3860a3f4104a9dab70fbae161"
+    },
+    {
+      "bytes": 2788,
+      "normative": false,
+      "path": ".github/release/check-notice-bundle.py",
+      "role": "release-notice-gate",
+      "sha256": "sha256:10b2af47165f736d0e219204e3aeb5212b220a81d46052ed94ab19014307b830"
+    },
+    {
       "bytes": 3980,
       "normative": false,
       "path": ".github/release/check-sbom.py",
@@ -16,11 +37,18 @@
       "sha256": "sha256:1bf59176bf94a482cbf1c6f6c5528a1f3e38fb91b970d7850bf1d7227c3c615e"
     },
     {
-      "bytes": 5084,
+      "bytes": 11911,
+      "normative": false,
+      "path": ".github/release/generate-third-party-notices.py",
+      "role": "release-notice-generator",
+      "sha256": "sha256:2f1ccf654298991500387476df4e74ba95e6de9579f0984f934737f77e06c33f"
+    },
+    {
+      "bytes": 5871,
       "normative": false,
       "path": ".github/release/smoke-bundle.sh",
       "role": "release-smoke-gate",
-      "sha256": "sha256:cd7b4bda84cde728c7e398ac59771451561fb8032938edd57ab791b574fc85ce"
+      "sha256": "sha256:e85983729970c073285f46a2e550ff135a4ccdf107ac5a7f9de4658f705e8a38"
     },
     {
       "bytes": 9049,
@@ -457,11 +485,11 @@
       "sha256": "sha256:aa6ed6116ca29e63216b05763ec112cade385fb1a1c3f722fc0f1ee24734abb7"
     },
     {
-      "bytes": 10375,
+      "bytes": 10821,
       "normative": false,
       "path": "conformance/test_release_install.py",
       "role": "release-installation-verifier",
-      "sha256": "sha256:8a3a743ef9e3104897d0b4f18f1f8bf521a35b0dc907a4403d5455cc4b8df588"
+      "sha256": "sha256:6cbdceb6551b3e58c1b572c13103219079174e9b13ac90dc12e02ac6ac9bdd38"
     },
     {
       "bytes": 5019,
@@ -499,11 +527,11 @@
       "sha256": "sha256:472f8622295e14de7ab2debe71ea2f8114668420661ea07fba96584e52d67828"
     },
     {
-      "bytes": 6658,
+      "bytes": 7137,
       "normative": true,
       "path": "conformance/verify_protocol_1.py",
       "role": "manifest-verifier",
-      "sha256": "sha256:2d2bb0d1d50b5b8cfbde448b8fafa9f7d541b54c8d0949c9ab492d04264fb37a"
+      "sha256": "sha256:40048ab82d6d06c7181d1cc3ad9b636c9966bbdff572c1e9ab3f60650c44d28b"
     },
     {
       "bytes": 12971,
@@ -513,11 +541,11 @@
       "sha256": "sha256:5851331f49fd4bba94a84f93cd6db6be34023e03da93bf3603c3c16c6ee68f7c"
     },
     {
-      "bytes": 7866,
+      "bytes": 16352,
       "normative": false,
       "path": "conformance/verify_release_reproducibility.py",
       "role": "release-reproducibility-verifier",
-      "sha256": "sha256:91fd21fc2ebd7e2b909cac06d4359d5c3ddb446f445b2c26d1acc93a09f6ca84"
+      "sha256": "sha256:bb3e8fdd84a135dff99c16c2d328ef08625f3d74864aaa09d7c6cb6c237386d7"
     },
     {
       "bytes": 22293,
@@ -989,18 +1017,18 @@
       "sha256": "sha256:3ecee2e0c1c10a76c0516b21bf2e2b9ac3667a792036fc5f02056be9b3ead019"
     },
     {
-      "bytes": 19509,
+      "bytes": 22624,
       "normative": false,
       "path": "scripts/release.sh",
       "role": "release-entrypoint",
-      "sha256": "sha256:5a3bfdffe2ce76eb9e14f92c5b71c820154be1d5c4b5d6f1ba5f05733d101a16"
+      "sha256": "sha256:a7e3d1f64eb881a05c24f02e3245a697fe7b64e58c39c594f75f8464643cc31f"
     },
     {
-      "bytes": 7691,
+      "bytes": 9352,
       "normative": false,
       "path": "scripts/release_manifest.py",
       "role": "release-manifest-generator",
-      "sha256": "sha256:55cd37dcf857b22d4b0a698e2fc77404de706d28aed1e4449ac79efb4c7394d2"
+      "sha256": "sha256:3290d1949fbc4b91c9a2dee8d6c7ce0de7959be6d4f133cf6aebea67127b418d"
     },
     {
       "bytes": 10768,
@@ -1010,7 +1038,7 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:553c2bf5b495506e5297027c47abd68e058f1a34136900fc4e4606c81d311a17",
+  "manifest_root": "sha256:c3d9b95946d82c34c3ca01c911845df9598c74804f5b4c6def7a4b6c4181d2aa",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",

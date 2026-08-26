@@ -90,6 +90,10 @@ class ProviderIndependentInstall(unittest.TestCase):
         sbom = cls.release / f"{cls.asset}.spdx.json"
         sbom.write_text('{"spdxVersion":"SPDX-2.3"}\n')
         (cls.release / f"{cls.asset}.sha256").write_text(f"{digest(archive)}  {cls.asset}\n")
+        notices = stage / "THIRD-PARTY-LICENSES.txt"
+        notices.write_text("fixture third-party notices\n")
+        license_input = cls.root / "notice-input"
+        license_input.write_text("fixture notice input\n")
 
         manifest = cls.release / f"{cls.asset}.release-manifest.json"
         subprocess.run(
@@ -107,6 +111,10 @@ class ProviderIndependentInstall(unittest.TestCase):
                 "--binary-build-count", "2",
                 "--archive-build-count", "2",
                 "--cargo-auditable-version", "0.0.0",
+                "--license-generator", "cargo-about",
+                "--license-generator-version", "0.0.0",
+                "--license-notices", str(notices),
+                "--license-input", f"fixture={license_input}",
                 "--sbom-tool", "syft",
                 "--sbom-tool-version", "0.0.0",
                 "--binary", str(binary),
