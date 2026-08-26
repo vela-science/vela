@@ -18,5 +18,9 @@ authority path.
   Submission into two disposable independently governed Repositories, then
   proves that local accept and reject Decisions replay to different Standing
   without a global consensus layer.
+- [`neutral-replay/`](neutral-replay/) is one frozen, non-domain-specific Git
+  history that replays genesis, Submission, scoped Verification, attributed
+  Decision, admitted Events, and accepted Standing, plus a clean corrupt-
+  Artifact branch that must fail closed.
 
 For the shortest first experience, start with the [flagship quickstart](../docs/QUICKSTART.md).
