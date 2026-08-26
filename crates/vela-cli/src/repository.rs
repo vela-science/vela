@@ -3,7 +3,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -148,19 +147,140 @@ struct PortableNegativeCredentialScan {
 }
 
 fn contains_recognizable_credential(bytes: &[u8]) -> bool {
-    static CREDENTIAL_PATTERNS: OnceLock<regex::bytes::RegexSet> = OnceLock::new();
-    CREDENTIAL_PATTERNS
-        .get_or_init(|| {
-            regex::bytes::RegexSet::new([
-                r"sk-[A-Za-z0-9_-]{20,}",
-                r"ghp_[A-Za-z0-9]{20,}",
-                r"(?i)bearer\s+[A-Za-z0-9._~+/-]{20,}",
-                r#"(?i)"(?:access_token|refresh_token|api_key)"\s*:\s*"[^"\n]+""#,
-                r"-----BEGIN (?:(?:OPENSSH|RSA|EC) )?PRIVATE KEY-----",
-            ])
-            .expect("static credential patterns")
+    contains_prefixed_run(bytes, b"sk-", is_provider_key_byte)
+        || contains_prefixed_run(bytes, b"ghp_", u8::is_ascii_alphanumeric)
+        || contains_bearer_credential(bytes)
+        || contains_json_credential(bytes)
+        || [
+            b"-----BEGIN PRIVATE KEY-----".as_slice(),
+            b"-----BEGIN OPENSSH PRIVATE KEY-----".as_slice(),
+            b"-----BEGIN RSA PRIVATE KEY-----".as_slice(),
+            b"-----BEGIN EC PRIVATE KEY-----".as_slice(),
+        ]
+        .iter()
+        .any(|header| bytes.windows(header.len()).any(|window| window == *header))
+}
+
+fn contains_prefixed_run(bytes: &[u8], prefix: &[u8], allowed: fn(&u8) -> bool) -> bool {
+    bytes
+        .windows(prefix.len())
+        .enumerate()
+        .any(|(index, window)| {
+            window == prefix
+                && bytes[index + prefix.len()..]
+                    .iter()
+                    .take_while(|byte| allowed(byte))
+                    .count()
+                    >= 20
         })
-        .is_match(bytes)
+}
+
+fn is_provider_key_byte(byte: &u8) -> bool {
+    byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-')
+}
+
+fn is_bearer_token_byte(byte: &u8) -> bool {
+    byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'~' | b'+' | b'/' | b'-')
+}
+
+fn unicode_whitespace_len(bytes: &[u8]) -> Option<usize> {
+    let width = match *bytes.first()? {
+        0x00..=0x7f => 1,
+        0xc2..=0xdf => 2,
+        0xe0..=0xef => 3,
+        0xf0..=0xf4 => 4,
+        _ => return None,
+    };
+    let character = std::str::from_utf8(bytes.get(..width)?)
+        .ok()?
+        .chars()
+        .next()?;
+    character.is_whitespace().then_some(width)
+}
+
+fn skip_unicode_whitespace(bytes: &[u8], mut index: usize) -> usize {
+    while let Some(width) = unicode_whitespace_len(&bytes[index..]) {
+        index += width;
+    }
+    index
+}
+
+fn contains_bearer_credential(bytes: &[u8]) -> bool {
+    const PREFIX: &[u8] = b"bearer";
+    (0..bytes.len()).any(|index| {
+        let Some(candidate) = bytes.get(index..index + PREFIX.len()) else {
+            return false;
+        };
+        if !candidate.eq_ignore_ascii_case(PREFIX) {
+            return false;
+        }
+        let whitespace_start = index + PREFIX.len();
+        let token_start = skip_unicode_whitespace(bytes, whitespace_start);
+        token_start > whitespace_start
+            && bytes[token_start..]
+                .iter()
+                .take_while(|byte| is_bearer_token_byte(byte))
+                .count()
+                >= 20
+    })
+}
+
+fn folded_ascii_literal_end(bytes: &[u8], mut index: usize, literal: &[u8]) -> Option<usize> {
+    for expected in literal {
+        let byte = *bytes.get(index)?;
+        if byte.eq_ignore_ascii_case(expected) {
+            index += 1;
+        } else if expected.eq_ignore_ascii_case(&b's')
+            && bytes.get(index..index + 2) == Some("ſ".as_bytes())
+        {
+            index += 2;
+        } else if expected.eq_ignore_ascii_case(&b'k')
+            && bytes.get(index..index + 3) == Some("K".as_bytes())
+        {
+            index += 3;
+        } else {
+            return None;
+        }
+    }
+    Some(index)
+}
+
+fn contains_json_credential(bytes: &[u8]) -> bool {
+    const KEYS: [&[u8]; 3] = [b"access_token", b"refresh_token", b"api_key"];
+    (0..bytes.len()).any(|index| {
+        if bytes[index] != b'"' {
+            return false;
+        }
+        KEYS.iter().any(|key| {
+            let Some(mut cursor) = folded_ascii_literal_end(bytes, index + 1, key) else {
+                return false;
+            };
+            if bytes.get(cursor) != Some(&b'"') {
+                return false;
+            }
+            cursor = skip_unicode_whitespace(bytes, cursor + 1);
+            if bytes.get(cursor) != Some(&b':') {
+                return false;
+            }
+            cursor = skip_unicode_whitespace(bytes, cursor + 1);
+            if bytes.get(cursor) != Some(&b'"') {
+                return false;
+            }
+            let value_start = cursor + 1;
+            cursor = value_start;
+            while let Some(byte) = bytes.get(cursor) {
+                match byte {
+                    b'"' => {
+                        return cursor > value_start
+                            && std::str::from_utf8(&bytes[value_start..cursor]).is_ok();
+                    }
+                    b'\n' => return false,
+                    _ => cursor += 1,
+                }
+            }
+            false
+        })
+    })
 }
 
 fn is_valid_negative_credential_scan(path: &Path, name: &str) -> bool {
@@ -2718,26 +2838,48 @@ mod tests {
     #[test]
     fn credential_patterns_cover_reviewer_counterexamples() {
         for credential in [
+            b"sk-0123456789_abCDEFGH-".as_slice(),
             b"ghp_abcdefghijklmnopqrstuvwxyz".as_slice(),
-            b"-----BEGIN PRIVATE KEY-----".as_slice(),
-            b"Bearer abcdefghijklmnopqrstuvwxyz".as_slice(),
+            b"bEaReR\tabcdefghijklmnopqrst".as_slice(),
+            "Bearer\u{2003}abcdefghijklmnopqrst".as_bytes(),
+            br#"{"ACCESS_TOKEN" : "x"}"#.as_slice(),
+            b"{\"refresh_token\"\n:\n\"x\"}".as_slice(),
             br#"{"api_key":"abcdefghijklmnopqrstuvwxyz"}"#.as_slice(),
+            r#"{"api_Key":"x"}"#.as_bytes(),
+            r#"{"acceſs_token":"x"}"#.as_bytes(),
+            b"-----BEGIN PRIVATE KEY-----".as_slice(),
+            b"-----BEGIN OPENSSH PRIVATE KEY-----".as_slice(),
+            b"-----BEGIN RSA PRIVATE KEY-----".as_slice(),
+            b"-----BEGIN EC PRIVATE KEY-----".as_slice(),
         ] {
-            assert!(contains_recognizable_credential(credential));
+            assert!(
+                contains_recognizable_credential(credential),
+                "missed credential signature: {}",
+                String::from_utf8_lossy(credential)
+            );
         }
 
-        assert!(!contains_recognizable_credential(
-            br#"Bearer abcdefghij\u006blmnopqrstuvwxyz"#
-        ));
-        assert!(contains_recognizable_credential(
-            b"Bearer abcdefghijklmnopqrstuvwxyz"
-        ));
-        assert!(!contains_recognizable_credential(
-            br#"{\"api_key\":\"abcdefghijklmnopqrstuvwxyz\"}"#
-        ));
-        assert!(contains_recognizable_credential(
-            br#"{"api_key":"abcdefghijklmnopqrstuvwxyz"}"#
-        ));
+        for non_credential in [
+            b"sk-0123456789abcdefghi".as_slice(),
+            b"sk-0123456789abcdefghi!j".as_slice(),
+            b"ghp_0123456789abcdefghi".as_slice(),
+            b"ghp_0123456789abcdefghi_j".as_slice(),
+            b"Bearerabcdefghijklmnopqrst".as_slice(),
+            b"Bearer abcdefghijklmnopqrs".as_slice(),
+            b"Bearer abcdefghij@klmnopqrst".as_slice(),
+            br#"Bearer abcdefghij\u006blmnopqrstuvwxyz"#.as_slice(),
+            br#"{\"api_key\":\"abcdefghijklmnopqrstuvwxyz\"}"#.as_slice(),
+            br#"{"api_key":""}"#.as_slice(),
+            b"{\"api_key\":\"a\nb\"}".as_slice(),
+            b"-----BEGIN DSA PRIVATE KEY-----".as_slice(),
+            b"-----begin private key-----".as_slice(),
+        ] {
+            assert!(
+                !contains_recognizable_credential(non_credential),
+                "accepted non-credential signature: {}",
+                String::from_utf8_lossy(non_credential)
+            );
+        }
     }
 
     /* The four spellings a forge actually hands out, plus the case that has no
