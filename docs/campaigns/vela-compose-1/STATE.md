@@ -223,3 +223,27 @@ three equivalence/tamper tests, exact source and vertical bindings, target-name
 absence, Git integrity, and fresh-clone validation. This authorizes only a
 separate hidden evaluator-authorability and apparatus gate. It does not
 authorize R/E/V participant cells or claim useful handoff value.
+
+## State 0011 — T5 v1.1 extraction passed; lifecycle authorized
+
+```text
+Date: 2026-08-26
+Phase: PHASE_4_ALZHEIMER_VERTICAL_EXECUTION
+Supervisor branch: campaign/compose1-supervisor
+T5 v1.1 planning commit/tree: 337f8bd836b06474fbbf00be6275b673a950ff7a / f8eb8b1c46ee07f6048098f43019e65bee64d9fb
+T5 v1.1 review commit/tree: 427e234c77ebea6022ca835c0ee236e2c1ab0110 / 38cfa8925c123f27ad002cd23d4e483584d46060
+T5 review verdict: PASS_EXTRACTION
+T5 lifecycle experiment: VC1-E004 AUTHORIZED
+T6 Stage 0: ACTIVE
+Foundational top-down search: CLOSED
+Campaign anomaly: NONE
+```
+
+The supervisor reproduced the corrected packet and independent re-review from
+fresh clones. All twelve source representations match, the four Montagne rows
+and separate model roles are exact, v1 artifacts remain immutable, and no
+material mismatch remains. Two nonmaterial advisories become mandatory future
+Submission fields: Preis QAlb `n=33` and source-specific absence of multiplicity
+correction in Edwards 2025. A new source-owned T5 lifecycle may now execute the
+frozen literature-report transition and clean-machine continuation. It may not
+broaden the Claim, add sources, or create a biological or medical conclusion.

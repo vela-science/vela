@@ -198,3 +198,29 @@ Campaign anomaly: NONE
 
 This is apparatus/task qualification, not evidence that Vela improves
 continuation and not a cumulative-intelligence result.
+
+## VC1-R007 — T5 v1.1 extraction qualification
+
+Date: 2026-08-26.
+
+The corrected T5 packet passed independent primary-source re-review. All twelve
+PubMed/BioC representations matched, the decisive Montagne supplement was
+re-rendered and checked, all four model rows were exact, and the Claim boundary
+correctly separates Aβ1-42 and pTau adjustment while leaving formal APOE effect
+modification, simultaneous A+T adjustment, replication, and baseline
+A-negative/T-negative persistence unestablished.
+
+```text
+Planning commit/tree: 337f8bd836b06474fbbf00be6275b673a950ff7a / f8eb8b1c46ee07f6048098f43019e65bee64d9fb
+Review commit/tree: 427e234c77ebea6022ca835c0ee236e2c1ab0110 / 38cfa8925c123f27ad002cd23d4e483584d46060
+Review verdict: PASS_EXTRACTION
+Material residual mismatches: 0
+Nonmaterial advisories: Preis QAlb n=33; Edwards source-specific no multiplicity correction
+Supervisor fresh-clone/hash/ancestry audit: PASS
+Scientific Standing created: 0
+Lifecycle VC1-E004: AUTHORIZED, NOT YET RUN
+Campaign anomaly: NONE
+```
+
+This result qualifies the extraction for a governed lifecycle. It does not
+establish a biological effect, clinical conclusion, or accepted Standing.

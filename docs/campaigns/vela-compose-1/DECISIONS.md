@@ -204,3 +204,22 @@ Reason: C introduces finite indexed limit aggregation and Lean elaboration work 
 Stage 0 must retain the reference proof outside every participant, package,
 runner-log, and source root. Failure authoring the exact statement kills the
 task; it does not authorize a substitute or a changed statement.
+
+## VC1-D013 — Accept T5 v1.1 extraction and authorize one lifecycle
+
+```text
+Decision ID: VC1-D013
+Date: 2026-08-26
+Question: Does the corrected T5 extraction qualify for one source-owned governed-science lifecycle?
+Proposal: Accept PASS_EXTRACTION, freeze the exact literature-report Claim, and run one bounded initial-Standing -> reviewed Submission -> authorized Decision -> updated Standing -> replay -> clean continuation lifecycle.
+Evidence: Planning commit/tree 337f8bd836b06474fbbf00be6275b673a950ff7a / f8eb8b1c46ee07f6048098f43019e65bee64d9fb; independent re-review commit/tree 427e234c77ebea6022ca835c0ee236e2c1ab0110 / 38cfa8925c123f27ad002cd23d4e483584d46060; all twelve source representations matched; supervisor JSON, hash, ancestry, Git-integrity, and fresh-clone audits PASS.
+Alternatives: Keep planning indefinitely; broaden the Claim; add sources; treat reviewer PASS as Standing; bypass an authorized Decision.
+Decision: Authorize VC1-E004 in a new source-owned repository. The maximum positive Claim is the exact reviewer boundary. Bind Preis QAlb n=33 and Edwards source-specific no-multiplicity-correction as mandatory qualifications. Require independent Verification, explicit authority, append-only Events, exact replay, and a clean downstream continuation. No Core change is authorized.
+Authority: S0.
+Affected components: T5; T6 real-science dependency; T7 release evidence.
+Supersedes: VC1-D011's correction-only block after the required re-review; the rejected v1 packet and review remain immutable evidence.
+Reason: The corrected extraction is source-stable and proportionate, so the remaining uncertainty is whether current general protocol semantics can govern the real-science transition and preserve enough state for continuation.
+```
+
+`PASS_EXTRACTION` is evidence for authorizing an experiment, not a Vela
+Verification or scientific Decision. The lifecycle must still earn Standing.

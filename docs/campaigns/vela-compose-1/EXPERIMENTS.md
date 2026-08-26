@@ -129,3 +129,34 @@ Execution authority: S0 authorizes Stage 0 only. Stage 1 requires hidden evaluat
 Pre-outcome exclusions: the original modulus-two task and candidates A/B. They
 started no model or Lean process, consumed no seed/context, and enter no
 scientific denominator.
+
+## VC1-E004 — T5 Alzheimer governed literature transition
+
+This central preregistration is frozen before lifecycle execution. The future
+source-owned repository must mirror it before any Vela object is created.
+
+```text
+Experiment ID: VC1-E004 / T5-v1.1-lifecycle
+Question: Can current general Vela semantics govern a real, qualified Alzheimer literature transition and leave a clean successor enough explicit state to continue without reconstructing the reviewed corpus?
+Hypothesis: The exact reviewed literature-report Claim can move from unresolved frontier Standing to accepted qualified Standing through independent Verification and an authorized Decision, then replay and support one bounded pending continuation without domain-specific Core changes.
+Treatment: A source-owned Vela Repository containing an initially accepted unresolved-frontier Claim, immutable S1-S6 artifacts and qualifications, a new exact Claim that supersedes the open frontier, independent review/Verification, one authorized Decision, append-only Events, terminal Standing, replay, and a clean downstream continuation.
+Controls: Exact v1/v1.1 planning and review commits/hashes; no source additions; exact Claim bytes; source-family dependence; all four S2 rows; separate A/T model roles; nominal/post hoc/no-correction labels; Preis inconsistency and QAlb n=33; Edwards no-correction/missingness; author/reviewer/decider role separation; before/after Standing roots; source-owned receipts; no Core change.
+Task/data: Frozen six-source CSF sPDGFRbeta/APOE4/A-T literature corpus and exact reviewer-authorized Claim in T5_V1_1_CLAIM_BOUNDARY.md.
+Model: No model generates or adjudicates scientific content. A later fresh Codex task may perform only the frozen clean-machine comprehension/continuation test under a separately sealed prompt and budget.
+Tools: Exact Vela 0.977.4 binary SHA-256 2db9b9bd5fef7680b208a070604c6c1f1086a2b124d4207279fcf198cc3dc858; Git; deterministic JSON/hash validators; frozen source artifacts and review receipts.
+Information available: Lifecycle author receives the passed planning/review packets and source artifacts. Independent verifier receives committed Submission/evidence plus frozen primary-source representations. Clean successor receives only the committed source-owned Repository, documented Vela surfaces, and a frozen comprehension/continuation task—no prior conversation.
+Resource budget: One initial-frontier lifecycle, one reviewed transition lifecycle, one authorized updating Decision, one replay, one fresh clean-successor task capped at 15 minutes, 15,000 total tokens where observable, 40 tool calls, and no network/source additions.
+Primary outcome: Exact Submission -> independent Verification -> authorized Decision -> Event -> Standing transition, clean replay root equality, and 10/10 correct comprehension answers plus one useful bounded pending continuation that does not broaden scientific Standing.
+Secondary outcomes: Preservation of rejected/unsupported propositions; source/evidence-class errors; provenance/authority mistakes; reads/tool calls/time to comprehension and pending continuation; Core/schema pressure; clean-machine replay and receipt resolution.
+Inclusion criteria: Every frozen artifact hash passes; v1 remains immutable; Claim bytes and qualifications are exact; reviewer and Decision authority are distinct; all Vela objects are source-owned and replayable; clean successor has no prior task context.
+Exclusion criteria: Source drift/addition, broader or causal/medical Claim, missing advisory or denominator, conflated evidence class, unbound authority, replay mismatch, hidden mutable state, domain-specific Core change, clean-agent retrieval escape, or incomplete telemetry; preserve every invalid attempt.
+Stopping rule: Stop on any hash mismatch, overclaim, unavailable decisive evidence, role/authority collapse, Verification changing Standing, stale Decision root, replay mismatch, required Core change, or clean-successor control failure. No claim repair after outcome; return to S0.
+Interpretation table: Full lifecycle plus 10/10 clean continuation = Level-1 real-science vertical qualification; lifecycle passes but continuation fails = governance qualification with handoff failure; lifecycle needs biology-specific semantics = abstraction-boundary failure; replay/authority invariant fails = protocol failure; any broader scientific inference = invalid experiment.
+Artifacts to preserve: Frozen preregistration; source packets; initial and updated Claims/Standing; all Submissions/Verifications/Decisions/Events; exact evidence and qualifications; receipts; roots; replay logs; clean-successor sealed task/raw transcript/scoring; invalid/refusal evidence; final report.
+Frozen commit and hashes: Planning 337f8bd836b06474fbbf00be6275b673a950ff7a / f8eb8b1c46ee07f6048098f43019e65bee64d9fb; review 427e234c77ebea6022ca835c0ee236e2c1ab0110 / 38cfa8925c123f27ad002cd23d4e483584d46060; review receipt SHA-256 65fa82e8c8239b0303b092856b572dba37a7d39b6ec0b0bf678129b8d9c21e9f; remaining hashes in the two receipts.
+Execution authority: VC1-D013. Source-owned lifecycle execution only; clean-successor task requires a post-lifecycle S0 audit and separate launch.
+```
+
+No biological effect is being newly estimated. The scientific transition is
+the governed acceptance of an exact literature-report statement with explicit
+unestablished propositions and limitations.
