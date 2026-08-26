@@ -111,3 +111,19 @@ smoke/reproducibility tests fail if required notice files disappear. It may
 not bump a version, change Protocol/schema/wire/persisted data, create release
 assets, sign, tag, publish, or push. Both repairs require fresh independent
 requalification before R7 can open.
+
+## VRC1-D012 — accept R5/R6 requalification and authorize R7
+
+Decision: accept R5 as `PASS WITH DEPLOYMENT/REPROJECTION ACTIONS` and R6 as
+`PASS WITH DOCUMENTED RELEASE-TIME ACTIONS`. Close VRC1-F011 and VRC1-F012 on
+the exact repaired source. Treat VRC1-F010 as closed at the source-admission
+boundary but still open as a deployment/reprojection action: the legacy
+deployed projection is not qualified as current strict integrity.
+
+Authorize one blind R7 external-user simulation using only release-facing
+material from an exact clean snapshot. It may install, operate, replay, and
+diagnose the supplied fixtures but may not inspect campaign records or receive
+semantic coaching. No version bump, tag, push, publication, signing,
+deployment, activation, or release is authorized. The tentative release
+version recommendation remains `PATCH BUMP` to `0.977.5`, to be executed and
+requalified only after later user authorization.

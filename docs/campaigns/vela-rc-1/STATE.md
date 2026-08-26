@@ -203,3 +203,29 @@ from presenting current Protocol 1 strict integrity. One isolated Vela release
 repair may stage deterministic project licenses and third-party notices and
 make smoke/reproducibility tests refuse omissions. R7 remains blocked pending
 fresh independent R5/R6 requalification.
+
+## VRC1-S011 — product and packaging source gates accepted; blind test opened
+
+Recorded: 2026-08-26, America/Toronto.
+
+R5 independently returned `PASS WITH DEPLOYMENT/REPROJECTION ACTIONS` on Vela
+Web commit/tree `fd2bb321e2331b546ad5f94705707af9d087ddaa` /
+`1f33b0f65b7fa17be2cadcfc2c3a942ff4acffb4`. The repaired source rejects
+self-asserted legacy-generator provenance and unknown, missing, duplicate, or
+mismatched Repository authority roots. It also labels the actor-neutral count
+`Authorized Decisions`. The currently deployed legacy projection remains
+unqualified until a separately authorized release, reprojection, live-reader
+audit, and deployment.
+
+R6 independently returned `PASS WITH DOCUMENTED RELEASE-TIME ACTIONS` on Core
+commit/tree `bd18d1a128eecb95dfd3bfd6cfe198f109576c78` /
+`7187138a3025e391f8cd467abc634b7b5bb73ff4`. Fresh-cache macOS and Linux musl
+release builds passed, with exact selected-graph, notice, SPDX, relationship,
+archive-negative, installer, conformance, Core, lint, and policy checks. The
+audited artifacts remain local, unsigned, unattested, and unpublished.
+
+G5 source qualification passes with recorded release-time actions. R7 is now
+authorized against an exact clean release-facing snapshot. Version remains
+`0.977.4` during qualification; the later release recommendation is a bounded
+patch bump to `0.977.5`. No bump, tag, push, signature, publication,
+deployment, or release is authorized.

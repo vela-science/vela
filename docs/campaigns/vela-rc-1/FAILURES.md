@@ -144,3 +144,20 @@ cannot substitute because all relevant package fields are `NOASSERTION`.
 Repair package contents and make smoke/reproducibility gates refuse omissions,
 then independently inspect both platforms before release qualification can
 pass.
+
+Resolution: `CLOSED`. Target-specific notices and normalized SPDX now equal
+the exact selected release graph. Both real archive formats passed from clean
+commit-bound sources; the fresh-cache path, 10/10 archive mutations, five
+independent SBOM attacks, installer, policy, conformance, full Core, and lint
+gates passed. Release-time patch-version, hosted-provenance, signing, and
+publication actions remain unauthorized rather than hidden.
+
+## VRC1-F010/F011 source-resolution update
+
+VRC1-F011 is `CLOSED`: the product now displays `Authorized Decisions`, with
+an agent-class regression.
+
+VRC1-F010 is `CLOSED AT SOURCE / DEPLOYMENT ACTION REMAINS`: repaired
+admission refuses the legacy generator and unregistered authority roots, but
+the deployed legacy projection has not been regenerated or activated from the
+qualified source. It remains unqualified for current strict-integrity claims.

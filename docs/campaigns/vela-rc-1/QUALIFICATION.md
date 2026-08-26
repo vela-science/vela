@@ -8,9 +8,9 @@
 | Replay | `PASS` | independent R1 trust matrix; R2 public Math and neutral clean-clone replay; missing/corrupt Artifact and pin failures | release packaging must preserve the qualified source identity |
 | Docs / first user | `PASS WITH DOCUMENTED LIMITATIONS` | `R3_FIRST_USER_QUALIFICATION.md`; 14 documentation contracts; focused workflows; portable conformance | blind external user pending; public installer still targets ancestor v0.977.4 |
 | Cross-domain examples | `PASS WITH DOCUMENTED LIMITATIONS` | `R4_EXTERNAL_FIXTURES.md`; formal failure/correction lifecycle; heterogeneous two-check lifecycle; independent clean-clone replay | candidate not yet a signed artifact; trust-pin cleanup after uncatchable termination is manual |
-| Product legibility | `HOLD — PRODUCT SEMANTICS` | `R5_PRODUCT_LEGIBILITY.md`; Core/Workbench pass; current Problems projection inspected at exact deployment | legacy 0.977.3 projection is labelled current strict pass; agent Decisions counted as Human authority |
-| Packaging | `HOLD — RELEASE INTEGRITY` | `R6_RELEASE_INTEGRITY.md`; traceability/reproducibility/signatures pass | archives omit project licenses and deterministic third-party notices; SPDX licensing fields are `NOASSERTION` |
-| Blind user | `BLOCKED` | requires R1-R4 pass | objective task or semantic failure |
+| Product legibility | `PASS WITH DEPLOYMENT/REPROJECTION ACTIONS` | `R5_REQUALIFICATION.md`; exact Vela Web repair and two independent audits | deployed legacy projection remains unqualified; release record, reprojection, live-reader checks, runtime checks, and deployment require later authorization |
+| Packaging | `PASS WITH DOCUMENTED RELEASE-TIME ACTIONS` | `R6_SECOND_REQUALIFICATION.md`; fresh-cache macOS/Linux artifacts; exact graph/notices/SPDX; hostile negatives | bounded 0.977.5 release commit, exact-tree hosted provenance, signing, and publication require later authorization |
+| Blind user | `AUTHORIZED / PENDING` | R1-R6 source gates accepted | objective task or semantic failure |
 
 ## Initial reproduction receipts
 

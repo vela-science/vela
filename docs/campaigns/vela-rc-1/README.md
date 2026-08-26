@@ -14,6 +14,7 @@ not a foundational-research campaign.
 - [R3 CLI and first-user documentation qualification](R3_FIRST_USER_QUALIFICATION.md)
 - [R4 external-use fixtures qualification](R4_EXTERNAL_FIXTURES.md)
 - [R5 product and Observatory semantic-legibility audit](R5_PRODUCT_LEGIBILITY.md)
+- [R5 independent product requalification](R5_REQUALIFICATION.md)
 - [R6 packaging and release-integrity qualification](R6_RELEASE_INTEGRITY.md)
 - [R6 bounded packaging repair](R6_PACKAGING_REPAIR.md)
 - [Independent R6 packaging requalification](R6_REQUALIFICATION.md)
