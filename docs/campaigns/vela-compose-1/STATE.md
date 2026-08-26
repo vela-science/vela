@@ -36,3 +36,24 @@ Experiments executed: none. Invalid/excluded experiments: none. Results:
 baseline engineering checks only. Next authorized actions: commit Phase 0, create
 T1/T2 branches/worktrees from that commit, and launch only T1/T2.
 
+## State 0002 — T1 and T2 launched
+
+```text
+Date: 2026-08-26
+Phase: PHASE_1_KERNEL_AND_REPLAY
+Supervisor branch: campaign/compose1-supervisor
+Canonical integrated commit: 6a0f5adee55f9c50e7e154ac8d118662809d3323
+Foundational top-down search: CLOSED
+Campaign anomaly: NONE
+```
+
+Active workers:
+
+| Lane | Task ID | Branch | Worktree | State |
+|---|---|---|---|---|
+| T1 Kernel + Conformance | `01a03d07-4332-76f3-87b6-a1ed4cb5f259` | `campaign/compose1-kernel` | `/Users/williamblair/.codex/worktrees/c339/vela` | active from Phase 0 commit |
+| T2 Receipts + Replay | `01a03d07-4332-76f3-87b6-a1c88d50efab` | `campaign/compose1-replay` | `/Users/williamblair/.codex/worktrees/a39a/vela` | active from Phase 0 commit |
+
+T3 through T7 remain blocked by their frozen dependency gates. No scientific
+experiment has started. The supervisor will inspect the exact branch diffs and
+test receipts before any integration decision or downstream-lane launch.
