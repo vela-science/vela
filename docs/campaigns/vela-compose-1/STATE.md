@@ -91,3 +91,22 @@ passed the modified CLI lifecycles, root documentation contract, and full
 Protocol 1 conformance with the frozen root unchanged. T3 is authorized as the
 only next primary lane. T4–T7 remain blocked. Scientific experiments executed:
 none.
+
+## State 0005 — T3 launched from the qualified Phase-1 root
+
+```text
+Date: 2026-08-26
+Phase: PHASE_2_COUNTERFACTUAL_APPARATUS
+Supervisor branch: campaign/compose1-supervisor
+T3 starting commit: 9eff75e62319b766d33118cea71c1baa65e62d81
+T3 branch: campaign/compose1-counterfactual
+T3 task: 01a03d1c-d733-7ac2-a65c-8ae70f7e9fa9
+T3 worktree: /Users/williamblair/.codex/worktrees/cde5/vela
+Foundational top-down search: CLOSED
+Campaign anomaly: NONE
+```
+
+T3 is active and attached to the exact qualified Phase-1 root. It is limited to
+source-owned branching, sealed evaluation, deterministic comparison, and
+honest metering qualification. T4–T7 remain blocked. Scientific experiments
+executed: none.
