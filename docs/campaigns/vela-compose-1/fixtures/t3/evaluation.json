@@ -14,5 +14,9 @@
     "Cumulative-science value, external validation, or a campaign anomaly.",
     "That branch-local activity or metering changes Standing."
   ],
+  "implementation": {
+    "path": "crates/vela-cli/tests/counterfactual_branching.rs",
+    "sha256": "sha256:56ae6a514a72e5b43d07fbf4d9f924c5733c7804c481a9292524d0b50777c605"
+  },
   "schema": "vela-compose-1.t3-evaluation.v1"
 }

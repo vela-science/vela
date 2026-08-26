@@ -44,7 +44,7 @@ anomaly.
 | Divergent state | Existing `review accept|reject` Decision path and strict replay | Exercise sibling Decisions over the same Proposal and Verification |
 | Verification boundary | T1-qualified Verification invariance and Decision admission | Retain Verification before the fork; branch-local Decisions alone diverge Standing |
 | Receipts | Git-retained source files plus existing canonical authority/Decision records | Add only a campaign-owned metering receipt; no generic receipt object |
-| Sealing | Exact Git blobs and SHA-256 over source-owned bytes | Check branch-point, `HEAD`, and working-tree bytes |
+| Sealing | Exact Git blobs and SHA-256 over source-owned bytes | Parse all manifests before divergence, bind them to execution, then check branch-point, `HEAD`, and working-tree bytes |
 | Comparison | Git diff plus stable Vela JSON and RFC 8785 canonicalization already used by the implementation | Build a test-only, source-owned comparison; no public CLI contract |
 
 No reproduced contradiction, second maintained-consumer need, or missing Core
@@ -86,13 +86,30 @@ the disposable source Repository:
 | Input | Exact file SHA-256 |
 | --- | --- |
 | `task.json` | `sha256:6e245d0641c1fd39ab2f59cf5373d5fc1ff43d9ff3a33388e1f480dc7cdfe9d2` |
-| `evaluation.json` | `sha256:5f202f5a99fbb5b7974b73951a6caedc27b977eb6d21929d27607e9fdd73fb6b` |
+| `evaluation.json` | `sha256:35a1750fdc72d6ebc1f4ccf2d234e4edc834ed8cec58356ca5af9731d4f5657a` |
 | `metering-plan.json` | `sha256:1a9de4b9c253a0d83ffb287fbadc56fd9cfac18985b3765d53a8385f9f266bf6` |
+
+All three manifests are parsed and validated before divergence. The task's
+Submission root is checked against the imported and retained envelope bytes;
+its verification requirement drives the Review Method and Verification call;
+and its accept/reject branch labels drive the branches actually created. The
+metering plan's ordered 15-metric inventory and exact start, end, and excluded
+boundaries are checked against the measurement implementation, and every
+receipt binds the exact plan root. The evaluation's seven-check inventory is
+checked verbatim and it binds the exact evaluator implementation:
+
+```text
+path: crates/vela-cli/tests/counterfactual_branching.rs
+sha256:56ae6a514a72e5b43d07fbf4d9f924c5733c7804c481a9292524d0b50777c605
+```
 
 The lifecycle compares each branch-point Git blob with both the terminal
 `HEAD` blob and the actual working-tree bytes. Its negative case mutates the
 evaluator only in a disposable terminal clone and proves the seal check refuses
-the drift.
+the drift. Additional negative cases refuse duplicate task variants, a
+mismatched imported Submission root, incomplete metric inventory, changed
+measurement boundary, incomplete evaluation inventory, an implementation-path
+or digest mismatch, and an incomplete branch receipt.
 
 These `vela-compose-1.*` JSON documents are campaign-owned test inputs. They
 are not Protocol 1 objects, portable schemas, authority records, or a proposed
@@ -147,6 +164,9 @@ The frozen execution window begins with the branch-local Decision Inbox read
 and ends when that branch's authorized Decision returns. Common Submission and
 Verification setup, post-Decision replay/comparison, receipt persistence,
 campaign authoring, and supervisor review are excluded and named as such.
+The test constructs one measurement object immediately before the Inbox call,
+records the Inbox and Decision calls, and finishes it immediately after the
+Decision returns. The measurement object refuses any other tool sequence.
 
 | Required resource | Fixture status | Qualification boundary |
 | --- | --- | --- |
@@ -177,8 +197,8 @@ distinct; none is coerced to a zero-valued measurement.
 | Verification alone never changes Standing | Common passing Verification is retained before the fork while accepted Standing remains empty | PASS |
 | Authorized Decision is the transition boundary | Accept yields one accepted Claim; reject yields zero and an addressable rejected Proposal | PASS |
 | No cross-branch contamination | Reject root remains at the base after accept; accept root remains unchanged after reject; opposite result directories remain absent | PASS |
-| Sealed task/evaluation inputs | Branch-point, terminal committed, and terminal working bytes match; a mutated evaluator is refused | PASS |
-| Honest complete metering | All 15 frozen metrics occur once with typed availability/comparability; missing metrics fail | PASS |
+| Sealed task/evaluation inputs | Parsed task fields drive and match the imported Submission, Verification requirement, and branches; the seven-check evaluation inventory binds the exact evaluator source digest; committed/working-byte drift and semantic mismatches are refused | PASS |
+| Honest complete metering | Parsed plan inventory and boundaries drive the measurement object; receipts bind the plan root; all 15 metrics occur once with typed availability/comparability; missing or changed fields fail | PASS |
 | Deterministic comparison | Repeated in-place and fresh-clone comparisons have identical canonical bytes and SHA-256 root | PASS |
 | Replayability | Each terminal history passes strict replay before and after source-owned receipt persistence | PASS |
 
@@ -248,6 +268,10 @@ new conformance root.
 - The comparator remains test-only and campaign-owned. No second maintained
   consumer has established a public `vela compare`, metering schema, workflow
   runner, or Core extraction.
+- The evaluator binding is deliberately source-local: any edit to the test
+  implementation requires an explicit evaluation-manifest digest update and a
+  new review. It is not a portable evaluator schema or a claim that Rust source
+  identity establishes scientific validity.
 - No merge, push, publication, release, external contact, or experiment was
   performed.
 

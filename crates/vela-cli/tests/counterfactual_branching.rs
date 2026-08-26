@@ -22,9 +22,14 @@ use support::{
 const DEVICE: &str = "33333333333333333333333333333333";
 const PRODUCER: &str = "agent:independent-js";
 const VERIFIER: &str = "verifier:counterfactual-branching";
-const REQUIREMENT: &str = "Recompute the result from the exact fixture bytes.";
-const ACCEPT_BRANCH: &str = "counterfactual/accept";
-const REJECT_BRANCH: &str = "counterfactual/reject";
+const EVALUATOR_SOURCE_PATH: &str = "crates/vela-cli/tests/counterfactual_branching.rs";
+const METER_START: &str = "The branch-local Decision Inbox read begins.";
+const METER_END: &str = "The branch-local authorized accept or reject Decision returns.";
+const METER_EXCLUDED: [&str; 3] = [
+    "Common pre-branch Submission and Verification setup.",
+    "Post-Decision replay, comparison, and receipt persistence.",
+    "Campaign authoring and supervisor review.",
+];
 const SEALED_PATHS: [&str; 3] = [
     "campaign/t3/sealed/task.json",
     "campaign/t3/sealed/evaluation.json",
@@ -47,6 +52,69 @@ const REQUIRED_METRICS: [&str; 15] = [
     "persistent_state_bytes",
     "human_interventions",
 ];
+const EVALUATION_CHECKS: [&str; 7] = [
+    "Both branches name the same exact branch-point Git commit, tree, Repository root, origin, authority roots, and accepted-Standing commitment.",
+    "The task, evaluation, and metering-plan blobs are unchanged from the branch point in both terminal histories.",
+    "The accept branch has one accepted Claim and an accepted Proposal; the reject branch has no accepted Claim and a rejected Proposal.",
+    "Each branch replays from a clean clone to its own terminal Repository root.",
+    "A Decision in either branch does not change the other branch before its own Decision.",
+    "Every required resource category is measured, not used, unavailable, or explicitly incomparable under the frozen metering plan.",
+    "Comparison bytes and their SHA-256 root are identical across checkout paths.",
+];
+
+#[derive(Debug)]
+struct TaskContract {
+    submission_root: String,
+    verification_requirement: String,
+    accept_branch: String,
+    reject_branch: String,
+}
+
+#[derive(Debug)]
+struct MeteringContract {
+    root: String,
+    required_metrics: Vec<String>,
+    start: String,
+    end: String,
+    excluded: Vec<String>,
+}
+
+#[derive(Debug)]
+struct DecisionMeasurement {
+    duration: Duration,
+    tool_invocations: u64,
+}
+
+struct DecisionMeter<'a> {
+    contract: &'a MeteringContract,
+    started: Instant,
+    tools: Vec<&'static str>,
+}
+
+impl<'a> DecisionMeter<'a> {
+    fn start(contract: &'a MeteringContract) -> Self {
+        assert_eq!(contract.start, METER_START);
+        assert_eq!(contract.excluded, METER_EXCLUDED.map(str::to_owned));
+        Self {
+            contract,
+            started: Instant::now(),
+            tools: Vec::new(),
+        }
+    }
+
+    fn record_tool(&mut self, tool: &'static str) {
+        self.tools.push(tool);
+    }
+
+    fn finish(self) -> DecisionMeasurement {
+        assert_eq!(self.contract.end, METER_END);
+        assert_eq!(self.tools, ["vela review inbox", "vela review decision"]);
+        DecisionMeasurement {
+            duration: self.started.elapsed(),
+            tool_invocations: self.tools.len().try_into().expect("tool invocation count"),
+        }
+    }
+}
 
 fn git(repository: &Path, args: &[&str]) -> String {
     let output = Command::new("git")
@@ -101,6 +169,178 @@ fn workspace_root() -> PathBuf {
         .join("../..")
         .canonicalize()
         .expect("canonical workspace root")
+}
+
+fn string_array(value: &Value, field: &str) -> Result<Vec<String>, String> {
+    value[field]
+        .as_array()
+        .ok_or_else(|| format!("{field} must be an array"))?
+        .iter()
+        .map(|entry| {
+            entry
+                .as_str()
+                .map(str::to_owned)
+                .ok_or_else(|| format!("{field} entries must be strings"))
+        })
+        .collect()
+}
+
+fn validate_task(value: &Value) -> Result<TaskContract, String> {
+    if value["schema"] != "vela-compose-1.t3-task.v1" || value["authority_effect"] != "none" {
+        return Err("unexpected T3 task contract".into());
+    }
+    let submission_root = value["subject"]["submission_root"]
+        .as_str()
+        .ok_or_else(|| "task submission_root must be a string".to_string())?
+        .to_owned();
+    let verification_requirement = value["subject"]["verification_requirement"]
+        .as_str()
+        .filter(|requirement| !requirement.is_empty())
+        .ok_or_else(|| "task verification_requirement must be non-empty".to_string())?
+        .to_owned();
+    let variants = value["variants"]
+        .as_array()
+        .ok_or_else(|| "task variants must be an array".to_string())?;
+    let mut by_decision = BTreeMap::new();
+    for variant in variants {
+        let decision = variant["decision"]
+            .as_str()
+            .ok_or_else(|| "task variant decision must be a string".to_string())?;
+        let branch = variant["branch"]
+            .as_str()
+            .filter(|branch| !branch.is_empty())
+            .ok_or_else(|| "task variant branch must be non-empty".to_string())?;
+        if !matches!(decision, "accept" | "reject") {
+            return Err(format!("unsupported task Decision variant {decision}"));
+        }
+        if by_decision.insert(decision, branch.to_owned()).is_some() {
+            return Err(format!("duplicate task Decision variant {decision}"));
+        }
+    }
+    if by_decision.len() != 2 || by_decision["accept"] == by_decision["reject"] {
+        return Err("task must name distinct accept and reject branches".into());
+    }
+    Ok(TaskContract {
+        submission_root,
+        verification_requirement,
+        accept_branch: by_decision
+            .remove("accept")
+            .expect("validated accept variant"),
+        reject_branch: by_decision
+            .remove("reject")
+            .expect("validated reject variant"),
+    })
+}
+
+fn validate_metering_plan(value: &Value, bytes: &[u8]) -> Result<MeteringContract, String> {
+    if value["schema"] != "vela-compose-1.t3-metering-plan.v1"
+        || value["authority_effect"] != "none"
+    {
+        return Err("unexpected T3 metering plan".into());
+    }
+    let required_metrics = string_array(value, "required_metrics")?;
+    let expected_metrics = REQUIRED_METRICS
+        .iter()
+        .map(|metric| (*metric).to_owned())
+        .collect::<Vec<_>>();
+    if required_metrics != expected_metrics {
+        return Err("metering plan inventory does not match the evaluator".into());
+    }
+    let boundary = &value["execution_boundary"];
+    let start = boundary["start"]
+        .as_str()
+        .ok_or_else(|| "metering start boundary must be a string".to_string())?
+        .to_owned();
+    let end = boundary["end"]
+        .as_str()
+        .ok_or_else(|| "metering end boundary must be a string".to_string())?
+        .to_owned();
+    let excluded = string_array(boundary, "excluded")?;
+    if start != METER_START || end != METER_END || excluded != METER_EXCLUDED.map(str::to_owned) {
+        return Err("metering execution boundary does not match the evaluator".into());
+    }
+    for status in ["comparable", "incomparable", "unavailable", "not_used"] {
+        if !value["comparison_rules"][status].is_string() {
+            return Err(format!("metering comparison rule {status} is missing"));
+        }
+    }
+    Ok(MeteringContract {
+        root: vela_protocol::canonical::sha256_root(bytes),
+        required_metrics,
+        start,
+        end,
+        excluded,
+    })
+}
+
+fn validate_evaluation(value: &Value, workspace: &Path) -> Result<(), String> {
+    if value["schema"] != "vela-compose-1.t3-evaluation.v1" || value["authority_effect"] != "none" {
+        return Err("unexpected T3 evaluation contract".into());
+    }
+    let checks = string_array(value, "checks")?;
+    if checks != EVALUATION_CHECKS.map(str::to_owned) {
+        return Err("evaluation check inventory does not match the evaluator".into());
+    }
+    let source_path = value["implementation"]["path"]
+        .as_str()
+        .ok_or_else(|| "evaluation implementation path must be a string".to_string())?;
+    if source_path != EVALUATOR_SOURCE_PATH {
+        return Err("evaluation implementation path does not match the evaluator".into());
+    }
+    let expected_root = value["implementation"]["sha256"]
+        .as_str()
+        .ok_or_else(|| "evaluation implementation SHA-256 must be a string".to_string())?;
+    let source_bytes = std::fs::read(workspace.join(source_path))
+        .map_err(|error| format!("read evaluation implementation: {error}"))?;
+    let actual_root = vela_protocol::canonical::sha256_root(&source_bytes);
+    if expected_root != actual_root {
+        return Err(format!(
+            "evaluation implementation drift: expected {expected_root}, got {actual_root}"
+        ));
+    }
+    Ok(())
+}
+
+fn read_json(path: &Path) -> (Value, Vec<u8>) {
+    let bytes = std::fs::read(path).expect("read JSON contract");
+    let value = serde_json::from_slice(&bytes).expect("parse JSON contract");
+    (value, bytes)
+}
+
+fn bind_task_to_submission(
+    task: &TaskContract,
+    submitted: &Value,
+    repository: &Path,
+) -> Result<(), String> {
+    if submitted["submission_root"].as_str() != Some(task.submission_root.as_str()) {
+        return Err("imported Submission root does not match the sealed task".into());
+    }
+    let manifest = repository_manifest(repository);
+    let retained_path = manifest["submissions"][0]["path"]
+        .as_str()
+        .ok_or_else(|| "retained Submission path is missing".to_string())?;
+    let retained_bytes = std::fs::read(repository.join(retained_path))
+        .map_err(|error| format!("read retained Submission: {error}"))?;
+    if vela_protocol::canonical::sha256_root(&retained_bytes) != task.submission_root {
+        return Err("retained Submission bytes do not match the sealed task root".into());
+    }
+    let envelope: Value = serde_json::from_slice(&retained_bytes)
+        .map_err(|error| format!("parse retained Submission envelope: {error}"))?;
+    let payload = vela_protocol::dsse::decode_base64(
+        "retained Submission payload",
+        envelope["payload"]
+            .as_str()
+            .ok_or_else(|| "retained Submission payload is missing".to_string())?,
+    )
+    .map_err(|error| error.to_string())?;
+    let submission: Value = serde_json::from_slice(&payload)
+        .map_err(|error| format!("parse retained Submission payload: {error}"))?;
+    if string_array(&submission, "verification_requirements")?
+        != [task.verification_requirement.clone()]
+    {
+        return Err("imported verification requirement does not match the sealed task".into());
+    }
+    Ok(())
 }
 
 fn write_canonical(path: &Path, value: &Value) -> Vec<u8> {
@@ -181,7 +421,8 @@ fn metering_receipt(
     terminal_repository_root: &str,
     decision: &Value,
     decision_bytes: &[u8],
-    duration: Duration,
+    measurement: &DecisionMeasurement,
+    metering_plan_root: &str,
     persistent_files: u64,
     persistent_bytes: u64,
 ) -> Value {
@@ -205,7 +446,7 @@ fn metering_receipt(
         metric(
             "tool_invocations",
             "measured",
-            Some(2),
+            Some(measurement.tool_invocations),
             "top_level_calls",
             "comparable",
             "The harness counted one Decision Inbox read and one Vela Decision call; subprocesses inside Vela are excluded.",
@@ -223,7 +464,13 @@ fn metering_receipt(
         metric(
             "wall_time_ms",
             "measured",
-            Some(duration.as_millis().try_into().unwrap_or(u64::MAX)),
+            Some(
+                measurement
+                    .duration
+                    .as_millis()
+                    .try_into()
+                    .unwrap_or(u64::MAX),
+            ),
             "milliseconds",
             "incomparable",
             "The actions ran sequentially on one shared host, so elapsed time is retained but not used for a branch effect estimate.",
@@ -302,6 +549,7 @@ fn metering_receipt(
             "proposal_id": decision["proposal_id"],
         },
         "decision_git_commit": decision_git_commit,
+        "metering_plan_root": metering_plan_root,
         "metrics": metrics,
         "output_artifact": {
             "bytes": decision_bytes.len(),
@@ -312,9 +560,15 @@ fn metering_receipt(
     })
 }
 
-fn validate_metering(receipt: &Value) -> Result<BTreeMap<String, Value>, String> {
+fn validate_metering(
+    receipt: &Value,
+    plan: &MeteringContract,
+) -> Result<BTreeMap<String, Value>, String> {
     if receipt["schema"] != "vela-compose-1.t3-metering-receipt.v1" {
         return Err("unexpected metering receipt schema".into());
+    }
+    if receipt["metering_plan_root"] != plan.root {
+        return Err("metering receipt is not bound to the frozen plan".into());
     }
     let entries = receipt["metrics"]
         .as_array()
@@ -358,7 +612,11 @@ fn validate_metering(receipt: &Value) -> Result<BTreeMap<String, Value>, String>
         }
     }
     let actual = metrics.keys().map(String::as_str).collect::<BTreeSet<_>>();
-    let expected = REQUIRED_METRICS.into_iter().collect::<BTreeSet<_>>();
+    let expected = plan
+        .required_metrics
+        .iter()
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
     if actual != expected {
         return Err(format!("metering coverage mismatch: {actual:?}"));
     }
@@ -371,7 +629,8 @@ fn persist_branch_evidence(
     base_commit: &str,
     base_repository_root: &str,
     decision: &Value,
-    duration: Duration,
+    measurement: &DecisionMeasurement,
+    metering_plan: &MeteringContract,
     home: &Path,
 ) -> Value {
     let decision_git_commit = git(repository, &["rev-parse", "HEAD^{commit}"]);
@@ -389,11 +648,12 @@ fn persist_branch_evidence(
             .expect("terminal repository root"),
         decision,
         &decision_bytes,
-        duration,
+        measurement,
+        &metering_plan.root,
         paths.len().try_into().expect("changed path count"),
         changed_file_bytes(repository, base_commit),
     );
-    validate_metering(&receipt).expect("complete branch metering");
+    validate_metering(&receipt, metering_plan).expect("complete branch metering");
 
     let result_root = repository.join(format!("campaign/t3/results/{branch_label}"));
     std::fs::create_dir_all(&result_root).expect("create branch result directory");
@@ -452,7 +712,10 @@ fn branch_summary(repository: &Path, branch_label: &str, base_commit: &str, home
         std::fs::read(repository.join(format!("campaign/t3/results/{branch_label}/metering.json")))
             .expect("read metering receipt");
     let receipt: Value = serde_json::from_slice(&receipt_bytes).expect("parse metering receipt");
-    validate_metering(&receipt).expect("valid metering receipt");
+    let (plan_value, plan_bytes) =
+        read_json(&repository.join("campaign/t3/sealed/metering-plan.json"));
+    let plan = validate_metering_plan(&plan_value, &plan_bytes).expect("bound metering plan");
+    validate_metering(&receipt, &plan).expect("valid metering receipt");
     let proposal_id = decision["proposal_id"]
         .as_str()
         .expect("Decision Proposal id");
@@ -478,14 +741,14 @@ fn branch_summary(repository: &Path, branch_label: &str, base_commit: &str, home
     })
 }
 
-fn metric_comparison(accept: &Value, reject: &Value) -> Vec<Value> {
-    let accept_metrics = validate_metering(accept).expect("accept metering");
-    let reject_metrics = validate_metering(reject).expect("reject metering");
-    REQUIRED_METRICS
+fn metric_comparison(accept: &Value, reject: &Value, plan: &MeteringContract) -> Vec<Value> {
+    let accept_metrics = validate_metering(accept, plan).expect("accept metering");
+    let reject_metrics = validate_metering(reject, plan).expect("reject metering");
+    plan.required_metrics
         .iter()
         .map(|name| {
-            let left = &accept_metrics[*name];
-            let right = &reject_metrics[*name];
+            let left = &accept_metrics[name];
+            let right = &reject_metrics[name];
             let comparison = if left["status"] == "unavailable" || right["status"] == "unavailable"
             {
                 "unavailable"
@@ -524,6 +787,12 @@ fn comparison_report(
     home: &Path,
 ) -> Value {
     let base_commit = base["git_commit"].as_str().expect("base Git commit");
+    let (plan_value, plan_bytes) =
+        read_json(&accept_repository.join("campaign/t3/sealed/metering-plan.json"));
+    let plan = validate_metering_plan(&plan_value, &plan_bytes).expect("accept metering plan");
+    let (_, reject_plan_bytes) =
+        read_json(&reject_repository.join("campaign/t3/sealed/metering-plan.json"));
+    assert_eq!(plan_bytes, reject_plan_bytes);
     let accept = branch_summary(accept_repository, "accept", base_commit, home);
     let reject = branch_summary(reject_repository, "reject", base_commit, home);
     assert_eq!(
@@ -549,7 +818,7 @@ fn comparison_report(
                 "accept": accept["decision"],
                 "reject": reject["decision"],
             },
-            "metrics": metric_comparison(&accept["metering"], &reject["metering"]),
+            "metrics": metric_comparison(&accept["metering"], &reject["metering"], &plan),
             "proposal_status": {
                 "accept": accept["proposal_status"],
                 "reject": reject["proposal_status"],
@@ -564,6 +833,42 @@ fn comparison_report(
 #[test]
 fn same_governed_root_branches_are_isolated_metered_and_deterministically_compared() {
     let temporary = tempfile::tempdir().expect("temporary fixture directory");
+    let workspace = workspace_root();
+    let fixture_source = workspace.join("docs/campaigns/vela-compose-1/fixtures/t3");
+    let (task_value, _) = read_json(&fixture_source.join("task.json"));
+    let task = validate_task(&task_value).expect("bound T3 task");
+    let (metering_value, metering_bytes) = read_json(&fixture_source.join("metering-plan.json"));
+    let metering =
+        validate_metering_plan(&metering_value, &metering_bytes).expect("bound T3 metering plan");
+    let (evaluation_value, _) = read_json(&fixture_source.join("evaluation.json"));
+    validate_evaluation(&evaluation_value, &workspace).expect("bound T3 evaluation");
+
+    let mut invalid_task = task_value.clone();
+    invalid_task["variants"][1]["decision"] = json!("accept");
+    assert!(validate_task(&invalid_task).is_err());
+    let mut invalid_metering = metering_value.clone();
+    invalid_metering["required_metrics"]
+        .as_array_mut()
+        .expect("mutable required metrics")
+        .pop();
+    assert!(validate_metering_plan(&invalid_metering, &metering_bytes).is_err());
+    let mut invalid_boundary = metering_value.clone();
+    invalid_boundary["execution_boundary"]["start"] = json!("After the Decision returns.");
+    assert!(validate_metering_plan(&invalid_boundary, &metering_bytes).is_err());
+    let mut invalid_evaluation = evaluation_value.clone();
+    invalid_evaluation["checks"]
+        .as_array_mut()
+        .expect("mutable evaluation checks")
+        .pop();
+    assert!(validate_evaluation(&invalid_evaluation, &workspace).is_err());
+    let mut invalid_implementation = evaluation_value.clone();
+    invalid_implementation["implementation"]["sha256"] =
+        json!("sha256:0000000000000000000000000000000000000000000000000000000000000000");
+    assert!(validate_evaluation(&invalid_implementation, &workspace).is_err());
+    let mut invalid_implementation_path = evaluation_value.clone();
+    invalid_implementation_path["implementation"]["path"] = json!("tests/other-evaluator.rs");
+    assert!(validate_evaluation(&invalid_implementation_path, &workspace).is_err());
+
     let agent_root = temporary.path().join("authority-agent");
     let operator_home = temporary.path().join("operator-home");
     let verifier_home = temporary.path().join("verifier-home");
@@ -593,7 +898,6 @@ fn same_governed_root_branches_are_isolated_metered_and_deterministically_compar
     let initialized = success_json(&initialized_output);
     configure_git_identity(&source_repository);
 
-    let fixture_source = workspace_root().join("docs/campaigns/vela-compose-1/fixtures/t3");
     for (source_name, retained_name) in [
         ("task.json", "task.json"),
         ("evaluation.json", "evaluation.json"),
@@ -611,7 +915,7 @@ fn same_governed_root_branches_are_isolated_metered_and_deterministically_compar
     let method = ReviewMethodV1 {
         schema: vela_protocol::review_method::REVIEW_METHOD_V1_SCHEMA.into(),
         profile: "counterfactual-branching-recompute-v1".into(),
-        property: REQUIREMENT.into(),
+        property: task.verification_requirement.clone(),
         question: "Do the exact retained fixture bytes equal the bounded result 42?".into(),
         reviewer: ReviewPerformerV1 {
             kind: "deterministic_tool".into(),
@@ -638,7 +942,7 @@ fn same_governed_root_branches_are_isolated_metered_and_deterministically_compar
         &["commit", "-qm", "Seal T3 task and evaluation inputs"],
     );
 
-    let submission_path = workspace_root().join("conformance/current-objects/submission.json");
+    let submission_path = workspace.join("conformance/current-objects/submission.json");
     let submitted = success_json(&run(
         &source_repository,
         None,
@@ -652,6 +956,25 @@ fn same_governed_root_branches_are_isolated_metered_and_deterministically_compar
         ],
     ));
     assert_eq!(submitted["accepted_state_changed"], false);
+    bind_task_to_submission(&task, &submitted, &source_repository)
+        .expect("sealed task matches imported Submission");
+    let mismatched_task = TaskContract {
+        submission_root: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+            .into(),
+        verification_requirement: task.verification_requirement.clone(),
+        accept_branch: task.accept_branch.clone(),
+        reject_branch: task.reject_branch.clone(),
+    };
+    assert!(bind_task_to_submission(&mismatched_task, &submitted, &source_repository).is_err());
+    let mismatched_requirement = TaskContract {
+        submission_root: task.submission_root.clone(),
+        verification_requirement: "A different unsealed requirement.".into(),
+        accept_branch: task.accept_branch.clone(),
+        reject_branch: task.reject_branch.clone(),
+    };
+    assert!(
+        bind_task_to_submission(&mismatched_requirement, &submitted, &source_repository).is_err()
+    );
     let proposal_id = submitted["proposal_id"]
         .as_str()
         .expect("pending Proposal id");
@@ -669,7 +992,7 @@ fn same_governed_root_branches_are_isolated_metered_and_deterministically_compar
             "--method",
             method_path,
             "--property",
-            REQUIREMENT,
+            &task.verification_requirement,
             "--outcome",
             "pass",
             "--does-not-establish",
@@ -711,8 +1034,8 @@ fn same_governed_root_branches_are_isolated_metered_and_deterministically_compar
     clone_repository(&source_repository, &accept_repository);
     clone_repository(&source_repository, &reject_repository);
     for (repository, branch) in [
-        (&accept_repository, ACCEPT_BRANCH),
-        (&reject_repository, REJECT_BRANCH),
+        (&accept_repository, task.accept_branch.as_str()),
+        (&reject_repository, task.reject_branch.as_str()),
     ] {
         configure_git_identity(repository);
         git(repository, &["switch", "-q", "-c", branch]);
@@ -745,13 +1068,14 @@ fn same_governed_root_branches_are_isolated_metered_and_deterministically_compar
         sealed_input_receipts(repository, &base_commit).expect("sealed branch inputs");
     }
 
-    let accept_started = Instant::now();
+    let mut accept_meter = DecisionMeter::start(&metering);
     let accept_inbox = success_json(&run(
         &accept_repository,
         None,
         &operator_home,
         &["review", "inbox", ".", "--json"],
     ));
+    accept_meter.record_tool("vela review inbox");
     let accept_entry_root = accept_inbox["entries"][0]["entry_root"]
         .as_str()
         .expect("accept entry root");
@@ -775,7 +1099,8 @@ fn same_governed_root_branches_are_isolated_metered_and_deterministically_compar
             "--json",
         ],
     ));
-    let accept_duration = accept_started.elapsed();
+    accept_meter.record_tool("vela review decision");
+    let accept_measurement = accept_meter.finish();
     assert_eq!(accepted["action"], "accept");
     assert_eq!(accepted["scientific_state_changed"], true);
 
@@ -796,17 +1121,19 @@ fn same_governed_root_branches_are_isolated_metered_and_deterministically_compar
         &base_commit,
         base["repository_root"].as_str().expect("base root"),
         &accepted,
-        accept_duration,
+        &accept_measurement,
+        &metering,
         &operator_home,
     );
 
-    let reject_started = Instant::now();
+    let mut reject_meter = DecisionMeter::start(&metering);
     let reject_inbox = success_json(&run(
         &reject_repository,
         None,
         &operator_home,
         &["review", "inbox", ".", "--json"],
     ));
+    reject_meter.record_tool("vela review inbox");
     let reject_entry_root = reject_inbox["entries"][0]["entry_root"]
         .as_str()
         .expect("reject entry root");
@@ -831,7 +1158,8 @@ fn same_governed_root_branches_are_isolated_metered_and_deterministically_compar
             "--json",
         ],
     ));
-    let reject_duration = reject_started.elapsed();
+    reject_meter.record_tool("vela review decision");
+    let reject_measurement = reject_meter.finish();
     assert_eq!(rejected["action"], "reject");
     assert_eq!(rejected["scientific_state_changed"], false);
     let reject_receipt = persist_branch_evidence(
@@ -840,7 +1168,8 @@ fn same_governed_root_branches_are_isolated_metered_and_deterministically_compar
         &base_commit,
         base["repository_root"].as_str().expect("base root"),
         &rejected,
-        reject_duration,
+        &reject_measurement,
+        &metering,
         &operator_home,
     );
 
@@ -928,7 +1257,7 @@ fn same_governed_root_branches_are_isolated_metered_and_deterministically_compar
         .as_array_mut()
         .expect("mutable metric array")
         .retain(|entry| entry["name"] != "cpu_time_ms");
-    assert!(validate_metering(&incomplete_receipt).is_err());
+    assert!(validate_metering(&incomplete_receipt, &metering).is_err());
     std::fs::write(
         accept_clone.join("campaign/t3/sealed/evaluation.json"),
         b"{}\n",
