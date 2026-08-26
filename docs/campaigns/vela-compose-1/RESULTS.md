@@ -258,3 +258,44 @@ Campaign anomaly: NONE
 Candidate C v1 is terminal and immutable. VC1-D014 permits only a versioned
 syntax-level apparatus correction; it does not authorize participant cells or
 reinterpret this failure as evidence for or against cumulative handoff.
+
+## VC1-R009 — T5 governed Alzheimer literature lifecycle
+
+Date: 2026-08-26.
+
+VC1-E004 completed the frozen source-owned lifecycle using only current general
+Vela APIs. An initial procedural unresolved-frontier Claim was submitted,
+independently verified within its narrow source-review scope, and accepted by a
+fresh-root Decision. The exact corrected v1.1 literature-report Claim then
+superseded it through a second scoped Verification and second fresh-root
+Decision. The initial Claim remains retained as superseded. The sole current
+accepted Claim is the exact reviewer-authorized statement; it preserves
+separate Aβ1-42/pTau model roles, the Preis and Edwards advisories, source-family
+dependence, all missingness, and every explicitly unestablished proposition.
+
+Both Verifications recorded zero accepted-event delta. Only Decisions changed
+Standing. Strict status/replay, object and receipt resolution, correction
+lineage, custody hashes, Git integrity, and fresh-clone reconstruction passed.
+One failed relative-output Verification invocation was preserved and changed
+no state; the identical scoped invocation from the Repository directory then
+succeeded. No Core, wire, schema, biological special case, source retrieval,
+effect estimate, medical claim, outreach, or publication occurred.
+
+```text
+Source repository: /Users/williamblair/Documents/Codex/2026-08-26/vela-compose-1-t5-alzheimer-lifecycle/outputs/vc1-e004-alzheimer-governed-lifecycle
+Terminal commit/tree: 363d1210e33f951739b6281097054f179ee04123 / ba7c3381899c76ae972a71ed7355c3e1fcfc087c
+Public receipt SHA-256: 1bc4b26523b28b4437ae2b0e47e4cbc79aae3bcf3f9719d8afc9c493aa30a1b9
+Initial accepted Repository root: sha256:790e6e45d1c74dd66189451f16cb83e71acb9b183c4ba4c14255eb7fb9962286
+Terminal Repository root: sha256:785fa897ac8ffa9e8dd92756090923ee9e8ce3ec593ed07bb73baa63aa58a79a
+Terminal accepted Claim root: sha256:9fd44b6ab676e4234728ceeb49248911e08982f075c78474a6aa17c0b8467a24
+Current accepted Claims / Submissions / Verifications: 1 / 2 / 2
+Accepted reviews / Vela artifacts / Events: 2 / 10 / 5
+Core or wire changes: none
+Lifecycle disposition: PASS
+Clean successor: AUTHORIZED, NOT YET RUN
+Campaign anomaly: NONE
+```
+
+This qualifies one real-science governance lifecycle. It does not yet qualify
+blind continuation, cumulative handoff value, or a release claim; those remain
+separate gates.

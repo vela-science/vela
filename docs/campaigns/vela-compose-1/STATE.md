@@ -280,3 +280,34 @@ contract. It may not change the proposition, task class, arms, order, budgets,
 metrics, thresholds, reference custody, or exact-tokenizer gate. Stage 1
 remains blocked pending a new hidden authorability PASS, apparatus PASS, exact
 runtime-tokenizer qualification, and a separate S0 decision.
+
+## State 0013 — T5 governed lifecycle passed; clean successor authorized
+
+```text
+Date: 2026-08-26
+Phase: PHASE_4_ALZHEIMER_VERTICAL_CONTINUATION
+Supervisor branch: campaign/compose1-supervisor
+T5 lifecycle commit/tree: 363d1210e33f951739b6281097054f179ee04123 / ba7c3381899c76ae972a71ed7355c3e1fcfc087c
+T5 lifecycle public receipt SHA-256: 1bc4b26523b28b4437ae2b0e47e4cbc79aae3bcf3f9719d8afc9c493aa30a1b9
+T5 terminal Repository root: sha256:785fa897ac8ffa9e8dd92756090923ee9e8ce3ec593ed07bb73baa63aa58a79a
+T5 lifecycle: PASS
+T5 clean-successor task: AUTHORIZED
+T6 v1.1 design correction: ACTIVE
+Foundational top-down search: CLOSED
+Campaign anomaly: NONE
+```
+
+The source-owned T5 repository completed the exact procedural-frontier to
+reviewed-literature supersession lifecycle with no Core or schema change. The
+initial Claim remains resolvable as superseded; the sole current accepted
+Standing is the exact v1.1 reviewer-authorized Claim at root
+`sha256:9fd44b6ab676e4234728ceeb49248911e08982f075c78474a6aa17c0b8467a24`.
+Both scoped passing Verifications produced zero accepted-event delta. Only two
+fresh-root authorized Decisions changed Standing. The supervisor reproduced
+custody validation, strict replay, terminal counts and root, Git integrity, and
+fresh-clone reconstruction. The separate clean-successor evaluator key is
+sealed at commit/tree `affe34ba5933865f1a8705e40285131a29ec7b33` /
+`687b1a1c56f663fe7f721a167d18e10b90edace4`. One blind successor may now
+receive only a fresh clone, the exact binary, and the frozen participant task;
+it has no answer key, prior conversation, network, Verification, Decision, or
+Standing authority.

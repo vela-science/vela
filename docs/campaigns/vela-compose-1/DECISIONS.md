@@ -243,3 +243,23 @@ Reason: The gate failed before any participant or scientific outcome because of 
 This decision does not authorize a changed theorem, an easier target, a model
 call, or any R/E/V scientific cell. If v1.1 cannot pass all Stage-0 gates
 without another scientific or control change, T6 candidate C closes.
+
+## VC1-D015 — Qualify T5 lifecycle and authorize the blinded successor
+
+```text
+Decision ID: VC1-D015
+Date: 2026-08-26
+Question: Did VC1-E004 complete a valid governed real-science transition, and may the frozen clean-successor test run?
+Proposal: Accept the source-owned lifecycle after independent replay/custody audit, then launch exactly one blind successor against a fresh clone and the already-frozen participant package.
+Evidence: Lifecycle commit/tree 363d1210e33f951739b6281097054f179ee04123 / ba7c3381899c76ae972a71ed7355c3e1fcfc087c; public receipt SHA-256 1bc4b26523b28b4437ae2b0e47e4cbc79aae3bcf3f9719d8afc9c493aa30a1b9; package receipt SHA-256 acc892381d14dd529aae248dea9d7c7a18a642b3ae3cac7dcdd49e42dc16fd28; terminal Repository root sha256:785fa897ac8ffa9e8dd92756090923ee9e8ce3ec593ed07bb73baa63aa58a79a; supervisor in-place and fresh-clone validation/replay/Git audits PASS; separate evaluator key commit/tree affe34ba5933865f1a8705e40285131a29ec7b33 / 687b1a1c56f663fe7f721a167d18e10b90edace4.
+Alternatives: Treat reviewer PASS as the lifecycle result; skip blinded continuation; expose the answer key; authorize the successor to change Standing; generalize the bounded literature result.
+Decision: VC1-E004 lifecycle PASS. Authorize one fresh clean-successor task under the frozen 15-minute, 15,000-observable-token, and 40-tool-call caps. It must answer 10/10 questions, name one bounded useful action, create exactly one pending Proposal, and leave accepted Standing and existing Events unchanged. No Verification, Decision, rejection, withdrawal, network, new source, outreach, publication, push, or scientific generation is authorized.
+Authority: S0.
+Affected components: T5; T6 real-science dependency; T7 release evidence.
+Supersedes: VC1-D013's post-lifecycle launch block after all required lifecycle evidence passed.
+Reason: General Vela semantics governed the exact literature transition and replayed it without a domain special case; the remaining T5 uncertainty is whether a blind successor can correctly comprehend and continue from committed Standing.
+```
+
+Lifecycle PASS is Level-1 internal protocol evidence. It is not a biological,
+medical, adoption, productivity, or cumulative-intelligence result. The clean
+successor must earn its own separately scored outcome.

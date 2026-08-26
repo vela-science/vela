@@ -185,3 +185,22 @@ Execution authority: VC1-D013. Source-owned lifecycle execution only; clean-succ
 No biological effect is being newly estimated. The scientific transition is
 the governed acceptance of an exact literature-report statement with explicit
 unestablished propositions and limitations.
+
+### VC1-E004 lifecycle checkpoint and successor launch authority
+
+The source-owned lifecycle passed at commit/tree
+`363d1210e33f951739b6281097054f179ee04123` /
+`ba7c3381899c76ae972a71ed7355c3e1fcfc087c`, with terminal Repository root
+`sha256:785fa897ac8ffa9e8dd92756090923ee9e8ce3ec593ed07bb73baa63aa58a79a`.
+The public lifecycle receipt SHA-256 is
+`1bc4b26523b28b4437ae2b0e47e4cbc79aae3bcf3f9719d8afc9c493aa30a1b9`.
+The clean-successor participant package remains exactly the pre-outcome freeze
+bound by package receipt SHA-256
+`acc892381d14dd529aae248dea9d7c7a18a642b3ae3cac7dcdd49e42dc16fd28`.
+Its answer key and scoring contract remain outside the participant package at
+separate commit/tree `affe34ba5933865f1a8705e40285131a29ec7b33` /
+`687b1a1c56f663fe7f721a167d18e10b90edace4`.
+
+VC1-D015 authorizes exactly one fresh blind successor. This is the final
+pre-outcome launch authorization; its 10/10 comprehension and one-pending-
+Proposal gate may not be amended after the participant context opens.
