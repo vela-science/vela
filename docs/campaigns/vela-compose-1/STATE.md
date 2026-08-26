@@ -74,3 +74,20 @@ Deterministic governed-state reconstruction qualifies without adding a second
 state engine, generic receipt ontology, or native runner. T1 remains active on
 kernel conformance. T3 through T7 remain blocked until the complete Phase-1
 gate is reviewed. Scientific experiments executed: none.
+
+## State 0004 — Phase 1 qualified; T3 authorized
+
+```text
+Date: 2026-08-26
+Phase: PHASE_2_COUNTERFACTUAL_APPARATUS
+Supervisor branch: campaign/compose1-supervisor
+Canonical integrated commit before state receipt: d7bf4db2
+Foundational top-down search: CLOSED
+Campaign anomaly: NONE
+```
+
+T1 and T2 are integrated and qualified. Combined supervisor verification
+passed the modified CLI lifecycles, root documentation contract, and full
+Protocol 1 conformance with the frozen root unchanged. T3 is authorized as the
+only next primary lane. T4–T7 remain blocked. Scientific experiments executed:
+none.

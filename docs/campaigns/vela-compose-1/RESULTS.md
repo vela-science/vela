@@ -42,3 +42,33 @@ Scientific experiments run: 0
 The qualification proves exact reconstruction and refusal boundaries for
 retained governed state. It does not prove native computational replay,
 physical replication, cumulative handoff value, or external validation.
+
+## VC1-R002 — T1 kernel and conformance qualification
+
+Date: 2026-08-26.
+
+T1 qualified the existing governed-transition kernel without production or
+wire changes. The worker added end-to-end coverage for two scoped passing
+Verification Records, contradictory pass/fail evidence, incomplete and blocked
+acceptance refusal, accepted-Standing invariance before Decision, exact
+Verification-set consumption, and accepted retraction Event linkage.
+
+The supervisor audited the complete diff, confirmed that the source-file edit
+was confined to the existing test module, reproduced both modified CLI
+lifecycles, and reproduced the root documentation contract. After T1 and T2
+integration, the combined branch also passed all modified lifecycles and the
+full Protocol 1 conformance runner with its root unchanged.
+
+```text
+Worker commit: 5cf684e0ae33865bfeccf43573676e775a399535
+Integrated commit: d7bf4db2
+Production semantic changes: none
+Protocol or schema changes: none
+Supervisor disposition: MERGE
+Combined Protocol 1 root: sha256:e7a6d288918692d6a6186cc3e612871f167ba954c4cc31de28cce182a66a0afd
+Campaign anomaly: NONE
+Scientific experiments run: 0
+```
+
+This is Level-1 internal protocol qualification. It is not a cumulative-science
+result, external validation, release qualification, or anomaly.

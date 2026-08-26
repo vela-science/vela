@@ -95,3 +95,19 @@ Affected components: T2; dependency evidence for T3–T7.
 Supersedes: None.
 Reason: The existing replay semantics qualify; the observed gap was evidence and documentation coverage, not a missing primitive.
 ```
+
+## VC1-D007 — Close Phase 1 and authorize T3
+
+```text
+Decision ID: VC1-D007
+Date: 2026-08-26
+Question: Are the kernel and replay invariants qualified well enough to begin controlled branching apparatus?
+Proposal: Close T1/T2 qualification and launch only T3 from the integrated supervisor commit.
+Evidence: T1 worker commit 5cf684e0; T2 worker commits a7d78de1 and 415a3355; supervisor diff audits and reruns; combined Protocol 1 conformance root unchanged.
+Alternatives: Reopen kernel design; launch T4–T7 simultaneously; block despite passing gates.
+Decision: Phase 1 qualifies. Authorize T3 counterfactual branching and metering. T4–T7 remain dependency-gated.
+Authority: S0.
+Affected components: T3; dependency state for T4–T7.
+Supersedes: None.
+Reason: T3 can now depend on one qualified kernel and one qualified replay boundary without semantic duplication.
+```
