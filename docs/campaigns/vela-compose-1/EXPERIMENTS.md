@@ -98,3 +98,34 @@ Terminal source-owned commit/tree: `05b6e36fb46b840eeac533658faf6f71ad99dc06` /
 `4b491446071efc4d6cd306397fa33e8b008e2f29`. Terminal Vela root:
 `sha256:1f18d90faec38dfb602d1f6bfa51c0f7eb69373698baeb4e8f73cbf5dba5c82c`.
 Supervisor replay reproduced all counts and the exact root from a fresh clone.
+
+## VC1-E003 — T6 bounded R/E/V cumulative-handoff screen
+
+The authoritative pre-outcome design freeze is source-owned at commit
+`32fbe541da65b3ffa6e73d4d77d866b34aa75eca`. S0 authorizes Stage 0 only.
+
+```text
+Experiment ID: VC1-E003 / T6-C1
+Question: Does native governed Standing reduce the cost or error of continuing from the accepted Erdos154 sumset theorem, compared with a competent ordinary checkout and a neutral information-equivalent export?
+Hypothesis: V and E may reduce reconstruction mistakes relative to R; V may additionally reduce state-navigation mistakes relative to E. No directional proof-ability claim is made.
+Treatment: V = R plus the exact terminal T4 Repository, native read-only status/why/replay, retained failure/withdrawal history, Verification/Decision provenance, uncertainty, receipts, and pending work.
+Controls: Exact runtime identity, OAuth/account, prompt, tools, sandbox, Lean/evaluator, task, caps, fresh contexts, package-only retrieval, V/E scientific parity with competent R, and target/reference isolation.
+Task/data: t6-erdos154-finite-uniformity-v1; exact statement in apparatus/TARGET_STATEMENT.txt; source theorem Erdos154.erdos_154_sumset.
+Model: BLOCKED until exact CLI, advertised model, backend/model identity, reasoning/config, tokenizer, and account fingerprint are captured identically across arms.
+Tools: Identical local shell/file tools, read-only arm package, empty writable result, and pinned instrumented Lean evaluator; no network or other paths.
+Information available: R = full exact ordinary Lean checkout and documentation; V = R plus native governed state; E = R plus all V scientific fields and exact evidence bytes in a neutral export without Vela commands.
+Resource budget: Per scheduled Stage-1 cell: 20 minutes, 24,000 total model tokens, 60 tool calls, 20 read/search calls, 12 participant Lean calls, plus one runner-owned final evaluator. Stage 1 is not yet authorized.
+Primary outcome: Binary exact-target solve under pinned Lean plus axiom and leakage policy.
+Secondary outcomes: Tokens/time/reads/searches/tool/Lean calls, duplicate investigations, invalid state assumptions, provenance mistakes, repeated verifier failures, first valid contribution, verified progress, malformed/timeout state.
+Inclusion criteria: Every frozen hash and all twelve controls pass; fresh context; complete telemetry; one isolated arm; containment intact.
+Exclusion criteria: Runtime/config mismatch, package/task mismatch, missing telemetry, retrieval escape, evaluator/reference leakage, runner failure, or target-proof exposure; all attempts remain preserved.
+Stopping rule: No retry. Stop on any control failure, systematic R incompetence, or control-defeating anomaly. Stage 1, if later authorized, stops after exactly R -> E -> V once each.
+Interpretation table: V≈E>R = structured-compilation value; V>E>R = native-interface value; V≈E≈R = no demonstrated advantage; R>V = overcompression/friction; E>V = native-interface friction. One-cell ordering is descriptive only.
+Artifacts to preserve: Design and package roots; V/E equivalence; runtime capture; raw streams and trees; evaluator evidence; costs; invalid/exclusion records; blinded adjudication; every attempted cell.
+Frozen commit and hashes: T6 design 32fbe541da65b3ffa6e73d4d77d866b34aa75eca; T4 commit/tree 05b6e36fb46b840eeac533658faf6f71ad99dc06 / 4b491446071efc4d6cd306397fa33e8b008e2f29; T4 Vela root sha256:1f18d90faec38dfb602d1f6bfa51c0f7eb69373698baeb4e8f73cbf5dba5c82c; Lean source commit/tree 06d1322e62aa28b860da1ec66465d913c1902c78 / 572395b76976c0b6940cbc58c15512adbc36a328; remaining hashes in T6_TASK_MANIFEST.json.
+Execution authority: S0 authorizes Stage 0 only. Stage 1 requires hidden evaluator-authorability PASS, apparatus qualification, a committed receipt, and a new explicit S0 authorization.
+```
+
+Pre-outcome exclusions: the original modulus-two task and candidates A/B. They
+started no model or Lean process, consumed no seed/context, and enter no
+scientific denominator.

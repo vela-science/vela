@@ -199,3 +199,27 @@ and stratified significance does not establish formal APOE effect modification.
 The v1 packet remains immutable. A strict-descendant v1.1 correction is active;
 it may narrow the extraction and provenance labels but may not execute a Vela
 scientific lifecycle. T6 remains at pre-execution task-design qualification.
+
+## State 0010 — T6 candidate C selected; Stage 0 authorability authorized
+
+```text
+Date: 2026-08-26
+Phase: PHASE_5_HANDOFF_APPARATUS_QUALIFICATION
+Supervisor branch: campaign/compose1-supervisor
+T6 design commit/tree: 32fbe541da65b3ffa6e73d4d77d866b34aa75eca / 4f1d0d26f94e12ffc5988806b8e30b2caa2dcbc4
+T6 selected task: t6-erdos154-finite-uniformity-v1
+T6 Stage 0: AUTHORIZED
+T6 Stage 1 participant cells: BLOCKED
+T5 v1.1 correction: ACTIVE
+Foundational top-down search: CLOSED
+Campaign anomaly: NONE
+```
+
+The original modulus-two continuation and candidates A/B were killed before
+any model or Lean run because they reduce to direct theorem instances or two
+limit subtractions. Candidate C survives as a bounded finite-aggregation
+consequence. The supervisor reproduced internal/external design validation,
+three equivalence/tamper tests, exact source and vertical bindings, target-name
+absence, Git integrity, and fresh-clone validation. This authorizes only a
+separate hidden evaluator-authorability and apparatus gate. It does not
+authorize R/E/V participant cells or claim useful handoff value.

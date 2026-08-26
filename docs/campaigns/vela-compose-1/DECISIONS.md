@@ -184,3 +184,23 @@ Reason: Source identity and retrieval integrity passed, but model role, group co
 The maximum permitted T5 Claim boundary during correction is the reviewer’s
 bounded literature statement. It is not a causal, diagnostic, prognostic,
 therapeutic, or medical conclusion and is not yet authorized Standing.
+
+## VC1-D012 — Select T6 candidate C and authorize Stage 0 only
+
+```text
+Decision ID: VC1-D012
+Date: 2026-08-26
+Question: Does any pre-outcome T6 continuation task have enough plausible dynamic range to justify evaluator-authorability qualification?
+Proposal: Preserve the trivial-task kills, select only finite uniformity aggregate candidate C, and authorize a separate hidden Stage 0 gate.
+Evidence: T6 design commits eccd0c8a94ab5999e6f79bf591969f1937d971d5 and 32fbe541da65b3ffa6e73d4d77d866b34aa75eca; internal/external validator PASS; three equivalence/tamper tests PASS; supervisor fresh-clone, Git, source-hash, target-absence, and no-Lean-file audit PASS.
+Alternatives: Run the trivial modulus-two task; select A or B; begin three participant arms immediately; replace the task after observing an outcome; close T6 without testing the only survivor.
+Decision: Kill the modulus-two, A, and B tasks before outcome. Select C only. Authorize Stage 0 apparatus and hidden evaluator-authorability work. Keep Stage 1 R/E/V cells BLOCKED pending a committed receipt and new S0 audit.
+Authority: S0.
+Affected components: T6; T7 release evidence.
+Supersedes: The specific pending modulus-two continuation from T4 is preserved but not used as an experimental target.
+Reason: C introduces finite indexed limit aggregation and Lean elaboration work without turning T6 into theorem discovery, while the other tasks lack measurable continuation cost.
+```
+
+Stage 0 must retain the reference proof outside every participant, package,
+runner-log, and source root. Failure authoring the exact statement kills the
+task; it does not authorize a substitute or a changed statement.

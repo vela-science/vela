@@ -171,3 +171,30 @@ Campaign anomaly: NONE
 This is a successful rejection by the campaign’s evidence gate, not a negative
 result about blood-brain-barrier biology. The source corpus remains usable only
 after a strict-descendant corrected extraction passes independent re-review.
+
+## VC1-R006 — T6 pre-outcome task funnel
+
+Date: 2026-08-26.
+
+The direct modulus-two continuation and two nearby reformulations were rejected
+before any participant/model or Lean process. Each collapses to direct use of
+the accepted theorem plus elementary fixed-limit algebra and therefore cannot
+measure inherited-state reconstruction or continuation cost. A fixed third
+candidate, finite uniformity aggregate, survives only to Stage 0 because it
+adds indexed theorem instantiation, absolute-value continuity, finite limit
+aggregation, coercion normalization, and final algebra.
+
+```text
+Design commit/tree: 32fbe541da65b3ffa6e73d4d77d866b34aa75eca / 4f1d0d26f94e12ffc5988806b8e30b2caa2dcbc4
+Pre-outcome kills: modulus-two, A, B
+Selected pending task: C / t6-erdos154-finite-uniformity-v1
+Participant/model starts: 0
+Lean process starts: 0
+Scientific denominator: 0
+Stage 0: AUTHORIZED
+Stage 1: BLOCKED
+Campaign anomaly: NONE
+```
+
+This is apparatus/task qualification, not evidence that Vela improves
+continuation and not a cumulative-intelligence result.
