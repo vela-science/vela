@@ -10,6 +10,8 @@ not a foundational-research campaign.
 - [Append-only decisions](DECISIONS.md)
 - [Qualification matrix](QUALIFICATION.md)
 - [R2 clean-install and replay qualification](R2_CLEAN_INSTALL_QUALIFICATION.md)
+- [R2 clean-install and replay requalification](R2_REQUALIFICATION.md)
+- [R3 CLI and first-user documentation qualification](R3_FIRST_USER_QUALIFICATION.md)
 - [Failure ledger](FAILURES.md)
 - [R1 protocol and semantic audit](R1_SEMANTIC_AUDIT.md)
 - [R1 independent requalification](R1_REQUALIFICATION.md)

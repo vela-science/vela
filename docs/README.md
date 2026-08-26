@@ -53,6 +53,7 @@ Protocol 1 release candidate with Submission v3.
 ### Implement or audit Protocol 1
 
 - [Protocol 1](PROTOCOL.md)
+- [Semantic scenario and conformance index](../conformance/README.md#semantic-scenario-index)
 - [Architecture](ARCHITECTURE.md)
 - [Protocol 1 conformance profile](interop/scientific-state-profile.md)
 - [Roots](ROOTS.md)
@@ -77,6 +78,8 @@ Protocol 1 release candidate with Submission v3.
 - [VELA-RC-1 R1 semantic audit](campaigns/vela-rc-1/R1_SEMANTIC_AUDIT.md)
 - [VELA-RC-1 R1 independent requalification](campaigns/vela-rc-1/R1_REQUALIFICATION.md)
 - [VELA-RC-1 R2 clean-install qualification](campaigns/vela-rc-1/R2_CLEAN_INSTALL_QUALIFICATION.md)
+- [VELA-RC-1 R2 independent requalification](campaigns/vela-rc-1/R2_REQUALIFICATION.md)
+- [VELA-RC-1 R3 CLI and first-user documentation qualification](campaigns/vela-rc-1/R3_FIRST_USER_QUALIFICATION.md)
 - [VELA-RC-1 append-only state](campaigns/vela-rc-1/STATE.md)
 - [VELA-RC-1 append-only decisions](campaigns/vela-rc-1/DECISIONS.md)
 - [VELA-RC-1 qualification matrix](campaigns/vela-rc-1/QUALIFICATION.md)

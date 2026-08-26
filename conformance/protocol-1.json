@@ -405,7 +405,7 @@
       "normative": false,
       "path": "conformance/fixtures/read-surfaces/README.md",
       "role": "cli-read-contract-documentation",
-      "sha256": "sha256:b654061e1184601a13244814b32ccd0ebdc25fca201b36322d75cf78efe6ba85"
+      "sha256": "sha256:cad76738184b821a63d321877a4ccf67c01650470520d523a248b237c7f79eb3"
     },
     {
       "bytes": 5383,
@@ -590,11 +590,11 @@
       "sha256": "sha256:5943e9fa133d0d9f7727cf0e0e733eae97e2f9d7be555651c73c5a5e3c956a1b"
     },
     {
-      "bytes": 1303,
+      "bytes": 1327,
       "normative": false,
       "path": "examples/correction-inheritance/README.md",
       "role": "reference-flow",
-      "sha256": "sha256:da73173b06043f8c41825d6d7c7c4acaaf51c30e3b896adf9ff04d6748c0f206"
+      "sha256": "sha256:eb3a2f801e1ed10b7b60a4eaec8ad6b49a75bc5cd3b6d5769c739082dbcc420a"
     },
     {
       "bytes": 861,
@@ -604,11 +604,11 @@
       "sha256": "sha256:3d1b1a336e705fd3f2bae9a4100c62718fcf241033cfdacdeb2e44758864e66d"
     },
     {
-      "bytes": 1492,
+      "bytes": 1850,
       "normative": false,
       "path": "examples/formal-math/README.md",
       "role": "reference-flow",
-      "sha256": "sha256:6e0e1ba642d88c8231009c0af5d29db5624ac517e62971089d4c57e34f589f26"
+      "sha256": "sha256:8ea10796700a283776355e6167d8fc65c8db2e858fa48c56bb0b985a3e0de9cd"
     },
     {
       "bytes": 1204,
@@ -849,7 +849,7 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:6a9d475c11db78faeb239a2f6c55b369b8b9a3f79c26c92cb59b7ae5eb2eb5d4",
+  "manifest_root": "sha256:5be464c8c5968c93f2cabf2e73290894f9120963d3966482b27e970798586d97",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",

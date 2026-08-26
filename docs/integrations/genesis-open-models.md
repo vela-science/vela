@@ -49,6 +49,9 @@ Vela service, or Repository-authority key:
 ```bash
 git clone https://github.com/vela-science/math.git math
 git -C math checkout 84b118ed1622d34e5a1431821cf35dca91fb8720
+vela authority trust pin math \
+  --record-root sha256:efae3e02b5be6dfccf6701ebe26f87f00bb64f5b4372674e572a633844d95469 \
+  --json
 vela replay math --json
 vela status math --json
 vela claims math --json
@@ -66,10 +69,10 @@ Expected replay facts:
   accepted Proposal transitions;
 - zero pending, rejected, or withdrawn Proposals.
 
-For strict consumer trust, obtain the sequence-one authority-record root
+The command above uses the sequence-one authority-record root
 `sha256:efae3e02b5be6dfccf6701ebe26f87f00bb64f5b4372674e572a633844d95469`
-through an independent channel and pin it locally before replay. The pin grants
-no authority and changes no Repository byte.
+obtained through an independent channel. The pin grants no authority and changes
+no Repository byte.
 
 ## The control point
 

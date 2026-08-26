@@ -17,7 +17,8 @@ No checklist item authorizes release.
 - [ ] full local Core union passes
 - [ ] clippy release-candidate gate passes
 - [ ] R2 clean install passes on a supported environment
-- [ ] deterministic public replay fixture passes with expected Standing digest
+- [ ] deterministic public replay fixture passes with the expected accepted
+      set, Repository root, and authority Event-log root
 - [ ] corrupt/missing Artifact fixture fails closed
 - [ ] R3 first-user documentation and CLI gate passes
 - [ ] R4 two-domain examples pass without a Core fork

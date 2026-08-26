@@ -10,12 +10,19 @@ Clone the complete Repository at the pinned merge and replay its actual state:
 ```bash
 git clone https://github.com/vela-science/math.git math
 git -C math checkout f9b28280881472ccb9c4b1b35d8e741745f0bd99
+vela authority trust pin math \
+  --record-root sha256:efae3e02b5be6dfccf6701ebe26f87f00bb64f5b4372674e572a633844d95469 \
+  --json
 vela replay math --json
 vela claims math --json
 ```
 
 The canonical Math source is public. Acquisition requires no account, and
-replay remains local and requires no repository-authority key.
+replay remains local and requires no repository-authority key. The
+sequence-one root comes from the separate
+[authority fixture](../../conformance/fixtures/authority/math-coh-00/trust-anchor.json),
+not from the cloned Repository. Pinning grants no authority and changes no
+Repository byte.
 
 Expected replay facts are frozen in [`flow.json`](flow.json): Repository root
 `sha256:45640c5e…233ebba`, three current accepted Claims, and two retained
