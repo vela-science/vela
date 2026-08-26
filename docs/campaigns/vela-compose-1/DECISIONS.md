@@ -283,3 +283,23 @@ Reason: The malformed artifact was corrected without changing the proposition or
 Target proposition elaboration is not hidden proof authorability and is not a
 scientific result. Any additional correction, proxy tokenizer, or participant
 start before a later Decision closes candidate C.
+
+## VC1-D017 — Close the T5 clean-successor gate as failed
+
+```text
+Decision ID: VC1-D017
+Date: 2026-08-26
+Question: Did the one authorized clean successor qualify blind continuation from T5 Standing?
+Proposal: Score the frozen run exactly, preserve its bounded stop, and separate the passed governance lifecycle from the failed continuation gate.
+Evidence: Successor commit/tree f16d4ef929e16d5ee2510c77d621b9b234d29e76 / b08e8143116e797fe80bd810acfe907b9e2b43d6; RESULT.md SHA-256 aaf1bfce20e8ced3a695efcf0c63068669b51b367978f26aa1726b9b0e78cd84; RUN_REPORT.json SHA-256 febb2f5254bcb2475caf1ab5cc2f720a5c156235079174025aeaabe94261b498; supervisor Git diff/integrity/status/log/replay audit.
+Alternatives: Retry with narrower reads; exclude the broad read from tokens; count the unsubmitted action as continuation; invalidate the apparatus; erase the failed run.
+Decision: CLEAN_SUCCESSOR_GATE_FAIL. The valid bounded attempt exceeded the observable-token cap and created zero pending Proposals. No retry or amended budget is authorized. Preserve the passed VC1-E004 governance lifecycle separately. Do not claim clean continuation, cumulative handoff, or reduced reconstruction cost from T5.
+Authority: S0.
+Affected components: T5; T6 interpretation; T7 release claims.
+Supersedes: VC1-D015 launch authority after its single permitted run.
+Reason: The frozen gate required both bounded 10/10 comprehension and one useful pending continuation. A descriptive answer draft without a compliant pending Proposal does not satisfy it, and the budget boundary is part of the result.
+```
+
+This failure is ordinary bounded execution evidence, not a control-defeating
+anomaly. It does not reopen foundational search or weaken the qualified
+Submission -> Verification -> Decision -> Standing lifecycle.

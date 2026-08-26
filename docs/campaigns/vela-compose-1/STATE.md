@@ -339,3 +339,32 @@ ancestry, and a fresh `--no-local` clone rerun. Separate v1.1 hidden-authorabili
 and apparatus tasks may run Stage 0 only. Exact tokenizer identity and the <=5%
 token-equivalence threshold remain mandatory and unevaluated; no participant or
 scientific cell is authorized.
+
+## State 0015 — T5 clean successor fails frozen gate; no retry
+
+```text
+Date: 2026-08-26
+Phase: PHASE_5_HANDOFF_APPARATUS_QUALIFICATION
+Supervisor branch: campaign/compose1-supervisor
+T5 successor task: 01a03dac-9eaa-7f82-966a-0313432dd260
+T5 successor commit/tree: f16d4ef929e16d5ee2510c77d621b9b234d29e76 / b08e8143116e797fe80bd810acfe907b9e2b43d6
+T5 clean-successor gate: FAIL
+T5 lifecycle qualification: PASS
+T5 full continuation qualification: FAIL
+T6 v1.1 Stage 0: ACTIVE
+Foundational top-down search: CLOSED
+Campaign anomaly: NONE
+```
+
+The one authorized blind successor validated its exact input and binary, then
+exceeded the frozen 15,000-observable-token cap on scientific tool call four
+when one broad read emitted approximately 18,789 stdout tokens before transport
+truncation. It stopped without retry before any `vela submit`. No Proposal,
+Verification, Decision, review action, new Event, or Standing mutation occurred.
+The supervisor verified the committed run diff contains only successor-run
+receipts and that status/replay still reconstruct the same terminal Repository
+root with one current accepted Claim and five Events. This is a valid bounded
+attempt that fails the successor gate through budget overrun and zero pending
+Proposal. It is not an apparatus invalidation and is not eligible for retry.
+The T5 lifecycle remains qualified; the stronger blind-continuation claim does
+not.

@@ -223,3 +223,26 @@ separate commit/tree `affe34ba5933865f1a8705e40285131a29ec7b33` /
 VC1-D015 authorizes exactly one fresh blind successor. This is the final
 pre-outcome launch authorization; its 10/10 comprehension and one-pending-
 Proposal gate may not be amended after the participant context opens.
+
+### VC1-E004 clean-successor terminal addendum
+
+The single authorized successor attempt is terminal at commit/tree
+`f16d4ef929e16d5ee2510c77d621b9b234d29e76` /
+`b08e8143116e797fe80bd810acfe907b9e2b43d6`. Scientific tool call four emitted
+approximately 18,789 observable stdout tokens before transport truncation,
+crossing the 15,000-token cap. The participant stopped immediately and did not
+execute `vela submit`.
+
+```text
+attempt validity: VALID_BOUNDED_ATTEMPT
+clean-successor gate: FAIL
+failure reasons: OBSERVABLE_TOKEN_BUDGET_OVERRUN; ZERO_PENDING_CONTINUATION_PROPOSALS
+new Proposal / Verification / Decision / Event: 0 / 0 / 0 / 0
+terminal Repository root: sha256:785fa897ac8ffa9e8dd92756090923ee9e8ce3ec593ed07bb73baa63aa58a79a
+retry: FORBIDDEN
+campaign anomaly: NONE
+```
+
+The lifecycle arm remains PASS; the full `lifecycle + blind continuation`
+interpretation is FAIL. No post-outcome screen or altered successor protocol is
+authorized.

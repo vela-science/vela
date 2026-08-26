@@ -331,3 +331,39 @@ Campaign anomaly: NONE
 This is an apparatus correction, not handoff evidence. Hidden proof
 authorability, package/runtime qualification, and exact tokenizer equivalence
 remain unresolved.
+
+## VC1-R011 — T5 clean-successor bounded failure
+
+Date: 2026-08-26.
+
+The one frozen blind successor run failed its clean-continuation gate. It
+validated the exact lifecycle commit and Vela binary, began reading committed
+state, and produced descriptive answers, but scientific tool call four emitted
+approximately 18,789 stdout tokens before transport truncation. That exceeded
+the frozen 15,000-observable-token cap. The participant stopped at 80 seconds,
+performed no retry, and did not execute `vela submit`; therefore it created no
+pending continuation Proposal.
+
+The run made no canonical mutation. The supervisor verified one current
+accepted Claim, two accepted review Decisions in history, five unchanged
+Events, an empty Inbox, strict replay PASS, and the unchanged Repository root.
+Only run receipts were added to the fresh clone.
+
+```text
+Successor task: 01a03dac-9eaa-7f82-966a-0313432dd260
+Run commit/tree: f16d4ef929e16d5ee2510c77d621b9b234d29e76 / b08e8143116e797fe80bd810acfe907b9e2b43d6
+RESULT.md SHA-256: aaf1bfce20e8ced3a695efcf0c63068669b51b367978f26aa1726b9b0e78cd84
+RUN_REPORT.json SHA-256: febb2f5254bcb2475caf1ab5cc2f720a5c156235079174025aeaabe94261b498
+Elapsed / scientific tool calls: 80 seconds / 4
+Approximate trigger-call stdout tokens: 18,789
+Pending Proposals: 0
+Standing or Event changes: 0
+Clean-successor disposition: FAIL
+Retry: NONE AUTHORIZED
+Campaign anomaly: NONE
+```
+
+This result preserves the narrower T5 lifecycle qualification but rejects the
+stronger claim that the frozen package demonstrated efficient blind
+continuation. It is not evidence that such continuation is impossible in
+general.
