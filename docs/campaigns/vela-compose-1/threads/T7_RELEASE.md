@@ -3,6 +3,12 @@
 Status: blocked until S0 qualifies kernel, replay, branching, both verticals,
 and the handoff result.
 
+The status above records the original launch gate. VC1-D018 later authorized
+T7 on 2026-08-26 for a bounded integration of qualified Level-1 behavior after
+T6 closed at Stage 0 with no handoff result. That authorization requires the
+T5 clean-successor failure and T6 zero-denominator outcome to remain mandatory
+limitations; it does not retroactively make the handoff gate pass.
+
 Integrate only proven behavior. Do not alter scientific semantics for CLI/Web
 convenience, redesign the product, bump versions, publish, or add speculative
 intelligence features.

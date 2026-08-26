@@ -23,3 +23,5 @@ live Rust types and conformance vectors.
 - [T5 worker contract](threads/T5_ALZHEIMER.md)
 - [T6 worker contract](threads/T6_HANDOFF.md)
 - [T7 worker contract](threads/T7_RELEASE.md)
+- [T7 internal release-qualification matrix](T7_RELEASE_QUALIFICATION.md)
+- [Final campaign report](FINAL_REPORT.md)

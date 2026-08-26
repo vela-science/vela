@@ -90,6 +90,8 @@ Protocol 1 release candidate with Submission v3.
 - [T5 Alzheimer contract](campaigns/vela-compose-1/threads/T5_ALZHEIMER.md)
 - [T6 Handoff contract](campaigns/vela-compose-1/threads/T6_HANDOFF.md)
 - [T7 Release contract](campaigns/vela-compose-1/threads/T7_RELEASE.md)
+- [T7 internal release-qualification matrix](campaigns/vela-compose-1/T7_RELEASE_QUALIFICATION.md)
+- [VELA-COMPOSE-1 final campaign report](campaigns/vela-compose-1/FINAL_REPORT.md)
 
 ## History
 
