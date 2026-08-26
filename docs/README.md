@@ -69,6 +69,25 @@ Protocol 1 release candidate with Submission v3.
 - Vela records scientific inheritance. It does not run domain work, search the
   literature, rank Problems, or allocate research effort.
 
+## Current supervised campaign
+
+- [VELA-COMPOSE-1 campaign index](campaigns/vela-compose-1/README.md)
+- [Campaign charter](campaigns/vela-compose-1/CAMPAIGN.md)
+- [Repository baseline](campaigns/vela-compose-1/BASELINE.md)
+- [Append-only campaign state](campaigns/vela-compose-1/STATE.md)
+- [Append-only campaign decisions](campaigns/vela-compose-1/DECISIONS.md)
+- [Frozen experiment registry](campaigns/vela-compose-1/EXPERIMENTS.md)
+- [Append-only results](campaigns/vela-compose-1/RESULTS.md)
+- [Anomaly reopen gate](campaigns/vela-compose-1/REOPEN.md)
+- [Campaign risks](campaigns/vela-compose-1/RISKS.md)
+- [T1 Kernel contract](campaigns/vela-compose-1/threads/T1_KERNEL.md)
+- [T2 Replay contract](campaigns/vela-compose-1/threads/T2_REPLAY.md)
+- [T3 Branching contract](campaigns/vela-compose-1/threads/T3_BRANCHING.md)
+- [T4 Lean contract](campaigns/vela-compose-1/threads/T4_LEAN.md)
+- [T5 Alzheimer contract](campaigns/vela-compose-1/threads/T5_ALZHEIMER.md)
+- [T6 Handoff contract](campaigns/vela-compose-1/threads/T6_HANDOFF.md)
+- [T7 Release contract](campaigns/vela-compose-1/threads/T7_RELEASE.md)
+
 ## History
 
 [Decision records](adr/README.md) preserve the design sequence. They are
