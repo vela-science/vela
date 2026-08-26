@@ -1425,17 +1425,17 @@ mod tests {
     #[test]
     fn acceptance_links_one_domain_event_to_one_review_event() {
         let subject = claim("A new bounded result.", 1, Vec::new());
-        let proposal = proposal("claim.add", &subject);
+        let add_proposal = proposal("claim.add", &subject);
         let plan = ReviewDecisionPlan {
             claim_id: subject.claim_id.clone(),
             claim_root: subject.canonical_root().unwrap(),
-            proposal_id: proposal.id(),
+            proposal_id: add_proposal.id(),
             ..plan()
         };
         let events = decision_events(
             &plan,
             &repository(),
-            &proposal,
+            &add_proposal,
             &subject,
             &root('0'),
             DecisionAction::Accept,
@@ -1459,7 +1459,7 @@ mod tests {
         let rejection = decision_events(
             &plan,
             &repository(),
-            &proposal,
+            &add_proposal,
             &subject,
             &root('0'),
             DecisionAction::Reject,
@@ -1468,5 +1468,34 @@ mod tests {
         .unwrap();
         assert_eq!(rejection.len(), 1);
         assert_eq!(rejection[0].kind, EventKind::ReviewRejected);
+
+        let withdrawal_proposal = proposal("claim.withdraw", &subject);
+        let withdrawal_plan = ReviewDecisionPlan {
+            proposal_id: withdrawal_proposal.id(),
+            ..plan
+        };
+        let mut accepted_repository = repository();
+        accepted_repository
+            .accepted_claims
+            .push(standing(&subject, "accepted"));
+        let withdrawal = decision_events(
+            &withdrawal_plan,
+            &accepted_repository,
+            &withdrawal_proposal,
+            &subject,
+            &root('9'),
+            DecisionAction::Accept,
+            "2026-07-27T00:00:06Z",
+        )
+        .unwrap();
+        assert_eq!(withdrawal.len(), 2);
+        assert_eq!(withdrawal[0].kind, EventKind::ClaimRetracted);
+        assert_eq!(withdrawal[0].before_hash, withdrawal_plan.claim_root);
+        assert_eq!(withdrawal[0].after_hash, NULL_HASH);
+        assert_eq!(withdrawal[1].kind, EventKind::ReviewAccepted);
+        assert_eq!(
+            withdrawal[1].payload["applied_event_id"],
+            semantic_event_id(&withdrawal[0])
+        );
     }
 }

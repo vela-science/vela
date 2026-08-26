@@ -13,6 +13,7 @@ live Rust types and conformance vectors.
 - [Results ledger](RESULTS.md)
 - [Anomaly reopen conditions](REOPEN.md)
 - [Risk register](RISKS.md)
+- [T1 Kernel qualification report](T1_KERNEL_REPORT.md)
 - [T1 worker contract](threads/T1_KERNEL.md)
 - [T2 worker contract](threads/T2_REPLAY.md)
 - [T2 replay and receipt qualification](T2_REPLAY_REPORT.md)

@@ -80,6 +80,7 @@ Protocol 1 release candidate with Submission v3.
 - [Append-only results](campaigns/vela-compose-1/RESULTS.md)
 - [Anomaly reopen gate](campaigns/vela-compose-1/REOPEN.md)
 - [Campaign risks](campaigns/vela-compose-1/RISKS.md)
+- [T1 Kernel qualification report](campaigns/vela-compose-1/T1_KERNEL_REPORT.md)
 - [T1 Kernel contract](campaigns/vela-compose-1/threads/T1_KERNEL.md)
 - [T2 Replay contract](campaigns/vela-compose-1/threads/T2_REPLAY.md)
 - [T2 replay and receipt qualification](campaigns/vela-compose-1/T2_REPLAY_REPORT.md)
