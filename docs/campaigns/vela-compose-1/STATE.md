@@ -247,3 +247,36 @@ Submission fields: Preis QAlb `n=33` and source-specific absence of multiplicity
 correction in Edwards 2025. A new source-owned T5 lifecycle may now execute the
 frozen literature-report transition and clean-machine continuation. It may not
 broaden the Claim, add sources, or create a biological or medical conclusion.
+
+## State 0012 — T6 v1 fails Stage 0; syntax-only successor authorized
+
+```text
+Date: 2026-08-26
+Phase: PHASE_5_HANDOFF_APPARATUS_QUALIFICATION
+Supervisor branch: campaign/compose1-supervisor
+T6 v1 design commit/tree: 32fbe541da65b3ffa6e73d4d77d866b34aa75eca / 4f1d0d26f94e12ffc5988806b8e30b2caa2dcbc4
+T6 hidden-evaluator commit/tree: 57e7ea008c57df5343f10e0d75ab141046d7fad8 / cb371cb58b71a8aa264781e9ab93e50ee595fcaa
+T6 apparatus commit/tree: 461c79df4be504b4d0071eb1dd1e90749a2b0f09 / b195cf458e6d827a71bd236867dffbfa0c935b5b
+T6 v1 Stage 0: EXPERIMENTAL_APPARATUS_FAILURE
+T6 scientific denominator: 0
+T6 v1.1 design correction: AUTHORIZED
+T6 Stage 1 participant cells: BLOCKED
+T5 lifecycle: ACTIVE
+Foundational top-down search: CLOSED
+Campaign anomaly: NONE
+```
+
+Two independent Stage-0 paths reproduced the exact frozen target's Lean parse
+failure at line 15:19: the statement uses `∑ i in Finset.range m` under pinned
+Lean 4.29.1, which expects the current bounded-binder syntax. The supervisor
+reproduced the diagnostic from the exact target SHA-256
+`c415ff6e7e0d592d80ed28072276948f2ae61ad7906cb3ba69b61b8ec57ce3a5`,
+reran all eleven apparatus tests in place and from a fresh clone, and verified
+the design, Lean, T4, and Vela source trees remained clean. No participant,
+model, or scientific cell started. Candidate C v1 is closed without a
+scientific conclusion. A strict-descendant v1.1 may change only the malformed
+binder spelling and reconcile the already-disclosed R Git-metadata packaging
+contract. It may not change the proposition, task class, arms, order, budgets,
+metrics, thresholds, reference custody, or exact-tokenizer gate. Stage 1
+remains blocked pending a new hidden authorability PASS, apparatus PASS, exact
+runtime-tokenizer qualification, and a separate S0 decision.

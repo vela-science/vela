@@ -224,3 +224,37 @@ Campaign anomaly: NONE
 
 This result qualifies the extraction for a governed lifecycle. It does not
 establish a biological effect, clinical conclusion, or accepted Standing.
+
+## VC1-R008 — T6 v1 Stage-0 apparatus failure
+
+Date: 2026-08-26.
+
+The exact candidate-C v1 target is not parseable under the pinned Lean 4.29.1
+environment. Its bounded sum uses `∑ i in Finset.range m`; both the independent
+hidden evaluator and the apparatus worker reported `unexpected token 'in';
+expected ','` at line 15:19. The supervisor independently reproduced that
+diagnostic from the exact frozen target hash. No reference proof was exposed,
+and no participant, model, or scientific Lean cell started.
+
+The failure does not measure R, E, V, proof ability, continuation cost, or
+governed-state value. Other Stage-0 components qualified, including
+deterministic package roots, 24/24 V/E scientific fields and 11/11 evidence
+blobs, native V replay, exact binary custody, sacrificial containment, and
+eleven fail-closed tests. Exact runtime tokenizer identity remains unavailable
+and is still a mandatory blocker rather than a proxy count.
+
+```text
+Hidden-evaluator commit/tree: 57e7ea008c57df5343f10e0d75ab141046d7fad8 / cb371cb58b71a8aa264781e9ab93e50ee595fcaa
+Hidden authorability receipt SHA-256: 54f90a2dc24d0cdd0ea8adc654a70ab8f2272cb6132f4e0b7ce200cda53d1c7c
+Apparatus commit/tree: 461c79df4be504b4d0071eb1dd1e90749a2b0f09 / b195cf458e6d827a71bd236867dffbfa0c935b5b
+Apparatus receipt root: sha256:50c80085fdf4ba3c4902e1b16fea3e383dc5062985e608f7ebeaa183deb2ff8c
+Scientific denominator: 0
+Stage-0 disposition: EXPERIMENTAL_APPARATUS_FAILURE
+Stage-1 status: BLOCKED
+Scientific conclusion: NONE
+Campaign anomaly: NONE
+```
+
+Candidate C v1 is terminal and immutable. VC1-D014 permits only a versioned
+syntax-level apparatus correction; it does not authorize participant cells or
+reinterpret this failure as evidence for or against cumulative handoff.

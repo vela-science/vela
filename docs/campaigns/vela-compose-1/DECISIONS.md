@@ -223,3 +223,23 @@ Reason: The corrected extraction is source-stable and proportionate, so the rema
 
 `PASS_EXTRACTION` is evidence for authorizing an experiment, not a Vela
 Verification or scientific Decision. The lifecycle must still earn Standing.
+
+## VC1-D014 — Close malformed T6 v1 and authorize one syntax-only successor
+
+```text
+Decision ID: VC1-D014
+Date: 2026-08-26
+Question: Does the T6 v1 Stage-0 failure constitute a handoff result, and may any corrected apparatus proceed?
+Proposal: Close the exact malformed v1 target with no scientific conclusion, preserve every receipt, and permit one strict-descendant v1.1 that repairs only the bounded-sum binder and makes the R Git-metadata package rule internally exact.
+Evidence: Hidden-evaluator commit/tree 57e7ea008c57df5343f10e0d75ab141046d7fad8 / cb371cb58b71a8aa264781e9ab93e50ee595fcaa; authorability receipt SHA-256 54f90a2dc24d0cdd0ea8adc654a70ab8f2272cb6132f4e0b7ce200cda53d1c7c; apparatus commit/tree 461c79df4be504b4d0071eb1dd1e90749a2b0f09 / b195cf458e6d827a71bd236867dffbfa0c935b5b; receipt root sha256:50c80085fdf4ba3c4902e1b16fea3e383dc5062985e608f7ebeaa183deb2ff8c; supervisor exact-byte Lean reproduction and in-place/fresh-clone 11/11 test PASS.
+Alternatives: Interpret the parse error as negative handoff evidence; mutate v1 in place; substitute a new theorem; waive exact tokenizer identity; abandon the required T6 evidence after a pre-participant typo.
+Decision: T6-C1 v1 is closed as EXPERIMENTAL_APPARATUS_FAILURE with scientific denominator zero. Authorize one v1.1 design correction only. The mathematical proposition, candidate-C task class, source bindings, R/E/V semantics, order, budgets, metrics, thresholds, reference-proof isolation, and no-retry rules must remain identical. The exact tokenizer identity and <=5% gate remain mandatory. Stage 1 remains BLOCKED.
+Authority: S0.
+Affected components: T6; T7 release evidence.
+Supersedes: VC1-D012 only for a new, explicitly versioned apparatus artifact; the v1 target and Stage-0 failure remain immutable and terminal.
+Reason: The gate failed before any participant or scientific outcome because of a mechanically identifiable parser spelling, not because the proposition was unprovable or the handoff arms lacked value. A transparent versioned apparatus repair preserves falsifiability without laundering or retrying an outcome.
+```
+
+This decision does not authorize a changed theorem, an easier target, a model
+call, or any R/E/V scientific cell. If v1.1 cannot pass all Stage-0 gates
+without another scientific or control change, T6 candidate C closes.

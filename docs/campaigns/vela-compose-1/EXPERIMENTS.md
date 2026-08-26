@@ -130,6 +130,31 @@ Pre-outcome exclusions: the original modulus-two task and candidates A/B. They
 started no model or Lean process, consumed no seed/context, and enter no
 scientific denominator.
 
+### VC1-E003 v1 Stage-0 terminal addendum
+
+The exact v1 target failed hidden evaluator authorability and independent
+apparatus reproduction before any participant or scientific cell. Both paths
+identified the same parse error at the same byte-stable target. The remaining
+apparatus qualified deterministic R/E/V packaging, V/E scientific-field and
+blob equivalence, native V status/why/replay, exact Vela-binary custody,
+containment, sealing, and fail-closed tamper checks, while correctly retaining
+the unavailable exact tokenizer as a blocker.
+
+```text
+v1 disposition: EXPERIMENTAL_APPARATUS_FAILURE
+v1 target SHA-256: c415ff6e7e0d592d80ed28072276948f2ae61ad7906cb3ba69b61b8ec57ce3a5
+participant/model starts: 0
+scientific cells: 0
+scientific denominator: 0
+scientific conclusion: NONE
+campaign anomaly: NONE
+```
+
+VC1-D014 authorizes a strict-descendant v1.1 correction. It is not a retry of
+an observed participant outcome. Only the malformed binder spelling and the
+disclosed R Git-metadata packaging contradiction may change. All scientific
+controls remain frozen, and Stage 1 requires a new explicit S0 authorization.
+
 ## VC1-E004 — T5 Alzheimer governed literature transition
 
 This central preregistration is frozen before lifecycle execution. The future
