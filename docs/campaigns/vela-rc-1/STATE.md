@@ -122,3 +122,31 @@ union. The repaired Protocol 1 conformance root is
 This is implementation and supervisor evidence, not independent gate
 acceptance. G1 and G2 are `REQUALIFICATION PENDING`; fresh R1 and R2 auditors
 must qualify this exact commit/tree before R3 or R4 may start.
+
+## VRC1-S008 — Gate 1 accepted; external-legibility phase opened
+
+Recorded: 2026-08-26, America/Toronto.
+
+Fresh R1 independently returned `PASS WITH DOC FIXES` after exercising every
+named governed read under missing, malformed, mismatched, correct, and
+hostile-`HOME` trust conditions; unpinned routine evidence writes and pinned
+Decision admission; the portable verifier; the complete locked Core union;
+and the release-candidate lint gate. Its evidence is frozen in
+`R1_REQUALIFICATION.md` and audit-only integration test
+`r1_requalification.rs`.
+
+Fresh R2 independently returned
+`PASS WITH DOCUMENTED PLATFORM LIMITATIONS` from pristine Linux x86-64 guests.
+It built and installed the exact repaired candidate, exercised the governed
+operator loop, read public Math only after installing its independently
+published pin, reproduced the neutral replay fixture, and observed fail-closed
+behavior for missing/corrupt Artifacts and missing/malformed/mismatched pins.
+Disposable macOS remains untested. Its evidence is frozen in
+`R2_REQUALIFICATION.md`.
+
+S0 integrated both reports and independently reran the R1 trust matrix and
+neutral replay fixture successfully. VRC1-F004 is resolved on repaired product
+commit `ad2a4516078525025d05bd461b550ed5b8e35971`. G1 is
+`PASS WITH DOC FIXES`; G2 is `PASS WITH DOCUMENTED PLATFORM LIMITATIONS`.
+R3 and R4 are now authorized from the reviewed supervisor branch. R5-R7 remain
+blocked.

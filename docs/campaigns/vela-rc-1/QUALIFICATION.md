@@ -2,12 +2,12 @@
 
 | Gate | Status | Evidence | Blocking condition |
 | --- | --- | --- | --- |
-| Semantic integrity | `REQUALIFICATION PENDING` | bounded repair at `ad2a4516`; S0 direct negative/positive trust matrix and full Core union pass | fresh R1 must independently verify the repaired read boundary and normative match |
-| Protocol conformance | `PASS ON REPAIRED CANDIDATE` | portable verifier and complete locked Core union passed with root `sha256:6a9d475c...` | independent R1 semantic adjudication pending |
-| Clean install | `REQUALIFICATION PENDING` | prior R2 pass plus repaired neutral fixture under S0 | fresh R2 must exercise exact repaired candidate from a clean environment; disposable macOS remains untested |
-| Replay | `REQUALIFICATION PENDING` | repaired replay fails closed for missing/malformed/mismatched anchors and passes after explicit pin under S0 | fresh R1/R2 evidence pending |
-| Docs / first user | `BLOCKED` | awaits R1/R2 | contradiction or release-blocking ambiguity |
-| Cross-domain examples | `BLOCKED` | awaits R1/R2 | B8 |
+| Semantic integrity | `PASS WITH DOC FIXES` | independent `R1_REQUALIFICATION.md`, audit-only shipped-CLI matrix, portable verifier, full Core union, clippy | three bounded documentation corrections remain for R3 |
+| Protocol conformance | `PASS ON REPAIRED CANDIDATE` | independent R1 and S0 reproduced root `sha256:6a9d475c...` and complete Core union | hosted exact-tree release rerun remains a later release-integrity requirement |
+| Clean install | `PASS WITH DOCUMENTED PLATFORM LIMITATIONS` | independent `R2_REQUALIFICATION.md`: exact candidate source build/install and operator loop in pristine Linux x86-64 guests | disposable macOS not tested; candidate is not yet a signed release artifact |
+| Replay | `PASS` | independent R1 trust matrix; R2 public Math and neutral clean-clone replay; missing/corrupt Artifact and pin failures | release packaging must preserve the qualified source identity |
+| Docs / first user | `ACTIVE — R3` | R1/R2 documentation findings and public workflow receipts | correctness and first-user gate not yet adjudicated |
+| Cross-domain examples | `ACTIVE — R4` | neutral fixture exists; second bounded lifecycle and release-facing reproducibility remain under audit | B8 or hidden domain/campaign dependency |
 | Product legibility | `BLOCKED` | awaits R3/R4 | B9 |
 | Packaging | `BLOCKED` | awaits R3/R4 | B10 |
 | Blind user | `BLOCKED` | requires R1-R4 pass | objective task or semantic failure |

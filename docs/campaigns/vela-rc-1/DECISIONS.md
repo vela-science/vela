@@ -69,3 +69,15 @@ union establish implementation readiness for audit but do not adjudicate the
 release gates. R1 and R2 may inspect and test but may not repair, weaken, or
 reinterpret the candidate. R3-R7 remain blocked until both requalifications
 are reviewed and accepted by S0.
+
+## VRC1-D009 — accept R1/R2 requalification and open R3/R4
+
+Decision: accept R1 `PASS WITH DOC FIXES` and R2
+`PASS WITH DOCUMENTED PLATFORM LIMITATIONS`. The repaired semantic boundary is
+qualified; the clean Linux x86-64 source-build/install and replay path is
+qualified under its recorded emulation and unpublished-candidate limitations.
+Close VRC1-F004 without erasing its history. Authorize R3 to correct only the
+three recorded documentation issues plus independently observed first-user
+friction, and authorize R4 to qualify the two bounded release-facing examples
+without changing Vela Core. R5, R6, R7, versioning, tagging, publishing,
+pushing, signing, and release remain unauthorized.

@@ -37,6 +37,13 @@ missing/malformed/mismatch/positive matrix, portable verifier, clippy gate, and
 complete Core union pass. This entry remains open until fresh R1 and R2 audits
 accept the exact repaired tree.
 
+Resolution: `CLOSED — INDEPENDENTLY REQUALIFIED`. R1 returned
+`PASS WITH DOC FIXES`; R2 returned
+`PASS WITH DOCUMENTED PLATFORM LIMITATIONS`; S0 integrated their immutable
+reports and independently reran the direct trust matrix and neutral fixture.
+The closure is specific to repaired product commit
+`ad2a4516078525025d05bd461b550ed5b8e35971`; it does not authorize release.
+
 ## VRC1-F005 — clean-path documentation friction
 
 Classification: `DOC BLOCKER INPUT`, subordinate to VRC1-F004.
@@ -50,3 +57,31 @@ network access for missing pinned components/crates.
 
 Required disposition: retain for R3 after G1 is repaired and requalified. Do
 not open R3 while the semantic gate is on HOLD.
+
+Gate update: R3 is now authorized and owns this documentation work.
+
+## VRC1-F006 — Proposal-root catalogue overstates stored fields
+
+Classification: `DOC FIX REQUIRED`.
+
+`docs/ROOTS.md` says the Proposal root covers its canonical record "and
+status", although `vela.proposal.v1` has no status field. Status is derived
+from withdrawals and governed Decisions/Events. R3 must correct the catalogue
+without changing object bytes or semantics.
+
+## VRC1-F007 — release checklist requests a nonexistent Standing digest
+
+Classification: `DOC FIX REQUIRED`.
+
+`RELEASE_CHECKLIST.md` asks for an expected standalone "Standing digest" even
+though Protocol 1 publishes no standalone `standing_root`. R3 must name the
+actual commitments: accepted set, Repository root, and authority Event-log
+root.
+
+## VRC1-F008 — implementer semantic matrix is campaign-local
+
+Classification: `DOC FIX REQUIRED`.
+
+The complete scenario matrix exists in reviewed campaign evidence but is not
+yet a compact release-facing implementer index. R3 must publish or link an
+equivalent matrix without making campaign prose normative.
