@@ -46,3 +46,14 @@ missing-Artifact fail-closed fixture. Record Linux x86-64-under-emulation as the
 qualified clean platform; macOS disposable qualification remains untested.
 This R2 pass does not override VRC1-D005. The neutral fixture is release-facing
 evidence, not adoption, utility, or a new protocol root.
+
+## VRC1-D007 — authorize one bounded R1-F001 repair
+
+Decision: authorize one implementation lane to enforce the already normative
+independent sequence-one selection on every public governed-state read. It must
+use the existing operating-system-account trust store, preserve unprivileged
+producer and verifier writes, fail closed on absent or mismatched pins, add
+direct shipped-CLI coverage, and update public read instructions. It may not
+weaken Protocol 1, auto-trust Repository bytes, introduce a second replay mode,
+bump a version, or open R3-R7. Independent R1 and R2 requalification is required
+before the semantic gate can change.

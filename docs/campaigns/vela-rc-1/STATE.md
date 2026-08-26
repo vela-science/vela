@@ -88,3 +88,14 @@ as supervisor commit `c2808440`. Gate G2 is
 emulation; disposable macOS was not. R2 independently reproduced the R1
 unpinned-read blocker, so the overall candidate remains on HOLD and R3-R7 stay
 blocked.
+
+## VRC1-S006 — bounded authority-read repair opened
+
+Recorded: 2026-08-26, America/Toronto.
+
+VRC1-D007 opens one isolated repair lane from supervisor commit
+`4d6109c98ecb816434109b8d6884bb3bec0eec7a`. Its only product objective is to
+make the existing normative independent sequence-one selection real on shipped
+governed-state reads while preserving routine unprivileged evidence writes.
+R1/R2 requalification and every downstream gate remain closed pending a
+committed repair and independent supervisor audit.
