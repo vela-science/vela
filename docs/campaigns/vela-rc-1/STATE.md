@@ -31,3 +31,21 @@ reproduced 77 normative and 39 informative files and root
 The exact source-owned T4 and T5 Repositories replayed successfully at their
 recorded commits, trees, and roots. The full Core union and release-candidate
 clippy gate remain pending.
+
+## VRC1-S003 — Phase-0 inherited qualification reproduced
+
+Recorded: 2026-08-26, America/Toronto.
+
+From supervisor control commit
+`6d680eebb4a17813e72b55685aa2eec6b34e5fae`, the complete locked Core union
+passed. It covered the portable Protocol 1 verifier, independent current-object
+implementations and readers, wire schemas, correction impact, authority-chain
+refusals, reference flows, deterministic release-reproducibility fixtures,
+Decision Inbox v3, the workspace all-target suite, the workspace
+`vela-cli/test-support` suite, and documentation tests. External Lean was not
+selected by the Core union, as documented.
+
+`cargo clippy --locked --workspace --all-targets -- -D warnings` also passed.
+The supervisor worktree remained clean before this state update. Phase 0 finds
+no inherited semantic or replay regression. R1 and R2 are active; their gates
+remain unadjudicated.

@@ -3,7 +3,7 @@
 | Gate | Status | Evidence | Blocking condition |
 | --- | --- | --- | --- |
 | Semantic integrity | `IN PROGRESS` | R1 not yet complete | Any B1, B3-B6, or B9 finding |
-| Protocol conformance | `PARTIAL PASS` | portable verifier reproduced the frozen root | Full Core union pending |
+| Protocol conformance | `PASS AT PHASE 0` | portable verifier and complete locked Core union reproduced the frozen root and all current suites | independent R1 semantic matrix still pending |
 | Clean install | `UNTESTED` | R2 not yet complete | B7 |
 | Replay | `PARTIAL PASS` | T4/T5 exact roots reproduced locally | clean-environment public fixture pending |
 | Docs / first user | `BLOCKED` | awaits R1/R2 | contradiction or release-blocking ambiguity |
@@ -30,3 +30,9 @@ recomputed Protocol 1 root
 
 These receipts establish continuity of current local evidence. They are not a
 clean-install result, blind-user result, adoption result, or release approval.
+
+The complete locked Core union subsequently passed from control commit
+`6d680eebb4a17813e72b55685aa2eec6b34e5fae`. The release-candidate lint gate
+`cargo clippy --locked --workspace --all-targets -- -D warnings` passed as
+well. This closes the inherited-code regression check but does not pre-judge
+R1's independent semantic audit or R2's clean-install gate.
