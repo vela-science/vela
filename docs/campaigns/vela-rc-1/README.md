@@ -13,6 +13,7 @@ not a foundational-research campaign.
 - [R2 clean-install and replay requalification](R2_REQUALIFICATION.md)
 - [R3 CLI and first-user documentation qualification](R3_FIRST_USER_QUALIFICATION.md)
 - [R4 external-use fixtures qualification](R4_EXTERNAL_FIXTURES.md)
+- [R6 packaging and release-integrity qualification](R6_RELEASE_INTEGRITY.md)
 - [Failure ledger](FAILURES.md)
 - [R1 protocol and semantic audit](R1_SEMANTIC_AUDIT.md)
 - [R1 independent requalification](R1_REQUALIFICATION.md)
