@@ -133,3 +133,23 @@ source checkout is clean, the exact target builds under its pinned environment,
 and its axiom audit reports only `propext`, `Classical.choice`, and
 `Quot.sound`. T4 is authorized; T5 substantive execution, T6, and T7 remain
 blocked. Scientific experiments executed: none.
+
+## State 0007 — T4 Lean vertical launched
+
+```text
+Date: 2026-08-26
+Phase: PHASE_3_LEAN_VERTICAL
+Supervisor branch: campaign/compose1-supervisor
+Canonical T4 task: 01a03d3f-a006-7c51-85cd-b3392703f581
+Canonical T4 workspace: /Users/williamblair/Documents/Codex/2026-08-26/vela-compose-1-lean-vertical
+Duplicate task stopped: 01a03d41-7bbe-74b1-baac-7f1d670c3d03
+Foundational top-down search: CLOSED
+Campaign anomaly: NONE
+```
+
+The canonical T4 worker is active in a source-owned, projectless workspace and
+is bound to the exact Vela binary and frozen Lean source inputs recorded in
+State 0006. A task-registry lag caused one duplicate task to be created. The
+supervisor ordered that duplicate to stop before outcome-bearing Lean execution
+and to record no scientific conclusion. T1–T3 are complete and idle. T5
+substantive execution, T6, and T7 remain dependency-gated; they are not active.
