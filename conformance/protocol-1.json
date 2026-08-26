@@ -548,11 +548,11 @@
       "sha256": "sha256:38101c1e52f4ce5716fead3b353acbe8422e14d81f0c7303d2c5e9ede1749e01"
     },
     {
-      "bytes": 1515,
+      "bytes": 1948,
       "normative": false,
       "path": "examples/README.md",
       "role": "reference-flow",
-      "sha256": "sha256:64da6de6d87777846aef476e5af0365a9cd23ee861e3211990174ef9e5d93d1d"
+      "sha256": "sha256:0389f191caac5d54084ebec31fc8df39a20bab13adb817ad9c15c048245cdd16"
     },
     {
       "bytes": 1804,
@@ -602,6 +602,167 @@
       "path": "examples/correction-inheritance/flow.json",
       "role": "reference-flow",
       "sha256": "sha256:3d1b1a336e705fd3f2bae9a4100c62718fcf241033cfdacdeb2e44758864e66d"
+    },
+    {
+      "bytes": 2514,
+      "normative": false,
+      "path": "examples/external-formal-verifier/README.md",
+      "role": "reference-flow",
+      "sha256": "sha256:f4637e02be346b99db04fda84191bf72368335ae99c46351cf086e1b722805ba"
+    },
+    {
+      "bytes": 850,
+      "normative": false,
+      "path": "examples/external-formal-verifier/bad-report.json",
+      "role": "reference-flow",
+      "sha256": "sha256:906d971aabc0f5d29868b4f42167d8d1887384607a0b829248f2ed4d2bf76f59"
+    },
+    {
+      "bytes": 482,
+      "normative": false,
+      "path": "examples/external-formal-verifier/bad-statement.json",
+      "role": "reference-flow",
+      "sha256": "sha256:9ce0d5c68a3e4bdbcefef9994ae583c7148e1b0d1937b02f33fb7ab6c68b916a"
+    },
+    {
+      "bytes": 4583,
+      "normative": false,
+      "path": "examples/external-formal-verifier/check.sh",
+      "role": "reference-flow",
+      "sha256": "sha256:4a056658aff5d0d8c241c6ec26b47dbfae53369772383c663d3a3697c1fe14fe"
+    },
+    {
+      "bytes": 362,
+      "normative": false,
+      "path": "examples/external-formal-verifier/corrected-report.json",
+      "role": "reference-flow",
+      "sha256": "sha256:e414e339f7e39dbd83f0a6522c968aec53b7fef6f68df60a1df73ec20e89acfc"
+    },
+    {
+      "bytes": 542,
+      "normative": false,
+      "path": "examples/external-formal-verifier/corrected-statement.json",
+      "role": "reference-flow",
+      "sha256": "sha256:fa193286398c4ac56e00dc242d8e32d90a37e386398db796aa0bb9c18f805830"
+    },
+    {
+      "bytes": 3843,
+      "normative": false,
+      "path": "examples/external-formal-verifier/expected.json",
+      "role": "reference-flow",
+      "sha256": "sha256:e52c336d2c7015d129873039014ac6ce031f6ef4be9631aafca4ffef30c28c06"
+    },
+    {
+      "bytes": 3916,
+      "normative": false,
+      "path": "examples/external-formal-verifier/flow.json",
+      "role": "reference-flow",
+      "sha256": "sha256:b8dd6e74fe49f2278823cdb53dbf903006d4cc290a9dd37fba52bdd61e5873b4"
+    },
+    {
+      "bytes": 31865,
+      "normative": false,
+      "path": "examples/external-formal-verifier/formal-verifier.git.bundle",
+      "role": "reference-flow",
+      "sha256": "sha256:c5e25d570c03b3c0638b29745088184b37d08f1a6fcc18b7efd335259aa83645"
+    },
+    {
+      "bytes": 960,
+      "normative": false,
+      "path": "examples/external-formal-verifier/method.json",
+      "role": "reference-flow",
+      "sha256": "sha256:0720e84b4178357e280f3be760fdf065275f3adbb4cda069aeceef00e59a088d"
+    },
+    {
+      "bytes": 3181,
+      "normative": false,
+      "path": "examples/external-formal-verifier/verifier.py",
+      "role": "reference-flow",
+      "sha256": "sha256:ec061da8d55dd7c69787af5225619471d18bf502b3c90dc777f14b4dcbf8f94c"
+    },
+    {
+      "bytes": 2189,
+      "normative": false,
+      "path": "examples/external-heterogeneous-evidence/README.md",
+      "role": "reference-flow",
+      "sha256": "sha256:cdfa4842bd80fe74f1fa17d99c71619b4ecb71f19e65ae25547f72fe14f9817d"
+    },
+    {
+      "bytes": 2291,
+      "normative": false,
+      "path": "examples/external-heterogeneous-evidence/analysis.py",
+      "role": "reference-flow",
+      "sha256": "sha256:1533c8709cfc6cbfee783ab9cbf8ec1b4504751451454265185751f4228ad477"
+    },
+    {
+      "bytes": 4094,
+      "normative": false,
+      "path": "examples/external-heterogeneous-evidence/check.sh",
+      "role": "reference-flow",
+      "sha256": "sha256:4ff59a4aee7a7344c6165566c7d7ba8fb1747223038660fb33ad269d6d47c6e2"
+    },
+    {
+      "bytes": 959,
+      "normative": false,
+      "path": "examples/external-heterogeneous-evidence/exact-method.json",
+      "role": "reference-flow",
+      "sha256": "sha256:073faff8eab855582cc932544178c6ab05bcd2cd6f0a0210464ef3ea3e625468"
+    },
+    {
+      "bytes": 3466,
+      "normative": false,
+      "path": "examples/external-heterogeneous-evidence/expected.json",
+      "role": "reference-flow",
+      "sha256": "sha256:1ba1b9565c1d605e7b7f569d991e7867e78fced5498253c23e3d090629c482cd"
+    },
+    {
+      "bytes": 3286,
+      "normative": false,
+      "path": "examples/external-heterogeneous-evidence/flow.json",
+      "role": "reference-flow",
+      "sha256": "sha256:b47a66edc4f48785846f77b5f52b9e05bdf705c2af280c871ac4d748668a518c"
+    },
+    {
+      "bytes": 26707,
+      "normative": false,
+      "path": "examples/external-heterogeneous-evidence/heterogeneous-evidence.git.bundle",
+      "role": "reference-flow",
+      "sha256": "sha256:4178258e612cfbc0f7cb52e2ecd816c6e39b92f65c4ec5e17cb7135bb121915c"
+    },
+    {
+      "bytes": 385,
+      "normative": false,
+      "path": "examples/external-heterogeneous-evidence/method-note.md",
+      "role": "reference-flow",
+      "sha256": "sha256:3643a89b30d1284780e5b64444f2bb674ff988bd287f855975d1ce7f167bea42"
+    },
+    {
+      "bytes": 64,
+      "normative": false,
+      "path": "examples/external-heterogeneous-evidence/observations.csv",
+      "role": "reference-flow",
+      "sha256": "sha256:8f1277186ee9faa9db8923d71158b710a8a3c73916920f1827d411f350da0d00"
+    },
+    {
+      "bytes": 375,
+      "normative": false,
+      "path": "examples/external-heterogeneous-evidence/result.json",
+      "role": "reference-flow",
+      "sha256": "sha256:2f9efe1aacff40a1f65706050bdf4d8562bf51546ccd4453a570cf4a7fc2e67b"
+    },
+    {
+      "bytes": 950,
+      "normative": false,
+      "path": "examples/external-heterogeneous-evidence/scope-method.json",
+      "role": "reference-flow",
+      "sha256": "sha256:3c1ca01cb34e9452c42653a31921a0cdbf572d9b1297ff3abb1c68a7f388f76f"
+    },
+    {
+      "bytes": 386,
+      "normative": false,
+      "path": "examples/external-heterogeneous-evidence/scope-review.md",
+      "role": "reference-flow",
+      "sha256": "sha256:b825463bcd2471dc0097b11bbc972c6d7dab5c10118be64080182155f10ba2be"
     },
     {
       "bytes": 1850,
@@ -849,7 +1010,7 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:5be464c8c5968c93f2cabf2e73290894f9120963d3966482b27e970798586d97",
+  "manifest_root": "sha256:553c2bf5b495506e5297027c47abd68e058f1a34136900fc4e4606c81d311a17",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",
