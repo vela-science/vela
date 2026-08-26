@@ -127,3 +127,40 @@ Affected components: T4; dependency state for T5–T7.
 Supersedes: None.
 Reason: Existing Git and Vela semantics suffice; the next uncertainty is end-to-end behavior in a real verifier-rich source workflow.
 ```
+
+## VC1-D009 — Qualify T4 through pending-Proposal replacement
+
+```text
+Decision ID: VC1-D009
+Date: 2026-08-26
+Question: Is inability to apply accepted-Claim correction relations to a failed pending candidate a Core defect that terminates T4?
+Proposal: Preserve the refusal, distinguish pre-decision replacement from accepted-Standing revision, and test the documented authenticated withdrawal plus fresh Submission path in a separately frozen continuation.
+Evidence: T4 v1 commit d4c88ceb; Vela CLI documentation for review withdraw; T4 v1.1 freeze 7161559d and terminal commit 05b6e36; supervisor in-place and fresh-clone replay.
+Alternatives: Accept a known-failing Claim to make it targetable; add a pending-attempt correction object; terminate the vertical; erase the failed attempt.
+Decision: The v1 relation refusal is a valid accepted-Standing semantic boundary. The v1 full-vertical stop was an experimental-design failure. T4 v1.1 qualifies using withdrawal -> fresh add_claim -> Verification -> authorized Decision -> Event -> Standing -> replay -> pending continuation. No Core change.
+Authority: S0.
+Affected components: T4; T6 design; T7 release evidence.
+Supersedes: The campaign-level interpretation of T4 v1 as a fatal protocol contradiction; v1 artifacts and report remain immutable.
+Reason: A pending Proposal is not Standing. Producer withdrawal preserves its history without scientific authority, while correction/supersession remains reserved for accepted-state revision.
+```
+
+T4 qualifies at Level 1 with two explicit limitations: exact zero-byte verifier
+streams require a nonempty hash receipt, and the current producer write path
+cannot author a canonical `depends` relation for the downstream Claim. Neither
+limitation changed Standing or required domain-specific Core semantics.
+
+## VC1-D010 — Authorize T5 independent review only
+
+```text
+Decision ID: VC1-D010
+Date: 2026-08-26
+Question: May the Alzheimer vertical proceed directly from the planning synthesis?
+Proposal: Freeze one bounded question, then require an independent field-level primary-source audit before selecting a scientific Repository or executing a Submission.
+Evidence: Planning repository b0eb6fc26c8deba2260a1326f5caf6a99153a2b2; missing historical source-owned Alzheimer tree; six-source primary-evidence manifest; unresolved cohort overlap and A−T− evidence boundary.
+Alternatives: Import historical summaries as evidence; treat the planning synthesis as Verification; begin accepted Standing immediately.
+Decision: Authorize independent review task 01a03d6a-efbf-7e92-9c73-c7328f9ff7e8 only. No T5 scientific lifecycle or Decision is authorized until S0 audits that review.
+Authority: S0.
+Affected components: T5.
+Supersedes: None.
+Reason: The selected question is real and bounded, but the exact extraction and strongest proportionate Claim require independent primary-source verification.
+```

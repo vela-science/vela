@@ -153,3 +153,25 @@ State 0006. A task-registry lag caused one duplicate task to be created. The
 supervisor ordered that duplicate to stop before outcome-bearing Lean execution
 and to record no scientific conclusion. T1–T3 are complete and idle. T5
 substantive execution, T6, and T7 remain dependency-gated; they are not active.
+
+## State 0008 — T4 qualified; T5 independent review active
+
+```text
+Date: 2026-08-26
+Phase: PHASE_4_ALZHEIMER_VERTICAL_QUALIFICATION
+Supervisor branch: campaign/compose1-supervisor
+T4 source commit: 05b6e36fb46b840eeac533658faf6f71ad99dc06
+T4 terminal Vela root: sha256:1f18d90faec38dfb602d1f6bfa51c0f7eb69373698baeb4e8f73cbf5dba5c82c
+T5 planning task: 01a03d55-755b-7090-a83c-80acd68642eb
+T5 planning commit: b0eb6fc26c8deba2260a1326f5caf6a99153a2b2
+T5 independent review task: 01a03d6a-efbf-7e92-9c73-c7328f9ff7e8
+Foundational top-down search: CLOSED
+Campaign anomaly: NONE
+```
+
+T4 qualifies as a Level-1 real verifier-rich vertical. Its v1 refusal remains
+preserved; v1.1 used the documented withdrawal path and required no Core
+change. T5 planning selected one bounded longitudinal CSF sPDGFRbeta/APOE4/A-T
+question but created no scientific lifecycle or Standing. Only independent
+field-level primary-source review is active. T5 execution, T6, and T7 remain
+blocked on the next recorded supervisor gates.

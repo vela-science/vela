@@ -105,3 +105,40 @@ Scientific experiments run: 0
 The qualified comparator remains test-only and campaign-owned. It does not
 establish value for a scientific vertical or authorize a public `vela compare`
 surface.
+
+## VC1-R004 — T4 Lean verifier-rich vertical qualification
+
+Date: 2026-08-26.
+
+T4 completed a real, source-owned Lean lifecycle using only general Vela APIs.
+The initial natural proof attempt failed on the missing `IsSidon` to
+`IsSidonSetNat` bridge; its Submission, exact Lean failure, failed Verification,
+and later producer withdrawal remain addressable. The corrected published proof
+then passed under the pinned Lean/Mathlib environment and reported only
+`propext`, `Classical.choice`, and `Quot.sound`. That passing Verification
+changed no Standing. Exactly one fresh-root authorized Decision admitted the
+Claim and review Events, after which Standing contained one accepted corrected
+Claim. A downstream specialization began from that exact Claim/root and remains
+pending.
+
+The supervisor independently reproduced the terminal repository root and all
+counts both in place and from a fresh clone.
+
+```text
+Source repository: /Users/williamblair/Documents/Codex/2026-08-26/vela-compose-1-lean-vertical/work/t4-lean-repository
+Source commit/tree: 05b6e36fb46b840eeac533658faf6f71ad99dc06 / 4b491446071efc4d6cd306397fa33e8b008e2f29
+Terminal Vela root: sha256:1f18d90faec38dfb602d1f6bfa51c0f7eb69373698baeb4e8f73cbf5dba5c82c
+Accepted Claims: 1
+Pending Claims: 1
+Withdrawn Proposals: 1
+Submissions / Proposals / Verifications: 3 / 3 / 2
+Core or wire changes: none
+Supervisor disposition: MERGE (evidence reference only; vertical stays source-owned)
+Campaign anomaly: NONE
+```
+
+This is Level-1 protocol evidence, not theorem discovery, general prover
+capability, external validation, or cumulative-handoff value. The current CLI
+still cannot author the downstream canonical `depends` edge, so the dependency
+is exact source-owned evidence rather than a Claim relation. Exact zero-byte
+verifier streams also require hash-receipt indirection.
