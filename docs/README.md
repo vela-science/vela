@@ -94,6 +94,7 @@ Protocol 1 with Submission v3.
 - [VELA-RC-1 release checklist](campaigns/vela-rc-1/RELEASE_CHECKLIST.md)
 - [VELA-RC-1 blind external-user test](campaigns/vela-rc-1/EXTERNAL_TEST.md)
 - [VELA-RC-1 final release decision](campaigns/vela-rc-1/FINAL.md)
+- [Vela 0.977.5 release record](campaigns/vela-rc-1/RELEASE_0.977.5.md)
 
 - [VELA-COMPOSE-1 campaign index](campaigns/vela-compose-1/README.md)
 - [Campaign charter](campaigns/vela-compose-1/CAMPAIGN.md)
