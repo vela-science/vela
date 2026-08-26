@@ -263,3 +263,23 @@ Reason: General Vela semantics governed the exact literature transition and repl
 Lifecycle PASS is Level-1 internal protocol evidence. It is not a biological,
 medical, adoption, productivity, or cumulative-intelligence result. The clean
 successor must earn its own separately scored outcome.
+
+## VC1-D016 — Accept T6 v1.1 design correction and reauthorize Stage 0
+
+```text
+Decision ID: VC1-D016
+Date: 2026-08-26
+Question: Does the additive candidate-C v1.1 design preserve the frozen science and controls closely enough to rerun only Stage 0?
+Proposal: Accept the one-span Lean syntax correction and exact common Git-checkout contract, then rerun independent hidden authorability and apparatus qualification with no participant context.
+Evidence: Design commit/tree 169fd94724048c7d30d780ccceb3f3c7b38b18eb / 6a6da4dac8a0085bd5bbf5fbbd9c9d0d98cd7120; direct parent 32fbe541da65b3ffa6e73d4d77d866b34aa75eca; corrected target SHA-256 aa18f3bb86b194c4ec1b481a803eb11b183f3c0f3ccefbd1e971695a19b225fb; diff receipt SHA-256 5e828cba203b48b76d44c750a14ba71ff9809d331f9eb027c722fc5d699d0836; unchanged-control receipt SHA-256 073c10e1559649db5bb007379a2f68d323b97f7da6f8f42f6327069f05b92100; elaboration receipt SHA-256 50f658a6904b0b6e46c691aa76a0ce0f03a92de72429f697dfc248c199e14954; supervisor internal/external, ancestry, exact-v1-tree, test, Git, and fresh-clone audits PASS.
+Alternatives: Mutate v1; reuse the old failed apparatus receipts; change the theorem or budgets; waive tokenizer identity; begin participant cells after proposition-only elaboration.
+Decision: Accept the v1.1 design correction. Authorize separate hidden evaluator-authorability and apparatus Stage-0 tasks only. They must rebuild versioned packages and receipts from v1.1, keep the reference proof sealed, start no participant/model/scientific cell, preserve v1 repositories unchanged, and retain exact runtime tokenizer identity plus <=5% token equivalence as fail-closed gates. Stage 1 remains BLOCKED pending both committed PASS receipts and a new S0 audit.
+Authority: S0.
+Affected components: T6; T7 release evidence.
+Supersedes: VC1-D014's design-correction-only block after the exact correction passed audit; v1 remains terminal and immutable.
+Reason: The malformed artifact was corrected without changing the proposition or experiment. Independent Stage-0 requalification is now the next falsifiable gate.
+```
+
+Target proposition elaboration is not hidden proof authorability and is not a
+scientific result. Any additional correction, proxy tokenizer, or participant
+start before a later Decision closes candidate C.

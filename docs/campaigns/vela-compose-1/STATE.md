@@ -311,3 +311,31 @@ sealed at commit/tree `affe34ba5933865f1a8705e40285131a29ec7b33` /
 receive only a fresh clone, the exact binary, and the frozen participant task;
 it has no answer key, prior conversation, network, Verification, Decision, or
 Standing authority.
+
+## State 0014 — T6 v1.1 design qualified; Stage 0 reauthorized
+
+```text
+Date: 2026-08-26
+Phase: PHASE_5_HANDOFF_APPARATUS_QUALIFICATION
+Supervisor branch: campaign/compose1-supervisor
+T6 v1.1 design commit/tree: 169fd94724048c7d30d780ccceb3f3c7b38b18eb / 6a6da4dac8a0085bd5bbf5fbbd9c9d0d98cd7120
+T6 v1.1 target SHA-256: aa18f3bb86b194c4ec1b481a803eb11b183f3c0f3ccefbd1e971695a19b225fb
+T6 v1.1 Stage 0: AUTHORIZED
+T6 v1.1 Stage 1 participant cells: BLOCKED
+T5 clean successor: ACTIVE
+Foundational top-down search: CLOSED
+Campaign anomaly: NONE
+```
+
+The v1.1 design is a direct child of the immutable v1 design and adds only a
+versioned overlay. Every v1 path remains byte- and mode-identical. The corrected
+target differs by exactly the one authorized binder replacement and its
+proposition parses and elaborates under Lean 4.29.1 without any proof or hidden
+reference access. The R package contract now unambiguously requires the same
+ordinary full Git checkout and reachable metadata/history in the common input
+for all arms. The supervisor reproduced original and v1.1 internal/external
+validation, three original tests, five correction tests, Git integrity, exact
+ancestry, and a fresh `--no-local` clone rerun. Separate v1.1 hidden-authorability
+and apparatus tasks may run Stage 0 only. Exact tokenizer identity and the <=5%
+token-equivalence threshold remain mandatory and unevaluated; no participant or
+scientific cell is authorized.

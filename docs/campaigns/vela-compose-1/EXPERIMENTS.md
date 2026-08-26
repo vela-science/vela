@@ -155,6 +155,25 @@ an observed participant outcome. Only the malformed binder spelling and the
 disclosed R Git-metadata packaging contradiction may change. All scientific
 controls remain frozen, and Stage 1 requires a new explicit S0 authorization.
 
+### VC1-E003 v1.1 Stage-0 preregistration
+
+The additive v1.1 design is frozen at commit/tree
+`169fd94724048c7d30d780ccceb3f3c7b38b18eb` /
+`6a6da4dac8a0085bd5bbf5fbbd9c9d0d98cd7120`. Its corrected target SHA-256 is
+`aa18f3bb86b194c4ec1b481a803eb11b183f3c0f3ccefbd1e971695a19b225fb`.
+Every root v1 design artifact remains byte-identical. The only scientific-text
+change is the semantically identical Lean bounded-sum binder spelling; the only
+other contract correction makes ordinary reachable Git metadata/history an
+explicit common input to R, E, and V.
+
+VC1-D016 authorizes two independent Stage-0 outputs: a hidden reference-proof
+authorability receipt and a deterministic apparatus/runtime/package receipt.
+Neither task may start a model, participant context, or scientific cell. A
+proposition parse PASS alone is insufficient. Stage 0 passes only if the exact
+v1.1 declaration is authorable under the pinned evaluator, every package and
+custody control passes, exact tokenizer identity is known, and the frozen <=5%
+primary-surface token gate is evaluated. Stage 1 remains separately blocked.
+
 ## VC1-E004 — T5 Alzheimer governed literature transition
 
 This central preregistration is frozen before lifecycle execution. The future

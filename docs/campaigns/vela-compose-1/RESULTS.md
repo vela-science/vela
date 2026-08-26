@@ -299,3 +299,35 @@ Campaign anomaly: NONE
 This qualifies one real-science governance lifecycle. It does not yet qualify
 blind continuation, cumulative handoff value, or a release claim; those remain
 separate gates.
+
+## VC1-R010 — T6 candidate-C v1.1 design correction
+
+Date: 2026-08-26.
+
+The T6 design repository now contains an additive v1.1 overlay that preserves
+every v1 path unchanged. The target differs from the terminal malformed v1
+bytes by exactly one replacement: `∑ i in Finset.range m` becomes the current
+Lean membership-binder spelling `∑ i ∈ Finset.range m`. A proof-free
+proposition check parses and elaborates under the frozen Lean 4.29.1 source
+environment. The v1.1 package contract also resolves the already-disclosed
+wording contradiction by requiring the full ordinary reachable Git metadata
+and history in the common checkout for all three arms.
+
+```text
+Design commit/tree: 169fd94724048c7d30d780ccceb3f3c7b38b18eb / 6a6da4dac8a0085bd5bbf5fbbd9c9d0d98cd7120
+Direct v1 parent: 32fbe541da65b3ffa6e73d4d77d866b34aa75eca
+Corrected target SHA-256: aa18f3bb86b194c4ec1b481a803eb11b183f3c0f3ccefbd1e971695a19b225fb
+Manifest SHA-256: 5610338a182d9eba89cda34eeced328917b928c2146e1c5885d2693c434e6fe5
+Diff receipt SHA-256: 5e828cba203b48b76d44c750a14ba71ff9809d331f9eb027c722fc5d699d0836
+Unchanged-control receipt SHA-256: 073c10e1559649db5bb007379a2f68d323b97f7da6f8f42f6327069f05b92100
+Original and v1.1 validation/tests, fresh clone: PASS
+Participant/model/scientific starts: 0
+Scientific denominator: 0
+Stage 0: AUTHORIZED
+Stage 1: BLOCKED
+Campaign anomaly: NONE
+```
+
+This is an apparatus correction, not handoff evidence. Hidden proof
+authorability, package/runtime qualification, and exact tokenizer equivalence
+remain unresolved.
