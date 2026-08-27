@@ -55,11 +55,13 @@ or merge into an acceptance claim.
 
 ## See it work
 
-Install the current signed release and inspect the public Math Repository:
+This `0.977.6` candidate's exact-tag install block becomes usable only if the
+separately authorized signed release is published. At that tag, install its
+matching bundle and inspect the public Math Repository:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.5/install.sh | \
-  VELA_VERSION=v0.977.5 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.6/install.sh | \
+  VELA_VERSION=v0.977.6 bash
 
 git clone https://github.com/vela-science/math.git math
 git -C math checkout 5de716c896065c03c0a470d015ba2a328a527f73

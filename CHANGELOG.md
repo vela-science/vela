@@ -10,6 +10,23 @@ not a note per commit, so they are shorter than the releases were.
 
 ## Unreleased
 
+## 0.977.6
+
+- **Clean-clone status and replay accept valid closed-schema credential-scan
+  reports.** The preflight scans raw report strings and their permitted decoded
+  forms for recognizable credentials, while traversal and nonregular exact
+  report paths still fail closed.
+
+- **The qualified release graph stays small.** The credential scanners use
+  only the standard library, keeping both shipped target graphs at the
+  qualified 85 packages. VELA-ORG-1 also records CURRENT, TARGET, and MIGRATION
+  architecture maps without expanding the runtime surface.
+
+- **Protocol 1 and every schema version are unchanged; migration is none.**
+  Replay reconstructs governed scientific state. It does not imply a
+  bit-for-bit rerun of external stochastic, model, instrument, or physical
+  processes.
+
 ## 0.977.5
 
 - **Protocol 1 is qualified for external use with explicit limitations.** The

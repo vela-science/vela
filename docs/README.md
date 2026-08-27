@@ -1,7 +1,7 @@
 # Vela documentation
 
-Vela `v0.977.5` is the current signed pre-1.0 release. It reads and writes
-Protocol 1 with Submission v3.
+Vela `v0.977.5` is the current signed pre-1.0 release. This source is the local
+`v0.977.6` candidate. Both read and write Protocol 1 with Submission v3.
 
 ## Start here
 
@@ -58,6 +58,12 @@ Protocol 1 with Submission v3.
 - [Protocol 1 conformance profile](interop/scientific-state-profile.md)
 - [Roots](ROOTS.md)
 - [Continuity and replay](CONTINUITY.md)
+
+### Inspect the VELA-ORG-1 architecture maps
+
+- [CURRENT architecture](architecture/VELA_ORG_CURRENT.md)
+- [TARGET architecture](architecture/VELA_ORG_TARGET.md)
+- [MIGRATION architecture](architecture/VELA_ORG_MIGRATION.md)
 
 ## Current boundaries
 
