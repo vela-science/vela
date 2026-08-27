@@ -55,9 +55,9 @@ or merge into an acceptance claim.
 
 ## See it work
 
-This `0.977.6` candidate's exact-tag install block becomes usable only if the
-separately authorized signed release is published. At that tag, install its
-matching bundle and inspect the public Math Repository:
+Vela `0.977.6` is the current signed release for Linux x86-64 and macOS Apple
+silicon. Install its exact-tag matching bundle and inspect the public Math
+Repository:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.977.6/install.sh | \

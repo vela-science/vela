@@ -3,6 +3,16 @@
 Status: canonical observed-state map for VELA-ORG-1
 Observation cutoff: 2026-08-26
 
+Supersession note (2026-08-27): the release-only facts in this dated inventory
+are superseded by the signed, immutable Vela `0.977.6` release: annotated tag
+object `4a562d4529f6a329d938fc427bc73c4cbff90767`, commit
+`9ac8e7730bfb63a3b8eb1d2e1d91081c3e703c59`, tree
+`1332713f627ac73c235e4f9a7afe206499717154`, and Protocol 1 manifest root
+`sha256:bf1ef68165bccbc4d2e8a854f78c70448cc7de771bac23329f7a8ca115303f56`.
+The `0.977.5` identities below remain immutable historical state. This note does
+not re-audit or rewrite the remaining 2026-08-26 topology, deployment,
+downstream-version, provider, or scientific-authority observations.
+
 This document records the observed organization, product, deployment, provider,
 and scientific-authority topology. It is authoritative for that dated
 inventory, not for facts that were not observable and not for future state.

@@ -1,7 +1,19 @@
 # Vela documentation
 
-Vela `v0.977.5` is the current signed pre-1.0 release. This source is the local
-`v0.977.6` candidate. Both read and write Protocol 1 with Submission v3.
+Vela `v0.977.6` is the current signed pre-1.0 release. It reads and writes
+Protocol 1 with Submission v3.
+
+Post-release documentation note (2026-08-27): the immutable annotated
+`v0.977.6` tag object `4a562d4529f6a329d938fc427bc73c4cbff90767`
+resolves to commit `9ac8e7730bfb63a3b8eb1d2e1d91081c3e703c59`, tree
+`1332713f627ac73c235e4f9a7afe206499717154`, with Protocol 1 manifest root
+`sha256:bf1ef68165bccbc4d2e8a854f78c70448cc7de771bac23329f7a8ca115303f56`.
+Post-release `main` documentation is not that immutable release tree and does
+not claim its root. The manifest selects [Release qualification](RELEASES.md)
+and the [neutral replay guide](../examples/neutral-replay/README.md) as
+informative exact release bytes, so their `v0.977.5` current-install wording is
+retained and superseded here rather than rewritten under the same `0.977.6`
+manifest identity.
 
 ## Start here
 

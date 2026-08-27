@@ -22,10 +22,9 @@ commit, or Web view into acceptance.
 
 ## 1. Install the signed CLI
 
-This source is the local `v0.977.6` candidate for Linux x86-64 and macOS Apple
-silicon. Its exact-tag install block becomes usable only if the separately
-authorized signed release is published. The installer then verifies the
-platform release manifest before it installs the binary.
+Vela `v0.977.6` is the current signed release for Linux x86-64 and macOS Apple
+silicon. The exact-tag installer verifies the platform release manifest before
+it installs the binary.
 
 Before installing, provide:
 

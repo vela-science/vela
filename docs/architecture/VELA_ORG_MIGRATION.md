@@ -2,6 +2,16 @@
 
 Status: canonical evidence-bound migration plan for VELA-ORG-1
 
+Completion note (2026-08-27): G1's Core credential-preflight repair is included
+in the signed, immutable Vela `0.977.6` release at commit
+`9ac8e7730bfb63a3b8eb1d2e1d91081c3e703c59`, tree
+`1332713f627ac73c235e4f9a7afe206499717154`, and Protocol 1 manifest root
+`sha256:bf1ef68165bccbc4d2e8a854f78c70448cc7de771bac23329f7a8ca115303f56`.
+That resolves G2's previously unknown qualified patch identity. It does not
+mark any downstream repin, projection, deployment, provider, or scientific
+authority change complete. The pre-release observations and remaining gates
+below are retained as dated plan state rather than rewritten after the fact.
+
 This plan moves from [the observed current architecture](VELA_ORG_CURRENT.md)
 to [the target architecture](VELA_ORG_TARGET.md). It authorizes no deployment,
 DNS change, repository mutation, authority write, archive, rename, or deletion
