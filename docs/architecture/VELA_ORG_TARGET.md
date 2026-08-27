@@ -1,6 +1,7 @@
 # Vela organization: target architecture
 
-Status: canonical target-state map for VELA-ORG-1
+Status: achieved active-system target; see
+[the current map](VELA_ORG_CURRENT.md) for the qualified implementation state
 
 The target is the smallest coherent operating system supported by current
 evidence: Vela Core, Problems, Workbench, Math, and an intentionally tiny www
@@ -113,7 +114,7 @@ anchor or source of Standing.
 ## Repository and historical custody target
 
 The active semantic topology is four canonical repositories or repository
-roles: `vela`, `problems`, `vela-workbench`, and `math`. This statement does not
+roles: `vela`, `problems`, `workbench`, and `math`. This statement does not
 order a rename, split, or repository creation. `.github` remains organization
 support, and `lean-correspondence` remains reference evidence rather than a
 product or authority.

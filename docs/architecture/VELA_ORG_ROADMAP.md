@@ -1,9 +1,10 @@
 # Vela organization: current roadmap
 
-Status: canonical Now, Next, and Later order for VELA-ORG-1
+Status: historical VELA-ORG-1 roadmap; superseded by the completed VELA-ORG-2
+consolidation recorded in [the current map](VELA_ORG_CURRENT.md)
 Observation cutoff: 2026-08-27
 
-This roadmap summarizes the evidence gates in
+This preserved roadmap summarizes the evidence gates in
 [the migration architecture](VELA_ORG_MIGRATION.md). It grants no permission to
 publish, deploy, change provider state, rewrite authority records, or alter
 Protocol 1, schemas, release bytes, and product behavior.
