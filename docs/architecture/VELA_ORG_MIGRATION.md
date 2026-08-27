@@ -122,12 +122,11 @@ Apply bounded owner-local changes in this order:
 5. www redirects: **deferred to G5** so the public link change ships with parity
    cutover rather than as an unrelated deployment.
 
-Pass condition: each consumer's focused tests pass, clean Math replay remains
-exact, projection roots are reproduced or deliberately versioned with an
-explained source change, and every active binary is invoked or accepted by
-digest. DTOs, handoff schemas, Protocol, authority behavior, Workbench version,
-and historical fixtures remain unchanged unless a separate decision authorizes
-them.
+Pass condition: Workbench and Math focused tests pass, clean Math replay remains
+exact, and each completed active binding invokes or accepts an exact digest. G4
+owns projection-root reproduction and versioning. DTOs, handoff schemas,
+Protocol, authority behavior, Workbench version, and historical fixtures remain
+unchanged unless a separate decision authorizes them.
 
 ## G3 — WebMCP submission and 24-hour freeze
 

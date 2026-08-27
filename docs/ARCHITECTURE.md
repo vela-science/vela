@@ -385,7 +385,8 @@ match the source tag.
 - Immutable Canopus `0.8.0` remains frozen for historical Runs that bind its
   exact bytes. Current Vela contains no executor or separate runner release.
 - Each Repository verifies and reproduces its own exact state.
-- Vela Web verifies its read projection against exact Repository sources.
+- Problems verifies its root-bound read projection against exact Repository
+  sources.
 - Organization workflows test the compatibility matrix without becoming a
   canonical writer or synthetic ecosystem release.
 

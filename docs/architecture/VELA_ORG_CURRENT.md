@@ -52,7 +52,7 @@ identity did not have `read:packages`.
 | `sidon-frontier` | public, archived | ARCHIVE | Predecessor custody |
 | `vela-frontiers` | public, archived | ARCHIVE | Obsolete pre-consolidation registry and mirror |
 | `vela-internal` | private, archived | ARCHIVE | Decomposed integration repository |
-| `vela-research-harness` | public, archived | ARCHIVE | Canopus predecessor retained after current machinery moved into Core |
+| `vela-research-harness` | public, archived | ARCHIVE | Historical Canopus and npm custody; Core contains no executor |
 | `vela-site` | private, archived | ARCHIVE | Superseded reader absorbed into `vela-web` |
 
 No repository is an evidence-backed delete candidate. Archive means retained
