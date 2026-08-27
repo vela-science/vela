@@ -138,7 +138,7 @@ def build() -> dict[str, object]:
         "schema": "vela.protocol-conformance-manifest.v1",
         "protocol": "Vela Protocol 1",
         "status": "released",
-        "software_release": "0.977.5",
+        "software_release": "0.977.6",
         "authority_effect": "none",
         "entries": entries,
         "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",

@@ -69,7 +69,7 @@
       "normative": false,
       "path": "CITATION.cff",
       "role": "citation-metadata",
-      "sha256": "sha256:250ba740a5254cc8c8994ec87e1631a8b8dfe0b25a106d23949d9b1d0009cd17"
+      "sha256": "sha256:6182a67dfc5d1cbd1171b83115bd204bb0e4ea0141c1b90d53992390cfb455f3"
     },
     {
       "bytes": 643,
@@ -545,7 +545,7 @@
       "normative": true,
       "path": "conformance/verify_protocol_1.py",
       "role": "manifest-verifier",
-      "sha256": "sha256:d752caf14014b401dadb7ae41700166d4224ad4bd9c627c71113173d54485a8e"
+      "sha256": "sha256:a7d531f5aaf4cf711efc64c954239c550bd8e2fbd3fa05c78f756b10b8233090"
     },
     {
       "bytes": 12971,
@@ -874,14 +874,14 @@
       "normative": false,
       "path": "examples/portable-divergence/expected.json",
       "role": "reference-flow",
-      "sha256": "sha256:30c01d52755be5e35dc75f01d99562807185c63825e95a0ec5d7322c34a48c91"
+      "sha256": "sha256:236e046853d4758af51ce4a9c71e5ced39368c1c67aa6eadd37cd8ba6eef5888"
     },
     {
       "bytes": 4987,
       "normative": false,
       "path": "examples/portable-divergence/flow.json",
       "role": "reference-flow",
-      "sha256": "sha256:54b9204728e3e3af747d2666b38953a90fbcfe97299b193fece3f513dcaad551"
+      "sha256": "sha256:9ff83df4960e9dfb2d3b1563837d2a79c292ad83b250d96b25e0f99ee34686ae"
     },
     {
       "bytes": 15959,
@@ -1052,10 +1052,10 @@
       "sha256": "sha256:3f8aaeaa6e1df4cc2e1761b2b3f79db3ddea63d746d443fb332b6d4de27a4dab"
     }
   ],
-  "manifest_root": "sha256:d3af662374c2940329016ffdeccdc406f30a5cf412c4b0b565ee5ee58e223af5",
+  "manifest_root": "sha256:bf1ef68165bccbc4d2e8a854f78c70448cc7de771bac23329f7a8ca115303f56",
   "protocol": "Vela Protocol 1",
   "root_rule": "sha256 of RFC 8785 canonical JSON after removing only manifest_root",
   "schema": "vela.protocol-conformance-manifest.v1",
-  "software_release": "0.977.5",
+  "software_release": "0.977.6",
   "status": "released"
 }
