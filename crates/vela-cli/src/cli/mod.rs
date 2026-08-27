@@ -189,6 +189,10 @@ pub fn run_command() {
                     json,
                 );
             }
+            IntegrationAction::Program { input, as_of, json } => {
+                crate::ui::set_mode("integration program", json);
+                crate::research_program::cmd_program(&input, as_of.as_deref(), json);
+            }
         },
         Commands::Recover {
             repository,
@@ -749,9 +753,14 @@ mod tests {
     #[test]
     fn every_repository_verb_accepts_both_spellings() {
         /// `init <path>` is a destination to create, while `completions` and
-        /// `verification check` operate on no Repository at all.
-        const NOT_REPOSITORY_PATHS: [&str; 3] =
-            ["vela init", "vela completions", "vela verification check"];
+        /// `verification check` and `integration program` operate on no
+        /// Repository at all. The latter reads an exact-source input document.
+        const NOT_REPOSITORY_PATHS: [&str; 4] = [
+            "vela init",
+            "vela completions",
+            "vela verification check",
+            "vela integration program",
+        ];
 
         fn walk(command: &clap::Command, path: &str) {
             let leaf = command.get_subcommands().count() == 0;

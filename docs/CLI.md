@@ -81,6 +81,12 @@ Advanced verification and integration:
   waist; `integration inspect` renders it. Neither executes Methods, initializes
   authority, creates Protocol objects, or establishes acceptance or Standing.
   On an authoritative Vela Repository, use `status` or `replay` instead.
+- `integration program <INPUT>` verifies one bounded set of exact source
+  pointers and emits a current research-program view: the full episode
+  denominator, distinct result dispositions, evidence gaps, task freshness,
+  proposed ledger/register changes, and one evidence-justified next action. It
+  is a read-only source-owned activity projection, not a protocol object or a
+  planner. See [Research-program loop](RESEARCH_PROGRAM_LOOP.md).
 
 Advanced maintenance:
 
@@ -582,6 +588,11 @@ while recovery is required.
 - `integration check --json` returns the Manifest root and document count;
   `integration inspect --json` returns the rooted inventory. Both report
   `authority_effect: none` under their command-specific `v1` schemas.
+- `integration program <INPUT> --json` returns
+  `vela.cli.research-program-view.v1`, binding the closed internal input by
+  `input_root` and reporting every source/evidence mismatch without silently
+  dropping denominator rows. Proposed changes always carry
+  `authority_effect: none`, `standing_effect: none`, and `applied: false`.
 
 Default JSON does not embed full packet bodies, review collections, private
 coordination, test telemetry, or secret material.
