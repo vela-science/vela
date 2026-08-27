@@ -4,9 +4,10 @@ Status: canonical target-state map for VELA-ORG-1
 
 The target is the smallest coherent operating system supported by current
 evidence: Vela Core, Problems, Workbench, Math, and an intentionally tiny www
-surface. It preserves Vela `0.977.5` as immutable released history and preserves
-Protocol 1. It creates no new protocol object, authority path, scientific
-Repository, provider dependency, or speculative product repository.
+surface. Signed Vela `0.977.6` is current, Vela `0.977.5` remains immutable
+released history, and both retain Protocol 1. The target creates no new protocol
+object, authority path, scientific Repository, provider dependency, or
+speculative product repository.
 
 This target is an ownership map, not permission to migrate. The exact gates
 and approvals are in [the migration map](VELA_ORG_MIGRATION.md); observed

@@ -1,17 +1,7 @@
 # Vela organization: current architecture
 
 Status: canonical observed-state map for VELA-ORG-1
-Observation cutoff: 2026-08-26
-
-Supersession note (2026-08-27): the release-only facts in this dated inventory
-are superseded by the signed, immutable Vela `0.977.6` release: annotated tag
-object `4a562d4529f6a329d938fc427bc73c4cbff90767`, commit
-`9ac8e7730bfb63a3b8eb1d2e1d91081c3e703c59`, tree
-`1332713f627ac73c235e4f9a7afe206499717154`, and Protocol 1 manifest root
-`sha256:bf1ef68165bccbc4d2e8a854f78c70448cc7de771bac23329f7a8ca115303f56`.
-The `0.977.5` identities below remain immutable historical state. This note does
-not re-audit or rewrite the remaining 2026-08-26 topology, deployment,
-downstream-version, provider, or scientific-authority observations.
+Observation cutoff: 2026-08-27
 
 This document records the observed organization, product, deployment, provider,
 and scientific-authority topology. It is authoritative for that dated
@@ -27,18 +17,18 @@ not change protocol or component semantics.
 
 ## Immutable release boundary
 
-The released boundary is Vela `0.977.5` and Protocol `1`:
+Vela `0.977.6` is the current signed Protocol 1 release. Vela `0.977.5` remains
+immutable historical custody.
 
-| Item | Exact identity |
-| --- | --- |
-| Annotated tag object | `0afe844862186cbf01a4ba91c4e6ad2129a8fcbc` |
-| Release commit | `9cf13af9fd687db88e562842fd6dd641e10bae6a` |
-| Release tree | `5863c283ad3a3efb76d365e5936544923851fb4a` |
-| Protocol manifest root | `sha256:d3af662374c2940329016ffdeccdc406f30a5cf412c4b0b565ee5ee58e223af5` |
-| Observed Core `main` | `4e85644d9a2f21b202d13f451c78d851aca04af6` |
+| Release | Status | Annotated tag object | Release commit | Release tree | Protocol 1 manifest root |
+| --- | --- | --- | --- | --- | --- |
+| `0.977.6` | current | `4a562d4529f6a329d938fc427bc73c4cbff90767` | `9ac8e7730bfb63a3b8eb1d2e1d91081c3e703c59` | `1332713f627ac73c235e4f9a7afe206499717154` | `sha256:bf1ef68165bccbc4d2e8a854f78c70448cc7de771bac23329f7a8ca115303f56` |
+| `0.977.5` | historical | `0afe844862186cbf01a4ba91c4e6ad2129a8fcbc` | `9cf13af9fd687db88e562842fd6dd641e10bae6a` | `5863c283ad3a3efb76d365e5936544923851fb4a` | `sha256:d3af662374c2940329016ffdeccdc406f30a5cf412c4b0b565ee5ee58e223af5` |
 
-Core `main` is one documentation-index commit beyond the release record. The
-release tag, commit, tree, and manifest root are immutable historical state.
+Both GitHub releases are immutable, non-draft, non-prerelease releases with 12
+assets. Observed Core `main` is the docs descendant
+`26d551f7eb4e07ba667d1d8eb3e0f362042881b2`. No current document rewrites a
+tag, release asset, manifest-selected byte, or historical consumer receipt.
 
 ## GitHub repository inventory
 
@@ -120,6 +110,12 @@ and hosted Work, mutate attributed hosted Work, and prepare an unsigned
 Submission v3 candidate with `authority_effect:none`. They cannot sign, issue a
 Verification Record, issue a Decision or Event, or mutate Standing.
 
+Problems source, production deployment, and the public deployment manifest all
+bind `532241ba5db565e9ee35e13cbd7eff76393f6475`. The challenge lane remains
+frozen at that exact SHA through a real WebMCP submission and a subsequent
+24-hour exact-SHA stability window. The 2026-08-27T06:52:12Z gate audit found no
+submission receipt, so the stability window had not started at that cutoff.
+
 The private predecessor tip has 940 tracked paths and public Problems has 886.
 Of the comparison set, 839 paths are byte-identical, 23 shared paths diverge,
 78 are private-only, and 24 are public-only. Private-only `apps/www` and its
@@ -129,37 +125,33 @@ after the frozen challenge gate.
 
 ### Workbench
 
-`vela-workbench@00e96baac71c8fa5869431a79c077af4b716e258` owns local
-activity and evidence-to-authority handoff. It hard-gates Vela `0.977.3` and has
-no hosted CI. Qualification for `0.977.5` or a subsequent qualified patch is
-blocked on clean current Math replay. The observed gap is limited to the
-release pin, fixtures, documentation, and a narrow status-backed readiness
-guard; no DTO, handoff schema, Protocol, or Workbench version redesign is
-supported by the evidence.
+`vela-workbench@ef6dc30a71dc8098ddde2292affebe0cc6ca4d23` owns local
+activity and evidence-to-authority handoff. It accepts the signed Vela
+`0.977.6` release and reviewed platform digest. The repin changed no DTO,
+handoff schema, Protocol, authority behavior, or Workbench version. Hosted
+functional CI remains a separate gap.
 
 ### Math and formal-science sources
 
 The current remote Math revision is
-`cf6d76687b205a39e2515e9fec7087c819454d2f`. Math is the authority
-Repository. Formal Conjectures owns upstream statements, `lean-proofs` owns
-proof implementations, `lean-correspondence` retains non-authoritative exact
-relationship evidence, and archived frontier repositories retain predecessor
-authority history.
-
-Fresh replay currently fails on two retained negative credential-scan reports
-while status reports strict replay passed. This is a reader contradiction, not
-evidence of incorrect Math authority. A narrow Core repair is in progress;
-Math authority records are frozen.
+`3cbaa815b502183d9e2a2c5f91b0ede243f5f435`. Math is the authority
+Repository at root
+`sha256:a956b84c437202e5a02cc9e036a621bd14a302b34a75758115730bdbb77c52a4`
+and now binds the signed Vela `0.977.6` reader. The qualified Core repair and
+Math repin changed no Math authority record. Formal Conjectures owns upstream
+statements, `lean-proofs` owns proof implementations, `lean-correspondence`
+retains non-authoritative exact relationship evidence, and archived frontier
+repositories retain predecessor authority history.
 
 ## Version drift and transitional duplication
 
-| Surface | Observed active binding | Drift from released Core `0.977.5` |
+| Surface | Observed active binding | State relative to current Core `0.977.6` |
 | --- | --- | --- |
-| Core release | `0.977.5` | none |
+| Core release | `0.977.6` | current |
 | Projection generation and reconstruction | `0.977.3` | active integration behind |
-| Workbench hard gate | `0.977.3` | active integration behind |
+| Workbench hard gate | signed `0.977.6` plus reviewed platform digest | current |
+| Math reader and documentation | signed `0.977.6` | current |
 | Installed local binary used by the audited integration | `0.977.3` | local operator binding behind |
-| Math documentation | `0.977.3` | documentation behind |
 | `vela.space` documentation redirects | `0.977.2` | public documentation behind |
 
 Historical receipts remain bound to the binaries and digests they originally
@@ -187,6 +179,23 @@ must remain private, and registry or lab-catalogue files must not enter a public
 extraction. Six publicly tracked and served ITF/Fontshare WOFF2 files require
 written permission evidence or replacement and purge review. IBM Plex Mono
 redistribution requires the full OFL and copyright notice in-tree.
+
+## Deferred gates
+
+- **Projection:** public Problems reconstruction still requires a private
+  authenticated `vela-web` source-adapter asset, and the current projection
+  remains bound to Vela `0.977.3`. Custody and reprojection work starts after
+  the challenge freeze passes.
+- **Licensing:** no complete repository-wide rights ledger exists. The
+  ITF/Fontshare permission or replacement decision and complete IBM Plex notice
+  remain open gates for public asset movement.
+- **www:** `vela.space` remains deployed from private transitional `vela-web`
+  commit `04741101bddf01c95a7e60145ab970f45b0ab30a` and still links Vela
+  `0.977.2`. A rights-safe tiny owner, parity proof, candidate deployment, and
+  rollback evidence do not exist yet.
+
+These deferments do not change Protocol 1, schemas, authority, release bytes,
+or product behavior. [The current roadmap](VELA_ORG_ROADMAP.md) orders them.
 
 ## Explicit unknowns
 

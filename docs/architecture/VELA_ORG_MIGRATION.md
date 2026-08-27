@@ -7,10 +7,10 @@ in the signed, immutable Vela `0.977.6` release at commit
 `9ac8e7730bfb63a3b8eb1d2e1d91081c3e703c59`, tree
 `1332713f627ac73c235e4f9a7afe206499717154`, and Protocol 1 manifest root
 `sha256:bf1ef68165bccbc4d2e8a854f78c70448cc7de771bac23329f7a8ca115303f56`.
-That resolves G2's previously unknown qualified patch identity. It does not
-mark any downstream repin, projection, deployment, provider, or scientific
-authority change complete. The pre-release observations and remaining gates
-below are retained as dated plan state rather than rewritten after the fact.
+Workbench commit `ef6dc30a71dc8098ddde2292affebe0cc6ca4d23` and Math commit
+`3cbaa815b502183d9e2a2c5f91b0ede243f5f435` now bind that release. Those
+repins changed no Protocol, schema, authority record, DTO, or product behavior.
+Projection, deployment, provider, and scientific-authority state did not change.
 
 This plan moves from [the observed current architecture](VELA_ORG_CURRENT.md)
 to [the target architecture](VELA_ORG_TARGET.md). It authorizes no deployment,
@@ -21,10 +21,10 @@ by itself. Each tranche starts only when its stated evidence gate passes.
 
 - Vela `0.977.5`, its tag object, release commit, release tree, and Protocol 1
   manifest root remain immutable historical state.
-- Math authority commit
-  `cf6d76687b205a39e2515e9fec7087c819454d2f` and repository root
+- Math authority root
   `sha256:a956b84c437202e5a02cc9e036a621bd14a302b34a75758115730bdbb77c52a4`
-  remain unchanged while the reader contradiction is repaired.
+  remains unchanged. The current downstream repin is commit
+  `3cbaa815b502183d9e2a2c5f91b0ede243f5f435`.
 - A version label is not binary identity. Every active repin records the exact
   accepted binary digest and source/release identity.
 - Historical receipts keep their original version and digest bindings.
@@ -76,6 +76,10 @@ and stop any dependent destructive or provenance-changing action.
 
 ## G1 — O5 clean Math replay
 
+**State: complete.** The Vela `0.977.6` release includes the qualified Core
+repair. Clean replay retained the exact Math authority root and changed no Math
+authority record.
+
 O5 owns the smallest Core-side reconciliation of the two retained negative
 credential-scan reports with strict replay/status parity.
 
@@ -96,24 +100,26 @@ is demonstrated at the frozen Math identity. If the repair needs a schema,
 Protocol 1, authority-model, or Math-record change, G1 fails and the campaign
 returns to the supervisor for a new decision.
 
-## G2 — Downstream `0.977.5` or qualified-patch repins
+## G2 — Downstream `0.977.6` repins
 
-This gate begins only after G1. The repin target is the exact reader qualified
-by G1: released `0.977.5` if no new release is needed, otherwise an explicitly
-qualified patch release. The patch identity is **UNKNOWN** until release
-qualification; no document may guess it.
+The exact target is signed Vela `0.977.6` plus each supported platform digest.
+Workbench and Math completed bounded repins that passed independent review.
+Projection reconstruction remains open and moves with the custody and rights
+work in G4 so it cannot bypass the Problems challenge freeze.
 
 Apply bounded owner-local changes in this order:
 
-1. Workbench: update the release pin, accepted binary digest, exact Math
-   fixtures, and docs; add only the narrow status-backed readiness guard already
-   supported by the audit.
-2. Projection/reconstruction: update the accepted generator/reader digest and
+1. Workbench: **complete** at
+   `ef6dc30a71dc8098ddde2292affebe0cc6ca4d23`.
+2. Math documentation and reader binding: **complete** at
+   `3cbaa815b502183d9e2a2c5f91b0ede243f5f435` with unchanged authority root.
+3. Projection/reconstruction: **deferred to G4**. Update the accepted
+   generator/reader digest and
    reproduce an exact candidate release from the same source set before moving
    any current-release pointer.
-3. Active local/operator instructions and Math documentation: point to the
-   qualified current reader without rewriting historical receipts.
-4. www redirects: defer to G5 so the public link change ships with the parity
+4. Active local/operator installation: **approval-gated**. Do not replace a
+   local binary by implication from a documentation update.
+5. www redirects: **deferred to G5** so the public link change ships with parity
    cutover rather than as an unrelated deployment.
 
 Pass condition: each consumer's focused tests pass, clean Math replay remains
@@ -197,8 +203,7 @@ Evidence required:
    `vela-web` dependencies or unreviewed fonts;
 4. compare old and candidate routes, redirects, rendered content, status codes,
    metadata, assets, and mobile/desktop behavior;
-5. update Vela links to the qualified `0.977.5` or patch identity and exact
-   install boundary;
+5. update Vela links to signed `0.977.6` and its exact install boundary;
 6. deploy a non-production candidate and retain exact source/deployment
    provenance; and
 7. demonstrate rollback to the existing deployment before any relink.
@@ -242,9 +247,9 @@ are reported as unresolved, not silently treated as target completion.
 
 | Decision | Required before | Current state |
 | --- | --- | --- |
-| O5 repair qualifies without Protocol/authority/Math mutation | G2 | pending |
-| Exact qualified patch identity and digest, if `0.977.5` is insufficient | G2 | **UNKNOWN** |
-| WebMCP submission receipt and completed 24-hour window | G4 | pending |
+| O5 repair qualifies without Protocol/authority/Math mutation | G2 | complete in signed `0.977.6` |
+| Workbench and Math bind the qualified release and digest | G2 | complete at `ef6dc30a...` and `3cbaa815...` |
+| WebMCP submission receipt and completed 24-hour window | G4 | pending; Problems frozen at `532241ba...` |
 | Public projection asset owner and redistribution rights | G4 | **UNKNOWN** |
 | ITF/Fontshare permission or replacement/purge disposition | G4 | **UNKNOWN** |
 | Rights reviewer acceptance of the complete asset ledger | G5 | pending |
@@ -258,3 +263,6 @@ The migration is complete only when every target completion property has
 evidence and the inventory is re-frozen. A green check verifies its scoped
 gate; it is not by itself a scientific Decision, release publication, rights
 approval, deployment cutover, or user authorization.
+
+[The current roadmap](VELA_ORG_ROADMAP.md) presents these gates as Now, Next,
+and Later without changing their evidence or approval requirements.

@@ -76,6 +76,7 @@ manifest identity.
 - [CURRENT architecture](architecture/VELA_ORG_CURRENT.md)
 - [TARGET architecture](architecture/VELA_ORG_TARGET.md)
 - [MIGRATION architecture](architecture/VELA_ORG_MIGRATION.md)
+- [NOW / NEXT / LATER roadmap](architecture/VELA_ORG_ROADMAP.md)
 
 ## Current boundaries
 
