@@ -338,14 +338,15 @@ The implemented public topology is small:
 | --- | --- |
 | `vela-science/vela` | Product monorepo: Rust implementation, independent conformance readers and fixtures, releases, architecture |
 | `vela-science/problems` | problems.science, its root-bound read projection, hosted Work, and the authority-neutral WebMCP subset |
-| `vela-science/vela-workbench` | Local activity, native runs, evidence preparation, and explicit Submission handoff |
+| `vela-science/workbench` | Local activity, native runs, evidence preparation, and explicit Submission handoff |
 | `vela-science/math` | The mathematics authority: one repository, one trust root |
 | `vela-science/.github` | Organization profile, reusable workflows, security policy, repository templates |
+| `vela-science/www` | Tiny static public front door at `vela.space` |
 
-Private `vela-science/vela-web` remains transitional custody for the deployed
-`vela.space` source, Problems rollback history, and a private projection adapter.
-It owns no scientific authority. The Observatory is a historical name for a
-derived read surface; Problems owns the current public read product.
+Private `vela-science/vela-web` is archived historical implementation custody.
+It owns no live deployment, release dependency, or scientific authority. The
+Observatory is a historical name for a derived read surface; Problems owns the
+current public read product.
 
 Archived, preserved exactly as signed and no longer developed:
 `vela-science/erdos-frontier`, `vela-science/sidon-frontier`,

@@ -159,9 +159,9 @@ resolution, and generation of experiment-specific manifests.
 The wider project includes:
 
 - [problems.science](https://problems.science): browse problems and public results;
-- [Vela Workbench](https://github.com/vela-science/vela-workbench): local repository work and explicit handoff;
+- [Vela Workbench](https://github.com/vela-science/workbench): local repository work and explicit handoff;
 - [Vela Math](https://github.com/vela-science/math): the public scientific reference Repository; and
-- [vela.space](https://vela.space): the long-range vision for scientific inheritance.
+- [vela.space](https://vela.space): the tiny public front door for Vela.
 
 ## Build and contribute
 

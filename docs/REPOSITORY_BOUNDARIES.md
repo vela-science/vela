@@ -8,7 +8,8 @@ mutable state into a second source of truth.
 | --- | --- | --- |
 | `vela` | Protocol semantics, Rust CLI and libraries, wire schemas, conformance fixtures, protocol-wide ADRs, release artifacts, and cross-repository evidence claims in the paper | Scientific-repository work packets, case-specific execution artifacts, scientific Decisions, web projection code, or deployment state |
 | Scientific repositories such as `vela-science/math` | Source locks, local admission policy, rooted work packets, Claims, Submissions, Verifications, Decisions, artifacts, replay state, and exact next obligations | Generic Vela protocol behavior, web rendering, or authority over another repository |
-| `vela-web` | Root-bound Problems and other read projections, rendering, search, SELECT-only storage, deployment manifests, and product-qualification evidence | Scientific writers, authority credentials, inferred Standing, or duplicate canonical repository records |
+| `problems` | Root-bound Problems projections, hosted Work, search, SELECT-only projection access, deployment manifests, and product-qualification evidence | Scientific writers, authority credentials, inferred Standing, or duplicate canonical repository records |
+| `www` | The static, rights-safe public front door at `vela.space` | Problems behavior, scientific state, application runtime, or repository authority |
 | Native source and execution repositories | Proofs, computations, datasets, model runs, and native package/toolchain state | Vela Standing or repository authority unless separately admitted through the protocol |
 | Memos | Research input and recommendations | Canonical product, protocol, or scientific state |
 
@@ -18,8 +19,9 @@ Put a change in `vela` only when it remains meaningful with every named
 scientific case removed. Put a change in a scientific Repository such as `vela-science/math` when it names a local
 source, work packet, verifier, Claim, Decision, artifact, or successor
 obligation.
-Put a change in `vela-web` when it exists only to read, render, search, export,
-measure, or deploy already-canonical state.
+Put a change in `problems` when it exists only to read, render, search, export,
+measure, or deploy already-canonical scientific state. Put the minimal static
+front-door surface in `www`.
 
 Protocol-wide research campaigns may live in `vela` when they test a generic
 claim across multiple scientific repositories. Their case inputs must be exact external

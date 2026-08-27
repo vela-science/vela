@@ -1,6 +1,7 @@
 # Vela organization: migration architecture
 
-Status: canonical evidence-bound migration plan for VELA-ORG-1
+Status: historical VELA-ORG-1 migration plan; superseded by the completed
+VELA-ORG-2 consolidation recorded in [the current map](VELA_ORG_CURRENT.md)
 
 Completion note (2026-08-27): G1's Core credential-preflight repair is included
 in the signed, immutable Vela `0.977.6` release at commit
