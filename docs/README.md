@@ -59,7 +59,6 @@ manifest identity.
 - [Interoperability](INTEROPERABILITY.md)
 - [Architecture](ARCHITECTURE.md)
 - [Native Repository integration](integrations/native-repository-integration-v0.1.md)
-- [Read-only research-program loop](RESEARCH_PROGRAM_LOOP.md)
 - [Integration-profile template](integrations/integration-profile-template.md)
 - [Genesis open-model integration record](integrations/genesis-open-models.md)
 

@@ -452,18 +452,6 @@ pub(crate) enum IntegrationAction {
         #[arg(long, help = HELP_JSON)]
         json: bool,
     },
-    /// Build one read-only, exact-source research-program view.
-    #[command(override_usage = "vela integration program [OPTIONS] <INPUT>")]
-    Program {
-        /// Closed vela.cli.research-program-input.v1 document.
-        #[arg(value_name = "INPUT")]
-        input: PathBuf,
-        /// Override the input observation time for a reproducible freshness query.
-        #[arg(long = "as-of", help = HELP_AS_OF)]
-        as_of: Option<String>,
-        #[arg(long, help = HELP_JSON)]
-        json: bool,
-    },
 }
 
 #[derive(Subcommand)]
