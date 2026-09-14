@@ -146,3 +146,5 @@ documents above define the product now.
 [Historical documents](history/README.md) retain selected migrations,
 qualifications, and rejected designs with dated labels. Git history retains
 obsolete campaign and planning material that no current consumer needs.
+
+[Behavioral component certificate lifecycle](COMPONENT_CERTIFICATE_LIFECYCLE.md) is a scoped design note using existing evidence and authority boundaries; it defines no new protocol semantics.
