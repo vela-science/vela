@@ -17,3 +17,13 @@ A certificate for a one-mission property does not establish lifetime safety. A s
 Vela supplies identity, content/version binding, evidence custody, scoped verification, authority-local decisions, replay and correction history. Characterization, active experiment scheduling, reset execution, provider calls, learned models and certificate generation remain external. A source-owned requalification plan has no authority over another repository and no automatic admission effect.
 
 This fit is a proposal to use existing objects. Its empirical value depends on independently qualified producers and consumers. The behavioral-componentization experiments in autonomous-science currently preserve negative qualification results; this note does not assert that an interoperable component market, research intelligence architecture or execution control plane exists.
+
+## Imported followup evidence — 2026-09-15
+
+The [autonomous-science source packet](https://github.com/williamjblair/autonomous-science/blob/3412ecfb868fd93a33ca44c40c57e3de03b97860/reports/conversation-evidence-2026-09-15/README.md) records reported concurrency, crash/retry, backend-substitution, Git failover, semantic-survey and qualification results from two research chats. Original generated experiment bundles remain unrecovered; the packet distinguishes reported claims from hash checks, existing E8 aggregates and elementary arithmetic. It is external evidence, not a new Vela qualification service.
+
+A useful contract may permit multiple behaviors. A verification record must name the contract and assumptions actually checked; failure of exact timed prediction cannot be silently relabeled as success under a weaker contract. Likewise, one successful probe cannot establish arbitrary-future effect safety.
+
+The reported failures reinforce the existing authority boundary: a past permission decision is not necessarily current authority at commitment; disjoint writes may have shared read dependencies; a durable receipt is not proof that an external effect committed atomically with it. Native resource owners define and enforce those semantics. Identity, custody, verification, scientific admission and external effect authorization remain separate.
+
+Same-team adapters, two executors sharing a Git authority, and manually grouped API operations do not establish independent-provider portability or measured customer benefit. These reports may inform a scoped review, but do not justify extracting a new shared core profile or changing Protocol 1.
