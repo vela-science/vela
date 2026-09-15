@@ -20,7 +20,7 @@ This fit is a proposal to use existing objects. Its empirical value depends on i
 
 ## Imported followup evidence — 2026-09-15
 
-The [autonomous-science source packet](https://github.com/williamjblair/autonomous-science/blob/3412ecfb868fd93a33ca44c40c57e3de03b97860/reports/conversation-evidence-2026-09-15/README.md) records reported concurrency, crash/retry, backend-substitution, Git failover, semantic-survey and qualification results from two research chats. Original generated experiment bundles remain unrecovered; the packet distinguishes reported claims from hash checks, existing E8 aggregates and elementary arithmetic. It is external evidence, not a new Vela qualification service.
+The [autonomous-science source packet](https://github.com/williamjblair/autonomous-science/blob/f39444a0737e5e9c0702721ffcce3a80a001686c/reports/conversation-evidence-2026-09-15/README.md) records reported concurrency, crash/retry, backend-substitution, Git failover, semantic-survey and qualification results from two research chats. Eight original bundles and the exact E7 tarball are now retained with verified hashes; the corrected audit code reproduces its local concurrency, crash/retry, backend and temporal-model controls. The initial missing-bundle conclusion is superseded. Specific missing generators and annotated inputs remain documented in the source packet. It is external evidence, not a new Vela qualification service.
 
 A useful contract may permit multiple behaviors. A verification record must name the contract and assumptions actually checked; failure of exact timed prediction cannot be silently relabeled as success under a weaker contract. Likewise, one successful probe cannot establish arbitrary-future effect safety.
 
