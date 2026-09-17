@@ -4,6 +4,14 @@ Vela is a multi-repository system. Each fact has one canonical owner; other
 repositories may bind an exact commit or root, but must not copy that owner's
 mutable state into a second source of truth.
 
+For the wider autonomous-science direction and repository inventory, see the
+[programme
+vision](https://github.com/williamjblair/autonomous-science/blob/master/VISION.md)
+and [repository
+map](https://github.com/williamjblair/autonomous-science/blob/master/docs/REPOSITORY_MAP.md).
+Those documents describe programme strategy; this file remains the current
+authority for Vela repository placement.
+
 | Repository | Owns | Must not own |
 | --- | --- | --- |
 | `vela` | Protocol semantics, Rust CLI and libraries, wire schemas, conformance fixtures, protocol-wide ADRs, release artifacts, and cross-repository evidence claims in the paper | Scientific-repository work packets, case-specific execution artifacts, scientific Decisions, web projection code, or deployment state |

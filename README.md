@@ -37,6 +37,20 @@ A Vela Repository is the local authority boundary. A Frontier is only a
 derived query over current Standing: it carries no authority, owns no records,
 and is not a persistent governed repository.
 
+## Programme context
+
+Vela is the source-state core within the wider autonomous-science programme.
+It owns exact repository state, authority evaluation, replay, and portable
+protocol contracts; it does not own the programme's runner, scheduler, agent
+host, or workflow engine.
+
+The cross-repository direction is maintained in the [programme
+vision](https://github.com/williamjblair/autonomous-science/blob/master/VISION.md)
+and [repository
+map](https://github.com/williamjblair/autonomous-science/blob/master/docs/REPOSITORY_MAP.md).
+The intended programme-level Frontiers layer described there is not a unified
+product implemented by this repository.
+
 ## Where Vela fits
 
 Native tools produce the work. Source repositories and registries retain their
